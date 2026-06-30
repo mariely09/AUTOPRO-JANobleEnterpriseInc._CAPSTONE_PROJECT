@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'customer_mybookings.dart';
 
 class CustomerBookService extends StatefulWidget {
   /// When [embedded] is true (inside a TabBarView), the AppBar is hidden.
@@ -31,6 +32,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
   late int _calYear;
   late int _calMonth;
   Map<String, int> _bookedDates = {};
+  Map<String, List<String>> _bookedTimes = {}; // date → list of taken time slots
   static const _maxBookingsPerDay = 5;
 
   @override
@@ -100,6 +102,26 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       }
       if (mounted) setState(() => _bookedDates = counts);
     } catch (_) {}
+  }
+
+  Future<void> _loadBookedTimesForDate(String dateStr) async {
+    if (_bookedTimes.containsKey(dateStr)) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('service_bookings')
+          .where('preferredDate', isEqualTo: dateStr)
+          .where('status', whereIn: ['Approved', 'Pending'])
+          .get();
+      final times = snap.docs
+          .map((d) => d.data()['preferredTime'] as String?)
+          .where((t) => t != null && t.isNotEmpty)
+          .cast<String>()
+          .toSet()
+          .toList();
+      if (mounted) setState(() => _bookedTimes[dateStr] = times);
+    } catch (_) {
+      if (mounted) setState(() => _bookedTimes[dateStr] = []);
+    }
   }
 
   Future<void> _submitBooking() async {
@@ -229,6 +251,20 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         checks.add('✅ Capacity: Shop open');
       }
 
+      // 7. Duplicate time slot — same date, same time already taken
+      final timeSnap = await db.collection('service_bookings')
+          .where('preferredDate', isEqualTo: dateStr)
+          .where('preferredTime', isEqualTo: _preferredTime)
+          .where('status', whereIn: ['Approved', 'Pending'])
+          .get();
+      if (timeSnap.docs.isNotEmpty) {
+        autoApprove = false;
+        denyReason = 'The $_preferredTime slot on ${_fmtDatePretty(bookDate)} is already taken.';
+        checks.add('❌ Time Slot: Already taken');
+      } else {
+        checks.add('✅ Time Slot: Available');
+      }
+
       // ═══════════════════════════════════════════════════════════
       // DECISION
       // ═══════════════════════════════════════════════════════════
@@ -259,6 +295,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
           'status': finalStatus,
           'autoApproved': autoApprove,
           'approvalChecks': checks,
+          'usedAiSuggestion': false, // mobile has no AI suggestion widget yet
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
@@ -318,7 +355,8 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       }
 
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pushReplacement(context,
+          MaterialPageRoute(builder: (_) => const CustomerMyBookings()));
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(autoApprove
             ? '✅ Booking confirmed for ${selectedVehicles.length} vehicle${selectedVehicles.length > 1 ? 's' : ''}!'
@@ -630,12 +668,16 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     final suggestedDate = bestSuggestion!;
 
     return GestureDetector(
-      onTap: () => setState(() {
-        _preferredDate = suggestedDate;
-        // Update calendar view to show the suggested month
-        _calYear = suggestedDate.year;
-        _calMonth = suggestedDate.month;
-      }),
+      onTap: () {
+        setState(() {
+          _preferredDate = suggestedDate;
+          _preferredTime = null; // reset time when date changes
+          _calYear = suggestedDate.year;
+          _calMonth = suggestedDate.month;
+        });
+        final dateStr = '${suggestedDate.year}-${suggestedDate.month.toString().padLeft(2, '0')}-${suggestedDate.day.toString().padLeft(2, '0')}';
+        _loadBookedTimesForDate(dateStr);
+      },
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -772,7 +814,15 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
               }
 
               return GestureDetector(
-                onTap: isAvailable ? () => setState(() => _preferredDate = date) : null,
+                onTap: isAvailable ? () {
+                  final dateStr2 = '$_calYear-${_calMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+                  setState(() {
+                    _preferredDate = date;
+                    // Reset time if changing date
+                    _preferredTime = null;
+                  });
+                  _loadBookedTimesForDate(dateStr2);
+                } : null,
                 child: Container(
                   decoration: BoxDecoration(
                     color: bgColor,
@@ -832,20 +882,49 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
 
   Widget _timeChip(String time) {
     final isSelected = _preferredTime == time;
+    // Check if this time is taken for the selected date
+    final dateStr = _preferredDate != null
+        ? '${_preferredDate!.year}-${_preferredDate!.month.toString().padLeft(2, '0')}-${_preferredDate!.day.toString().padLeft(2, '0')}'
+        : '';
+    final isTaken = dateStr.isNotEmpty && (_bookedTimes[dateStr]?.contains(time) ?? false);
+
     return GestureDetector(
-      onTap: () => setState(() => _preferredTime = time),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF5F5) : Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? _red : const Color(0xFFe2e8f0),
-            width: isSelected ? 2 : 1.5),
+      onTap: (isTaken || _preferredDate == null) ? null : () => setState(() => _preferredTime = time),
+      child: Tooltip(
+        message: isTaken ? 'Already booked — choose another time' : '',
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isTaken
+                ? const Color(0xFFF1F5F9)
+                : isSelected
+                    ? const Color(0xFFFFF5F5)
+                    : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isTaken
+                  ? const Color(0xFFe2e8f0)
+                  : isSelected
+                      ? _red
+                      : const Color(0xFFe2e8f0),
+              width: isSelected ? 2 : 1.5,
+            ),
+          ),
+          child: Text(
+            time,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isTaken
+                  ? const Color(0xFFa0aec0)
+                  : isSelected
+                      ? _red
+                      : const Color(0xFF4a5568),
+              decoration: isTaken ? TextDecoration.lineThrough : null,
+              decorationColor: const Color(0xFFa0aec0),
+            ),
+          ),
         ),
-        child: Text(time, style: TextStyle(
-          fontSize: 12, fontWeight: FontWeight.w600,
-          color: isSelected ? _red : const Color(0xFF4a5568))),
       ),
     );
   }

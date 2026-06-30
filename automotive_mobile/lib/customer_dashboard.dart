@@ -490,42 +490,116 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                   ),
                   const SizedBox(height: 16),
                   if (status == 'Overdue') ...[
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pop(context); // close modal
-                        Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => CustomerBookService(preselectedVehicleId: v['id']!)));
+                    FutureBuilder<QuerySnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('service_bookings')
+                          .where('vehicleId', isEqualTo: v['id']!)
+                          .where('status', whereIn: ['Approved', 'Pending'])
+                          .limit(1)
+                          .get(),
+                      builder: (context, bookingSnap) {
+                        if (bookingSnap.connectionState == ConnectionState.waiting) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _red))),
+                          );
+                        }
+                        final hasBooking = (bookingSnap.data?.docs.isNotEmpty ?? false);
+                        if (hasBooking) {
+                          // Already booked — show booking status instead
+                          final bookingData = bookingSnap.data!.docs.first.data() as Map<String, dynamic>;
+                          final bStatus = bookingData['status'] as String? ?? 'Pending';
+                          final bDate = bookingData['preferredDate'] as String? ?? '';
+                          final isApproved = bStatus == 'Approved';
+                          final bannerColor = isApproved ? Colors.green : Colors.orange;
+                          final bannerBg = isApproved ? const Color(0xFFF0FDF4) : const Color(0xFFFFFBEB);
+                          final bannerBorder = isApproved ? const Color(0xFFC6F6D5) : const Color(0xFFFDE68A);
+                          String prettyDate = bDate;
+                          if (bDate.isNotEmpty) {
+                            final parsed = DateTime.tryParse(bDate);
+                            if (parsed != null) prettyDate = _fmtDateLong(bDate);
+                          }
+                          return Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: bannerBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: bannerBorder, width: 1.5),
+                            ),
+                            child: Row(children: [
+                              Container(
+                                width: 38, height: 38,
+                                decoration: BoxDecoration(
+                                  color: bannerColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10)),
+                                child: Icon(Icons.check_circle_outline, size: 18, color: bannerColor),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text(
+                                  isApproved ? 'Service Booked & Confirmed' : 'Service Booking Pending',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: bannerColor),
+                                ),
+                                const SizedBox(height: 2),
+                                Text('Scheduled for $prettyDate',
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                              ])),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(context,
+                                    MaterialPageRoute(builder: (_) => const CustomerMyBookings()));
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: bannerColor,
+                                    borderRadius: BorderRadius.circular(8)),
+                                  child: const Text('View', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+                                ),
+                              ),
+                            ]),
+                          );
+                        }
+                        // No active booking — show Book Now banner
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => CustomerBookService(preselectedVehicleId: v['id']!)));
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF5F5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFFED7D7), width: 1.5),
+                            ),
+                            child: Row(children: [
+                              Container(
+                                width: 38, height: 38,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8001C).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10)),
+                                child: const Icon(Icons.calendar_month_outlined, size: 18, color: Color(0xFFE8001C)),
+                              ),
+                              const SizedBox(width: 12),
+                              const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text('PMS is overdue', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFE8001C))),
+                                SizedBox(height: 2),
+                                Text('Book a service now to avoid further issues.', style: TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                              ])),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8001C),
+                                  borderRadius: BorderRadius.circular(8)),
+                                child: const Text('Book', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+                              ),
+                            ]),
+                          ),
+                        );
                       },
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF5F5),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFFED7D7), width: 1.5),
-                        ),
-                        child: Row(children: [
-                          Container(
-                            width: 38, height: 38,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8001C).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(10)),
-                            child: const Icon(Icons.calendar_month_outlined, size: 18, color: Color(0xFFE8001C)),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text('PMS is overdue', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFE8001C))),
-                            SizedBox(height: 2),
-                            Text('Book a service now to avoid further issues.', style: TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                          ])),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8001C),
-                              borderRadius: BorderRadius.circular(8)),
-                            child: const Text('Book', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
-                          ),
-                        ]),
-                      ),
                     ),
                     const SizedBox(height: 12),
                   ],

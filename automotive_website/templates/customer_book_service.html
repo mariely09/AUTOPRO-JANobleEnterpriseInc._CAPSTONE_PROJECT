@@ -67,6 +67,8 @@
         .bs-time-chip { padding:10px 6px; background:white; border:1.5px solid #e2e8f0; border-radius:10px; font-size:12px; font-weight:600; color:#4a5568; cursor:pointer; transition:all .15s; font-family:inherit; }
         .bs-time-chip:hover { border-color:#cbd5e0; background:#f7f8fa; }
         .bs-time-chip.selected { border-color:#E8001C; border-width:2px; background:#fff5f5; color:#E8001C; font-weight:700; }
+        .bs-time-chip:disabled { opacity:.4; cursor:not-allowed; }
+        .bs-time-chip.taken { background:#f1f5f9; color:#a0aec0; border-color:#e2e8f0; text-decoration:line-through; opacity:.5; cursor:not-allowed; }
 
         /* ── Summary Card ── */
         .bs-summary-card { background:white; border-radius:14px; border:1.5px solid #e2e8f0; padding:16px 18px; }
@@ -95,7 +97,7 @@
   <div class="bs-page">
     <div class="bs-header">
       <h2>Book a Service</h2>
-      <p>Select your vehicle, choose services, and pick a preferred date.</p>
+      <p>Choose your vehicle(s), pick the services you need, and select a date and time that works for you.</p>
     </div>
 
     <div class="bs-grid">
@@ -238,6 +240,7 @@ var _bsSelectedVehicles = {};
 var _bsVehicleServices = {};
 var _bsDate = '';
 var _bsTime = '';
+var _bsBookedTimes = {}; // date → array of taken times
 
 window.bsSelectTime = function(btn) {
   document.querySelectorAll('.bs-time-chip').forEach(function(c){ c.classList.remove('selected'); });
@@ -504,6 +507,11 @@ window.bsUseSuggestion = function() {
   if (!_bsSuggestedDate) return;
   _bsDate = _bsSuggestedDate;
   _bsCalSelectedDate = _bsSuggestedDate;
+  // Reset time selection
+  _bsTime = '';
+  document.querySelectorAll('.bs-time-chip').forEach(function(c){ c.classList.remove('selected'); });
+  var arriveEl = document.getElementById('bsArriveBy');
+  if (arriveEl) arriveEl.style.display = 'none';
   bsRenderCalendar();
   _showSelectedDate();
   // Hide calendar, update button
@@ -511,6 +519,7 @@ window.bsUseSuggestion = function() {
   var btn = document.getElementById('bsDateBtn');
   btn.classList.add('has-value');
   document.getElementById('bsDateText').textContent = _fmtDatePretty(_bsDate);
+  _loadBookedTimesForDate(_bsDate);
 };
 
 window.bsToggleService = function(id) {
@@ -620,9 +629,60 @@ window.bsToggleCalendar = function() {
   }
 };
 
+async function _loadBookedTimesForDate(dateStr) {
+  if (_bsBookedTimes[dateStr] !== undefined) {
+    _renderTimeSlots();
+    return;
+  }
+  try {
+    var db = firebase.firestore();
+    var snap = await db.collection('service_bookings')
+      .where('preferredDate', '==', dateStr)
+      .where('status', 'in', ['Approved', 'Pending'])
+      .get();
+    var times = [];
+    snap.docs.forEach(function(d) {
+      var t = d.data().preferredTime;
+      if (t && times.indexOf(t) === -1) times.push(t);
+    });
+    _bsBookedTimes[dateStr] = times;
+  } catch(e) {
+    _bsBookedTimes[dateStr] = [];
+  }
+  _renderTimeSlots();
+}
+
+function _renderTimeSlots() {
+  var takenTimes = _bsDate ? (_bsBookedTimes[_bsDate] || []) : [];
+  document.querySelectorAll('.bs-time-chip').forEach(function(btn) {
+    var time = btn.getAttribute('data-time');
+    var isTaken = takenTimes.indexOf(time) !== -1;
+    if (isTaken) {
+      btn.disabled = true;
+      btn.classList.add('taken');
+      btn.classList.remove('selected');
+      btn.title = 'Already booked — choose another time';
+      if (_bsTime === time) {
+        _bsTime = '';
+        var arriveEl = document.getElementById('bsArriveBy');
+        if (arriveEl) arriveEl.style.display = 'none';
+      }
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('taken');
+      btn.title = '';
+    }
+  });
+}
+
 window.bsSelectDate = function(dateStr) {
   _bsCalSelectedDate = dateStr;
   _bsDate = dateStr;
+  // Reset time if it's now taken on the new date
+  _bsTime = '';
+  document.querySelectorAll('.bs-time-chip').forEach(function(c){ c.classList.remove('selected'); });
+  var arriveEl = document.getElementById('bsArriveBy');
+  if (arriveEl) arriveEl.style.display = 'none';
   bsRenderCalendar();
   _showSelectedDate();
   // Hide calendar and update button text
@@ -630,6 +690,7 @@ window.bsSelectDate = function(dateStr) {
   var btn = document.getElementById('bsDateBtn');
   btn.classList.add('has-value');
   document.getElementById('bsDateText').textContent = _fmtDatePretty(_bsDate);
+  _loadBookedTimesForDate(dateStr);
 };
 
 function _showSelectedDate() {
@@ -761,7 +822,21 @@ window.bsSubmit = async function() {
       checks.push('✅ Capacity: Shop open');
     }
 
-    // 7. AI Slot Match (bonus confidence)
+    // 7. Duplicate time slot — same date + time already taken
+    var timeSlotSnap = await db.collection('service_bookings')
+      .where('preferredDate', '==', _bsDate)
+      .where('preferredTime', '==', _bsTime)
+      .where('status', 'in', ['Approved', 'Pending'])
+      .get();
+    if (!timeSlotSnap.empty) {
+      autoApprove = false;
+      denyReason = 'The ' + _bsTime + ' slot on ' + _fmtDatePretty(_bsDate) + ' is already taken.';
+      checks.push('❌ Time Slot: Already taken');
+    } else {
+      checks.push('✅ Time Slot: Available');
+    }
+
+    // 8. AI Slot Match (bonus confidence)
     var usedAiSlot = (_bsDate === _bsSuggestedDate);
     if (usedAiSlot) {
       checks.push('✅ AI Slot Match: +20% confidence');
@@ -857,7 +932,7 @@ window.bsSubmit = async function() {
       _toast('Booking submitted — pending admin approval. ' + denyReason, 'error');
     }
 
-    setTimeout(function(){ window.location.href = 'customer_dashboard.html'; }, 2000);
+    setTimeout(function(){ window.location.href = 'customer_my_bookings.html'; }, 2000);
   } catch(e) {
     _toast('Error: '+e.message,'error');
     btn.disabled = false; btn.textContent = 'Book Service';

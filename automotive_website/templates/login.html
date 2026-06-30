@@ -154,6 +154,13 @@
       return;
     }
 
+    // Validate email format before hitting Firebase
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showToast('Please enter a valid email address.');
+      return;
+    }
+
     setLoading(signinBtn, true, signinDefault);
     try {
       console.log('=== Email/Password Login ===');
@@ -295,6 +302,8 @@
         msg = 'Incorrect password. Please try again.';
       } else if (e.code === 'auth/invalid-credential') {
         msg = 'Invalid email or password.';
+      } else if (e.code === 'auth/invalid-email') {
+        msg = 'Please enter a valid email address.';
       } else if (e.code === 'permission-denied') {
         msg = 'Permission denied. Firestore rules may need to be updated. Please contact the administrator.';
       } else if (e.code && !e.code.startsWith('auth/')) {
