@@ -7,11 +7,16 @@
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
     <link rel="stylesheet" href="../static/css/style.css">
     <link rel="stylesheet" href="../static/css/admin.css">
+    <link rel="stylesheet" href="../static/css/customer_dashboard.css">
     <link rel="stylesheet" href="../static/css/help_support.css">
+    <style>
+        body { background:#F7F8FA !important; display:block !important; align-items:unset !important; justify-content:unset !important; min-height:100vh; margin:0; padding:0; }
+        #adminWrap, #standaloneWrap { display:none; }
+    </style>
 </head>
 <body class="portal-body" data-page="help_support">
 <!-- ── Admin layout ── -->
-<div id="adminWrap" style="display:none;flex-direction:column;" class="admin-dashboard">
+<div id="adminWrap" style="flex-direction:column;width:100%;min-height:100vh;" class="admin-dashboard">
     <div id="headerContainer"></div>
     <div class="admin-dashboard-body">
         <div id="sidebarContainer"></div>
@@ -30,7 +35,7 @@
 </div>
 
 <!-- ── Customer / Staff layout ── -->
-<div id="standaloneWrap" style="display:none;flex-direction:column;min-height:100vh;width:100%;">
+<div id="standaloneWrap" style="flex-direction:column;min-height:100vh;width:100%;">
     <div id="cuHeaderWrap"></div>
     <main style="flex:1;overflow-y:auto;padding:1.5rem 2rem;background:#F7F8FA;width:100%;box-sizing:border-box;">
         <div id="hsContent2"></div>
