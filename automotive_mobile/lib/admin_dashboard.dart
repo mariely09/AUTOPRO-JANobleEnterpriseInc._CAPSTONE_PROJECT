@@ -279,7 +279,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 for (final d in vehicleDocs) {
                   final status = ((d.data() as Map<String, dynamic>)['status'] as String? ?? '').toLowerCase();
                   if (status == 'overdue' || status == 'pms overdue') overdueCount++;
-                  else if (status == 'pms due soon' || status == 'due soon') dueSoonCount++;
+                  else if (status == 'due this week' || status == 'pms due soon' || status == 'due soon') dueSoonCount++;
                   else if (status == 'maintenance' || status == 'under maintenance') maintenanceCount++;
                   else activeCount++;
                 }
@@ -370,6 +370,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 for (final iss in allIssuances) {
                   // Skip services — only count materials
                   if ((iss['itemType'] as String? ?? '').toLowerCase() == 'service') continue;
+                  // Filter to current month only
+                  final dateStr = iss['date'] as String? ?? '';
+                  bool inCurrentMonth = false;
+                  if (dateStr.isNotEmpty) {
+                    final parts = dateStr.split(' ');
+                    if (parts.length >= 3) {
+                      final m = months.indexOf(parts[0]);
+                      final y = int.tryParse(parts[2]) ?? -1;
+                      inCurrentMonth = m == now.month - 1 && y == now.year;
+                    }
+                  } else {
+                    final ts = iss['createdAt'];
+                    if (ts != null) {
+                      try {
+                        final dt = (ts as dynamic).toDate() as DateTime;
+                        inCurrentMonth = dt.month == now.month && dt.year == now.year;
+                      } catch (_) {}
+                    }
+                  }
+                  if (!inCurrentMonth) continue;
                   final name = (iss['itemName'] ?? iss['item'] ?? '') as String;
                   if (name.isEmpty || name == '—') continue;
                   final qty = parseQty(iss['quantity'] ?? iss['qty'] ?? 0);
@@ -669,7 +689,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       _donutLegendRow('Active', activeCount, const Color(0xFF003087)),
-                                      _donutLegendRow('Due Soon', dueSoonCount, const Color(0xFFed8936)),
+                                      _donutLegendRow('Due This Week', dueSoonCount, const Color(0xFFed8936)),
                                       _donutLegendRow('Overdue', overdueCount, _red),
                                       _donutLegendRow('Maintenance', maintenanceCount, const Color(0xFF0d9488)),
                                     ],
@@ -850,7 +870,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           const SizedBox(width: 10),
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             const Text('Top 10 Most Used Parts', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
-                            Text('All time · Materials only', style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+                            Text('${months[now.month - 1]} ${now.year} · Materials only', style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
                           ])),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),

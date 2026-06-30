@@ -783,7 +783,7 @@
         vehicles.forEach(v => {
           const s = (v.status || '').toLowerCase();
           if (s === 'overdue' || s === 'pms overdue') overdue++;
-          else if (s === 'pms due soon' || s === 'due soon') dueSoon++;
+          else if (s === 'due this week' || s === 'pms due soon' || s === 'due soon') dueSoon++;
           else if (s === 'maintenance' || s === 'under maintenance') maintenance++;
           else active++;
         });
@@ -791,7 +791,7 @@
         const donutTotal = document.getElementById('donutTotal');
         if (donutTotal) donutTotal.textContent = vehicles.length;
 
-        const donutLabels = ['Active', 'Due Soon', 'Overdue', 'Maintenance'];
+        const donutLabels = ['Active', 'Due This Week', 'Overdue', 'Maintenance'];
         const donutData   = [active, dueSoon, overdue, maintenance];
         const donutColors = ['#003087', '#ed8936', '#E8001C', '#0d9488'];
 
@@ -1008,16 +1008,33 @@
         }
 
         // ════════════════════════════════════════
-        // 4. BAR CHART — Top 10 Most Used Parts (All Time)
+        // 4. BAR CHART — Top 10 Most Used Parts (Current Month)
         // ════════════════════════════════════════
         const issuances = window._fbIssuances || [];
         const nowDate   = new Date();
         const curMonth  = nowDate.getMonth();
         const curYear   = nowDate.getFullYear();
+        const curMonthLabel = MONTHS[curMonth] + ' ' + curYear;
 
-        // Use ALL material issuances (not just current month) for better visibility
+        // Filter to current month only, materials only
         const materialIssuances = issuances.filter(iss => {
-          return (iss.itemType || '').toLowerCase() !== 'service';
+          if ((iss.itemType || '').toLowerCase() === 'service') return false;
+          // Parse date — handles "Jan 5, 2025" or Firestore Timestamp
+          const dateStr = iss.date || '';
+          if (dateStr) {
+            const parts = dateStr.split(' ');
+            if (parts.length >= 3) {
+              const m = MONTHS.indexOf(parts[0]);
+              const y = parseInt(parts[2]);
+              return m === curMonth && y === curYear;
+            }
+          }
+          const ts = iss.createdAt;
+          if (ts && typeof ts.toDate === 'function') {
+            const d = ts.toDate();
+            return d.getMonth() === curMonth && d.getFullYear() === curYear;
+          }
+          return false;
         });
 
         // Aggregate qty by item name
@@ -1040,7 +1057,7 @@
         const topPartsSub    = document.getElementById('topPartsSubLabel');
 
         // Update subtitle
-        if (topPartsSub) topPartsSub.textContent = 'All time · Materials only';
+        if (topPartsSub) topPartsSub.textContent = curMonthLabel + ' · Materials only';
 
         if (sorted.length === 0) {
           if (topPartsEmpty)  topPartsEmpty.style.display  = 'block';
