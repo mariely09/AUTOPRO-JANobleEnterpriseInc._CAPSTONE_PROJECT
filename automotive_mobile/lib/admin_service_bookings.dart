@@ -131,6 +131,8 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
               _statChip('Resched', '$rescheduled', _blue, Icons.history, 'Rescheduled'),
               const SizedBox(width: 6),
               _statChip('Cancelled', '$cancelled', _red, Icons.cancel_outlined, 'Dismissed'),
+              const SizedBox(width: 6),
+              _statChip('Pending', '$pending', const Color(0xFFd69e2e), Icons.access_time_outlined, 'Pending'),
             ]),
           ),
           Expanded(
@@ -377,7 +379,23 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await FirebaseFirestore.instance.collection('service_bookings').doc(docId).update({'status': 'Dismissed'});
+              final db = FirebaseFirestore.instance;
+              // Fetch booking data to get customerId and date for notification
+              final doc = await db.collection('service_bookings').doc(docId).get();
+              final data = doc.data() ?? {};
+              await db.collection('service_bookings').doc(docId).update({'status': 'Dismissed'});
+              // Notify customer
+              final customerId = data['customerId'] as String? ?? '';
+              final date = data['preferredDate'] as String? ?? '';
+              if (customerId.isNotEmpty) {
+                await db.collection('notifications').add({
+                  'title': '❌ Booking Cancelled',
+                  'message': 'Your service booking for $plate on ${_formatDate(date)} has been cancelled by the admin.',
+                  'type': 'warning',
+                  'targetRole': 'customer', 'targetUid': customerId,
+                  'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
+                });
+              }
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                   content: Text('Booking cancelled.'), backgroundColor: Colors.green,

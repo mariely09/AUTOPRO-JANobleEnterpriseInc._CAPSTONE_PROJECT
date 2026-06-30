@@ -71,6 +71,7 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
     final date = data['preferredDate'] as String? ?? '';
     final time = data['preferredTime'] as String? ?? '';
     final ss = _statusStyle(data);
+    final status = (data['status'] as String? ?? '').toLowerCase();
 
     return GestureDetector(
       onTap: () => _showModal(data),
@@ -140,31 +141,69 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
 
           // ── Footer ──
           Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: const BoxDecoration(
               color: Color(0xFFF8FAFC),
-              borderRadius:
-                  BorderRadius.vertical(bottom: Radius.circular(14)),
-              border: Border(
-                  top: BorderSide(color: Color(0xFFF0F4F8))),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
+              border: Border(top: BorderSide(color: Color(0xFFF0F4F8))),
             ),
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('View details',
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFFE8001C))),
-                Icon(Icons.chevron_right,
-                    size: 16, color: Color(0xFFE8001C)),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFE8001C))),
+                Icon(Icons.chevron_right, size: 16, color: Color(0xFFE8001C)),
               ],
             ),
           ),
         ]),
       ),
     );
+  }
+
+  // ── Cancel booking ────────────────────────────────────────────
+  Future<void> _cancelBooking(BuildContext ctx, Map<String, dynamic> data) async {
+    final plate = data['plate'] as String? ?? '—';
+    final docId = data['docId'] as String? ?? '';
+    if (docId.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: ctx,
+      builder: (c) => AlertDialog(
+        title: const Text('Cancel Booking'),
+        content: Text('Cancel your booking for $plate?\nThis cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('No')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Yes, Cancel', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final db = FirebaseFirestore.instance;
+    await db.collection('service_bookings').doc(docId).delete();
+
+    // Notify admin
+    final customerName = data['customerName'] as String? ?? 'Customer';
+    final date = data['preferredDate'] as String? ?? '';
+    await db.collection('notifications').add({
+      'title': '❌ Booking Cancelled by Customer',
+      'message': '$customerName cancelled their booking for $plate on ${date.isNotEmpty ? _fmtDateLong(date) : date}.',
+      'type': 'warning',
+      'targetRole': 'admin', 'targetUid': '',
+      'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Booking cancelled.'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   // ── Modal ─────────────────────────────────────────────────────
@@ -180,6 +219,9 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
     final isRescheduled =
         previousDate.isNotEmpty && previousDate != date;
     final ss = _statusStyle(data);
+    final status = (data['status'] as String? ?? '').toLowerCase();
+    final canCancel = status == 'pending' || status == 'approved';
+    final docId = data['docId'] as String? ?? '';
 
     showModalBottomSheet(
       context: context,
@@ -276,6 +318,28 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
                 ),
               ),
             ),
+            // ── Cancel button (only for Pending / Approved) ──
+            if (canCancel && docId.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      Navigator.pop(context); // close modal first
+                      await _cancelBooking(context, data);
+                    },
+                    icon: const Icon(Icons.cancel_outlined, size: 16, color: Color(0xFF718096)),
+                    label: const Text('Cancel Booking',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF718096))),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: Color(0xFFe2e8f0)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ),
           ]),
         ),
       ),
@@ -445,8 +509,10 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
             separatorBuilder: (_, __) =>
                 const SizedBox(height: 10),
             itemBuilder: (_, i) {
-              final data =
-                  docs[i].data() as Map<String, dynamic>;
+              final data = {
+                ...docs[i].data() as Map<String, dynamic>,
+                'docId': docs[i].id,
+              };
               return _bookingCard(data);
             },
           );

@@ -118,16 +118,51 @@ function initSidebarActive() {
     });
 }
 
+// Pages that use the expand/collapse (icon ↔ full-width) sidebar pattern.
+// All other admin pages use the drawer (hidden ↔ slide-in) pattern.
+const EXPAND_COLLAPSE_PAGES = [
+    'admin_dashboard.html',
+    'admin_inventory_stock.html',
+    'admin_inventory_itemaster.html',
+    'admin_vehicle_list.html',
+    'admin_vehicle_maintenance.html',
+    'admin_service_bookings.html',
+    'admin_receiving.html',
+    'admin_dss.html',
+    'admin_users.html',
+    'admin_domain_management.html',
+    'profile.html',
+    'change_password.html',
+    'notifications.html',
+    'help_support.html',
+];
+
+function _isExpandCollapsePage() {
+    const page = window.location.pathname.split('/').pop();
+    return EXPAND_COLLAPSE_PAGES.indexOf(page) !== -1;
+}
+
 function bindHeaderControls() {
     const menuBtn = document.getElementById('adminMenuBtn');
-    if (menuBtn) menuBtn.addEventListener('click', toggleSidebarExpand);
+    if (menuBtn) {
+        if (_isExpandCollapsePage()) {
+            menuBtn.addEventListener('click', toggleSidebarExpand);
+        } else {
+            // Drawer pages: hamburger opens/closes the sidebar as a slide-in panel
+            menuBtn.addEventListener('click', toggleAdminSidebar);
+        }
+    }
 
     const overlay = document.getElementById('adminSidebarOverlay');
     if (overlay) overlay.addEventListener('click', function() {
         var sidebar = document.getElementById('adminSidebar');
-        if (sidebar) sidebar.classList.remove('expanded');
-        document.body.classList.remove('sidebar-expanded');
-        localStorage.setItem('sidebarExpanded', '0');
+        if (_isExpandCollapsePage()) {
+            if (sidebar) sidebar.classList.remove('expanded');
+            document.body.classList.remove('sidebar-expanded');
+            localStorage.setItem('sidebarExpanded', '0');
+        } else {
+            if (sidebar) sidebar.classList.remove('admin-sidebar-open');
+        }
         overlay.classList.remove('active');
     });
 
@@ -197,8 +232,8 @@ function bindHeaderControls() {
         ? fetch('admin_sidebar.html').then(r => r.text()).then(html => {
             sidebarContainer.innerHTML = html;
             initSidebarActive();
-            // Restore expanded state from localStorage
-            if (localStorage.getItem('sidebarExpanded') === '1') {
+            // Restore expanded state from localStorage — only on expand/collapse pages
+            if (_isExpandCollapsePage() && localStorage.getItem('sidebarExpanded') === '1') {
                 var sidebar = document.getElementById('adminSidebar');
                 if (sidebar) sidebar.classList.add('expanded');
                 document.body.classList.add('sidebar-expanded');

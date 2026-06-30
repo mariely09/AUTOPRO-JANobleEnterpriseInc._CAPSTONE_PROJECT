@@ -28,6 +28,8 @@ class _UserProfileState extends State<UserProfile> {
   bool _editingInfo = false;
   bool _loading = true;
   String? _photoUrl;
+  String _origName  = '';
+  String _origEmail = '';
 
   final _nameCtrl  = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -90,10 +92,28 @@ class _UserProfileState extends State<UserProfile> {
   Future<void> _saveUserData() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    await FirebaseFirestore.instance.collection('users').doc(uid).update({
-      'name': _nameCtrl.text.trim(),
-      'email': _emailCtrl.text.trim(),
+    final newName  = _nameCtrl.text.trim();
+    final newEmail = _emailCtrl.text.trim();
+    final db = FirebaseFirestore.instance;
+
+    await db.collection('users').doc(uid).update({
+      'name': newName,
+      'email': newEmail,
     });
+
+    // Update owner field on all vehicles belonging to this customer
+    if (widget.role == UserRole.customer && _origName.isNotEmpty && _origName.toLowerCase() != newName.toLowerCase()) {
+      final snap = await db.collection('vehicles').get();
+      final batch = db.batch();
+      for (final doc in snap.docs) {
+        final owner = (doc.data()['owner'] as String? ?? '').toLowerCase();
+        if (owner == _origName.toLowerCase()) {
+          batch.update(doc.reference, {'owner': newName});
+        }
+      }
+      await batch.commit();
+    }
+    _origName = newName; // keep in sync after save
   }
 
   String get _initials {
@@ -207,6 +227,7 @@ class _UserProfileState extends State<UserProfile> {
                           padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
                           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                             const Text('Info', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF718096))),
+                            Row(children: [
                             TextButton.icon(
                               onPressed: () async {
                                 if (_editingInfo) {
@@ -234,13 +255,31 @@ class _UserProfileState extends State<UserProfile> {
                                       ));
                                     }
                                   }
+                                  setState(() => _editingInfo = false);
+                                } else {
+                                  // Store originals before entering edit mode
+                                  _origName  = _nameCtrl.text.trim();
+                                  _origEmail = _emailCtrl.text.trim();
+                                  setState(() => _editingInfo = true);
                                 }
-                                setState(() => _editingInfo = !_editingInfo);
                               },
                               icon: Icon(_editingInfo ? Icons.check : Icons.edit_outlined, size: 15),
                               label: Text(_editingInfo ? 'Save' : 'Edit', style: const TextStyle(fontSize: 12)),
                               style: TextButton.styleFrom(foregroundColor: _red),
                             ),
+                            if (_editingInfo)
+                              TextButton.icon(
+                                onPressed: () {
+                                  // Restore originals
+                                  _nameCtrl.text  = _origName;
+                                  _emailCtrl.text = _origEmail;
+                                  setState(() => _editingInfo = false);
+                                },
+                                icon: const Icon(Icons.close, size: 15, color: Color(0xFF718096)),
+                                label: const Text('Cancel', style: TextStyle(fontSize: 12, color: Color(0xFF718096))),
+                                style: TextButton.styleFrom(foregroundColor: const Color(0xFF718096)),
+                              ),
+                            ]),
                           ]),
                         ),
                         _editableTile(Icons.person_outline, 'Full Name', _nameCtrl),

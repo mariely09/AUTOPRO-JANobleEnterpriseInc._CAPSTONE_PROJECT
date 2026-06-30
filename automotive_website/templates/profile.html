@@ -284,6 +284,10 @@ function _renderProfile(d) {
         +         '<svg id="pEditBtnIcon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
         +         '<span id="pEditBtnLabel">Edit</span>'
         +       '</button>'
+        +       '<button class="pf-edit-btn pf-cancel-btn" id="pCancelBtn" onclick="cancelEditMode()" style="display:none;background:rgba(113,128,150,0.1);color:#718096;margin-left:6px;">'
+        +         '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+        +         '<span>Cancel</span>'
+        +       '</button>'
         +     '</div>'
         +     _infoEditTile('person', 'Full Name', 'pFieldName', _esc(name), false, false)
         +     _infoEditTile('email', 'Email', 'pFieldEmail', _esc(email), false, false)
@@ -353,6 +357,12 @@ window.toggleEditMode = function() {
         saveProfile();
     } else {
         _pEditing = true;
+        // Store originals for cancel
+        var nameView  = document.getElementById('view_pFieldName');
+        var emailView = document.getElementById('view_pFieldEmail');
+        window._pOrigName  = nameView  ? nameView.textContent  : '';
+        window._pOrigEmail = emailView ? emailView.textContent : '';
+
         ['pFieldName', 'pFieldEmail'].forEach(function(id) {
             var view = document.getElementById('view_' + id);
             var input = document.getElementById(id);
@@ -365,7 +375,31 @@ window.toggleEditMode = function() {
         var icon = document.getElementById('pEditBtnIcon');
         if (lbl) lbl.textContent = 'Save';
         if (icon) icon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+        var cancelBtn = document.getElementById('pCancelBtn');
+        if (cancelBtn) cancelBtn.style.display = 'inline-flex';
     }
+};
+
+window.cancelEditMode = function() {
+    _pEditing = false;
+    // Restore original values
+    var nameInput  = document.getElementById('pFieldName');
+    var emailInput = document.getElementById('pFieldEmail');
+    if (nameInput)  nameInput.value  = window._pOrigName  || '';
+    if (emailInput) emailInput.value = window._pOrigEmail || '';
+
+    ['pFieldName', 'pFieldEmail'].forEach(function(id) {
+        var view = document.getElementById('view_' + id);
+        var input = document.getElementById(id);
+        if (view) view.style.display = 'block';
+        if (input) input.style.display = 'none';
+    });
+    var lbl = document.getElementById('pEditBtnLabel');
+    var icon = document.getElementById('pEditBtnIcon');
+    if (lbl) lbl.textContent = 'Edit';
+    if (icon) icon.innerHTML = '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>';
+    var cancelBtn = document.getElementById('pCancelBtn');
+    if (cancelBtn) cancelBtn.style.display = 'none';
 };
 
 window.saveProfile = function() {
@@ -388,6 +422,22 @@ window.saveProfile = function() {
     firebase.firestore().collection('users').doc(uid).update({ name: name, email: email })
         .then(function() { return user.updateEmail(email); })
         .then(function() {
+            // Update owner field on all vehicles belonging to this customer
+            if (_profileRole === 'customer' && window._pOrigName && window._pOrigName !== name) {
+                var db = firebase.firestore();
+                db.collection('vehicles').get().then(function(snap) {
+                    var batch = db.batch();
+                    var oldNameLower = window._pOrigName.toLowerCase();
+                    snap.docs.forEach(function(doc) {
+                        var owner = (doc.data().owner || '').toLowerCase();
+                        if (owner === oldNameLower) {
+                            batch.update(doc.ref, { owner: name });
+                        }
+                    });
+                    return batch.commit();
+                }).catch(function(err) { console.warn('Vehicle owner update failed:', err); });
+            }
+
             var key = _profileRole === 'admin' ? 'apUser' : _profileRole === 'staff' ? 'spUser' : 'cpUser';
             var s = JSON.parse(sessionStorage.getItem(key) || '{}');
             s.name = name; s.email = email;
@@ -414,6 +464,8 @@ window.saveProfile = function() {
             if (lbl) lbl.textContent = 'Edit';
             var icon = document.getElementById('pEditBtnIcon');
             if (icon) icon.innerHTML = '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>';
+            var cancelBtn = document.getElementById('pCancelBtn');
+            if (cancelBtn) cancelBtn.style.display = 'none';
             _showToast('Profile updated successfully!', 'success');
         })
         .catch(function(err) {

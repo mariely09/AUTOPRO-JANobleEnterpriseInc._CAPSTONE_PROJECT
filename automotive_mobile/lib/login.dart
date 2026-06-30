@@ -50,6 +50,13 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    // Validate email format before hitting Firebase
+    final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+    if (!emailRegex.hasMatch(email)) {
+      _showError('Please enter a valid email address.');
+      return;
+    }
+
     setState(() => _loading = true);
     try {
       final cred = await FirebaseAuth.instance
@@ -138,7 +145,9 @@ class _LoginScreenState extends State<LoginScreen> {
               e.code == 'wrong-password' ||
               e.code == 'invalid-credential')
           ? 'Invalid email or password.'
-          : e.message ?? 'Login failed.';
+          : e.code == 'invalid-email'
+              ? 'Please enter a valid email address.'
+              : e.message ?? 'Login failed.';
       _showError(msg);
     } finally {
       if (mounted) setState(() => _loading = false);
