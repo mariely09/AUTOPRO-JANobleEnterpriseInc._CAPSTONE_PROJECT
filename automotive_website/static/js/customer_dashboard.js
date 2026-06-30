@@ -216,7 +216,7 @@
   }
 
   // ── Vehicle modal ─────────────────────────────────────────
-  window.cuShowVehicle = function (id) {
+  window.cuShowVehicle = async function (id) {
     const v = _vehicles.find(x => x.id === id);
     if (!v) return;
 
@@ -255,12 +255,48 @@
     document.getElementById('cuModalPlate').textContent = v.plate || '—';
     document.getElementById('cuModalDesc').textContent = v.desc || '—';
 
-    document.getElementById('cuModalDetails').innerHTML = `
-      ${detailRow('#718096', 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 5v5l3 3', 'Last Service Odometer', v.lastSvcOdo ? Number(String(v.lastSvcOdo).replace(/[^0-9]/g, '')).toLocaleString() + ' km' : '—')}
-      ${detailRow('#2b6cb0', 'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18', 'Last Service', v.lastSvcDate ? fmtDateLong(v.lastSvcDate) : '—')}
-      ${detailRow(color, 'M8 6l4-4 4 4M8 18l4 4 4-4M4 12h16', 'Next PMS Due', fmtDateLong(nextPms))}
-      ${detailRow(color, 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', 'Status', `<span style="background:${bg};color:${color};padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLabel}</span>`)}
-      ${status === 'Overdue' ? `
+    // Check if this vehicle already has an active booking (Pending or Approved)
+    let hasActiveBooking = false;
+    let activeBookingStatus = '';
+    try {
+      const bookSnap = await db.collection('service_bookings')
+        .where('vehicleId', '==', v.id)
+        .where('status', 'in', ['Pending', 'Approved'])
+        .limit(1).get();
+      if (!bookSnap.empty) {
+        hasActiveBooking = true;
+        activeBookingStatus = bookSnap.docs[0].data().status || 'Pending';
+      }
+    } catch(e) { console.error('Booking check error:', e); }
+
+    // Build overdue section: show "Already Booked" badge if booked, otherwise show Book button
+    let overdueSection = '';
+    if (status === 'Overdue') {
+      if (hasActiveBooking) {
+        const badgeColor = activeBookingStatus === 'Approved' ? '#16a34a' : '#d97706';
+        const badgeBg    = activeBookingStatus === 'Approved' ? 'rgba(22,163,74,0.08)' : 'rgba(217,119,6,0.08)';
+        const badgeBorder= activeBookingStatus === 'Approved' ? '#16a34a40' : '#d9770640';
+        const badgeIcon  = activeBookingStatus === 'Approved'
+          ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'
+          : '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>';
+        const subText = activeBookingStatus === 'Approved'
+          ? 'Your booking is confirmed. See you at the shop!'
+          : 'Your booking is pending admin approval.';
+        overdueSection = `
+        <div style="margin-top:14px;padding:12px;background:${badgeBg};border-radius:12px;border:1.5px solid ${badgeBorder};">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:38px;height:38px;background:${badgeColor}18;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${badgeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><${badgeIcon}/></svg>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:12px;font-weight:700;color:${badgeColor};">Service Already Booked</div>
+              <div style="font-size:11px;color:#718096;margin-top:2px;">${subText}</div>
+            </div>
+            <a href="customer_my_bookings.html" style="padding:6px 14px;background:${badgeColor};border:none;border-radius:8px;color:white;font-size:11px;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;">View</a>
+          </div>
+        </div>`;
+      } else {
+        overdueSection = `
         <div style="margin-top:14px;padding:12px;background:#fff5f5;border-radius:12px;border:1.5px solid #fed7d7;">
           <div style="display:flex;align-items:center;gap:12px;">
             <div style="width:38px;height:38px;background:rgba(232,0,28,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -272,7 +308,16 @@
             </div>
             <a href="customer_book_service.html?vehicleId=${v.id}" style="padding:8px 14px;background:#E8001C;border:none;border-radius:8px;color:white;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;">Book</a>
           </div>
-        </div>` : ''}
+        </div>`;
+      }
+    }
+
+    document.getElementById('cuModalDetails').innerHTML = `
+      ${detailRow('#718096', 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 5v5l3 3', 'Last Service Odometer', v.lastSvcOdo ? Number(String(v.lastSvcOdo).replace(/[^0-9]/g, '')).toLocaleString() + ' km' : '—')}
+      ${detailRow('#2b6cb0', 'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18', 'Last Service', v.lastSvcDate ? fmtDateLong(v.lastSvcDate) : '—')}
+      ${detailRow(color, 'M8 6l4-4 4 4M8 18l4 4 4-4M4 12h16', 'Next PMS Due', fmtDateLong(nextPms))}
+      ${detailRow(color, 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', 'Status', `<span style="background:${bg};color:${color};padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLabel}</span>`)}
+      ${overdueSection}
     `;
 
     document.getElementById('cuVehicleModal').classList.add('active');
