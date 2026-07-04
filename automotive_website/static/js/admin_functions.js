@@ -2889,6 +2889,21 @@ window.generateWebPMSNotifications = async function () {
         }
     }
 
+    // ── Helper: send email notification via Flask ──
+    async function _sendNotificationEmail(title, message, type, targetRole, targetUid) {
+        try {
+            await fetch('/api/send-notification-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, message, type,
+                    targetRole: targetRole || '',
+                    targetUid:  targetUid  || '' })
+            });
+        } catch (e) {
+            console.warn('generateWebPMSNotifications: email send failed', e);
+        }
+    }
+
     // ── Helper: write admin notification ──
     async function _notifyAdmins(title, message, type, prefKey) {
         const eligible = adminDocs.filter(d => adminPrefs[d.id]?.[prefKey] !== false);
@@ -2906,6 +2921,9 @@ window.generateWebPMSNotifications = async function () {
         } catch (e) {
             console.warn('generateWebPMSNotifications: admin Firestore write failed', e);
         }
+
+        // Email all eligible admins
+        await _sendNotificationEmail(title, message, type, 'admin', '');
 
         const subIds = eligible.map(d => d.data().oneSignalId).filter(Boolean);
         await _pushOneSignal(subIds, title, message, type);
@@ -2936,6 +2954,9 @@ window.generateWebPMSNotifications = async function () {
         } catch (e) {
             console.warn('generateWebPMSNotifications: owner Firestore write failed', e);
         }
+
+        // Email the individual owner
+        await _sendNotificationEmail(title, message, type, '', ownerId);
 
         if (ownerSubId) {
             await _pushOneSignal([ownerSubId], title, message, type);

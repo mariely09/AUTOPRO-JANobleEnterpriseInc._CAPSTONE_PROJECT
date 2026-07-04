@@ -204,6 +204,23 @@
         _showCuNotifToast('Notification deleted');
     };
 
+    window.markAllCuNotifsRead = function () {
+        if (!_cuUid) return;
+        var unread = _cuNotifs.filter(function (n) { return !n.read; });
+        if (unread.length === 0) { _showCuNotifToast('All notifications already read'); return; }
+        var db    = firebase.firestore();
+        var batch = db.batch();
+        var _a;
+        unread.forEach(function (n) {
+            batch.update(db.collection('notifications').doc(n.id),
+                (_a = {}, _a['readBy.' + _cuUid] = true, _a));
+            n.read = true; // update local cache immediately
+        });
+        batch.commit().catch(function () {});
+        _renderNotifPanel();
+        _showCuNotifToast('All notifications marked as read');
+    };
+
     window.clearCuNotifications = function () {
         var db = firebase.firestore();
         var batch = db.batch();

@@ -847,10 +847,12 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                           suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
                         ),
                         onTap: () async {
+                          final today = DateTime.now();
+                          final initial = DateTime.tryParse(dateCtrl.text) ?? today;
                           final picked = await showDatePicker(
                             context: ctx,
-                            initialDate: DateTime.tryParse(dateCtrl.text) ?? DateTime.now(),
-                            firstDate: DateTime(2020), lastDate: DateTime(2030),
+                            initialDate: initial.isBefore(today) ? today : initial,
+                            firstDate: today, lastDate: DateTime(2030),
                             builder: (c, child) => Theme(data: Theme.of(c).copyWith(colorScheme: const ColorScheme.light(primary: _red)), child: child!),
                           );
                           if (picked != null) dateCtrl.text = picked.toIso8601String().split('T')[0];

@@ -102,7 +102,7 @@
                 </div>
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <select id="deliveryMonthFilter" onchange="_renderList()" style="height:36px;padding:0 1.5rem 0 2rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.82rem;font-weight:600;color:#4a5568;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:140px;outline:none;">
+                    <select id="deliveryMonthFilter" onchange="_renderList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:140px;outline:none;">
                         <option value="">All Months</option>
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -464,18 +464,75 @@
           </div>
         </div>
       </div>
+
+      <!-- ── OCR Status + Invoice Items (auto-populated) ── -->
+      <div style="margin-top:1.25rem;background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#1a202c;">🧾 Invoice Line Items</div>
+            <div style="font-size:11px;color:#718096;margin-top:2px;">Auto-extracted from invoice image via OCR — edit if needed, then compare</div>
+          </div>
+          <button type="button" onclick="cmpAddInvoiceRow()" style="background:#718096;border:none;color:white;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">+ Add Row</button>
+        </div>
+
+        <!-- OCR progress bar -->
+        <div id="cmpOcrStatus" style="display:none;margin-bottom:0.75rem;">
+          <div style="display:flex;align-items:center;gap:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite;flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg>
+            <div style="flex:1;">
+              <div style="font-size:12px;font-weight:600;color:#1e40af;" id="cmpOcrMsg">Reading invoice image…</div>
+              <div style="height:4px;background:#dbeafe;border-radius:4px;margin-top:5px;overflow:hidden;">
+                <div id="cmpOcrBar" style="height:100%;background:#3b82f6;border-radius:4px;transition:width 0.3s ease;width:0%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Extracted items table -->
+        <div style="display:grid;grid-template-columns:2.5fr 1fr 1.2fr 1fr 30px;gap:6px;margin-bottom:5px;padding:0 2px;">
+          <div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;">Item Name / Description</div>
+          <div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;">Qty</div>
+          <div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;">Unit Price (₱)</div>
+          <div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;">UOM</div>
+          <div></div>
+        </div>
+        <div id="cmpInvoiceRows" style="display:flex;flex-direction:column;gap:5px;"></div>
+        <div id="cmpInvoiceEmpty" style="text-align:center;padding:1rem;color:#a0aec0;font-size:12px;">
+          Upload an invoice image above — items will be extracted automatically.<br>
+          Or click <strong>+ Add Row</strong> to enter manually.
+        </div>
+      </div>
+
+      <!-- ── Comparison Result ── -->
+      <div id="cmpResultWrap" style="display:none;margin-top:1.25rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <div style="font-size:13px;font-weight:700;color:#1a202c;">🔍 Comparison Result</div>
+          <div id="cmpResultBadge" style="font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;"></div>
+        </div>
+        <div id="cmpResultTable"></div>
+        <div id="cmpResultSummary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:0.75rem;"></div>
+      </div>
+
       <!-- Notes -->
       <div style="margin-top:1.25rem;">
         <label class="rcv-label">Comparison Notes</label>
+<<<<<<< HEAD
         <textarea id="cmpNotes" class="rcv-textarea" rows="2" placeholder="e.g. Invoice item 3 price differs from PO � ?741 vs ?760..."></textarea>
+=======
+        <textarea id="cmpNotes" class="rcv-textarea" rows="2" placeholder="Auto-filled after comparison…"></textarea>
+>>>>>>> dd84bfe2e0d440579f9899b0a741ecf77b3b90e8
       </div>
     </div>
     <!-- Footer -->
     <div style="padding:1rem 1.75rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;flex-wrap:wrap;">
       <button type="button" class="btn-secondary" style="flex:1;" onclick="closeModal('compareModal')">Close</button>
+      <button type="button" onclick="cmpRunComparison()" style="flex:1;padding:0.72rem;background:white;border:2px solid #003087;border-radius:10px;color:#003087;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;" onmouseover="this.style.background='#ebf0ff'" onmouseout="this.style.background='white'">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Compare &amp; Detect
+      </button>
       <button type="button" onclick="cmpSaveNotes()" style="flex:1;padding:0.72rem;background:white;border:2px solid #E31E24;border-radius:10px;color:#E31E24;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;" onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-        Save Notes to Delivery
+        Save Notes
       </button>
       <button type="button" onclick="cmpPrintView()" style="flex:1.5;padding:0.72rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
@@ -486,6 +543,8 @@
 </div>
 
 <script src="../static/js/data.js"></script>
+<!-- Tesseract.js OCR — loaded lazily when invoice image is uploaded -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -700,7 +759,9 @@ var _ndIdx = 0;
 window.openNewDeliveryModal = function() {
   _ndFoundItem = null; _ndItems = []; _ndIdx = 0;
   _currentEditDeliveryId = null;
-  document.getElementById('ndDate').value = new Date().toISOString().split('T')[0];
+  var _todayStr = new Date().toISOString().split('T')[0];
+  document.getElementById('ndDate').value = _todayStr;
+  document.getElementById('ndDate').min   = _todayStr;
   document.getElementById('ndSupplier').value = '';
   document.getElementById('ndNotes').value = '';
   document.getElementById('ndItemSearch').value = '';
@@ -867,6 +928,8 @@ window.editDelivery = function(id) {
   _currentEditDeliveryId = id;
 
   // Pre-fill header fields
+  var _today = new Date().toISOString().split('T')[0];
+  document.getElementById('ndDate').min   = _today;
   document.getElementById('ndDate').value = d.date || '';
   document.getElementById('ndSupplier').value = d.supplier || '';
   document.getElementById('ndNotes').value = d.notes || '';
@@ -1230,12 +1293,20 @@ window.generateIssueReport = function() {
 <script>
 // -- Compare PO vs Invoice ----------------------------------
 var _cmpZoom = { po: 1, inv: 1 };
+var _cmpInvoiceIdx = 0;   // counter for unique row IDs
 
 window.openCompareModal = function() {
   cmpClear('po');
   cmpClear('inv');
   document.getElementById('cmpNotes').value = '';
   document.getElementById('cmpDeliveryInfo').textContent = '';
+  document.getElementById('cmpInvoiceRows').innerHTML = '';
+  document.getElementById('cmpInvoiceEmpty').innerHTML =
+    'Upload an invoice image above — items will be extracted automatically.<br>Or click <strong>+ Add Row</strong> to enter manually.';
+  document.getElementById('cmpInvoiceEmpty').style.display = 'block';
+  document.getElementById('cmpResultWrap').style.display = 'none';
+  document.getElementById('cmpOcrStatus').style.display = 'none';
+  _cmpInvoiceIdx = 0;
   var sel = document.getElementById('cmpDeliverySelect');
   sel.innerHTML = '<option value="">� Select a delivery record �</option>';
   _allDeliveries.forEach(function(d) {
@@ -1249,11 +1320,229 @@ window.openCompareModal = function() {
 
 window.cmpLinkDelivery = function(id) {
   var infoEl = document.getElementById('cmpDeliveryInfo');
+  document.getElementById('cmpResultWrap').style.display = 'none';
   if (!id) { infoEl.textContent = ''; document.getElementById('cmpNotes').value = ''; return; }
   var d = _allDeliveries.find(function(x){ return x.id === id; });
   if (!d) return;
+<<<<<<< HEAD
   infoEl.textContent = (d.items||[]).length + ' item(s) � Received by: ' + (d.receivedBy||'�');
   if (d.reviewNotes) document.getElementById('cmpNotes').value = d.reviewNotes;
+=======
+  infoEl.textContent = (d.items||[]).length + ' item(s) · Received by: ' + (d.receivedBy||'—');
+  if (d.compareNotes) document.getElementById('cmpNotes').value = d.compareNotes;
+
+  // Auto-populate invoice rows from delivery items so user just adjusts values
+  var rowsEl = document.getElementById('cmpInvoiceRows');
+  rowsEl.innerHTML = '';
+  _cmpInvoiceIdx = 0;
+  (d.items || []).forEach(function(item) {
+    _cmpAddRowData(item.itemName || '', item.expectedQty || '', '', item.uom || '');
+  });
+  document.getElementById('cmpInvoiceEmpty').style.display =
+    (d.items || []).length ? 'none' : 'block';
+};
+
+// ── Add blank invoice row ──
+window.cmpAddInvoiceRow = function() {
+  _cmpAddRowData('', '', '', '');
+};
+
+function _cmpAddRowData(name, qty, price, uom) {
+  _cmpInvoiceIdx++;
+  var idx = _cmpInvoiceIdx;
+  var rowsEl = document.getElementById('cmpInvoiceRows');
+  document.getElementById('cmpInvoiceEmpty').style.display = 'none';
+  var row = document.createElement('div');
+  row.id = 'cmpInvRow' + idx;
+  row.style.cssText = 'display:grid;grid-template-columns:2.5fr 1fr 1.2fr 1fr 30px;gap:6px;align-items:center;';
+  row.innerHTML =
+    '<input type="text" placeholder="Item name…" value="' + (name||'') + '" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 8px;font-size:12px;outline:none;width:100%;box-sizing:border-box;" onfocus="this.style.borderColor=\'#003087\'" onblur="this.style.borderColor=\'#e2e8f0\'">'
+    + '<input type="number" min="0" placeholder="Qty" value="' + (qty||'') + '" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 8px;font-size:12px;outline:none;width:100%;box-sizing:border-box;text-align:center;" onfocus="this.style.borderColor=\'#003087\'" onblur="this.style.borderColor=\'#e2e8f0\'">'
+    + '<input type="number" min="0" step="0.01" placeholder="0.00" value="' + (price||'') + '" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 8px;font-size:12px;outline:none;width:100%;box-sizing:border-box;text-align:right;" onfocus="this.style.borderColor=\'#003087\'" onblur="this.style.borderColor=\'#e2e8f0\'">'
+    + '<input type="text" placeholder="UOM" value="' + (uom||'') + '" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 8px;font-size:12px;outline:none;width:100%;box-sizing:border-box;" onfocus="this.style.borderColor=\'#003087\'" onblur="this.style.borderColor=\'#e2e8f0\'">'
+    + '<button type="button" onclick="cmpRemoveInvRow(' + idx + ')" style="background:none;border:none;color:#e53e3e;cursor:pointer;font-size:14px;padding:0;line-height:1;">✕</button>';
+  rowsEl.appendChild(row);
+}
+
+window.cmpRemoveInvRow = function(idx) {
+  var el = document.getElementById('cmpInvRow' + idx);
+  if (el) el.remove();
+  if (!document.getElementById('cmpInvoiceRows').children.length) {
+    document.getElementById('cmpInvoiceEmpty').style.display = 'block';
+  }
+  document.getElementById('cmpResultWrap').style.display = 'none';
+};
+
+// ── Read all invoice rows from inputs ──
+function _cmpGetInvoiceItems() {
+  var rows = document.getElementById('cmpInvoiceRows').children;
+  var items = [];
+  for (var i = 0; i < rows.length; i++) {
+    var inputs = rows[i].querySelectorAll('input');
+    var name  = (inputs[0] && inputs[0].value.trim()) || '';
+    var qty   = parseFloat(inputs[1] && inputs[1].value) || 0;
+    var price = parseFloat(inputs[2] && inputs[2].value) || 0;
+    var uom   = (inputs[3] && inputs[3].value.trim()) || '';
+    if (name) items.push({ name: name, qty: qty, price: price, uom: uom });
+  }
+  return items;
+}
+
+// ── Core comparison engine ──
+window.cmpRunComparison = function() {
+  var deliveryId = document.getElementById('cmpDeliverySelect').value;
+  var invoiceItems = _cmpGetInvoiceItems();
+
+  if (!deliveryId) { showToast('Select a linked delivery first.', 'error'); return; }
+  if (!invoiceItems.length) { showToast('Add at least one invoice line item.', 'error'); return; }
+
+  var d = _allDeliveries.find(function(x){ return x.id === deliveryId; });
+  if (!d) return;
+
+  var poItems = (d.items || []).map(function(item) {
+    return {
+      itemNum:  item.itemNum  || '',
+      name:     item.itemName || '',
+      qty:      item.expectedQty || 0,
+      uom:      item.uom || ''
+    };
+  });
+
+  // ── Match invoice items to PO items by fuzzy name ──
+  function _normalize(s) { return (s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+
+  var results = [];
+  var matchedPOIndices = [];
+
+  invoiceItems.forEach(function(inv) {
+    var invNorm = _normalize(inv.name);
+    var bestIdx = -1, bestScore = 0;
+
+    poItems.forEach(function(po, pi) {
+      if (matchedPOIndices.indexOf(pi) !== -1) return;
+      var poNorm = _normalize(po.name);
+      // Exact match
+      if (invNorm === poNorm) { bestIdx = pi; bestScore = 1; return; }
+      // Contains match
+      if (invNorm.length >= 4 && (poNorm.includes(invNorm) || invNorm.includes(poNorm))) {
+        var score = Math.min(invNorm.length, poNorm.length) / Math.max(invNorm.length, poNorm.length);
+        if (score > bestScore) { bestScore = score; bestIdx = pi; }
+      }
+      // Check item number match
+      if (po.itemNum && invNorm.includes(_normalize(po.itemNum))) { bestIdx = pi; bestScore = 0.95; }
+    });
+
+    if (bestIdx !== -1 && bestScore >= 0.5) {
+      var po = poItems[bestIdx];
+      matchedPOIndices.push(bestIdx);
+      var qtyMatch   = inv.qty === po.qty;
+      var status = qtyMatch ? 'match' : 'mismatch';
+      results.push({ status: status, poName: po.name, poQty: po.qty, poUom: po.uom,
+                     invName: inv.name, invQty: inv.qty, invPrice: inv.price, invUom: inv.uom,
+                     qtyDiff: inv.qty - po.qty });
+    } else {
+      // Invoice item not in PO — extra
+      results.push({ status: 'extra', poName: '—', poQty: '—', poUom: '',
+                     invName: inv.name, invQty: inv.qty, invPrice: inv.price, invUom: inv.uom,
+                     qtyDiff: null });
+    }
+  });
+
+  // PO items not matched — missing from invoice
+  poItems.forEach(function(po, pi) {
+    if (matchedPOIndices.indexOf(pi) === -1) {
+      results.push({ status: 'missing', poName: po.name, poQty: po.qty, poUom: po.uom,
+                     invName: '—', invQty: '—', invPrice: '—', invUom: '',
+                     qtyDiff: null });
+    }
+  });
+
+  // ── Render result table ──
+  var matchCount   = results.filter(function(r){ return r.status === 'match'; }).length;
+  var mismatchCount= results.filter(function(r){ return r.status === 'mismatch'; }).length;
+  var missingCount = results.filter(function(r){ return r.status === 'missing'; }).length;
+  var extraCount   = results.filter(function(r){ return r.status === 'extra'; }).length;
+  var allMatch     = mismatchCount === 0 && missingCount === 0 && extraCount === 0;
+
+  var statusConfig = {
+    match:    { bg: 'rgba(56,161,105,0.08)',  border: '#9ae6b4', label: '✅ Match',    color: '#38a169' },
+    mismatch: { bg: 'rgba(214,158,46,0.08)',  border: '#f6e05e', label: '⚠️ Mismatch', color: '#d69e2e' },
+    missing:  { bg: 'rgba(232,0,28,0.08)',    border: '#fed7d7', label: '❌ Missing',  color: '#E8001C' },
+    extra:    { bg: 'rgba(124,58,237,0.08)',  border: '#d6bcfa', label: '➕ Extra',   color: '#7c3aed' }
+  };
+
+  var badge = document.getElementById('cmpResultBadge');
+  badge.textContent = allMatch ? '✅ All Items Match' : '⚠️ Discrepancies Found';
+  badge.style.cssText = 'font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;'
+    + (allMatch ? 'background:rgba(56,161,105,0.1);color:#38a169;' : 'background:rgba(232,0,28,0.1);color:#E8001C;');
+
+  var colHdr = '<div style="display:grid;grid-template-columns:1.8fr 1fr 1.8fr 1fr 1fr 90px;gap:8px;padding:6px 10px;margin-bottom:4px;">'
+    + '<div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;">PO Item</div>'
+    + '<div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;text-align:center;">PO Qty</div>'
+    + '<div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;">Invoice Item</div>'
+    + '<div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;text-align:center;">Inv. Qty</div>'
+    + '<div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;text-align:right;">Unit Price</div>'
+    + '<div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;text-align:center;">Status</div>'
+    + '</div>';
+
+  var rows = results.map(function(r) {
+    var cfg = statusConfig[r.status];
+    var diffHtml = (r.qtyDiff !== null && r.qtyDiff !== 0)
+      ? ' <span style="font-size:10px;font-weight:700;color:' + (r.qtyDiff < 0 ? '#E8001C' : '#d69e2e') + ';">(' + (r.qtyDiff > 0 ? '+' : '') + r.qtyDiff + ')</span>'
+      : '';
+    var priceHtml = (r.invPrice && r.invPrice !== '—' && r.invPrice > 0)
+      ? '₱' + parseFloat(r.invPrice).toLocaleString('en-PH', { minimumFractionDigits: 2 })
+      : (r.invPrice === '—' ? '—' : '—');
+    return '<div style="display:grid;grid-template-columns:1.8fr 1fr 1.8fr 1fr 1fr 90px;gap:8px;align-items:center;'
+      + 'padding:8px 10px;border-radius:8px;margin-bottom:5px;'
+      + 'background:' + cfg.bg + ';border:1px solid ' + cfg.border + ';">'
+      + '<div style="font-size:12px;font-weight:600;color:#1a202c;">' + r.poName + '</div>'
+      + '<div style="font-size:12px;font-weight:600;color:#4a5568;text-align:center;">' + r.poQty + (r.poUom ? ' ' + r.poUom : '') + '</div>'
+      + '<div style="font-size:12px;font-weight:600;color:#1a202c;">' + r.invName + '</div>'
+      + '<div style="font-size:12px;font-weight:600;color:' + cfg.color + ';text-align:center;">'
+      +   r.invQty + (r.invUom ? ' ' + r.invUom : '') + diffHtml + '</div>'
+      + '<div style="font-size:12px;font-weight:600;color:#4a5568;text-align:right;">' + priceHtml + '</div>'
+      + '<div style="text-align:center;"><span style="font-size:11px;font-weight:700;color:' + cfg.color + ';">' + cfg.label + '</span></div>'
+      + '</div>';
+  }).join('');
+
+  document.getElementById('cmpResultTable').innerHTML = colHdr + rows;
+
+  // Summary bar
+  var summaryItems = [
+    { label: 'Match',     count: matchCount,    color: '#38a169', bg: 'rgba(56,161,105,0.08)'  },
+    { label: 'Mismatch',  count: mismatchCount, color: '#d69e2e', bg: 'rgba(214,158,46,0.08)'  },
+    { label: 'Missing',   count: missingCount,  color: '#E8001C', bg: 'rgba(232,0,28,0.08)'    },
+    { label: 'Extra',     count: extraCount,    color: '#7c3aed', bg: 'rgba(124,58,237,0.08)'  }
+  ];
+  document.getElementById('cmpResultSummary').innerHTML = summaryItems.map(function(s) {
+    return '<div style="text-align:center;background:' + s.bg + ';border-radius:8px;padding:8px;border:1px solid ' + s.color + '30;">'
+      + '<div style="font-size:1.3rem;font-weight:800;color:' + s.color + ';">' + s.count + '</div>'
+      + '<div style="font-size:10px;font-weight:700;color:' + s.color + ';text-transform:uppercase;">' + s.label + '</div>'
+      + '</div>';
+  }).join('');
+
+  document.getElementById('cmpResultWrap').style.display = 'block';
+
+  // Auto-generate notes from discrepancies
+  if (!allMatch) {
+    var noteLines = [];
+    results.forEach(function(r) {
+      if (r.status === 'mismatch') noteLines.push('QTY MISMATCH — "' + r.poName + '": PO=' + r.poQty + ', Invoice=' + r.invQty + ' (diff: ' + (r.qtyDiff > 0 ? '+' : '') + r.qtyDiff + ')');
+      if (r.status === 'missing')  noteLines.push('MISSING from invoice: "' + r.poName + '" (PO qty: ' + r.poQty + ')');
+      if (r.status === 'extra')    noteLines.push('EXTRA in invoice (not in PO): "' + r.invName + '" qty=' + r.invQty);
+    });
+    if (noteLines.length) {
+      var existing = document.getElementById('cmpNotes').value.trim();
+      document.getElementById('cmpNotes').value =
+        (existing ? existing + '\n' : '') + noteLines.join('\n');
+    }
+  } else {
+    document.getElementById('cmpNotes').value = '✅ All items match between PO and Invoice.';
+  }
+
+  showToast(allMatch ? '✅ All items match!' : '⚠️ ' + (mismatchCount + missingCount + extraCount) + ' discrepancy(ies) found.', allMatch ? 'success' : 'error');
+>>>>>>> dd84bfe2e0d440579f9899b0a741ecf77b3b90e8
 };
 
 window.cmpHandleFile = function(input, side) {
@@ -1294,15 +1583,163 @@ function cmpShowFile(file, side) {
       placeholder.style.display  = 'none';
       pdfLabel.style.display     = 'none';
       _cmpZoom[side] = 1;
-      imgEl.style.transform      = 'scale(1)';
-      imgEl.style.transformOrigin= 'top center';
+      imgEl.style.transform       = 'scale(1)';
+      imgEl.style.transformOrigin = 'top center';
       if (ctrlEl) { ctrlEl.style.display = 'flex'; }
       if (document.getElementById('cmpZoomLabel' + S))
         document.getElementById('cmpZoomLabel' + S).textContent = '100%';
+
+      // ── Trigger OCR automatically when invoice image is uploaded ──
+      if (side === 'inv') {
+        _cmpRunOCR(e.target.result);
+      }
     };
     reader.readAsDataURL(file);
   }
   clearBtn.style.display = 'inline-block';
+}
+
+// ── OCR pipeline: scan invoice image → extract items → populate rows → auto-compare ──
+function _cmpRunOCR(imageSrc) {
+  if (typeof Tesseract === 'undefined') {
+    showToast('OCR engine not loaded yet, please try again.', 'error');
+    return;
+  }
+
+  var statusEl = document.getElementById('cmpOcrStatus');
+  var msgEl    = document.getElementById('cmpOcrMsg');
+  var barEl    = document.getElementById('cmpOcrBar');
+  statusEl.style.display = 'block';
+  msgEl.textContent = 'Initialising OCR engine…';
+  barEl.style.width = '5%';
+
+  // Clear previous rows
+  document.getElementById('cmpInvoiceRows').innerHTML = '';
+  document.getElementById('cmpInvoiceEmpty').style.display = 'none';
+  document.getElementById('cmpResultWrap').style.display = 'none';
+  _cmpInvoiceIdx = 0;
+
+  Tesseract.recognize(imageSrc, 'eng', {
+    logger: function(m) {
+      if (m.status === 'loading tesseract core') {
+        msgEl.textContent = 'Loading OCR engine…';
+        barEl.style.width = '15%';
+      } else if (m.status === 'initializing tesseract') {
+        msgEl.textContent = 'Initialising OCR…';
+        barEl.style.width = '30%';
+      } else if (m.status === 'loading language traineddata') {
+        msgEl.textContent = 'Loading language model…';
+        barEl.style.width = '50%';
+      } else if (m.status === 'recognizing text') {
+        var pct = Math.round((m.progress || 0) * 50) + 50;
+        msgEl.textContent = 'Reading invoice text… ' + Math.round((m.progress||0)*100) + '%';
+        barEl.style.width = pct + '%';
+      }
+    }
+  }).then(function(result) {
+    barEl.style.width = '100%';
+    msgEl.textContent = 'Parsing line items…';
+
+    var items = _cmpParseOCRText(result.data.text);
+
+    setTimeout(function() {
+      statusEl.style.display = 'none';
+
+      if (!items.length) {
+        document.getElementById('cmpInvoiceEmpty').style.display = 'block';
+        document.getElementById('cmpInvoiceEmpty').innerHTML =
+          '⚠️ No line items detected from the image. Please check image quality or add rows manually.';
+        showToast('OCR complete — no line items detected. Try a clearer image.', 'error');
+        return;
+      }
+
+      // Populate rows from OCR
+      items.forEach(function(item) {
+        _cmpAddRowData(item.name, item.qty, item.price, item.uom);
+      });
+
+      showToast('✅ OCR complete — ' + items.length + ' item(s) extracted. Reviewing…', 'success');
+
+      // Auto-run comparison if a delivery is already linked
+      var deliveryId = document.getElementById('cmpDeliverySelect').value;
+      if (deliveryId) {
+        setTimeout(cmpRunComparison, 400);
+      }
+    }, 300);
+
+  }).catch(function(err) {
+    statusEl.style.display = 'none';
+    document.getElementById('cmpInvoiceEmpty').style.display = 'block';
+    showToast('OCR failed: ' + (err.message || err), 'error');
+  });
+}
+
+// ── Parse raw OCR text into structured line items ──
+// Handles common invoice/delivery receipt formats:
+//   "Engine Oil 5W-30   10   pcs   ₱450.00"
+//   "1. Delo 15W-40     5L         750"
+//   "ITEM: Air Filter   QTY: 3     PRICE: 320"
+function _cmpParseOCRText(rawText) {
+  var lines = rawText.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 2; });
+  var items = [];
+
+  // ── Common unit-of-measure tokens ──
+  var UOM_TOKENS = /\b(pcs?|pieces?|units?|liters?|litres?|ltrs?|l|gals?|gallons?|kgs?|kilos?|grams?|g|bottles?|btls?|boxes?|bxs?|cans?|sets?|pairs?|rolls?|bags?|drums?)\b/i;
+
+  // ── Patterns to skip (headers, totals, meta lines) ──
+  var SKIP_PATTERN = /^(invoice|delivery|receipt|date|po|purchase\s*order|supplier|total|sub.?total|vat|tax|amount|payment|balance|grand|terms|note|prepared|checked|approved|address|tel|fax|page|qty|quantity|description|unit\s*price|price|item\s*no|#|no\.|s\.?n|—+|-{3,}|={3,})/i;
+
+  lines.forEach(function(line) {
+    // Skip header/footer lines
+    if (SKIP_PATTERN.test(line.replace(/\s+/g,' ').trim())) return;
+    if (line.replace(/[\d\s.,₱\-]/g,'').length < 2) return; // mostly numbers/symbols, no item text
+
+    // Strip leading numbering: "1.", "1)", "•", "-"
+    var clean = line.replace(/^\s*[\d]+[.)]\s*/, '').replace(/^[-•*]\s*/, '').trim();
+    if (!clean) return;
+
+    // Try to extract qty and price from the line
+    // Patterns: numbers possibly preceded by ₱ or followed by UOM
+    var nums = [];
+    var numRegex = /(?:₱\s*)?(\d+(?:[,]\d{3})*(?:[.]\d{1,2})?)/g;
+    var m;
+    while ((m = numRegex.exec(clean)) !== null) {
+      nums.push({ val: parseFloat(m[1].replace(/,/g,'')), pos: m.index });
+    }
+
+    // Find UOM in line
+    var uomMatch = clean.match(UOM_TOKENS);
+    var uom = uomMatch ? uomMatch[0].toLowerCase() : '';
+
+    // Remove numbers + UOM from the line to isolate the item name
+    var namePart = clean
+      .replace(numRegex, ' ')
+      .replace(UOM_TOKENS, ' ')
+      .replace(/₱/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    // Need at least 3 alphabetic characters to be a real item name
+    if (namePart.replace(/[^a-zA-Z]/g,'').length < 3) return;
+    if (!nums.length) return; // no quantities found → skip
+
+    // Heuristic: first small integer is qty, larger number(s) are price
+    var qty = 0, price = 0;
+    var integers   = nums.filter(function(n){ return Number.isInteger(n.val) && n.val > 0 && n.val < 10000; });
+    var decimals   = nums.filter(function(n){ return !Number.isInteger(n.val) || n.val >= 100; });
+
+    if (integers.length)  qty   = integers[0].val;
+    if (decimals.length)  price = decimals[decimals.length - 1].val; // last decimal = subtotal or unit price
+
+    // If only one number exists, treat as qty
+    if (!qty && nums.length)  qty = nums[0].val;
+
+    if (qty > 0) {
+      items.push({ name: namePart, qty: qty, price: price, uom: uom });
+    }
+  });
+
+  return items;
 }
 
 window.cmpClear = function(side) {
@@ -1320,6 +1757,16 @@ window.cmpClear = function(side) {
   if (ctrlEl)     { ctrlEl.style.display = 'none'; }
   if (fileInput)  { fileInput.value = ''; }
   _cmpZoom[side] = 1;
+  // When invoice is cleared, also reset the extracted rows and result
+  if (side === 'inv') {
+    document.getElementById('cmpInvoiceRows').innerHTML = '';
+    document.getElementById('cmpInvoiceEmpty').innerHTML =
+      'Upload an invoice image above — items will be extracted automatically.<br>Or click <strong>+ Add Row</strong> to enter manually.';
+    document.getElementById('cmpInvoiceEmpty').style.display = 'block';
+    document.getElementById('cmpResultWrap').style.display = 'none';
+    document.getElementById('cmpOcrStatus').style.display = 'none';
+    _cmpInvoiceIdx = 0;
+  }
 };
 
 window.cmpZoom = function(side, delta) {
@@ -1367,10 +1814,27 @@ window.cmpPrintView = function() {
 
   var poHtml  = poImg  && poImg.src  && poImg.style.display  !== 'none'
     ? '<img src="' + poImg.src  + '" style="max-width:100%;border-radius:8px;">'
-    : '<div style="height:260px;border:2px dashed #e2e8f0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#a0aec0;font-size:13px;">No PO image uploaded</div>';
+    : '<div style="height:200px;border:2px dashed #e2e8f0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#a0aec0;font-size:13px;">No PO image uploaded</div>';
   var invHtml = invImg && invImg.src && invImg.style.display !== 'none'
     ? '<img src="' + invImg.src + '" style="max-width:100%;border-radius:8px;">'
-    : '<div style="height:260px;border:2px dashed #e2e8f0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#a0aec0;font-size:13px;">No Invoice image uploaded</div>';
+    : '<div style="height:200px;border:2px dashed #e2e8f0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#a0aec0;font-size:13px;">No Invoice image uploaded</div>';
+
+  // Include comparison table if comparison has been run
+  var resultTableHtml = '';
+  var resultWrap = document.getElementById('cmpResultWrap');
+  if (resultWrap && resultWrap.style.display !== 'none') {
+    var badge = document.getElementById('cmpResultBadge');
+    var table = document.getElementById('cmpResultTable');
+    var summary = document.getElementById('cmpResultSummary');
+    resultTableHtml = '<div style="margin:18px 0 0;">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+      +   '<div style="font-size:13px;font-weight:700;">🔍 Comparison Result</div>'
+      +   (badge ? '<div style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:#f7fafc;border:1px solid #e2e8f0;">' + badge.textContent + '</div>' : '')
+      + '</div>'
+      + (summary ? '<div style="display:flex;gap:8px;margin-bottom:10px;">' + summary.innerHTML + '</div>' : '')
+      + (table ? table.innerHTML : '')
+      + '</div>';
+  }
 
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>PO vs Invoice Comparison</title>'
     + '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:"Segoe UI",Arial,sans-serif;padding:24px;color:#1a202c;}'
@@ -1390,8 +1854,14 @@ window.cmpPrintView = function() {
     +   '<div><div class="panel-title">?? Purchase Order</div>' + poHtml + '</div>'
     +   '<div><div class="panel-title">?? Supplier Invoice</div>' + invHtml + '</div>'
     + '</div>'
+<<<<<<< HEAD
     + (notes ? '<div class="panel-title">Comparison Notes</div><div class="notes-box">' + notes.replace(/\n/g,'<br>') + '</div>' : '')
     + '<div class="footer"><span>Caltex San Pedro � JA Noble Enterprise Inc. � Receiving Department</span><span>' + dateStr + '</span></div>'
+=======
+    + resultTableHtml
+    + (notes ? '<div style="margin-top:14px;"><div class="panel-title">Comparison Notes</div><div class="notes-box">' + notes.replace(/\n/g,'<br>') + '</div></div>' : '')
+    + '<div class="footer"><span>Caltex AutoPro · JA Noble Enterprise · Receiving Department</span><span>' + dateStr + '</span></div>'
+>>>>>>> dd84bfe2e0d440579f9899b0a741ecf77b3b90e8
     + '</body></html>';
 
   var win = window.open('', '_blank');

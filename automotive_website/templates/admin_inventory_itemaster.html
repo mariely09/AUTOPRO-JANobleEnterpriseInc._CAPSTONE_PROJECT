@@ -309,9 +309,9 @@
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -333,6 +333,7 @@
 <script src="../static/js/admin.js"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script src="../static/js/print_layout_header.js"></script>
+<script src="../static/js/excel_export.js"></script>
 <script>
   // ── Item Master filter ──
   window._imFilter = 'all';
@@ -537,32 +538,29 @@
     var now = new Date();
     var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
 
-    function _esc(v) {
-      var s = String(v === null || v === undefined ? '' : v)
-        .replace(/<[^>]+>/g, '').replace(/"/g, '""');
-      return /[,"\n\r]/.test(s) ? '"' + s + '"' : s;
-    }
+    var imTitle = 'Item Master';
+    if (imFilter === 'Material') imTitle += ' (Materials)';
+    else if (imFilter === 'Service') imTitle += ' (Services)';
+    if (cgFilter) imTitle += ' · ' + cgFilter;
 
-    var headers = ['Item No.','Item Name','Description','Commodity Group','UOM','Item Type','Cost'];
     var rows = filtered.map(function(i) {
       return [
-        i.itemNum || '',
-        i.itemName || '',
-        i.description || '',
-        i.commodityGroup || '',
-        i.uom || '',
-        i.itemType || '',
-        (parseFloat(String(i.cost||0).replace(/[^0-9.]/g,''))||0).toFixed(2)
-      ].map(_esc).join(',');
+        i.itemNum || '—',
+        i.itemName || '—',
+        i.description || '—',
+        i.commodityGroup || '—',
+        i.uom || '—',
+        i.itemType || '—',
+        (parseFloat(String(i.cost||0).replace(/[^0-9.]/g,''))||0)
+      ];
     });
 
-    var csv = [headers.map(_esc).join(',')].concat(rows).join('\r\n');
-    var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url; a.download = 'Item_Master_' + stamp + '.csv';
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
+    _downloadExcel(
+      'Item_Master_' + stamp + '.xlsx',
+      imTitle,
+      ['Item No.', 'Item Name', 'Description', 'Commodity Group', 'UOM', 'Item Type', 'Cost'],
+      rows
+    );
   };
 </script>
 </body>

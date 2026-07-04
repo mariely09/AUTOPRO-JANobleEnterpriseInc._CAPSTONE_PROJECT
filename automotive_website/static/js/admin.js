@@ -127,34 +127,36 @@ window.toggleAdminNotifPanel = function () {
             _renderAdminNotifPanel();
         } else {
             // Fetch directly from Firestore (handles profile page where snapshot may not have fired yet)
+            // Mirrors mobile: merge role-targeted + personal notifications
             const user = typeof firebase !== 'undefined' && firebase.auth().currentUser;
             if (user) {
-                firebase.firestore().collection('notifications')
-                    .where('targetRole', '==', 'admin')
-                    .limit(50)
-                    .get()
-                    .then(function(snap) {
-                        window._fbNotifications = snap.docs
-                            .map(function(d) { return Object.assign({ _id: d.id }, d.data()); })
-                            .sort(function(a, b) {
-                                const aMs = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
-                                const bMs = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
-                                return bMs - aMs;
-                            });
-                        _renderAdminNotifPanel();
-                        // Update badge
-                        const uid = user.uid;
-                        const unread = window._fbNotifications.filter(function(n) {
-                            return (n.readBy || {})[uid] !== true;
-                        }).length;
-                        window._adminUnreadCount = unread;
-                        const badge = document.getElementById('adminHeaderNotifBadge');
-                        if (badge) {
-                            badge.textContent = unread > 99 ? '99+' : unread;
-                            badge.style.display = unread > 0 ? 'flex' : 'none';
-                        }
-                    })
-                    .catch(function() { _renderAdminNotifPanel(); });
+                const db  = firebase.firestore();
+                const uid = user.uid;
+                Promise.all([
+                    db.collection('notifications').where('targetRole', '==', 'admin').get(),
+                    db.collection('notifications').where('targetUid',  '==', uid).get(),
+                ]).then(function(results) {
+                    var map = {};
+                    results[0].docs.concat(results[1].docs).forEach(function(d) {
+                        map[d.id] = Object.assign({ _id: d.id }, d.data());
+                    });
+                    window._fbNotifications = Object.values(map).sort(function(a, b) {
+                        var aMs = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+                        var bMs = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+                        return bMs - aMs;
+                    });
+                    _renderAdminNotifPanel();
+                    // Update badge
+                    var unread = window._fbNotifications.filter(function(n) {
+                        return (n.readBy || {})[uid] !== true;
+                    }).length;
+                    window._adminUnreadCount = unread;
+                    var badge = document.getElementById('adminHeaderNotifBadge');
+                    if (badge) {
+                        badge.textContent = unread > 99 ? '99+' : unread;
+                        badge.style.display = unread > 0 ? 'flex' : 'none';
+                    }
+                }).catch(function() { _renderAdminNotifPanel(); });
             } else {
                 _renderAdminNotifPanel();
             }
@@ -258,6 +260,23 @@ window._adminDeleteNotif = function(docId) {
     }
     _renderAdminNotifPanel();
     _showAdminNotifToast('Notification deleted');
+};
+
+window.markAllAdminNotifsRead = function () {
+    const uid = (firebase.auth().currentUser || {}).uid;
+    if (!uid) return;
+    const unread = (window._fbNotifications || []).filter(n => (n.readBy || {})[uid] !== true);
+    if (unread.length === 0) { _showAdminNotifToast('All notifications already read'); return; }
+    const db    = firebase.firestore();
+    const batch = db.batch();
+    unread.forEach(n => {
+        batch.update(db.collection('notifications').doc(n._id), { ['readBy.' + uid]: true });
+        n.readBy = n.readBy || {};
+        n.readBy[uid] = true; // update local cache immediately
+    });
+    batch.commit().catch(() => {});
+    _renderAdminNotifPanel();
+    _showAdminNotifToast('All notifications marked as read');
 };
 
 window.clearAdminNotifications = function () {

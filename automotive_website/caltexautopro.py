@@ -965,6 +965,165 @@ def terms_conditions():
     return render_template('terms_condiion.html')
 
 
+@app.route('/api/send-notification-email', methods=['POST'])
+def send_notification_email():
+    """
+    Send an in-app notification alert to users via email.
+
+    Accepts JSON body:
+      title       – notification title  (required)
+      message     – notification body   (required)
+      type        – 'info' | 'warning' | 'success' | 'danger'
+      targetRole  – 'admin' | 'staff' | 'customer'  (broadcast to role)
+      targetUid   – Firebase UID  (send to a single user)
+
+    When targetRole is set, every user with that role receives the email.
+    When targetUid is set, only that user receives it.
+    Both may be set simultaneously (role-broadcast + personal).
+    """
+    if not firebase_admin._apps:
+        return jsonify({'ok': False, 'error': 'Firebase Admin SDK not initialized'}), 503
+
+    from firebase_admin import firestore as _fa_fs
+    data        = request.get_json(silent=True) or {}
+    title       = data.get('title',      '').strip()
+    message     = data.get('message',    '').strip()
+    notif_type  = data.get('type',       'info').strip()
+    target_role = data.get('targetRole', '').strip()
+    target_uid  = data.get('targetUid',  '').strip()
+
+    if not title or not message:
+        return jsonify({'ok': False, 'error': 'title and message are required'}), 400
+
+    try:
+        db = _fa_fs.client()
+        recipients = {}   # uid → {email, name}
+
+        # Collect role-targeted recipients
+        if target_role:
+            snap = db.collection('users').where('role', '==', target_role).stream()
+            for doc in snap:
+                d = doc.to_dict()
+                email = (d.get('email') or '').strip()
+                if email:
+                    recipients[doc.id] = {
+                        'email': email,
+                        'name':  (d.get('name') or '').strip() or email,
+                    }
+
+        # Collect personal recipient (targetUid)
+        if target_uid and target_uid not in recipients:
+            doc = db.collection('users').document(target_uid).get()
+            if doc.exists:
+                d = doc.to_dict()
+                email = (d.get('email') or '').strip()
+                if email:
+                    recipients[target_uid] = {
+                        'email': email,
+                        'name':  (d.get('name') or '').strip() or email,
+                    }
+
+        if not recipients:
+            return jsonify({'ok': True, 'sent': 0, 'note': 'No recipients found'})
+
+        # ── Colour / icon per type ──
+        _type_styles = {
+            'warning': {'color': '#ed8936', 'bg': '#fffbeb', 'border': '#f6e05e', 'icon': '⚠️'},
+            'danger':  {'color': '#E8001C', 'bg': '#fff5f5', 'border': '#feb2b2', 'icon': '🚨'},
+            'success': {'color': '#38a169', 'bg': '#f0fff4', 'border': '#9ae6b4', 'icon': '✅'},
+            'info':    {'color': '#003087', 'bg': '#ebf8ff', 'border': '#90cdf4', 'icon': '🔔'},
+        }
+        style = _type_styles.get(notif_type, _type_styles['info'])
+
+        sent  = 0
+        errors = []
+        for uid, rec in recipients.items():
+            to_email = rec['email']
+            to_name  = rec['name']
+            subject  = f'[AutoPro Alert] {title}'
+
+            html_body = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;padding:40px 0;">
+  <tr><td align="center">
+    <table width="520" cellpadding="0" cellspacing="0"
+           style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.10);">
+      <!-- Header -->
+      <tr>
+        <td style="background:#E8001C;padding:30px 40px 0;text-align:center;">
+          <div style="font-size:13px;font-weight:700;letter-spacing:4px;color:rgba(255,255,255,.8);margin-bottom:6px;">CALTEX</div>
+          <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:2px;">AutoPro</div>
+          <div style="background:#fff;border-radius:24px 24px 0 0;height:22px;margin-top:20px;"></div>
+        </td>
+      </tr>
+      <!-- Body -->
+      <tr>
+        <td style="padding:8px 40px 40px;">
+          <div style="text-align:center;margin-bottom:18px;">
+            <span style="font-size:36px;">{style['icon']}</span>
+          </div>
+          <h1 style="margin:0 0 8px;text-align:center;font-size:20px;font-weight:800;color:#1a202c;">{title}</h1>
+          <p style="margin:0 0 24px;text-align:center;font-size:13px;color:#718096;line-height:1.5;">
+            Hi <strong>{to_name}</strong>, you have a new notification from Caltex AutoPro.
+          </p>
+          <div style="background:{style['bg']};border:1px solid {style['border']};
+                      border-radius:12px;padding:20px 24px;margin-bottom:26px;">
+            <div style="font-size:13px;font-weight:700;color:{style['color']};margin-bottom:8px;">{title}</div>
+            <div style="font-size:13px;color:#4a5568;line-height:1.6;">{message}</div>
+          </div>
+          <p style="margin:0;font-size:12px;color:#a0aec0;text-align:center;line-height:1.6;">
+            Open the <strong>Caltex AutoPro</strong> app or
+            <a href="https://autopro-caltex.com" style="color:#E8001C;">dashboard</a>
+            to view your notifications.
+          </p>
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;"/>
+          <p style="margin:0;font-size:12px;color:#a0aec0;text-align:center;line-height:1.6;">
+            Need help? Contact us at
+            <a href="mailto:caltexautopro2026@gmail.com" style="color:#E8001C;">caltexautopro2026@gmail.com</a>
+          </p>
+        </td>
+      </tr>
+      <!-- Footer -->
+      <tr>
+        <td style="background:#f7f8fa;padding:18px 40px;text-align:center;border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:11px;color:#a0aec0;line-height:1.6;">
+            &copy; 2025 Caltex AutoPro &middot; JA Noble Enterprise INC<br/>
+            This is an automated notification &mdash; please do not reply directly.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>"""
+
+            try:
+                msg = MIMEMultipart('alternative')
+                msg['Subject'] = subject
+                msg['From']    = SMTP_FROM
+                msg['To']      = to_email
+                msg.attach(MIMEText(html_body, 'html'))
+                with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+                    server.ehlo()
+                    server.starttls()
+                    server.login(SMTP_USER, SMTP_PASSWORD)
+                    server.sendmail(SMTP_USER, to_email, msg.as_string())
+                print(f'✅ Notification email → {to_email} ({notif_type}: {title})')
+                sent += 1
+            except Exception as e:
+                print(f'❌ Notification email failed → {to_email}: {e}')
+                errors.append(str(e))
+
+        return jsonify({'ok': True, 'sent': sent, 'errors': errors})
+
+    except Exception as e:
+        print(f'❌ send-notification-email error: {e}')
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/api/send-reschedule-email', methods=['POST'])
 def send_reschedule_email():
     """Send email notification when a booking is rescheduled by admin."""

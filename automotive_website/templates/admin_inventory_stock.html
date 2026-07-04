@@ -229,6 +229,9 @@
 
 <script src="../static/js/data.js"></script>
 
+<!-- ExcelJS for styled Excel export -->
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -251,6 +254,7 @@
 <script src="../static/js/admin.js"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script src="../static/js/print_layout_header.js"></script>
+<script src="../static/js/excel_export.js"></script>
 
 <!-- ── Add Stock Item Modal ── -->
 <div class="modal" id="addInventoryModal">
@@ -733,15 +737,6 @@ window.exportStockInventoryExcel = function() {
         }
     });
 
-    var now = new Date();
-    var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-
-    function _esc(v) {
-        var s = String(v === null || v === undefined ? '' : v)
-            .replace(/<[^>]+>/g, '').replace(/"/g, '""');
-        return /[,"\n\r]/.test(s) ? '"' + s + '"' : s;
-    }
-
     var statusLabel = function(i) {
         if (i.stock === 0) return 'Out of Stock';
         if (i.stock <= i.minLevel) return 'Low Stock';
@@ -749,28 +744,36 @@ window.exportStockInventoryExcel = function() {
         return 'In Stock';
     };
 
-    var headers = ['Item No.','Item Name','Commodity Group','UOM','Current Qty','Min Level','Max Level','Reorder Qty','Status'];
+    var now = new Date();
+    var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+
+    var invTitle = 'Stock Inventory';
+    if (invFilter === 'out') invTitle += ' (Out of Stock)';
+    else if (invFilter === 'low') invTitle += ' (Low Stock)';
+    else if (invFilter === 'ok') invTitle += ' (In Stock)';
+    if (cgFilter) invTitle += ' · ' + cgFilter;
+
     var rows = filtered.map(function(i) {
         return [
-            i.itemNum || '',
-            i.itemName || '',
-            i.commodityGroup || '',
-            i.unit || '',
-            i.stock,
-            i.minLevel || 0,
-            i.maxLevel || 0,
-            i.reorderQty || i.reorderLevel || 0,
-            statusLabel(i)
-        ].map(_esc).join(',');
+            i.itemNum || '—',
+            i.itemName || '—',
+            i.commodityGroup || '—',
+            i.unit || '—',
+            parseInt(i.stock) || 0,
+            parseInt(i.minLevel) || 0,
+            parseInt(i.maxLevel) || 0,
+            parseInt(i.reorderQty || i.reorderLevel) || 0
+        ];
     });
 
-    var csv = [headers.map(_esc).join(',')].concat(rows).join('\r\n');
-    var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url; a.download = 'Stock_Inventory_' + stamp + '.csv';
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
+    // Status column is col 9 — no numeric total needed for stock inventory
+    _downloadExcel(
+        'Stock_Inventory_' + stamp + '.xlsx',
+        invTitle,
+        ['Item No.', 'Item Name', 'Commodity Group', 'UOM', 'Current Qty', 'Min Level', 'Max Level', 'Reorder Qty'],
+        rows
+    );
 };
+
 </script>
 </html>
