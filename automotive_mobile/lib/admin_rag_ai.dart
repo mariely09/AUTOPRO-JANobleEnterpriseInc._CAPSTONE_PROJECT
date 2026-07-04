@@ -45,7 +45,9 @@ String? _detectReportIntent(String message) {
   final isReportRequest = RegExp(
     r'\b(generate|create|make|export|download|print)\b.*\b(report|pdf|excel)\b'
     r'|\b(pdf|excel)\s+report\b'
-    r'|\breport\s+(pdf|excel)\b',
+    r'|\breport\s+(pdf|excel)\b'
+    r'|\b(generate|create|make|export|download)\b.*\b(issuance|inventory|maintenance|vehicle|fleet|booking)\b.*\breport\b'
+    r'|\b(issuance|inventory|maintenance|vehicle|fleet|booking)\s+report\b',
   ).hasMatch(lower);
   if (!isReportRequest) return null;
 
@@ -63,9 +65,13 @@ bool _isExcelRequest(String message) {
 }
 
 /// Extract a month+year string from a user message.
-/// Returns e.g. "March 2026", "June 2025", or null if not found.
+/// When only a month name is given (e.g. "for July only"), defaults to
+/// the current year so the filter still works.
+/// Returns e.g. "July 2026", "March 2026", or null if not found.
 String? _extractMonthFromMessage(String message) {
   final lower = message.toLowerCase();
+  final currentYear = DateTime.now().year;
+
   const monthNames = [
     'january','february','march','april','may','june',
     'july','august','september','october','november','december',
@@ -75,41 +81,61 @@ String? _extractMonthFromMessage(String message) {
     'jul','aug','sep','oct','nov','dec',
   ];
 
+  String cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
   // "this month" / "current month"
-  if (RegExp(r'\b(this month|current month)\b', caseSensitive: false)
-      .hasMatch(lower)) {
+  if (RegExp(r'\b(this month|current month)\b', caseSensitive: false).hasMatch(lower)) {
     final now = DateTime.now();
-    return '${monthNames[now.month - 1][0].toUpperCase()}'
-        '${monthNames[now.month - 1].substring(1)} ${now.year}';
+    return '${cap(monthNames[now.month - 1])} ${now.year}';
   }
+
   // "last month"
   if (RegExp(r'\blast month\b', caseSensitive: false).hasMatch(lower)) {
-    final now = DateTime.now();
-    final prev = DateTime(now.year, now.month - 1);
-    final name = monthNames[prev.month - 1];
-    return '${name[0].toUpperCase()}${name.substring(1)} ${prev.year}';
+    final prev = DateTime(DateTime.now().year, DateTime.now().month - 1);
+    return '${cap(monthNames[prev.month - 1])} ${prev.year}';
   }
-  // Full month name + year: "March 2026"
-  final full = RegExp(
-    r'\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})\b',
+
+  // Full name + explicit year: "July 2026"
+  final fullWithYear = RegExp(
+    r'\b(january|february|march|april|may|june|july|august'
+    r'|september|october|november|december)\s+(\d{4})\b',
     caseSensitive: false,
   ).firstMatch(lower);
-  if (full != null) {
-    final name = full.group(1)!;
-    return '${name[0].toUpperCase()}${name.substring(1)} ${full.group(2)}';
+  if (fullWithYear != null) {
+    return '${cap(fullWithYear.group(1)!)} ${fullWithYear.group(2)}';
   }
-  // Abbreviated month + year: "Mar 2026"
-  final abbr = RegExp(
+
+  // Abbreviation + explicit year: "Jul 2026"
+  final abbrWithYear = RegExp(
     r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{4})\b',
     caseSensitive: false,
   ).firstMatch(lower);
-  if (abbr != null) {
-    final idx = monthAbbrs.indexOf(abbr.group(1)!.toLowerCase());
-    if (idx >= 0) {
-      final name = monthNames[idx];
-      return '${name[0].toUpperCase()}${name.substring(1)} ${abbr.group(2)}';
-    }
+  if (abbrWithYear != null) {
+    final idx = monthAbbrs.indexOf(abbrWithYear.group(1)!.toLowerCase());
+    if (idx >= 0) return '${cap(monthNames[idx])} ${abbrWithYear.group(2)}';
   }
+
+  // Full name only, no year — default to current year
+  // e.g. "for July only", "in March", "generate report for June"
+  final bareFullName = RegExp(
+    r'\b(january|february|march|april|may|june|july|august'
+    r'|september|october|november|december)\b',
+    caseSensitive: false,
+  ).firstMatch(lower);
+  if (bareFullName != null) {
+    return '${cap(bareFullName.group(1)!)} $currentYear';
+  }
+
+  // Abbreviation only, no year — default to current year
+  final bareAbbr = RegExp(
+    r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b',
+    caseSensitive: false,
+  ).firstMatch(lower);
+  if (bareAbbr != null) {
+    final idx = monthAbbrs.indexOf(bareAbbr.group(1)!.toLowerCase());
+    if (idx >= 0) return '${cap(monthNames[idx])} $currentYear';
+  }
+
   return null;
 }
 

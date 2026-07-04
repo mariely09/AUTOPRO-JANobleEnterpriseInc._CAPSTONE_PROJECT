@@ -763,7 +763,9 @@ def ai_chat():
         _report_keywords = _re.compile(
             r'\b(generate|create|make|export|download|print)\b.*\b(report|pdf|excel|xlsx)\b'
             r'|\b(pdf|excel|xlsx)\s+report\b'
-            r'|\breport\s+(pdf|excel|xlsx)\b',
+            r'|\breport\s+(pdf|excel|xlsx)\b'
+            r'|\b(generate|create|make|export|download)\b.*\b(issuance|inventory|maintenance|vehicle|fleet|booking)\b.*\breport\b'
+            r'|\b(issuance|inventory|maintenance|vehicle|fleet|booking)\s+report\b',
             _re.IGNORECASE
         )
         _type_map = {
@@ -782,38 +784,63 @@ def ai_chat():
 
         # ── Month extraction from message ────────────────────────────────────
         def _extract_month(msg: str) -> str | None:
-            """Extract a month+year string like 'March 2026' from the user message."""
+            """Extract a month+year string like 'March 2026' from the user message.
+            When only a month name is given (e.g. 'for July only'), defaults to the
+            current year so the filter still works.
+            """
+            from datetime import datetime as _dt
             _mo_names = [
                 'january','february','march','april','may','june',
                 'july','august','september','october','november','december'
             ]
             _mo_abbrs = [m[:3] for m in _mo_names]
+            current_year = str(_dt.now().year)
+
             # "this month" or "current month"
             if _re.search(r'\b(this month|current month)\b', msg, _re.I):
-                from datetime import datetime as _dt
                 now = _dt.now()
                 return _mo_names[now.month - 1].capitalize() + ' ' + str(now.year)
+
             # "last month"
             if _re.search(r'\blast month\b', msg, _re.I):
-                from datetime import datetime as _dt
                 now = _dt.now()
-                mo = now.month - 2  # 0-based for list
-                yr = now.year if now.month > 1 else now.year - 1
-                if mo < 0: mo = 11
-                return _mo_names[mo].capitalize() + ' ' + str(yr)
-            # Full name: "March 2026"
+                prev = _dt(now.year if now.month > 1 else now.year - 1,
+                           now.month - 1 if now.month > 1 else 12, 1)
+                return _mo_names[prev.month - 1].capitalize() + ' ' + str(prev.year)
+
+            # Full name + explicit year: "March 2026"
             m = _re.search(
-                r'\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})\b',
+                r'\b(january|february|march|april|may|june|july|august'
+                r'|september|october|november|december)\s+(\d{4})\b',
                 msg, _re.I)
             if m:
                 return m.group(1).capitalize() + ' ' + m.group(2)
-            # Abbreviation: "Mar 2026"
+
+            # Abbreviation + explicit year: "Mar 2026"
             m2 = _re.search(
                 r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{4})\b',
                 msg, _re.I)
             if m2:
                 idx = _mo_abbrs.index(m2.group(1).lower())
                 return _mo_names[idx].capitalize() + ' ' + m2.group(2)
+
+            # Full name only, no year — default to current year
+            # e.g. "for July only", "in March", "of June"
+            m3 = _re.search(
+                r'\b(january|february|march|april|may|june|july|august'
+                r'|september|october|november|december)\b',
+                msg, _re.I)
+            if m3:
+                return m3.group(1).capitalize() + ' ' + current_year
+
+            # Abbreviation only, no year — default to current year
+            m4 = _re.search(
+                r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b',
+                msg, _re.I)
+            if m4:
+                idx = _mo_abbrs.index(m4.group(1).lower())
+                return _mo_names[idx].capitalize() + ' ' + current_year
+
             return None
 
         # ── Rate limit check BEFORE report intent ────────────────────────────
