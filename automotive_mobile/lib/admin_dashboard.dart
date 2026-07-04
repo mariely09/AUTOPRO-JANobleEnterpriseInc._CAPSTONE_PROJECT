@@ -69,6 +69,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       appBar: _buildTopBar(),
       body: _buildBody(),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'admin_dashboard_fab',
         onPressed: () => Navigator.push(context,
           MaterialPageRoute(builder: (_) => const AdminSmartReports())),
         backgroundColor: _red,
@@ -185,11 +186,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   return (data['status'] as String? ?? '') == 'Low' || (min > 0 && stock <= min);
                 }).length;
                 final vehicleDocs = vehicleSnap.data?.docs ?? [];
-                final dueForPms = vehicleDocs.where((d) {
-                  final data = d.data() as Map<String, dynamic>;
-                  final status = data['status'] as String? ?? '';
-                  return status == 'Overdue' || status == 'PMS Due Soon';
-                }).length;
 
                 // Services today
                 final now = DateTime.now();
@@ -197,6 +193,42 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 final todayFormatted = '${months[now.month - 1]} ${now.day}, ${now.year}';
                 final servicesToday = allServices.where((s) =>
                   (s['date'] as String? ?? '') == todayFormatted).length;
+
+                // Count assets with PMS due within the next 7 days (0–7) using the
+                // EXACT same logic as the DSS PMS tab (admin_dss.dart):
+                // nextPMS is computed from lastSvcDate + svcFreq months, then
+                // compared midnight-to-midnight.
+                final _todayMidnight = DateTime(now.year, now.month, now.day);
+
+                // Returns daysUntil (negative = overdue) for a vehicle doc,
+                // mirroring dssAnalyzePMS() in admin.js and the DSS tab in Dart.
+                int _computeDiff(Map<String, dynamic> data) {
+                  final status = (data['status'] as String? ?? '').toLowerCase();
+                  if (status == 'maintenance' || status == 'under maintenance') return 99999;
+                  // Prefer stored nextPMSDue; fall back to computing from lastSvcDate + svcFreq
+                  String? nextPMSStr = data['nextPMSDue'] as String?;
+                  if (nextPMSStr == null || nextPMSStr.isEmpty) {
+                    final lastSvc = data['lastSvcDate'] as String? ?? data['lastServiceDate'] as String? ?? '';
+                    final freq = int.tryParse((data['svcFreq'] ?? data['serviceFrequency'] ?? '').toString()) ?? 0;
+                    if (lastSvc.isNotEmpty && freq > 0) {
+                      final lastDate = DateTime.tryParse(lastSvc);
+                      if (lastDate != null) {
+                        final next = DateTime(lastDate.year, lastDate.month + freq, lastDate.day);
+                        nextPMSStr = '${next.year}-${next.month.toString().padLeft(2,'0')}-${next.day.toString().padLeft(2,'0')}';
+                      }
+                    }
+                  }
+                  if (nextPMSStr == null || nextPMSStr.isEmpty) return 99999;
+                  final due = DateTime.tryParse(nextPMSStr);
+                  if (due == null) return 99999;
+                  final dueMidnight = DateTime(due.year, due.month, due.day);
+                  return dueMidnight.difference(_todayMidnight).inDays;
+                }
+
+                final dueForPms = vehicleDocs.where((d) {
+                  final diff = _computeDiff(d.data() as Map<String, dynamic>);
+                  return diff >= 0 && diff <= 7;
+                }).length;
 
                 final isLoading = maintSnap.connectionState == ConnectionState.waiting ||
                     stockSnap.connectionState == ConnectionState.waiting ||
@@ -275,13 +307,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 }
 
                 // ── Chart 2: Vehicle status donut ──
+                // Mirrors admin_dss.dart exactly: maintenance first, then date-math.
                 int activeCount = 0, overdueCount = 0, dueSoonCount = 0, maintenanceCount = 0;
                 for (final d in vehicleDocs) {
-                  final status = ((d.data() as Map<String, dynamic>)['status'] as String? ?? '').toLowerCase();
-                  if (status == 'overdue' || status == 'pms overdue') overdueCount++;
-                  else if (status == 'due this week' || status == 'pms due soon' || status == 'due soon') dueSoonCount++;
-                  else if (status == 'maintenance' || status == 'under maintenance') maintenanceCount++;
-                  else activeCount++;
+                  final data = d.data() as Map<String, dynamic>;
+                  final status = (data['status'] as String? ?? '').toLowerCase();
+                  if (status == 'maintenance' || status == 'under maintenance') {
+                    maintenanceCount++;
+                  } else {
+                    final diff = _computeDiff(data);
+                    if (diff == 99999) {
+                      activeCount++; // no PMS date → treat as active
+                    } else if (diff < 0) {
+                      overdueCount++;
+                    } else if (diff == 0 || diff <= 7) {
+                      dueSoonCount++; // "Due Today" + "Due This Week" → same orange slice
+                    } else {
+                      activeCount++;
+                    }
+                  }
                 }
 
                 // ── Chart 3: Stock In vs Stock Out — last 12 months ──
@@ -363,14 +407,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 final lineMaxY = ([...stockInByMonth, ...stockOutByMonth, 1.0]
                   .reduce((a, b) => a > b ? a : b)) + 2;
 
-                // ── Chart 4: Top 10 Most Used Parts (All Time) ──
+                // ── Chart 4: Top 10 Most Used Parts (Current Month) ──
+                // Mirrors the website: materials only, current month, aggregated by itemName.
                 final allIssuances = issSnap.data?.docs
                     .map((d) => d.data() as Map<String, dynamic>).toList() ?? [];
                 final Map<String, double> partUsage = {};
                 for (final iss in allIssuances) {
                   // Skip services — only count materials
-                  if ((iss['itemType'] as String? ?? '').toLowerCase() == 'service') continue;
-                  // Filter to current month only
+                  final itemType = (iss['itemType'] as String? ?? '').toLowerCase();
+                  if (itemType == 'service') continue;
+                  // Filter to current month — parse "Jan 5, 2025" format first,
+                  // fall back to createdAt Timestamp (same logic as website).
                   final dateStr = iss['date'] as String? ?? '';
                   bool inCurrentMonth = false;
                   if (dateStr.isNotEmpty) {
@@ -380,7 +427,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       final y = int.tryParse(parts[2]) ?? -1;
                       inCurrentMonth = m == now.month - 1 && y == now.year;
                     }
-                  } else {
+                  }
+                  if (!inCurrentMonth) {
+                    // Fallback: createdAt Timestamp
                     final ts = iss['createdAt'];
                     if (ts != null) {
                       try {
@@ -390,8 +439,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     }
                   }
                   if (!inCurrentMonth) continue;
-                  final name = (iss['itemName'] ?? iss['item'] ?? '') as String;
+                  // itemName field (website stores as 'itemName')
+                  final rawName = iss['itemName'] ?? iss['item'];
+                  final name = rawName?.toString() ?? '';
                   if (name.isEmpty || name == '—') continue;
+                  // qty stored as string e.g. "3"; quantity stored as number by some paths
                   final qty = parseQty(iss['quantity'] ?? iss['qty'] ?? 0);
                   if (qty > 0) partUsage[name] = (partUsage[name] ?? 0) + qty;
                 }
@@ -417,7 +469,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminVehiclesList())),
                         ),
                         _clickableStatCard(
-                          label: 'Due for PMS',
+                          label: 'PMS This Week',
                           value: isLoading ? '…' : '$dueForPms',
                           icon: Icons.build_outlined,
                           color: Colors.orange,
@@ -815,32 +867,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 ),
                               ),
                             ),
-                        // Summary row below chart
-                        if (!isLoading && allTxns.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          Row(children: [
-                            _txnSummaryChip(
-                              'Total IN',
-                              allTxns.where((t) => (t['type'] as String? ?? '').toUpperCase() == 'IN' && !(t['desc'] as String? ?? '').toLowerCase().contains('initial stock')).length,
-                              const Color(0xFF003087),
-                              Icons.download_outlined,
-                            ),
-                            const SizedBox(width: 8),
-                            _txnSummaryChip(
-                              'Total OUT',
-                              allTxns.where((t) => (t['type'] as String? ?? '').toUpperCase() == 'OUT').length,
-                              _red,
-                              Icons.upload_outlined,
-                            ),
-                            const SizedBox(width: 8),
-                            _txnSummaryChip(
-                              'All Records',
-                              allTxns.length,
-                              const Color(0xFF718096),
-                              Icons.swap_horiz,
-                            ),
-                          ]),
-                        ],
                       ]),
                     )),
                     const SizedBox(height: 16),

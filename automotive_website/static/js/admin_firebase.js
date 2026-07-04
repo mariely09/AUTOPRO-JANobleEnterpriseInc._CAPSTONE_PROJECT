@@ -395,9 +395,15 @@
     _setStat('statTotalVehicles', vehicles.length);
 
     const now = new Date();
-    const dueForPms = vehicles.filter(v => {
-      const status = (v.status || '').toLowerCase();
-      return status === 'overdue' || status === 'pms due soon';
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Count assets with PMS due within the next 7 days (inclusive of today),
+    // using the same midnight-to-midnight calculation as the DSS PMS tab.
+    const dueForPms = (window.assets || []).filter(a => {
+      if (!a.nextPMSDue) return false;
+      const due = new Date(a.nextPMSDue);
+      const dueMidnight = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+      const diff = Math.round((dueMidnight - today) / 86400000);
+      return diff >= 0 && diff <= 7;
     }).length;
     _setStat('statDueForPms', dueForPms);
 

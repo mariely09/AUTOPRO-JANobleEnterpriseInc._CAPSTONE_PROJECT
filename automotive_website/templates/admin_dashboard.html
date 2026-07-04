@@ -838,17 +838,30 @@
         // ════════════════════════════════════════
         // 2. DONUT CHART — Vehicle status
         // ════════════════════════════════════════
+        // Use the same date-math logic as the DSS PMS tab so counts stay in sync.
         let active = 0, dueSoon = 0, overdue = 0, maintenance = 0;
-        vehicles.forEach(v => {
-          const s = (v.status || '').toLowerCase();
-          if (s === 'overdue' || s === 'pms overdue') overdue++;
-          else if (s === 'due this week' || s === 'pms due soon' || s === 'due soon') dueSoon++;
-          else if (s === 'maintenance' || s === 'under maintenance') maintenance++;
-          else active++;
-        });
+        {
+          const _today = new Date();
+          const _todayMidnight = new Date(_today.getFullYear(), _today.getMonth(), _today.getDate());
+          (window.assets || []).forEach(a => {
+            const s = (a.status || '').toLowerCase();
+            if (s === 'maintenance') {
+              maintenance++;
+            } else if (a.nextPMSDue) {
+              const due = new Date(a.nextPMSDue);
+              const dueMidnight = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+              const diff = Math.round((dueMidnight - _todayMidnight) / 86400000);
+              if (diff < 0) overdue++;
+              else if (diff <= 7) dueSoon++;
+              else active++;
+            } else {
+              active++;
+            }
+          });
+        }
 
         const donutTotal = document.getElementById('donutTotal');
-        if (donutTotal) donutTotal.textContent = vehicles.length;
+        if (donutTotal) donutTotal.textContent = (window.assets || []).length;
 
         const donutLabels = ['Active', 'Due This Week', 'Overdue', 'Maintenance'];
         const donutData   = [active, dueSoon, overdue, maintenance];
