@@ -779,6 +779,43 @@ def ai_chat():
             'booking':     'bookings',
             'appointment': 'bookings',
         }
+
+        # ── Month extraction from message ────────────────────────────────────
+        def _extract_month(msg: str) -> str | None:
+            """Extract a month+year string like 'March 2026' from the user message."""
+            _mo_names = [
+                'january','february','march','april','may','june',
+                'july','august','september','october','november','december'
+            ]
+            _mo_abbrs = [m[:3] for m in _mo_names]
+            # "this month" or "current month"
+            if _re.search(r'\b(this month|current month)\b', msg, _re.I):
+                from datetime import datetime as _dt
+                now = _dt.now()
+                return _mo_names[now.month - 1].capitalize() + ' ' + str(now.year)
+            # "last month"
+            if _re.search(r'\blast month\b', msg, _re.I):
+                from datetime import datetime as _dt
+                now = _dt.now()
+                mo = now.month - 2  # 0-based for list
+                yr = now.year if now.month > 1 else now.year - 1
+                if mo < 0: mo = 11
+                return _mo_names[mo].capitalize() + ' ' + str(yr)
+            # Full name: "March 2026"
+            m = _re.search(
+                r'\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})\b',
+                msg, _re.I)
+            if m:
+                return m.group(1).capitalize() + ' ' + m.group(2)
+            # Abbreviation: "Mar 2026"
+            m2 = _re.search(
+                r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{4})\b',
+                msg, _re.I)
+            if m2:
+                idx = _mo_abbrs.index(m2.group(1).lower())
+                return _mo_names[idx].capitalize() + ' ' + m2.group(2)
+            return None
+
         # ── Rate limit check BEFORE report intent ────────────────────────────
         if payload.get('rate_limited'):
             return jsonify({
@@ -795,12 +832,14 @@ def ai_chat():
                 if kw in _msg_lower:
                     detected_type = rtype
                     break
-            detected_format = 'excel' if any(w in _msg_lower for w in ('excel', 'xlsx', 'spreadsheet')) else 'pdf'
+            detected_format  = 'excel' if any(w in _msg_lower for w in ('excel', 'xlsx', 'spreadsheet')) else 'pdf'
+            detected_month   = _extract_month(message)
             return jsonify({
                 'success':       True,
                 'report_ready':  True,
                 'report_type':   detected_type,
                 'report_format': detected_format,
+                'report_month':  detected_month,   # None when no month specified
                 'session_id':    payload.get('session_id', ''),
                 'answer':        payload.get('reply', f'Your {detected_type} report is ready to download.'),
             })

@@ -15,6 +15,7 @@ Supported report types:
 
 import io
 import os
+import re as _re
 from datetime import datetime
 
 from firestore_client import get_db
@@ -36,7 +37,7 @@ def _fmt_date(raw: str) -> str:
     if not raw:
         return "—"
     # Already "March 10, 2026" or "Mar 10, 2026"
-    m = __import__("re").match(r"^([A-Za-z]+)\s+(\d+),?\s+(\d{4})", raw)
+    m = _re.match(r"^([A-Za-z]+)\s+(\d+),?\s+(\d{4})", raw)
     if m:
         mo, day, yr = m.group(1), int(m.group(2)), m.group(3)
         abbr = mo[:3].capitalize()
@@ -44,11 +45,11 @@ def _fmt_date(raw: str) -> str:
             return f"{_MONTHS_FULL[_MONTHS_SHORT.index(abbr)]} {day}, {yr}"
         return f"{mo} {day}, {yr}"
     # "7/2/2026" or "07/02/2026"
-    m2 = __import__("re").match(r"^(\d{1,2})/(\d{1,2})/(\d{4})", raw)
+    m2 = _re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})", raw)
     if m2:
         return f"{_MONTHS_FULL[int(m2.group(1)) - 1]} {int(m2.group(2))}, {m2.group(3)}"
     # "2026-07-02"
-    m3 = __import__("re").match(r"^(\d{4})-(\d{2})-(\d{2})", raw)
+    m3 = _re.match(r"^(\d{4})-(\d{2})-(\d{2})", raw)
     if m3:
         return f"{_MONTHS_FULL[int(m3.group(2)) - 1]} {int(m3.group(3))}, {m3.group(1)}"
     try:
@@ -59,20 +60,30 @@ def _fmt_date(raw: str) -> str:
 
 
 def _parse_month_year(raw: str):
-    """Return (month_index_0based, year_int) or None."""
+    """Return (month_index_0based, year_int) or None. Handles all common date formats."""
     if not raw:
         return None
-    m = __import__("re").match(r"^([A-Za-z]+)\s+(\d+),?\s+(\d{4})", raw)
+    # "March 10, 2026" or "Mar 10, 2026" — month name first
+    m = _re.match(r"^([A-Za-z]+)\s+\d+,?\s+(\d{4})", raw)
     if m:
         abbr = m.group(1)[:3].capitalize()
         if abbr in _MONTHS_SHORT:
-            return _MONTHS_SHORT.index(abbr), int(m.group(3))
-    m2 = __import__("re").match(r"^(\d{1,2})/(\d{1,2})/(\d{4})", raw)
+            return _MONTHS_SHORT.index(abbr), int(m.group(2))
+    # "3/10/2026" or "03/10/2026"
+    m2 = _re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})", raw)
     if m2:
         return int(m2.group(1)) - 1, int(m2.group(3))
-    m3 = __import__("re").match(r"^(\d{4})-(\d{2})-(\d{2})", raw)
+    # "2026-03-10" (ISO)
+    m3 = _re.match(r"^(\d{4})-(\d{2})-(\d{2})", raw)
     if m3:
         return int(m3.group(2)) - 1, int(m3.group(1))
+    # Try Python datetime parsing as last resort
+    try:
+        from datetime import datetime as _dt
+        dt = _dt.fromisoformat(raw[:19])
+        return dt.month - 1, dt.year
+    except Exception:
+        pass
     return None
 
 # ── Brand constants (match print_layout_header.js) ────────────────────────────
@@ -80,7 +91,7 @@ BRAND_NAME    = "JA Noble Enterprise Inc."
 BRAND_SUB     = "Caltex San Pedro"
 BRAND_CITY    = "Laguna"
 BRAND_ADDRESS = "102 National Highway, Brgy. Landayan, San Pedro, Laguna"
-FOOTER_TEXT   = "Caltex San Pedro"
+FOOTER_TEXT   = "Caltex San Pedro · JA Noble Enterprise Inc."
 RED           = (232, 0, 28)        # #E8001C
 DARK          = (26, 32, 44)        # #1a202c
 BLUE          = (0, 48, 135)        # #003087
@@ -155,7 +166,7 @@ def _fetch_issuances(month: str | None = None):
     # ── Month filter ──────────────────────────────────────────
     if month:
         # month may be "March 2026" or "Mar 2026" — normalise to (mo_idx, year)
-        import re as _re
+
         m = _re.match(r"([A-Za-z]+)\s+(\d{4})", month.strip())
         if m:
             abbr = m.group(1)[:3].capitalize()
@@ -172,7 +183,7 @@ def _fetch_issuances(month: str | None = None):
     return rows
 
 
-def _fetch_maintenance():
+def _fetch_maintenance(month: str | None = None):
     db = get_db()
     rows = []
     for doc in db.collection("maintenance").stream():
@@ -187,6 +198,20 @@ def _fetch_maintenance():
             "cost":    d.get("cost", ""),
         })
     rows.sort(key=lambda r: r["date"], reverse=True)
+    if month:
+
+        m = _re.match(r"([A-Za-z]+)\s+(\d{4})", month.strip())
+        if m:
+            abbr      = m.group(1)[:3].capitalize()
+            target_mo = _MONTHS_SHORT.index(abbr) if abbr in _MONTHS_SHORT else -1
+            target_yr = int(m.group(2))
+            if target_mo >= 0:
+                filtered = []
+                for r in rows:
+                    parsed = _parse_month_year(r["date"])
+                    if parsed and parsed[0] == target_mo and parsed[1] == target_yr:
+                        filtered.append(r)
+                rows = filtered
     return rows
 
 
@@ -208,7 +233,7 @@ def _fetch_vehicles():
     return rows
 
 
-def _fetch_bookings():
+def _fetch_bookings(month: str | None = None):
     db = get_db()
     rows = []
     for doc in db.collection("service_bookings").stream():
@@ -224,6 +249,20 @@ def _fetch_bookings():
             "status":        d.get("status", ""),
         })
     rows.sort(key=lambda r: r["date"], reverse=True)
+    if month:
+
+        m = _re.match(r"([A-Za-z]+)\s+(\d{4})", month.strip())
+        if m:
+            abbr      = m.group(1)[:3].capitalize()
+            target_mo = _MONTHS_SHORT.index(abbr) if abbr in _MONTHS_SHORT else -1
+            target_yr = int(m.group(2))
+            if target_mo >= 0:
+                filtered = []
+                for r in rows:
+                    parsed = _parse_month_year(r["date"])
+                    if parsed and parsed[0] == target_mo and parsed[1] == target_yr:
+                        filtered.append(r)
+                rows = filtered
     return rows
 
 
@@ -316,7 +355,8 @@ def generate_pdf(report_type: str, month: str | None = None) -> bytes:
 
     cfg     = REPORT_CONFIG[report_type]
     fetcher = cfg["fetcher"]
-    data    = fetcher(month=month) if report_type == "issuance" else fetcher()
+    _month_supported = {"issuance", "maintenance", "bookings"}
+    data    = fetcher(month=month) if report_type in _month_supported else fetcher()
     columns = cfg["columns"]
     mapper  = cfg["mapper"]
     widths  = [w * pt for w in cfg["col_widths_pdf"]]
@@ -368,10 +408,10 @@ def generate_pdf(report_type: str, month: str | None = None) -> bytes:
 
     right_block = [
         Paragraph("OFFICIAL REPORT", label_style),
-        Paragraph(cfg["title"], title_style),
+        Paragraph(cfg["title"] + (f" — {month}" if month else ""), title_style),
         Spacer(1, 2),
         Paragraph(f'Generated on <b>{date_str}</b> at {time_str}', meta_style),
-        Paragraph(f'{len(data)} record(s)', meta_style),
+        Paragraph(f'{len(data)} record(s)' + (f' · {month}' if month else ''), meta_style),
     ]
 
     # Try to load logo
@@ -516,7 +556,8 @@ def generate_excel(report_type: str, month: str | None = None) -> bytes:
 
     cfg     = REPORT_CONFIG[report_type]
     fetcher = cfg["fetcher"]
-    data    = fetcher(month=month) if report_type == "issuance" else fetcher()
+    _month_supported = {"issuance", "maintenance", "bookings"}
+    data    = fetcher(month=month) if report_type in _month_supported else fetcher()
     columns = cfg["columns"]
     mapper  = cfg["mapper"]
     col_ws  = cfg["col_widths_xlsx"]
@@ -550,12 +591,12 @@ def generate_excel(report_type: str, month: str | None = None) -> bytes:
     r2.alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[2].height = 14
 
-    r3 = ws.cell(3, 1, cfg["title"].upper())
+    r3 = ws.cell(3, 1, cfg["title"].upper() + (f"  —  {month.upper()}" if month else ""))
     r3.font      = Font(name="Calibri", bold=True, size=16, color="E8001C")
     r3.alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[3].height = 26
 
-    r4 = ws.cell(4, 1, f"Generated: {date_str}  ·  {len(data)} record(s)")
+    r4 = ws.cell(4, 1, f"Generated: {date_str}  ·  {len(data)} record(s)" + (f"  ·  {month}" if month else ""))
     r4.font      = Font(name="Calibri", size=9, color="718096")
     r4.alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[4].height = 14

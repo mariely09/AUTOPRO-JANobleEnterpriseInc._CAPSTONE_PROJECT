@@ -272,12 +272,15 @@ window.ragAiSend = function(preset) {
     } else if (data.report_ready) {
       // Report is ready — show message with download button
       var answer = (data.answer || '').replace(/\n/g, '<br>');
+      var rMonth = data.report_month || null;
+      var monthLabel = rMonth ? ' (' + rMonth + ')' : '';
+      var monthArg = rMonth ? '\',\'' + rMonth + '\'' : '\'';  // appended to onclick args
       var btnHtml = '<div style="margin-top:8px;display:flex;gap:6px;">'
-        + '<button onclick="ragDownloadReport(\'' + data.report_type + '\',\'' + data.report_format + '\')" '
-        + 'style="background:#E8001C;color:white;border:none;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">📥 Download ' + (data.report_format||'pdf').toUpperCase() + '</button>';
+        + '<button onclick="ragDownloadReport(\'' + data.report_type + '\',\'' + data.report_format + '\'' + (rMonth ? ',\'' + rMonth + '\'' : '') + ')" '
+        + 'style="background:#E8001C;color:white;border:none;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">📥 Download ' + (data.report_format||'pdf').toUpperCase() + monthLabel + '</button>';
       // Offer the other format too
       var otherFmt = data.report_format === 'pdf' ? 'excel' : 'pdf';
-      btnHtml += '<button onclick="ragDownloadReport(\'' + data.report_type + '\',\'' + otherFmt + '\')" '
+      btnHtml += '<button onclick="ragDownloadReport(\'' + data.report_type + '\',\'' + otherFmt + '\'' + (rMonth ? ',\'' + rMonth + '\'' : '') + ')" '
         + 'style="background:#f7f8fa;color:#4a5568;border:1.5px solid #e2e8f0;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">📥 ' + otherFmt.toUpperCase() + '</button>';
       btnHtml += '</div>';
       _ragAppend('ai', answer + btnHtml);
