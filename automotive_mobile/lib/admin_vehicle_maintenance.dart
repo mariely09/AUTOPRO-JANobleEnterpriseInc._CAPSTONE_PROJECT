@@ -6,13 +6,14 @@ import 'barcode_scanner_screen.dart';
 
 class AdminVehicleMaintenance extends StatelessWidget {
   final Map<String, dynamic>? bookingData;
-  const AdminVehicleMaintenance({super.key, this.bookingData});
+  final Map<String, dynamic>? materialData;
+  const AdminVehicleMaintenance({super.key, this.bookingData, this.materialData});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
-      body: AdminVehicleMaintenanceBody(bookingData: bookingData),
+      body: AdminVehicleMaintenanceBody(bookingData: bookingData, materialData: materialData),
     );
   }
 }
@@ -20,8 +21,9 @@ class AdminVehicleMaintenance extends StatelessWidget {
 /// Embeddable body — can be placed inside any parent (e.g. a tab in the dashboard).
 class AdminVehicleMaintenanceBody extends StatefulWidget {
   final Map<String, dynamic>? bookingData;
+  final Map<String, dynamic>? materialData;
   final String searchQuery;
-  const AdminVehicleMaintenanceBody({super.key, this.bookingData, this.searchQuery = ''});
+  const AdminVehicleMaintenanceBody({super.key, this.bookingData, this.materialData, this.searchQuery = ''});
 
   @override
   State<AdminVehicleMaintenanceBody> createState() => _AdminVehicleMaintenanceBodyState();
@@ -82,6 +84,12 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
     if (widget.bookingData != null && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showAddServiceModal(bookingData: widget.bookingData);
+      });
+    }
+    // Auto-open add modal if material data was passed (from scan)
+    if (widget.materialData != null && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAddServiceModal(materialData: widget.materialData);
       });
     }
   }
@@ -404,7 +412,8 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                         final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
                         final byName = (userDoc.data()?['name'] as String?) ?? 'Admin';
                         final now = DateTime.now();
-                        final dateStr = '${now.month}/${now.day}/${now.year}';
+                        const _txnMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                        final dateStr = '${_txnMonths[now.month - 1]} ${now.day}, ${now.year}';
                         final plate = (s['plate'] as String).trim().toUpperCase();
 
                         final matRows = s['matRows'] as List<dynamic>? ?? [];
@@ -604,7 +613,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
     );
   }
 
-  void _showAddServiceModal({Map<String, dynamic>? service, Map<String, dynamic>? bookingData}) async {
+  void _showAddServiceModal({Map<String, dynamic>? service, Map<String, dynamic>? bookingData, Map<String, dynamic>? materialData}) async {
     final isEdit = service != null;
     
     // Pre-fill from booking data if available
@@ -673,7 +682,38 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
     } else {
       svcRows = makeRows(service?['svcRows'] as List<dynamic>?);
     }
-    final matRows = makeRows(service?['matRows'] as List<dynamic>?);
+
+    // Pre-fill material rows from scan if available
+    List<Map<String, TextEditingController>> matRows;
+    if (materialData != null) {
+      final matName = materialData['name'] as String? ?? '';
+      final d = _itemMasterMap[matName];
+      final rawCost = (d?['cost'] ?? materialData['cost'] ?? '0').toString().replaceAll('₱','').replaceAll(',','').trim();
+      final uom = (d?['uom'] ?? materialData['uom'] ?? '').toString();
+      final maxStockCtrl = TextEditingController(text: '99999');
+      matRows = [{
+        'name':       TextEditingController(text: matName),
+        'qty':        TextEditingController(text: '1'),
+        'uom':        TextEditingController(text: uom),
+        'cost':       TextEditingController(text: rawCost),
+        'maxStock':   maxStockCtrl,
+        'searchText': TextEditingController(text: matName),
+      }];
+      // Look up stock immediately so the badge shows the correct value
+      FirebaseFirestore.instance
+          .collection('stock_inventory')
+          .where('name', isEqualTo: matName)
+          .limit(1)
+          .get()
+          .then((snap) {
+        final available = snap.docs.isNotEmpty
+            ? (snap.docs.first['stock'] as num?)?.toInt() ?? 0
+            : -1;
+        maxStockCtrl.text = '$available';
+      }).catchError((_) {});
+    } else {
+      matRows = makeRows(service?['matRows'] as List<dynamic>?);
+    }
 
     showModalBottomSheet(
       context: context, isScrollControlled: true,
@@ -689,10 +729,10 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
             return t;
           }
 
-          return DraggableScrollableSheet(
-            expand: false, initialChildSize: 0.92, maxChildSize: 0.97,
-            builder: (_, ctrl) => SingleChildScrollView(
-              controller: ctrl,
+          return AnimatedPadding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            duration: const Duration(milliseconds: 150),
+            child: SingleChildScrollView(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Container(
                   width: double.infinity,
@@ -710,8 +750,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                   ]),
                 ),
                 Padding(
-                  padding: EdgeInsets.only(left: 20, right: 20, top: 20,
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     const Text('Plate Number *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF4a5568))),
                     const SizedBox(height: 6),
@@ -1056,6 +1095,8 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                           try {
                             if (isEdit) {
                               await _db.doc(service!['docId'] as String).update(data);
+                              await _updateVehicleOdometer(
+                                plateCtrl.text.trim().toUpperCase(), odoValue);
                               if (context.mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1066,6 +1107,8 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                             } else {
                               data['createdAt'] = FieldValue.serverTimestamp();
                               await _db.add(data);
+                              await _updateVehicleOdometer(
+                                plateCtrl.text.trim().toUpperCase(), odoValue);
                               if (context.mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1360,6 +1403,36 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
     if (daysUntil < 0) return 'Overdue';
     if (daysUntil <= 30) return 'PMS Due Soon';
     return 'Active';
+  }
+
+  /// Updates the vehicle's odometer fields in Firestore immediately when a
+  /// maintenance record is saved (Pending status), so the odo column stays current.
+  Future<void> _updateVehicleOdometer(String plate, int odoValue) async {
+    if (plate.isEmpty || odoValue <= 0) return;
+    try {
+      final vSnap = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .where('plate', isEqualTo: plate)
+          .limit(1)
+          .get();
+      if (vSnap.docs.isEmpty) {
+        // Try case-insensitive fallback
+        final all = await FirebaseFirestore.instance.collection('vehicles').get();
+        final match = all.docs.where((d) =>
+            (d['plate'] as String? ?? '').toUpperCase() == plate.toUpperCase()).toList();
+        if (match.isNotEmpty) {
+          await match.first.reference.update({
+            'odometer': odoValue,
+            'odo': '$odoValue km',
+          });
+        }
+      } else {
+        await vSnap.docs.first.reference.update({
+          'odometer': odoValue,
+          'odo': '$odoValue km',
+        });
+      }
+    } catch (_) {}
   }
 
   String _monthName(int m) => const ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1];

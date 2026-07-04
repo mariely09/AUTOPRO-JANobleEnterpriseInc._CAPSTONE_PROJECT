@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'staff_maintenance.dart';
+import 'staff_service_bookings.dart';
 
 class StaffVehicleList extends StatefulWidget {
   const StaffVehicleList({super.key});
@@ -13,11 +15,13 @@ class _StaffVehicleListState extends State<StaffVehicleList> {
   static const _red = Color(0xFFE8001C);
   static const _col = 'vehicles';
 
+  int _tab = 0; // 0 = Vehicles, 1 = Maintenance, 2 = Bookings
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
   bool _searching = false;
-  String _typeFilter = 'all'; // 'all', 'car', 'truck'
+  String _typeFilter = 'all';
   List<String>? _cachedTypes;
+  final _maintBodyKey = GlobalKey<StaffMaintenanceBodyState>();
 
   CollectionReference get _db => FirebaseFirestore.instance.collection(_col);
 
@@ -84,11 +88,19 @@ class _StaffVehicleListState extends State<StaffVehicleList> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddVehicleModal(),
-        backgroundColor: _red,
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
-      ),
+      floatingActionButton: _tab == 0
+          ? FloatingActionButton(
+              onPressed: () => _showAddVehicleModal(),
+              backgroundColor: _red,
+              child: const Icon(Icons.add, color: Colors.white, size: 28),
+            )
+          : _tab == 1
+              ? FloatingActionButton(
+                  onPressed: () => _maintBodyKey.currentState?.triggerAdd(),
+                  backgroundColor: _red,
+                  child: const Icon(Icons.add, color: Colors.white, size: 28),
+                )
+              : null,
       appBar: AppBar(
         backgroundColor: _red,
         elevation: 0,
@@ -99,14 +111,14 @@ class _StaffVehicleListState extends State<StaffVehicleList> {
                 autofocus: true,
                 onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
                 style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  hintText: 'Search vehicles...',
-                  hintStyle: TextStyle(color: Colors.white54),
+                decoration: InputDecoration(
+                  hintText: _tab == 0 ? 'Search vehicles...' : _tab == 1 ? 'Search services...' : 'Search bookings...',
+                  hintStyle: const TextStyle(color: Colors.white54),
                   border: InputBorder.none,
                 ),
               )
-            : const Text('Vehicle List',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            : Text(_tab == 0 ? 'Vehicle List' : _tab == 1 ? 'Vehicle Maintenance' : 'Service Bookings',
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: Icon(_searching ? Icons.close : Icons.search, color: Colors.white),
@@ -116,8 +128,66 @@ class _StaffVehicleListState extends State<StaffVehicleList> {
             }),
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(44),
+          child: Container(
+            color: Colors.white,
+            child: Row(
+              children: [
+                _tabBtn(0, 'Vehicles'),
+                _tabBtn(1, 'Maintenance'),
+                _tabBtn(2, 'Bookings'),
+              ],
+            ),
+          ),
+        ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
+      body: IndexedStack(
+        index: _tab,
+        children: [
+          _buildVehiclesBody(),
+          StaffMaintenanceBody(
+            key: _maintBodyKey,
+            searchQuery: _tab == 1 && _searching ? _searchQuery : '',
+          ),
+          StaffServiceBookingsBody(
+            searchQuery: _tab == 2 && _searching ? _searchQuery : '',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tabBtn(int i, String label) {
+    final active = _tab == i;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() {
+          _tab = i;
+          _searching = false;
+          _searchCtrl.clear();
+          _searchQuery = '';
+        }),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(
+              color: active ? _red : Colors.transparent, width: 2)),
+          ),
+          child: Text(label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: active ? FontWeight.w700 : FontWeight.normal,
+              color: active ? _red : const Color(0xFF718096),
+            )),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVehiclesBody() {
+    return StreamBuilder<QuerySnapshot>(
         stream: _db.snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -188,8 +258,7 @@ class _StaffVehicleListState extends State<StaffVehicleList> {
             ),
           ]);
         },
-      ),
-    );
+      );
   }
 
   Widget _statChip(String label, String value, Color color, IconData icon, String filter) {

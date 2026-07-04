@@ -44,6 +44,7 @@
 
     window.cuAvatarLogout = function () {
         if (!confirm('Are you sure you want to logout?')) return;
+        localStorage.setItem('_loggedOut', Date.now().toString());
         sessionStorage.removeItem('cpUser');
         sessionStorage.removeItem('spUser');
         if (typeof firebase !== 'undefined' && firebase.auth) {
@@ -58,22 +59,36 @@
     };
 
     // ── Back/Forward navigation guard ──────────────────────
-    window.addEventListener('pageshow', function () {
+    window.addEventListener('pageshow', function (e) {
         var hasSession = sessionStorage.getItem('cpUser') || sessionStorage.getItem('spUser') || sessionStorage.getItem('apUser');
         if (!hasSession) {
             window.location.replace('/login.html');
             return;
         }
+        // bfcache restore — check Firebase synchronously
+        if (e.persisted) {
+            if (typeof firebase !== 'undefined' && firebase.auth) {
+                if (!firebase.auth().currentUser) {
+                    sessionStorage.removeItem('cpUser');
+                    sessionStorage.removeItem('spUser');
+                    window.location.replace('/login.html');
+                }
+            }
+            return;
+        }
         if (typeof firebase !== 'undefined' && firebase.auth) {
             firebase.auth().onAuthStateChanged(function (user) {
                 if (!user) {
-                    // Only redirect if no session remains (admin may use apUser)
-                    var stillHasSession = sessionStorage.getItem('cpUser') || sessionStorage.getItem('spUser') || sessionStorage.getItem('apUser');
-                    if (!stillHasSession) {
-                        sessionStorage.removeItem('cpUser');
-                        sessionStorage.removeItem('spUser');
-                        window.location.replace('/login.html');
-                    }
+                    setTimeout(function () {
+                        if (!firebase.auth().currentUser) {
+                            var stillHasSession = sessionStorage.getItem('cpUser') || sessionStorage.getItem('spUser') || sessionStorage.getItem('apUser');
+                            if (!stillHasSession) {
+                                sessionStorage.removeItem('cpUser');
+                                sessionStorage.removeItem('spUser');
+                                window.location.replace('/login.html');
+                            }
+                        }
+                    }, 500);
                 }
             });
         }
@@ -126,8 +141,8 @@
     }
 
     function _typeIcon(type) {
-        return '<span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:rgba(0,48,135,0.1);border-radius:8px;flex-shrink:0;">'
-            + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#003087" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
+        return '<span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:rgba(232,0,28,0.1);border-radius:8px;flex-shrink:0;">'
+            + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
             + '</span>';
     }
 

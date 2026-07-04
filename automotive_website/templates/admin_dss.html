@@ -1,7 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DSS</title>
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
@@ -9,6 +12,26 @@
     <link rel="stylesheet" href="../static/css/admin.css">
 </head>
 <body class="portal-body" data-page="dss">
+<script>
+// Instant auth guard — blocks bfcache back-navigation after logout
+(function() {
+  var logoutTime = localStorage.getItem('_loggedOut');
+  var loginTime  = localStorage.getItem('_loggedIn');
+  // If logged out more recently than logged in, block access
+  if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+    return;
+  }
+  var hasSession = sessionStorage.getItem('apUser') ||
+                   sessionStorage.getItem('spUser') ||
+                   sessionStorage.getItem('cpUser');
+  if (!hasSession) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+  }
+})();
+</script>
 
 <script>
   (function() {
@@ -39,6 +62,29 @@
                 <input type="text" class="search-bar dss-header-search" id="dssPmsSearch"
                     placeholder="Search vehicle..." style="width:220px;padding-left:2rem;display:none;"
                     oninput="dssPMSApplySearch()">
+                <!-- Stock Sort By -->
+                <div id="dssSortWrap" style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+                    <select id="dssSortSelect" onchange="window._dssPage=1;renderDSSTable();" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
+                        <option value="stock-asc">Stock (Lowest First)</option>
+                        <option value="stock-desc">Stock (Highest First)</option>
+                        <option value="name-asc">Item Name A→Z</option>
+                        <option value="name-desc">Item Name Z→A</option>
+                        <option value="days-asc">Days Left (Soonest)</option>
+                    </select>
+                    <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <!-- PMS Sort By -->
+                <div id="dssPmsSortWrap" style="display:none;position:relative;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+                    <select id="dssPmsSortSelect" onchange="window._dssPmsPage=1;renderDSSPMSTable();" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
+                        <option value="pms-asc">Next PMS Date (Soonest)</option>
+                        <option value="pms-desc">Next PMS Date (Latest)</option>
+                        <option value="plate-asc">Plate A→Z</option>
+                        <option value="plate-desc">Plate Z→A</option>
+                    </select>
+                    <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
             </div>
         </div>
 
@@ -175,6 +221,11 @@
     const pmsSearch   = document.getElementById('dssPmsSearch');
     if (stockSearch) stockSearch.style.display = section === 'dss-pms' ? 'none' : '';
     if (pmsSearch)   pmsSearch.style.display   = section === 'dss-pms' ? ''     : 'none';
+    // Swap sort dropdowns
+    const stockSort = document.getElementById('dssSortWrap');
+    const pmsSort   = document.getElementById('dssPmsSortWrap');
+    if (stockSort) stockSort.style.display = section === 'dss-pms' ? 'none' : 'flex';
+    if (pmsSort)   pmsSort.style.display   = section === 'dss-pms' ? 'flex' : 'none';
 
     if (section === 'dss-pms') {
       if (typeof renderDSSPMS === 'function') renderDSSPMS();
@@ -206,6 +257,10 @@
     const pmsSearch   = document.getElementById('dssPmsSearch');
     if (stockSearch) stockSearch.style.display = section === 'dss-pms' ? 'none' : '';
     if (pmsSearch)   pmsSearch.style.display   = section === 'dss-pms' ? ''     : 'none';
+    const stockSort = document.getElementById('dssSortWrap');
+    const pmsSort   = document.getElementById('dssPmsSortWrap');
+    if (stockSort) stockSort.style.display = section === 'dss-pms' ? 'none' : 'flex';
+    if (pmsSort)   pmsSort.style.display   = section === 'dss-pms' ? 'flex' : 'none';
     if (typeof initSidebarActive === 'function') initSidebarActive();
   }
 

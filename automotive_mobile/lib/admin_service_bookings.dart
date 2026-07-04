@@ -28,7 +28,7 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
   static const _blue = Color(0xFF003087);
   static const _months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-  String _filter = 'all'; // 'all', 'Pending', 'Approved', 'Rescheduled', 'Dismissed'
+  String _filter = 'all'; // 'all', 'Approved', 'Rescheduled', 'Dismissed'
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
 
@@ -86,14 +86,12 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
           return {...data, 'docId': d.id};
         }).where((d) {
           final status = d['status'] as String? ?? '';
-          return status == 'Approved' || status == 'Dismissed' || status == 'Pending';
+          return status == 'Approved';
         }).toList();
 
         // Compute counts
         final approved = allBookings.where((d) => d['status'] == 'Approved' && !_isRescheduled(d)).length;
         final rescheduled = allBookings.where((d) => d['status'] == 'Approved' && _isRescheduled(d)).length;
-        final cancelled = allBookings.where((d) => d['status'] == 'Dismissed').length;
-        final pending = allBookings.where((d) => d['status'] == 'Pending').length;
         final total = allBookings.length;
 
         // Apply filter
@@ -101,9 +99,7 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
             ? allBookings
             : _filter == 'Rescheduled'
                 ? allBookings.where((d) => d['status'] == 'Approved' && _isRescheduled(d)).toList()
-                : _filter == 'Approved'
-                    ? allBookings.where((d) => d['status'] == 'Approved' && !_isRescheduled(d)).toList()
-                    : allBookings.where((d) => d['status'] == _filter).toList();
+                : allBookings.where((d) => d['status'] == 'Approved' && !_isRescheduled(d)).toList();
 
         // Apply search — use external searchQuery prop if provided, else internal
         final activeQuery = widget.searchQuery.isNotEmpty ? widget.searchQuery : _searchQuery;
@@ -129,10 +125,6 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
               _statChip('Approved', '$approved', const Color(0xFF38a169), Icons.check_circle_outline, 'Approved'),
               const SizedBox(width: 6),
               _statChip('Resched', '$rescheduled', _blue, Icons.history, 'Rescheduled'),
-              const SizedBox(width: 6),
-              _statChip('Cancelled', '$cancelled', _red, Icons.cancel_outlined, 'Dismissed'),
-              const SizedBox(width: 6),
-              _statChip('Pending', '$pending', const Color(0xFFd69e2e), Icons.access_time_outlined, 'Pending'),
             ]),
           ),
           Expanded(
@@ -170,16 +162,12 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
     final isRescheduled = previousDate.isNotEmpty && previousDate != preferredDate;
     final status = data['status'] as String? ?? '';
     final isApproved = status == 'Approved';
-    final isPending = status == 'Pending';
 
     Color statusColor;
     String statusLabel;
     if (isRescheduled && isApproved) {
       statusColor = _blue;
       statusLabel = 'Rescheduled';
-    } else if (isPending) {
-      statusColor = const Color(0xFFd69e2e);
-      statusLabel = 'Pending';
     } else if (isApproved) {
       statusColor = const Color(0xFF38a169);
       statusLabel = 'Approved';
@@ -188,123 +176,72 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
       statusLabel = 'Cancelled';
     }
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Header: plate + status badge
-        Row(children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(plate, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1a202c))),
-            const SizedBox(height: 2),
-            Text(customerName, style: const TextStyle(fontSize: 12, color: Color(0xFF4a5568))),
-          ])),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-            child: Text(statusLabel, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor)),
-          ),
-        ]),
-        const SizedBox(height: 10),
-        // Services
-        Text(services, style: const TextStyle(fontSize: 12, color: Color(0xFF718096)), maxLines: 2, overflow: TextOverflow.ellipsis),
-        const SizedBox(height: 10),
-        // Date and time
-        Row(children: [
-          const Icon(Icons.calendar_today_outlined, size: 13, color: Color(0xFF718096)),
-          const SizedBox(width: 5),
-          Text(_formatDate(preferredDate), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1a202c))),
-          const SizedBox(width: 12),
-          const Icon(Icons.access_time_outlined, size: 13, color: Color(0xFF718096)),
-          const SizedBox(width: 5),
-          Text(preferredTime, style: const TextStyle(fontSize: 12, color: Color(0xFF4a5568))),
-        ]),
-        // Reschedule note
-        if (isRescheduled) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFFBEB),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFF6E05E)),
+    return GestureDetector(
+      onTap: () => _showBookingDetails(docId, data),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Header: plate + status badge
+          Row(children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(plate, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1a202c))),
+              const SizedBox(height: 2),
+              Text(customerName, style: const TextStyle(fontSize: 12, color: Color(0xFF4a5568))),
+            ])),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+              child: Text(statusLabel, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor)),
             ),
-            child: Row(children: [
-              const Icon(Icons.history, size: 12, color: Color(0xFF92400E)),
-              const SizedBox(width: 6),
-              Expanded(child: Text(
-                'Rescheduled from ${_formatDate(previousDate)}',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF92400E)),
-              )),
-            ]),
-          ),
-        ],
-        // Actions for Pending bookings
-        if (isPending) ...[
-          const SizedBox(height: 12),
-          Row(children: [
-            Expanded(child: ElevatedButton.icon(
-              onPressed: () => _approveBooking(docId, plate),
-              icon: const Icon(Icons.check, size: 14),
-              label: const Text('Approve', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF38a169), foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            )),
-            const SizedBox(width: 10),
-            Expanded(child: OutlinedButton.icon(
-              onPressed: () => _dismissBooking(docId, plate),
-              icon: const Icon(Icons.close, size: 14, color: Colors.red),
-              label: const Text('Dismiss', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.red)),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFFE8001C)),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            )),
           ]),
-        ],
-        // Actions for Approved bookings
-        if (isApproved) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          // Services
+          Text(services, style: const TextStyle(fontSize: 12, color: Color(0xFF718096)), maxLines: 2, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 10),
+          // Date and time
           Row(children: [
-            Expanded(child: ElevatedButton.icon(
-              onPressed: () => _startService(docId, data),
-              icon: const Icon(Icons.play_arrow, size: 14),
-              label: const Text('Start Service', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF38a169), foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            )),
-            const SizedBox(width: 8),
-            SizedBox(width: 38, height: 38, child: IconButton(
-              onPressed: () => _showRescheduleModal(docId, data),
-              icon: const Icon(Icons.history, size: 18, color: Color(0xFF003087)),
-              style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFFEBF8FF),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            )),
-            const SizedBox(width: 8),
-            SizedBox(width: 38, height: 38, child: IconButton(
-              onPressed: () => _dismissBooking(docId, plate),
-              icon: const Icon(Icons.close, size: 18, color: Colors.red),
-              style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFFFFF5F5),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            )),
+            const Icon(Icons.calendar_today_outlined, size: 13, color: Color(0xFF718096)),
+            const SizedBox(width: 5),
+            Text(_formatDate(preferredDate), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1a202c))),
+            const SizedBox(width: 12),
+            const Icon(Icons.access_time_outlined, size: 13, color: Color(0xFF718096)),
+            const SizedBox(width: 5),
+            Text(preferredTime, style: const TextStyle(fontSize: 12, color: Color(0xFF4a5568))),
           ]),
-        ],
-      ]),
+          // Reschedule note
+          if (isRescheduled) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFF6E05E)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.history, size: 12, color: Color(0xFF92400E)),
+                const SizedBox(width: 6),
+                Expanded(child: Text(
+                  'Rescheduled from ${_formatDate(previousDate)}',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF92400E)),
+                )),
+              ]),
+            ),
+          ],
+          // Tap hint
+          const SizedBox(height: 10),
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            Text('Tap to view details', style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 14, color: Colors.grey.shade400),
+          ]),
+        ]),
+      ),
     );
   }
 
@@ -317,34 +254,6 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
     final d = int.tryParse(parts[2]);
     if (y == null || m == null || d == null) return dateStr;
     return '${_months[m - 1]} $d, $y';
-  }
-
-  void _approveBooking(String docId, String plate) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Approve Booking'),
-        content: Text('Approve service booking for $plate?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await FirebaseFirestore.instance.collection('service_bookings').doc(docId).update({'status': 'Approved'});
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('Booking approved for $plate'),
-                  backgroundColor: const Color(0xFF38a169),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ));
-              }
-            },
-            child: const Text('Approve', style: TextStyle(color: Color(0xFF38a169))),
-          ),
-        ],
-      ),
-    );
   }
 
   void _startService(String docId, Map<String, dynamic> data) async {
@@ -380,19 +289,20 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
             onPressed: () async {
               Navigator.pop(ctx);
               final db = FirebaseFirestore.instance;
-              // Fetch booking data to get customerId and date for notification
+              // Fetch booking data for notification before deleting
               final doc = await db.collection('service_bookings').doc(docId).get();
               final data = doc.data() ?? {};
-              await db.collection('service_bookings').doc(docId).update({'status': 'Dismissed'});
-              // Notify customer
               final customerId = data['customerId'] as String? ?? '';
               final date = data['preferredDate'] as String? ?? '';
+              // Delete the booking
+              await db.collection('service_bookings').doc(docId).delete();
+              // Notify customer
               if (customerId.isNotEmpty) {
                 await db.collection('notifications').add({
                   'title': '❌ Booking Cancelled',
                   'message': 'Your service booking for $plate on ${_formatDate(date)} has been cancelled by the admin.',
                   'type': 'warning',
-                  'targetRole': 'customer', 'targetUid': customerId,
+                  'targetRole': '', 'targetUid': customerId,
                   'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
                 });
               }
@@ -405,6 +315,32 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
             child: const Text('Yes, Cancel', style: TextStyle(color: Colors.red)),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showBookingDetails(String docId, Map<String, dynamic> data) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => _BookingDetailsSheet(
+        docId: docId,
+        data: data,
+        onStartService: () {
+          Navigator.pop(context);
+          _startService(docId, data);
+        },
+        onReschedule: () {
+          Navigator.pop(context);
+          _showRescheduleModal(docId, data);
+        },
+        onDismiss: () {
+          Navigator.pop(context);
+          _dismissBooking(docId, data['plate'] as String? ?? '—');
+        },
+        formatDate: _formatDate,
       ),
     );
   }
@@ -449,12 +385,12 @@ class _RescheduleSheet extends StatefulWidget {
 class _RescheduleSheetState extends State<_RescheduleSheet> {
   static const _blue = Color(0xFF003087);
   static const _months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  static const _maxPerDay = 5;
+  static const _allTimeSlots = ['8:00 AM','9:00 AM','10:00 AM','11:00 AM','1:00 PM','2:00 PM','3:00 PM','4:00 PM'];
 
   late int _year;
   late int _month;
   String? _selectedDate;
-  Map<String, int> _bookedDates = {};
+  Map<String, List<String>> _bookedDates = {};
   bool _loading = true;
 
   @override
@@ -469,14 +405,18 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
   Future<void> _loadBookedDates() async {
     final snap = await FirebaseFirestore.instance
         .collection('service_bookings')
-        .where('status', whereIn: ['Approved', 'Pending'])
+        .where('status', whereIn: ['Approved'])
         .get();
-    final counts = <String, int>{};
+    final slots = <String, List<String>>{};
     for (final d in snap.docs) {
-      final date = (d.data())['preferredDate'] as String? ?? '';
-      if (date.isNotEmpty) counts[date] = (counts[date] ?? 0) + 1;
+      final date = d.data()['preferredDate'] as String? ?? '';
+      final time = d.data()['preferredTime'] as String? ?? '';
+      if (date.isNotEmpty && time.isNotEmpty) {
+        slots.putIfAbsent(date, () => []);
+        if (!slots[date]!.contains(time)) slots[date]!.add(time);
+      }
     }
-    if (mounted) setState(() { _bookedDates = counts; _loading = false; });
+    if (mounted) setState(() { _bookedDates = slots; _loading = false; });
   }
 
   void _navMonth(int dir) {
@@ -504,7 +444,7 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
         'title': '📅 Booking Rescheduled',
         'message': 'Your booking for ${widget.plate} has been rescheduled from ${_fmt(widget.currentDate)} to ${_fmt(_selectedDate!)}.',
         'type': 'warning',
-        'targetRole': 'customer',
+        'targetRole': '',
         'targetUid': widget.customerId,
         'createdAt': FieldValue.serverTimestamp(),
         'readBy': <String, bool>{},
@@ -663,8 +603,8 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
       final isSunday = dt.weekday == 7;
       final isCurrent = key == widget.currentDate;
       final isSelected = key == _selectedDate;
-      final bookings = _bookedDates[key] ?? 0;
-      final isFull = bookings >= _maxPerDay;
+      final bookings = _bookedDates[key] ?? [];
+      final isFull = bookings.length >= _allTimeSlots.length;
       final isDisabled = isPast || isSunday || isFull;
 
       Color bg;
@@ -711,5 +651,263 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
       childAspectRatio: 1.2,
       children: cells,
     );
+  }
+}
+
+// ─── Booking Details Bottom Sheet ────────────────────────────────────────────
+
+class _BookingDetailsSheet extends StatelessWidget {
+  final String docId;
+  final Map<String, dynamic> data;
+  final VoidCallback onStartService;
+  final VoidCallback onReschedule;
+  final VoidCallback onDismiss;
+  final String Function(String) formatDate;
+
+  static const _blue = Color(0xFF003087);
+  static const _green = Color(0xFF38a169);
+  static const _red = Color(0xFFE8001C);
+
+  const _BookingDetailsSheet({
+    required this.docId,
+    required this.data,
+    required this.onStartService,
+    required this.onReschedule,
+    required this.onDismiss,
+    required this.formatDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final plate = data['plate'] as String? ?? '—';
+    final customerName = data['customerName'] as String? ?? '—';
+    final services = (data['services'] as List?)?.cast<String>() ?? [];
+    final preferredDate = data['preferredDate'] as String? ?? '';
+    final preferredTime = data['preferredTime'] as String? ?? '—';
+    final previousDate = data['previousDate'] as String? ?? '';
+    final status = data['status'] as String? ?? '';
+    final isApproved = status == 'Approved';
+    final isRescheduled = previousDate.isNotEmpty && previousDate != preferredDate;
+    final isCancelled = status == 'Dismissed';
+
+    Color statusColor;
+    String statusLabel;
+    if (isRescheduled && isApproved) {
+      statusColor = _blue;
+      statusLabel = 'Rescheduled';
+    } else if (isApproved) {
+      statusColor = _green;
+      statusLabel = 'Approved';
+    } else {
+      statusColor = const Color(0xFF718096);
+      statusLabel = 'Cancelled';
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // ── Header ──────────────────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [Color(0xFFE8001C), Color(0xFFa50014)]),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Row(children: [
+              const Expanded(
+                child: Text('Booking Details',
+                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+              ),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 28, height: 28,
+                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.close, color: Colors.white, size: 16),
+                ),
+              ),
+            ]),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // ── Plate + Status ─────────────────────────────────────────────
+              Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(plate,
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF1a202c))),
+                  const SizedBox(height: 2),
+                  Text(customerName,
+                      style: const TextStyle(fontSize: 13, color: Color(0xFF4a5568))),
+                ])),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20)),
+                  child: Text(statusLabel,
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: statusColor)),
+                ),
+              ]),
+
+              const SizedBox(height: 16),
+              const Divider(height: 1, color: Color(0xFFe2e8f0)),
+              const SizedBox(height: 16),
+
+              // ── Date & Time ────────────────────────────────────────────────
+              _infoRow(Icons.calendar_today_outlined, 'Date', formatDate(preferredDate)),
+              const SizedBox(height: 10),
+              _infoRow(Icons.access_time_outlined, 'Time', preferredTime),
+
+              // ── Reschedule note ────────────────────────────────────────────
+              if (isRescheduled) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFF6E05E)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.history, size: 14, color: Color(0xFF92400E)),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(
+                      'Rescheduled from ${formatDate(previousDate)}',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+                    )),
+                  ]),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+              const Divider(height: 1, color: Color(0xFFe2e8f0)),
+              const SizedBox(height: 16),
+
+              // ── Services ───────────────────────────────────────────────────
+              const Text('Services',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF4a5568))),
+              const SizedBox(height: 8),
+              if (services.isEmpty)
+                const Text('—', style: TextStyle(fontSize: 13, color: Color(0xFF718096)))
+              else
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: services.map((s) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEBF8FF),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(s, style: const TextStyle(fontSize: 11, color: _blue, fontWeight: FontWeight.w600)),
+                  )).toList(),
+                ),
+
+              const SizedBox(height: 20),
+
+              // ── Action Buttons (only for Approved) ─────────────────────────
+              if (isApproved) ...[
+                // Start Service full-width — only enabled on the scheduled date
+                Builder(builder: (context) {
+                  final now = DateTime.now();
+                  final todayKey =
+                      '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+                  final isToday = preferredDate == todayKey;
+                  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: isToday ? onStartService : null,
+                        icon: const Icon(Icons.play_arrow, size: 16),
+                        label: const Text('Start Service',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _green,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: _green.withOpacity(0.35),
+                          disabledForegroundColor: Colors.white70,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                    if (!isToday) ...[
+                      const SizedBox(height: 6),
+                      Row(children: [
+                        const Icon(Icons.info_outline, size: 12, color: Color(0xFF718096)),
+                        const SizedBox(width: 4),
+                        Text(
+                          DateTime.tryParse(preferredDate)?.isBefore(DateTime.now()) == true
+                              ? 'Scheduled date has passed — please reschedule.'
+                              : 'Scheduled on ${formatDate(preferredDate)} — not yet available to start.',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
+                        ),
+                      ]),
+                    ],
+                  ]);
+                }),
+                const SizedBox(height: 10),
+                // Reschedule + Cancel row
+                Row(children: [
+                  Expanded(child: OutlinedButton.icon(
+                    onPressed: onReschedule,
+                    icon: const Icon(Icons.history, size: 15, color: _blue),
+                    label: const Text('Reschedule',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _blue)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: _blue),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  )),
+                  const SizedBox(width: 10),
+                  Expanded(child: OutlinedButton.icon(
+                    onPressed: onDismiss,
+                    icon: const Icon(Icons.close, size: 15, color: _red),
+                    label: const Text('Cancel',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _red)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: _red),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  )),
+                ]),
+              ],
+
+              // ── Cancelled state close button ───────────────────────────────
+              if (isCancelled) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Close'),
+                  ),
+                ),
+              ],
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String value) {
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, size: 14, color: const Color(0xFF718096)),
+      const SizedBox(width: 8),
+      Text('$label: ', style: const TextStyle(fontSize: 12, color: Color(0xFF718096))),
+      Expanded(
+        child: Text(value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1a202c))),
+      ),
+    ]);
   }
 }

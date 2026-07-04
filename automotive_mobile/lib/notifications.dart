@@ -923,12 +923,12 @@ class _AppNotificationsState extends State<AppNotifications> {
                                         child: Container(
                                           width: 36, height: 36,
                                           decoration: BoxDecoration(
-                                            color: _blue.withOpacity(0.1),
+                                            color: _red.withOpacity(0.1),
                                             borderRadius: BorderRadius.circular(10),
                                           ),
                                           child: const Icon(
                                             Icons.notifications_outlined,
-                                            color: _blue,
+                                            color: _red,
                                             size: 20,
                                           ),
                                         ),

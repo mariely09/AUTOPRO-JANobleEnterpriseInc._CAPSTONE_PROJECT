@@ -3,9 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Login</title>
   <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
   <link rel="stylesheet" href="../static/css/login.css" />
+  <style>
+    /* Hide browser native password reveal button (Edge/IE/Chrome) */
+    #password::-ms-reveal,
+    #password::-ms-clear,
+    #password::-webkit-credentials-auto-fill-button { display: none !important; }
+  </style>
 </head>
 <body>
 
@@ -94,6 +103,20 @@
       console.log('Auth state: User logged in', user.uid);
     } else {
       console.log('Auth state: No user');
+      // Clear all session data so back button cannot restore a logged-in state
+      sessionStorage.removeItem('apUser');
+      sessionStorage.removeItem('spUser');
+      sessionStorage.removeItem('cpUser');
+      // Replace current history entry so back button from login cannot return to dashboard
+      history.replaceState(null, '', '/login.html');
+    }
+  });
+
+  // Prevent bfcache from restoring dashboard pages when back is pressed from login
+  window.addEventListener('pageshow', function(e) {
+    if (e.persisted) {
+      // Page was restored from bfcache — if we're on login, push state to block further back
+      history.replaceState(null, '', '/login.html');
     }
   });
 </script>
@@ -329,6 +352,9 @@
     };
     const target = map[role] || 'customer_dashboard.html';
     console.log('Redirecting to:', target); // Debug log
+    // Mark login time so the auth guard knows this is a fresh login
+    localStorage.setItem('_loggedIn', Date.now().toString());
+    localStorage.removeItem('_loggedOut');
     window.location.href = target;
   }
 

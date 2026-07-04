@@ -28,12 +28,13 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
   bool _loading = true;
   bool _submitting = false;
 
+  static const _allTimeSlots = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'];
+
   // Calendar state
   late int _calYear;
   late int _calMonth;
-  Map<String, int> _bookedDates = {};
-  Map<String, List<String>> _bookedTimes = {}; // date → list of taken time slots
-  static const _maxBookingsPerDay = 5;
+  Map<String, List<String>> _bookedDates = {}; // date → list of taken time slots
+  Map<String, List<String>> _bookedTimes = {}; // date → list of taken time slots (alias, reused from _bookedDates)
 
   @override
   void initState() {
@@ -95,17 +96,29 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
           .collection('service_bookings')
           .where('status', whereIn: ['Approved', 'Pending'])
           .get();
-      final Map<String, int> counts = {};
+      final Map<String, List<String>> slots = {};
       for (final doc in snap.docs) {
         final date = doc.data()['preferredDate'] as String?;
-        if (date != null) counts[date] = (counts[date] ?? 0) + 1;
+        final time = doc.data()['preferredTime'] as String?;
+        if (date != null && time != null && time.isNotEmpty) {
+          slots.putIfAbsent(date, () => []);
+          if (!slots[date]!.contains(time)) slots[date]!.add(time);
+        }
       }
-      if (mounted) setState(() => _bookedDates = counts);
+      if (mounted) setState(() {
+        _bookedDates = slots;
+        _bookedTimes = Map.from(slots); // share the same data
+      });
     } catch (_) {}
   }
 
   Future<void> _loadBookedTimesForDate(String dateStr) async {
     if (_bookedTimes.containsKey(dateStr)) return;
+    // Reuse already-loaded slot data if available
+    if (_bookedDates.isNotEmpty) {
+      if (mounted) setState(() => _bookedTimes[dateStr] = _bookedDates[dateStr] ?? []);
+      return;
+    }
     try {
       final snap = await FirebaseFirestore.instance
           .collection('service_bookings')
@@ -182,19 +195,15 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         checks.add('✅ Advance Window: $daysAhead days ahead');
       }
 
-      // 2. Slot Availability — max 5 bookings per day
-      const maxBookingsPerDay = 5;
-      final slotSnap = await db.collection('service_bookings')
-          .where('preferredDate', isEqualTo: dateStr)
-          .where('status', whereIn: ['Approved', 'Pending'])
-          .get();
-      final dayBookings = slotSnap.docs.length;
-      if (dayBookings >= maxBookingsPerDay) {
+      // 2. Slot Availability — date is full only when all time slots are taken
+      final takenOnDate = (_bookedDates[dateStr] ?? []);
+      final dayBookings = takenOnDate.length;
+      if (dayBookings >= _allTimeSlots.length) {
         autoApprove = false;
         denyReason = 'This date is fully booked. Please choose another date.';
-        checks.add('❌ Slot Availability: Full ($dayBookings/$maxBookingsPerDay)');
+        checks.add('❌ Slot Availability: Full ($dayBookings/${_allTimeSlots.length} time slots taken)');
       } else {
-        checks.add('✅ Slot Availability: $dayBookings/$maxBookingsPerDay slots used');
+        checks.add('✅ Slot Availability: $dayBookings/${_allTimeSlots.length} time slots taken');
       }
 
       // 3. No Duplicate — same vehicle, same day
@@ -335,7 +344,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         await db.collection('notifications').add({
           'title': '✅ Booking Confirmed',
           'message': 'Your service booking on ${_fmtDatePretty(bookDate)} has been confirmed.\n$detailedMsg',
-          'type': 'success', 'targetRole': 'customer', 'targetUid': uid,
+          'type': 'success', 'targetRole': '', 'targetUid': uid,
           'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
         });
       } else {
@@ -349,7 +358,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         await db.collection('notifications').add({
           'title': '⏳ Booking Pending',
           'message': 'Your booking on ${_fmtDatePretty(bookDate)} is pending admin approval.\n$detailedMsg\nReason: $denyReason',
-          'type': 'warning', 'targetRole': 'customer', 'targetUid': uid,
+          'type': 'warning', 'targetRole': '', 'targetUid': uid,
           'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
         });
       }
@@ -646,7 +655,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       while (attempts < 30) {
         final dateStr = '${bestSuggestion!.year}-${bestSuggestion!.month.toString().padLeft(2, '0')}-${bestSuggestion!.day.toString().padLeft(2, '0')}';
         final isSunday = bestSuggestion!.weekday == DateTime.sunday;
-        final isFull = (_bookedDates[dateStr] ?? 0) >= _maxBookingsPerDay;
+        final isFull = (_bookedDates[dateStr]?.length ?? 0) >= _allTimeSlots.length;
         if (!isSunday && !isFull) break;
         bestSuggestion = bestSuggestion!.add(const Duration(days: 1));
         attempts++;
@@ -658,7 +667,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       while (attempts < 14) {
         final dateStr = '${bestSuggestion!.year}-${bestSuggestion!.month.toString().padLeft(2, '0')}-${bestSuggestion!.day.toString().padLeft(2, '0')}';
         final isSunday = bestSuggestion!.weekday == DateTime.sunday;
-        final isFull = (_bookedDates[dateStr] ?? 0) >= _maxBookingsPerDay;
+        final isFull = (_bookedDates[dateStr]?.length ?? 0) >= _allTimeSlots.length;
         if (!isSunday && !isFull) break;
         bestSuggestion = bestSuggestion!.add(const Duration(days: 1));
         attempts++;
@@ -783,8 +792,8 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
               final dateStr = '${_calYear}-${_calMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
               final isPast = date.isBefore(todayMidnight);
               final isSunday = date.weekday == DateTime.sunday;
-              final bookings = _bookedDates[dateStr] ?? 0;
-              final isFull = bookings >= _maxBookingsPerDay;
+              final takenSlots = _bookedDates[dateStr] ?? [];
+              final isFull = takenSlots.length >= _allTimeSlots.length;
               final isSelected = _preferredDate != null &&
                   _preferredDate!.year == _calYear &&
                   _preferredDate!.month == _calMonth &&

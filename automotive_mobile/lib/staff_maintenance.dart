@@ -5,20 +5,57 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'barcode_scanner_screen.dart';
 
 class StaffMaintenance extends StatefulWidget {
-  const StaffMaintenance({super.key});
+  final Map<String, dynamic>? bookingData;
+  final Map<String, dynamic>? materialData; // pre-fill a material in the add modal
+  const StaffMaintenance({super.key, this.bookingData, this.materialData});
 
   @override
   State<StaffMaintenance> createState() => _StaffMaintenanceState();
 }
 
 class _StaffMaintenanceState extends State<StaffMaintenance> {
+  final _bodyKey = GlobalKey<StaffMaintenanceBodyState>();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F8FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFE8001C),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('Vehicle Maintenance',
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _bodyKey.currentState?.triggerAdd(),
+        backgroundColor: const Color(0xFFE8001C),
+        child: const Icon(Icons.add, color: Colors.white, size: 28),
+      ),
+      body: StaffMaintenanceBody(key: _bodyKey, bookingData: widget.bookingData, materialData: widget.materialData),
+    );
+  }
+}
+
+// ── Embeddable body (used inside StaffVehicleList tabs) ──────────
+class StaffMaintenanceBody extends StatefulWidget {
+  final String searchQuery;
+  final Map<String, dynamic>? bookingData;
+  final Map<String, dynamic>? materialData; // pre-fill a material row
+  const StaffMaintenanceBody({super.key, this.searchQuery = '', this.bookingData, this.materialData});
+
+  @override
+  State<StaffMaintenanceBody> createState() => StaffMaintenanceBodyState();
+}
+
+class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
   static const _red = Color(0xFFE8001C);
   static const _col = 'maintenance';
 
   final _searchCtrl = TextEditingController();
   bool _searching = false;
   String _searchQuery = '';
-  String _statusFilter = 'all'; // 'all', 'Pending', 'Ongoing', 'Completed'
+  String _statusFilter = 'all'; // 'all', 'Ongoing', 'Completed'
 
   CollectionReference get _db => FirebaseFirestore.instance.collection(_col);
 
@@ -32,6 +69,16 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
   void initState() {
     super.initState();
     _loadLookups();
+  }
+
+  /// Called by parent Scaffold FAB to open the add modal.
+  void triggerAdd() {
+    if (!_lookupLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Loading data, please wait...'), duration: Duration(seconds: 1)));
+      return;
+    }
+    _showAddServiceModal();
   }
 
   Future<void> _loadLookups() async {
@@ -56,6 +103,19 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
       _currentUserName = (userDoc.data()?['name'] as String?) ?? '';
     }
     setState(() => _lookupLoaded = true);
+
+    // Auto-open add modal if booking data was passed
+    if (widget.bookingData != null && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAddServiceModal(bookingData: widget.bookingData);
+      });
+    }
+    // Auto-open add modal if material data was passed (from scan)
+    if (widget.materialData != null && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAddServiceModal(materialData: widget.materialData);
+      });
+    }
   }
 
   @override
@@ -82,49 +142,7 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (!_lookupLoaded) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Loading data, please wait...'), duration: Duration(seconds: 1)));
-            return;
-          }
-          _showAddServiceModal();
-        },
-        backgroundColor: _red,
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
-      ),
-      appBar: AppBar(
-        backgroundColor: _red,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: _searching
-            ? TextField(
-                controller: _searchCtrl,
-                autofocus: true,
-                onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  hintText: 'Search services...',
-                  hintStyle: TextStyle(color: Colors.white54),
-                  border: InputBorder.none,
-                ),
-              )
-            : const Text('Vehicle Maintenance',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(
-            icon: Icon(_searching ? Icons.close : Icons.search, color: Colors.white),
-            onPressed: () => setState(() {
-              _searching = !_searching;
-              if (!_searching) { _searchCtrl.clear(); _searchQuery = ''; }
-            }),
-          ),
-        ],
-      ),
-      body: StreamBuilder<QuerySnapshot>(
+    return StreamBuilder<QuerySnapshot>(
         stream: _db.orderBy('createdAt', descending: true).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -144,7 +162,7 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
               'mechanic': data['mechanic'] as String? ?? '',
               'date': data['date'] as String? ?? '',
               'cost': data['cost'] as String? ?? '0',
-              'status': data['status'] as String? ?? 'Pending',
+              'status': data['status'] as String? ?? 'Ongoing',
               'odometer': data['odometer'],
               'svcRows': data['svcRows'],
               'matRows': data['matRows'],
@@ -152,12 +170,13 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
             };
           }).toList();
 
-          final filtered = _searchQuery.isEmpty
+          final activeQuery = widget.searchQuery.isNotEmpty ? widget.searchQuery : _searchQuery;
+          final filtered = activeQuery.isEmpty
               ? services
               : services.where((s) =>
-                  (s['id'] as String).toLowerCase().contains(_searchQuery) ||
-                  (s['plate'] as String).toLowerCase().contains(_searchQuery) ||
-                  (s['mechanic'] as String).toLowerCase().contains(_searchQuery)).toList();
+                  (s['id'] as String).toLowerCase().contains(activeQuery) ||
+                  (s['plate'] as String).toLowerCase().contains(activeQuery) ||
+                  (s['mechanic'] as String).toLowerCase().contains(activeQuery)).toList();
 
           final afterStatusFilter = _statusFilter == 'all'
               ? filtered
@@ -193,8 +212,7 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
             ),
           ]);
         },
-      ),
-    );
+      );
   }
 
   Widget _statChip(String label, String value, Color color, String filter) {
@@ -384,7 +402,8 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
                           final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
                           final byName = (userDoc.data()?['name'] as String?) ?? 'Staff';
                           final now = DateTime.now();
-                          final dateStr = '${now.month}/${now.day}/${now.year}';
+                          const _txnMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                          final dateStr = '${_txnMonths[now.month - 1]} ${now.day}, ${now.year}';
                           final plate = (s['plate'] as String).trim().toUpperCase();
                           final matRows = s['matRows'] as List<dynamic>? ?? [];
                           for (final r in matRows) {
@@ -539,15 +558,32 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
     );
   }
 
-  void _showAddServiceModal({Map<String, dynamic>? service}) async {
+  void _showAddServiceModal({Map<String, dynamic>? service, Map<String, dynamic>? bookingData, Map<String, dynamic>? materialData}) async {
     final isEdit = service != null;
-    final plateCtrl = TextEditingController(text: service?['plate'] as String? ?? '');
+
+    // Pre-fill from booking data if available
+    String prefillPlate = service?['plate'] as String? ?? '';
+    String prefillDate  = service?['date']  as String? ??
+        '${_monthName(DateTime.now().month)} ${DateTime.now().day}, ${DateTime.now().year}';
+    List<dynamic>? prefillServices;
+    String? bookingId;
+
+    if (bookingData != null) {
+      prefillPlate = bookingData['plate'] as String? ?? '';
+      final bookingDateStr = bookingData['preferredDate'] as String? ?? '';
+      if (bookingDateStr.isNotEmpty) {
+        final dt = DateTime.tryParse(bookingDateStr);
+        if (dt != null) prefillDate = '${_monthName(dt.month)} ${dt.day}, ${dt.year}';
+      }
+      prefillServices = bookingData['services'] as List?;
+      bookingId       = bookingData['bookingId'] as String?;
+    }
+
+    final plateCtrl    = TextEditingController(text: prefillPlate);
     final mechanicCtrl = TextEditingController(text: service?['mechanic'] as String? ?? (isEdit ? '' : _currentUserName));
-    final dateCtrl = TextEditingController(
-      text: service?['date'] as String? ?? '${_monthName(DateTime.now().month)} ${DateTime.now().day}, ${DateTime.now().year}',
-    );
-    final odoCtrl = TextEditingController(text: (service?['odometer'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), ''));
-    Map<String, dynamic>? foundVehicle = isEdit ? _vehicleMap[service!['plate']] : null;
+    final dateCtrl     = TextEditingController(text: prefillDate);
+    final odoCtrl      = TextEditingController(text: (service?['odometer'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), ''));
+    Map<String, dynamic>? foundVehicle = isEdit ? _vehicleMap[service!['plate']] : _vehicleMap[prefillPlate.toUpperCase()];
 
     // ── Issue tags ──
     const presetIssues = [
@@ -572,8 +608,54 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
       return [{'name': TextEditingController(), 'qty': TextEditingController(), 'uom': TextEditingController(), 'cost': TextEditingController()}];
     }
 
-    final svcRows = makeRows(service?['svcRows'] as List<dynamic>?);
-    final matRows = makeRows(service?['matRows'] as List<dynamic>?);
+    // Pre-fill service rows from booking if available
+    List<Map<String, TextEditingController>> svcRows;
+    if (bookingData != null && prefillServices != null && prefillServices.isNotEmpty) {
+      svcRows = prefillServices.map<Map<String, TextEditingController>>((svcName) {
+        final name = svcName.toString();
+        final d    = _itemMasterMap[name];
+        return {
+          'name': TextEditingController(text: name),
+          'qty':  TextEditingController(text: '1'),
+          'uom':  TextEditingController(text: (d?['uom'] ?? 'job').toString()),
+          'cost': TextEditingController(text: (d?['cost'] ?? '0').toString().replaceAll('₱','').replaceAll(',','').trim()),
+        };
+      }).toList();
+    } else {
+      svcRows = makeRows(service?['svcRows'] as List<dynamic>?);
+    }
+
+    // Pre-fill material rows from scan if available
+    List<Map<String, TextEditingController>> matRows;
+    if (materialData != null) {
+      final matName = materialData['name'] as String? ?? '';
+      final d = _itemMasterMap[matName];
+      final rawCost = (d?['cost'] ?? materialData['cost'] ?? '0').toString().replaceAll('₱','').replaceAll(',','').trim();
+      final uom = (d?['uom'] ?? materialData['uom'] ?? '').toString();
+      final maxStockCtrl = TextEditingController(text: '99999');
+      matRows = [{
+        'name':       TextEditingController(text: matName),
+        'qty':        TextEditingController(text: '1'),
+        'uom':        TextEditingController(text: uom),
+        'cost':       TextEditingController(text: rawCost),
+        'maxStock':   maxStockCtrl,
+        'searchText': TextEditingController(text: matName),
+      }];
+      // Look up stock immediately so the badge shows the correct value
+      FirebaseFirestore.instance
+          .collection('stock_inventory')
+          .where('name', isEqualTo: matName)
+          .limit(1)
+          .get()
+          .then((snap) {
+        final available = snap.docs.isNotEmpty
+            ? (snap.docs.first['stock'] as num?)?.toInt() ?? 0
+            : -1;
+        maxStockCtrl.text = '$available';
+      }).catchError((_) {});
+    } else {
+      matRows = makeRows(service?['matRows'] as List<dynamic>?);
+    }
 
     showModalBottomSheet(
       context: context, isScrollControlled: true,
@@ -892,10 +974,13 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
                             'issues': selectedIssues,
                             'svcRows': svcRows.map((r) => {'name': r['name']!.text, 'qty': r['qty']!.text, 'uom': r['uom']!.text, 'cost': r['cost']!.text}).toList(),
                             'matRows': matRows.map((r) => {'name': r['name']!.text, 'qty': r['qty']!.text, 'uom': r['uom']!.text, 'cost': r['cost']!.text}).toList(),
+                            if (bookingId != null && bookingId.isNotEmpty) 'bookingId': bookingId,
                           };
                           try {
                             if (isEdit) {
                               await _db.doc(service!['docId'] as String).update(data);
+                              await _updateVehicleOdometer(
+                                plateCtrl.text.trim().toUpperCase(), odoValue);
                               if (context.mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -906,6 +991,8 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
                             } else {
                               data['createdAt'] = FieldValue.serverTimestamp();
                               await _db.add(data);
+                              await _updateVehicleOdometer(
+                                plateCtrl.text.trim().toUpperCase(), odoValue);
                               if (context.mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1184,6 +1271,35 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
         ]),
       ]),
     );
+  }
+
+  /// Updates the vehicle's odometer fields in Firestore immediately when a
+  /// maintenance record is saved (Pending status), so the odo column stays current.
+  Future<void> _updateVehicleOdometer(String plate, int odoValue) async {
+    if (plate.isEmpty || odoValue <= 0) return;
+    try {
+      final vSnap = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .where('plate', isEqualTo: plate)
+          .limit(1)
+          .get();
+      if (vSnap.docs.isEmpty) {
+        final all = await FirebaseFirestore.instance.collection('vehicles').get();
+        final match = all.docs.where((d) =>
+            (d['plate'] as String? ?? '').toUpperCase() == plate.toUpperCase()).toList();
+        if (match.isNotEmpty) {
+          await match.first.reference.update({
+            'odometer': odoValue,
+            'odo': '$odoValue km',
+          });
+        }
+      } else {
+        await vSnap.docs.first.reference.update({
+          'odometer': odoValue,
+          'odo': '$odoValue km',
+        });
+      }
+    } catch (_) {}
   }
 
   String _formatCost(String raw) {

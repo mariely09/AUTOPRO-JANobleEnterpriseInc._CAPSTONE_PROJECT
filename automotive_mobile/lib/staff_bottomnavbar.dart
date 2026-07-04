@@ -17,8 +17,8 @@ class StaffBottomNavBar extends StatelessWidget {
   static const List<_NavItem> navItems = [
     _NavItem(icon: Icons.dashboard_outlined, label: 'Dashboard'),
     _NavItem(icon: Icons.inventory_2_outlined, label: 'Inventory'),
-    _NavItem(icon: Icons.build_outlined, label: 'Maintenance'),
     _NavItem(icon: Icons.directions_car_outlined, label: 'Vehicle'),
+    _NavItem(icon: Icons.person_outline, label: 'Profile'),
   ];
 
   @override
@@ -34,13 +34,13 @@ class StaffBottomNavBar extends StatelessWidget {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              // 5 slots: 2 left + center placeholder + 2 right
+              // 4 slots: 2 left + center placeholder + 2 right
               Row(children: [
                 _navBtn(0), // Dashboard
                 _navBtn(1), // Inventory
                 const Expanded(child: SizedBox()), // center placeholder for scan button
-                _navBtn(2), // Maintenance
-                _navBtn(3), // Vehicle
+                _navBtn(2), // Vehicle
+                _navBtn(3), // Profile
               ]),
               // Center scan button
               Positioned(

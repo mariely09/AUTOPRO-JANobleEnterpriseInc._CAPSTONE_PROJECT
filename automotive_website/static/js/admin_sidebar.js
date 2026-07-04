@@ -267,13 +267,12 @@ window.toggleAvatarMenu = function(id) {
 
 window.adminAvatarLogout = function() {
     if (!confirm('Are you sure you want to logout?')) return;
+    localStorage.setItem('_loggedOut', Date.now().toString());
     sessionStorage.removeItem('apUser');
     sessionStorage.removeItem('spUser');
     sessionStorage.removeItem('cpUser');
     if (typeof firebase !== 'undefined' && firebase.auth) {
         firebase.auth().signOut().finally(() => {
-            // Replace the entire history stack with login page so back button
-            // cannot return to any authenticated page
             history.replaceState(null, '', '/index.html');
             window.location.replace('/index.html');
         });
@@ -299,19 +298,37 @@ document.addEventListener('click', function(e) {
 // If the user presses the browser back button after logout,
 // check auth state and redirect to login if no session exists.
 window.addEventListener('pageshow', function(e) {
-    // pageshow fires on back-forward cache restore too (e.persisted === true)
+    // When a page is restored from bfcache (back/forward), e.persisted === true.
+    // Always re-validate in that case to block back-navigation after logout.
     const hasSession = sessionStorage.getItem('apUser') ||
                        sessionStorage.getItem('spUser') ||
                        sessionStorage.getItem('cpUser');
+
     if (!hasSession) {
+        // No session at all — go to login immediately, no delay
         window.location.replace('/login.html');
         return;
     }
-    // Also verify Firebase auth is still active
+
+    if (e.persisted) {
+        // Page restored from bfcache — force a fresh check with Firebase
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+            var user = firebase.auth().currentUser;
+            if (!user) {
+                sessionStorage.removeItem('apUser');
+                sessionStorage.removeItem('spUser');
+                sessionStorage.removeItem('cpUser');
+                window.location.replace('/login.html');
+            }
+        }
+        return;
+    }
+
+    // Normal load — verify Firebase auth is still active
     if (typeof firebase !== 'undefined' && firebase.auth) {
         firebase.auth().onAuthStateChanged(function(user) {
             if (!user) {
-                // Delay check — Firebase fires null first during auth restore
+                // Short delay to allow Firebase to restore session from token
                 setTimeout(function() {
                     if (!firebase.auth().currentUser) {
                         sessionStorage.removeItem('apUser');
@@ -319,7 +336,7 @@ window.addEventListener('pageshow', function(e) {
                         sessionStorage.removeItem('cpUser');
                         window.location.replace('/login.html');
                     }
-                }, 2000);
+                }, 500);
             }
         });
     }

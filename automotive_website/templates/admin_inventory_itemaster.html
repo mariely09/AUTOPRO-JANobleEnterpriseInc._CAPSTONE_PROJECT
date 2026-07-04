@@ -1,7 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Item Master</title>
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
@@ -9,6 +12,26 @@
     <link rel="stylesheet" href="../static/css/admin.css">
 </head>
 <body class="portal-body" data-page="item-master">
+<script>
+// Instant auth guard — blocks bfcache back-navigation after logout
+(function() {
+  var logoutTime = localStorage.getItem('_loggedOut');
+  var loginTime  = localStorage.getItem('_loggedIn');
+  // If logged out more recently than logged in, block access
+  if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+    return;
+  }
+  var hasSession = sessionStorage.getItem('apUser') ||
+                   sessionStorage.getItem('spUser') ||
+                   sessionStorage.getItem('cpUser');
+  if (!hasSession) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+  }
+})();
+</script>
 
 <div class="admin-dashboard" style="display:flex;flex-direction:column;">
     <div id="headerContainer"></div>
@@ -29,10 +52,24 @@
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <input type="text" class="search-bar" placeholder="Search items..." id="itemMasterSearch" style="width:200px;padding-left:2rem;" oninput="renderItemMasterList()">
                 </div>
+                <!-- Sort By -->
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+                    <select id="imSortSelect" onchange="renderItemMasterList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:160px;outline:none;transition:border-color 0.2s ease;">
+                        <option value="num-asc">Item No. (Ascending)</option>
+                        <option value="num-desc">Item No. (Descending)</option>
+                        <option value="name-asc">Name A→Z</option>
+                        <option value="name-desc">Name Z→A</option>
+                        <option value="group-asc">Group A→Z</option>
+                        <option value="cost-desc">Cost ↑ Highest</option>
+                        <option value="cost-asc">Cost ↓ Lowest</option>
+                    </select>
+                    <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
                 <!-- Commodity Group Filter -->
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                    <select id="imCommodityFilterDropdown" onchange="imSetCommodityFilter(this.value)" style="height:36px;padding:0 1.5rem 0 2rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.82rem;font-weight:600;color:#4a5568;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:160px;outline:none;">
+                    <select id="imCommodityFilterDropdown" onchange="imSetCommodityFilter(this.value)" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:160px;outline:none;transition:border-color 0.2s ease;">
                         <option value="">All Groups</option>
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -41,6 +78,11 @@
                 <button class="btn-icon btn-secondary" onclick="printItemMaster()" style="display:flex;align-items:center;gap:0.3rem;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                     Print
+                </button>
+                <!-- Excel Button -->
+                <button class="btn-icon btn-secondary" onclick="exportItemMasterExcel()" style="display:flex;align-items:center;gap:0.3rem;background:#f0fff4;border-color:#9ae6b4;color:#276749;" title="Export to Excel">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Excel
                 </button>
             </div>
         </div>
@@ -409,11 +451,21 @@
         return (i.commodityGroup||'') === cgFilter;
       });
     }
-    // Sort same as table — newest first
+    // Sort same as table — respects active sort selection
+    var imSortVal = (document.getElementById('imSortSelect') || {}).value || 'num-asc';
     filtered = filtered.slice().sort(function(a, b) {
-      var na = parseInt((a.itemNum||'').replace(/[^0-9]/g,''))||0;
-      var nb = parseInt((b.itemNum||'').replace(/[^0-9]/g,''))||0;
-      return nb - na;
+      function numPart(s) { return parseInt((s||'').replace(/[^0-9]/g,'')) || 0; }
+      function costVal(i) { return parseFloat(String(i.cost||0).replace(/[₱,]/g,'')) || 0; }
+      switch (imSortVal) {
+        case 'num-asc':   return numPart(a.itemNum) - numPart(b.itemNum);
+        case 'num-desc':  return numPart(b.itemNum) - numPart(a.itemNum);
+        case 'name-asc':  return (a.itemName||'').localeCompare(b.itemName||'');
+        case 'name-desc': return (b.itemName||'').localeCompare(a.itemName||'');
+        case 'group-asc': return (a.commodityGroup||'').localeCompare(b.commodityGroup||'');
+        case 'cost-desc': return costVal(b) - costVal(a);
+        case 'cost-asc':  return costVal(a) - costVal(b);
+        default:          return numPart(a.itemNum) - numPart(b.itemNum);
+      }
     });
 
     var matCount = filtered.filter(function(i){ return (i.itemType||'') === 'Material'; }).length;
@@ -441,6 +493,76 @@
       ['Item No.', 'Item Name', 'Description', 'Commodity Group', 'UOM', 'Type', 'Cost'],
       rows
     );
+  };
+
+  // ── Export Item Master to Excel ──
+  window.exportItemMasterExcel = function() {
+    var items = window.itemMaster || [];
+
+    var imFilter = window._imFilter || 'all';
+    var cgFilter = window._imCommodityFilter || '';
+    var searchQ  = ((document.getElementById('itemMasterSearch') || {}).value || '').toLowerCase().trim();
+
+    var filtered = items;
+    if (searchQ) {
+      filtered = filtered.filter(function(i) {
+        return (i.itemName||'').toLowerCase().includes(searchQ) || (i.itemNum||'').toLowerCase().includes(searchQ);
+      });
+    }
+    if (imFilter !== 'all') {
+      filtered = filtered.filter(function(i) {
+        return (i.itemType||'').toLowerCase() === imFilter.toLowerCase();
+      });
+    }
+    if (cgFilter) {
+      filtered = filtered.filter(function(i) { return (i.commodityGroup||'') === cgFilter; });
+    }
+
+    var imSortVal = (document.getElementById('imSortSelect') || {}).value || 'num-asc';
+    filtered = filtered.slice().sort(function(a, b) {
+      function numPart(s) { return parseInt((s||'').replace(/[^0-9]/g,'')) || 0; }
+      function costVal(i) { return parseFloat(String(i.cost||0).replace(/[^0-9.]/g,'')) || 0; }
+      switch (imSortVal) {
+        case 'num-asc':   return numPart(a.itemNum) - numPart(b.itemNum);
+        case 'num-desc':  return numPart(b.itemNum) - numPart(a.itemNum);
+        case 'name-asc':  return (a.itemName||'').localeCompare(b.itemName||'');
+        case 'name-desc': return (b.itemName||'').localeCompare(a.itemName||'');
+        case 'group-asc': return (a.commodityGroup||'').localeCompare(b.commodityGroup||'');
+        case 'cost-desc': return costVal(b) - costVal(a);
+        case 'cost-asc':  return costVal(a) - costVal(b);
+        default:          return numPart(a.itemNum) - numPart(b.itemNum);
+      }
+    });
+
+    var now = new Date();
+    var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+
+    function _esc(v) {
+      var s = String(v === null || v === undefined ? '' : v)
+        .replace(/<[^>]+>/g, '').replace(/"/g, '""');
+      return /[,"\n\r]/.test(s) ? '"' + s + '"' : s;
+    }
+
+    var headers = ['Item No.','Item Name','Description','Commodity Group','UOM','Item Type','Cost'];
+    var rows = filtered.map(function(i) {
+      return [
+        i.itemNum || '',
+        i.itemName || '',
+        i.description || '',
+        i.commodityGroup || '',
+        i.uom || '',
+        i.itemType || '',
+        (parseFloat(String(i.cost||0).replace(/[^0-9.]/g,''))||0).toFixed(2)
+      ].map(_esc).join(',');
+    });
+
+    var csv = [headers.map(_esc).join(',')].concat(rows).join('\r\n');
+    var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'Item_Master_' + stamp + '.csv';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
   };
 </script>
 </body>

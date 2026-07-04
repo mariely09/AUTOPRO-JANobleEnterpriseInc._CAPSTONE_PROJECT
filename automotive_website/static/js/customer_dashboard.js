@@ -258,6 +258,9 @@
     // Check if this vehicle already has an active booking (Pending or Approved)
     let hasActiveBooking = false;
     let activeBookingStatus = '';
+    let activeBookingDate = '';
+    let activeBookingTime = '';
+    let activeBookingPreviousDate = '';
     try {
       const bookSnap = await db.collection('service_bookings')
         .where('vehicleId', '==', v.id)
@@ -265,7 +268,11 @@
         .limit(1).get();
       if (!bookSnap.empty) {
         hasActiveBooking = true;
-        activeBookingStatus = bookSnap.docs[0].data().status || 'Pending';
+        const bData = bookSnap.docs[0].data();
+        activeBookingStatus       = bData.status || 'Pending';
+        activeBookingDate         = bData.preferredDate || '';
+        activeBookingTime         = bData.preferredTime || '';
+        activeBookingPreviousDate = bData.previousDate  || '';
       }
     } catch(e) { console.error('Booking check error:', e); }
 
@@ -273,15 +280,41 @@
     let overdueSection = '';
     if (status === 'Overdue') {
       if (hasActiveBooking) {
-        const badgeColor = activeBookingStatus === 'Approved' ? '#16a34a' : '#d97706';
-        const badgeBg    = activeBookingStatus === 'Approved' ? 'rgba(22,163,74,0.08)' : 'rgba(217,119,6,0.08)';
-        const badgeBorder= activeBookingStatus === 'Approved' ? '#16a34a40' : '#d9770640';
-        const badgeIcon  = activeBookingStatus === 'Approved'
+        const isRescheduled = activeBookingPreviousDate && activeBookingPreviousDate !== activeBookingDate;
+        const isApproved    = activeBookingStatus === 'Approved';
+        const badgeColor = isApproved ? '#16a34a' : '#d97706';
+        const badgeBg    = isApproved ? 'rgba(22,163,74,0.08)' : 'rgba(217,119,6,0.08)';
+        const badgeBorder= isApproved ? '#16a34a40' : '#d9770640';
+        const badgeIcon  = isApproved
           ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'
           : '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>';
-        const subText = activeBookingStatus === 'Approved'
-          ? 'Your booking is confirmed. See you at the shop!'
-          : 'Your booking is pending admin approval.';
+
+        // Format date for display
+        let formattedDate = '';
+        if (activeBookingDate) {
+          const parts = activeBookingDate.split('-');
+          if (parts.length === 3) {
+            const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const m = parseInt(parts[1]) - 1;
+            const d = parseInt(parts[2]);
+            const y = parseInt(parts[0]);
+            formattedDate = MONTHS_SHORT[m] + ' ' + d + ', ' + y;
+          }
+        }
+        const dateTimeStr = formattedDate
+          ? ' — ' + formattedDate + (activeBookingTime ? ', ' + activeBookingTime : '')
+          : '';
+
+        const badgeTitle = isRescheduled ? 'Booking Rescheduled' : 'Service Already Booked';
+        let subText;
+        if (isRescheduled) {
+          subText = 'Rescheduled to' + (formattedDate ? ' ' + formattedDate + (activeBookingTime ? ', ' + activeBookingTime : '') : '') + '.';
+        } else if (isApproved) {
+          subText = 'Confirmed' + dateTimeStr + '.';
+        } else {
+          subText = 'Pending approval' + dateTimeStr + '.';
+        }
+
         overdueSection = `
         <div style="margin-top:14px;padding:12px;background:${badgeBg};border-radius:12px;border:1.5px solid ${badgeBorder};">
           <div style="display:flex;align-items:center;gap:12px;">
@@ -289,7 +322,7 @@
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${badgeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><${badgeIcon}/></svg>
             </div>
             <div style="flex:1;">
-              <div style="font-size:12px;font-weight:700;color:${badgeColor};">Service Already Booked</div>
+              <div style="font-size:12px;font-weight:700;color:${badgeColor};">${badgeTitle}</div>
               <div style="font-size:11px;color:#718096;margin-top:2px;">${subText}</div>
             </div>
             <a href="customer_my_bookings.html" style="padding:6px 14px;background:${badgeColor};border:none;border-radius:8px;color:white;font-size:11px;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;">View</a>
@@ -394,9 +427,11 @@
 
   window.sfLogout = window.cuLogout = function () {
     if (!confirm('Are you sure you want to logout?')) return;
-    auth.signOut().then(() => {
+    localStorage.setItem('_loggedOut', Date.now().toString());
+    auth.signOut().finally(() => {
       sessionStorage.removeItem('cpUser');
-      window.location.href = '/index.html';
+      history.replaceState(null, '', '/index.html');
+      window.location.replace('/index.html');
     });
   };
 

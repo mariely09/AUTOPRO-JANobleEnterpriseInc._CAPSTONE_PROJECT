@@ -1410,7 +1410,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           final uDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
                           final byName = (uDoc.data()?['name'] as String?) ?? 'Admin';
                           final now    = DateTime.now();
-                          final dateStr = '${now.month}/${now.day}/${now.year}';
+                          const _txnMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                          final dateStr = '${_txnMonths[now.month - 1]} ${now.day}, ${now.year}';
                           final plate   = (s['plate'] as String? ?? '').trim().toUpperCase();
                           for (final r in (s['matRows'] as List<dynamic>? ?? [])) {
                             final name = r['name'] as String? ?? '';

@@ -1,7 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Book a Service</title>
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
@@ -90,6 +93,26 @@
     </style>
 </head>
 <body data-page="book-service">
+<script>
+// Instant auth guard — blocks bfcache back-navigation after logout
+(function() {
+  var logoutTime = localStorage.getItem('_loggedOut');
+  var loginTime  = localStorage.getItem('_loggedIn');
+  // If logged out more recently than logged in, block access
+  if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+    return;
+  }
+  var hasSession = sessionStorage.getItem('apUser') ||
+                   sessionStorage.getItem('spUser') ||
+                   sessionStorage.getItem('cpUser');
+  if (!hasSession) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+  }
+})();
+</script>
 
 <div id="customerHeader"></div>
 
@@ -474,6 +497,8 @@ function _updateDateSuggestion() {
   var lastSvc = vehicle.lastSvcDate || '';
   var freq = parseInt(vehicle.svcFreq) || 0;
   var now = new Date();
+  var tomorrow = new Date(now.getTime() + 86400000);
+  tomorrow.setHours(0,0,0,0);
   var suggested = null;
   var reason = '';
 
@@ -483,19 +508,31 @@ function _updateDateSuggestion() {
       var nextPms = new Date(lastDate.getFullYear(), lastDate.getMonth() + freq, lastDate.getDate());
       if (nextPms > now) {
         suggested = new Date(nextPms.getTime() - 3*86400000);
-        if (suggested < now) suggested = new Date(now.getTime() + 86400000);
+        if (suggested < tomorrow) suggested = new Date(tomorrow);
         reason = 'Based on PMS schedule (due ' + _toLocalDateStr(nextPms) + ')';
       } else {
-        suggested = new Date(now.getTime() + 86400000);
+        suggested = new Date(tomorrow);
         reason = 'PMS is overdue — book ASAP';
       }
     }
   }
 
   if (!suggested) {
-    suggested = new Date(now.getTime() + 2*86400000);
-    while (suggested.getDay() === 0 || suggested.getDay() === 6) suggested = new Date(suggested.getTime() + 86400000);
-    reason = 'Next available weekday';
+    suggested = new Date(tomorrow);
+    while (suggested.getDay() === 0) suggested = new Date(suggested.getTime() + 86400000);
+    reason = 'Next available open day';
+  }
+
+  // Shift forward past Sundays and fully-booked dates (all 8 slots taken)
+  var attempts = 0;
+  while (attempts < 60) {
+    var ds = _toLocalDateStr(suggested);
+    var isSunday = suggested.getDay() === 0;
+    var takenSlots = _bsBookedDates[ds] || [];
+    var isFull = takenSlots.length >= _ALL_TIME_SLOTS.length;
+    if (!isSunday && !isFull) break;
+    suggested = new Date(suggested.getTime() + 86400000);
+    attempts++;
   }
 
   _bsSuggestedDate = _toLocalDateStr(suggested);
@@ -528,8 +565,8 @@ window.bsToggleService = function(id) {
 
 // ── Custom Calendar ──
 var _bsCalYear, _bsCalMonth, _bsCalSelectedDate = '';
-var _bsBookedDates = {}; // date -> count of bookings
-var MAX_BOOKINGS_PER_DAY = 5; // max slots per day
+var _bsBookedDates = {}; // date -> Set of taken time strings
+var _ALL_TIME_SLOTS = ['8:00 AM','9:00 AM','10:00 AM','11:00 AM','1:00 PM','2:00 PM','3:00 PM','4:00 PM'];
 
 // Load existing bookings to show availability
 async function _loadBookedDates() {
@@ -541,9 +578,14 @@ async function _loadBookedDates() {
     _bsBookedDates = {};
     snap.docs.forEach(function(d) {
       var date = d.data().preferredDate;
-      if (date) _bsBookedDates[date] = (_bsBookedDates[date] || 0) + 1;
+      var time = d.data().preferredTime;
+      if (date && time) {
+        if (!_bsBookedDates[date]) _bsBookedDates[date] = [];
+        if (_bsBookedDates[date].indexOf(time) === -1) _bsBookedDates[date].push(time);
+      }
     });
     bsRenderCalendar();
+    _updateDateSuggestion(); // re-evaluate suggestion now that availability data is loaded
   } catch(e) { /* ignore */ }
 }
 
@@ -591,8 +633,8 @@ function bsRenderCalendar() {
     var dayOfWeek = dateObj.getDay();
     var isPast = dateObj < today;
     var isSunday = dayOfWeek === 0;
-    var bookings = _bsBookedDates[dateStr] || 0;
-    var isFull = bookings >= MAX_BOOKINGS_PER_DAY;
+    var takenSlots = _bsBookedDates[dateStr] || [];
+    var isFull = takenSlots.length >= _ALL_TIME_SLOTS.length;
     var isSelected = dateStr === _bsCalSelectedDate;
 
     var cls = 'bs-cal-cell';
@@ -630,7 +672,14 @@ window.bsToggleCalendar = function() {
 };
 
 async function _loadBookedTimesForDate(dateStr) {
+  // Reuse already-loaded slot data from _bsBookedDates, only fetch if not yet loaded
   if (_bsBookedTimes[dateStr] !== undefined) {
+    _renderTimeSlots();
+    return;
+  }
+  // If _bsBookedDates is populated, derive from it directly
+  if (Object.keys(_bsBookedDates).length > 0) {
+    _bsBookedTimes[dateStr] = _bsBookedDates[dateStr] ? _bsBookedDates[dateStr].slice() : [];
     _renderTimeSlots();
     return;
   }
@@ -767,14 +816,15 @@ window.bsSubmit = async function() {
       checks.push('✅ Advance Window: ' + daysAhead + ' days ahead');
     }
 
-    // 2. Slot Availability — max bookings per day
-    var dayBookings = _bsBookedDates[_bsDate] || 0;
-    if (dayBookings >= MAX_BOOKINGS_PER_DAY) {
+    // 2. Slot Availability — date is full only when all time slots are taken
+    var takenOnDate = _bsBookedDates[_bsDate] || [];
+    var dayBookings = takenOnDate.length;
+    if (dayBookings >= _ALL_TIME_SLOTS.length) {
       autoApprove = false;
       denyReason = 'This date is fully booked. Please choose another date.';
-      checks.push('❌ Slot Availability: Full (' + dayBookings + '/' + MAX_BOOKINGS_PER_DAY + ')');
+      checks.push('❌ Slot Availability: Full (' + dayBookings + '/' + _ALL_TIME_SLOTS.length + ' time slots taken)');
     } else {
-      checks.push('✅ Slot Availability: ' + dayBookings + '/' + MAX_BOOKINGS_PER_DAY + ' slots used');
+      checks.push('✅ Slot Availability: ' + dayBookings + '/' + _ALL_TIME_SLOTS.length + ' time slots taken');
     }
 
     // 3. No Duplicate — same vehicle, same day (check first vehicle)
@@ -913,7 +963,7 @@ window.bsSubmit = async function() {
       });
       await db.collection('notifications').add({
         title: '✅ Booking Confirmed', message: 'Your service booking on ' + _fmtDatePretty(_bsDate) + ' has been confirmed.\n' + detailedMsg,
-        type: 'success', targetRole: 'customer', targetUid: user.uid,
+        type: 'success', targetRole: '', targetUid: user.uid,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
       });
       _toast('Booking confirmed for ' + vCount + ' vehicle(s)! ✅','success');
@@ -926,7 +976,7 @@ window.bsSubmit = async function() {
       });
       await db.collection('notifications').add({
         title: '⏳ Booking Pending', message: 'Your booking on ' + _fmtDatePretty(_bsDate) + ' is pending admin approval.\n' + detailedMsg + '\nReason: ' + denyReason,
-        type: 'warning', targetRole: 'customer', targetUid: user.uid,
+        type: 'warning', targetRole: '', targetUid: user.uid,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
       });
       _toast('Booking submitted — pending admin approval. ' + denyReason, 'error');

@@ -1,7 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vehicle Maintenance</title>
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
@@ -9,6 +12,26 @@
     <link rel="stylesheet" href="../static/css/admin.css">
 </head>
 <body class="portal-body" data-page="asset-servicing">
+<script>
+// Instant auth guard — blocks bfcache back-navigation after logout
+(function() {
+  var logoutTime = localStorage.getItem('_loggedOut');
+  var loginTime  = localStorage.getItem('_loggedIn');
+  // If logged out more recently than logged in, block access
+  if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+    return;
+  }
+  var hasSession = sessionStorage.getItem('apUser') ||
+                   sessionStorage.getItem('spUser') ||
+                   sessionStorage.getItem('cpUser');
+  if (!hasSession) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+  }
+})();
+</script>
 
 <div class="admin-dashboard" style="display:flex;flex-direction:column;">
     <div id="headerContainer"></div>
@@ -22,11 +45,25 @@
                 <div class="admin-header-title">Vehicle Maintenance</div>
             </div>
             <div style="margin-left:auto;display:flex;gap:0.5rem;align-items:center;">
+                <!-- Search -->
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <input type="text" class="search-bar" placeholder="Search services..." id="serviceSearch" style="width:220px;padding-left:2rem;" oninput="renderServicesList()">
                 </div>
-
+                <!-- Sort By -->
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+                    <select id="svcSortSelect" onchange="renderServicesList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
+                        <option value="date-desc">Date ↓ Newest</option>
+                        <option value="date-asc">Date ↑ Oldest</option>
+                        <option value="plate-asc">Plate A→Z</option>
+                        <option value="plate-desc">Plate Z→A</option>
+                        <option value="mechanic-asc">Mechanic A→Z</option>
+                        <option value="cost-desc">Cost ↑ Highest</option>
+                        <option value="cost-asc">Cost ↓ Lowest</option>
+                    </select>
+                    <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
             </div>
         </div>
 
@@ -1064,7 +1101,8 @@ window._svcViewDetails = function(docId) {
       if (!confirm('Mark service for ' + s.plate + ' as Completed?')) return;
       db.collection('maintenance').doc(docId).update({ status: 'Completed' }).then(function() {
         var now = new Date();
-        var dateStr = (now.getMonth()+1) + '/' + now.getDate() + '/' + now.getFullYear();
+        var _MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var dateStr = _MO[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
         var plate = (s.plate || '').trim().toUpperCase();
         var matRows = s.matRows || [];
         var svcRows = s.svcRows || [];

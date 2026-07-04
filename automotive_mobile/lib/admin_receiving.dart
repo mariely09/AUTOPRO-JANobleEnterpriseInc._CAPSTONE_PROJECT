@@ -20,10 +20,10 @@ class AdminReceivingBody extends StatefulWidget {
   final String searchQuery;
   const AdminReceivingBody({super.key, this.searchQuery = ''});
   @override
-  State<AdminReceivingBody> createState() => _AdminReceivingBodyState();
+  State<AdminReceivingBody> createState() => AdminReceivingBodyState();
 }
 
-class _AdminReceivingBodyState extends State<AdminReceivingBody> {
+class AdminReceivingBodyState extends State<AdminReceivingBody> {
   static const _red   = Color(0xFFE8001C);
   static const _blue  = Color(0xFF003087);
   static const _amber = Color(0xFFd69e2e);
@@ -1009,12 +1009,24 @@ class _AdminReceivingBodyState extends State<AdminReceivingBody> {
     ],
   );
 
+  /// Called externally (e.g. from AdminInventoryHub via GlobalKey) to open the receive modal directly.
+  void openReceiveModal(Map<String, dynamic> delivery) => _showReceiveModal(delivery);
+
   // ── Receive Items Modal (Step 1) ───────────────────────────
-  void _showReceiveModal(Map<String, dynamic> delivery) {
+  void _showReceiveModal(Map<String, dynamic> delivery) async {
+    // Pre-fill Received By with the logged-in user's name
+    String currentUserName = '';
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      currentUserName = (doc.data()?['name'] as String?) ?? '';
+    }
+    if (!mounted) return;
+
     final items = List<Map<String, dynamic>>.from(
       (delivery['items'] as List? ?? []).map((i) => Map<String, dynamic>.from(i as Map)),
     );
-    final receivedByCtrl = TextEditingController();
+    final receivedByCtrl = TextEditingController(text: currentUserName);
     // Controllers for actual qty per item
     final qtyCtrlrs = List.generate(items.length, (i) =>
         TextEditingController(text: '${items[i]['expectedQty'] ?? 0}'));
@@ -1454,13 +1466,7 @@ class _AdminReceivingBodyState extends State<AdminReceivingBody> {
               'stock': actual, 'min': 0, 'max': 0, 'reorder': 0, 'status': 'OK',
               'createdAt': FieldValue.serverTimestamp(), 'updatedAt': FieldValue.serverTimestamp(),
             });
-            await FirebaseFirestore.instance.collection('transactions').add({
-              'item': item['itemName'],
-              'desc': 'Initial stock received — ${delivery['supplier']}',
-              'type': 'IN', 'qty': '+$actual',
-              'date': '${_months[DateTime.now().month - 1]} ${DateTime.now().day}, ${DateTime.now().year}',
-              'by': checkedBy, 'createdAt': FieldValue.serverTimestamp(),
-            });
+            // No transaction logged for initial stock received
           }
         }
       }

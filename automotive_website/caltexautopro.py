@@ -53,6 +53,28 @@ import jinja2
 app.jinja_loader = jinja2.FileSystemLoader(app.template_folder, encoding='utf-8')
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
+# ── No-cache headers for all authenticated pages ─────────────
+# Prevents browser bfcache from restoring dashboard pages after logout.
+_AUTHENTICATED_PAGES = {
+    'admin_dashboard', 'admin_inventory_items', 'admin_inventory_stock',
+    'admin_vehicles', 'admin_vehicle_maintenance', 'admin_users', 'admin_dss',
+    'admin_domains', 'admin_service_bookings', 'admin_receiving',
+    'staff_dashboard', 'staff_inventory', 'staff_maintenance', 'staff_vehicle_list',
+    'customer_dashboard', 'customer_pms_history', 'customer_book_service',
+    'pms_history_details', 'notifications', 'profile', 'change_password',
+    'help_support',
+}
+
+@app.after_request
+def add_no_cache_headers(response):
+    from flask import request as _req
+    endpoint = _req.endpoint or ''
+    if endpoint in _AUTHENTICATED_PAGES:
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+
 # ── Email config (Gmail SMTP) ────────────────────────────────
 # Set SMTP_APP_PASSWORD as an environment variable, or paste the
 # 16-character Gmail App Password directly below.

@@ -122,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Check first-login flag — force password change before entering app
       if (data['mustChangePassword'] == true) {
         Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (_) => ChangePasswordScreen(role: role)));
+          MaterialPageRoute(builder: (_) => ChangePasswordScreen(role: role, firstLogin: true)));
         return;
       }
 
@@ -181,7 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (userDoc.exists && userDoc.data()?['mustChangePassword'] == true) {
           if (!mounted) return;
           Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (_) => ChangePasswordScreen(role: role.toLowerCase())));
+            MaterialPageRoute(builder: (_) => ChangePasswordScreen(role: role.toLowerCase(), firstLogin: true)));
           return;
         }
       }

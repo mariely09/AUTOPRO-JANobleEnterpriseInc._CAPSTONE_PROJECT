@@ -7,9 +7,13 @@ import 'customer_dashboard.dart';
 
 /// Shown on first login when admin-created accounts must change their
 /// temporary password before accessing the app.
+/// Also used from the Profile screen to update an existing password.
 class ChangePasswordScreen extends StatefulWidget {
   final String role;
-  const ChangePasswordScreen({super.key, required this.role});
+  /// true  → first-login flow (logo header, no back button, redirects to dashboard)
+  /// false → profile flow (standard AppBar with back button, pops on success)
+  final bool firstLogin;
+  const ChangePasswordScreen({super.key, required this.role, this.firstLogin = false});
 
   @override
   State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
@@ -89,7 +93,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       await Future.delayed(const Duration(milliseconds: 1200));
       if (!mounted) return;
 
-      _navigateToDashboard();
+      if (widget.firstLogin) {
+        _navigateToDashboard();
+      } else {
+        Navigator.pop(context);
+      }
     } on FirebaseAuthException catch (e) {
       final msg = (e.code == 'wrong-password' || e.code == 'invalid-credential')
           ? 'Current password is incorrect.'
@@ -124,235 +132,211 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ── Profile flow: standard AppBar, no logo header ──
+    if (!widget.firstLogin) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF7F8FA),
+        appBar: AppBar(
+          backgroundColor: _red,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text('Change Password',
+              style: TextStyle(color: Colors.white, fontSize: 16,
+                  fontWeight: FontWeight.bold)),
+        ),
+        body: SafeArea(child: _buildForm(showBanner: false)),
+      );
+    }
+
+    // ── First-login flow: no logo, no AppBar ──
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(children: [
-            // ── Red header with Caltex logo ──
-            Stack(children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 50, 20, 50),
-                color: _red,
-                child: Column(children: [
-                  // Caltex logo badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Image.asset('assets/img/LOGO_CALTEX.png',
-                          width: 40, height: 40, fit: BoxFit.contain),
-                      const SizedBox(width: 12),
-                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Image.asset('assets/img/CALTEX_LETTER.png',
-                            height: 22, fit: BoxFit.contain),
-                        const SizedBox(height: 2),
-                        const Text('AutoPro',
-                            style: TextStyle(color: Colors.white70, fontSize: 12,
-                                fontWeight: FontWeight.w700, letterSpacing: 3)),
-                      ]),
-                    ]),
-                  ),
-                ]),
-              ),
-              Positioned(
-                bottom: 0, left: 0, right: 0,
-                child: Container(
-                  height: 32,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF7F8FA),
-                    borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(28),
-                        topRight: Radius.circular(28)),
-                  ),
-                ),
-              ),
-            ]),
+      body: SafeArea(child: _buildForm(showBanner: true)),
+    );
+  }
 
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // ── Title ──
-                const Center(
-                  child: Text('Set New Password',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold,
-                          color: Color(0xFF1a202c))),
-                ),
-                const SizedBox(height: 6),
-                const Center(
-                  child: Text('You must change your temporary password\nbefore continuing.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: Color(0xFF718096), height: 1.5)),
-                ),
-                const SizedBox(height: 20),
+  Widget _buildForm({required bool showBanner}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // ── Title + subtitle (first-login only) ──
+        if (showBanner) ...[
+          const Center(
+            child: Text('Set New Password',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold,
+                    color: Color(0xFF1a202c))),
+          ),
+          const SizedBox(height: 6),
+          const Center(
+            child: Text(
+              'You must change your temporary password\nbefore continuing.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Color(0xFF718096), height: 1.5)),
+          ),
+          const SizedBox(height: 20),
+        ],
 
-                // ── Warning banner ──
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB),
-                    border: Border.all(color: const Color(0xFFF6AD55)),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Row(children: [
-                    Text('🔐', style: TextStyle(fontSize: 18)),
-                    SizedBox(width: 10),
-                    Expanded(child: Text(
-                      'Action required: This is your first login. Please set a personal password to continue.',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF744210), height: 1.5),
-                    )),
-                  ]),
-                ),
-                const SizedBox(height: 24),
-
-                // ── Form card ──
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10, offset: const Offset(0, 2))],
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    // Current password
-                    const Text('Current (Temporary) Password',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                            color: Color(0xFF4a5568))),
-                    const SizedBox(height: 6),
-                    _passwordField(
-                      controller: _currentCtrl,
-                      hint: 'Enter temporary password',
-                      visible: _showCurrent,
-                      onToggle: () => setState(() => _showCurrent = !_showCurrent),
-                    ),
-                    const SizedBox(height: 16),
-                    const Divider(color: Color(0xFFe2e8f0)),
-                    const SizedBox(height: 16),
-
-                    // New password
-                    const Text('New Password',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                            color: Color(0xFF4a5568))),
-                    const SizedBox(height: 6),
-                    _passwordField(
-                      controller: _newCtrl,
-                      hint: 'Enter new password',
-                      visible: _showNew,
-                      onToggle: () => setState(() => _showNew = !_showNew),
-                      onChanged: _checkStrength,
-                    ),
-                    if (_newCtrl.text.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: _strength.clamp(0.0, 1.0),
-                          backgroundColor: const Color(0xFFe2e8f0),
-                          valueColor: AlwaysStoppedAnimation(_strengthColor),
-                          minHeight: 5,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(_strengthText,
-                          style: TextStyle(fontSize: 11, color: _strengthColor,
-                              fontWeight: FontWeight.w600)),
-                    ],
-                    const SizedBox(height: 16),
-
-                    // Confirm password
-                    const Text('Confirm New Password',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                            color: Color(0xFF4a5568))),
-                    const SizedBox(height: 6),
-                    _passwordField(
-                      controller: _confirmCtrl,
-                      hint: 'Confirm new password',
-                      visible: _showConfirm,
-                      onToggle: () => setState(() => _showConfirm = !_showConfirm),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('Must be at least 6 characters.',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                  ]),
-                ),
-                const SizedBox(height: 24),
-
-                // ── Submit button ──
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _loading ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30)),
-                      elevation: 4,
-                    ),
-                    child: _loading
-                        ? const SizedBox(width: 20, height: 20,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                        : const Row(mainAxisSize: MainAxisSize.min, children: [
-                            Icon(Icons.lock_outline, size: 18),
-                            SizedBox(width: 8),
-                            Text('Update Password',
-                                style: TextStyle(fontSize: 15,
-                                    fontWeight: FontWeight.w700)),
-                          ]),
-                  ),
-                ),
-
-                // ── Tips ──
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFe2e8f0)),
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Password tips',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
-                            color: Color(0xFF4a5568))),
-                    const SizedBox(height: 8),
-                    ...[
-                      'At least 6 characters',
-                      'Mix uppercase & lowercase letters',
-                      'Include numbers and symbols',
-                      'Avoid using your name or email',
-                    ].asMap().entries.map((e) => Padding(
-                      padding: const EdgeInsets.only(bottom: 5),
-                      child: Row(children: [
-                        Container(
-                          width: 20, height: 20,
-                          decoration: BoxDecoration(
-                              color: _red, shape: BoxShape.circle),
-                          child: Center(child: Text('${e.key + 1}',
-                              style: const TextStyle(color: Colors.white,
-                                  fontSize: 10, fontWeight: FontWeight.bold))),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(e.value,
-                            style: const TextStyle(fontSize: 12,
-                                color: Color(0xFF4a5568))),
-                      ]),
-                    )),
-                  ]),
-                ),
-              ]),
+        // ── Warning banner (first-login only) ──
+        if (showBanner) ...[
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFBEB),
+              border: Border.all(color: const Color(0xFFF6AD55)),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: const Row(children: [
+              Text('🔐', style: TextStyle(fontSize: 18)),
+              SizedBox(width: 10),
+              Expanded(child: Text(
+                'Action required: This is your first login. Please set a personal password to continue.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF744210), height: 1.5),
+              )),
+            ]),
+          ),
+          const SizedBox(height: 24),
+        ],
+
+        // ── Form card ──
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10, offset: const Offset(0, 2))],
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Current Password',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                    color: Color(0xFF4a5568))),
+            const SizedBox(height: 6),
+            _passwordField(
+              controller: _currentCtrl,
+              hint: showBanner ? 'Enter temporary password' : 'Enter current password',
+              visible: _showCurrent,
+              onToggle: () => setState(() => _showCurrent = !_showCurrent),
+            ),
+            const SizedBox(height: 16),
+            const Divider(color: Color(0xFFe2e8f0)),
+            const SizedBox(height: 16),
+
+            const Text('New Password',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                    color: Color(0xFF4a5568))),
+            const SizedBox(height: 6),
+            _passwordField(
+              controller: _newCtrl,
+              hint: 'Enter new password',
+              visible: _showNew,
+              onToggle: () => setState(() => _showNew = !_showNew),
+              onChanged: _checkStrength,
+            ),
+            if (_newCtrl.text.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: _strength.clamp(0.0, 1.0),
+                  backgroundColor: const Color(0xFFe2e8f0),
+                  valueColor: AlwaysStoppedAnimation(_strengthColor),
+                  minHeight: 5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(_strengthText,
+                  style: TextStyle(fontSize: 11, color: _strengthColor,
+                      fontWeight: FontWeight.w600)),
+            ],
+            const SizedBox(height: 16),
+
+            const Text('Confirm New Password',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                    color: Color(0xFF4a5568))),
+            const SizedBox(height: 6),
+            _passwordField(
+              controller: _confirmCtrl,
+              hint: 'Confirm new password',
+              visible: _showConfirm,
+              onToggle: () => setState(() => _showConfirm = !_showConfirm),
+            ),
+            const SizedBox(height: 8),
+            const Text('Must be at least 6 characters.',
+                style: TextStyle(fontSize: 11, color: Color(0xFF718096))),
           ]),
         ),
-      ),
+        const SizedBox(height: 24),
+
+        // ── Submit button ──
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _loading ? null : _submit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30)),
+              elevation: 4,
+            ),
+            child: _loading
+                ? const SizedBox(width: 20, height: 20,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
+                : const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.lock_outline, size: 18),
+                    SizedBox(width: 8),
+                    Text('Update Password',
+                        style: TextStyle(fontSize: 15,
+                            fontWeight: FontWeight.w700)),
+                  ]),
+          ),
+        ),
+
+        // ── Tips ──
+        const SizedBox(height: 20),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFe2e8f0)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Password tips',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                    color: Color(0xFF4a5568))),
+            const SizedBox(height: 8),
+            ...[
+              'At least 6 characters',
+              'Mix uppercase & lowercase letters',
+              'Include numbers and symbols',
+              'Avoid using your name or email',
+            ].asMap().entries.map((e) => Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: Row(children: [
+                Container(
+                  width: 20, height: 20,
+                  decoration: BoxDecoration(
+                      color: _red, shape: BoxShape.circle),
+                  child: Center(child: Text('${e.key + 1}',
+                      style: const TextStyle(color: Colors.white,
+                          fontSize: 10, fontWeight: FontWeight.bold))),
+                ),
+                const SizedBox(width: 8),
+                Text(e.value,
+                    style: const TextStyle(fontSize: 12,
+                        color: Color(0xFF4a5568))),
+              ]),
+            )),
+          ]),
+        ),
+      ]),
     );
   }
 

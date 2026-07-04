@@ -1,7 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Receiving Items</title>
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
@@ -52,6 +55,26 @@
     </style>
 </head>
 <body class="portal-body" data-page="receiving">
+<script>
+// Instant auth guard — blocks bfcache back-navigation after logout
+(function() {
+  var logoutTime = localStorage.getItem('_loggedOut');
+  var loginTime  = localStorage.getItem('_loggedIn');
+  // If logged out more recently than logged in, block access
+  if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+    return;
+  }
+  var hasSession = sessionStorage.getItem('apUser') ||
+                   sessionStorage.getItem('spUser') ||
+                   sessionStorage.getItem('cpUser');
+  if (!hasSession) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+  }
+})();
+</script>
 <div class="admin-dashboard" style="display:flex;flex-direction:column;">
     <div id="headerContainer"></div>
     <div class="admin-dashboard-body">
@@ -62,10 +85,27 @@
                 <div class="breadcrumb">Admin Portal › Inventory Management</div>
                 <div class="admin-header-title">Receiving Items</div>
             </div>
-            <div style="margin-left:auto;display:flex;gap:0.6rem;align-items:center;">
+            <div style="margin-left:auto;display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <input type="text" class="search-bar" placeholder="Search deliveries..." id="deliverySearch" style="width:220px;padding-left:2rem;" oninput="deliveryApplySearch()">
+                </div>
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+                    <select id="deliverySortSelect" onchange="_renderList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;">
+                        <option value="date-desc">Date (Newest First)</option>
+                        <option value="date-asc">Date (Oldest First)</option>
+                        <option value="supplier-asc">Supplier A&#x2192;Z</option>
+                        <option value="supplier-desc">Supplier Z&#x2192;A</option>
+                    </select>
+                    <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <select id="deliveryMonthFilter" onchange="_renderList()" style="height:36px;padding:0 1.5rem 0 2rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.82rem;font-weight:600;color:#4a5568;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:140px;outline:none;">
+                        <option value="">All Months</option>
+                    </select>
+                    <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
             </div>
         </div>
@@ -488,19 +528,80 @@ function _updateStats() {
   s('statRejected', _allDeliveries.filter(function(d){ return d.status==='Rejected'; }).length);
 }
 
+function _populateMonthFilter() {
+  var sel = document.getElementById('deliveryMonthFilter');
+  if (!sel) return;
+  var _MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var monthSet = {};
+  _allDeliveries.forEach(function(d) {
+    var ds = d.date || '';
+    var m1 = ds.match(/^(\d{4})-(\d{2})-\d{2}/);
+    if (m1) { monthSet[_MO[parseInt(m1[2])-1]+' '+m1[1]] = true; return; }
+    var m2 = ds.match(/^([A-Za-z]+)\s+\d+,?\s+(\d{4})/);
+    if (m2) { monthSet[m2[1].slice(0,3)+' '+m2[2]] = true; }
+  });
+  var months = Object.keys(monthSet).sort(function(a,b){
+    var pa=a.split(' '),pb=b.split(' ');
+    var ya=parseInt(pa[1]),yb=parseInt(pb[1]);
+    if(ya!==yb) return yb-ya;
+    return _MO.indexOf(pb[0])-_MO.indexOf(pa[0]);
+  });
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">All Months</option>'
+    + months.map(function(m){return '<option value="'+m+'">'+m+'</option>';}).join('');
+  if (cur) sel.value = cur;
+}
+
 function _renderList() {
-  var q = ((document.getElementById('deliverySearch') || {}).value || '').trim().toLowerCase();
-  var list = _currentFilter === 'all' ? _allDeliveries
+  var _MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var q = ((document.getElementById('deliverySearch')||{}).value||'').trim().toLowerCase();
+  var selMonth = ((document.getElementById('deliveryMonthFilter')||{}).value||'').trim();
+  var sortVal  = ((document.getElementById('deliverySortSelect')||{}).value||'date-desc');
+
+  var list = _currentFilter === 'all' ? _allDeliveries.slice()
     : _allDeliveries.filter(function(d){ return d.status === _currentFilter; });
+
+  // Month filter
+  if (selMonth) {
+    list = list.filter(function(d) {
+      var ds = d.date||'';
+      var m1 = ds.match(/^(\d{4})-(\d{2})-\d{2}/);
+      if (m1) return (_MO[parseInt(m1[2])-1]+' '+m1[1]) === selMonth;
+      var m2 = ds.match(/^([A-Za-z]+)\s+\d+,?\s+(\d{4})/);
+      if (m2) return (m2[1].slice(0,3)+' '+m2[2]) === selMonth;
+      return false;
+    });
+  }
+
+  // Search filter
   if (q) {
     list = list.filter(function(d) {
       return (d.supplier||'').toLowerCase().includes(q)
         || (d.notes||'').toLowerCase().includes(q)
         || (d.receivedBy||'').toLowerCase().includes(q)
         || (d.checkedBy||'').toLowerCase().includes(q)
-        || (d.items||[]).some(function(i){ return (i.itemName||'').toLowerCase().includes(q) || (i.itemNum||'').toLowerCase().includes(q); });
+        || (d.items||[]).some(function(i){ return (i.itemName||'').toLowerCase().includes(q)||(i.itemNum||'').toLowerCase().includes(q); });
     });
   }
+
+  // Sort
+  function _dms(d) {
+    var s=d.date||'';
+    var m1=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(m1) return new Date(parseInt(m1[1]),parseInt(m1[2])-1,parseInt(m1[3])).getTime();
+    var m2=s.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
+    if(m2) return new Date(parseInt(m2[3]),_MO.indexOf(m2[1].slice(0,3)),parseInt(m2[2])).getTime();
+    return 0;
+  }
+  list.sort(function(a,b){
+    switch(sortVal){
+      case 'date-asc':      return _dms(a)-_dms(b);
+      case 'supplier-asc':  return (a.supplier||'').localeCompare(b.supplier||'');
+      case 'supplier-desc': return (b.supplier||'').localeCompare(a.supplier||'');
+      default:              return _dms(b)-_dms(a);
+    }
+  });
+
   var el = document.getElementById('deliveriesList');
   if (!el) return;
   if (!list.length) { el.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">No deliveries found.</div>'; return; }
@@ -508,10 +609,9 @@ function _renderList() {
   el.innerHTML = list.map(function(d) {
     var c = sc[d.status] || ['#718096','rgba(113,128,150,0.1)'];
     var badge = '<span class="rcv-badge" style="color:' + c[0] + ';background:' + c[1] + ';">' + (d.status||'Pending') + '</span>';
-    var n = (d.items||[]).length;
-    var actions = '';
     var editBtn = '<button class="btn-small btn-secondary" onclick="editDelivery(\'' + d.id + '\')" title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
     var deleteBtn = '<button class="btn-small btn-danger" onclick="deleteDelivery(\'' + d.id + '\')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
+    var actions = '';
     if (d.status === 'Pending') {
       actions = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.25rem;">'
         + '<button class="btn-small btn-primary" onclick="openReceiveModal(\'' + d.id + '\')" title="Receive" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>'
@@ -519,21 +619,21 @@ function _renderList() {
     } else if (d.status === 'Awaiting Double Check') {
       actions = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.25rem;">'
         + '<button class="btn-small btn-primary" onclick="openReviewModal(\'' + d.id + '\')" title="Review" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>'
-        + '<button class="btn-small btn-secondary" disabled title="Cannot edit — awaiting double check" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
+        + '<button class="btn-small btn-secondary" disabled style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
         + deleteBtn + '</div>';
     } else {
       actions = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.25rem;">'
         + '<button class="btn-small btn-primary" onclick="openReviewModal(\'' + d.id + '\')" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>'
-        + '<button class="btn-small btn-secondary" disabled title="Cannot edit — already ' + d.status + '" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
+        + '<button class="btn-small btn-secondary" disabled style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
         + deleteBtn + '</div>';
     }
     return '<div class="table-row" style="grid-template-columns:110px 1.4fr 1.6fr 1fr 1fr 160px 130px;align-items:center;">'
       + '<div style="font-size:12px;color:#718096;">' + _fmtDate(d.date) + '</div>'
-      + '<div><div style="font-weight:700;color:#1a202c;font-size:13px;">' + (d.supplier||'—') + '</div>'
+      + '<div><div style="font-weight:700;color:#1a202c;font-size:13px;">' + (d.supplier||'\u2014') + '</div>'
       + (d.notes ? '<div style="font-size:11px;color:#a0aec0;margin-top:2px;">' + d.notes + '</div>' : '') + '</div>'
-      + '<div style="font-size:12px;color:#4a5568;">' + ((d.items||[]).map(function(i){ return i.itemName||i.itemNum||'—'; }).join(', ') || '—') + '</div>'
-      + '<div style="font-size:12px;color:#4a5568;">' + (d.receivedBy||'—') + '</div>'
-      + '<div style="font-size:12px;color:#4a5568;">' + (d.checkedBy||'—') + '</div>'
+      + '<div style="font-size:12px;color:#4a5568;">' + ((d.items||[]).map(function(i){ return i.itemName||i.itemNum||'\u2014'; }).join(', ') || '\u2014') + '</div>'
+      + '<div style="font-size:12px;color:#4a5568;">' + (d.receivedBy||'\u2014') + '</div>'
+      + '<div style="font-size:12px;color:#4a5568;">' + (d.checkedBy||'\u2014') + '</div>'
       + '<div>' + badge + '</div>'
       + '<div>' + actions + '</div>'
       + '</div>';
@@ -576,11 +676,11 @@ window.closeFabMenu = function() {
 
 db.collection('deliveries').orderBy('createdAt','desc').onSnapshot(function(snap) {
   _allDeliveries = snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
-  _updateStats(); _renderList();
+  _updateStats(); _populateMonthFilter(); _renderList();
 }, function() {
   db.collection('deliveries').get().then(function(snap) {
     _allDeliveries = snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
-    _updateStats(); _renderList();
+    _updateStats(); _populateMonthFilter(); _renderList();
   });
 });
 </script>
@@ -1028,7 +1128,7 @@ window.submitReview = function(decision) {
                   desc: 'Stock received — ' + d.supplier,
                   type: 'IN',
                   qty: '+' + item.actualQty,
-                  date: new Date().toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}),
+                  date: (function(){ var _d=new Date(),_m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return _m[_d.getMonth()]+' '+_d.getDate()+', '+_d.getFullYear(); })(),
                   by: checkedBy,
                   createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
@@ -1047,15 +1147,7 @@ window.submitReview = function(decision) {
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
               }).then(function() {
-                return db.collection('transactions').add({
-                  item: item.itemName,
-                  desc: 'Initial stock received — ' + d.supplier,
-                  type: 'IN',
-                  qty: '+' + item.actualQty,
-                  date: new Date().toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}),
-                  by: checkedBy,
-                  createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                // stock_inventory doc created — no transaction logged for initial stock
               });
             }
           });

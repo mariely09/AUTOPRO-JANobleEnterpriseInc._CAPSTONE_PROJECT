@@ -32,13 +32,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // Logout
     document.getElementById('adminLogoutBtn')?.addEventListener('click', () => {
         if (confirm('Are you sure you want to logout?')) {
+            localStorage.setItem('_loggedOut', Date.now().toString());
             sessionStorage.removeItem('apUser');
             if (typeof firebase !== 'undefined' && firebase.auth) {
                 firebase.auth().signOut().finally(() => {
-                    window.location.href = '/index.html';
+                    history.replaceState(null, '', '/index.html');
+                    window.location.replace('/index.html');
                 });
             } else {
-                window.location.href = '/index.html';
+                history.replaceState(null, '', '/index.html');
+                window.location.replace('/index.html');
             }
         }
     });
@@ -57,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 // ── Build notification list from live data ──────────────────
-const _adminBellIcon = '<span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:rgba(0,48,135,0.1);border-radius:8px;flex-shrink:0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#003087" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>';
+const _adminBellIcon = '<span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:rgba(232,0,28,0.1);border-radius:8px;flex-shrink:0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>';
 
 function buildAdminNotifications() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -175,7 +178,7 @@ function _renderAdminNotifPanel() {
 
     // Firestore notifications
     const uid = (firebase.auth().currentUser || {}).uid;
-    const _bellIcon = '<span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:rgba(0,48,135,0.1);border-radius:8px;flex-shrink:0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#003087" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>';
+    const _bellIcon = '<span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:rgba(232,0,28,0.1);border-radius:8px;flex-shrink:0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>';
     const fbNotifs = (window._fbNotifications || []).map(n => ({
         icon: _bellIcon,
         type: n.type || 'info',
@@ -455,7 +458,20 @@ function renderDSSTable() {
         return;
     }
 
-    // Pagination logic — 10 per page
+    // Sort by selected option
+    var sortVal = (document.getElementById('dssSortSelect') || {}).value || 'stock-asc';
+    rows = rows.slice().sort(function(a, b) {
+        switch (sortVal) {
+            case 'priority-asc':  return a.priority - b.priority;
+            case 'priority-desc': return b.priority - a.priority;
+            case 'name-asc':      return (a.item.itemName||'').localeCompare(b.item.itemName||'');
+            case 'name-desc':     return (b.item.itemName||'').localeCompare(a.item.itemName||'');
+            case 'stock-asc':     return (a.item.stock||0) - (b.item.stock||0);
+            case 'stock-desc':    return (b.item.stock||0) - (a.item.stock||0);
+            case 'days-asc':      return (a.daysLeft||0) - (b.daysLeft||0);
+            default:              return a.priority - b.priority;
+        }
+    });
     var perPage = 10;
     var total = rows.length;
     var totalPages = Math.ceil(total / perPage);
@@ -926,7 +942,32 @@ function renderDSSPMSTable() {
         return;
     }
 
-    // Pagination — 10 per page
+    // Sort by selected option
+    var sortVal = (document.getElementById('dssPmsSortSelect') || {}).value || 'pms-asc';
+    var _statusOrder = { 'overdue': 0, 'due-today': 1, 'this-week': 2, 'due-soon': 3, 'scheduled': 4, 'active': 5 };
+    rows = rows.slice().sort(function(a, b) {
+        function pmsMs(asset) {
+            if (!asset.nextPMSDue) return Infinity;
+            var d = new Date(asset.nextPMSDue);
+            return isNaN(d.getTime()) ? Infinity : d.getTime();
+        }
+        switch (sortVal) {
+            case 'status-asc': {
+                var oa = _statusOrder[a.statusKey] !== undefined ? _statusOrder[a.statusKey] : 99;
+                var ob = _statusOrder[b.statusKey] !== undefined ? _statusOrder[b.statusKey] : 99;
+                return oa - ob;
+            }
+            case 'priority-asc':  return a.priority - b.priority;
+            case 'priority-desc': return b.priority - a.priority;
+            case 'days-asc':      return (a.daysUntil === null ? 999999 : a.daysUntil) - (b.daysUntil === null ? 999999 : b.daysUntil);
+            case 'days-desc':     return (b.daysUntil === null ? -999999 : b.daysUntil) - (a.daysUntil === null ? -999999 : a.daysUntil);
+            case 'plate-asc':     return (a.asset.plateNumber||'').localeCompare(b.asset.plateNumber||'');
+            case 'plate-desc':    return (b.asset.plateNumber||'').localeCompare(a.asset.plateNumber||'');
+            case 'pms-asc':       return pmsMs(a.asset) - pmsMs(b.asset);
+            case 'pms-desc':      return pmsMs(b.asset) - pmsMs(a.asset);
+            default:              return a.priority - b.priority;
+        }
+    });
     var perPage = 10;
     var total = rows.length;
     var totalPages = Math.ceil(total / perPage);

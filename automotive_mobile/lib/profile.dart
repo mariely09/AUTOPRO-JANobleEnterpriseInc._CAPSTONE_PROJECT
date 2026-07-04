@@ -9,6 +9,8 @@ import 'login.dart';
 import 'change_password.dart';
 import 'notifs_manageAlerts.dart';
 import 'help_support.dart';
+import 'privacy_policy.dart';
+import 'terms_conditions.dart';
 
 enum UserRole { customer, staff, admin }
 
@@ -334,9 +336,28 @@ class _UserProfileState extends State<UserProfile> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    const Text('v1.0.0 • JA Noble Enterprise',
-                      style: TextStyle(fontSize: 11, color: Color(0xFFa0aec0))),
+                    const SizedBox(height: 16),
+                    
+                    // ── Policy Links ──
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
+                          child: const Text('Privacy Policy',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF718096), fontWeight: FontWeight.w600)),
+                        ),
+                        const Text('  •  ', style: TextStyle(fontSize: 12, color: Color(0xFFa0aec0))),
+                        TextButton(
+                          onPressed: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const TermsConditionsScreen())),
+                          child: const Text('Terms & Conditions',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF718096), fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
                     const SizedBox(height: 8),
                   ]),
                 ),

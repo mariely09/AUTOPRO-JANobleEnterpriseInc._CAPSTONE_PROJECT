@@ -258,9 +258,45 @@ function renderAssetsList() {
         return;
     }
 
-    // Sort alphabetically by plate number (same as mobile app)
+    // Sort by selected option (default: plate A→Z)
+    var sortVal = (document.getElementById('vehSortSelect') || {}).value || 'plate-asc';
     filtered = filtered.slice().sort(function(a, b) {
-        return (a.plateNumber || '').localeCompare(b.plateNumber || '');
+        function nextPmsDate(asset) {
+            var lastSvc = asset.lastServiceDate || asset.lastSvcDate || '';
+            var freq    = parseInt(asset.svcFreq || asset.serviceFrequency) || 0;
+            if (!lastSvc || !freq) return null;
+            var d = new Date(lastSvc);
+            if (isNaN(d.getTime())) return null;
+            d.setMonth(d.getMonth() + freq);
+            return d;
+        }
+        switch (sortVal) {
+            case 'plate-desc':
+                return (b.plateNumber||'').localeCompare(a.plateNumber||'');
+            case 'owner-asc':
+                return (a.owner||'').localeCompare(b.owner||'');
+            case 'owner-desc':
+                return (b.owner||'').localeCompare(a.owner||'');
+            case 'pms-asc': {
+                var da = nextPmsDate(a), db = nextPmsDate(b);
+                if (!da && !db) return 0;
+                if (!da) return 1; if (!db) return -1;
+                return da - db;
+            }
+            case 'pms-desc': {
+                var da = nextPmsDate(a), db = nextPmsDate(b);
+                if (!da && !db) return 0;
+                if (!da) return 1; if (!db) return -1;
+                return db - da;
+            }
+            case 'odo-desc':
+                return (parseInt(b.odometer)||0) - (parseInt(a.odometer)||0);
+            case 'odo-asc':
+                return (parseInt(a.odometer)||0) - (parseInt(b.odometer)||0);
+            case 'plate-asc':
+            default:
+                return (a.plateNumber||'').localeCompare(b.plateNumber||'');
+        }
     });
 
     var rows = filtered.map(function(asset) {
@@ -536,6 +572,36 @@ function renderServicesList() {
         list.innerHTML = '<div class="table-row" style="text-align:center;color:#718096;padding:2rem;">No services found.</div>';
         return;
     }
+
+    // Sort by selected option (default: newest date first)
+    var sortVal = (document.getElementById('svcSortSelect') || {}).value || 'date-desc';
+    filtered = filtered.slice().sort(function(a, b) {
+        function toMs(dateStr) {
+            if (!dateStr) return 0;
+            var d = new Date(dateStr);
+            return isNaN(d.getTime()) ? 0 : d.getTime();
+        }
+        switch (sortVal) {
+            case 'date-asc':
+                return toMs(a.dateServiced) - toMs(b.dateServiced);
+            case 'date-desc':
+                return toMs(b.dateServiced) - toMs(a.dateServiced);
+            case 'plate-asc':
+                return (a.assetNum||a.plate||'').localeCompare(b.assetNum||b.plate||'');
+            case 'plate-desc':
+                return (b.assetNum||b.plate||'').localeCompare(a.assetNum||a.plate||'');
+            case 'mechanic-asc':
+                return (a.mechanicName||'').localeCompare(b.mechanicName||'');
+            case 'cost-desc':
+                return (parseFloat(b.totalCost)||0) - (parseFloat(a.totalCost)||0);
+            case 'cost-asc':
+                return (parseFloat(a.totalCost)||0) - (parseFloat(b.totalCost)||0);
+            case 'status-asc':
+                return (a.status||'').localeCompare(b.status||'');
+            default:
+                return toMs(b.dateServiced) - toMs(a.dateServiced);
+        }
+    });
 
     var rows = filtered.map(function(s) {
         var statusColors = {
@@ -1100,6 +1166,22 @@ function renderInventoryList() {
         filtered = filtered.filter(function(item){ return (item.commodityGroup||'') === invCgFilter; });
     }
 
+    // Sort by selected option
+    var sortVal = (document.getElementById('invSortSelect') || {}).value || 'name-asc';
+    filtered = filtered.slice().sort(function(a, b) {
+        function numPart(s) { return parseInt((s||'').replace(/[^0-9]/g,'')) || 0; }
+        switch (sortVal) {
+            case 'name-asc':   return (a.itemName||'').localeCompare(b.itemName||'');
+            case 'name-desc':  return (b.itemName||'').localeCompare(a.itemName||'');
+            case 'stock-desc': return (parseInt(b.stock)||0) - (parseInt(a.stock)||0);
+            case 'stock-asc':  return (parseInt(a.stock)||0) - (parseInt(b.stock)||0);
+            case 'group-asc':  return (a.commodityGroup||'').localeCompare(b.commodityGroup||'');
+            case 'num-asc':    return numPart(a.itemNum) - numPart(b.itemNum);
+            case 'num-desc':   return numPart(b.itemNum) - numPart(a.itemNum);
+            default:           return (a.itemName||'').localeCompare(b.itemName||'');
+        }
+    });
+
     // Update stats
     var s = function(id,val){ var el=document.getElementById(id); if(el) el.textContent=val; };
     s('totalInventoryItems', inventory.length);
@@ -1419,21 +1501,42 @@ function renderInventoryTransactions(filter) {
             qty: t.qty || t.quantity || 0,
             by: t.by || t.performedBy || '—',
             commodityGroup: (function() {
-                // Try direct field first, then cross-reference stock inventory
+                // 1. Try direct field on the transaction document
                 if (t.commodityGroup) return t.commodityGroup;
-                var itemName = (t.item || t.name || '').toLowerCase();
+                var itemName = (t.item || t.name || '').toLowerCase().trim();
+                var itemNum  = (t.itemNum || '').toLowerCase().trim();
+
+                // 2. Cross-reference mapped window.inventory (itemName / itemNum)
                 var inv = window.inventory || [];
                 var found = inv.find(function(i) {
                     return (i.itemName || '').toLowerCase() === itemName
-                        || (i.itemNum || '').toLowerCase() === (t.itemNum || '').toLowerCase();
+                        || (itemNum && (i.itemNum || '').toLowerCase() === itemNum);
                 });
                 if (found && found.commodityGroup) return found.commodityGroup;
-                // Also check itemMaster
+
+                // 3. Raw Firestore stock_inventory (_fbInventory uses .name and .group)
+                var rawInv = window._fbInventory || [];
+                var rawFound = rawInv.find(function(i) {
+                    return (i.name || '').toLowerCase() === itemName
+                        || (itemNum && (i.num || '').toLowerCase() === itemNum);
+                });
+                if (rawFound && rawFound.group) return rawFound.group;
+
+                // 4. Check mapped itemMaster
                 var master = window.itemMaster || [];
                 var mFound = master.find(function(i) {
-                    return (i.itemName || '').toLowerCase() === itemName;
+                    return (i.itemName || '').toLowerCase() === itemName
+                        || (itemNum && (i.itemNum || '').toLowerCase() === itemNum);
                 });
-                return (mFound && mFound.commodityGroup) ? mFound.commodityGroup : '—';
+                if (mFound && mFound.commodityGroup) return mFound.commodityGroup;
+
+                // 5. Raw Firestore item_master (_fbItemMaster uses .name and .group)
+                var rawMaster = window._fbItemMaster || [];
+                var rawMFound = rawMaster.find(function(i) {
+                    return (i.name || '').toLowerCase() === itemName
+                        || (itemNum && (i.num || '').toLowerCase() === itemNum);
+                });
+                return (rawMFound && rawMFound.group) ? rawMFound.group : '—';
             })()
         };
     });
@@ -1510,6 +1613,23 @@ function renderInventoryTransactions(filter) {
         list.innerHTML = '<div class="table-row" style="text-align:center;color:#718096;padding:2rem;">No transactions found.</div>';
         return;
     }
+
+    // Sort
+    var txnSort = (document.getElementById('txnSortSelect') || {}).value || 'date-desc';
+    filtered = filtered.slice().sort(function(a, b) {
+        function dateMs(t) { var d = new Date(t.date || ''); return isNaN(d) ? 0 : d.getTime(); }
+        function qty(t) { return parseFloat(String(t.qty||t.quantity||0).replace(/[^0-9.]/g,''))||0; }
+        switch (txnSort) {
+            case 'date-asc':   return dateMs(a) - dateMs(b);
+            case 'date-desc':  return dateMs(b) - dateMs(a);
+            case 'item-asc':   return (a.item||'').localeCompare(b.item||'');
+            case 'item-desc':  return (b.item||'').localeCompare(a.item||'');
+            case 'qty-desc':   return qty(b) - qty(a);
+            case 'qty-asc':    return qty(a) - qty(b);
+            default:           return dateMs(b) - dateMs(a);
+        }
+    });
+
     var _TXN_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     function _fmtTxnDate(d) {
         if (!d) return '—';
@@ -1576,11 +1696,21 @@ function renderItemMasterList() {
         });
     }
 
-    // Sort by item number descending (newest first — ITM-003, ITM-002, ITM-001)
+    // Sort by selected option
+    var sortVal = (document.getElementById('imSortSelect') || {}).value || 'num-asc';
     filtered = filtered.slice().sort(function(a, b) {
-        var na = parseInt((a.itemNum || '').replace(/[^0-9]/g, '')) || 0;
-        var nb = parseInt((b.itemNum || '').replace(/[^0-9]/g, '')) || 0;
-        return nb - na;
+        function numPart(s) { return parseInt((s||'').replace(/[^0-9]/g,'')) || 0; }
+        function costVal(i) { return parseFloat(String(i.cost||0).replace(/[₱,]/g,'')) || 0; }
+        switch (sortVal) {
+            case 'num-asc':   return numPart(a.itemNum) - numPart(b.itemNum);
+            case 'num-desc':  return numPart(b.itemNum) - numPart(a.itemNum);
+            case 'name-asc':  return (a.itemName||'').localeCompare(b.itemName||'');
+            case 'name-desc': return (b.itemName||'').localeCompare(a.itemName||'');
+            case 'group-asc': return (a.commodityGroup||'').localeCompare(b.commodityGroup||'');
+            case 'cost-desc': return costVal(b) - costVal(a);
+            case 'cost-asc':  return costVal(a) - costVal(b);
+            default:          return numPart(a.itemNum) - numPart(b.itemNum);
+        }
     });
 
     if (filtered.length === 0) {
@@ -2019,10 +2149,42 @@ function renderIssuancesList() {
         return;
     }
 
+    // Sort
+    var issSort = (document.getElementById('issSortSelect') || {}).value || 'date-desc';
+    filtered = filtered.slice().sort(function(a, b) {
+        function dateMs(i) { var d = new Date(i.date || ''); return isNaN(d) ? 0 : d.getTime(); }
+        function qty(i) { return parseFloat(i.quantity||i.qty||0)||0; }
+        function cost(i) { return (parseFloat(i.quantity||0)||0) * (parseFloat(i.unitCost||0)||0); }
+        switch (issSort) {
+            case 'date-asc':   return dateMs(a) - dateMs(b);
+            case 'date-desc':  return dateMs(b) - dateMs(a);
+            case 'item-asc':   return (a.itemName||'').localeCompare(b.itemName||'');
+            case 'item-desc':  return (b.itemName||'').localeCompare(a.itemName||'');
+            case 'qty-desc':   return qty(b) - qty(a);
+            case 'qty-asc':    return qty(a) - qty(b);
+            case 'cost-desc':  return cost(b) - cost(a);
+            case 'cost-asc':   return cost(a) - cost(b);
+            default:           return dateMs(b) - dateMs(a);
+        }
+    });
+
     var rows = filtered.map(function(i) {
         var assetDesc = i.assetDescription || '';
+        var _ISS_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        function _fmtIssDate(d) {
+            if (!d) return '—';
+            var m1 = d.match(/^([A-Za-z]{3,})\s+(\d+),?\s+(\d{4})/);
+            if (m1) return m1[1].slice(0,3) + ' ' + parseInt(m1[2]) + ', ' + m1[3];
+            var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+            if (m2) return _ISS_MONTHS[parseInt(m2[1])-1] + ' ' + parseInt(m2[2]) + ', ' + m2[3];
+            var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m3) return _ISS_MONTHS[parseInt(m3[2])-1] + ' ' + parseInt(m3[3]) + ', ' + m3[1];
+            var dt = new Date(d);
+            if (!isNaN(dt.getTime())) return _ISS_MONTHS[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+            return d;
+        }
         return '<div class="table-row" style="min-width:1100px;grid-template-columns:110px 130px 120px 1fr 100px 140px 70px 80px 110px 110px;">'
-            + '<div>' + (i.date ? new Date(i.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '-') + '</div>'
+            + '<div>' + _fmtIssDate(i.date) + '</div>'
             + '<div>' + (i.assetNum||'-') + (assetDesc ? '<br><span style="font-size:0.7rem;color:#718096;">' + assetDesc + '</span>' : '') + '</div>'
             + '<div>' + (i.itemNum||'-') + '</div>'
             + '<div>' + (i.itemName||'-') + '</div>'

@@ -7,7 +7,11 @@ import 'admin_transactions.dart';
 /// Full-screen Inventory hub — AppBar with 4 sub-tabs, no bottom nav.
 /// Mirrors the same pattern as AdminVehiclesList.
 class AdminInventoryHub extends StatefulWidget {
-  const AdminInventoryHub({super.key});
+  /// Which tab to open initially (0=Stock, 1=Item Master, 2=Receiving, 3=Transactions)
+  final int initialTab;
+  /// If set, auto-opens the receive modal for this delivery on the Receiving tab.
+  final Map<String, dynamic>? deliveryToReceive;
+  const AdminInventoryHub({super.key, this.initialTab = 0, this.deliveryToReceive});
 
   @override
   State<AdminInventoryHub> createState() => _AdminInventoryHubState();
@@ -17,12 +21,27 @@ class _AdminInventoryHubState extends State<AdminInventoryHub> {
   static const _red = Color(0xFFE8001C);
 
   // 0=Stock, 1=Item Master, 2=Receiving, 3=Transactions
-  int _tab = 0;
+  late int _tab;
   bool _searching = false;
   final _searchCtrl = TextEditingController();
 
+  // Key to access AdminReceivingBodyState for auto-opening the receive modal
+  final _receivingKey = GlobalKey<AdminReceivingBodyState>();
+
   static const _tabs      = ['Stock', 'Item Master', 'Receiving', 'Transactions'];
   static const _tabTitles = ['Stock Inventory', 'Item Master', 'Receiving Items', 'Transactions'];
+
+  @override
+  void initState() {
+    super.initState();
+    _tab = widget.initialTab.clamp(0, 3);
+    // Auto-open the receive modal after the first frame if a delivery was passed
+    if (widget.deliveryToReceive != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _receivingKey.currentState?.openReceiveModal(widget.deliveryToReceive!);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -117,6 +136,7 @@ class _AdminInventoryHubState extends State<AdminInventoryHub> {
           AdminInventoryItemMasterBody(
             searchQuery: _tab == 1 && _searching ? _searchCtrl.text.toLowerCase() : ''),
           AdminReceivingBody(
+            key: _receivingKey,
             searchQuery: _tab == 2 && _searching ? _searchCtrl.text.toLowerCase() : ''),
           AdminTransactionsBody(
             searchQuery: _tab == 3 && _searching ? _searchCtrl.text.toLowerCase() : ''),

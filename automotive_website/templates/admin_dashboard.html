@@ -1,7 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Portal</title>
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
@@ -187,6 +190,26 @@
     </style>
 </head>
 <body class="portal-body" data-page="overview">
+<script>
+// Instant auth guard — blocks bfcache back-navigation after logout
+(function() {
+  var logoutTime = localStorage.getItem('_loggedOut');
+  var loginTime  = localStorage.getItem('_loggedIn');
+  // If logged out more recently than logged in, block access
+  if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+    return;
+  }
+  var hasSession = sessionStorage.getItem('apUser') ||
+                   sessionStorage.getItem('spUser') ||
+                   sessionStorage.getItem('cpUser');
+  if (!hasSession) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+  }
+})();
+</script>
 
     <!-- Admin Dashboard -->
     <div class="admin-dashboard" id="adminDashboard" style="display:flex;flex-direction:column;">
@@ -204,6 +227,19 @@
                     <div style="position:relative;display:flex;align-items:center;">
                         <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         <input type="text" class="search-bar" placeholder="Search transactions..." id="txnSearch" style="width:220px;padding-left:2rem;" oninput="renderInventoryTransactions()">
+                    </div>
+                    <!-- Sort By -->
+                    <div style="position:relative;display:flex;align-items:center;">
+                        <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+                        <select id="txnSortSelect" onchange="renderInventoryTransactions()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
+                            <option value="date-desc">Date (Newest First)</option>
+                            <option value="date-asc">Date (Oldest First)</option>
+                            <option value="item-asc">Item Name A→Z</option>
+                            <option value="item-desc">Item Name Z→A</option>
+                            <option value="qty-desc">Qty (Highest)</option>
+                            <option value="qty-asc">Qty (Lowest)</option>
+                        </select>
+                        <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
                     <!-- Month Filter -->
                     <div style="position:relative;display:flex;align-items:center;">
@@ -225,11 +261,30 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                         Print
                     </button>
+                    <button class="btn-icon btn-secondary" onclick="exportTransactionsExcel()" style="display:flex;align-items:center;gap:0.3rem;background:#f0fff4;border-color:#9ae6b4;color:#276749;" title="Export to Excel">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Excel
+                    </button>
                 </div>
                 <div id="issuanceHeaderControls" style="margin-left:auto;display:none;gap:0.5rem;align-items:center;">
                     <div style="position:relative;display:flex;align-items:center;">
                         <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         <input type="text" class="search-bar" placeholder="Search items..." id="issuanceSearch" style="width:220px;padding-left:2rem;" oninput="renderIssuancesList()">
+                    </div>
+                    <!-- Sort By -->
+                    <div style="position:relative;display:flex;align-items:center;">
+                        <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+                        <select id="issSortSelect" onchange="renderIssuancesList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
+                            <option value="date-desc">Date (Newest First)</option>
+                            <option value="date-asc">Date (Oldest First)</option>
+                            <option value="item-asc">Item Name A→Z</option>
+                            <option value="item-desc">Item Name Z→A</option>
+                            <option value="qty-desc">Qty (Highest)</option>
+                            <option value="qty-asc">Qty (Lowest)</option>
+                            <option value="cost-desc">Cost (Highest)</option>
+                            <option value="cost-asc">Cost (Lowest)</option>
+                        </select>
+                        <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
                     <!-- Month Filter -->
                     <div style="position:relative;display:flex;align-items:center;">
@@ -249,6 +304,10 @@
                     <button class="btn-icon btn-secondary" onclick="printIssuances()" style="display:flex;align-items:center;gap:0.3rem;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                         Print
+                    </button>
+                    <button class="btn-icon btn-secondary" onclick="exportIssuancesExcel()" style="display:flex;align-items:center;gap:0.3rem;background:#f0fff4;border-color:#9ae6b4;color:#276749;" title="Export to Excel">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Excel
                     </button>
                 </div>
             </div>
@@ -474,7 +533,7 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             </div>
                             <div class="stat-number" id="txnIn" style="color:#003087;">0</div>
-                            <div class="stat-label">Stock In (Received#)</div>
+                            <div class="stat-label">Stock In (Received)</div>
                         </div>
                         <div class="stat-card" onclick="txnSetFilter('OUT',document.getElementById('txnPill_OUT'))" style="cursor:pointer;">
                             <div class="stat-icon red">
@@ -1199,13 +1258,24 @@
         var txns = (window._fbTransactions || []).map(function(t) {
           var itemName = t.item || t.name || '—';
           var cg = t.commodityGroup || (function() {
-            var nm = itemName.toLowerCase();
+            var nm = (itemName || '').toLowerCase().trim();
+            var inNum = (t.itemNum || '').toLowerCase().trim();
+            // mapped inventory
             var inv = window.inventory || [];
-            var found = inv.find(function(i){ return (i.itemName||'').toLowerCase() === nm; });
+            var found = inv.find(function(i){ return (i.itemName||'').toLowerCase() === nm || (inNum && (i.itemNum||'').toLowerCase() === inNum); });
             if (found && found.commodityGroup) return found.commodityGroup;
+            // raw Firestore stock_inventory
+            var rawInv = window._fbInventory || [];
+            var rawFound = rawInv.find(function(i){ return (i.name||'').toLowerCase() === nm || (inNum && (i.num||'').toLowerCase() === inNum); });
+            if (rawFound && rawFound.group) return rawFound.group;
+            // mapped itemMaster
             var master = window.itemMaster || [];
-            var mf = master.find(function(i){ return (i.itemName||'').toLowerCase() === nm; });
-            return (mf && mf.commodityGroup) ? mf.commodityGroup : '—';
+            var mf = master.find(function(i){ return (i.itemName||'').toLowerCase() === nm || (inNum && (i.itemNum||'').toLowerCase() === inNum); });
+            if (mf && mf.commodityGroup) return mf.commodityGroup;
+            // raw Firestore item_master
+            var rawMaster = window._fbItemMaster || [];
+            var rawMf = rawMaster.find(function(i){ return (i.name||'').toLowerCase() === nm || (inNum && (i.num||'').toLowerCase() === inNum); });
+            return (rawMf && rawMf.group) ? rawMf.group : '—';
           })();
           var rawDesc = t.desc || t.description || '';
           var type = (t.type || 'IN').toUpperCase();
@@ -1291,8 +1361,34 @@
         var cgF = window._txnCommodityFilter || '';
         if (cgF) txns = txns.filter(function(t){ return (t.commodityGroup || '—') === cgF; });
 
+        // Apply sort
+        var txnSortVal = (document.getElementById('txnSortSelect') || {}).value || 'date-desc';
+        txns = txns.slice().sort(function(a, b) {
+          function dateMs(t) { var d = new Date(t.date||''); return isNaN(d.getTime()) ? 0 : d.getTime(); }
+          function qtyN(t) { return parseFloat(String(t.qty||0).replace(/[^0-9.]/g,''))||0; }
+          switch (txnSortVal) {
+            case 'date-asc':  return dateMs(a) - dateMs(b);
+            case 'item-asc':  return (a.item||'').localeCompare(b.item||'');
+            case 'item-desc': return (b.item||'').localeCompare(a.item||'');
+            case 'qty-desc':  return qtyN(b) - qtyN(a);
+            case 'qty-asc':   return qtyN(a) - qtyN(b);
+            default:          return dateMs(b) - dateMs(a);
+          }
+        });
+
         var inCount  = txns.filter(function(t){ return t.type === 'IN'; }).length;
         var outCount = txns.filter(function(t){ return t.type === 'OUT'; }).length;
+
+        var _MONTHS_PRINT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        function _fmtPrintDate(d) {
+          if (!d) return '—';
+          // Already "Jul 2, 2026" style
+          if (/^[A-Za-z]/.test(d)) return d;
+          // "7/2/2026" or "2026-07-02"
+          var dt = new Date(d);
+          if (isNaN(dt.getTime())) return d;
+          return _MONTHS_PRINT[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+        }
 
         var totalQty = 0;
         var rows = txns.map(function(t) {
@@ -1302,7 +1398,7 @@
           }
           var q = parseFloat(String(t.qty || 0).replace(/[^0-9.]/g,'')) || 0;
           totalQty += q;
-          return [t.date || '—', '<strong>' + t.item + '</strong>', t.commodityGroup, descWithAsset, t.qty];
+          return [_fmtPrintDate(t.date), '<strong>' + t.item + '</strong>', t.commodityGroup, descWithAsset, t.qty];
         });
 
         var printTitle = 'Inventory Transactions';
@@ -1365,6 +1461,24 @@
         var issCgF = window._issCommodityFilter || '';
         if (issCgF) filtered = filtered.filter(function(i){ return (i.commodityGroup||'') === issCgF; });
 
+        // Apply sort
+        var issSortVal = (document.getElementById('issSortSelect') || {}).value || 'date-desc';
+        filtered = filtered.slice().sort(function(a, b) {
+          function dateMs(i) { var d = new Date(i.date||''); return isNaN(d.getTime()) ? 0 : d.getTime(); }
+          function qty(i) { return parseFloat(i.quantity||i.qty||0)||0; }
+          function cost(i) { return qty(i) * (parseFloat(String(i.unitCost||0).replace(/[₱,]/g,''))||0); }
+          switch (issSortVal) {
+            case 'date-asc':  return dateMs(a) - dateMs(b);
+            case 'item-asc':  return (a.itemName||'').localeCompare(b.itemName||'');
+            case 'item-desc': return (b.itemName||'').localeCompare(a.itemName||'');
+            case 'qty-desc':  return qty(b) - qty(a);
+            case 'qty-asc':   return qty(a) - qty(b);
+            case 'cost-desc': return cost(b) - cost(a);
+            case 'cost-asc':  return cost(a) - cost(b);
+            default:          return dateMs(b) - dateMs(a);
+          }
+        });
+
         var svcCount = filtered.filter(function(i){ return (i.itemType||'') === 'Service'; }).length;
         var matCount = filtered.filter(function(i){ return (i.itemType||'') !== 'Service'; }).length;
 
@@ -1417,6 +1531,196 @@
           ['Date', 'Plate No.', 'Item No.', 'Description', 'Type', 'Group', 'UOM', 'Qty', 'Unit Cost', 'Subtotal'],
           rows,
           { values: [grandTotalQty > 0 ? grandTotalQty : '—', '', '₱' + grandTotalSubtotal.toLocaleString('en-PH',{minimumFractionDigits:2})] }
+        );
+      }
+
+      // ── CSV / Excel export helper ──
+      function _downloadCSV(filename, headers, rows) {
+        function _esc(v) {
+          var s = String(v === null || v === undefined ? '' : v)
+            .replace(/<[^>]+>/g, '')   // strip HTML tags
+            .replace(/₱/g, '')          // remove currency symbol (Excel handles it)
+            .replace(/"/g, '""');       // escape double-quotes
+          return /[,"\n\r]/.test(s) ? '"' + s + '"' : s;
+        }
+        // Force Excel to treat date-like values as text using standard CSV quoting
+        function _escCell(v, isDate) {
+          var raw = String(v === null || v === undefined ? '' : v)
+            .replace(/<[^>]+>/g, '')
+            .replace(/₱/g, '')
+            .replace(/"/g, '""');
+          // Always quote date cells so the comma in "Jul 2, 2026" doesn't split columns
+          if (isDate && raw && raw !== '—') {
+            return '"' + raw + '"';
+          }
+          return /[,"\n\r]/.test(raw) ? '"' + raw + '"' : raw;
+        }
+        var csv = [headers.map(_esc).join(',')]
+          .concat(rows.map(function(r){
+            return r.map(function(cell, idx) {
+              return _escCell(cell, idx === 0); // column 0 is always Date
+            }).join(',');
+          }))
+          .join('\r\n');
+        var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        var url  = URL.createObjectURL(blob);
+        var a    = document.createElement('a');
+        a.href     = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      // ── Export Transactions ──
+      function exportTransactionsExcel() {
+        var txns = (window._fbTransactions || []).map(function(t) {
+          var itemName = t.item || t.name || '—';
+          var cg = t.commodityGroup || (function() {
+            var nm = (itemName || '').toLowerCase().trim();
+            var inNum = (t.itemNum || '').toLowerCase().trim();
+            var inv = window.inventory || [];
+            var found = inv.find(function(i){ return (i.itemName||'').toLowerCase() === nm || (inNum && (i.itemNum||'').toLowerCase() === inNum); });
+            if (found && found.commodityGroup) return found.commodityGroup;
+            var rawInv = window._fbInventory || [];
+            var rawFound = rawInv.find(function(i){ return (i.name||'').toLowerCase() === nm || (inNum && (i.num||'').toLowerCase() === inNum); });
+            if (rawFound && rawFound.group) return rawFound.group;
+            var master = window.itemMaster || [];
+            var mf = master.find(function(i){ return (i.itemName||'').toLowerCase() === nm || (inNum && (i.itemNum||'').toLowerCase() === inNum); });
+            if (mf && mf.commodityGroup) return mf.commodityGroup;
+            var rawMaster = window._fbItemMaster || [];
+            var rawMf = rawMaster.find(function(i){ return (i.name||'').toLowerCase() === nm || (inNum && (i.num||'').toLowerCase() === inNum); });
+            return (rawMf && rawMf.group) ? rawMf.group : '—';
+          })();
+          var rawDesc = (t.desc || t.description || '')
+            .replace(/for maintenance SVC-\d+\s*[—\-]\s*/gi, 'for ')
+            .replace(/for maintenance SVC-\d+/gi, '')
+            .replace(/\s*SVC-\d+\s*/gi, '')
+            .trim() || '—';
+          var type = (t.type || 'IN').toUpperCase();
+          return { date: t.date||'', item: itemName, cg: cg, desc: rawDesc, type: type, qty: t.qty||t.quantity||0, by: t.by||'—' };
+        });
+
+        var q = ((document.getElementById('txnSearch')||{}).value||'').trim().toLowerCase();
+        if (q) txns = txns.filter(function(t){ return (t.item+t.desc+t.by).toLowerCase().includes(q); });
+
+        var MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var selMonth = ((document.getElementById('txnMonthFilter')||{}).value||'').trim();
+        if (selMonth) txns = txns.filter(function(t){
+          var m = t.date.match(/^([A-Za-z]+)\s+\d+,?\s+(\d{4})/);
+          return m ? (m[1].slice(0,3)+' '+m[2]) === selMonth : false;
+        });
+
+        var txnF = window._txnFilter || 'all';
+        if (txnF !== 'all') txns = txns.filter(function(t){ return t.type === txnF; });
+        var cgF = window._txnCommodityFilter || '';
+        if (cgF) txns = txns.filter(function(t){ return t.cg === cgF; });
+
+        var sortVal = (document.getElementById('txnSortSelect')||{}).value||'date-desc';
+        txns = txns.slice().sort(function(a,b){
+          function dm(t){ var d=new Date(t.date||''); return isNaN(d)?0:d.getTime(); }
+          function qn(t){ return parseFloat(String(t.qty||0).replace(/[^0-9.]/g,''))||0; }
+          switch(sortVal){
+            case 'date-asc': return dm(a)-dm(b);
+            case 'item-asc': return (a.item||'').localeCompare(b.item||'');
+            case 'item-desc':return (b.item||'').localeCompare(a.item||'');
+            case 'qty-desc': return qn(b)-qn(a);
+            case 'qty-asc':  return qn(a)-qn(b);
+            default:         return dm(b)-dm(a);
+          }
+        });
+
+        var now = new Date();
+        var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+        // Normalize date to "Jul 2, 2026" format
+        function _fmtTxnDateExport(d) {
+          if (!d) return '—';
+          if (/^[A-Za-z]/.test(d)) {
+            var mx = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
+            if (mx) return mx[1].slice(0,3) + ' ' + parseInt(mx[2]) + ', ' + mx[3];
+            return d;
+          }
+          var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+          if (m2) return MONTHS_S[parseInt(m2[1])-1] + ' ' + parseInt(m2[2]) + ', ' + m2[3];
+          var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+          if (m3) return MONTHS_S[parseInt(m3[2])-1] + ' ' + parseInt(m3[3]) + ', ' + m3[1];
+          return d;
+        }
+        _downloadCSV(
+          'Inventory_Transactions_' + stamp + '.csv',
+          ['Date','Item','Commodity Group','Description','Type','Qty','Performed By'],
+          txns.map(function(t){ return [_fmtTxnDateExport(t.date),t.item,t.cg,t.desc,t.type,t.qty,t.by]; })
+        );
+      }
+
+      // ── Export Issuances ──
+      function exportIssuancesExcel() {
+        var issuances = window.issuances || window._fbIssuances || [];
+        var issF = window._issFilter || 'all';
+        if (issF !== 'all') issuances = issuances.filter(function(i){ return (i.itemType||'') === issF; });
+
+        var selMonth = ((document.getElementById('issuanceMonthFilter')||{}).value||'').trim();
+        var MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        function pMY(d){
+          if(!d) return null;
+          var m1=d.match(/^([A-Za-z]+)\s+\d+,?\s+(\d{4})/); if(m1) return {mo:m1[1].slice(0,3),yr:m1[2]};
+          var m2=d.match(/^(\d{1,2})\/\d{1,2}\/(\d{4})/); if(m2) return {mo:MONTHS_S[parseInt(m2[1])-1],yr:m2[2]};
+          var m3=d.match(/^(\d{4})-(\d{2})-\d{2}/); if(m3) return {mo:MONTHS_S[parseInt(m3[2])-1],yr:m3[1]};
+          return null;
+        }
+        if (selMonth) issuances = issuances.filter(function(i){ var p=pMY(i.date); return p && (p.mo+' '+p.yr)===selMonth; });
+
+        var q = ((document.getElementById('issuanceSearch')||{}).value||'').trim().toLowerCase();
+        var filtered = q ? issuances.filter(function(i){ return (i.itemName+i.itemNum+i.itemType+i.commodityGroup).toLowerCase().includes(q); }) : issuances;
+        var cgF = window._issCommodityFilter || '';
+        if (cgF) filtered = filtered.filter(function(i){ return (i.commodityGroup||'')===cgF; });
+
+        var sortVal = (document.getElementById('issSortSelect')||{}).value||'date-desc';
+        filtered = filtered.slice().sort(function(a,b){
+          function dm(i){ var d=new Date(i.date||''); return isNaN(d)?0:d.getTime(); }
+          function qty(i){ return parseFloat(i.quantity||i.qty||0)||0; }
+          function cost(i){ return qty(i)*(parseFloat(String(i.unitCost||0).replace(/[₱,]/g,''))||0); }
+          switch(sortVal){
+            case 'date-asc': return dm(a)-dm(b);
+            case 'item-asc': return (a.itemName||'').localeCompare(b.itemName||'');
+            case 'item-desc':return (b.itemName||'').localeCompare(a.itemName||'');
+            case 'qty-desc': return qty(b)-qty(a);
+            case 'qty-asc':  return qty(a)-qty(b);
+            case 'cost-desc':return cost(b)-cost(a);
+            case 'cost-asc': return cost(a)-cost(b);
+            default:         return dm(b)-dm(a);
+          }
+        });
+
+        // Normalize any date string to "Jul 2, 2026" format
+        function _fmtIssDate(d) {
+          if (!d) return '—';
+          // Already "Jul 2, 2026" or "July 2, 2026" style
+          if (/^[A-Za-z]/.test(d)) {
+            var mx = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
+            if (mx) return mx[1].slice(0,3) + ' ' + parseInt(mx[2]) + ', ' + mx[3];
+            return d;
+          }
+          // "7/2/2026" or "07/02/2026"
+          var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+          if (m2) return MONTHS_S[parseInt(m2[1])-1] + ' ' + parseInt(m2[2]) + ', ' + m2[3];
+          // "2026-07-02"
+          var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+          if (m3) return MONTHS_S[parseInt(m3[2])-1] + ' ' + parseInt(m3[3]) + ', ' + m3[1];
+          return d;
+        }
+
+        var now = new Date();
+        var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+        _downloadCSV(
+          'Issuances_' + stamp + '.csv',
+          ['Date','Plate No.','Item No.','Item Name','Item Type','Commodity Group','UOM','Qty','Unit Cost','Subtotal'],
+          filtered.map(function(i){
+            var qty = parseFloat(i.quantity||i.qty||0)||0;
+            var uc  = parseFloat(String(i.unitCost||0).replace(/[₱,]/g,''))||0;
+            return [_fmtIssDate(i.date),i.plate||i.assetNum||'',i.itemNum||'',i.itemName||'',i.itemType||'',i.commodityGroup||'',i.uom||i.unit||'',qty,uc,(qty*uc).toFixed(2)];
+          })
         );
       }
     </script>

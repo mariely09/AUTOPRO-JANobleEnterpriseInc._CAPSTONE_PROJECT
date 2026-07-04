@@ -1,7 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vehicle List</title>
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
@@ -9,6 +12,26 @@
     <link rel="stylesheet" href="../static/css/admin.css">
 </head>
 <body class="portal-body" data-page="assets">
+<script>
+// Instant auth guard — blocks bfcache back-navigation after logout
+(function() {
+  var logoutTime = localStorage.getItem('_loggedOut');
+  var loginTime  = localStorage.getItem('_loggedIn');
+  // If logged out more recently than logged in, block access
+  if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+    return;
+  }
+  var hasSession = sessionStorage.getItem('apUser') ||
+                   sessionStorage.getItem('spUser') ||
+                   sessionStorage.getItem('cpUser');
+  if (!hasSession) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+  }
+})();
+</script>
 
 <div class="admin-dashboard" style="display:flex;flex-direction:column;">
     <div id="headerContainer"></div>
@@ -21,9 +44,27 @@
                 <div class="breadcrumb">Admin Portal › Vehicle Maintenance Management</div>
                 <div class="admin-header-title">Vehicle List</div>
             </div>
-            <div style="margin-left:auto;position:relative;display:flex;align-items:center;">
-                <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" class="search-bar" placeholder="Search vehicles..." id="assetSearch" style="width:220px;padding-left:2rem;" oninput="renderAssetsList()">
+            <div style="margin-left:auto;display:flex;align-items:center;gap:0.6rem;">
+                <!-- Search -->
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" class="search-bar" placeholder="Search vehicles..." id="assetSearch" style="width:220px;padding-left:2rem;" oninput="renderAssetsList()">
+                </div>
+                <!-- Sort By -->
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+                    <select id="vehSortSelect" onchange="renderAssetsList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:160px;outline:none;transition:border-color 0.2s ease;">
+                        <option value="plate-asc">Plate A→Z</option>
+                        <option value="plate-desc">Plate Z→A</option>
+                        <option value="owner-asc">Owner A→Z</option>
+                        <option value="owner-desc">Owner Z→A</option>
+                        <option value="pms-asc">Next PMS ↑ Soonest</option>
+                        <option value="pms-desc">Next PMS ↓ Latest</option>
+                        <option value="odo-desc">Odometer ↑ Highest</option>
+                        <option value="odo-asc">Odometer ↓ Lowest</option>
+                    </select>
+                    <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
             </div>
         </div>
 
@@ -197,7 +238,7 @@
 <script src="../static/js/admin.js"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script>
-  // Patch renderAssetsList to also update vehicle stat cards
+  // Patch renderAssetsList to also update vehicle stat cards and apply sort
   (function() {
     function updateVehStats() {
       var assets = window.assets || [];
@@ -206,8 +247,58 @@
       s('vehStatCars',  assets.filter(function(a){ return (a.type||'').toLowerCase() === 'car'; }).length);
       s('vehStatTrucks', assets.filter(function(a){ return (a.type||'').toLowerCase() === 'truck'; }).length);
     }
+
+    function _calcNextPmsDate(asset) {
+      var lastSvc = asset.lastServiceDate || asset.lastSvcDate || '';
+      var freq    = parseInt(asset.svcFreq || asset.serviceFrequency) || 0;
+      if (!lastSvc || !freq) return null;
+      var d = new Date(lastSvc);
+      if (isNaN(d.getTime())) return null;
+      d.setMonth(d.getMonth() + freq);
+      return d;
+    }
+
+    function applySortToAssets() {
+      var sortEl = document.getElementById('vehSortSelect');
+      if (!sortEl) return;
+      var val = sortEl.value;
+      var assets = window.assets;
+      if (!assets) return;
+      assets.sort(function(a, b) {
+        switch (val) {
+          case 'plate-asc':
+            return (a.plateNumber||a.plate||'').localeCompare(b.plateNumber||b.plate||'');
+          case 'plate-desc':
+            return (b.plateNumber||b.plate||'').localeCompare(a.plateNumber||a.plate||'');
+          case 'owner-asc':
+            return (a.owner||'').localeCompare(b.owner||'');
+          case 'owner-desc':
+            return (b.owner||'').localeCompare(a.owner||'');
+          case 'pms-asc': {
+            var da = _calcNextPmsDate(a), db2 = _calcNextPmsDate(b);
+            if (!da && !db2) return 0;
+            if (!da) return 1; if (!db2) return -1;
+            return da - db2;
+          }
+          case 'pms-desc': {
+            var da = _calcNextPmsDate(a), db2 = _calcNextPmsDate(b);
+            if (!da && !db2) return 0;
+            if (!da) return 1; if (!db2) return -1;
+            return db2 - da;
+          }
+          case 'odo-desc':
+            return (parseInt(b.odometer)||0) - (parseInt(a.odometer)||0);
+          case 'odo-asc':
+            return (parseInt(a.odometer)||0) - (parseInt(b.odometer)||0);
+          default:
+            return 0;
+        }
+      });
+    }
+
     var _orig = window.renderAssetsList;
     window.renderAssetsList = function() {
+      applySortToAssets();
       if (typeof _orig === 'function') _orig();
       updateVehStats();
     };

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -26,12 +27,26 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
   String? _photoUrl;
   String _userName = '';
   IconData _fleetNavIcon = Icons.directions_car_outlined;
-  bool _iconComputed = false; // Flag to prevent recomputing icon on every rebuild
+  bool _iconComputed = false;
+
+  // ── Live clock ──
+  late DateTime _now;
+  late final Timer _clockTimer;
 
   @override
   void initState() {
     super.initState();
+    _now = DateTime.now();
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
     _loadInitials();
+  }
+
+  @override
+  void dispose() {
+    _clockTimer.cancel();
+    super.dispose();
   }
 
   Future<void> _loadInitials() async {
@@ -142,52 +157,46 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
 
   // ── MY VEHICLES ──
   Widget _buildVehicles() {
+    // Use _userName already loaded by _loadInitials — no FutureBuilder needed
+    if (_userName.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('vehicles')
-          .snapshots(),
+      stream: FirebaseFirestore.instance.collection('vehicles').snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final uid = FirebaseAuth.instance.currentUser?.uid;
         final allDocs = snapshot.data?.docs ?? [];
+        final userName = _userName;
 
-        // Filter vehicles owned by this customer (match by owner name)
-        // We'll match by owner field after loading user name
-        return FutureBuilder<DocumentSnapshot>(
-          future: uid != null
-              ? FirebaseFirestore.instance.collection('users').doc(uid).get()
-              : Future.value(null),
-          builder: (context, userSnap) {
-            final userName = (userSnap.data?.data() as Map<String, dynamic>?)?['name'] as String? ?? '';
+        // Auto-update statuses based on next PMS due date
+        if (snapshot.hasData) {
+          _refreshVehicleStatuses(snapshot.data!.docs, userName);
+        }
 
-            // Auto-update statuses based on next PMS due date
-            if (userName.isNotEmpty && snapshot.hasData) {
-              _refreshVehicleStatuses(snapshot.data!.docs, userName);
-            }
-
-            final vehicles = allDocs
-                .where((d) {
-                  final data = d.data() as Map<String, dynamic>;
-                  final owner = data['owner'] as String? ?? '';
-                  return owner.toLowerCase() == userName.toLowerCase();
-                })
-                .map((d) {
-                  final data = d.data() as Map<String, dynamic>;
-                  return {
-                    'id': d.id,
-                    'plate': data['plate'] as String? ?? '',
-                    'desc': data['desc'] as String? ?? '',
-                    'type': data['type'] as String? ?? '',
-                    'status': data['status'] as String? ?? 'Active',
-                    'lastSvcDate': data['lastSvcDate'] as String? ?? '',
-                    'lastSvcOdo': (data['lastSvcOdo'] ?? data['lastServiceOdometer'] ?? '').toString(),
-                    'odo': data['odo'] as String? ?? '',
-                    'svcFreq': data['svcFreq'] as String? ?? '',
-                  };
-                }).toList();
+        final vehicles = allDocs
+            .where((d) {
+              final data = d.data() as Map<String, dynamic>;
+              final owner = data['owner'] as String? ?? '';
+              return owner.toLowerCase() == userName.toLowerCase();
+            })
+            .map((d) {
+              final data = d.data() as Map<String, dynamic>;
+              return {
+                'id': d.id,
+                'plate': data['plate'] as String? ?? '',
+                'desc': data['desc'] as String? ?? '',
+                'type': data['type'] as String? ?? '',
+                'status': data['status'] as String? ?? 'Active',
+                'lastSvcDate': data['lastSvcDate'] as String? ?? '',
+                'lastSvcOdo': (data['lastSvcOdo'] ?? data['lastServiceOdometer'] ?? '').toString(),
+                'odo': data['odo'] as String? ?? '',
+                'svcFreq': data['svcFreq'] as String? ?? '',
+              };
+            }).toList();
 
             final maint    = vehicles.where((v) => v['status'] == 'Under Maintenance').length;
             final overdue  = vehicles.where((v) => v['status'] == 'Overdue').length;
@@ -204,6 +213,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _buildWelcomeCard(),
                 GridView.count(
                   crossAxisCount: 2, shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -228,9 +238,52 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                   ...vehicles.map((v) => _vehicleCard(v)),
               ]),
             );
-          },
-        );
       },
+    );
+  }
+
+  Widget _buildWelcomeCard() {
+    const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    final hour = _now.hour;
+    final greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    final greetIcon = hour < 12 ? '☀️' : hour < 17 ? '🌤️' : '🌙';
+    final dayName   = dayNames[_now.weekday % 7];
+    final monthName = monthNames[_now.month - 1];
+    final dateStr   = '$dayName, $monthName ${_now.day}, ${_now.year}';
+
+    final h12 = _now.hour % 12 == 0 ? 12 : _now.hour % 12;
+    final ampm = _now.hour < 12 ? 'AM' : 'PM';
+    final timeStr = '${h12.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}:${_now.second.toString().padLeft(2, '0')} $ampm';
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE8001C), Color(0xFFa50014)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Color(0x40E8001C), blurRadius: 12, offset: Offset(0, 4))],
+      ),
+      child: Row(children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('$greetIcon $greeting${_userName.isNotEmpty ? ', ${_userName.split(' ').first}' : ''}!',
+            style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text(dateStr, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        ])),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
+          child: Text(timeStr,
+            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+        ),
+      ]),
     );
   }
 
@@ -508,16 +561,42 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                         }
 
                         final hasBooking = (bookSnap.data?.docs.isNotEmpty) ?? false;
+                        final bookingData = hasBooking
+                            ? bookSnap.data!.docs.first.data() as Map<String, dynamic>
+                            : <String, dynamic>{};
                         final bookingStatus = hasBooking
-                            ? (bookSnap.data!.docs.first.data() as Map<String, dynamic>)['status'] as String? ?? 'Pending'
+                            ? bookingData['status'] as String? ?? 'Pending'
                             : '';
-
+                        final bookingDate = hasBooking
+                            ? bookingData['preferredDate'] as String? ?? ''
+                            : '';
+                        final bookingTime = hasBooking
+                            ? bookingData['preferredTime'] as String? ?? ''
+                            : '';
+                        final previousDate = hasBooking
+                            ? bookingData['previousDate'] as String? ?? ''
+                            : '';
+                        final isRescheduled = previousDate.isNotEmpty && previousDate != bookingDate;
                         if (hasBooking) {
                           // Already booked — show status badge instead of Book button
                           final isApproved = bookingStatus == 'Approved';
                           final badgeColor = isApproved ? Colors.green : Colors.orange;
                           final badgeBg    = isApproved ? const Color(0xFFF0FFF4) : const Color(0xFFFFF8E1);
                           final badgeBorder= isApproved ? const Color(0xFFC6F6D5) : const Color(0xFFFBD38D);
+
+                          // Format the booking date for display
+                          String formattedDate = '';
+                          if (bookingDate.isNotEmpty) {
+                            final parts = bookingDate.split('-');
+                            if (parts.length == 3) {
+                              const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                              final m = (int.tryParse(parts[1]) ?? 1) - 1;
+                              final d = int.tryParse(parts[2]) ?? 1;
+                              final y = int.tryParse(parts[0]) ?? 0;
+                              formattedDate = '${months[m]} $d, $y';
+                            }
+                          }
+
                           return Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
@@ -537,13 +616,15 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                               ),
                               const SizedBox(width: 12),
                               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text('Service Already Booked',
+                                Text(isRescheduled ? 'Booking Rescheduled' : 'Service Already Booked',
                                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: badgeColor)),
                                 const SizedBox(height: 2),
                                 Text(
-                                  isApproved
-                                    ? 'Your booking is confirmed. See you at the shop!'
-                                    : 'Your booking is pending admin approval.',
+                                  isRescheduled
+                                    ? 'Rescheduled${formattedDate.isNotEmpty ? ' to $formattedDate${bookingTime.isNotEmpty ? ', $bookingTime' : ''}' : ''}.'
+                                    : isApproved
+                                        ? 'Confirmed${formattedDate.isNotEmpty ? ' — $formattedDate${bookingTime.isNotEmpty ? ', $bookingTime' : ''}' : ''}.'
+                                        : 'Pending approval${formattedDate.isNotEmpty ? ' — $formattedDate${bookingTime.isNotEmpty ? ', $bookingTime' : ''}' : ''}.',
                                   style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
                               ])),
                               GestureDetector(

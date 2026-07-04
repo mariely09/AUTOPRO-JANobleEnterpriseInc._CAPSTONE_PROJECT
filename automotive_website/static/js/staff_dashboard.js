@@ -13,6 +13,21 @@
   const spUser = stored ? JSON.parse(stored) : {};
   console.log('spUser data:', spUser);
 
+  // ── Back/Forward navigation guard (bfcache) ─────────────
+  window.addEventListener('pageshow', function (e) {
+    var hasSession = sessionStorage.getItem('spUser') || sessionStorage.getItem('apUser');
+    if (!hasSession) {
+      window.location.replace('/login.html');
+      return;
+    }
+    if (e.persisted) {
+      if (typeof firebase !== 'undefined' && firebase.auth && !firebase.auth().currentUser) {
+        sessionStorage.removeItem('spUser');
+        window.location.replace('/login.html');
+      }
+    }
+  });
+
   const db   = firebase.firestore();
   const auth = firebase.auth();
 
@@ -81,9 +96,11 @@
   // ── Logout ───────────────────────────────────────────────
   window.sfLogout = function () {
     if (!confirm('Are you sure you want to logout?')) return;
-    auth.signOut().then(() => {
+    localStorage.setItem('_loggedOut', Date.now().toString());
+    auth.signOut().finally(() => {
       sessionStorage.removeItem('spUser');
-      window.location.href = '/index.html';
+      history.replaceState(null, '', '/index.html');
+      window.location.replace('/index.html');
     });
   };
 
@@ -305,7 +322,7 @@
         desc: 'Stock received',
         type: 'IN',
         qty: `+${qty}`,
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        date: (function(){ var _d=new Date(),_m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return _m[_d.getMonth()]+' '+_d.getDate()+', '+_d.getFullYear(); })(),
         by: spUser.name || 'Staff',
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
