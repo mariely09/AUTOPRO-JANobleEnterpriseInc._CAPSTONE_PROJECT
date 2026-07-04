@@ -102,7 +102,7 @@
                 </div>
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <select id="deliveryMonthFilter" onchange="_renderList()" style="height:36px;padding:0 1.5rem 0 2rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.82rem;font-weight:600;color:#4a5568;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:140px;outline:none;">
+                    <select id="deliveryMonthFilter" onchange="_renderList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:140px;outline:none;">
                         <option value="">All Months</option>
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -755,7 +755,9 @@ var _ndIdx = 0;
 window.openNewDeliveryModal = function() {
   _ndFoundItem = null; _ndItems = []; _ndIdx = 0;
   _currentEditDeliveryId = null;
-  document.getElementById('ndDate').value = new Date().toISOString().split('T')[0];
+  var _todayStr = new Date().toISOString().split('T')[0];
+  document.getElementById('ndDate').value = _todayStr;
+  document.getElementById('ndDate').min   = _todayStr;
   document.getElementById('ndSupplier').value = '';
   document.getElementById('ndNotes').value = '';
   document.getElementById('ndItemSearch').value = '';
@@ -922,6 +924,8 @@ window.editDelivery = function(id) {
   _currentEditDeliveryId = id;
 
   // Pre-fill header fields
+  var _today = new Date().toISOString().split('T')[0];
+  document.getElementById('ndDate').min   = _today;
   document.getElementById('ndDate').value = d.date || '';
   document.getElementById('ndSupplier').value = d.supplier || '';
   document.getElementById('ndNotes').value = d.notes || '';
