@@ -95,12 +95,39 @@ a { text-decoration: none; }
 
 /* ── Hero ── */
 .hero {
+  position: relative;
   min-height: calc(100vh - 64px);
-  background: linear-gradient(135deg, #1a202c 0%, #2d3748 60%, #E8001C 100%);
   display: flex;
   align-items: center;
   padding: 80px 5%;
   gap: 60px;
+  overflow: hidden;
+  isolation: isolate;
+  background-color: #1a202c;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("../img/CALTEX_BACKGROUND.jpg");
+  background-size: cover;
+  background-position: center;
+  opacity: 0.32;
+  z-index: -2;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(26,32,44,0.78) 0%, rgba(45,55,72,0.68) 60%, rgba(232,0,28,0.68) 100%);
+  z-index: -1;
+}
+
+.hero > * {
+  position: relative;
+  z-index: 1;
 }
 
 .hero-content { flex: 1; max-width: 560px; }

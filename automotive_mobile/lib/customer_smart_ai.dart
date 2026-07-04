@@ -6,13 +6,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Base URL of the ai_assistant FastAPI service.
-//  Android emulator → 10.0.2.2 maps to the host machine's localhost.
-//  Physical device  → use your LAN IP, e.g. 192.168.1.x
-//  Override: flutter run --dart-define=AI_BACKEND_URL=http://192.168.1.5:8002
+//  Default is the deployed Render backend.
+//  Override at build time if needed:
+//    flutter run --dart-define=AI_BACKEND_URL=https://your-render-url.onrender.com
 // ─────────────────────────────────────────────────────────────────────────────
 const _kAiBaseUrl = String.fromEnvironment(
   'AI_BACKEND_URL',
-  defaultValue: 'http://10.0.2.2:8001',
+  defaultValue: 'https://caltex-autopro-capstone-project.onrender.com',
 );
 
 class CustomerSmartAI extends StatefulWidget {
@@ -204,7 +204,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
             text: '🔌 Cannot reach the AI service.\n\n'
                 'Make sure the backend is running:\n'
                 '  cd ai_assistant\n'
-                '  venv\\Scripts\\uvicorn main:app --port 8002\n\n'
+                '  venv\\Scripts\\uvicorn main:app --port 8001\n\n'
                 'Error: $e'));
       });
     } catch (e) {
@@ -275,7 +275,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'AI service offline — start the backend on port 8002',
+                  'AI service offline — start the backend on port 8001',
                   style: TextStyle(fontSize: 11, color: Color(0xFF975A16)),
                 ),
               ),

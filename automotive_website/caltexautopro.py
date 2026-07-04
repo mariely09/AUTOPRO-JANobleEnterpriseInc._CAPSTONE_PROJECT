@@ -672,7 +672,8 @@ def customer_header():
 import requests as _requests_lib
 
 # Base URL of the ai_assistant FastAPI service — override via env var if needed.
-_AI_BACKEND_URL = os.environ.get('AI_BACKEND_URL', 'http://localhost:8001')
+# Default points to the deployed Render backend.
+_AI_BACKEND_URL = os.environ.get('AI_BACKEND_URL', 'https://caltex-autopro-capstone-project.onrender.com').rstrip('/')
 
 
 def _ai_backend_available() -> bool:
