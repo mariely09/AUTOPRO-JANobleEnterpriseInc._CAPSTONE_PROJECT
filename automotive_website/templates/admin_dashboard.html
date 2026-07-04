@@ -257,6 +257,14 @@
                         </select>
                         <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
+                    <!-- Date Range Filter -->
+                    <div style="display:flex;align-items:center;gap:0.3rem;">
+                        <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">From</span>
+                        <input type="date" id="txnDateFrom" onchange="renderInventoryTransactions()" style="height:36px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;min-width:130px;">
+                        <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">To</span>
+                        <input type="date" id="txnDateTo" onchange="renderInventoryTransactions()" style="height:36px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;min-width:130px;">
+                        <button onclick="document.getElementById('txnDateFrom').value='';document.getElementById('txnDateTo').value='';renderInventoryTransactions();" title="Clear date range" style="height:36px;padding:0 0.55rem;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;color:#718096;font-size:0.82rem;" type="button">✕</button>
+                    </div>
                     <button class="btn-icon btn-secondary" onclick="printTransactions()" style="display:flex;align-items:center;gap:0.3rem;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                         Print
@@ -293,6 +301,14 @@
                             <option value="">All Months</option>
                         </select>
                         <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <!-- Date Range Filter -->
+                    <div style="display:flex;align-items:center;gap:0.3rem;">
+                        <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">From</span>
+                        <input type="date" id="issuanceDateFrom" onchange="renderIssuancesList()" style="height:36px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;min-width:130px;">
+                        <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">To</span>
+                        <input type="date" id="issuanceDateTo" onchange="renderIssuancesList()" style="height:36px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;min-width:130px;">
+                        <button onclick="document.getElementById('issuanceDateFrom').value='';document.getElementById('issuanceDateTo').value='';renderIssuancesList();" title="Clear date range" style="height:36px;padding:0 0.55rem;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;color:#718096;font-size:0.82rem;" type="button">✕</button>
                     </div>
                     <div style="position:relative;display:flex;align-items:center;">
                         <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -1391,6 +1407,27 @@
         var cgF = window._txnCommodityFilter || '';
         if (cgF) txns = txns.filter(function(t){ return (t.commodityGroup || '—') === cgF; });
 
+        // Apply date range filter
+        var txnFromP = ((document.getElementById('txnDateFrom') || {}).value || '').trim();
+        var txnToP   = ((document.getElementById('txnDateTo')   || {}).value || '').trim();
+        if (txnFromP || txnToP) {
+          txns = txns.filter(function(t) {
+            var d = t.date; if (!d) return false;
+            var dt = new Date(d);
+            if (isNaN(dt)) {
+              var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+              var pts = d.split(' ');
+              var mi = MO.indexOf(pts[0]);
+              if (mi !== -1) dt = new Date(parseInt(pts[2]), mi, parseInt(pts[1]));
+            }
+            if (isNaN(dt)) return true;
+            var ds = dt.toISOString().split('T')[0];
+            if (txnFromP && ds < txnFromP) return false;
+            if (txnToP   && ds > txnToP)   return false;
+            return true;
+          });
+        }
+
         // Apply sort
         var txnSortVal = (document.getElementById('txnSortSelect') || {}).value || 'date-desc';
         txns = txns.slice().sort(function(a, b) {
@@ -1410,14 +1447,21 @@
         var outCount = txns.filter(function(t){ return t.type === 'OUT'; }).length;
 
         var _MONTHS_PRINT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var _FULL_MONTHS_PRINT = ['January','February','March','April','May','June','July','August','September','October','November','December'];
         function _fmtPrintDate(d) {
           if (!d) return '—';
-          // Already "Jul 2, 2026" style
-          if (/^[A-Za-z]/.test(d)) return d;
+          // Already "Jul 2, 2026" or "July 2, 2026" style — convert to full month
+          var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
+          if (m1) {
+            var abbr = m1[1].slice(0,3);
+            var mi = _MONTHS_PRINT.indexOf(abbr);
+            var fullMo = mi !== -1 ? _FULL_MONTHS_PRINT[mi] : m1[1];
+            return fullMo + ' ' + parseInt(m1[2]) + ', ' + m1[3];
+          }
           // "7/2/2026" or "2026-07-02"
           var dt = new Date(d);
           if (isNaN(dt.getTime())) return d;
-          return _MONTHS_PRINT[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+          return _FULL_MONTHS_PRINT[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
         }
 
         var totalQty = 0;
@@ -1433,6 +1477,7 @@
 
         var printTitle = 'Inventory Transactions';
         if (selectedTxnMonth) printTitle += ' — ' + selectedTxnMonth;
+        if (txnFromP || txnToP) printTitle += ' · ' + (txnFromP || '…') + ' to ' + (txnToP || '…');
         if (txnFilter === 'IN') printTitle += ' (Received)';
         else if (txnFilter === 'OUT') printTitle += ' (Issued)';
         if (cgF) printTitle += ' · ' + cgF;
@@ -1491,6 +1536,28 @@
         var issCgF = window._issCommodityFilter || '';
         if (issCgF) filtered = filtered.filter(function(i){ return (i.commodityGroup||'') === issCgF; });
 
+        // Apply date range filter
+        var issFrom = ((document.getElementById('issuanceDateFrom') || {}).value || '').trim();
+        var issTo   = ((document.getElementById('issuanceDateTo')   || {}).value || '').trim();
+        if (issFrom || issTo) {
+          filtered = filtered.filter(function(i) {
+            var d = i.date;
+            if (!d) return false;
+            var dt = new Date(d);
+            if (isNaN(dt)) {
+              var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+              var pts = d.split(' ');
+              var mi = MO.indexOf(pts[0]);
+              if (mi !== -1) dt = new Date(parseInt(pts[2]), mi, parseInt(pts[1]));
+            }
+            if (isNaN(dt)) return true;
+            var ds = dt.toISOString().split('T')[0];
+            if (issFrom && ds < issFrom) return false;
+            if (issTo   && ds > issTo)   return false;
+            return true;
+          });
+        }
+
         // Apply sort
         var issSortVal = (document.getElementById('issSortSelect') || {}).value || 'date-desc';
         filtered = filtered.slice().sort(function(a, b) {
@@ -1516,15 +1583,29 @@
         if (issFilter === 'Service') reportTitle += ' (Services)';
         else if (issFilter === 'Material') reportTitle += ' (Materials)';
         if (selectedMonth) reportTitle += ' — ' + selectedMonth;
+        if (issFrom || issTo) reportTitle += ' · ' + (issFrom || '…') + ' to ' + (issTo || '…');
         if (issCgF) reportTitle += ' · ' + issCgF;
 
-        var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        var MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         function fmtDate(d) {
           if (!d) return '—';
-          var parts = d.split(' ');
-          if (parts.length >= 3) return d;
+          // "Jan 7, 2026" or "January 7, 2026" → "January 7, 2026"
+          var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
+          if (m1) {
+            var abbr = m1[1].slice(0,3);
+            var mi = MONTHS_S.indexOf(abbr);
+            var fullMo = mi !== -1 ? FULL_MONTHS[mi] : m1[1];
+            return fullMo + ' ' + parseInt(m1[2]) + ', ' + m1[3];
+          }
+          // "7/2/2026"
+          var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+          if (m2) return FULL_MONTHS[parseInt(m2[1])-1] + ' ' + parseInt(m2[2]) + ', ' + m2[3];
+          // "2026-07-02"
+          var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+          if (m3) return FULL_MONTHS[parseInt(m3[2])-1] + ' ' + parseInt(m3[3]) + ', ' + m3[1];
           var dt = new Date(d);
-          if (!isNaN(dt)) return MONTHS[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+          if (!isNaN(dt)) return FULL_MONTHS[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
           return d;
         }
 
@@ -1547,7 +1628,6 @@
             plateCell,
             i.itemNum  || '—',
             i.itemName || '—',
-            i.itemType || '—',
             i.commodityGroup || '—',
             i.uom || i.unit || '—',
             qty > 0 ? qty : '—',
@@ -1558,7 +1638,7 @@
 
         _doPrint(reportTitle,
           [{ label:'Total', value:filtered.length, color:'#1a202c' }, { label:'Services', value:svcCount, color:'#003087' }, { label:'Materials', value:matCount, color:'#E8001C' }],
-          ['Date', 'Plate No.', 'Item No.', 'Description', 'Type', 'Group', 'UOM', 'Qty', 'Unit Cost', 'Subtotal'],
+          ['Date', 'Plate No.', 'Item No.', 'Description', 'Group', 'UOM', 'Qty', 'Unit Cost', 'Subtotal'],
           rows,
           { values: [grandTotalQty > 0 ? grandTotalQty : '—', '', '₱' + grandTotalSubtotal.toLocaleString('en-PH',{minimumFractionDigits:2})] }
         );
@@ -1647,6 +1727,27 @@
         var cgF = window._txnCommodityFilter || '';
         if (cgF) txns = txns.filter(function(t){ return t.cg === cgF; });
 
+        // Apply date range filter
+        var txnFromE = ((document.getElementById('txnDateFrom')||{}).value||'').trim();
+        var txnToE   = ((document.getElementById('txnDateTo')  ||{}).value||'').trim();
+        if (txnFromE || txnToE) {
+          txns = txns.filter(function(t) {
+            var d = t.date; if (!d) return false;
+            var dt = new Date(d);
+            if (isNaN(dt)) {
+              var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+              var pts = d.split(' ');
+              var mi = MO.indexOf(pts[0]);
+              if (mi !== -1) dt = new Date(parseInt(pts[2]), mi, parseInt(pts[1]));
+            }
+            if (isNaN(dt)) return true;
+            var ds = dt.toISOString().split('T')[0];
+            if (txnFromE && ds < txnFromE) return false;
+            if (txnToE   && ds > txnToE)   return false;
+            return true;
+          });
+        }
+
         var sortVal = (document.getElementById('txnSortSelect')||{}).value||'date-desc';
         txns = txns.slice().sort(function(a,b){
           function dm(t){ var d=new Date(t.date||''); return isNaN(d)?0:d.getTime(); }
@@ -1663,18 +1764,25 @@
 
         var now = new Date();
         var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-        // Normalize date to "Jul 2, 2026" format
+        // Normalize date to "July 2, 2026" format (full month name)
         function _fmtTxnDateExport(d) {
           if (!d) return '—';
+          var MONTHS_S_TXN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          var FULL_MONTHS_TXN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
           if (/^[A-Za-z]/.test(d)) {
             var mx = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
-            if (mx) return mx[1].slice(0,3) + ' ' + parseInt(mx[2]) + ', ' + mx[3];
+            if (mx) {
+              var abbr = mx[1].slice(0,3);
+              var mi = MONTHS_S_TXN.indexOf(abbr);
+              var fullMo = mi !== -1 ? FULL_MONTHS_TXN[mi] : mx[1];
+              return fullMo + ' ' + parseInt(mx[2]) + ', ' + mx[3];
+            }
             return d;
           }
           var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-          if (m2) return MONTHS_S[parseInt(m2[1])-1] + ' ' + parseInt(m2[2]) + ', ' + m2[3];
+          if (m2) return FULL_MONTHS_TXN[parseInt(m2[1])-1] + ' ' + parseInt(m2[2]) + ', ' + m2[3];
           var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
-          if (m3) return MONTHS_S[parseInt(m3[2])-1] + ' ' + parseInt(m3[3]) + ', ' + m3[1];
+          if (m3) return FULL_MONTHS_TXN[parseInt(m3[2])-1] + ' ' + parseInt(m3[3]) + ', ' + m3[1];
           return d;
         }
         _downloadCSV(
@@ -1706,6 +1814,27 @@
         var cgF = window._issCommodityFilter || '';
         if (cgF) filtered = filtered.filter(function(i){ return (i.commodityGroup||'')===cgF; });
 
+        // Apply date range filter
+        var issFromE = ((document.getElementById('issuanceDateFrom')||{}).value||'').trim();
+        var issToE   = ((document.getElementById('issuanceDateTo')  ||{}).value||'').trim();
+        if (issFromE || issToE) {
+          filtered = filtered.filter(function(i) {
+            var d = i.date; if (!d) return false;
+            var dt = new Date(d);
+            if (isNaN(dt)) {
+              var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+              var pts = d.split(' ');
+              var mi = MO.indexOf(pts[0]);
+              if (mi !== -1) dt = new Date(parseInt(pts[2]), mi, parseInt(pts[1]));
+            }
+            if (isNaN(dt)) return true;
+            var ds = dt.toISOString().split('T')[0];
+            if (issFromE && ds < issFromE) return false;
+            if (issToE   && ds > issToE)   return false;
+            return true;
+          });
+        }
+
         var sortVal = (document.getElementById('issSortSelect')||{}).value||'date-desc';
         filtered = filtered.slice().sort(function(a,b){
           function dm(i){ var d=new Date(i.date||''); return isNaN(d)?0:d.getTime(); }
@@ -1723,21 +1852,24 @@
           }
         });
 
-        // Normalize any date string to "Jul 2, 2026" format
+        // Normalize any date string to "July 2, 2026" format (full month name)
+        var FULL_MONTHS_E = ['January','February','March','April','May','June','July','August','September','October','November','December'];
         function _fmtIssDate(d) {
           if (!d) return '—';
-          // Already "Jul 2, 2026" or "July 2, 2026" style
-          if (/^[A-Za-z]/.test(d)) {
-            var mx = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
-            if (mx) return mx[1].slice(0,3) + ' ' + parseInt(mx[2]) + ', ' + mx[3];
-            return d;
+          // "Jan 2, 2026" or "January 2, 2026"
+          var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
+          if (m1) {
+            var abbr = m1[1].slice(0,3);
+            var mi = MONTHS_S.indexOf(abbr);
+            var fullMo = mi !== -1 ? FULL_MONTHS_E[mi] : m1[1];
+            return fullMo + ' ' + parseInt(m1[2]) + ', ' + m1[3];
           }
           // "7/2/2026" or "07/02/2026"
           var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-          if (m2) return MONTHS_S[parseInt(m2[1])-1] + ' ' + parseInt(m2[2]) + ', ' + m2[3];
+          if (m2) return FULL_MONTHS_E[parseInt(m2[1])-1] + ' ' + parseInt(m2[2]) + ', ' + m2[3];
           // "2026-07-02"
           var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
-          if (m3) return MONTHS_S[parseInt(m3[2])-1] + ' ' + parseInt(m3[3]) + ', ' + m3[1];
+          if (m3) return FULL_MONTHS_E[parseInt(m3[2])-1] + ' ' + parseInt(m3[3]) + ', ' + m3[1];
           return d;
         }
 
@@ -1745,11 +1877,11 @@
         var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
         _downloadCSV(
           'Issuances_' + stamp + '.csv',
-          ['Date','Plate No.','Item No.','Item Name','Item Type','Commodity Group','UOM','Qty','Unit Cost','Subtotal'],
+          ['Date','Plate No.','Item No.','Item Name','Commodity Group','UOM','Qty','Unit Cost','Subtotal'],
           filtered.map(function(i){
             var qty = parseFloat(i.quantity||i.qty||0)||0;
             var uc  = parseFloat(String(i.unitCost||0).replace(/[₱,]/g,''))||0;
-            return [_fmtIssDate(i.date),i.plate||i.assetNum||'',i.itemNum||'',i.itemName||'',i.itemType||'',i.commodityGroup||'',i.uom||i.unit||'',qty,uc,(qty*uc).toFixed(2)];
+            return [_fmtIssDate(i.date),i.plate||i.assetNum||'',i.itemNum||'',i.itemName||'',i.commodityGroup||'',i.uom||i.unit||'',qty,uc,(qty*uc).toFixed(2)];
           })
         );
       }

@@ -861,6 +861,7 @@ def ai_generate_report():
     Request body:
         report_type: "inventory" | "issuance" | "maintenance" | "vehicles" | "bookings"
         format:      "pdf" | "excel"  (default: "pdf")
+        month:       optional month filter, e.g. "March 2026" (issuance only)
     """
     from flask import send_file
     import io as _io
@@ -868,6 +869,7 @@ def ai_generate_report():
     data        = request.get_json(silent=True) or {}
     report_type = data.get('report_type', '').strip().lower()
     file_format = data.get('format', 'pdf').strip().lower()
+    month       = (data.get('month') or '').strip() or None
 
     valid_types = ('inventory', 'issuance', 'maintenance', 'vehicles', 'bookings')
     if report_type not in valid_types:
@@ -877,9 +879,13 @@ def ai_generate_report():
         }), 400
 
     try:
+        params = {'report_type': report_type, 'format': file_format}
+        if month:
+            params['month'] = month
+
         resp = _requests_lib.post(
             f'{_AI_BACKEND_URL}/admin/report',
-            params={'report_type': report_type, 'format': file_format},
+            params=params,
             timeout=90,
         )
         resp.raise_for_status()
@@ -887,7 +893,8 @@ def ai_generate_report():
         ext      = '.pdf' if file_format == 'pdf' else '.xlsx'
         mimetype = ('application/pdf' if file_format == 'pdf'
                     else 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        filename = f'{report_type}_report{ext}'
+        safe_month = f'_{month.replace(" ", "_")}' if month else ''
+        filename = f'{report_type}_report{safe_month}{ext}'
 
         response = send_file(
             _io.BytesIO(resp.content),
@@ -895,7 +902,6 @@ def ai_generate_report():
             as_attachment=True,
             download_name=filename,
         )
-        # Tell the browser this is a safe, expected download
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['Cache-Control'] = 'no-store'
         return response

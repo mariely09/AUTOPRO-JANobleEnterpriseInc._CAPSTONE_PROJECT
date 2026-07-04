@@ -312,12 +312,13 @@ window.ragAiClear = function() {
   _ragShowWelcome();
 };
 
-window.ragDownloadReport = function(reportType, format) {
-  _ragAppend('ai', '⏳ Generating ' + format.toUpperCase() + ' report...');
+window.ragDownloadReport = function(reportType, format, month) {
+  var monthLabel = month ? ' (' + month + ')' : '';
+  _ragAppend('ai', '⏳ Generating ' + format.toUpperCase() + ' report' + monthLabel + '...');
   fetch('/api/ai-report', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ report_type: reportType, format: format })
+    body: JSON.stringify({ report_type: reportType, format: format, month: month || null })
   })
   .then(function(res) {
     if (!res.ok) throw new Error('Report generation failed');
@@ -325,7 +326,8 @@ window.ragDownloadReport = function(reportType, format) {
   })
   .then(function(blob) {
     var ext = format === 'pdf' ? '.pdf' : '.xlsx';
-    var filename = reportType + '_report' + ext;
+    var safeMo = month ? '_' + month.replace(/\s+/g, '_') : '';
+    var filename = reportType + '_report' + safeMo + ext;
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url; a.download = filename;

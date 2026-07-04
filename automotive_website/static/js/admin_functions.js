@@ -2144,6 +2144,28 @@ function renderIssuancesList() {
         filtered = filtered.filter(function(i){ return (i.commodityGroup||'') === issCgFilter; });
     }
 
+    // Apply date range filter
+    var issFrom = ((document.getElementById('issuanceDateFrom') || {}).value || '').trim();
+    var issTo   = ((document.getElementById('issuanceDateTo')   || {}).value || '').trim();
+    if (issFrom || issTo) {
+        filtered = filtered.filter(function(i) {
+            var d = i.date;
+            if (!d) return false;
+            var dt = new Date(d);
+            if (isNaN(dt)) {
+                var MONTHS_ARR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                var parts = d.split(' ');
+                var m = MONTHS_ARR.indexOf(parts[0]);
+                if (m !== -1) dt = new Date(parseInt(parts[2]), m, parseInt(parts[1]));
+            }
+            if (isNaN(dt)) return true;
+            var ds = dt.toISOString().split('T')[0];
+            if (issFrom && ds < issFrom) return false;
+            if (issTo   && ds > issTo)   return false;
+            return true;
+        });
+    }
+
     if (filtered.length === 0) {
         list.innerHTML = '<div style="text-align:center;color:#718096;padding:2rem;">No issuances found.</div>';
         return;

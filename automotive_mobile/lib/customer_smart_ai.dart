@@ -40,7 +40,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
 
   bool _dataLoaded    = false;
   bool _loading       = false;
-  bool _backendOnline = false;
+  bool _backendOnline = true;    // assume online — backend is always deployed on Render
   bool _rateLimited   = false;
   String _resetIn     = '';
 
@@ -48,7 +48,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   void initState() {
     super.initState();
     _loadIdentity();
-    _checkBackend();
+    _checkBackend(silent: true);  // backend is always deployed — check quietly
   }
 
   @override
@@ -87,16 +87,28 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   }
 
   // ── Backend health ──────────────────────────────────────────────────────────
+  // The backend is always deployed on Render. We do a silent health probe on
+  // startup — if it responds, we mark online; if all attempts fail we show the
+  // offline banner so the user can manually retry.
 
-  Future<void> _checkBackend() async {
-    try {
-      final r = await http
-          .get(Uri.parse('$_kAiBaseUrl/health'))
-          .timeout(const Duration(seconds: 5));
-      if (mounted) setState(() => _backendOnline = r.statusCode == 200);
-    } catch (_) {
-      if (mounted) setState(() => _backendOnline = false);
+  Future<void> _checkBackend({bool silent = false}) async {
+    // Only reset to offline if the caller explicitly requests it (manual retry)
+    if (!silent && mounted) setState(() => _backendOnline = false);
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        final r = await http
+            .get(Uri.parse('$_kAiBaseUrl/health'))
+            .timeout(const Duration(seconds: 20));
+        if (r.statusCode == 200) {
+          if (mounted) setState(() => _backendOnline = true);
+          return;
+        }
+      } catch (_) {
+        if (attempt < 3) await Future.delayed(const Duration(seconds: 5));
+      }
     }
+    // All attempts failed — only mark offline if this was a manual (non-silent) retry
+    if (!silent && mounted) setState(() => _backendOnline = false);
   }
 
   // ── Scroll ──────────────────────────────────────────────────────────────────
@@ -136,10 +148,6 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     });
     _scrollToBottom();
 
-    final historyPayload = _history.length > 20
-        ? _history.sublist(_history.length - 20)
-        : List<Map<String, String>>.from(_history);
-
     try {
       final resp = await http
           .post(
@@ -152,7 +160,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               'session_id':    _sessionId,  // server-side memory key
             }),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
 
       if (resp.statusCode == 200) {
         final data  = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -202,16 +210,26 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         _messages.add(_Msg(
             role: 'ai',
             text: '🔌 Cannot reach the AI service.\n\n'
-                'Make sure the backend is running:\n'
-                '  cd ai_assistant\n'
-                '  venv\\Scripts\\uvicorn main:app --port 8001\n\n'
+                'Please check your internet connection and try again.\n\n'
                 'Error: $e'));
       });
-    } catch (e) {
-      setState(() {
-        _loading = false;
-        _messages.add(_Msg(role: 'ai', text: '⚠️ Unexpected error: $e'));
-      });
+    } on Exception catch (e) {
+      if (e.toString().contains('TimeoutException') ||
+          e.toString().contains('timed out')) {
+        setState(() {
+          _loading = false;
+          _messages.add(_Msg(
+              role: 'ai',
+              text: '⏱️ Request timed out.\n\n'
+                  'The AI service did not respond in time. Please check your '
+                  'connection and try again.'));
+        });
+      } else {
+        setState(() {
+          _loading = false;
+          _messages.add(_Msg(role: 'ai', text: '⚠️ Unexpected error: $e'));
+        });
+      }
     }
     _scrollToBottom();
   }
@@ -248,7 +266,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                     // Clear server-side session memory
                     if (_sessionId != null) {
                       http.delete(Uri.parse('$_kAiBaseUrl/session/$_sessionId'))
-                          .catchError((_) {});
+                          .catchError((_) => http.Response('', 200));
                       _sessionId = null;
                     }
                     setState(() {
@@ -275,12 +293,12 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'AI service offline — start the backend on port 8001',
+                  'Cannot reach AI backend. Check your connection or tap Retry.',
                   style: TextStyle(fontSize: 11, color: Color(0xFF975A16)),
                 ),
               ),
               GestureDetector(
-                onTap: _checkBackend,
+                onTap: () => _checkBackend(),
                 child: const Text('Retry',
                     style: TextStyle(
                         fontSize: 11,

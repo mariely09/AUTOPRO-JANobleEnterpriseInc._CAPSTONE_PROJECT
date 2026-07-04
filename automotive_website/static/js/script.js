@@ -5977,7 +5977,7 @@
                 </head><body>
                 <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1.5rem;">
                     <div>
-                        <div style="font-size:0.8rem;color:#E31E24;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:0.3rem;">JA Noble Enterprise INC</div>
+                        <div style="font-size:0.8rem;color:#E31E24;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:0.3rem;">Caltex San Pedro · JA Noble Enterprise Inc.</div>
                         <h1>${result.icon} ${result.title}</h1>
                         <div class="subtitle">${result.body}</div>
                         <div class="meta">Generated: ${date}</div>
@@ -5988,7 +5988,7 @@
                     <tbody>${rowsHtml}</tbody>
                 </table>
                 <div style="margin-top:2rem;font-size:0.8rem;color:#a0aec0;border-top:1px solid #e2e8f0;padding-top:1rem;">
-                    Total: ${result.rows.length} result(s) &nbsp;|&nbsp; Smart Reports – JA Noble Enterprise INC
+                    Total: ${result.rows.length} result(s) &nbsp;|&nbsp; Smart Reports – Caltex San Pedro · JA Noble Enterprise Inc.
                 </div>
                 <br><button onclick="window.print()" style="background:#E31E24;color:white;padding:0.6rem 1.5rem;border:none;border-radius:8px;font-size:1rem;cursor:pointer;font-weight:600;">🖨️ Print / Save as PDF</button>
                 </body></html>`);
@@ -6004,7 +6004,7 @@
 
             // Build CSV content
             const lines = [
-                ['JA Noble Enterprise INC – Smart Reports'],
+                ['Caltex San Pedro · JA Noble Enterprise Inc. – Smart Reports'],
                 [`Report: ${result.title}`],
                 [`Summary: ${result.body}`],
                 [`Generated: ${date}`],

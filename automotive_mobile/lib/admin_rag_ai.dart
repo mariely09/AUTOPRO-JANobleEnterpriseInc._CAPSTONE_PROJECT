@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:cloud_firestore/cloud_firestore.dart' as cloud_firestore;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Base URL of the ai_assistant FastAPI service.
@@ -79,16 +81,35 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   final List<_ChatMessage> _messages = [];
   final List<Map<String, String>> _history = []; // legacy — kept for fallback only
   String? _sessionId;  // server-side memory key
+  String _initials = 'AD';  // admin initials shown on user bubble
 
   bool _loading       = false;
-  bool _rateLimited   = false;   // true when Groq daily token limit is reached
-  String _resetIn     = '';      // human-readable reset time
-  bool _backendOnline = false;
+  bool _rateLimited   = false;
+  String _resetIn     = '';
+  bool _backendOnline = true;
 
   @override
   void initState() {
     super.initState();
-    _checkBackend();
+    _checkBackend(silent: true);
+    _loadInitials();
+  }
+
+  Future<void> _loadInitials() async {
+    try {
+      final user = firebase_auth.FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final doc = await cloud_firestore.FirebaseFirestore.instance
+          .collection('users').doc(user.uid).get();
+      final name = (doc.data()?['name'] as String? ?? '').trim();
+      if (name.isNotEmpty) {
+        final parts = name.split(' ').where((p) => p.isNotEmpty).toList();
+        final ini = parts.length >= 2
+            ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+            : parts[0][0].toUpperCase();
+        if (mounted) setState(() => _initials = ini);
+      }
+    } catch (_) {}
   }
 
   @override
@@ -99,16 +120,29 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   }
 
   // ── Backend health check ───────────────────────────────────────────────────
+  // The backend is always deployed on Render. We do a silent health probe on
+  // startup — if it responds, we mark online; if all attempts fail we show the
+  // offline banner so the user can manually retry.
 
-  Future<void> _checkBackend() async {
-    try {
-      final r = await http
-          .get(Uri.parse('$_kAiBaseUrl/health'))
-          .timeout(const Duration(seconds: 5));
-      if (mounted) setState(() => _backendOnline = r.statusCode == 200);
-    } catch (_) {
-      if (mounted) setState(() => _backendOnline = false);
+  Future<void> _checkBackend({bool silent = false}) async {
+    // Only reset to offline if the caller explicitly requests it (manual retry)
+    if (!silent && mounted) setState(() => _backendOnline = false);
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        final r = await http
+            .get(Uri.parse('$_kAiBaseUrl/health'))
+            .timeout(const Duration(seconds: 20));
+        if (r.statusCode == 200) {
+          if (mounted) setState(() => _backendOnline = true);
+          return;
+        }
+      } catch (_) {
+        // wait before retry (skip delay on last attempt)
+        if (attempt < 3) await Future.delayed(const Duration(seconds: 5));
+      }
     }
+    // All attempts failed — only mark offline if this was a manual (non-silent) retry
+    if (!silent && mounted) setState(() => _backendOnline = false);
   }
 
   // ── Scroll ─────────────────────────────────────────────────────────────────
@@ -165,7 +199,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
               'session_id': _sessionId,  // server-side memory key
             }),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 120));
 
       if (resp.statusCode == 200) {
         final data   = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -215,17 +249,29 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         _messages.add(_ChatMessage(
           role: 'ai',
           text: '🔌 Cannot reach the AI service.\n\n'
-              'Start the backend:\n'
-              '  cd ai_assistant\n'
-              '  venv\\Scripts\\uvicorn main:app --port 8001\n\n'
+              'Please check your internet connection and try again.\n\n'
               'Error: $e',
         ));
       });
-    } catch (e) {
-      setState(() {
-        _loading = false;
-        _messages.add(_ChatMessage(role: 'ai', text: '⚠️ Unexpected error: $e'));
-      });
+    } on Exception catch (e) {
+      // Covers TimeoutException and other network errors
+      if (e.toString().contains('TimeoutException') ||
+          e.toString().contains('timed out')) {
+        setState(() {
+          _loading = false;
+          _messages.add(_ChatMessage(
+            role: 'ai',
+            text: '⏱️ Request timed out.\n\n'
+                'The AI service did not respond in time. Please check your '
+                'connection and try again.',
+          ));
+        });
+      } else {
+        setState(() {
+          _loading = false;
+          _messages.add(_ChatMessage(role: 'ai', text: '⚠️ Unexpected error: $e'));
+        });
+      }
     }
     _scrollToBottom();
   }
@@ -242,50 +288,104 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   // ── Report generation ──────────────────────────────────────────────────────
 
   /// Shows a bottom sheet to confirm the report type/format then downloads it.
+  /// For issuance reports, also shows an optional month picker.
   void _showReportConfirm(String reportType, String format) {
     final title = _kReportTypes[reportType] ?? 'Report';
+    String? selectedMonth;
+
+    // Month names used for the issuance filter
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    final currentYear = DateTime.now().year;
+    // Build list of "Month YYYY" options for last 2 years
+    final monthOptions = <String>['All Months'];
+    for (int y = currentYear; y >= currentYear - 1; y--) {
+      for (int m = 12; m >= 1; m--) {
+        monthOptions.add('${monthNames[m - 1]} $y');
+      }
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 40, height: 4,
-            decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2)),
-          ),
-          const SizedBox(height: 16),
-          const Text('📄 Download Report',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
-                  color: Color(0xFF1a202c))),
-          const SizedBox(height: 6),
-          Text(title,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF718096))),
-          const SizedBox(height: 20),
-          Row(children: [
-            Expanded(
-              child: _reportFormatBtn(
-                label: '📄 PDF',
-                subtitle: 'Branded report',
-                selected: format == 'pdf',
-                onTap: () { Navigator.pop(context); _downloadReport(reportType, 'pdf'); },
-              ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(
+              24, 20, 24, 32 + MediaQuery.of(ctx).viewInsets.bottom),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2)),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _reportFormatBtn(
-                label: '📊 Excel',
-                subtitle: 'Spreadsheet',
-                selected: format == 'excel',
-                onTap: () { Navigator.pop(context); _downloadReport(reportType, 'excel'); },
+            const SizedBox(height: 16),
+            const Text('📄 Download Report',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
+                    color: Color(0xFF1a202c))),
+            const SizedBox(height: 6),
+            Text(title,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF718096))),
+
+            // Month filter — only for issuance reports
+            if (reportType == 'issuance') ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFFe2e8f0)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    value: selectedMonth ?? 'All Months',
+                    hint: const Text('Filter by month'),
+                    items: monthOptions.map((m) => DropdownMenuItem(
+                      value: m,
+                      child: Text(m, style: const TextStyle(fontSize: 13)),
+                    )).toList(),
+                    onChanged: (v) => setSheet(() {
+                      selectedMonth = (v == 'All Months') ? null : v;
+                    }),
+                  ),
+                ),
               ),
-            ),
+            ],
+
+            const SizedBox(height: 20),
+            Row(children: [
+              Expanded(
+                child: _reportFormatBtn(
+                  label: '📄 PDF',
+                  subtitle: 'Branded report',
+                  selected: format == 'pdf',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _downloadReport(reportType, 'pdf', month: selectedMonth);
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _reportFormatBtn(
+                  label: '📊 Excel',
+                  subtitle: 'Spreadsheet',
+                  selected: format == 'excel',
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _downloadReport(reportType, 'excel', month: selectedMonth);
+                  },
+                ),
+              ),
+            ]),
           ]),
-        ]),
+        ),
       ),
     );
   }
@@ -321,35 +421,43 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     );
   }
 
-  Future<void> _downloadReport(String reportType, String format) async {
-    final typeName = _kReportTypes[reportType] ?? reportType;
-    final fmtLabel = format.toUpperCase();
+  Future<void> _downloadReport(String reportType, String format,
+      {String? month}) async {
+    final typeName  = _kReportTypes[reportType] ?? reportType;
+    final fmtLabel  = format.toUpperCase();
+    final monthLabel = month != null ? ' ($month)' : '';
 
     // Show progress in chat
     setState(() {
       _messages.add(_ChatMessage(
           role: 'ai',
-          text: '⏳ Generating $typeName ($fmtLabel)…'));
+          text: '⏳ Generating $typeName$monthLabel ($fmtLabel)…'));
       _loading = true;
     });
     _scrollToBottom();
 
     try {
+      // Build URL — append month param when provided
+      final uri = Uri.parse(
+        '$_kAiBaseUrl/admin/report'
+        '?report_type=$reportType'
+        '&format=$format'
+        '${month != null ? '&month=${Uri.encodeComponent(month)}' : ''}',
+      );
+
       final resp = await http
-          .post(
-            Uri.parse('$_kAiBaseUrl/admin/report'
-                '?report_type=$reportType&format=$format'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(const Duration(seconds: 90));
+          .post(uri, headers: {'Content-Type': 'application/json'})
+          .timeout(const Duration(seconds: 120));
 
       if (resp.statusCode == 200) {
         final ext      = format == 'pdf' ? 'pdf' : 'xlsx';
-        final filename = '${reportType}_report.$ext';
+        final safeName = reportType +
+            (month != null ? '_${month.replaceAll(' ', '_')}' : '') +
+            '_report.$ext';
 
         // Save to temp dir and open with system viewer
         final dir  = await getTemporaryDirectory();
-        final file = File('${dir.path}/$filename');
+        final file = File('${dir.path}/$safeName');
         await file.writeAsBytes(resp.bodyBytes);
 
         setState(() {
@@ -357,7 +465,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           _messages.removeLast(); // remove the "Generating…" message
           _messages.add(_ChatMessage(
             role: 'ai',
-            text: '✅ $typeName downloaded successfully!',
+            text: '✅ $typeName$monthLabel downloaded successfully!',
             reportFile: file,
             reportFormat: format,
             reportLabel: typeName,
@@ -368,7 +476,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         // Auto-open the file
         await OpenFile.open(file.path);
       } else {
-        throw Exception('Server error ${resp.statusCode}: ${_parseError(resp.body)}');
+        throw Exception(
+            'Server error ${resp.statusCode}: ${_parseError(resp.body)}');
       }
     } catch (e) {
       setState(() {
@@ -376,7 +485,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         _messages.removeLast();
         _messages.add(_ChatMessage(
           role: 'ai',
-          text: '❌ Failed to generate $typeName: $e',
+          text: '❌ Failed to generate $typeName$monthLabel: $e',
         ));
       });
       _scrollToBottom();
@@ -416,7 +525,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 // Clear server-side session memory
                 if (_sessionId != null) {
                   http.delete(Uri.parse('$_kAiBaseUrl/session/$_sessionId'))
-                      .catchError((_) {});
+                      .catchError((_) => http.Response('', 200));
                   _sessionId = null;
                 }
                 setState(() {
@@ -442,12 +551,12 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'AI backend offline. Start: venv\\Scripts\\uvicorn main:app --port 8001',
+                  'Cannot reach AI backend. Check your connection or tap Retry.',
                   style: TextStyle(fontSize: 11, color: Color(0xFF975A16)),
                 ),
               ),
               GestureDetector(
-                onTap: _checkBackend,
+                onTap: () => _checkBackend(),
                 child: const Text('Retry',
                     style: TextStyle(
                         fontSize: 11,
@@ -824,7 +933,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                       for (final entry in _kReportTypes.entries)
                         _tinyChip(
                           '📄 ${entry.value.replaceAll(' Report', '')} PDF',
-                          () => _downloadReport(entry.key, 'pdf'),
+                          () => _downloadReport(entry.key, 'pdf', month: null),
                         ),
                     ]),
                   ],

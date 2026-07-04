@@ -54,7 +54,8 @@ function _doPrint(title, summary, columns, rows, footer) {
     + '<div class="ap-content">'
     +   '<div class="ap-table-wrap"><table><thead><tr>' + theadHtml + '</tr></thead><tbody>' + tbodyHtml + '</tbody></table></div>'
     +   tfootHtml
-    + '</div>';
+    + '</div>'
+    + '<div class="ap-print-footer">Caltex San Pedro &middot; JA Noble Enterprise Inc.</div>';
 
   // Inject print styles
   var styleEl = document.createElement('style');
@@ -143,6 +144,15 @@ function _doPrint(title, summary, columns, rows, footer) {
     '  background: #fff5f5 !important; color: #E8001C !important;',
     '  border: 1px solid #fed7d7;',
     '  -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;',
+    '}',
+    '.ap-print-footer {',
+    '  margin-top: 18px; padding-top: 10px;',
+    '  border-top: 1px solid #e2e8f0;',
+    '  text-align: center;',
+    '  font-size: 7.5px;',
+    '  color: #a0aec0 !important;',
+    '  font-weight: 500;',
+    '  letter-spacing: 0.3px;',
     '}',
   ].join('\n');
 

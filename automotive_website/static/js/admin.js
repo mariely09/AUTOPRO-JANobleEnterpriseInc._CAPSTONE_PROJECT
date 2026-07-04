@@ -749,7 +749,7 @@ window.dssPrintReport = function () {
 
         // ── Footer ──
         + '<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">'
-        + '<div style="font-size:9px;color:#a0aec0;">JA Noble Enterprise · Caltex Service Station · DSS-generated Purchase Order</div>'
+        + '<div style="font-size:9px;color:#a0aec0;">Caltex San Pedro · JA Noble Enterprise Inc. · DSS-generated Purchase Order</div>'
         + '<div style="font-size:9px;color:#a0aec0;">' + poNumber + ' · ' + dateStr + '</div>'
         + '</div>'
 

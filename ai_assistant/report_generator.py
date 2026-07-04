@@ -19,10 +19,68 @@ from datetime import datetime
 
 from firestore_client import get_db
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+_MONTHS_FULL = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+]
+_MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def _fmt_date(raw: str) -> str:
+    """Normalise any date string to 'March 10, 2026' format."""
+    if not raw:
+        return "—"
+    # Already "March 10, 2026" or "Mar 10, 2026"
+    m = __import__("re").match(r"^([A-Za-z]+)\s+(\d+),?\s+(\d{4})", raw)
+    if m:
+        mo, day, yr = m.group(1), int(m.group(2)), m.group(3)
+        abbr = mo[:3].capitalize()
+        if abbr in _MONTHS_SHORT:
+            return f"{_MONTHS_FULL[_MONTHS_SHORT.index(abbr)]} {day}, {yr}"
+        return f"{mo} {day}, {yr}"
+    # "7/2/2026" or "07/02/2026"
+    m2 = __import__("re").match(r"^(\d{1,2})/(\d{1,2})/(\d{4})", raw)
+    if m2:
+        return f"{_MONTHS_FULL[int(m2.group(1)) - 1]} {int(m2.group(2))}, {m2.group(3)}"
+    # "2026-07-02"
+    m3 = __import__("re").match(r"^(\d{4})-(\d{2})-(\d{2})", raw)
+    if m3:
+        return f"{_MONTHS_FULL[int(m3.group(2)) - 1]} {int(m3.group(3))}, {m3.group(1)}"
+    try:
+        dt = datetime.fromisoformat(raw)
+        return f"{_MONTHS_FULL[dt.month - 1]} {dt.day}, {dt.year}"
+    except Exception:
+        return raw
+
+
+def _parse_month_year(raw: str):
+    """Return (month_index_0based, year_int) or None."""
+    if not raw:
+        return None
+    m = __import__("re").match(r"^([A-Za-z]+)\s+(\d+),?\s+(\d{4})", raw)
+    if m:
+        abbr = m.group(1)[:3].capitalize()
+        if abbr in _MONTHS_SHORT:
+            return _MONTHS_SHORT.index(abbr), int(m.group(3))
+    m2 = __import__("re").match(r"^(\d{1,2})/(\d{1,2})/(\d{4})", raw)
+    if m2:
+        return int(m2.group(1)) - 1, int(m2.group(3))
+    m3 = __import__("re").match(r"^(\d{4})-(\d{2})-(\d{2})", raw)
+    if m3:
+        return int(m3.group(2)) - 1, int(m3.group(1))
+    return None
+
 # ── Brand constants (match print_layout_header.js) ────────────────────────────
 BRAND_NAME    = "JA Noble Enterprise Inc."
 BRAND_SUB     = "Caltex San Pedro"
+BRAND_CITY    = "Laguna"
 BRAND_ADDRESS = "102 National Highway, Brgy. Landayan, San Pedro, Laguna"
+FOOTER_TEXT   = "Caltex San Pedro"
 RED           = (232, 0, 28)        # #E8001C
 DARK          = (26, 32, 44)        # #1a202c
 BLUE          = (0, 48, 135)        # #003087
@@ -73,24 +131,44 @@ def _fetch_inventory():
     return rows
 
 
-def _fetch_issuances():
+def _fetch_issuances(month: str | None = None):
+    """Fetch issuances, optionally filtered to a specific month name (e.g. 'March 2026')."""
     db = get_db()
     rows = []
     for doc in db.collection("issuances").stream():
         d = doc.to_dict()
+        raw_date = d.get("date", "")
         rows.append({
-            "date":       d.get("date", ""),
+            "date":       raw_date,
             "plate":      d.get("plate", ""),
             "itemNum":    d.get("itemNum", ""),
             "itemName":   d.get("itemName", ""),
             "itemType":   d.get("itemType", ""),
             "group":      d.get("commodityGroup", ""),
             "uom":        d.get("uom", ""),
-            "qty":        d.get("qty", ""),
-            "unitCost":   d.get("unitCost", ""),
+            "qty":        d.get("qty", "") or d.get("quantity", ""),
+            "unitCost":   d.get("unitCost", "") or d.get("unit_cost", ""),
             "subtotal":   d.get("subtotal", ""),
         })
     rows.sort(key=lambda r: r["date"], reverse=True)
+
+    # ── Month filter ──────────────────────────────────────────
+    if month:
+        # month may be "March 2026" or "Mar 2026" — normalise to (mo_idx, year)
+        import re as _re
+        m = _re.match(r"([A-Za-z]+)\s+(\d{4})", month.strip())
+        if m:
+            abbr = m.group(1)[:3].capitalize()
+            target_mo  = _MONTHS_SHORT.index(abbr) if abbr in _MONTHS_SHORT else -1
+            target_yr  = int(m.group(2))
+            if target_mo >= 0:
+                filtered = []
+                for r in rows:
+                    parsed = _parse_month_year(r["date"])
+                    if parsed and parsed[0] == target_mo and parsed[1] == target_yr:
+                        filtered.append(r)
+                rows = filtered
+
     return rows
 
 
@@ -157,27 +235,28 @@ REPORT_CONFIG = {
     "inventory": {
         "title":   "Inventory Report",
         "fetcher": _fetch_inventory,
-        "columns": ["Item No.", "Item Name", "Group", "Stock", "UOM", "Min", "Max", "Reorder Pt.", "Status"],
+        # Status column removed per requirements
+        "columns": ["Item No.", "Item Name", "Group", "Stock", "UOM", "Min", "Max", "Reorder Pt."],
         "mapper":  lambda r: [
             r["num"], r["name"], r["group"],
             str(r["stock"]), r["uom"],
             str(r["min"]), str(r["max"]), str(r["reorder"]),
-            r["status"],
         ],
-        "col_widths_pdf":  [50, 110, 70, 35, 35, 30, 30, 45, 40],   # pts, total ~445
-        "col_widths_xlsx": [12, 30, 20, 10, 10, 8, 8, 12, 12],
+        "col_widths_pdf":  [50, 120, 80, 38, 38, 32, 32, 50],   # pts
+        "col_widths_xlsx": [12, 34, 22, 10, 10, 8, 8, 14],
     },
     "issuance": {
         "title":   "Issuance Report",
         "fetcher": _fetch_issuances,
-        "columns": ["Date", "Plate", "Item No.", "Item Name", "Type", "Group", "UOM", "Qty", "Unit Cost", "Subtotal"],
+        # Type/Status column removed per requirements; date formatted to full month name
+        "columns": ["Date", "Plate", "Item No.", "Item Name", "Group", "UOM", "Qty", "Unit Cost", "Subtotal"],
         "mapper":  lambda r: [
-            r["date"], r["plate"], r["itemNum"], r["itemName"],
-            r["itemType"], r["group"], r["uom"],
+            _fmt_date(r["date"]), r["plate"], r["itemNum"], r["itemName"],
+            r["group"], r["uom"],
             str(r["qty"]), str(r["unitCost"]), str(r["subtotal"]),
         ],
-        "col_widths_pdf":  [45, 45, 40, 85, 40, 55, 28, 22, 45, 45],
-        "col_widths_xlsx": [14, 14, 12, 28, 14, 18, 8, 8, 14, 14],
+        "col_widths_pdf":  [55, 50, 40, 100, 65, 28, 25, 47, 47],
+        "col_widths_xlsx": [20, 16, 12, 32, 20, 8, 8, 15, 15],
     },
     "maintenance": {
         "title":   "Maintenance Report",
@@ -222,7 +301,7 @@ REPORT_CONFIG = {
 def _rgb(t): return tuple(v / 255 for v in t)
 
 
-def generate_pdf(report_type: str) -> bytes:
+def generate_pdf(report_type: str, month: str | None = None) -> bytes:
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.units import mm
     from reportlab.lib import colors
@@ -236,7 +315,8 @@ def generate_pdf(report_type: str) -> bytes:
     pt = 1.0   # 1 point == 1 reportlab unit
 
     cfg     = REPORT_CONFIG[report_type]
-    data    = cfg["fetcher"]()
+    fetcher = cfg["fetcher"]
+    data    = fetcher(month=month) if report_type == "issuance" else fetcher()
     columns = cfg["columns"]
     mapper  = cfg["mapper"]
     widths  = [w * pt for w in cfg["col_widths_pdf"]]
@@ -275,7 +355,7 @@ def generate_pdf(report_type: str) -> bytes:
 
     # ── Header ────────────────────────────────────────────────
     now      = datetime.now()
-    date_str = now.strftime("%B %d, %Y")
+    date_str = now.strftime("%B %d, %Y").replace(" 0", " ")  # e.g. "March 10, 2026"
     time_str = now.strftime("%I:%M %p")
 
     left_block = [
@@ -335,9 +415,8 @@ def generate_pdf(report_type: str) -> bytes:
         ("RIGHTPADDING",(0, 0), (-1, -1), 5),
     ]
 
-    # Status column colour coding (last or near-last column)
+    # Status column colour coding
     status_cols = {
-        "inventory":   8,
         "maintenance": 5,
         "vehicles":    4,
         "bookings":    6,
@@ -359,14 +438,62 @@ def generate_pdf(report_type: str) -> bytes:
     data_table = Table(table_data, colWidths=widths, repeatRows=1)
     data_table.setStyle(TableStyle(ts))
 
+    # ── Issuance totals row ───────────────────────────────────
+    totals_table = None
+    if report_type == "issuance" and data:
+        def _to_float(v):
+            try:
+                return float(str(v).replace("₱", "").replace(",", "").strip())
+            except (ValueError, TypeError):
+                return 0.0
+
+        total_qty      = sum(_to_float(r["qty"])      for r in data)
+        total_subtotal = sum(_to_float(r["subtotal"]) for r in data)
+
+        # Columns: Date Plate ItemNo ItemName Group UOM Qty UnitCost Subtotal
+        #  index:   0    1     2      3        4     5   6   7        8
+        ncols = len(columns)
+        label_span = ncols - 3   # spans Date→UOM (6 cols)
+
+        bold_style = ParagraphStyle(
+            "tot_bold", fontName="Helvetica-Bold", fontSize=8,
+            textColor=colors.Color(*_rgb(DARK)), leading=10)
+        bold_right = ParagraphStyle(
+            "tot_right", fontName="Helvetica-Bold", fontSize=8,
+            textColor=colors.Color(*_rgb(DARK)), leading=10,
+            alignment=TA_RIGHT)
+
+        tot_row = (
+            [Paragraph("<b>TOTAL</b>", bold_right)] * label_span
+            + [Paragraph(f"<b>{total_qty:g}</b>", bold_style)]
+            + [Paragraph("", bold_style)]   # Unit Cost — no sum
+            + [Paragraph(f"<b>₱{total_subtotal:,.2f}</b>", bold_style)]
+        )
+        # colWidths must match data_table widths exactly
+        totals_table = Table([tot_row], colWidths=widths)
+        totals_table.setStyle(TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, 0), colors.Color(*_rgb(DARK))),
+            ("TEXTCOLOR",     (0, 0), (-1, 0), colors.white),
+            ("SPAN",          (0, 0), (label_span - 1, 0)),
+            ("ALIGN",         (0, 0), (label_span - 1, 0), "RIGHT"),
+            ("TOPPADDING",    (0, 0), (-1, 0), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
+            ("LEFTPADDING",   (0, 0), (-1, 0), 5),
+            ("RIGHTPADDING",  (0, 0), (-1, 0), 5),
+        ]))
+
     # ── Assemble ──────────────────────────────────────────────
     story = [
         header_table,
         HRFlowable(width="100%", thickness=2, color=red_c, spaceAfter=10),
         data_table,
+    ]
+    if totals_table:
+        story.append(totals_table)
+    story += [
         Spacer(1, 16),
         Paragraph(
-            f'Caltex AutoPro · {BRAND_NAME} · Confidential',
+            FOOTER_TEXT,
             ParagraphStyle("foot", fontName="Helvetica", fontSize=7,
                            textColor=grey_c, alignment=TA_CENTER)
         ),
@@ -380,7 +507,7 @@ def generate_pdf(report_type: str) -> bytes:
 #  Excel generation  (openpyxl)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def generate_excel(report_type: str) -> bytes:
+def generate_excel(report_type: str, month: str | None = None) -> bytes:
     from openpyxl import Workbook
     from openpyxl.styles import (
         Font, PatternFill, Alignment, Border, Side, GradientFill,
@@ -388,7 +515,8 @@ def generate_excel(report_type: str) -> bytes:
     from openpyxl.utils import get_column_letter
 
     cfg     = REPORT_CONFIG[report_type]
-    data    = cfg["fetcher"]()
+    fetcher = cfg["fetcher"]
+    data    = fetcher(month=month) if report_type == "issuance" else fetcher()
     columns = cfg["columns"]
     mapper  = cfg["mapper"]
     col_ws  = cfg["col_widths_xlsx"]
@@ -398,7 +526,7 @@ def generate_excel(report_type: str) -> bytes:
     ws.title = cfg["title"][:31]  # sheet name limit
 
     now      = datetime.now()
-    date_str = now.strftime("%B %d, %Y")
+    date_str = now.strftime("%B %d, %Y").replace(" 0", " ")  # e.g. "March 10, 2026"
 
     # ── Colour helpers ────────────────────────────────────────
     def fill(hex_str):  return PatternFill("solid", fgColor=hex_str)
@@ -417,7 +545,7 @@ def generate_excel(report_type: str) -> bytes:
     r1.alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[1].height = 22
 
-    r2 = ws.cell(2, 1, BRAND_SUB + "  ·  " + BRAND_ADDRESS)
+    r2 = ws.cell(2, 1, BRAND_SUB + ", " + BRAND_CITY + "  ·  " + BRAND_ADDRESS)
     r2.font      = Font(name="Calibri", size=9, color="718096")
     r2.alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[2].height = 14
@@ -466,7 +594,6 @@ def generate_excel(report_type: str) -> bytes:
     }
 
     status_col_idx = {
-        "inventory":   8,
         "maintenance": 5,
         "vehicles":    4,
         "bookings":    6,
@@ -494,6 +621,47 @@ def generate_excel(report_type: str) -> bytes:
                     cell.font = Font(name="Calibri", size=9, bold=True, color=fc)
                     cell.fill = fill(bc)
 
+    # ── Issuance totals row (Excel) ───────────────────────────
+    last_data_row = HDR_ROW + len(data)
+    if report_type == "issuance" and data:
+        def _to_float_xl(v):
+            try:
+                return float(str(v).replace("₱", "").replace(",", "").strip())
+            except (ValueError, TypeError):
+                return 0.0
+
+        total_qty_xl      = sum(_to_float_xl(mapper(r)[6]) for r in data)
+        total_subtotal_xl = sum(_to_float_xl(mapper(r)[8]) for r in data)
+
+        tot_row_xl = HDR_ROW + len(data) + 1
+        ws.row_dimensions[tot_row_xl].height = 18
+        # Merge label cols (Date … UOM = cols 1-6)
+        ws.merge_cells(start_row=tot_row_xl, start_column=1,
+                       end_row=tot_row_xl, end_column=6)
+        lbl = ws.cell(tot_row_xl, 1, "TOTAL")
+        lbl.font      = Font(name="Calibri", bold=True, size=9, color="FFFFFF")
+        lbl.fill      = fill("1A202C")
+        lbl.alignment = Alignment(horizontal="right", vertical="center")
+        lbl.border    = thin_border
+
+        qty_c = ws.cell(tot_row_xl, 7, total_qty_xl)
+        qty_c.font      = Font(name="Calibri", bold=True, size=9, color="FFFFFF")
+        qty_c.fill      = fill("1A202C")
+        qty_c.alignment = Alignment(horizontal="left", vertical="center")
+        qty_c.border    = thin_border
+
+        blank = ws.cell(tot_row_xl, 8, "")
+        blank.fill   = fill("1A202C")
+        blank.border = thin_border
+
+        sub_c = ws.cell(tot_row_xl, 9, f"₱{total_subtotal_xl:,.2f}")
+        sub_c.font      = Font(name="Calibri", bold=True, size=9, color="FFFFFF")
+        sub_c.fill      = fill("1A202C")
+        sub_c.alignment = Alignment(horizontal="left", vertical="center")
+        sub_c.border    = thin_border
+
+        last_data_row = tot_row_xl  # footer goes after totals
+
     # ── Column widths ─────────────────────────────────────────
     for ci, w in enumerate(col_ws, 1):
         ws.column_dimensions[get_column_letter(ci)].width = w
@@ -502,10 +670,9 @@ def generate_excel(report_type: str) -> bytes:
     ws.freeze_panes = ws.cell(HDR_ROW + 1, 1)
 
     # ── Footer ────────────────────────────────────────────────
-    foot_row = HDR_ROW + len(data) + 2
+    foot_row = last_data_row + 2
     ws.merge_cells(start_row=foot_row, start_column=1, end_row=foot_row, end_column=ncols)
-    fc = ws.cell(foot_row, 1,
-                 f"Caltex AutoPro · {BRAND_NAME} · Confidential · Generated {date_str}")
+    fc = ws.cell(foot_row, 1, f"{FOOTER_TEXT} · Generated {date_str}")
     fc.font      = Font(name="Calibri", size=8, color="A0AEC0", italic=True)
     fc.alignment = Alignment(horizontal="center")
 
@@ -518,13 +685,14 @@ def generate_excel(report_type: str) -> bytes:
 #  Public API
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_report(report_type: str, file_format: str) -> bytes:
+def build_report(report_type: str, file_format: str, month: str | None = None) -> bytes:
     """
     Generate a report file.
 
     Args:
         report_type: one of inventory | issuance | maintenance | vehicles | bookings
         file_format: pdf | excel | xlsx
+        month:       optional month filter string, e.g. "March 2026" (issuance only)
 
     Returns:
         Raw bytes of the generated file.
@@ -534,8 +702,8 @@ def build_report(report_type: str, file_format: str) -> bytes:
                          f"Use: {', '.join(REPORT_CONFIG.keys())}")
     fmt = file_format.lower().replace("xlsx", "excel")
     if fmt == "pdf":
-        return generate_pdf(report_type)
+        return generate_pdf(report_type, month=month)
     elif fmt in ("excel", "xlsx"):
-        return generate_excel(report_type)
+        return generate_excel(report_type, month=month)
     else:
         raise ValueError(f"Unknown format '{file_format}'. Use: pdf or excel")
