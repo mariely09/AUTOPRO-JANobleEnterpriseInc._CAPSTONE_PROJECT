@@ -643,6 +643,8 @@
         </div>
     </div>
 
+    <!-- ExcelJS for styled Excel export -->
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script src="../static/js/data.js"></script>
 
     <!-- Chart.js -->
@@ -1564,35 +1566,198 @@
         );
       }
 
-      // ── CSV / Excel export helper ──
-      function _downloadCSV(filename, headers, rows) {
-        function _esc(v) {
-          var s = String(v === null || v === undefined ? '' : v)
-            .replace(/<[^>]+>/g, '')   // strip HTML tags
-            .replace(/₱/g, '')          // remove currency symbol (Excel handles it)
-            .replace(/"/g, '""');       // escape double-quotes
-          return /[,"\n\r]/.test(s) ? '"' + s + '"' : s;
+      // ── Styled Excel export helper (mirrors print layout) ──
+      // Uses ExcelJS (loaded via CDN above) to produce a .xlsx with:
+      //   • Company header block (name, branch, address + report title)
+      //   • Dark header row  (#1a202c fill, white bold text)
+      //   • Alternating row stripes  (white / #f8fafc)
+      //   • Bold totals row with top border
+      //   • Auto column widths
+      async function _downloadExcel(filename, reportTitle, headers, rows, footer, opts) {
+        var ExcelJS = window.ExcelJS;
+        if (!ExcelJS) { alert('ExcelJS not loaded yet, please try again.'); return; }
+
+        var wb  = new ExcelJS.Workbook();
+        wb.creator  = 'Caltex AutoPro';
+        wb.created  = new Date();
+        var ws  = wb.addWorksheet('Report', { pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1 } });
+
+        var now      = new Date();
+        var dateStr  = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        var timeStr  = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        var colCount = headers.length;
+
+        // ── Helper colours (match print layout exactly) ──
+        var RED    = 'FFE8001C';
+        var DARK   = 'FF1A202C';
+        var STRIPE = 'FFF8FAFC';
+        var GREY   = 'FF718096';
+        var LGREY  = 'FFA0AEC0';
+
+        // Split columns: left half = company block, right half = report info
+        // Mirrors print layout:  ap-header-left  |  ap-header-right
+        var leftCols  = Math.ceil(colCount / 2);
+        var rightStart = leftCols + 1;
+
+        // ── Row 1: LEFT — "JA Noble Enterprise Inc."  |  RIGHT — "OFFICIAL REPORT" label ──
+        ws.mergeCells(1, 1,          1, leftCols);
+        ws.mergeCells(1, rightStart, 1, colCount);
+        var r1L = ws.getCell(1, 1);
+        r1L.value     = 'JA Noble Enterprise Inc.';
+        r1L.font      = { name: 'Segoe UI', size: 14, bold: true, color: { argb: DARK } };
+        r1L.alignment = { vertical: 'middle', horizontal: 'left' };
+        ws.getRow(1).height = 22;
+
+        var r1R = ws.getCell(1, rightStart);
+        r1R.value     = 'OFFICIAL REPORT';                      // ap-report-label
+        r1R.font      = { name: 'Segoe UI', size: 7, bold: true, color: { argb: LGREY } };
+        r1R.alignment = { vertical: 'middle', horizontal: 'right' };
+
+        // ── Row 2: LEFT — "Caltex San Pedro"  |  RIGHT — report title ──
+        ws.mergeCells(2, 1,          2, leftCols);
+        ws.mergeCells(2, rightStart, 2, colCount);
+        var r2L = ws.getCell(2, 1);
+        r2L.value     = 'Caltex San Pedro';                    // ap-brand-sub
+        r2L.font      = { name: 'Segoe UI', size: 9, bold: true, color: { argb: GREY } };
+        r2L.alignment = { vertical: 'middle', horizontal: 'left' };
+        ws.getRow(2).height = 18;
+
+        var r2R = ws.getCell(2, rightStart);
+        r2R.value     = reportTitle;                            // ap-report-title
+        r2R.font      = { name: 'Segoe UI', size: 13, bold: true, color: { argb: DARK } };
+        r2R.alignment = { vertical: 'middle', horizontal: 'right' };
+
+        // ── Row 3: LEFT — address  |  RIGHT — "Generated on …" meta ──
+        ws.mergeCells(3, 1,          3, leftCols);
+        ws.mergeCells(3, rightStart, 3, colCount);
+        var r3L = ws.getCell(3, 1);
+        r3L.value     = '102 National Highway, Brgy. Landayan, San Pedro, Laguna';  // ap-brand-address
+        r3L.font      = { name: 'Segoe UI', size: 8, color: { argb: LGREY } };
+        r3L.alignment = { vertical: 'middle', horizontal: 'left' };
+        ws.getRow(3).height = 14;
+
+        var r3R = ws.getCell(3, rightStart);
+        r3R.value     = 'Generated on ' + dateStr + ' at ' + timeStr;  // ap-report-meta
+        r3R.font      = { name: 'Segoe UI', size: 8, color: { argb: GREY } };
+        r3R.alignment = { vertical: 'middle', horizontal: 'right' };
+
+        // ── Row 4: red divider — full width solid red fill (ap-header-rule) ──
+        ws.addRow([]);
+        var divRow = ws.getRow(4);
+        divRow.height = 3;
+        for (var ci = 1; ci <= colCount; ci++) {
+          ws.getCell(4, ci).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: RED } };
         }
-        // Force Excel to treat date-like values as text using standard CSV quoting
-        function _escCell(v, isDate) {
-          var raw = String(v === null || v === undefined ? '' : v)
-            .replace(/<[^>]+>/g, '')
-            .replace(/₱/g, '')
-            .replace(/"/g, '""');
-          // Always quote date cells so the comma in "Jul 2, 2026" doesn't split columns
-          if (isDate && raw && raw !== '—') {
-            return '"' + raw + '"';
+
+        // ── Row 5: blank spacer ──
+        ws.addRow([]);
+        ws.getRow(5).height = 6;
+
+        // ── Row 6: Column headers (dark fill, white bold caps) ──
+        var headerRow = ws.addRow(headers);
+        headerRow.height = 18;
+        headerRow.eachCell(function(cell) {
+          cell.value     = (cell.value || '').toString().toUpperCase();
+          cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
+          cell.font      = { name: 'Segoe UI', size: 8, bold: true, color: { argb: 'FFFFFFFF' } };
+          cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+          cell.border    = { bottom: { style: 'thin', color: { argb: 'FF2D3748' } } };
+        });
+
+        // ── Data rows ──
+        // opts.descColIndex (0-based): column that may contain \n for a two-line cell
+        var descColIdx = (opts && opts.descColIndex !== undefined) ? opts.descColIndex : -1;
+
+        rows.forEach(function(rowData, idx) {
+          var hasTwoLines = descColIdx >= 0 && String(rowData[descColIdx] || '').indexOf('\n') !== -1;
+
+          var cleaned = rowData.map(function(v, ci) {
+            var s = String(v === null || v === undefined ? '' : v)
+                      .replace(/<br\s*\/?>/gi, '\n')
+                      .replace(/<[^>]+>/g, '')
+                      .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+            // Only try numeric conversion on non-description columns
+            if (ci !== descColIdx) {
+              var n = parseFloat(s.replace(/[₱,]/g, ''));
+              if (!isNaN(n) && s.replace(/[₱,\s]/g,'') !== '' && !/[a-zA-Z]/.test(s.replace(/₱/g,''))) return n;
+            }
+            return s;
+          });
+
+          var dr = ws.addRow(cleaned);
+          dr.height = hasTwoLines ? 28 : 15;
+          var isEven = idx % 2 === 1;
+
+          dr.eachCell({ includeEmpty: true }, function(cell, colNum) {
+            var colIdx0 = colNum - 1;   // 0-based
+            if (isEven) {
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: STRIPE } };
+            }
+            cell.border = { bottom: { style: 'hair', color: { argb: 'FFF0F4F8' } } };
+
+            if (colIdx0 === descColIdx && hasTwoLines) {
+              // ── Two-line description cell ──
+              // Line 1: main action text (bold, dark)   — matches print's bold first line
+              // Line 2: vehicle description (smaller, grey) — matches print's grey sub-line
+              var lines = String(cleaned[descColIdx] || '').split('\n');
+              cell.value = { richText: [
+                { text: lines[0], font: { name: 'Segoe UI', size: 8.5, bold: true,  color: { argb: 'FF1A202C' } } },
+                { text: '\n' + (lines[1] || ''), font: { name: 'Segoe UI', size: 7.5, bold: false, color: { argb: GREY } } }
+              ]};
+              cell.alignment = { vertical: 'top', wrapText: true };
+            } else {
+              cell.font      = { name: 'Segoe UI', size: 8.5, color: { argb: 'FF2D3748' } };
+              cell.alignment = { vertical: 'middle', wrapText: false };
+            }
+          });
+        });
+
+        // ── Totals row (ap-total-bar) ──
+        // footer.values: array of { value, colIndex } (1-based) OR plain values placed at end
+        if (footer && footer.values && footer.values.length) {
+          ws.addRow([]);
+          var totalCells = new Array(colCount).fill('');
+
+          // Check if values are objects with colIndex or plain values
+          if (typeof footer.values[0] === 'object' && footer.values[0] !== null && 'colIndex' in footer.values[0]) {
+            // Explicit column placement
+            footer.values.forEach(function(v) {
+              totalCells[v.colIndex - 1] = v.value;
+            });
+            // Put "TOTAL" label one column to the left of the first value
+            var firstIdx = footer.values[0].colIndex - 1;
+            if (firstIdx > 0) totalCells[firstIdx - 1] = 'TOTAL';
+          } else {
+            // Legacy: place values at the end
+            var insertAt = colCount - footer.values.length;
+            footer.values.forEach(function(v, i) { totalCells[insertAt + i] = v; });
+            if (insertAt > 0) totalCells[insertAt - 1] = 'TOTAL';
           }
-          return /[,"\n\r]/.test(raw) ? '"' + raw + '"' : raw;
+
+          var totRow = ws.addRow(totalCells);
+          totRow.height = 16;
+          totRow.eachCell({ includeEmpty: true }, function(cell) {
+            cell.font   = { name: 'Segoe UI', size: 9, bold: true, color: { argb: DARK } };
+            cell.border = { top: { style: 'medium', color: { argb: DARK } } };
+            cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF8FF' } };
+          });
         }
-        var csv = [headers.map(_esc).join(',')]
-          .concat(rows.map(function(r){
-            return r.map(function(cell, idx) {
-              return _escCell(cell, idx === 0); // column 0 is always Date
-            }).join(',');
-          }))
-          .join('\r\n');
-        var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+
+        // ── Auto column widths ──
+        var colWidths = headers.map(function(h) { return Math.max(String(h).length, 8); });
+        rows.forEach(function(rowData) {
+          rowData.forEach(function(v, i) {
+            var s = String(v || '').replace(/<[^>]+>/g, '');
+            if (s.length > colWidths[i]) colWidths[i] = s.length;
+          });
+        });
+        colWidths.forEach(function(w, i) {
+          ws.getColumn(i + 1).width = Math.min(w + 4, 40);
+        });
+
+        // ── Download ──
+        var buf  = await wb.xlsx.writeBuffer();
+        var blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         var url  = URL.createObjectURL(blob);
         var a    = document.createElement('a');
         a.href     = url;
@@ -1623,13 +1788,53 @@
             var rawMf = rawMaster.find(function(i){ return (i.name||'').toLowerCase() === nm || (inNum && (i.num||'').toLowerCase() === inNum); });
             return (rawMf && rawMf.group) ? rawMf.group : '—';
           })();
-          var rawDesc = (t.desc || t.description || '')
-            .replace(/for maintenance SVC-\d+\s*[—\-]\s*/gi, 'for ')
-            .replace(/for maintenance SVC-\d+/gi, '')
-            .replace(/\s*SVC-\d+\s*/gi, '')
-            .trim() || '—';
+
+          // ── Exact same cleaning as printTransactions ──
+          var rawDesc = t.desc || t.description || '';
           var type = (t.type || 'IN').toUpperCase();
-          return { date: t.date||'', item: itemName, cg: cg, desc: rawDesc, type: type, qty: t.qty||t.quantity||0, by: t.by||'—' };
+          var cleanedDesc = (function(raw) {
+            var d = (raw || '—')
+              .replace(/for maintenance SVC-\d+\s*[—\-]\s*/gi, 'for ')
+              .replace(/for maintenance SVC-\d+/gi, '')
+              .replace(/\s*SVC-\d+\s*/gi, '')
+              .replace(/for maintenance\s+[A-Za-z0-9]{15,}\s*[—\-]\s*/gi, 'for ')
+              .replace(/for maintenance\s+[A-Za-z0-9]{15,}/gi, '')
+              .replace(/^(Stock received|Initial stock received)\s*[—\-]\s*.+$/i, function(m, base) { return base; })
+              .trim();
+            return d || '—';
+          })(rawDesc);
+
+          // For OUT: extract vehicle desc sub-line and append after " — " (Excel can't do HTML sub-line)
+          var assetLine = '';
+          if (type === 'OUT') {
+            var issuedMatch = cleanedDesc.match(/^(Issued (?:to|for)\s+\S+)\s*—\s*(.+)$/i);
+            if (issuedMatch) {
+              assetLine   = issuedMatch[2].trim();
+              cleanedDesc = issuedMatch[1].trim();
+            } else {
+              var assetDesc = t.assetDescription || t.assetDesc || '';
+              if (!assetDesc) {
+                var assets   = window.assets || [];
+                var assetNum = t.assetNum || t.plateNumber || t.plate || '';
+                if (!assetNum) {
+                  var mm = cleanedDesc.match(/(?:Issued (?:to|for))\s+([A-Z0-9][\w\-]*)/i);
+                  if (mm) assetNum = mm[1];
+                }
+                if (assetNum) {
+                  var af = assets.find(function(a) {
+                    return (a.plateNumber||'').toUpperCase() === assetNum.toUpperCase()
+                        || (a.assetNum||'').toUpperCase()    === assetNum.toUpperCase();
+                  });
+                  if (af) assetDesc = af.assetDescription || af.type || '';
+                }
+              }
+              if (assetDesc) assetLine = assetDesc;
+            }
+          }
+          // In Excel: main description on line 1, vehicle info on line 2 (same cell, wrap)
+          var fullDesc = assetLine ? (cleanedDesc + '\n' + assetLine) : cleanedDesc;
+
+          return { date: t.date||'', item: itemName, cg: cg, desc: fullDesc, hasAssetLine: !!assetLine, type: type, qty: t.qty||t.quantity||0, by: t.by||t.performedBy||'—' };
         });
 
         var q = ((document.getElementById('txnSearch')||{}).value||'').trim().toLowerCase();
@@ -1663,7 +1868,7 @@
 
         var now = new Date();
         var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-        // Normalize date to "Jul 2, 2026" format
+
         function _fmtTxnDateExport(d) {
           if (!d) return '—';
           if (/^[A-Za-z]/.test(d)) {
@@ -1677,10 +1882,24 @@
           if (m3) return MONTHS_S[parseInt(m3[2])-1] + ' ' + parseInt(m3[3]) + ', ' + m3[1];
           return d;
         }
-        _downloadCSV(
-          'Inventory_Transactions_' + stamp + '.csv',
-          ['Date','Item','Commodity Group','Description','Type','Qty','Performed By'],
-          txns.map(function(t){ return [_fmtTxnDateExport(t.date),t.item,t.cg,t.desc,t.type,t.qty,t.by]; })
+
+        var txnExportTitle = 'Inventory Transactions';
+        if (selMonth) txnExportTitle += ' — ' + selMonth;
+        if (txnF === 'IN') txnExportTitle += ' (Received)';
+        else if (txnF === 'OUT') txnExportTitle += ' (Issued)';
+        if (cgF) txnExportTitle += ' · ' + cgF;
+
+        var txnTotalQty = txns.reduce(function(s,t){
+          return s + (parseFloat(String(t.qty||0).replace(/[^0-9.]/g,''))||0);
+        }, 0);
+
+        _downloadExcel(
+          'Inventory_Transactions_' + stamp + '.xlsx',
+          txnExportTitle,
+          ['Date','Item','Commodity Group','Description','Qty'],
+          txns.map(function(t){ return [_fmtTxnDateExport(t.date), t.item, t.cg, t.desc, t.qty]; }),
+          { values: [{ value: txnTotalQty > 0 ? txnTotalQty : '—', colIndex: 5 }] },  // Qty = col 5
+          { descColIndex: 3 }   // 0-based index of the Description column
         );
       }
 
@@ -1690,8 +1909,8 @@
         var issF = window._issFilter || 'all';
         if (issF !== 'all') issuances = issuances.filter(function(i){ return (i.itemType||'') === issF; });
 
-        var selMonth = ((document.getElementById('issuanceMonthFilter')||{}).value||'').trim();
         var MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var selMonth = ((document.getElementById('issuanceMonthFilter')||{}).value||'').trim();
         function pMY(d){
           if(!d) return null;
           var m1=d.match(/^([A-Za-z]+)\s+\d+,?\s+(\d{4})/); if(m1) return {mo:m1[1].slice(0,3),yr:m1[2]};
@@ -1723,34 +1942,60 @@
           }
         });
 
-        // Normalize any date string to "Jul 2, 2026" format
         function _fmtIssDate(d) {
           if (!d) return '—';
-          // Already "Jul 2, 2026" or "July 2, 2026" style
           if (/^[A-Za-z]/.test(d)) {
             var mx = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
             if (mx) return mx[1].slice(0,3) + ' ' + parseInt(mx[2]) + ', ' + mx[3];
             return d;
           }
-          // "7/2/2026" or "07/02/2026"
           var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
           if (m2) return MONTHS_S[parseInt(m2[1])-1] + ' ' + parseInt(m2[2]) + ', ' + m2[3];
-          // "2026-07-02"
           var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
           if (m3) return MONTHS_S[parseInt(m3[2])-1] + ' ' + parseInt(m3[3]) + ', ' + m3[1];
           return d;
         }
 
+        var issExportTitle = 'Issuances';
+        if (issF === 'Service')  issExportTitle += ' (Services)';
+        else if (issF === 'Material') issExportTitle += ' (Materials)';
+        if (selMonth) issExportTitle += ' — ' + selMonth;
+        if (cgF) issExportTitle += ' · ' + cgF;
+
+        var grandTotalQty = 0, grandTotalSubtotal = 0;
+        var rows = filtered.map(function(i){
+          var qty = parseFloat(i.quantity||i.qty||0)||0;
+          var uc  = parseFloat(String(i.unitCost||0).replace(/[₱,]/g,''))||0;
+          var sub = parseFloat(String(i.subtotal||0).replace(/[₱,]/g,'')) || (qty * uc);
+          grandTotalQty      += qty;
+          grandTotalSubtotal += sub;
+          return [
+            _fmtIssDate(i.date),
+            i.plate||i.assetNum||'—',
+            i.itemNum||'—',
+            i.itemName||'—',
+            i.itemType||'—',
+            i.commodityGroup||'—',
+            i.uom||i.unit||'—',
+            qty || '—',
+            uc  || '—',
+            sub > 0 ? parseFloat(sub.toFixed(2)) : '—'
+          ];
+        });
+
         var now = new Date();
         var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-        _downloadCSV(
-          'Issuances_' + stamp + '.csv',
+
+        _downloadExcel(
+          'Issuances_' + stamp + '.xlsx',
+          issExportTitle,
           ['Date','Plate No.','Item No.','Item Name','Item Type','Commodity Group','UOM','Qty','Unit Cost','Subtotal'],
-          filtered.map(function(i){
-            var qty = parseFloat(i.quantity||i.qty||0)||0;
-            var uc  = parseFloat(String(i.unitCost||0).replace(/[₱,]/g,''))||0;
-            return [_fmtIssDate(i.date),i.plate||i.assetNum||'',i.itemNum||'',i.itemName||'',i.itemType||'',i.commodityGroup||'',i.uom||i.unit||'',qty,uc,(qty*uc).toFixed(2)];
-          })
+          rows,
+          { values: [
+              { value: grandTotalQty > 0 ? grandTotalQty : '—',                              colIndex: 8  },  // Qty
+              { value: grandTotalSubtotal > 0 ? parseFloat(grandTotalSubtotal.toFixed(2)) : '—', colIndex: 10 }   // Subtotal
+            ]
+          }
         );
       }
     </script>

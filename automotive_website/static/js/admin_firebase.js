@@ -343,41 +343,56 @@
       }
     });
 
-    // Notifications — only fetch admin-targeted ones (targetRole:'admin')
-    // Customer personal notifications (targetUid) are excluded from admin panel
-    // No orderBy to avoid requiring a composite index — sorted client-side instead
+    // Notifications — merge role-targeted (targetRole:'admin') AND personal
+    // (targetUid == uid) just like the mobile app does, so nothing is missed.
+    // No orderBy to avoid requiring a composite index — sorted client-side instead.
+    const uid = user.uid;
+    let _adminRoleDocs     = [];
+    let _adminPersonalDocs = [];
+
+    function _mergeAdminNotifs() {
+      const map = {};
+      _adminRoleDocs.concat(_adminPersonalDocs).forEach(d => { map[d._id] = d; });
+      window._fbNotifications = Object.values(map).sort((a, b) => {
+        const aMs = a.createdAt?.toMillis?.() ?? 0;
+        const bMs = b.createdAt?.toMillis?.() ?? 0;
+        return bMs - aMs; // newest first
+      });
+      if (typeof renderAdminNotifications === 'function') renderAdminNotifications();
+
+      // Update header badge — retry until the element exists (header loads async)
+      const unread = window._fbNotifications.filter(n => {
+        return (n.readBy || {})[uid] !== true;
+      }).length;
+      window._adminUnreadCount = unread; // cache for retry
+
+      function _applyBadge() {
+        const badge = document.getElementById('adminHeaderNotifBadge');
+        if (badge) {
+          badge.textContent = unread > 99 ? '99+' : unread;
+          badge.style.display = unread > 0 ? 'flex' : 'none';
+        } else {
+          // Header not loaded yet — retry after a short delay
+          setTimeout(_applyBadge, 300);
+        }
+      }
+      _applyBadge();
+    }
+
+    // Listener 1: role-broadcast notifications for admin
     db.collection('notifications')
       .where('targetRole', '==', 'admin')
-      .limit(50)
       .onSnapshot(snap => {
-        window._fbNotifications = snap.docs
-          .map(d => ({ _id: d.id, ...d.data() }))
-          .sort((a, b) => {
-            const aMs = a.createdAt?.toMillis?.() ?? 0;
-            const bMs = b.createdAt?.toMillis?.() ?? 0;
-            return bMs - aMs; // newest first
-          });
-        if (typeof renderAdminNotifications === 'function') renderAdminNotifications();
+        _adminRoleDocs = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+        _mergeAdminNotifs();
+      });
 
-        // Update header badge — retry until the element exists (header loads async)
-        const uid = user.uid;
-        const unread = window._fbNotifications.filter(n => {
-          const readBy = n.readBy || {};
-          return readBy[uid] !== true;
-        }).length;
-        window._adminUnreadCount = unread; // cache for retry
-
-        function _applyBadge() {
-          const badge = document.getElementById('adminHeaderNotifBadge');
-          if (badge) {
-            badge.textContent = unread > 99 ? '99+' : unread;
-            badge.style.display = unread > 0 ? 'flex' : 'none';
-          } else {
-            // Header not loaded yet — retry after a short delay
-            setTimeout(_applyBadge, 300);
-          }
-        }
-        _applyBadge();
+    // Listener 2: personal notifications addressed directly to this admin UID
+    db.collection('notifications')
+      .where('targetUid', '==', uid)
+      .onSnapshot(snap => {
+        _adminPersonalDocs = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+        _mergeAdminNotifs();
       });
 
   } // end _initFirestore

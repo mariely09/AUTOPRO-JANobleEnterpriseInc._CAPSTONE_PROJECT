@@ -236,7 +236,24 @@ class _AppNotificationsState extends State<AppNotifications> {
       'isRead': false,              // convenience flag for quick queries
     });
 
-    // 2. Filter by pref then push via OneSignal
+    // 2. Send email notification to affected users via Flask backend
+    try {
+      await http.post(
+        Uri.parse('http://localhost:5001/api/send-notification-email'),
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+        body: jsonEncode({
+          'title':      title,
+          'message':    message,
+          'type':       type,
+          'targetRole': targetRole,
+          'targetUid':  targetUid,
+        }),
+      );
+    } catch (e) {
+      debugPrint('⚠️ Notification email send failed (non-fatal): $e');
+    }
+
+    // 3. Filter by pref then push via OneSignal
     final targets = prefKey.isNotEmpty
         ? await filterByPref(pushTo, prefKey)
         : pushTo;
