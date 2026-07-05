@@ -45,9 +45,7 @@ String? _detectReportIntent(String message) {
   final isReportRequest = RegExp(
     r'\b(generate|create|make|export|download|print)\b.*\b(report|pdf|excel)\b'
     r'|\b(pdf|excel)\s+report\b'
-    r'|\breport\s+(pdf|excel)\b'
-    r'|\b(generate|create|make|export|download)\b.*\b(issuance|inventory|maintenance|vehicle|fleet|booking)\b.*\breport\b'
-    r'|\b(issuance|inventory|maintenance|vehicle|fleet|booking)\s+report\b',
+    r'|\breport\s+(pdf|excel)\b',
   ).hasMatch(lower);
   if (!isReportRequest) return null;
 
@@ -65,13 +63,9 @@ bool _isExcelRequest(String message) {
 }
 
 /// Extract a month+year string from a user message.
-/// When only a month name is given (e.g. "for July only"), defaults to
-/// the current year so the filter still works.
-/// Returns e.g. "July 2026", "March 2026", or null if not found.
+/// Returns e.g. "March 2026", "June 2025", or null if not found.
 String? _extractMonthFromMessage(String message) {
   final lower = message.toLowerCase();
-  final currentYear = DateTime.now().year;
-
   const monthNames = [
     'january','february','march','april','may','june',
     'july','august','september','october','november','december',
@@ -81,61 +75,41 @@ String? _extractMonthFromMessage(String message) {
     'jul','aug','sep','oct','nov','dec',
   ];
 
-  String cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
-
   // "this month" / "current month"
-  if (RegExp(r'\b(this month|current month)\b', caseSensitive: false).hasMatch(lower)) {
+  if (RegExp(r'\b(this month|current month)\b', caseSensitive: false)
+      .hasMatch(lower)) {
     final now = DateTime.now();
-    return '${cap(monthNames[now.month - 1])} ${now.year}';
+    return '${monthNames[now.month - 1][0].toUpperCase()}'
+        '${monthNames[now.month - 1].substring(1)} ${now.year}';
   }
-
   // "last month"
   if (RegExp(r'\blast month\b', caseSensitive: false).hasMatch(lower)) {
-    final prev = DateTime(DateTime.now().year, DateTime.now().month - 1);
-    return '${cap(monthNames[prev.month - 1])} ${prev.year}';
+    final now = DateTime.now();
+    final prev = DateTime(now.year, now.month - 1);
+    final name = monthNames[prev.month - 1];
+    return '${name[0].toUpperCase()}${name.substring(1)} ${prev.year}';
   }
-
-  // Full name + explicit year: "July 2026"
-  final fullWithYear = RegExp(
-    r'\b(january|february|march|april|may|june|july|august'
-    r'|september|october|november|december)\s+(\d{4})\b',
+  // Full month name + year: "March 2026"
+  final full = RegExp(
+    r'\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})\b',
     caseSensitive: false,
   ).firstMatch(lower);
-  if (fullWithYear != null) {
-    return '${cap(fullWithYear.group(1)!)} ${fullWithYear.group(2)}';
+  if (full != null) {
+    final name = full.group(1)!;
+    return '${name[0].toUpperCase()}${name.substring(1)} ${full.group(2)}';
   }
-
-  // Abbreviation + explicit year: "Jul 2026"
-  final abbrWithYear = RegExp(
+  // Abbreviated month + year: "Mar 2026"
+  final abbr = RegExp(
     r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{4})\b',
     caseSensitive: false,
   ).firstMatch(lower);
-  if (abbrWithYear != null) {
-    final idx = monthAbbrs.indexOf(abbrWithYear.group(1)!.toLowerCase());
-    if (idx >= 0) return '${cap(monthNames[idx])} ${abbrWithYear.group(2)}';
+  if (abbr != null) {
+    final idx = monthAbbrs.indexOf(abbr.group(1)!.toLowerCase());
+    if (idx >= 0) {
+      final name = monthNames[idx];
+      return '${name[0].toUpperCase()}${name.substring(1)} ${abbr.group(2)}';
+    }
   }
-
-  // Full name only, no year — default to current year
-  // e.g. "for July only", "in March", "generate report for June"
-  final bareFullName = RegExp(
-    r'\b(january|february|march|april|may|june|july|august'
-    r'|september|october|november|december)\b',
-    caseSensitive: false,
-  ).firstMatch(lower);
-  if (bareFullName != null) {
-    return '${cap(bareFullName.group(1)!)} $currentYear';
-  }
-
-  // Abbreviation only, no year — default to current year
-  final bareAbbr = RegExp(
-    r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b',
-    caseSensitive: false,
-  ).firstMatch(lower);
-  if (bareAbbr != null) {
-    final idx = monthAbbrs.indexOf(bareAbbr.group(1)!.toLowerCase());
-    if (idx >= 0) return '${cap(monthNames[idx])} $currentYear';
-  }
-
   return null;
 }
 
@@ -800,7 +774,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       ('📦 Low stock',        'What items are low in stock?'),
       ('💰 Repair cost',      'Total repair cost this month'),
       ('⏳ Pending services', 'How many services are pending?'),
-      ('📈 Fast moving',      'What are the fast moving inventory items?'),
       ('🚗 All vehicles',     'List all vehicles'),
       ('📋 Bookings',         'Show all service bookings'),
       ('📄 Inventory PDF',    'Generate inventory report PDF'),
@@ -991,7 +964,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     // ── Normal AI bubble ─────────────────────────────────────
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
         _aiAvatar(),
         const SizedBox(width: 8),
         Flexible(
@@ -1074,14 +1047,12 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     color: Colors.white,
     borderRadius: const BorderRadius.only(
       topLeft:     Radius.circular(4),
-      topRight:    Radius.circular(14),
-      bottomLeft:  Radius.circular(14),
-      bottomRight: Radius.circular(14),
+      topRight:    Radius.circular(16),
+      bottomLeft:  Radius.circular(16),
+      bottomRight: Radius.circular(16),
     ),
-    border: const Border(
-      left: BorderSide(color: Color(0xFFE8001C), width: 3)),
     boxShadow: [BoxShadow(
-      color: Colors.black.withOpacity(0.06), blurRadius: 6)]);
+      color: Colors.black.withOpacity(0.05), blurRadius: 6)]);
 
   Widget _actionBtn(String label, Color color, VoidCallback onTap) {
     return GestureDetector(

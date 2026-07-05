@@ -342,14 +342,16 @@ def _rgb(t): return tuple(v / 255 for v in t)
 
 def generate_pdf(report_type: str, month: str | None = None) -> bytes:
     from reportlab.lib.pagesizes import A4, landscape
-    from reportlab.lib.units import mm, pt as _pt
+    from reportlab.lib.units import mm
     from reportlab.lib import colors
     from reportlab.platypus import (
         SimpleDocTemplate, Table, TableStyle, Paragraph,
-        Spacer, HRFlowable, Image, KeepTogether,
+        Spacer, HRFlowable, Image,
     )
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
+
+    pt = 1.0   # 1 point == 1 reportlab unit
 
     cfg     = REPORT_CONFIG[report_type]
     fetcher = cfg["fetcher"]
@@ -357,123 +359,81 @@ def generate_pdf(report_type: str, month: str | None = None) -> bytes:
     data    = fetcher(month=month) if report_type in _month_supported else fetcher()
     columns = cfg["columns"]
     mapper  = cfg["mapper"]
-    widths  = [w * _pt for w in cfg["col_widths_pdf"]]
+    widths  = [w * pt for w in cfg["col_widths_pdf"]]
 
     buf = io.BytesIO()
-    # Use landscape A4 for wide tables — matches website behaviour
+    # Use landscape A4 for wide tables
     page_size = landscape(A4) if sum(cfg["col_widths_pdf"]) > 450 else A4
-
-    # ── Margins: match website @page { margin: 8mm } ──────────
     doc = SimpleDocTemplate(
         buf, pagesize=page_size,
-        leftMargin=8*mm, rightMargin=8*mm,
-        topMargin=8*mm,  bottomMargin=8*mm,
+        leftMargin=20*mm, rightMargin=20*mm,
+        topMargin=15*mm, bottomMargin=15*mm,
     )
 
-    # ── Colours (identical to print_layout_header.js) ─────────
-    red_c    = colors.Color(*_rgb(RED))        # #E8001C
-    dark_c   = colors.Color(*_rgb(DARK))       # #1a202c
-    blue_c   = colors.Color(*_rgb(BLUE))       # #003087
-    grey_c   = colors.Color(*_rgb(GREY))       # #718096
-    lgrey_c  = colors.Color(0.63, 0.69, 0.77)  # #a0aec0
-    alt_c    = colors.Color(*_rgb(ROW_ALT))    # #f8fafc
-    white_c  = colors.white
-    bdr_c    = colors.Color(0.88, 0.91, 0.94)  # #e2e8f0
-    cell_c   = colors.Color(0.18, 0.20, 0.28)  # #2d3748
+    # ── Styles ────────────────────────────────────────────────
+    red_c   = colors.Color(*_rgb(RED))
+    dark_c  = colors.Color(*_rgb(DARK))
+    blue_c  = colors.Color(*_rgb(BLUE))
+    grey_c  = colors.Color(*_rgb(GREY))
+    alt_c   = colors.Color(*_rgb(ROW_ALT))
+    white_c = colors.white
 
-    # ── Text styles — sizes match website px values ────────────
-    # website: .ap-brand = 18px  →  ~13.5pt; .ap-report-title = 16px → ~12pt
-    brand_style = ParagraphStyle(
-        "brand", fontName="Helvetica-Bold", fontSize=13.5,
-        textColor=dark_c, leading=15, spaceAfter=2,
-    )
-    sub_style = ParagraphStyle(
-        "sub", fontName="Helvetica-Bold", fontSize=5.5,
-        textColor=grey_c, leading=7, spaceAfter=2,
-        wordWrap='LTR',
-    )
-    addr_style = ParagraphStyle(
-        "addr", fontName="Helvetica", fontSize=5.5,
-        textColor=lgrey_c, leading=7,
-    )
-    label_style = ParagraphStyle(
-        "lbl", fontName="Helvetica-Bold", fontSize=5.5,
-        textColor=lgrey_c, alignment=TA_RIGHT, leading=7, spaceAfter=2,
-        charSpace=1.5,
-    )
-    title_style = ParagraphStyle(
-        "title", fontName="Helvetica-Bold", fontSize=12,
-        textColor=dark_c, alignment=TA_RIGHT, leading=14, spaceAfter=3,
-    )
-    meta_style = ParagraphStyle(
-        "meta", fontName="Helvetica", fontSize=6,
-        textColor=grey_c, alignment=TA_RIGHT, leading=8,
-    )
-    # Header column: 7px uppercase — matches thead th exactly
-    th_style = ParagraphStyle(
-        "th", fontName="Helvetica-Bold", fontSize=5.5,
-        textColor=colors.Color(1, 1, 1, 0.92),
-        leading=7, wordWrap='LTR',
-    )
-    # Body cells: 8.5px matching tbody td
-    cell_style = ParagraphStyle(
-        "cell", fontName="Helvetica", fontSize=6.5,
-        textColor=cell_c, leading=8.5,
-    )
-    foot_style = ParagraphStyle(
-        "foot", fontName="Helvetica", fontSize=5.5,
-        textColor=lgrey_c, alignment=TA_CENTER, leading=7,
-    )
+    brand_style = ParagraphStyle("brand", fontName="Helvetica-Bold", fontSize=14,
+                                  textColor=dark_c, leading=16)
+    sub_style   = ParagraphStyle("sub",   fontName="Helvetica",      fontSize=7,
+                                  textColor=grey_c, leading=9)
+    addr_style  = ParagraphStyle("addr",  fontName="Helvetica",      fontSize=6.5,
+                                  textColor=colors.Color(0.63, 0.69, 0.77), leading=8)
+    label_style = ParagraphStyle("lbl",   fontName="Helvetica-Bold", fontSize=6.5,
+                                  textColor=grey_c, alignment=TA_RIGHT, leading=8)
+    title_style = ParagraphStyle("title", fontName="Helvetica-Bold", fontSize=15,
+                                  textColor=dark_c, alignment=TA_RIGHT, leading=17)
+    meta_style  = ParagraphStyle("meta",  fontName="Helvetica",      fontSize=7.5,
+                                  textColor=grey_c, alignment=TA_RIGHT, leading=9)
+    cell_style  = ParagraphStyle("cell",  fontName="Helvetica",      fontSize=8,
+                                  textColor=colors.Color(0.18, 0.2, 0.27), leading=10)
 
-    # ── Timestamps ────────────────────────────────────────────
+    # ── Header ────────────────────────────────────────────────
     now      = datetime.now()
-    date_str = now.strftime("%B %d, %Y").replace(" 0", " ")
+    date_str = now.strftime("%B %d, %Y").replace(" 0", " ")  # e.g. "March 10, 2026"
     time_str = now.strftime("%I:%M %p")
 
-    # ── Header: logo | brand block | right block ──────────────
-    # Matches .ap-header-inner layout from print_layout_header.js
     left_block = [
         Paragraph(BRAND_NAME, brand_style),
+        Spacer(1, 2),
         Paragraph(BRAND_SUB.upper(), sub_style),
+        Spacer(1, 1),
         Paragraph(BRAND_ADDRESS, addr_style),
     ]
 
     right_block = [
         Paragraph("OFFICIAL REPORT", label_style),
         Paragraph(cfg["title"] + (f" — {month}" if month else ""), title_style),
+        Spacer(1, 2),
         Paragraph(f'Generated on <b>{date_str}</b> at {time_str}', meta_style),
         Paragraph(f'{len(data)} record(s)' + (f' · {month}' if month else ''), meta_style),
     ]
 
-    logo_cell: list = []
+    # Try to load logo
+    logo_cell = ""
     if os.path.exists(LOGO_PATH):
-        # website: .ap-logo = 44px × 44px
-        logo_cell = [Image(LOGO_PATH, width=33, height=33)]
+        logo_cell = Image(LOGO_PATH, width=36, height=36)
 
+    header_data = [[logo_cell, left_block, right_block]]
     usable_w = doc.width
-    # logo col ≈ 44px, left brand takes ~45%, right block takes rest
-    logo_w  = 38
-    brand_w = (usable_w - logo_w) * 0.50
-    right_w = (usable_w - logo_w) * 0.50
-
-    header_table = Table(
-        [[logo_cell, left_block, right_block]],
-        colWidths=[logo_w, brand_w, right_w],
-    )
+    header_table = Table(header_data, colWidths=[42, usable_w * 0.45, usable_w * 0.45])
     header_table.setStyle(TableStyle([
-        ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING",  (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING",(0, 0), (-1, -1), 0),
-        ("TOPPADDING",   (0, 0), (-1, -1), 0),
-        ("LEFTPADDING",  (1, 0), (1, 0),   8),   # gap between logo and brand text
+        ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING",(0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING",(0,0), (-1, -1), 0),
+        ("TOPPADDING",  (0, 0), (-1, -1), 0),
     ]))
 
     # ── Data table ────────────────────────────────────────────
-    # thead th: uppercase, 7px, dark bg — matches website exactly
-    header_row = [
-        Paragraph(c.upper(), th_style) for c in columns
-    ]
+    header_row = [Paragraph(f'<b>{c}</b>', ParagraphStyle(
+        "th", fontName="Helvetica-Bold", fontSize=7,
+        textColor=white_c, leading=9)) for c in columns]
 
     table_data = [header_row]
     for row in data:
@@ -482,21 +442,17 @@ def generate_pdf(report_type: str, month: str | None = None) -> bytes:
             Paragraph(str(v) if v else "—", cell_style) for v in mapped
         ])
 
-    # Alternate row colours: white / #f8fafc — matches tbody tr.even
+    # Alternate row colours
     ts = [
-        ("BACKGROUND",     (0, 0), (-1, 0),  dark_c),
+        ("BACKGROUND",  (0, 0), (-1, 0),  dark_c),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [white_c, alt_c]),
-        ("GRID",           (0, 0), (-1, -1), 0.5, bdr_c),
-        ("LINEBELOW",      (0, 0), (-1, 0),  0,   dark_c),
-        ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING",     (0, 0), (-1, 0),  6),    # thead: 8px
-        ("BOTTOMPADDING",  (0, 0), (-1, 0),  6),
-        ("TOPPADDING",     (0, 1), (-1, -1), 3.5),  # tbody: 5px
-        ("BOTTOMPADDING",  (0, 1), (-1, -1), 3.5),
-        ("LEFTPADDING",    (0, 0), (-1, -1), 5.5),  # 7px
-        ("RIGHTPADDING",   (0, 0), (-1, -1), 5.5),
-        # border-radius effect: rounded outer border via table border
-        ("BOX",            (0, 0), (-1, -1), 1.5, bdr_c),
+        ("GRID",        (0, 0), (-1, -1), 0.4, colors.Color(0.88, 0.91, 0.94)),
+        ("LINEBELOW",   (0, 0), (-1, 0),  1,   dark_c),
+        ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING",  (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING",(0,0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING",(0, 0), (-1, -1), 5),
     ]
 
     # Status column colour coding
@@ -516,14 +472,13 @@ def generate_pdf(report_type: str, month: str | None = None) -> bytes:
                 ts.append(("TEXTCOLOR", (sc, i), (sc, i), colors.Color(0.13, 0.55, 0.13)))
                 ts.append(("FONTNAME",  (sc, i), (sc, i), "Helvetica-Bold"))
             elif s in ("pending", "in progress", "ongoing"):
-                ts.append(("TEXTCOLOR", (sc, i), (sc, i), colors.Color(0.55, 0.40, 0.02)))
+                ts.append(("TEXTCOLOR", (sc, i), (sc, i), colors.Color(0.55, 0.4, 0.02)))
                 ts.append(("FONTNAME",  (sc, i), (sc, i), "Helvetica-Bold"))
 
     data_table = Table(table_data, colWidths=widths, repeatRows=1)
     data_table.setStyle(TableStyle(ts))
 
     # ── Issuance totals row ───────────────────────────────────
-    # Matches .ap-total-bar from print_layout_header.js
     totals_table = None
     if report_type == "issuance" and data:
         def _to_float(v):
@@ -535,54 +490,53 @@ def generate_pdf(report_type: str, month: str | None = None) -> bytes:
         total_qty      = sum(_to_float(r["qty"])      for r in data)
         total_subtotal = sum(_to_float(r["subtotal"]) for r in data)
 
-        ncols      = len(columns)
-        label_span = ncols - 3   # spans Date → UOM
+        # Columns: Date Plate ItemNo ItemName Group UOM Qty UnitCost Subtotal
+        #  index:   0    1     2      3        4     5   6   7        8
+        ncols = len(columns)
+        label_span = ncols - 3   # spans Date→UOM (6 cols)
 
-        tot_label = ParagraphStyle(
-            "tot_lbl", fontName="Helvetica-Bold", fontSize=7,
-            textColor=white_c, alignment=TA_RIGHT, leading=9)
-        tot_val = ParagraphStyle(
-            "tot_val", fontName="Helvetica-Bold", fontSize=7,
-            textColor=white_c, leading=9)
+        bold_style = ParagraphStyle(
+            "tot_bold", fontName="Helvetica-Bold", fontSize=8,
+            textColor=colors.Color(*_rgb(DARK)), leading=10)
+        bold_right = ParagraphStyle(
+            "tot_right", fontName="Helvetica-Bold", fontSize=8,
+            textColor=colors.Color(*_rgb(DARK)), leading=10,
+            alignment=TA_RIGHT)
 
         tot_row = (
-            [Paragraph("TOTAL", tot_label)] * label_span
-            + [Paragraph(f"{total_qty:g}", tot_val)]
-            + [Paragraph("", tot_val)]         # Unit Cost — no sum
-            + [Paragraph(f"₱{total_subtotal:,.2f}", tot_val)]
+            [Paragraph("<b>TOTAL</b>", bold_right)] * label_span
+            + [Paragraph(f"<b>{total_qty:g}</b>", bold_style)]
+            + [Paragraph("", bold_style)]   # Unit Cost — no sum
+            + [Paragraph(f"<b>₱{total_subtotal:,.2f}</b>", bold_style)]
         )
+        # colWidths must match data_table widths exactly
         totals_table = Table([tot_row], colWidths=widths)
         totals_table.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1, 0), dark_c),
-            ("TEXTCOLOR",     (0, 0), (-1, 0), white_c),
+            ("BACKGROUND",    (0, 0), (-1, 0), colors.Color(*_rgb(DARK))),
+            ("TEXTCOLOR",     (0, 0), (-1, 0), colors.white),
             ("SPAN",          (0, 0), (label_span - 1, 0)),
             ("ALIGN",         (0, 0), (label_span - 1, 0), "RIGHT"),
-            ("TOPPADDING",    (0, 0), (-1, 0), 6),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
-            ("LEFTPADDING",   (0, 0), (-1, 0), 5.5),
-            ("RIGHTPADDING",  (0, 0), (-1, 0), 5.5),
-            ("LINEABOVE",     (0, 0), (-1, 0), 2, dark_c),
+            ("TOPPADDING",    (0, 0), (-1, 0), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
+            ("LEFTPADDING",   (0, 0), (-1, 0), 5),
+            ("RIGHTPADDING",  (0, 0), (-1, 0), 5),
         ]))
 
     # ── Assemble ──────────────────────────────────────────────
-    # Header top padding matches website .ap-header-inner { padding: 14px 0 12px }
     story = [
-        Spacer(1, 4),
         header_table,
-        Spacer(1, 10),
-        # Red divider: .ap-header-rule { height: 2px; background: #E8001C }
-        HRFlowable(width="100%", thickness=2, color=red_c, spaceAfter=0),
-        # .ap-content { padding: 14px 20px 0 } — replicated as spacer + side margins via doc margins
-        Spacer(1, 10),
+        HRFlowable(width="100%", thickness=2, color=red_c, spaceAfter=10),
         data_table,
     ]
     if totals_table:
         story.append(totals_table)
     story += [
-        # .ap-print-footer { margin-top: 18px; border-top: 1px solid #e2e8f0 }
-        Spacer(1, 14),
-        HRFlowable(width="100%", thickness=0.75, color=bdr_c, spaceAfter=8),
-        Paragraph(FOOTER_TEXT, foot_style),
+        Spacer(1, 16),
+        Paragraph(
+            FOOTER_TEXT,
+            ParagraphStyle("foot", fontName="Helvetica", fontSize=7,
+                           textColor=grey_c, alignment=TA_CENTER)
+        ),
     ]
 
     doc.build(story)

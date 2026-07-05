@@ -53,7 +53,7 @@
                 <!-- Sort By -->
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
-                    <select id="sbSortSelect" onchange="renderRescheduleList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
+                    <select id="sbSortSelect" onchange="_apPages['rescheduleTableBody']=1;renderRescheduleList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
                         <option value="date-desc">Date ↓ Newest</option>
                         <option value="date-asc">Date ↑ Oldest</option>
                         <option value="plate-asc">Plate A→Z</option>
@@ -250,12 +250,13 @@
 
   window.sbSetFilter = function(filter, btn) {
     _currentFilter = filter;
+    _apPages['rescheduleTableBody'] = 1;
     document.querySelectorAll('#sbFilterPills .dss-pill').forEach(function(p){ p.classList.remove('active'); });
     if (btn) btn.classList.add('active');
     renderRescheduleList();
   };
 
-  window.sbApplySearch = function() { renderRescheduleList(); };
+  window.sbApplySearch = function() { _apPages['rescheduleTableBody'] = 1; renderRescheduleList(); };
 
   // Keep old sbSwitchTab as alias for backward compat
   window.sbSwitchTab = function(btn, filter) { sbSetFilter(filter, btn); };
@@ -289,6 +290,7 @@
 
     if (docs.length === 0) {
       body.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">No bookings found.</div>';
+      _apPages['rescheduleTableBody'] = 1;
       return;
     }
 
@@ -307,7 +309,7 @@
       }
     });
 
-    body.innerHTML = docs.map(function(r) {
+    var rows = docs.map(function(r) {
       var isPending  = false;
       var isApproved = r.status === 'Approved';
       var isRescheduled = r.previousDate && r.previousDate !== r.preferredDate;
@@ -364,7 +366,8 @@
             : '<span style="font-size:12px;color:#a0aec0;">—</span>')
         + '</div>'
         + '</div>';
-    }).join('');
+    });
+    apRenderPaged('rescheduleTableBody', rows, 10, 'renderRescheduleList');
   };
 
   window.dismissBooking = function(docId) {
