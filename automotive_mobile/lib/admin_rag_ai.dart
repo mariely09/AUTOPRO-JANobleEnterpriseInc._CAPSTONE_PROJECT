@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:printing/printing.dart';
@@ -238,9 +237,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     });
     _scrollToBottom();
 
-    final historyPayload = _history.length > 20
-        ? _history.sublist(_history.length - 20)
-        : List<Map<String, String>>.from(_history);
+    // session memory is handled server-side via _sessionId
 
     try {
       final resp = await http
@@ -347,8 +344,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     final title = _kReportTypes[reportType] ?? 'Report';
 
     // Month filter applies to date-based reports
-    const _monthSupported = {'issuance', 'maintenance', 'bookings'};
-    final supportsMonth = _monthSupported.contains(reportType);
+    const monthSupported = {'issuance', 'maintenance', 'bookings'};
+    final supportsMonth = monthSupported.contains(reportType);
 
     // Month names / options
     const monthNames = [
@@ -488,7 +485,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
         decoration: BoxDecoration(
-          color: selected ? _red.withOpacity(0.06) : const Color(0xFFF7F8FA),
+          color: selected ? _red.withValues(alpha: 0.06) : const Color(0xFFF7F8FA),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
               color: selected ? _red : const Color(0xFFe2e8f0),
@@ -538,8 +535,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
 
       if (resp.statusCode == 200) {
         final ext      = format == 'pdf' ? 'pdf' : 'xlsx';
-        final safeName = reportType +
-            (month != null ? '_${month.replaceAll(' ', '_')}' : '') +
+        final safeName = '$reportType'
+            '${month != null ? '_${month.replaceAll(' ', '_')}' : ''}'
             '_report.$ext';
 
         // Save to temp dir and open with system viewer
@@ -657,9 +654,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         if (_rateLimited)
           Container(
             width: double.infinity,
-            color: const Color(0xFFFFF7ED),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: const BoxDecoration(
+              color: Color(0xFFFFF7ED),
               border: Border(
                 bottom: BorderSide(color: Color(0xFFFB923C), width: 2),
               ),
@@ -789,7 +786,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         Container(
           width: 64, height: 64,
           decoration: BoxDecoration(
-              color: _blue.withOpacity(0.1),
+              color: _blue.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20)),
           child: const Icon(Icons.smart_toy_outlined, color: _blue, size: 32),
         ),
@@ -817,7 +814,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: const Color(0xFFe2e8f0)),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4)
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4)
                 ],
               ),
               child: Text(c.$1,
@@ -878,7 +875,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                     bottomRight: Radius.circular(14),
                   ),
                   boxShadow: [BoxShadow(
-                    color: const Color(0xFFE8001C).withOpacity(0.22),
+                    color: const Color(0xFFE8001C).withValues(alpha: 0.22),
                     blurRadius: 6)],
                 ),
                 child: Text(msg.text ?? '',
@@ -914,7 +911,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 ),
                 border: Border.all(color: const Color(0xFFFB923C), width: 1.5),
                 boxShadow: [BoxShadow(
-                  color: Colors.black.withOpacity(0.05), blurRadius: 6)],
+                  color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)],
               ),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1052,7 +1049,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       bottomRight: Radius.circular(16),
     ),
     boxShadow: [BoxShadow(
-      color: Colors.black.withOpacity(0.05), blurRadius: 6)]);
+      color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)]);
 
   Widget _actionBtn(String label, Color color, VoidCallback onTap) {
     return GestureDetector(
@@ -1125,7 +1122,9 @@ class _BouncingDotsState extends State<_BouncingDots>
 
   @override
   void dispose() {
-    for (final c in _ctrls) c.dispose();
+    for (final c in _ctrls) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -1136,7 +1135,7 @@ class _BouncingDotsState extends State<_BouncingDots>
         if (i > 0) const SizedBox(width: 4),
         AnimatedBuilder(
           animation: _anims[i],
-          builder: (_, __) => Transform.translate(
+          builder: (_, _) => Transform.translate(
             offset: Offset(0, _anims[i].value),
             child: Container(
               width: 6, height: 6,
