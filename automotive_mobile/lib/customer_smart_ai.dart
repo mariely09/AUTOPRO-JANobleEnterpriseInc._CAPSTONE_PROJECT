@@ -157,48 +157,60 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         final reply = (data['reply'] as String? ?? '').trim();
         final answer = reply.isNotEmpty ? reply : 'No response generated.';
 
-        if (data['session_id'] != null) _sessionId = data['session_id'] as String;
+        if (data['session_id'] != null) {
+          _sessionId = data['session_id'] as String;
+        }
 
         if (data['rate_limited'] == true) {
           final resetIn = data['reset_in'] as String? ?? 'some time';
-          if (mounted) setState(() {
-            _loading = false;
-            _rateLimited = true;
-            _resetIn = resetIn;
-            _messages.add(_ChatMsg(
-              role: 'ai',
-              text: '🚫 AI Unavailable\n\nThe AI service has reached its daily token limit (Groq free tier).\n\n⏱️ The limit resets in $resetIn.\n\nYou cannot send new messages until the quota resets automatically.',
-              isRateLimit: true,
-            ));
-          });
+          if (mounted) {
+            setState(() {
+              _loading = false;
+              _rateLimited = true;
+              _resetIn = resetIn;
+              _messages.add(_ChatMsg(
+                role: 'ai',
+                text: '🚫 AI Unavailable\n\nThe AI service has reached its daily token limit (Groq free tier).\n\n⏱️ The limit resets in $resetIn.\n\nYou cannot send new messages until the quota resets automatically.',
+                isRateLimit: true,
+              ));
+            });
+          }
           return;
         }
 
-        if (mounted) setState(() {
-          _loading = false;
-          _messages.add(_ChatMsg(role: 'ai', text: answer));
-        });
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _messages.add(_ChatMsg(role: 'ai', text: answer));
+          });
+        }
       } else {
         final err = _parseError(resp.body);
-        if (mounted) setState(() {
-          _loading = false;
-          _messages.add(_ChatMsg(role: 'ai', text: '⚠️ AI service error (${resp.statusCode}): $err'));
-        });
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _messages.add(_ChatMsg(role: 'ai', text: '⚠️ AI service error (${resp.statusCode}): $err'));
+          });
+        }
       }
     } on http.ClientException catch (e) {
-      if (mounted) setState(() {
-        _loading = false;
-        _messages.add(_ChatMsg(role: 'ai',
-            text: '🔌 Cannot reach the AI service.\n\nPlease check your internet connection.\n\nError: $e'));
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _messages.add(_ChatMsg(role: 'ai',
+              text: '🔌 Cannot reach the AI service.\n\nPlease check your internet connection.\n\nError: $e'));
+        });
+      }
     } on Exception catch (e) {
-      if (mounted) setState(() {
-        _loading = false;
-        _messages.add(_ChatMsg(role: 'ai',
-            text: e.toString().contains('Timeout') || e.toString().contains('timed out')
-                ? '⏱️ Request timed out. Please check your connection and try again.'
-                : '⚠️ Unexpected error: $e'));
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _messages.add(_ChatMsg(role: 'ai',
+              text: e.toString().contains('Timeout') || e.toString().contains('timed out')
+                  ? '⏱️ Request timed out. Please check your connection and try again.'
+                  : '⚠️ Unexpected error: $e'));
+        });
+      }
     }
     _scrollToBottom();
   }
@@ -284,9 +296,9 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         if (_rateLimited)
           Container(
             width: double.infinity,
-            color: const Color(0xFFFFF7ED),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: const BoxDecoration(
+              color: Color(0xFFFFF7ED),
               border: Border(bottom: BorderSide(color: Color(0xFFFB923C), width: 2)),
             ),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -370,7 +382,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       if (!_loading && !_rateLimited)
-                        BoxShadow(color: _red.withOpacity(0.35), blurRadius: 10, offset: const Offset(0, 3)),
+                        BoxShadow(color: _red.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 3)),
                     ],
                   ),
                   child: const Icon(Icons.send, color: Colors.white, size: 18),
@@ -415,7 +427,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         Container(
           width: 64, height: 64,
           decoration: BoxDecoration(
-              color: _blue.withOpacity(0.1),
+              color: _blue.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20)),
           child: const Icon(Icons.smart_toy_outlined, color: _blue, size: 32),
         ),
@@ -439,7 +451,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: const Color(0xFFe2e8f0), width: 1.5),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4)],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4)],
               ),
               child: Text(c.$1,
                   style: const TextStyle(
@@ -492,7 +504,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(16), topRight: Radius.circular(4),
                     bottomLeft: Radius.circular(16), bottomRight: Radius.circular(16)),
-                  boxShadow: [BoxShadow(color: _red.withOpacity(0.22), blurRadius: 6)],
+                  boxShadow: [BoxShadow(color: _red.withValues(alpha: 0.22), blurRadius: 6)],
                 ),
                 child: Text(msg.text,
                     style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.6)),
@@ -521,7 +533,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                   topLeft: Radius.circular(4), topRight: Radius.circular(14),
                   bottomLeft: Radius.circular(14), bottomRight: Radius.circular(14)),
                 border: Border.all(color: const Color(0xFFFB923C), width: 1.5),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6)],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)],
               ),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Container(
@@ -587,7 +599,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     borderRadius: const BorderRadius.only(
       topLeft: Radius.circular(4), topRight: Radius.circular(16),
       bottomLeft: Radius.circular(16), bottomRight: Radius.circular(16)),
-    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6)],
+    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)],
   );
 
   // ── AI avatar — gradient red circle with robot emoji (matches website .rag-av.ai) ──
@@ -648,7 +660,9 @@ class _BouncingDotsState extends State<_BouncingDots> with TickerProviderStateMi
 
   @override
   void dispose() {
-    for (final c in _ctrls) c.dispose();
+    for (final c in _ctrls) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -659,7 +673,7 @@ class _BouncingDotsState extends State<_BouncingDots> with TickerProviderStateMi
         if (i > 0) const SizedBox(width: 4),
         AnimatedBuilder(
           animation: _anims[i],
-          builder: (_, __) => Transform.translate(
+          builder: (_, _) => Transform.translate(
             offset: Offset(0, _anims[i].value),
             child: Container(
               width: 6, height: 6,
