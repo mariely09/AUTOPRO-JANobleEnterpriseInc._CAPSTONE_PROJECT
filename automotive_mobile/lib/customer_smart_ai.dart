@@ -6,11 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Base URL of the ai_assistant FastAPI service.
-//  Default is the deployed Render backend.
-//  Override at build time if needed:
-//    flutter run --dart-define=AI_BACKEND_URL=https://your-render-url.onrender.com
 // ─────────────────────────────────────────────────────────────────────────────
-const _kAiBaseUrl = String.fromEnvironment(
+const _kCustAiBaseUrl = String.fromEnvironment(
   'AI_BACKEND_URL',
   defaultValue: 'https://caltex-autopro-capstone-project.onrender.com',
 );
@@ -23,59 +20,61 @@ class CustomerSmartAI extends StatefulWidget {
 }
 
 class _CustomerSmartAIState extends State<CustomerSmartAI> {
+  // ── Brand colours (matches website exactly) ───────────────────────────────
   static const _red  = Color(0xFFE8001C);
   static const _blue = Color(0xFF003087);
+  static const _bg   = Color(0xFFF7F8FA);
 
-  final _chatCtrl   = TextEditingController();
+  final _inputCtrl  = TextEditingController();
   final _scrollCtrl = ScrollController();
 
-  final List<_Msg> _messages = [];
-  final List<Map<String, String>> _history = []; // legacy — kept for fallback only
-  String? _sessionId;  // server-side memory key
+  final List<_ChatMsg> _messages = [];
+  String? _sessionId;
 
-  // Customer identity — loaded from Firebase, needed for scoped AI queries
-  String _customerUid  = '';
-  String _customerName = '';
-  int    _vehicleCount = 0;
+  String _customerUid   = '';
+  String _customerName  = '';
+  String _initials      = '?';
+  int    _vehicleCount  = 0;
 
   bool _dataLoaded    = false;
   bool _loading       = false;
-  bool _backendOnline = true;    // assume online — backend is always deployed on Render
+  bool _backendOnline = true;
   bool _rateLimited   = false;
   String _resetIn     = '';
 
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Init
+  // ─────────────────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
     _loadIdentity();
-    _checkBackend(silent: true);  // backend is always deployed — check quietly
+    _checkBackend(silent: true);
   }
 
   @override
   void dispose() {
-    _chatCtrl.dispose();
+    _inputCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
 
-  // ── Load customer identity from Firebase ────────────────────────────────────
-
   Future<void> _loadIdentity() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-
     _customerUid = user.uid;
 
-    // Get display name from Firestore users collection
     final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
+        .collection('users').doc(user.uid).get();
     final name = doc.data()?['name'] as String? ?? user.displayName ?? '';
     _customerName = name;
 
-    // Count their vehicles for the welcome message
     if (name.isNotEmpty) {
+      final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
+      _initials = parts.length >= 2
+          ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+          : parts[0][0].toUpperCase();
+
       final snap = await FirebaseFirestore.instance
           .collection('vehicles')
           .where('owner', isEqualTo: name)
@@ -86,18 +85,12 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     if (mounted) setState(() => _dataLoaded = true);
   }
 
-  // ── Backend health ──────────────────────────────────────────────────────────
-  // The backend is always deployed on Render. We do a silent health probe on
-  // startup — if it responds, we mark online; if all attempts fail we show the
-  // offline banner so the user can manually retry.
-
   Future<void> _checkBackend({bool silent = false}) async {
-    // Only reset to offline if the caller explicitly requests it (manual retry)
     if (!silent && mounted) setState(() => _backendOnline = false);
     for (int attempt = 1; attempt <= 3; attempt++) {
       try {
         final r = await http
-            .get(Uri.parse('$_kAiBaseUrl/health'))
+            .get(Uri.parse('$_kCustAiBaseUrl/health'))
             .timeout(const Duration(seconds: 20));
         if (r.statusCode == 200) {
           if (mounted) setState(() => _backendOnline = true);
@@ -107,11 +100,8 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         if (attempt < 3) await Future.delayed(const Duration(seconds: 5));
       }
     }
-    // All attempts failed — only mark offline if this was a manual (non-silent) retry
     if (!silent && mounted) setState(() => _backendOnline = false);
   }
-
-  // ── Scroll ──────────────────────────────────────────────────────────────────
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -125,25 +115,25 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     });
   }
 
-  // ── Send message ────────────────────────────────────────────────────────────
-
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Send
+  // ─────────────────────────────────────────────────────────────────────────
   Future<void> _send([String? preset]) async {
-    final text = (preset ?? _chatCtrl.text).trim();
-    if (text.isEmpty || _loading) return;
-    if (_rateLimited) return;
+    final text = (preset ?? _inputCtrl.text).trim();
+    if (text.isEmpty || _loading || _rateLimited) return;
 
     if (!_dataLoaded) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Still loading your data, please wait…'),
+            content: Text('Still loading your profile, please wait…'),
             duration: Duration(seconds: 2)),
       );
       return;
     }
 
     setState(() {
-      _messages.add(_Msg(role: 'user', text: text));
-      _chatCtrl.clear();
+      _messages.add(_ChatMsg(role: 'user', text: text));
+      _inputCtrl.clear();
       _loading = true;
     });
     _scrollToBottom();
@@ -151,13 +141,13 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     try {
       final resp = await http
           .post(
-            Uri.parse('$_kAiBaseUrl/customer/chat'),
+            Uri.parse('$_kCustAiBaseUrl/customer/chat'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'message':       text,
               'customer_uid':  _customerUid,
               'customer_name': _customerName,
-              'session_id':    _sessionId,  // server-side memory key
+              'session_id':    _sessionId,
             }),
           )
           .timeout(const Duration(seconds: 120));
@@ -167,69 +157,48 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         final reply = (data['reply'] as String? ?? '').trim();
         final answer = reply.isNotEmpty ? reply : 'No response generated.';
 
-        // Persist session_id for memory continuity
-        if (data['session_id'] != null) {
-          _sessionId = data['session_id'] as String;
-        }
+        if (data['session_id'] != null) _sessionId = data['session_id'] as String;
 
-        // Handle rate limit
         if (data['rate_limited'] == true) {
           final resetIn = data['reset_in'] as String? ?? 'some time';
-          setState(() {
+          if (mounted) setState(() {
             _loading = false;
             _rateLimited = true;
             _resetIn = resetIn;
-            _messages.add(_Msg(
+            _messages.add(_ChatMsg(
               role: 'ai',
-              text: '🚫 AI Unavailable\n\n'
-                  'The AI service has reached its daily token limit (Groq free tier).\n\n'
-                  '⏱️ The limit resets in $resetIn.\n\n'
-                  'You cannot send new messages until the quota resets automatically.',
+              text: '🚫 AI Unavailable\n\nThe AI service has reached its daily token limit (Groq free tier).\n\n⏱️ The limit resets in $resetIn.\n\nYou cannot send new messages until the quota resets automatically.',
               isRateLimit: true,
             ));
           });
           return;
         }
 
-        setState(() {
+        if (mounted) setState(() {
           _loading = false;
-          _messages.add(_Msg(role: 'ai', text: answer));
+          _messages.add(_ChatMsg(role: 'ai', text: answer));
         });
       } else {
         final err = _parseError(resp.body);
-        setState(() {
+        if (mounted) setState(() {
           _loading = false;
-          _messages.add(_Msg(
-              role: 'ai',
-              text: '⚠️ AI service error (${resp.statusCode}): $err'));
+          _messages.add(_ChatMsg(role: 'ai', text: '⚠️ AI service error (${resp.statusCode}): $err'));
         });
       }
     } on http.ClientException catch (e) {
-      setState(() {
+      if (mounted) setState(() {
         _loading = false;
-        _messages.add(_Msg(
-            role: 'ai',
-            text: '🔌 Cannot reach the AI service.\n\n'
-                'Please check your internet connection and try again.\n\n'
-                'Error: $e'));
+        _messages.add(_ChatMsg(role: 'ai',
+            text: '🔌 Cannot reach the AI service.\n\nPlease check your internet connection.\n\nError: $e'));
       });
     } on Exception catch (e) {
-      if (e.toString().contains('TimeoutException') ||
-          e.toString().contains('timed out')) {
-        setState(() {
-          _loading = false;
-          _messages.add(_Msg(
-              role: 'ai',
-              text: '⏱️ Request timed out.\n\n'
-                  'The AI service did not respond in time. Please check your '
-                  'connection and try again.'));
-        });
-      } else {
-        setState(() {
-          _loading = false;
-          _messages.add(_Msg(role: 'ai', text: '⚠️ Unexpected error: $e'));
-        });
-      }
+      if (mounted) setState(() {
+        _loading = false;
+        _messages.add(_ChatMsg(role: 'ai',
+            text: e.toString().contains('Timeout') || e.toString().contains('timed out')
+                ? '⏱️ Request timed out. Please check your connection and try again.'
+                : '⚠️ Unexpected error: $e'));
+      });
     }
     _scrollToBottom();
   }
@@ -243,128 +212,114 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     }
   }
 
-  // ── Build ───────────────────────────────────────────────────────────────────
-
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Build
+  // ─────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
-      appBar: _messages.isNotEmpty
-          ? AppBar(
-              backgroundColor: _red,
-              elevation: 0,
-              automaticallyImplyLeading: false,
-              title: const Text('Vehicle Assistant',
-                  style: TextStyle(
-                      color: Colors.white, fontSize: 15,
-                      fontWeight: FontWeight.bold)),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.white),
-                  tooltip: 'Clear chat',
-                  onPressed: () {
-                    // Clear server-side session memory
-                    if (_sessionId != null) {
-                      http.delete(Uri.parse('$_kAiBaseUrl/session/$_sessionId'))
-                          .catchError((_) => http.Response('', 200));
-                      _sessionId = null;
-                    }
-                    setState(() {
-                      _messages.clear();
-                      _history.clear();
-                      _rateLimited = false;
-                      _resetIn = '';
-                    });
-                  },
-                ),
-              ],
-            )
-          : null,
+      backgroundColor: _bg,
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(
+        backgroundColor: _red,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'Vehicle Assistant',
+          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        actions: [
+          // Online dot
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Tooltip(
+              message: _backendOnline ? 'AI Online' : 'AI Offline',
+              child: Icon(Icons.circle,
+                  size: 10,
+                  color: _backendOnline ? Colors.greenAccent : Colors.orange),
+            ),
+          ),
+          if (_messages.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.white),
+              tooltip: 'Clear chat',
+              onPressed: () {
+                if (_sessionId != null) {
+                  http.delete(Uri.parse('$_kCustAiBaseUrl/session/$_sessionId'))
+                      .catchError((_) => http.Response('', 200));
+                  _sessionId = null;
+                }
+                setState(() {
+                  _messages.clear();
+                  _rateLimited = false;
+                  _resetIn = '';
+                });
+              },
+            ),
+        ],
+      ),
       body: Column(children: [
-        // Offline banner
+        // ── Offline banner ───────────────────────────────────────────────
         if (!_backendOnline && _dataLoaded)
           Container(
             width: double.infinity,
             color: const Color(0xFFFFFBEB),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(children: [
-              const Icon(Icons.warning_amber_rounded,
-                  size: 14, color: Color(0xFF975A16)),
+              const Icon(Icons.warning_amber_rounded, size: 14, color: Color(0xFF975A16)),
               const SizedBox(width: 8),
               const Expanded(
-                child: Text(
-                  'Cannot reach AI backend. Check your connection or tap Retry.',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF975A16)),
-                ),
+                child: Text('Cannot reach AI backend. Tap Retry.',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF975A16))),
               ),
               GestureDetector(
                 onTap: () => _checkBackend(),
                 child: const Text('Retry',
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF975A16))),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF975A16))),
               ),
             ]),
           ),
 
-        // Rate-limit banner
+        // ── Rate-limit banner ────────────────────────────────────────────
         if (_rateLimited)
           Container(
             width: double.infinity,
             color: const Color(0xFFFFF7ED),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: const BoxDecoration(
-              border: Border(
-                top: BorderSide(color: Color(0xFFFB923C), width: 2),
-                bottom: BorderSide(color: Color(0xFFFB923C), width: 1),
-              ),
+              border: Border(bottom: BorderSide(color: Color(0xFFFB923C), width: 2)),
             ),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('🚫', style: TextStyle(fontSize: 18)),
               const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Expanded(child: RichText(
+                text: TextSpan(
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF9A3412), height: 1.5),
                   children: [
-                    const Text(
-                      'AI service unavailable — daily token limit reached',
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF9A3412)),
+                    const TextSpan(
+                      text: 'AI service unavailable — daily token limit reached\n',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                     ),
-                    const SizedBox(height: 3),
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF9A3412), height: 1.5),
-                        children: [
-                          const TextSpan(text: 'The Groq API free-tier quota is exhausted. '),
-                          TextSpan(
-                            text: 'Resets in $_resetIn. ',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const TextSpan(
-                              text: 'You cannot send messages until the limit resets automatically.'),
-                        ],
-                      ),
-                    ),
+                    const TextSpan(text: 'The Groq free-tier quota is exhausted. Resets in '),
+                    TextSpan(
+                        text: _resetIn,
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const TextSpan(text: '. You cannot send messages until then.'),
                   ],
                 ),
-              ),
+              )),
             ]),
           ),
 
-        // Chat area
+        // ── Chat / Welcome ───────────────────────────────────────────────
         Expanded(
           child: !_dataLoaded
-              ? const Center(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    CircularProgressIndicator(color: Color(0xFFE8001C)),
-                    SizedBox(height: 12),
-                    Text('Loading your profile…',
-                        style: TextStyle(color: Color(0xFF718096), fontSize: 13)),
-                  ]))
+              ? const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  CircularProgressIndicator(color: _red),
+                  SizedBox(height: 12),
+                  Text('Loading your profile…',
+                      style: TextStyle(color: Color(0xFF718096), fontSize: 13)),
+                ]))
               : _messages.isEmpty
                   ? _buildWelcome()
                   : ListView.builder(
@@ -372,92 +327,91 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                       padding: const EdgeInsets.all(16),
                       itemCount: _messages.length + (_loading ? 1 : 0),
                       itemBuilder: (_, i) {
-                        if (_loading && i == _messages.length) {
-                          return _buildTyping();
-                        }
+                        if (_loading && i == _messages.length) return _buildTypingIndicator();
                         return _buildBubble(_messages[i]);
                       },
                     ),
         ),
 
-        // Quick chips (only on empty chat)
-        if (_messages.isEmpty && _dataLoaded)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        // ── Input bar ────────────────────────────────────────────────────
+        SafeArea(
+          child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             child: Row(children: [
-              _chip('🚗 My fleet',        'List all my vehicles'),
-              _chip('📊 Summary',         'Give me a fleet summary'),
-              _chip('🔧 Maintenance',     'Which vehicles are under maintenance?'),
-              _chip('⚠️ Overdue',        'Which vehicles have PMS overdue?'),
-              _chip('📅 Due soon',        'Which vehicles have PMS due soon?'),
-              _chip('📋 History',         'Show my service history'),
-              _chip('🗓️ Bookings',       'Show my bookings'),
-              _chip('💰 Service prices',  'What services do you offer and their prices?'),
-              _chip('🔍 Cost estimate',   'How much would a change oil and brake cleaning cost?'),
+              Expanded(
+                child: TextField(
+                  controller: _inputCtrl,
+                  maxLines: null,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _send(),
+                  enabled: !_loading && !_rateLimited,
+                  decoration: InputDecoration(
+                    hintText: _rateLimited
+                        ? 'AI unavailable — daily limit reached'
+                        : 'Ask about your vehicles…',
+                    hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
+                    filled: true,
+                    fillColor: _bg,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: _loading || _rateLimited ? null : _send,
+                child: Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    color: _loading || _rateLimited ? Colors.grey : _red,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      if (!_loading && !_rateLimited)
+                        BoxShadow(color: _red.withOpacity(0.35), blurRadius: 10, offset: const Offset(0, 3)),
+                    ],
+                  ),
+                  child: const Icon(Icons.send, color: Colors.white, size: 18),
+                ),
+              ),
             ]),
           ),
-
-        // Input bar
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-          child: Row(children: [
-            Expanded(
-              child: TextField(
-                controller: _chatCtrl,
-                maxLines: null,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _send(),
-                enabled: !_loading && !_rateLimited,
-                decoration: InputDecoration(
-                  hintText: _rateLimited
-                      ? 'AI unavailable — daily limit reached'
-                      : 'Ask about your vehicles…',
-                  hintStyle: const TextStyle(
-                      fontSize: 13, color: Color(0xFF718096)),
-                  filled: true,
-                  fillColor: const Color(0xFFF7F8FA),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: _loading || _rateLimited ? null : _send,
-              child: Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(
-                  color: _loading || _rateLimited ? Colors.grey : _red,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.send, color: Colors.white, size: 18),
-              ),
-            ),
-          ]),
         ),
       ]),
     );
   }
 
-  // ── Welcome ─────────────────────────────────────────────────────────────────
-
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Welcome screen  (matches website layout)
+  // ─────────────────────────────────────────────────────────────────────────
   Widget _buildWelcome() {
-    final sub = _customerName.isEmpty
+    final first = _customerName.isNotEmpty ? _customerName.split(' ').first : '';
+    final sub = first.isEmpty
         ? 'Ask me anything about your vehicles — PMS status, history, costs, and more.'
         : _vehicleCount > 0
-            ? 'Hi ${_customerName.split(' ').first}! You have $_vehicleCount registered '
+            ? 'Hi $first! You have $_vehicleCount registered '
               'vehicle${_vehicleCount != 1 ? 's' : ''}. Ask me anything about them.'
-            : 'Hi ${_customerName.split(' ').first}! No vehicles are registered under your account yet.';
+            : 'Hi $first! No vehicles are registered under your account yet.';
+
+    final chips = [
+      ('🚗 My fleet',       'List all my vehicles'),
+      ('📊 Summary',        'Give me a fleet summary'),
+      ('🔧 Maintenance',    'Which vehicles are under maintenance?'),
+      ('⚠️ Overdue',       'Which vehicles have PMS overdue?'),
+      ('📅 Due soon',       'Which vehicles have PMS due soon?'),
+      ('📋 History',        'Show my service history'),
+      ('🗓️ Bookings',      'Show my bookings'),
+      ('💰 Service prices', 'What services do you offer and their prices?'),
+      ('🔍 Cost estimate',  'How much would a change oil and brake cleaning cost?'),
+    ];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(children: [
         const SizedBox(height: 12),
+        // ── Welcome icon — matches website #003087 blue ──
         Container(
           width: 64, height: 64,
           decoration: BoxDecoration(
@@ -467,224 +421,262 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         ),
         const SizedBox(height: 14),
         const Text('Vehicle Assistant',
-            style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold,
-                color: Color(0xFF1a202c))),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1a202c))),
         const SizedBox(height: 6),
         Text(sub,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-                fontSize: 13, color: Color(0xFF718096), height: 1.5)),
+            style: const TextStyle(fontSize: 13, color: Color(0xFF718096), height: 1.5)),
+        const SizedBox(height: 24),
+        // ── Chips in a Wrap — matches website flex-wrap ──
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: chips.map((c) => GestureDetector(
+            onTap: () => _send(c.$2),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFe2e8f0), width: 1.5),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4)],
+              ),
+              child: Text(c.$1,
+                  style: const TextStyle(
+                      fontSize: 12, color: Color(0xFF4a5568), fontWeight: FontWeight.w500)),
+            ),
+          )).toList(),
+        ),
       ]),
     );
   }
 
-  // ── Typing indicator ─────────────────────────────────────────────────────────
-
-  Widget _buildTyping() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6)
-          ],
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Typing indicator — 3 bouncing dots (matches website animation)
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildTypingIndicator() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        _aiAvatar(),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: _aiBubbleDecoration(),
+          child: const _BouncingDots(),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const SizedBox(
-            width: 22, height: 22,
-            child: CircularProgressIndicator(
-                strokeWidth: 2, color: Color(0xFFE8001C)),
-          ),
-          const SizedBox(width: 10),
-          Text('Thinking…',
-              style: TextStyle(
-                  fontSize: 13, color: Colors.grey.shade500)),
-        ]),
-      ),
+      ]),
     );
   }
 
-  // ── Chat bubble ──────────────────────────────────────────────────────────────
-
-  Widget _buildBubble(_Msg msg) {
-    final isUser = msg.role == 'user';
-
-    // Rate-limit special card
-    if (!isUser && msg.isRateLimit) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12, right: 16),
-          constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.88),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF7ED),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFFB923C), width: 1.5),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6)
-            ],
-          ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              decoration: const BoxDecoration(
-                color: Color(0xFFEA580C),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Chat bubbles
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildBubble(_ChatMsg msg) {
+    // ── User bubble ──
+    if (msg.role == 'user') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Flexible(
+              child: Container(
+                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
+                    begin: Alignment.topLeft, end: Alignment.bottomRight),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16), topRight: Radius.circular(4),
+                    bottomLeft: Radius.circular(16), bottomRight: Radius.circular(16)),
+                  boxShadow: [BoxShadow(color: _red.withOpacity(0.22), blurRadius: 6)],
+                ),
+                child: Text(msg.text,
+                    style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.6)),
               ),
-              child: const Row(children: [
-                Text('🚫', style: TextStyle(fontSize: 14)),
-                SizedBox(width: 8),
-                Text('AI Service Unavailable',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12.5)),
+            ),
+            const SizedBox(width: 8),
+            _userAvatar(),
+          ],
+        ),
+      );
+    }
+
+    // ── Rate-limit card ──
+    if (msg.isRateLimit) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _aiAvatar(),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Container(
+              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.80),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(4), topRight: Radius.circular(14),
+                  bottomLeft: Radius.circular(14), bottomRight: Radius.circular(14)),
+                border: Border.all(color: const Color(0xFFFB923C), width: 1.5),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6)],
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEA580C),
+                    borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(2), topRight: Radius.circular(13))),
+                  child: const Row(children: [
+                    Text('🚫', style: TextStyle(fontSize: 13)),
+                    SizedBox(width: 8),
+                    Text('AI Service Unavailable',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ]),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: RichText(text: TextSpan(
+                    style: const TextStyle(fontSize: 12.5, color: Color(0xFF9A3412), height: 1.55),
+                    children: [
+                      const TextSpan(text: 'Daily token limit reached.\n\n',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const TextSpan(text: '⏱️ Resets in '),
+                      TextSpan(
+                          text: _resetIn.isNotEmpty ? _resetIn : 'some time',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      const TextSpan(text: '.\n\nYou cannot send new messages until the limit resets automatically.'),
+                    ],
+                  )),
+                ),
               ]),
             ),
-            Padding(
-              padding: const EdgeInsets.all(13),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Daily token limit reached (Groq free tier)',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF9A3412)),
-                  ),
-                  const SizedBox(height: 8),
-                  RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                          fontSize: 12.5, color: Color(0xFF9A3412), height: 1.55),
-                      children: [
-                        const TextSpan(
-                            text: 'The Groq API has exhausted its free-tier quota for today.\n\n'),
-                        const TextSpan(text: '⏱️ Resets in '),
-                        TextSpan(
-                          text: _resetIn.isNotEmpty ? _resetIn : 'some time',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const TextSpan(
-                            text: '.\n\nYou cannot send new messages until the limit resets automatically.'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ]),
-        ),
-      );
-    }
-
-    if (isUser) {
-      return Align(
-        alignment: Alignment.centerRight,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12, left: 48),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.78),
-          decoration: BoxDecoration(
-            color: _red,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(color: _red.withOpacity(0.25), blurRadius: 6)
-            ],
-          ),
-          child: Text(msg.text,
-              style: const TextStyle(color: Colors.white, fontSize: 13,
-                  height: 1.5)),
-        ),
-      );
-    }
-
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12, right: 48),
-        constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.82),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)
-          ],
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Header
-          Container(
-            width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration: BoxDecoration(
-              color: _blue,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            child: const Row(children: [
-              Text('🤖', style: TextStyle(fontSize: 13)),
-              SizedBox(width: 8),
-              Text('Vehicle Assistant',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12)),
-            ]),
-          ),
-          // Body
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: SelectableText(
-              msg.text,
-              style: const TextStyle(
-                  fontSize: 13, color: Color(0xFF1a202c), height: 1.6),
-            ),
           ),
         ]),
-      ),
+      );
+    }
+
+    // ── AI bubble (matches website: white card, rounded, left-aligned) ──
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        _aiAvatar(),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Container(
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: _aiBubbleDecoration(),
+            child: SelectableText(
+              msg.text,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF1a202c), height: 1.6),
+            ),
+          ),
+        ),
+      ]),
     );
   }
 
-  // ── Chip ─────────────────────────────────────────────────────────────────────
+  // ── Shared decoration for AI bubble ──
+  BoxDecoration _aiBubbleDecoration() => BoxDecoration(
+    color: Colors.white,
+    borderRadius: const BorderRadius.only(
+      topLeft: Radius.circular(4), topRight: Radius.circular(16),
+      bottomLeft: Radius.circular(16), bottomRight: Radius.circular(16)),
+    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6)],
+  );
 
-  Widget _chip(String label, String query) {
-    return GestureDetector(
-      onTap: () => _send(query),
-      child: Container(
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFe2e8f0)),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4)
-          ],
+  // ── AI avatar — gradient red circle with robot emoji (matches website .rag-av.ai) ──
+  Widget _aiAvatar() => Container(
+    width: 28, height: 28,
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+          colors: [Color(0xFFE8001C), Color(0xFFC0001A)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight),
+      shape: BoxShape.circle,
+    ),
+    child: const Center(child: Text('🤖', style: TextStyle(fontSize: 13))),
+  );
+
+  // ── User avatar — gradient red with initials (matches website .rag-av.usr) ──
+  Widget _userAvatar() => Container(
+    width: 28, height: 28,
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+          colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight),
+      shape: BoxShape.circle,
+    ),
+    child: Center(
+      child: Text(_initials,
+          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Bouncing dots — same animation as website / admin AI
+// ─────────────────────────────────────────────────────────────────────────────
+class _BouncingDots extends StatefulWidget {
+  const _BouncingDots();
+  @override
+  State<_BouncingDots> createState() => _BouncingDotsState();
+}
+
+class _BouncingDotsState extends State<_BouncingDots> with TickerProviderStateMixin {
+  late final List<AnimationController> _ctrls;
+  late final List<Animation<double>> _anims;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrls = List.generate(3, (i) => AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 900))..repeat(reverse: true));
+    _anims = List.generate(3, (i) => Tween<double>(begin: 0, end: -5).animate(
+      CurvedAnimation(parent: _ctrls[i],
+          curve: Interval(i * 0.15, i * 0.15 + 0.6, curve: Curves.easeInOut))));
+    for (int i = 1; i < 3; i++) {
+      Future.delayed(Duration(milliseconds: i * 135), () {
+        if (mounted) _ctrls[i].forward();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in _ctrls) c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      for (int i = 0; i < 3; i++) ...[
+        if (i > 0) const SizedBox(width: 4),
+        AnimatedBuilder(
+          animation: _anims[i],
+          builder: (_, __) => Transform.translate(
+            offset: Offset(0, _anims[i].value),
+            child: Container(
+              width: 6, height: 6,
+              decoration: const BoxDecoration(
+                  color: Color(0xFFA0AEC0), shape: BoxShape.circle),
+            ),
+          ),
         ),
-        child: Text(label,
-            style: const TextStyle(
-                fontSize: 12, color: Color(0xFF4a5568),
-                fontWeight: FontWeight.w500)),
-      ),
-    );
+      ],
+    ]);
   }
 }
 
-class _Msg {
+// ─────────────────────────────────────────────────────────────────────────────
+class _ChatMsg {
   final String role;
   final String text;
   final bool isRateLimit;
-  _Msg({required this.role, required this.text, this.isRateLimit = false});
+  _ChatMsg({required this.role, required this.text, this.isRateLimit = false});
 }

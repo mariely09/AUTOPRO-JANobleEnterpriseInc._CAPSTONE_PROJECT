@@ -774,7 +774,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       ('📦 Low stock',        'What items are low in stock?'),
       ('💰 Repair cost',      'Total repair cost this month'),
       ('⏳ Pending services', 'How many services are pending?'),
-      ('📈 Fast moving',      'What are the fast moving inventory items?'),
       ('🚗 All vehicles',     'List all vehicles'),
       ('📋 Bookings',         'Show all service bookings'),
       ('📄 Inventory PDF',    'Generate inventory report PDF'),
@@ -965,7 +964,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     // ── Normal AI bubble ─────────────────────────────────────
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
         _aiAvatar(),
         const SizedBox(width: 8),
         Flexible(
@@ -1048,14 +1047,12 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     color: Colors.white,
     borderRadius: const BorderRadius.only(
       topLeft:     Radius.circular(4),
-      topRight:    Radius.circular(14),
-      bottomLeft:  Radius.circular(14),
-      bottomRight: Radius.circular(14),
+      topRight:    Radius.circular(16),
+      bottomLeft:  Radius.circular(16),
+      bottomRight: Radius.circular(16),
     ),
-    border: const Border(
-      left: BorderSide(color: Color(0xFFE8001C), width: 3)),
     boxShadow: [BoxShadow(
-      color: Colors.black.withOpacity(0.06), blurRadius: 6)]);
+      color: Colors.black.withOpacity(0.05), blurRadius: 6)]);
 
   Widget _actionBtn(String label, Color color, VoidCallback onTap) {
     return GestureDetector(
