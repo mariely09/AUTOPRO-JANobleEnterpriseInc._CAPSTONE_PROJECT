@@ -37,7 +37,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
       if (mounted) {
         setState(() {
           _deliveries = snap.docs
-              .map((d) => {...d.data() as Map<String, dynamic>, 'id': d.id})
+              .map((d) => {...d.data(), 'id': d.id})
               .toList();
           _loading = false;
         });
@@ -104,7 +104,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
             .get();
       }
       if (snap.docs.isNotEmpty) {
-        final d = snap.docs.first.data() as Map<String, dynamic>;
+        final d = snap.docs.first.data();
         resolvedNum  = (d['num']  as String? ?? '').toLowerCase();
         resolvedName = (d['name'] as String? ?? '').toLowerCase();
       }
@@ -200,7 +200,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
               : ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (_, i) => GestureDetector(
                     onTap: () => _showViewModal(filtered[i]),
                     child: _deliveryCard(filtered[i]),
@@ -217,7 +217,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
             width: 56, height: 56,
             decoration: BoxDecoration(
               color: _red, shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: _red.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))],
+              boxShadow: [BoxShadow(color: _red.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))],
             ),
             child: const Icon(Icons.qr_code_scanner, color: Colors.white, size: 28),
           ),
@@ -234,15 +234,15 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           decoration: BoxDecoration(
-            color: active ? color.withOpacity(0.08) : Colors.white,
+            color: active ? color.withValues(alpha: 0.08) : Colors.white,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: active ? color : Colors.transparent, width: 1.5),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)],
           ),
           child: Column(children: [
             Container(
               width: 28, height: 28,
-              decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
               child: Icon(icon, color: color, size: 14),
             ),
             const SizedBox(height: 4),
@@ -267,7 +267,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFF0F4F8)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -280,7 +280,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
           ])),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
             child: Text(status, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
           ),
         ]),
@@ -329,7 +329,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => DraggableScrollableSheet(
         expand: false, initialChildSize: 0.6, maxChildSize: 0.92,
-        builder: (__, ctrl) => SingleChildScrollView(
+        builder: (_, ctrl) => SingleChildScrollView(
           controller: ctrl,
           child: Column(children: [
             Container(
@@ -398,7 +398,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                       decoration: BoxDecoration(
                         color: Colors.white, borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFe2e8f0)),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6)]),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6)]),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Row(children: [
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -409,7 +409,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                           ])),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(color: condColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                            decoration: BoxDecoration(color: condColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                             child: Text(cond, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: condColor)),
                           ),
                         ]),
@@ -436,7 +436,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                     decoration: BoxDecoration(
                       color: Colors.white, borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFFe2e8f0)),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4)]),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)]),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Row(children: [
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -448,7 +448,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                         if (cond != '—')
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(color: condColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                            decoration: BoxDecoration(color: condColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                             child: Text(cond, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: condColor)),
                           ),
                       ]),
@@ -479,8 +479,8 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: _amber.withOpacity(0.08), borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: _amber.withOpacity(0.3))),
+                      color: _amber.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _amber.withValues(alpha: 0.3))),
                     child: const Row(children: [
                       Icon(Icons.hourglass_empty_outlined, size: 16, color: Color(0xFFd69e2e)),
                       SizedBox(width: 8),
@@ -606,10 +606,23 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                       onQtyChange: () => setModal(() {}));
                   }),
                   const SizedBox(height: 12),
-                  _field('Received By (Your Name) *', child: TextField(
-                    controller: receivedByCtrl,
-                    decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true,
-                      hintText: 'Enter your full name'))),
+                  _field('Received By', child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7F8FA),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFe2e8f0)),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.person_outline, size: 16, color: Color(0xFF718096)),
+                      const SizedBox(width: 8),
+                      Text(
+                        receivedByCtrl.text.isNotEmpty ? receivedByCtrl.text : '—',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1a202c)),
+                      ),
+                    ]),
+                  )),
                   const SizedBox(height: 20),
                   SizedBox(width: double.infinity,
                     child: ElevatedButton.icon(
@@ -634,13 +647,15 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                           });
                           if (ctx.mounted) {
                             Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
                               content: Text('Submitted for double check!'),
                               backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating));
                           }
                         } catch (err) {
-                          if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red));
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red));
+                          }
                         }
                       },
                       icon: const Icon(Icons.check_circle_outline, size: 16),
@@ -684,7 +699,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
       decoration: BoxDecoration(
         color: Colors.white, borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF90cdf4)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)]),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(item['itemName'] as String,
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
@@ -729,7 +744,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: active ? color.withOpacity(0.1) : Colors.white,
+          color: active ? color.withValues(alpha: 0.1) : Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: active ? color : const Color(0xFFe2e8f0), width: 1.5)),
         child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
