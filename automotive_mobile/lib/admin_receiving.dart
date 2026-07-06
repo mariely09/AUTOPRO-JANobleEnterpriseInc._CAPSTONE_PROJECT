@@ -52,7 +52,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
       if (mounted) {
         setState(() {
           _deliveries = snap.docs
-              .map((d) => {...d.data() as Map<String, dynamic>, 'id': d.id})
+              .map((d) => {...d.data(), 'id': d.id})
               .toList();
           _loading = false;
         });
@@ -140,7 +140,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
               : ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (_, i) {
                     final d = filtered[i];
                     return GestureDetector(
@@ -188,7 +188,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                 decoration: BoxDecoration(
                   color: _red,
                   shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: _red.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))],
+                  boxShadow: [BoxShadow(color: _red.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))],
                 ),
                 child: AnimatedRotation(
                   turns: _fabOpen ? 0.125 : 0,
@@ -211,15 +211,15 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           decoration: BoxDecoration(
-            color: active ? color.withOpacity(0.08) : Colors.white,
+            color: active ? color.withValues(alpha: 0.08) : Colors.white,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: active ? color : Colors.transparent, width: 1.5),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)],
           ),
           child: Column(children: [
             Container(
               width: 28, height: 28,
-              decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
               child: Icon(icon, color: color, size: 14),
             ),
             const SizedBox(height: 4),
@@ -244,7 +244,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFF0F4F8)),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // ── Header row: supplier + status badge ──
@@ -259,7 +259,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(status,
@@ -315,7 +315,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 2))],
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2))],
           ),
           child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1a202c))),
         ),
@@ -325,7 +325,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
           decoration: BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 8, offset: const Offset(0, 2))],
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))],
           ),
           child: Icon(icon, color: _red, size: 20),
         ),
@@ -345,7 +345,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => DraggableScrollableSheet(
         expand: false, initialChildSize: 0.6, maxChildSize: 0.92,
-        builder: (__, ctrl) => SingleChildScrollView(
+        builder: (_, ctrl) => SingleChildScrollView(
           controller: ctrl,
           child: Column(children: [
             // ── Colored header ──
@@ -421,7 +421,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                       decoration: BoxDecoration(
                         color: Colors.white, borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFe2e8f0)),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6)],
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6)],
                       ),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Row(children: [
@@ -434,7 +434,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: condColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                              color: condColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                             child: Text(cond,
                               style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: condColor)),
                           ),
@@ -463,7 +463,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                     decoration: BoxDecoration(
                       color: Colors.white, borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFFe2e8f0)),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4)],
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)],
                     ),
                     child: Row(children: [
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -589,8 +589,11 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
             final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
             if (picked == null) return;
             setModal(() {
-              if (isPo) poFile = File(picked.path);
-              else invFile = File(picked.path);
+              if (isPo) {
+                poFile = File(picked.path);
+              } else {
+                invFile = File(picked.path);
+              }
             });
           }
 
@@ -608,7 +611,13 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                 if (file != null) ...[
                   const SizedBox(width: 4),
                   GestureDetector(
-                    onTap: () => setModal(() { if (isPo) poFile = null; else invFile = null; }),
+                    onTap: () => setModal(() {
+                      if (isPo) {
+                        poFile = null;
+                      } else {
+                        invFile = null;
+                      }
+                    }),
                     child: const Text('✕', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.red)),
                   ),
                 ],
@@ -644,7 +653,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
 
           return DraggableScrollableSheet(
             expand: false, initialChildSize: 0.92, maxChildSize: 0.97,
-            builder: (__, ctrl) => SingleChildScrollView(
+            builder: (_, ctrl) => SingleChildScrollView(
               controller: ctrl,
               child: Column(children: [
                 // Header
@@ -691,7 +700,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                       builder: (ctx2, snap) {
                         final docs = snap.data?.docs ?? [];
                         return DropdownButtonFormField<String>(
-                          value: linkedDelivery?['id'] as String?,
+                          initialValue: linkedDelivery?['id'] as String?,
                           decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, hintText: '— Select a delivery —'),
                           isExpanded: true,
                           items: [
@@ -750,7 +759,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                               .collection('deliveries').doc(linkedDelivery!['id'] as String)
                               .update({'compareNotes': notesCtrl.text.trim()});
                           if (ctx.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
                               content: Text('Notes saved to delivery.'),
                               backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
                           }
@@ -781,7 +790,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
     // Load item master for searching
     final masterSnap = await FirebaseFirestore.instance.collection('item_master').orderBy('name').get();
     final masterItems = masterSnap.docs.map((d) {
-      final data = d.data() as Map<String, dynamic>;
+      final data = d.data();
       return {'num': data['num'] as String? ?? '', 'name': data['name'] as String? ?? '', 'uom': data['uom'] as String? ?? ''};
     }).toList();
 
@@ -967,7 +976,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                           };
                           try {
                             if (isEdit) {
-                              await FirebaseFirestore.instance.collection('deliveries').doc(existing!['id'] as String).update(data);
+                              await FirebaseFirestore.instance.collection('deliveries').doc(existing['id'] as String).update(data);
                             } else {
                               data['status'] = 'Pending';
                               data['createdAt'] = FieldValue.serverTimestamp();
@@ -975,14 +984,16 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                             }
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
                                 content: Text(isEdit ? 'Delivery updated!' : 'Delivery created!'),
                                 backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                             }
                           } catch (e) {
-                            if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(
-                              SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                            }
                           }
                         },
                         style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
@@ -1093,10 +1104,22 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                     );
                   }),
                   const SizedBox(height: 12),
-                  _field('Received By (Your Name) *', child: TextField(
-                    controller: receivedByCtrl,
-                    decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true,
-                      hintText: 'Enter your full name'),
+                  _field('Received By', child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7F8FA),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFe2e8f0)),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.person_outline, size: 16, color: Color(0xFF718096)),
+                      const SizedBox(width: 8),
+                      Text(
+                        receivedByCtrl.text.isNotEmpty ? receivedByCtrl.text : '—',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1a202c)),
+                      ),
+                    ]),
                   )),
                   const SizedBox(height: 20),
                   Row(children: [
@@ -1121,13 +1144,15 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                           });
                           if (ctx.mounted) {
                             Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                            ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
                               content: Text('Submitted for double check!'),
                               backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating));
                           }
                         } catch (err) {
-                          if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red));
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red));
+                          }
                         }
                       },
                       icon: const Icon(Icons.check_circle_outline, size: 16),
@@ -1167,7 +1192,6 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
     required String condition, required ValueChanged<String> onCondChange,
     required VoidCallback onQtyChange,
   }) {
-    final condColor = condition == 'OK' ? _green : condition == 'Defective' ? _red : _amber;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -1175,7 +1199,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF90cdf4)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)]),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(item['itemName'] as String, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
         Text('${item['itemNum']} · Expected: $expected ${item['uom'] ?? ''}',
@@ -1222,7 +1246,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: active ? color.withOpacity(0.1) : Colors.white,
+          color: active ? color.withValues(alpha: 0.1) : Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: active ? color : const Color(0xFFe2e8f0), width: 1.5)),
         child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
@@ -1319,7 +1343,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                     decoration: BoxDecoration(
                       color: Colors.white, borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFFe2e8f0)),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)]),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Row(children: [
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1328,7 +1352,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                         ])),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: cc.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                          decoration: BoxDecoration(color: cc.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                           child: Text(cond, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: cc)),
                         ),
                       ]),
@@ -1366,10 +1390,23 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
                       ]),
                     )
-                  : _field('Checked By (Your Name) *', child: TextField(
-                      controller: checkedByCtrl,
-                      decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true,
-                        hintText: 'Enter your full name'))),
+                  : _field('Checked By', child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7F8FA),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFe2e8f0)),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.person_outline, size: 16, color: Color(0xFF718096)),
+                        const SizedBox(width: 8),
+                        Text(
+                          checkedByCtrl.text.isNotEmpty ? checkedByCtrl.text : '—',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1a202c)),
+                        ),
+                      ]),
+                    )),
                 const SizedBox(height: 10),
                 // Review notes
                 isReadOnly
@@ -1486,8 +1523,10 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
           behavior: SnackBarBehavior.floating));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
     }
   }
 
@@ -1503,10 +1542,12 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
             onPressed: () async {
               Navigator.pop(context);
               await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).delete();
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: const Text('Delivery deleted.'), backgroundColor: Colors.red,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: const Text('Delivery deleted.'), backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+              }
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
