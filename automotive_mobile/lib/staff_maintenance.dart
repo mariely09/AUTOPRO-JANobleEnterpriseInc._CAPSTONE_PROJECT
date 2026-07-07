@@ -785,7 +785,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                     const SizedBox(height: 16),
                     // ── Odometer Reading ──
                     TextField(controller: odoCtrl, keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Odometer Reading (km) *', border: OutlineInputBorder(), suffixText: 'km', hintText: 'e.g. 45000')),
+                      decoration: const InputDecoration(labelText: 'Odometer Reading (km)', border: OutlineInputBorder(), suffixText: 'km', hintText: 'e.g. 45000 (optional)')),
                     const SizedBox(height: 16),
                     // ── Vehicle Issues ──
                     const Text('Vehicle Issues', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF4a5568))),
@@ -894,11 +894,6 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         onPressed: () async {
                           if (plateCtrl.text.trim().isEmpty || mechanicCtrl.text.trim().isEmpty) return;
                           final odoValue = int.tryParse(odoCtrl.text.trim()) ?? 0;
-                          if (odoValue <= 0) {
-                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter an odometer reading.'), backgroundColor: Colors.orange));
-                            return;
-                          }
 
                           // Validate material quantities against stock
                           for (final r in matRows) {
