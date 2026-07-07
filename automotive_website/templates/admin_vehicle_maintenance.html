@@ -1196,8 +1196,9 @@ function svcSave() {
 
   var db = firebase.firestore();
 
-  // Update vehicle's current odometer on save (always update to the entered value)
+  // Update vehicle's current odometer on save (only when a value is provided)
   function _updateVehicleOdometer() {
+    if (!odometer || odometer <= 0) return;
     db.collection('vehicles').where('plate', '==', plate).limit(1).get().then(function(vSnap) {
       if (!vSnap.empty) {
         var vDoc = vSnap.docs[0];
