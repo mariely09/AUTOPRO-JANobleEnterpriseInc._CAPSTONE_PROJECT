@@ -53,9 +53,8 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
   static const _col = 'maintenance';
 
   final _searchCtrl = TextEditingController();
-  bool _searching = false;
-  String _searchQuery = '';
-  String _statusFilter = 'all'; // 'all', 'Ongoing', 'Completed'
+  final String _searchQuery = '';
+  String _statusFilter = 'all';
 
   CollectionReference get _db => FirebaseFirestore.instance.collection(_col);
 
@@ -88,11 +87,11 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
     if (!mounted) return;
     _vehicleMap = {
       for (final d in vSnap.docs)
-        (d['plate'] as String? ?? ''): d.data() as Map<String, dynamic>
+        (d['plate'] as String? ?? ''): d.data()
     };
     _itemMasterMap = {
       for (final d in iSnap.docs)
-        (d['name'] as String? ?? ''): d.data() as Map<String, dynamic>
+        (d['name'] as String? ?? ''): d.data()
     };
     _serviceItems = _itemMasterMap.entries
         .where((e) => e.value['type'] == 'Service')
@@ -185,7 +184,6 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
           final total = services.length;
           final ongoing = services.where((s) => s['status'] == 'Ongoing').length;
           final completed = services.where((s) => s['status'] == 'Completed').length;
-          final pending = services.where((s) => s['status'] == 'Pending').length;
 
           return Column(children: [
             Padding(
@@ -196,8 +194,6 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                 _statChip('Ongoing', '$ongoing', Colors.orange, 'Ongoing'),
                 const SizedBox(width: 8),
                 _statChip('Completed', '$completed', Colors.green, 'Completed'),
-                const SizedBox(width: 8),
-                _statChip('Pending', '$pending', const Color(0xFF718096), 'Pending'),
               ]),
             ),
             Expanded(
@@ -206,7 +202,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: afterStatusFilter.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (_, i) => _serviceCard(afterStatusFilter[i]),
                   ),
             ),
@@ -232,10 +228,10 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? color.withOpacity(0.08) : Colors.white,
+            color: isActive ? color.withValues(alpha: 0.08) : Colors.white,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: isActive ? color : Colors.transparent, width: 1.5),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)]),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
           child: Column(children: [
             Icon(icon, color: color, size: 18),
             const SizedBox(height: 4),
@@ -254,7 +250,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)]),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(s['plate'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -267,7 +263,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: sc.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(color: sc.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
               child: Text(s['status'] as String, style: TextStyle(fontSize: 10, color: sc, fontWeight: FontWeight.w600)),
             ),
           ]),
@@ -315,7 +311,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                     const SizedBox(width: 130, child: Text('Status', style: TextStyle(fontSize: 12, color: Color(0xFF718096), fontWeight: FontWeight.w500))),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: sc.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                      decoration: BoxDecoration(color: sc.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                       child: Text(s['status'] as String, style: TextStyle(fontSize: 12, color: sc, fontWeight: FontWeight.w600)),
                     ),
                   ]),
@@ -351,22 +347,6 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                     ...(s['matRows'] as List).where((r) => (r['name'] as String? ?? '').isNotEmpty).map((r) => _rowDetailCard(r, isService: false)),
                     const SizedBox(height: 12),
                   ],
-                  if (s['status'] == 'Pending')
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.orange.shade200),
-                      ),
-                      child: const Row(children: [
-                        Icon(Icons.info_outline, color: Colors.orange, size: 16),
-                        SizedBox(width: 8),
-                        Expanded(child: Text('Waiting for admin approval.',
-                          style: TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.w500))),
-                      ]),
-                    ),
                   if (s['status'] == 'Ongoing') ...[
                     SizedBox(width: double.infinity,
                       child: ElevatedButton.icon(
@@ -402,8 +382,8 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                           final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
                           final byName = (userDoc.data()?['name'] as String?) ?? 'Staff';
                           final now = DateTime.now();
-                          const _txnMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                          final dateStr = '${_txnMonths[now.month - 1]} ${now.day}, ${now.year}';
+                          const txnMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                          final dateStr = '${txnMonths[now.month - 1]} ${now.day}, ${now.year}';
                           final plate = (s['plate'] as String).trim().toUpperCase();
                           final matRows = s['matRows'] as List<dynamic>? ?? [];
                           for (final r in matRows) {
@@ -414,7 +394,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                             if (name.isEmpty || qty <= 0) continue;
                             final iSnap = await FirebaseFirestore.instance
                                 .collection('item_master').where('name', isEqualTo: name).limit(1).get();
-                            final iData = iSnap.docs.isNotEmpty ? iSnap.docs.first.data() as Map<String, dynamic> : <String, dynamic>{};
+                            final iData = iSnap.docs.isNotEmpty ? iSnap.docs.first.data() : <String, dynamic>{};
                             await FirebaseFirestore.instance.collection('issuances').add({
                               'id': 'ISS-AUTO-${DateTime.now().millisecondsSinceEpoch}',
                               'date': dateStr, 'plate': plate,
@@ -455,7 +435,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                             if (name.isEmpty) continue;
                             final iSnap = await FirebaseFirestore.instance
                                 .collection('item_master').where('name', isEqualTo: name).limit(1).get();
-                            final iData = iSnap.docs.isNotEmpty ? iSnap.docs.first.data() as Map<String, dynamic> : <String, dynamic>{};
+                            final iData = iSnap.docs.isNotEmpty ? iSnap.docs.first.data() : <String, dynamic>{};
                             await FirebaseFirestore.instance.collection('issuances').add({
                               'id': 'ISS-AUTO-${DateTime.now().millisecondsSinceEpoch}-S',
                               'date': dateStr, 'plate': plate,
@@ -740,7 +720,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                             child: ListView.separated(
                               padding: EdgeInsets.zero, shrinkWrap: true,
                               itemCount: options.length,
-                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              separatorBuilder: (_, _) => const Divider(height: 1),
                               itemBuilder: (_, i) {
                                 final plate = options.elementAt(i);
                                 final v = _vehicleMap[plate];
@@ -943,7 +923,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                           if (!isEdit) {
                             final dupCheck = await _db
                                 .where('plate', isEqualTo: plateCtrl.text.trim().toUpperCase())
-                                .where('status', whereIn: ['Pending', 'Ongoing'])
+                                .where('status', whereIn: ['Ongoing'])
                                 .limit(1)
                                 .get();
                             if (dupCheck.docs.isNotEmpty) {
@@ -952,7 +932,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                   content: Row(children: const [
                                     Icon(Icons.warning_amber_rounded, color: Colors.white, size: 18),
                                     SizedBox(width: 8),
-                                    Expanded(child: Text('This plate already has a Pending or Ongoing service. Complete or delete it first.')),
+                                    Expanded(child: Text('This plate already has an Ongoing service. Complete or delete it first.')),
                                   ]),
                                   backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
@@ -961,7 +941,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                             }
                           }
 
-                          final svcId = isEdit ? service!['id'] as String : await _nextSvcId();
+                          final svcId = isEdit ? service['id'] as String : await _nextSvcId();
                           final data = <String, dynamic>{
                             'id': svcId,
                             'plate': plateCtrl.text.trim().toUpperCase(),
@@ -970,7 +950,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                             'date': dateCtrl.text.trim(),
                             'odometer': odoValue,
                             'cost': '₱${totalCost().toStringAsFixed(2)}',
-                            'status': isEdit ? service!['status'] as String : 'Pending',
+                            'status': isEdit ? service['status'] as String : 'Ongoing',
                             'issues': selectedIssues,
                             'svcRows': svcRows.map((r) => {'name': r['name']!.text, 'qty': r['qty']!.text, 'uom': r['uom']!.text, 'cost': r['cost']!.text}).toList(),
                             'matRows': matRows.map((r) => {'name': r['name']!.text, 'qty': r['qty']!.text, 'uom': r['uom']!.text, 'cost': r['cost']!.text}).toList(),
@@ -978,7 +958,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                           };
                           try {
                             if (isEdit) {
-                              await _db.doc(service!['docId'] as String).update(data);
+                              await _db.doc(service['docId'] as String).update(data);
                               await _updateVehicleOdometer(
                                 plateCtrl.text.trim().toUpperCase(), odoValue);
                               if (context.mounted) {
@@ -993,6 +973,14 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                               await _db.add(data);
                               await _updateVehicleOdometer(
                                 plateCtrl.text.trim().toUpperCase(), odoValue);
+                              // Set vehicle status to Under Maintenance when Ongoing service is created
+                              final pSnap = await FirebaseFirestore.instance
+                                  .collection('vehicles')
+                                  .where('plate', isEqualTo: plateCtrl.text.trim().toUpperCase())
+                                  .limit(1).get();
+                              if (pSnap.docs.isNotEmpty) {
+                                await pSnap.docs.first.reference.update({'status': 'Under Maintenance'});
+                              }
                               if (context.mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1027,7 +1015,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(child: DropdownButtonFormField<String>(
-            value: currentVal,
+            initialValue: currentVal,
             hint: const Text('Select service...', style: TextStyle(fontSize: 11)),
             isExpanded: true,
             decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10), isDense: true),
@@ -1242,7 +1230,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                           padding: EdgeInsets.zero,
                           shrinkWrap: true,
                           itemCount: options.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          separatorBuilder: (_, _) => const Divider(height: 1),
                           itemBuilder: (_, i) {
                             final name = options.elementAt(i);
                             final d = _itemMasterMap[name];

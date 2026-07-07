@@ -34,15 +34,14 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
   static const _col = 'maintenance';
 
   final _searchCtrl = TextEditingController();
-  String _searchQuery = '';
-  String _statusFilter = 'all'; // 'all', 'Pending', 'Ongoing', 'Completed'
+  final String _searchQuery = '';
+  String _statusFilter = 'all';
 
   CollectionReference get _db => FirebaseFirestore.instance.collection(_col);
 
   // Cached lookups
   Map<String, Map<String, dynamic>> _vehicleMap = {};   // plate -> data
   Map<String, Map<String, dynamic>> _itemMasterMap = {}; // name -> data
-  Map<String, int> _stockMap = {};  // item name -> current stock qty
   List<String> _serviceItems = [];
   List<String> _materialItems = [];
   List<String> _mechanicNames = []; // staff + admin names
@@ -62,11 +61,11 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
     if (!mounted) return;
     _vehicleMap = {
       for (final d in vSnap.docs)
-        (d['plate'] as String? ?? ''): d.data() as Map<String, dynamic>
+        (d['plate'] as String? ?? ''): d.data()
     };
     _itemMasterMap = {
       for (final d in iSnap.docs)
-        (d['name'] as String? ?? ''): d.data() as Map<String, dynamic>
+        (d['name'] as String? ?? ''): d.data()
     };
     _serviceItems = _itemMasterMap.entries
         .where((e) => e.value['type'] == 'Service')
@@ -163,7 +162,6 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
         final total = services.length;
         final ongoing = services.where((s) => s['status'] == 'Ongoing').length;
         final completed = services.where((s) => s['status'] == 'Completed').length;
-        final pending = services.where((s) => s['status'] == 'Pending').length;
 
         return Stack(children: [
           Column(children: [
@@ -176,8 +174,6 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                 _statChip('Ongoing', '$ongoing', Colors.orange, Icons.autorenew_outlined, 'Ongoing'),
                 const SizedBox(width: 8),
                 _statChip('Completed', '$completed', Colors.green, Icons.check_circle_outline, 'Completed'),
-                const SizedBox(width: 8),
-                _statChip('Pending', '$pending', const Color(0xFF718096), Icons.pending_outlined, 'Pending'),
               ]),
             ),
             Expanded(
@@ -186,7 +182,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: afterStatusFilter.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (_, i) => _serviceCard(afterStatusFilter[i]),
                   ),
             ),
@@ -221,14 +217,14 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           decoration: BoxDecoration(
-            color: isActive ? color.withOpacity(0.08) : Colors.white,
+            color: isActive ? color.withValues(alpha: 0.08) : Colors.white,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: isActive ? color : Colors.transparent, width: 1.5),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)]),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
           child: Column(children: [
             Container(
               width: 32, height: 32,
-              decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
               child: Icon(icon, color: color, size: 16),
             ),
             const SizedBox(height: 6),
@@ -247,7 +243,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)]),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(s['plate'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -260,7 +256,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: sc.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(color: sc.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
               child: Text(s['status'] as String, style: TextStyle(fontSize: 10, color: sc, fontWeight: FontWeight.w600)),
             ),
           ]),
@@ -307,7 +303,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                   const SizedBox(width: 130, child: Text('Status', style: TextStyle(fontSize: 12, color: Color(0xFF718096), fontWeight: FontWeight.w500))),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: sc.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                    decoration: BoxDecoration(color: sc.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                     child: Text(s['status'] as String, style: TextStyle(fontSize: 12, color: sc, fontWeight: FontWeight.w600)),
                   ),
                 ]),
@@ -345,49 +341,6 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                   ...(s['matRows'] as List).where((r) => (r['name'] as String? ?? '').isNotEmpty).map((r) => _rowDetailCard(r, isService: false)),
                   const SizedBox(height: 12),
                 ],
-                if (s['status'] == 'Pending')
-                  SizedBox(width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (_) => AlertDialog(
-                            title: const Text('Approve Service'),
-                            content: Text('Approve service for ${s['plate']} and set status to Ongoing?'),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                              TextButton(onPressed: () => Navigator.pop(context, true),
-                                child: const Text('Approve', style: TextStyle(color: Colors.orange))),
-                            ],
-                          ),
-                        );
-                        if (confirm != true) return;
-                        await _db.doc(s['docId'] as String).update({'status': 'Ongoing'});
-                        final plate = (s['plate'] as String).trim().toUpperCase();
-                        var vSnap = await FirebaseFirestore.instance
-                            .collection('vehicles').where('plate', isEqualTo: plate).limit(1).get();
-                        if (vSnap.docs.isEmpty) {
-                          final allVehicles = await FirebaseFirestore.instance.collection('vehicles').get();
-                          final match = allVehicles.docs.where((d) =>
-                            (d['plate'] as String? ?? '').toUpperCase() == plate).toList();
-                          if (match.isNotEmpty) {
-                            await match.first.reference.update({'status': 'Under Maintenance'});
-                          }
-                        } else {
-                          await vSnap.docs.first.reference.update({'status': 'Under Maintenance'});
-                        }
-                        if (mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Service approved — status set to Ongoing!')]),
-                            backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
-                        }
-                      },
-                      icon: const Icon(Icons.check_circle_outline, size: 16),
-                      label: const Text('Approve - Ongoing'),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
-                    )),
                 if (s['status'] == 'Ongoing') ...[
                   SizedBox(width: double.infinity,
                     child: ElevatedButton.icon(
@@ -412,8 +365,8 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                         final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
                         final byName = (userDoc.data()?['name'] as String?) ?? 'Admin';
                         final now = DateTime.now();
-                        const _txnMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                        final dateStr = '${_txnMonths[now.month - 1]} ${now.day}, ${now.year}';
+                        const txnMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                        final dateStr = '${txnMonths[now.month - 1]} ${now.day}, ${now.year}';
                         final plate = (s['plate'] as String).trim().toUpperCase();
 
                         final matRows = s['matRows'] as List<dynamic>? ?? [];
@@ -427,7 +380,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                           // Look up item master for num/group
                           final iSnap = await FirebaseFirestore.instance
                               .collection('item_master').where('name', isEqualTo: name).limit(1).get();
-                          final iData = iSnap.docs.isNotEmpty ? iSnap.docs.first.data() as Map<String, dynamic> : <String, dynamic>{};
+                          final iData = iSnap.docs.isNotEmpty ? iSnap.docs.first.data() : <String, dynamic>{};
 
                           // Create issuance record
                           await FirebaseFirestore.instance.collection('issuances').add({
@@ -489,7 +442,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
 
                           final iSnap = await FirebaseFirestore.instance
                               .collection('item_master').where('name', isEqualTo: name).limit(1).get();
-                          final iData = iSnap.docs.isNotEmpty ? iSnap.docs.first.data() as Map<String, dynamic> : <String, dynamic>{};
+                          final iData = iSnap.docs.isNotEmpty ? iSnap.docs.first.data() : <String, dynamic>{};
 
                           await FirebaseFirestore.instance.collection('issuances').add({
                             'id': 'ISS-AUTO-${DateTime.now().millisecondsSinceEpoch}-S',
@@ -800,7 +753,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                               padding: EdgeInsets.zero,
                               shrinkWrap: true,
                               itemCount: options.length,
-                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              separatorBuilder: (_, _) => const Divider(height: 1),
                               itemBuilder: (_, i) {
                                 final plate = options.elementAt(i);
                                 final v = _vehicleMap[plate];
@@ -870,7 +823,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                               padding: EdgeInsets.zero,
                               shrinkWrap: true,
                               itemCount: options.length,
-                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              separatorBuilder: (_, _) => const Divider(height: 1),
                               itemBuilder: (_, i) {
                                 final name = options.elementAt(i);
                                 return ListTile(
@@ -1059,7 +1012,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                           if (!isEdit) {
                             final dupCheck = await _db
                                 .where('plate', isEqualTo: plateCtrl.text.trim().toUpperCase())
-                                .where('status', whereIn: ['Pending', 'Ongoing'])
+                                .where('status', whereIn: ['Ongoing'])
                                 .limit(1)
                                 .get();
                             if (dupCheck.docs.isNotEmpty) {
@@ -1068,7 +1021,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                                   content: Row(children: const [
                                     Icon(Icons.warning_amber_rounded, color: Colors.white, size: 18),
                                     SizedBox(width: 8),
-                                    Expanded(child: Text('This plate already has a Pending or Ongoing service. Complete or delete it first.')),
+                                    Expanded(child: Text('This plate already has an Ongoing service. Complete or delete it first.')),
                                   ]),
                                   backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
@@ -1077,7 +1030,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                             }
                           }
 
-                          final svcId = isEdit ? service!['id'] as String : await _nextSvcId();
+                          final svcId = isEdit ? service['id'] as String : await _nextSvcId();
                           final data = <String, dynamic>{
                             'id': svcId,
                             'plate': plateCtrl.text.trim().toUpperCase(),
@@ -1086,7 +1039,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                             'date': dateCtrl.text.trim(),
                             'odometer': odoValue,
                             'cost': '₱${totalCost().toStringAsFixed(2)}',
-                            'status': isEdit ? service!['status'] as String : 'Pending',
+                            'status': isEdit ? service['status'] as String : 'Ongoing',
                             'issues': selectedIssues,
                             'svcRows': svcRows.map((r) => {'name': r['name']!.text, 'qty': r['qty']!.text, 'uom': r['uom']!.text, 'cost': r['cost']!.text}).toList(),
                             'matRows': matRows.map((r) => {'name': r['name']!.text, 'qty': r['qty']!.text, 'uom': r['uom']!.text, 'cost': r['cost']!.text}).toList(),
@@ -1094,7 +1047,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                           };
                           try {
                             if (isEdit) {
-                              await _db.doc(service!['docId'] as String).update(data);
+                              await _db.doc(service['docId'] as String).update(data);
                               await _updateVehicleOdometer(
                                 plateCtrl.text.trim().toUpperCase(), odoValue);
                               if (context.mounted) {
@@ -1109,6 +1062,14 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                               await _db.add(data);
                               await _updateVehicleOdometer(
                                 plateCtrl.text.trim().toUpperCase(), odoValue);
+                              // Set vehicle status to Under Maintenance when Ongoing service is created
+                              final pSnap = await FirebaseFirestore.instance
+                                  .collection('vehicles')
+                                  .where('plate', isEqualTo: plateCtrl.text.trim().toUpperCase())
+                                  .limit(1).get();
+                              if (pSnap.docs.isNotEmpty) {
+                                await pSnap.docs.first.reference.update({'status': 'Under Maintenance'});
+                              }
                               if (context.mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1147,7 +1108,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(child: DropdownButtonFormField<String>(
-            value: currentVal,
+            initialValue: currentVal,
             hint: const Text('Select service...', style: TextStyle(fontSize: 11)),
             isExpanded: true,
             decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10), isDense: true),
@@ -1359,7 +1320,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                           padding: EdgeInsets.zero,
                           shrinkWrap: true,
                           itemCount: options.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          separatorBuilder: (_, _) => const Divider(height: 1),
                           itemBuilder: (_, i) {
                             final name = options.elementAt(i);
                             final d = _itemMasterMap[name];
@@ -1390,20 +1351,6 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
     );
   }
 
-  String _computeVehicleStatus(String lastSvcDate, String svcFreq) {
-    if (lastSvcDate.isEmpty || svcFreq.isEmpty) return 'Active';
-    final date = DateTime.tryParse(lastSvcDate);
-    final months = int.tryParse(svcFreq);
-    if (date == null || months == null) return 'Active';
-    final nextPms = DateTime(date.year, date.month + months, date.day);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final nextMidnight = DateTime(nextPms.year, nextPms.month, nextPms.day);
-    final daysUntil = nextMidnight.difference(today).inDays;
-    if (daysUntil < 0) return 'Overdue';
-    if (daysUntil <= 30) return 'PMS Due Soon';
-    return 'Active';
-  }
 
   /// Updates the vehicle's odometer fields in Firestore immediately when a
   /// maintenance record is saved (Pending status), so the odo column stays current.
