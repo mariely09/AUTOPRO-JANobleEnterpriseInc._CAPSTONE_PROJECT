@@ -785,7 +785,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                     const SizedBox(height: 16),
                     // ── Odometer Reading ──
                     TextField(controller: odoCtrl, keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Odometer Reading (km)', border: OutlineInputBorder(), suffixText: 'km', hintText: 'e.g. 45000 (optional)')),
+                      decoration: const InputDecoration(labelText: 'Odometer Reading (km)', border: OutlineInputBorder(), suffixText: 'km', hintText: 'e.g. 45000')),
                     const SizedBox(height: 16),
                     // ── Vehicle Issues ──
                     const Text('Vehicle Issues', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF4a5568))),
