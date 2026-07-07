@@ -24,13 +24,12 @@ class AdminServiceBookingsBody extends StatefulWidget {
 }
 
 class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
-  static const _red = Color(0xFFE8001C);
   static const _blue = Color(0xFF003087);
   static const _months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   String _filter = 'all'; // 'all', 'Approved', 'Rescheduled', 'Dismissed'
   final _searchCtrl = TextEditingController();
-  String _searchQuery = '';
+  final String _searchQuery = '';
 
   @override
   void dispose() {
@@ -51,14 +50,14 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
           decoration: BoxDecoration(
-            color: isActive ? color.withOpacity(0.08) : Colors.white,
+            color: isActive ? color.withValues(alpha: 0.08) : Colors.white,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: isActive ? color : Colors.transparent, width: 1.5),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)]),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
           child: Column(children: [
             Container(
               width: 30, height: 30,
-              decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
               child: Icon(icon, color: color, size: 15),
             ),
             const SizedBox(height: 5),
@@ -137,7 +136,7 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
               : ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (_, i) => _buildCard(filtered[i]['docId'] as String, filtered[i]),
                 ),
           ),
@@ -183,7 +182,7 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // Header: plate + status badge
@@ -195,7 +194,7 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
             ])),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
               child: Text(statusLabel, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor)),
             ),
           ]),
@@ -260,10 +259,46 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
     final plate = data['plate'] as String? ?? '';
     final services = data['services'] as List? ?? [];
     final preferredDate = data['preferredDate'] as String? ?? '';
-    
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.play_circle_outline, color: Color(0xFF38a169), size: 22),
+          SizedBox(width: 8),
+          Text('Start Service', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Begin service for vehicle $plate?',
+              style: const TextStyle(fontSize: 14, color: Color(0xFF1a202c))),
+          const SizedBox(height: 6),
+          const Text('This will mark the booking as In Progress and open the maintenance form.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF718096))),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF38a169),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Yes, Start'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
     // Update booking status to "In Progress"
     await FirebaseFirestore.instance.collection('service_bookings').doc(docId).update({'status': 'In Progress'});
-    
+
     if (mounted) {
       // Navigate to Vehicle Maintenance with booking data auto-filled
       Navigator.push(context, MaterialPageRoute(
@@ -558,7 +593,7 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _blue, foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    disabledBackgroundColor: _blue.withOpacity(0.4),
+                    disabledBackgroundColor: _blue.withValues(alpha: 0.4),
                   ),
                   child: const Text('Confirm', style: TextStyle(fontWeight: FontWeight.w700)),
                 )),
@@ -635,7 +670,7 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
             color: bg,
             borderRadius: BorderRadius.circular(8),
             border: border,
-            boxShadow: isSelected ? [BoxShadow(color: _blue.withOpacity(0.3), blurRadius: 6)] : null,
+            boxShadow: isSelected ? [BoxShadow(color: _blue.withValues(alpha: 0.3), blurRadius: 6)] : null,
           ),
           child: Center(child: Text('$d', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textColor))),
         ),
@@ -745,7 +780,7 @@ class _BookingDetailsSheet extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20)),
                   child: Text(statusLabel,
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: statusColor)),
@@ -827,7 +862,7 @@ class _BookingDetailsSheet extends StatelessWidget {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _green,
                           foregroundColor: Colors.white,
-                          disabledBackgroundColor: _green.withOpacity(0.35),
+                          disabledBackgroundColor: _green.withValues(alpha: 0.35),
                           disabledForegroundColor: Colors.white70,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
