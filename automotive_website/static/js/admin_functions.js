@@ -624,7 +624,7 @@ function renderServicesList() {
             + '<div><strong>' + (s.assetNum||'-') + '</strong></div>'
             + '<div>' + (s.assetDescription||'-') + '</div>'
             + '<div>' + (s.mechanicName||'-') + '</div>'
-            + '<div>₱' + ((s.totalCost||0).toLocaleString()) + '</div>'
+            + '<div>₱' + ((s.totalCost||0).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})) + '</div>'
             + '<div>' + statusBadge + '</div>'
             + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;">' + topActions + '</div>'
             + '</div>';
