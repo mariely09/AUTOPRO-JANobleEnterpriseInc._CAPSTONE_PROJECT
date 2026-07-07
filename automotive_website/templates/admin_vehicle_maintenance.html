@@ -68,7 +68,7 @@
         </div>
 
         <div class="admin-content">
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem;">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem;">
                 <div class="stat-card" onclick="svcSetFilter('all',document.querySelector('#svcFilterPills .dss-pill:first-child'))" style="cursor:pointer;">
                     <div class="stat-icon" style="background:rgba(0,48,135,0.10);color:#003087;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -76,26 +76,19 @@
                     <div class="stat-number" id="totalServices" style="color:#003087;">0</div>
                     <div class="stat-label">Total Services</div>
                 </div>
-                <div class="stat-card" onclick="svcSetFilter('Ongoing',document.querySelectorAll('#svcFilterPills .dss-pill')[2])" style="cursor:pointer;">
+                <div class="stat-card" onclick="svcSetFilter('Ongoing',document.querySelectorAll('#svcFilterPills .dss-pill')[1])" style="cursor:pointer;">
                     <div class="stat-icon orange">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                     </div>
                     <div class="stat-number" id="ongoingServices">0</div>
                     <div class="stat-label">Ongoing</div>
                 </div>
-                <div class="stat-card" onclick="svcSetFilter('Completed',document.querySelectorAll('#svcFilterPills .dss-pill')[3])" style="cursor:pointer;">
+                <div class="stat-card" onclick="svcSetFilter('Completed',document.querySelectorAll('#svcFilterPills .dss-pill')[2])" style="cursor:pointer;">
                     <div class="stat-icon green">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                     </div>
                     <div class="stat-number" id="completedServices">0</div>
                     <div class="stat-label">Completed</div>
-                </div>
-                <div class="stat-card" onclick="svcSetFilter('Pending',document.querySelectorAll('#svcFilterPills .dss-pill')[1])" style="cursor:pointer;">
-                    <div class="stat-icon" style="background:rgba(113,128,150,0.10);color:#718096;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    </div>
-                    <div class="stat-number" id="pendingServices" style="color:#718096;">0</div>
-                    <div class="stat-label">Pending</div>
                 </div>
             </div>
 
@@ -107,10 +100,6 @@
                         <button class="dss-pill active" onclick="svcSetFilter('all',this)">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
                             All
-                        </button>
-                        <button class="dss-pill dss-pill--pending" onclick="svcSetFilter('Pending',this)">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            Pending
                         </button>
                         <button class="dss-pill dss-pill--thisweek" onclick="svcSetFilter('Ongoing',this)">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
@@ -174,10 +163,6 @@
         </div>
         <!-- Footer actions -->
         <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
-            <button id="svcDetailApproveBtn" style="display:none;flex:1;padding:0.75rem;background:#d69e2e;border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;align-items:center;justify-content:center;gap:0.4rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                Approve — Ongoing
-            </button>
             <button id="svcDetailCompleteBtn" style="display:none;flex:1;padding:0.75rem;background:#38a169;border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;align-items:center;justify-content:center;gap:0.4rem;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/><polyline points="20 6 9 17 4 12"/><path d="M4 12l5 5L20 6"/><path d="M9 17l-5-5"/></svg>
                 Mark as Completed
@@ -1077,25 +1062,11 @@ window._svcViewDetails = function(docId) {
       }).join('');
     } else { matSec.style.display = 'none'; }
 
-    // Action buttons — mirror mobile logic
-    var approveBtn = document.getElementById('svcDetailApproveBtn');
+    // Action buttons — mirror mobile logic (no Pending state anymore)
     var completeBtn = document.getElementById('svcDetailCompleteBtn');
     var editBtn = document.getElementById('svcDetailEditBtn');
-    approveBtn.style.display = statusLower === 'pending' ? 'flex' : 'none';
     completeBtn.style.display = statusLower === 'ongoing' ? 'flex' : 'none';
     editBtn.style.display = statusLower !== 'completed' ? 'flex' : 'none';
-
-    approveBtn.onclick = function() {
-      if (!confirm('Approve service for ' + s.plate + ' and set status to Ongoing?')) return;
-      db.collection('maintenance').doc(docId).update({ status: 'Ongoing' }).then(function() {
-        // Update vehicle status to Under Maintenance
-        db.collection('vehicles').where('plate', '==', (s.plate||'').trim().toUpperCase()).limit(1).get().then(function(vSnap) {
-          if (!vSnap.empty) vSnap.docs[0].ref.update({ status: 'Under Maintenance' });
-        });
-        closeModal('svcDetailsModal');
-        showToast('Service approved — status set to Ongoing!', 'success');
-      }).catch(function(err) { showToast('Error: ' + err.message, 'error'); });
-    };
 
     completeBtn.onclick = function() {
       if (!confirm('Mark service for ' + s.plate + ' as Completed?')) return;
@@ -1246,27 +1217,34 @@ function svcSave() {
       .catch(function(err) { showToast('Update failed: ' + err.message, 'error'); })
       .finally(function() { if (sBtn) { sBtn.disabled = false; sBtn.innerHTML = sBtnOrigHtml; } });
   } else {
-    data.status = 'Pending';
+    data.status = 'Ongoing';
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     // Link to service booking if created from one
     if (window._svcFromBookingId) {
       data.bookingId = window._svcFromBookingId;
     }
-    // Check for existing Pending/Ongoing service for this plate
+    // Check for existing Ongoing service for this plate
     db.collection('maintenance')
       .where('plate', '==', plate)
-      .where('status', 'in', ['Pending', 'Ongoing'])
+      .where('status', 'in', ['Ongoing'])
       .limit(1).get()
       .then(function(snap) {
         if (!snap.empty) {
-          showToast('This vehicle already has a Pending or Ongoing service. Complete or cancel it first.', 'error');
+          showToast('This vehicle already has an Ongoing service. Complete or cancel it first.', 'error');
           if (sBtn) { sBtn.disabled = false; sBtn.innerHTML = sBtnOrigHtml; }
           return;
         }
-        return db.collection('maintenance').add(data);
-      })
-      .then(function(ref) {
-        if (ref) { _updateVehicleOdometer(); closeModal('svcAddModal'); showToast('Service added successfully!', 'success'); }
+        return db.collection('maintenance').add(data).then(function(ref) {
+          if (ref) {
+            _updateVehicleOdometer();
+            // Set vehicle status to Under Maintenance immediately
+            db.collection('vehicles').where('plate', '==', plate).limit(1).get().then(function(vSnap) {
+              if (!vSnap.empty) vSnap.docs[0].ref.update({ status: 'Under Maintenance' });
+            }).catch(function() {});
+            closeModal('svcAddModal');
+            showToast('Service added successfully!', 'success');
+          }
+        });
       })
       .catch(function(err) { showToast('Save failed: ' + err.message, 'error'); })
       .finally(function() { if (sBtn) { sBtn.disabled = false; sBtn.innerHTML = sBtnOrigHtml; } });

@@ -486,7 +486,6 @@
     _setStat('totalServices', services.length);
     _setStat('ongoingServices',   services.filter(s => (s.status||'').toLowerCase() === 'ongoing').length);
     _setStat('completedServices', services.filter(s => (s.status||'').toLowerCase() === 'completed').length);
-    _setStat('pendingServices',   services.filter(s => (s.status||'').toLowerCase() === 'pending').length);
   }
 
   function _updateInventoryStats() {

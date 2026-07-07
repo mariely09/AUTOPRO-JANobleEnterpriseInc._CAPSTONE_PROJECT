@@ -607,13 +607,12 @@ function renderServicesList() {
         var statusColors = {
             'completed': { bg: 'rgba(56,161,105,0.1)', color: '#38a169' },
             'ongoing':   { bg: 'rgba(214,158,46,0.1)', color: '#d69e2e' },
-            'pending':   { bg: 'rgba(113,128,150,0.1)', color: '#718096' },
         };
-        var sc = statusColors[(s.status||'').toLowerCase()] || statusColors['pending'];
-        var statusLabel = s.status ? s.status.charAt(0).toUpperCase()+s.status.slice(1) : 'Pending';
+        var sc = statusColors[(s.status||'').toLowerCase()] || { bg: 'rgba(214,158,46,0.1)', color: '#d69e2e' };
+        var statusLabel = s.status ? s.status.charAt(0).toUpperCase()+s.status.slice(1) : 'Ongoing';
         var statusBadge = '<span style="background:' + sc.bg + ';color:' + sc.color + ';padding:0.25rem 0.75rem;border-radius:20px;font-size:0.78rem;font-weight:700;">' + statusLabel + '</span>';
         var topActions = '<button class="btn-small btn-primary" onclick="viewServiceDetails(\''+s.serviceId+'\')" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>';
-        if (s.status === 'pending' || s.status === 'ongoing') {
+        if (s.status === 'ongoing') {
             topActions += '<button class="btn-small btn-secondary" onclick="svcEditFromList(\''+s.serviceId+'\')" title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
         } else {
             topActions += '<button class="btn-small btn-secondary" disabled title="Cannot edit completed service" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.4;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
@@ -639,7 +638,6 @@ function updateServiceStats() {
     s('totalServices', serviceTransactions.length);
     s('ongoingServices', serviceTransactions.filter(function(x){ return x.status==='ongoing'; }).length);
     s('completedServices', serviceTransactions.filter(function(x){ return x.status==='completed'; }).length);
-    s('pendingServices', serviceTransactions.filter(function(x){ return x.status==='pending'; }).length);
 }
 
 function approveService(serviceId) {
