@@ -17,6 +17,7 @@ class _StaffInventoryState extends State<StaffInventory> {
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
   bool _searching = false;
+  String _statusFilter = 'all'; // 'all', 'Low', 'OK'
 
   CollectionReference get _db => FirebaseFirestore.instance.collection(_stockCol);
 
@@ -143,6 +144,11 @@ class _StaffInventoryState extends State<StaffInventory> {
                   (i['num'] as String).toLowerCase().contains(_searchQuery) ||
                   (i['group'] as String).toLowerCase().contains(_searchQuery)).toList();
 
+          // Apply status filter
+          final afterStatusFilter = _statusFilter == 'all'
+              ? filtered
+              : filtered.where((i) => i['status'] == _statusFilter).toList();
+
           final total = items.length;
           final lowCount = items.where((i) => i['status'] == 'Low').length;
           final inStock = items.where((i) => i['status'] == 'OK').length;
@@ -151,21 +157,21 @@ class _StaffInventoryState extends State<StaffInventory> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Row(children: [
-                _statChip('Total Items', '$total', Colors.blue),
+                _statChip('Total Items', '$total', Colors.blue, 'all'),
                 const SizedBox(width: 8),
-                _statChip('Low Stock', '$lowCount', _red),
+                _statChip('Low Stock', '$lowCount', _red, 'Low'),
                 const SizedBox(width: 8),
-                _statChip('In Stock', '$inStock', Colors.green),
+                _statChip('In Stock', '$inStock', Colors.green, 'OK'),
               ]),
             ),
             Expanded(
-              child: filtered.isEmpty
+              child: afterStatusFilter.isEmpty
                 ? const Center(child: Text('No items found.', style: TextStyle(color: Color(0xFF718096))))
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
-                    itemCount: filtered.length,
+                    itemCount: afterStatusFilter.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _stockCard(filtered[i]),
+                    itemBuilder: (_, i) => _stockCard(afterStatusFilter[i]),
                   ),
             ),
           ]);
@@ -173,43 +179,39 @@ class _StaffInventoryState extends State<StaffInventory> {
       );
   }
 
-  Widget _statChip(String label, String value, Color color) {
+  Widget _statChip(String label, String value, Color color, String filter) {
     IconData icon;
     switch (label) {
-      case 'Total Items':
-        icon = Icons.inventory_2_outlined;
-        break;
-      case 'Low Stock':
-        icon = Icons.warning_amber_outlined;
-        break;
-      case 'In Stock':
-        icon = Icons.check_circle_outline;
-        break;
-      default:
-        icon = Icons.info_outline;
-        break;
+      case 'Total Items': icon = Icons.inventory_2_outlined; break;
+      case 'Low Stock':   icon = Icons.warning_amber_outlined; break;
+      case 'In Stock':    icon = Icons.check_circle_outline; break;
+      default:            icon = Icons.info_outline;
     }
-
+    final isActive = _statusFilter == filter;
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
-        ),
-        child: Column(children: [
-          Container(
-            width: 32, height: 32,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, color: color, size: 16),
+      child: GestureDetector(
+        onTap: () => setState(() => _statusFilter = _statusFilter == filter ? 'all' : filter),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            color: isActive ? color.withValues(alpha: 0.08) : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isActive ? color : Colors.transparent, width: 1.5),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)],
           ),
-          const SizedBox(height: 6),
-          Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-          Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
-        ]),
+          child: Column(children: [
+            Container(
+              width: 32, height: 32,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8)),
+              child: Icon(icon, color: color, size: 16),
+            ),
+            const SizedBox(height: 6),
+            Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+            Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+          ]),
+        ),
       ),
     );
   }
