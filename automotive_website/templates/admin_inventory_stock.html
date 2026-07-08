@@ -628,10 +628,10 @@ function viewInventoryItem(id) {
         + _invRow('Item Name', item.itemName)
         + _invRow('Commodity Group', item.commodityGroup || '—')
         + _invRow('UOM', item.unit || '—')
-        + _invRow('Current Stock', item.stock + ' ' + (item.unit||''))
-        + _invRow('Min Level', item.minLevel + ' ' + (item.unit||''))
-        + _invRow('Max Level', item.maxLevel + ' ' + (item.unit||''))
-        + _invRow('Reorder Qty', (item.reorderQty||0) + ' ' + (item.unit||''))
+        + _invRow('Current Stock', String(item.stock))
+        + _invRow('Min Level', String(item.minLevel))
+        + _invRow('Max Level', String(item.maxLevel))
+        + _invRow('Reorder Qty', String(item.reorderQty||0))
         + _invRow('Status', '<span style="font-weight:700;color:' + barColor + ';">' + statusLabel + '</span>')
         + '</div>';
 
