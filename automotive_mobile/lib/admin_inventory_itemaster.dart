@@ -31,6 +31,7 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
   static const _col = 'item_master';
 
   String _searchQuery = '';
+  String _typeFilter = 'all'; // 'all', 'Material', 'Service'
 
   CollectionReference get _db => FirebaseFirestore.instance.collection(_col);
 
@@ -107,6 +108,11 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
                   i['num']!.toLowerCase().contains(activeQuery) ||
                   i['group']!.toLowerCase().contains(activeQuery)).toList();
 
+          // Apply type filter
+          final afterTypeFilter = _typeFilter == 'all'
+              ? filtered
+              : filtered.where((i) => i['type'] == _typeFilter).toList();
+
           final total = items.length;
           final materials = items.where((i) => i['type'] == 'Material').length;
           final services = items.where((i) => i['type'] == 'Service').length;
@@ -115,21 +121,21 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Row(children: [
-                _statChip('Total Items', '$total', Colors.blue, Icons.list_alt_outlined),
+                _statChip('Total Items', '$total', Colors.blue, Icons.list_alt_outlined, 'all'),
                 const SizedBox(width: 8),
-                _statChip('Materials', '$materials', _red, Icons.inventory_2_outlined),
+                _statChip('Materials', '$materials', _red, Icons.inventory_2_outlined, 'Material'),
                 const SizedBox(width: 8),
-                _statChip('Services', '$services', const Color(0xFF003087), Icons.build_outlined),
+                _statChip('Services', '$services', const Color(0xFF003087), Icons.build_outlined, 'Service'),
               ]),
             ),
             Expanded(
-              child: filtered.isEmpty
+              child: afterTypeFilter.isEmpty
                 ? const Center(child: Text('No items found.', style: TextStyle(color: Color(0xFF718096))))
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
-                    itemCount: filtered.length,
+                    itemCount: afterTypeFilter.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _itemCard(filtered[i]),
+                    itemBuilder: (_, i) => _itemCard(afterTypeFilter[i]),
                   ),
             ),
           ]);
@@ -148,22 +154,29 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
     ]);
   }
 
-  Widget _statChip(String label, String value, Color color, IconData icon) {
+  Widget _statChip(String label, String value, Color color, IconData icon, String filter) {
+    final isActive = _typeFilter == filter;
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)]),
-        child: Column(children: [
-          Container(
-            width: 32, height: 32,
-            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, color: color, size: 16),
-          ),
-          const SizedBox(height: 6),
-          Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-          Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
-        ]),
+      child: GestureDetector(
+        onTap: () => setState(() => _typeFilter = _typeFilter == filter ? 'all' : filter),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            color: isActive ? color.withValues(alpha: 0.08) : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isActive ? color : Colors.transparent, width: 1.5),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
+          child: Column(children: [
+            Container(
+              width: 32, height: 32,
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+              child: Icon(icon, color: color, size: 16),
+            ),
+            const SizedBox(height: 6),
+            Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+            Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+          ]),
+        ),
       ),
     );
   }

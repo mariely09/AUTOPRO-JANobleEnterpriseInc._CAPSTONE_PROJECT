@@ -42,6 +42,8 @@ class _AdminInventoryStockBodyState extends State<AdminInventoryStockBody> {
   static const _stockCol = 'stock_inventory';
   static const _masterCol = 'item_master';
 
+  String _statusFilter = 'all'; // 'all', 'Low', 'OK'
+
   CollectionReference get _db =>
       FirebaseFirestore.instance.collection(_stockCol);
   CollectionReference get _masterDb =>
@@ -135,6 +137,11 @@ class _AdminInventoryStockBodyState extends State<AdminInventoryStockBody> {
                             .contains(q))
                     .toList();
 
+            // Apply status filter
+            final afterStatusFilter = _statusFilter == 'all'
+                ? filtered
+                : filtered.where((i) => i['status'] == _statusFilter).toList();
+
             final total = items.length;
             final lowCount =
                 items.where((i) => i['status'] == 'Low').length;
@@ -144,31 +151,31 @@ class _AdminInventoryStockBodyState extends State<AdminInventoryStockBody> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Row(children: [
                   _statChip('Total Items', '$total', Colors.blue,
-                      Icons.inventory_2_outlined),
+                      Icons.inventory_2_outlined, 'all'),
                   const SizedBox(width: 8),
                   _statChip('Low Stock', '$lowCount', _red,
-                      Icons.warning_amber_outlined),
+                      Icons.warning_amber_outlined, 'Low'),
                   const SizedBox(width: 8),
                   _statChip(
                       'In Stock',
                       '${items.where((i) => i['status'] == 'OK').length}',
                       Colors.green,
-                      Icons.check_circle_outline),
+                      Icons.check_circle_outline, 'OK'),
                 ]),
               ),
               Expanded(
-                child: filtered.isEmpty
+                child: afterStatusFilter.isEmpty
                     ? const Center(
                         child: Text('No items found.',
                             style:
                                 TextStyle(color: Color(0xFF718096))))
                     : ListView.separated(
                         padding: const EdgeInsets.all(16),
-                        itemCount: filtered.length,
+                        itemCount: afterStatusFilter.length,
                         separatorBuilder: (_, __) =>
                             const SizedBox(height: 10),
                         itemBuilder: (_, i) =>
-                            _stockCard(filtered[i]),
+                            _stockCard(afterStatusFilter[i]),
                       ),
               ),
             ]);
@@ -190,36 +197,41 @@ class _AdminInventoryStockBodyState extends State<AdminInventoryStockBody> {
   }
 
 
-  Widget _statChip(String label, String value, Color color, IconData icon) {
+  Widget _statChip(String label, String value, Color color, IconData icon, String filter) {
+    final isActive = _statusFilter == filter;
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withOpacity(0.04), blurRadius: 6)
-            ]),
-        child: Column(children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, color: color, size: 16),
-          ),
-          const SizedBox(height: 6),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: color)),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 10, color: Color(0xFF718096))),
-        ]),
+      child: GestureDetector(
+        onTap: () => setState(() => _statusFilter = _statusFilter == filter ? 'all' : filter),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+              color: isActive ? color.withValues(alpha: 0.08) : Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: isActive ? color : Colors.transparent, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)
+              ]),
+          child: Column(children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Icon(icon, color: color, size: 16),
+            ),
+            const SizedBox(height: 6),
+            Text(value,
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: color)),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 10, color: Color(0xFF718096))),
+          ]),
+        ),
       ),
     );
   }
