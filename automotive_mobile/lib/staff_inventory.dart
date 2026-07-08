@@ -242,12 +242,14 @@ class _StaffInventoryState extends State<StaffInventory> {
           Row(children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(item['name'] as String, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              Text('${item['group']}', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+              Text('${item['group']}  •  ${item['uom']}', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('$stock ${item['uom']}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: barColor)),
+              Text('$stock', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: barColor)),
               Text(statusLabel, style: TextStyle(fontSize: 10, color: barColor, fontWeight: FontWeight.w500)),
             ]),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 18, color: Color(0xFFa0aec0)),
           ]),
           const SizedBox(height: 10),
           ClipRRect(
@@ -300,11 +302,12 @@ class _StaffInventoryState extends State<StaffInventory> {
                 _detailRow('Item Number', item['num'] as String),
                 _detailRow('Item Name', item['name'] as String),
                 _detailRow('Commodity Group', item['group'] as String),
+                _detailRow('UOM', item['uom'] as String),
                 _detailRow('Current Stock', '${item['stock']}'),
                 _detailRow('Min Level', '${item['min']}'),
                 _detailRow('Max Level', '${item['max']}'),
                 _detailRow('Reorder Qty', '${item['reorder']}'),
-                _detailRow('Status', item['status'] as String),
+                _detailRow('Status', item['status'] == 'OK' ? 'In Stock' : item['status'] as String),
                 const SizedBox(height: 16),
               ]),
             ),

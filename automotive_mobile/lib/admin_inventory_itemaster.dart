@@ -216,7 +216,7 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(_fmtCost(item['cost']!),
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: typeColor)),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1a202c))),
           ]),
           const SizedBox(width: 6),
           const Icon(Icons.chevron_right, size: 18, color: Color(0xFFa0aec0)),
@@ -262,7 +262,7 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
                 _detailRow('Description', item['desc']?.isNotEmpty == true ? item['desc']! : '—'),
                 _detailRow('Commodity Group', item['group']?.isNotEmpty == true ? item['group']! : '—'),
                 _detailRow('UOM', item['uom']?.isNotEmpty == true ? item['uom']! : '—'),
-                _detailRow('Cost', item['cost'] ?? '—'),
+                _detailRow('Cost', _fmtCost(item['cost'] ?? '')),
                 _detailRow('Type', item['type'] ?? '—'),
                 if (!isSvc) ...[
                   const Divider(height: 24),

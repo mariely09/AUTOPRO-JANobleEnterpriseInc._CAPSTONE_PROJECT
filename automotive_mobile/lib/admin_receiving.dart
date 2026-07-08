@@ -798,7 +798,10 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
       (existing?['items'] as List? ?? []).map((i) => Map<String, dynamic>.from(i as Map)),
     );
     Map<String, dynamic>? foundItem;
+    int? foundItemStock;
+    List<Map<String, dynamic>> searchResults = [];
     final expectedCtrl = TextEditingController();
+    bool saving = false;
 
     if (!mounted) return;
 
@@ -810,13 +813,27 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
         builder: (ctx, setModal) {
           void searchItem(String q) {
             final lower = q.trim().toLowerCase();
-            if (lower.isEmpty) { setModal(() => foundItem = null); return; }
-            final match = masterItems.firstWhere(
+            if (lower.isEmpty) {
+              setModal(() { foundItem = null; foundItemStock = null; searchResults = []; });
+              return;
+            }
+            final matches = masterItems.where(
               (i) => (i['name'] as String).toLowerCase().contains(lower) ||
                      (i['num']  as String).toLowerCase().contains(lower),
-              orElse: () => {},
-            );
-            setModal(() => foundItem = match.isNotEmpty ? match : null);
+            ).toList();
+            setModal(() { foundItem = null; foundItemStock = null; searchResults = matches; });
+          }
+
+          Future<void> selectItem(Map<String, dynamic> item) async {
+            final stockSnap = await FirebaseFirestore.instance
+                .collection('stock_inventory')
+                .where('num', isEqualTo: item['num'])
+                .limit(1)
+                .get();
+            final stock = stockSnap.docs.isNotEmpty
+                ? (stockSnap.docs.first['stock'] as num?)?.toInt()
+                : null;
+            setModal(() { foundItem = item; foundItemStock = stock; searchResults = []; });
           }
 
           return DraggableScrollableSheet(
@@ -845,35 +862,11 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                 ),
                 Padding(
                   padding: EdgeInsets.only(left: 20, right: 20, top: 20,
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+                    bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    // Date + Supplier
-                    Row(children: [
-                      Expanded(child: _field('Delivery Date *', child: TextField(
-                        controller: dateCtrl, readOnly: true,
-                        decoration: InputDecoration(
-                          border: const OutlineInputBorder(), isDense: true,
-                          suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
-                        ),
-                        onTap: () async {
-                          final today = DateTime.now();
-                          final initial = DateTime.tryParse(dateCtrl.text) ?? today;
-                          final picked = await showDatePicker(
-                            context: ctx,
-                            initialDate: initial.isBefore(today) ? today : initial,
-                            firstDate: today, lastDate: DateTime(2030),
-                            builder: (c, child) => Theme(data: Theme.of(c).copyWith(colorScheme: const ColorScheme.light(primary: _red)), child: child!),
-                          );
-                          if (picked != null) dateCtrl.text = picked.toIso8601String().split('T')[0];
-                        },
-                      ))),
-                    ]),
-                    const SizedBox(height: 10),
+                    // Supplier
                     _field('Supplier / Reference *', child: TextField(controller: supplierCtrl,
                       decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, hintText: 'e.g. HNP AutoParts'))),
-                    const SizedBox(height: 10),
-                    _field('Notes', child: TextField(controller: notesCtrl,
-                      decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, hintText: 'Optional notes'))),
                     const SizedBox(height: 16),
                     const Divider(),
                     const SizedBox(height: 12),
@@ -891,27 +884,77 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                         ),
                       )),
                     ]),
+                    if (searchResults.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFFe2e8f0)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Column(
+                          children: searchResults.asMap().entries.map((e) {
+                            final item = e.value;
+                            final isLast = e.key == searchResults.length - 1;
+                            return GestureDetector(
+                              onTap: () => selectItem(item),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: e.key == 0 ? const Radius.circular(10) : Radius.zero,
+                                    topRight: e.key == 0 ? const Radius.circular(10) : Radius.zero,
+                                    bottomLeft: isLast ? const Radius.circular(10) : Radius.zero,
+                                    bottomRight: isLast ? const Radius.circular(10) : Radius.zero,
+                                  ),
+                                  border: isLast ? null : const Border(bottom: BorderSide(color: Color(0xFFf0f4f8))),
+                                ),
+                                child: Row(children: [
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text(item['name'] as String,
+                                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1a202c))),
+                                    Text('${item['num']} · ${item['uom']}',
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                                  ])),
+                                  const Icon(Icons.chevron_right, size: 16, color: Color(0xFFa0aec0)),
+                                ]),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
                     if (foundItem != null) ...[
                       const SizedBox(height: 10),
                       Container(
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: const Color(0xFFebf8ff), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFF90cdf4))),
+                        decoration: BoxDecoration(color: const Color(0xFFFFF5F5), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFfeb2b2))),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Row(children: [
-                            const Icon(Icons.inventory_2_outlined, size: 16, color: _blue),
-                            const SizedBox(width: 8),
                             Expanded(child: Text(foundItem!['name'] as String, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13))),
+                            GestureDetector(
+                              onTap: () => setModal(() { foundItem = null; foundItemStock = null; searchCtrl.clear(); expectedCtrl.clear(); }),
+                              child: const Icon(Icons.close, size: 16, color: Color(0xFF718096)),
+                            ),
                           ]),
                           Text('${foundItem!['num']} · ${foundItem!['uom']}', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                          const SizedBox(height: 4),
+                          Text(
+                            foundItemStock != null ? 'Current stock: $foundItemStock' : 'Not in stock inventory',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: foundItemStock != null ? _red : const Color(0xFFa0aec0),
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           Row(children: [
                             Expanded(child: TextField(
                               controller: expectedCtrl,
                               keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: 'Expected Qty *',
-                                border: const OutlineInputBorder(), isDense: true,
-                                suffixText: foundItem!['uom'] as String,
+                              decoration: const InputDecoration(
+                                labelText: 'Order Qty *',
+                                border: OutlineInputBorder(), isDense: true,
                               ),
                             )),
                             const SizedBox(width: 10),
@@ -929,11 +972,12 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                                     'expectedQty': qty,
                                   });
                                   foundItem = null;
+                                  foundItemStock = null;
                                   searchCtrl.clear();
                                   expectedCtrl.clear();
                                 });
                               },
-                              style: ElevatedButton.styleFrom(backgroundColor: _blue, foregroundColor: Colors.white),
+                              style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
                               child: const Text('Add'),
                             ),
                           ]),
@@ -951,8 +995,18 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                         decoration: BoxDecoration(color: const Color(0xFFF7F8FA), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFe2e8f0))),
                         child: Row(children: [
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(e.value['itemName'] as String, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-                            Text('${e.value['itemNum']} · Expected: ${e.value['expectedQty']} ${e.value['uom']}',
+                            RichText(text: TextSpan(
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Color(0xFF1a202c)),
+                              children: [
+                                TextSpan(text: e.value['itemName'] as String),
+                                if ((e.value['uom'] as String? ?? '').isNotEmpty)
+                                  TextSpan(
+                                    text: ' (${e.value['uom']})',
+                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: Color(0xFF718096)),
+                                  ),
+                              ],
+                            )),
+                            Text('${e.value['itemNum']} · Order Qty: ${e.value['expectedQty']}',
                               style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
                           ])),
                           GestureDetector(
@@ -965,9 +1019,10 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                     const SizedBox(height: 20),
                     Row(children: [
                       Expanded(child: ElevatedButton(
-                        onPressed: () async {
-                          if (dateCtrl.text.isEmpty || supplierCtrl.text.trim().isEmpty) return;
+                        onPressed: saving ? null : () async {
+                          if (supplierCtrl.text.trim().isEmpty) return;
                           if (addedItems.isEmpty) return;
+                          setModal(() => saving = true);
                           final data = <String, dynamic>{
                             'date': dateCtrl.text,
                             'supplier': supplierCtrl.text.trim(),
@@ -985,11 +1040,12 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
                               ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                                content: Text(isEdit ? 'Delivery updated!' : 'Delivery created!'),
+                                content: Text(isEdit ? 'Delivery updated successfully!' : 'Delivery created successfully!'),
                                 backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                             }
                           } catch (e) {
+                            setModal(() => saving = false);
                             if (ctx.mounted) {
                               ScaffoldMessenger.of(ctx).showSnackBar(
                                 SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
@@ -997,10 +1053,14 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                           }
                         },
                         style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.save_outlined, size: 16), const SizedBox(width: 6),
-                          Text(isEdit ? 'Update' : 'Save Delivery'),
-                        ]),
+                        child: saving
+                          ? const SizedBox(
+                              width: 18, height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Row(mainAxisSize: MainAxisSize.min, children: [
+                              const Icon(Icons.save_outlined, size: 16), const SizedBox(width: 6),
+                              Text(isEdit ? 'Update' : 'Save Delivery'),
+                            ]),
                       )),
                     ]),
                   ]),
@@ -1045,6 +1105,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
         TextEditingController(text: '${items[i]['expectedQty'] ?? 0}'));
     final conditionList = List<String>.filled(items.length, 'OK');
     final remarkCtrlrs = List.generate(items.length, (_) => TextEditingController());
+    bool submittingReceive = false;
 
     showModalBottomSheet(
       context: context, isScrollControlled: true,
@@ -1124,8 +1185,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                   const SizedBox(height: 20),
                   Row(children: [
                     Expanded(flex: 2, child: ElevatedButton.icon(
-                      onPressed: () async {
+                      onPressed: submittingReceive ? null : () async {
                         if (receivedByCtrl.text.trim().isEmpty) return;
+                        setModal(() => submittingReceive = true);
                         final updatedItems = items.asMap().entries.map((e) {
                           final i = e.key;
                           return {
@@ -1149,14 +1211,17 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                               backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating));
                           }
                         } catch (err) {
+                          setModal(() => submittingReceive = false);
                           if (ctx.mounted) {
                             ScaffoldMessenger.of(ctx).showSnackBar(
                               SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red));
                           }
                         }
                       },
-                      icon: const Icon(Icons.check_circle_outline, size: 16),
-                      label: const Text('Submit for Double Check'),
+                      icon: submittingReceive
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.check_circle_outline, size: 16),
+                      label: Text(submittingReceive ? 'Submitting...' : 'Submit for Double Check'),
                       style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
                     )),
                   ]),
@@ -1277,14 +1342,16 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
     final items = List<Map<String, dynamic>>.from(
       (delivery['items'] as List? ?? []).map((i) => Map<String, dynamic>.from(i as Map)),
     );
+    bool submittingReview = false;
 
     showModalBottomSheet(
       context: context, isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => DraggableScrollableSheet(
-        expand: false, initialChildSize: 0.92, maxChildSize: 0.97,
-        builder: (_, ctrl) => SingleChildScrollView(
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setReview) => DraggableScrollableSheet(
+          expand: false, initialChildSize: 0.92, maxChildSize: 0.97,
+          builder: (_, ctrl) => SingleChildScrollView(
           controller: ctrl,
           child: Column(children: [
             // Header
@@ -1427,16 +1494,28 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                 if (!isReadOnly) ...[
                   Row(children: [
                     Expanded(child: OutlinedButton.icon(
-                      onPressed: () => _submitReview(delivery, 'Rejected', checkedByCtrl.text, notesCtrl.text),
-                      icon: const Icon(Icons.cancel_outlined, size: 16, color: Colors.red),
+                      onPressed: submittingReview ? null : () async {
+                        setReview(() => submittingReview = true);
+                        await _submitReview(delivery, 'Rejected', checkedByCtrl.text, notesCtrl.text);
+                        setReview(() => submittingReview = false);
+                      },
+                      icon: submittingReview
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red))
+                        : const Icon(Icons.cancel_outlined, size: 16, color: Colors.red),
                       label: const Text('Reject', style: TextStyle(color: Colors.red)),
                       style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
                     )),
                     const SizedBox(width: 12),
                     Expanded(flex: 2, child: ElevatedButton.icon(
-                      onPressed: () => _submitReview(delivery, 'Approved', checkedByCtrl.text, notesCtrl.text),
-                      icon: const Icon(Icons.check_circle_outline, size: 16),
-                      label: const Text('Approve & Update Stock'),
+                      onPressed: submittingReview ? null : () async {
+                        setReview(() => submittingReview = true);
+                        await _submitReview(delivery, 'Approved', checkedByCtrl.text, notesCtrl.text);
+                        setReview(() => submittingReview = false);
+                      },
+                      icon: submittingReview
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.check_circle_outline, size: 16),
+                      label: Text(submittingReview ? 'Processing...' : 'Approve & Update Stock'),
                       style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
                     )),
                   ]),
@@ -1451,7 +1530,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
           ]),
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _reviewCol(String label, String value, {Color? valueColor}) => Expanded(
@@ -1544,7 +1624,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
               await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).delete();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: const Text('Delivery deleted.'), backgroundColor: Colors.red,
+                  SnackBar(content: const Text('Delivery deleted successfully.'), backgroundColor: Colors.red,
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
               }

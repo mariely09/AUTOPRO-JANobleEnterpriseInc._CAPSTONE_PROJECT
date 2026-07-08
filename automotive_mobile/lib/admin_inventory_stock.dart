@@ -277,12 +277,12 @@ class _AdminInventoryStockBodyState extends State<AdminInventoryStockBody> {
                   Text(item['name'] as String,
                       style: const TextStyle(
                           fontWeight: FontWeight.w600, fontSize: 13)),
-                  Text('${item['group']}',
+                  Text('${item['group']}  •  ${item['uom']}',
                       style: const TextStyle(
                           fontSize: 11, color: Color(0xFF718096))),
                 ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('$stock ${item['uom']}',
+              Text('$stock',
                   style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -294,32 +294,7 @@ class _AdminInventoryStockBodyState extends State<AdminInventoryStockBody> {
                       fontWeight: FontWeight.w500)),
             ]),
             const SizedBox(width: 4),
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert,
-                  size: 18, color: Color(0xFF718096)),
-              onSelected: (val) {
-                if (val == 'edit') _showAddStockModal(item: item);
-                if (val == 'delete') _confirmDelete(item);
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(
-                    value: 'edit',
-                    child: Row(children: [
-                      Icon(Icons.edit_outlined, size: 16),
-                      SizedBox(width: 8),
-                      Text('Edit')
-                    ])),
-                PopupMenuItem(
-                    value: 'delete',
-                    child: Row(children: [
-                      Icon(Icons.delete_outline,
-                          size: 16, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Delete',
-                          style: TextStyle(color: Colors.red))
-                    ])),
-              ],
-            ),
+            const Icon(Icons.chevron_right, size: 18, color: Color(0xFFa0aec0)),
           ]),
           const SizedBox(height: 10),
           ClipRRect(
@@ -502,26 +477,24 @@ class _AdminInventoryStockBodyState extends State<AdminInventoryStockBody> {
                 _detailRow('Item Number', item['num'] as String),
                 _detailRow('Item Name', item['name'] as String),
                 _detailRow('Commodity Group', item['group'] as String),
+                _detailRow('UOM', item['uom'] as String),
                 _detailRow(
                     'Current Stock', '${item['stock']}'),
                 _detailRow('Min Level', '${item['min']}'),
                 _detailRow('Max Level', '${item['max']}'),
                 _detailRow(
                     'Reorder Qty', '${item['reorder']}'),
-                _detailRow('Status', item['status'] as String),
+                _detailRow('Status', item['status'] == 'OK' ? 'In Stock' : item['status'] as String),
                 const SizedBox(height: 16),
                 Row(children: [
                   Expanded(
-                      child: ElevatedButton.icon(
+                      child: OutlinedButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
                       _showAddStockModal(item: item);
                     },
                     icon: const Icon(Icons.edit_outlined, size: 16),
                     label: const Text('Edit'),
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: _red,
-                        foregroundColor: Colors.white),
                   )),
                   const SizedBox(width: 12),
                   Expanded(

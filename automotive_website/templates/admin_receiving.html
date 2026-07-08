@@ -201,40 +201,39 @@
     <!-- Body -->
     <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
 
-      <!-- Delivery meta -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-        <div class="form-group" style="margin:0;">
-          <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Delivery Date *</label>
-          <input type="date" id="ndDate" style="margin-top:0.3rem;width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;">
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Supplier / Reference *</label>
-          <input type="text" id="ndSupplier" placeholder="e.g. HNP AutoParts" style="margin-top:0.3rem;width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;">
-        </div>
-      </div>
+      <!-- Supplier only -->
       <div class="form-group" style="margin:0;">
-        <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Notes <span style="font-weight:400;color:#a0aec0;">(optional)</span></label>
-        <input type="text" id="ndNotes" placeholder="Additional notes..." style="margin-top:0.3rem;width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;">
+        <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Supplier / Reference *</label>
+        <input type="text" id="ndSupplier" placeholder="e.g. HNP AutoParts" style="margin-top:0.3rem;width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;">
       </div>
 
       <hr style="border:none;border-top:1px solid #e2e8f0;">
 
-      <!-- Item search � same as staffReceiveDeliveryModal -->
+      <!-- Item search -->
       <div style="display:flex;gap:0.5rem;">
-        <input type="text" id="ndItemSearch" placeholder="Search item..." style="flex:1;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.9rem;font-size:0.88rem;outline:none;" oninput="ndSearchMasterItem(this.value)">
+        <input type="text" id="ndItemSearch" placeholder="Search item name or number..." style="flex:1;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.9rem;font-size:0.88rem;outline:none;" oninput="ndSearchMasterItem(this.value)">
         <button onclick="ndSearchMasterItem(document.getElementById('ndItemSearch').value)" style="background:#E31E24;border:none;color:white;padding:0 1rem;border-radius:10px;cursor:pointer;font-size:0.85rem;font-weight:600;">Search</button>
       </div>
 
-      <!-- Found item card � same as deliveryItemInfo -->
-      <div id="ndItemPreview" style="display:none;background:white;border:1.5px solid #90cdf4;border-radius:12px;padding:1rem 1.25rem;">
-        <div style="margin-bottom:0.75rem;">
-          <div id="ndItemName" style="font-weight:700;font-size:0.92rem;color:#1a202c;"></div>
-          <div id="ndItemMeta" style="font-size:0.78rem;color:#718096;margin-top:0.1rem;"></div>
-          <div id="ndCurrentStock" style="font-size:0.78rem;color:#2c5282;font-weight:600;margin-top:0.1rem;"></div>
+      <!-- Search results list (shown while typing, before selection) -->
+      <div id="ndSearchResults" style="display:none;border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.06);"></div>
+
+      <!-- Found item card (shown after selecting from list) -->
+      <div id="ndItemPreview" style="display:none;background:#fff5f5;border:1.5px solid #feb2b2;border-radius:12px;padding:1rem 1.25rem;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.5rem;">
+          <div>
+            <div id="ndItemName" style="font-weight:700;font-size:0.92rem;color:#1a202c;"></div>
+            <div id="ndItemMeta" style="font-size:0.78rem;color:#718096;margin-top:0.1rem;"></div>
+            <div id="ndCurrentStock" style="font-size:0.78rem;font-weight:600;margin-top:0.2rem;"></div>
+          </div>
+          <button type="button" onclick="ndClearSelection()" style="background:none;border:none;color:#718096;cursor:pointer;font-size:1rem;line-height:1;padding:0 0 0 8px;">✕</button>
         </div>
-        <div class="form-group" style="margin:0;">
-          <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Expected Quantity *</label>
-          <input type="number" id="ndExpectedQty" min="1" placeholder="e.g. 50" style="margin-top:0.3rem;width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.9rem;outline:none;box-sizing:border-box;">
+        <div style="display:flex;gap:0.5rem;align-items:flex-end;">
+          <div style="flex:1;">
+            <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Order Qty *</label>
+            <input type="number" id="ndExpectedQty" min="1" placeholder="Enter quantity..." style="margin-top:0.3rem;width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.9rem;outline:none;box-sizing:border-box;">
+          </div>
+          <button type="button" onclick="ndAddCurrentItem()" style="background:#E31E24;border:none;color:white;padding:0.6rem 1.1rem;border-radius:8px;font-size:0.88rem;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">Add</button>
         </div>
       </div>
       <div id="ndNotFound" style="display:none;background:#fff5f5;border:1px solid #fed7d7;border-radius:10px;padding:0.75rem 1rem;font-size:0.83rem;color:#c53030;">No item found in Item Master.</div>
@@ -246,14 +245,6 @@
           <span id="ndAddedCount" style="font-size:0.75rem;color:#718096;"></span>
         </div>
         <div id="ndAddedItems" style="display:flex;flex-direction:column;gap:6px;"></div>
-      </div>
-
-      <!-- Add Item button (visible after item found) -->
-      <div id="ndAddBtnWrap" style="display:none;">
-        <button type="button" onclick="ndAddCurrentItem()" style="width:100%;background:#E31E24;border:none;color:white;padding:0.65rem;border-radius:10px;font-size:0.88rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add to Delivery
-        </button>
       </div>
 
     </div>
@@ -748,15 +739,12 @@ var _ndIdx = 0;
 window.openNewDeliveryModal = function() {
   _ndFoundItem = null; _ndItems = []; _ndIdx = 0;
   _currentEditDeliveryId = null;
-  var _todayStr = new Date().toISOString().split('T')[0];
-  document.getElementById('ndDate').value = _todayStr;
-  document.getElementById('ndDate').min   = _todayStr;
   document.getElementById('ndSupplier').value = '';
-  document.getElementById('ndNotes').value = '';
   document.getElementById('ndItemSearch').value = '';
+  document.getElementById('ndSearchResults').style.display = 'none';
+  document.getElementById('ndSearchResults').innerHTML = '';
   document.getElementById('ndItemPreview').style.display = 'none';
   document.getElementById('ndNotFound').style.display = 'none';
-  document.getElementById('ndAddBtnWrap').style.display = 'none';
   document.getElementById('ndAddedItemsWrap').style.display = 'none';
   document.getElementById('ndAddedItems').innerHTML = '';
   document.getElementById('newDeliveryModal').classList.add('active');
@@ -764,71 +752,98 @@ window.openNewDeliveryModal = function() {
 
 window.ndSearchMasterItem = function(query) {
   var q = (query || '').trim().toLowerCase();
+  var resultsEl  = document.getElementById('ndSearchResults');
   var previewEl  = document.getElementById('ndItemPreview');
   var notFoundEl = document.getElementById('ndNotFound');
-  var addBtnWrap = document.getElementById('ndAddBtnWrap');
 
   previewEl.style.display  = 'none';
   notFoundEl.style.display = 'none';
-  addBtnWrap.style.display = 'none';
   _ndFoundItem = null;
 
-  if (!q) return;
+  if (!q) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; return; }
 
-  // Search inventory first (existing stock), then item master cache
-  var inv = window.inventory || [];
   var masterList = _itemMasterCache.length ? _itemMasterCache : (window.itemMaster || []);
-
-  var found = inv.find(function(i) {
-    return (i.itemNum||i.num||'').toLowerCase() === q
-      || (i.itemName||i.name||'').toLowerCase().includes(q);
-  });
-
-  // If not in inventory, search item master
-  var fromMaster = false;
-  if (!found) {
-    var masterFound = masterList.find(function(i) {
-      return (i.num||i.itemNum||'').toLowerCase() === q
-        || (i.name||i.itemName||'').toLowerCase().includes(q)
-        || (i.barcode||'').toLowerCase() === q;
-    });
-    if (masterFound) {
-      found = {
-        itemNum:        masterFound.num  || masterFound.itemNum  || '',
-        itemName:       masterFound.name || masterFound.itemName || '',
-        commodityGroup: masterFound.commodityGroup || masterFound.group || '',
-        unit:           masterFound.uom  || masterFound.unit || '',
-        stock:          null
-      };
-      fromMaster = true;
-    }
+  if (!masterList.length) {
+    _loadItemMaster().then(function(){ ndSearchMasterItem(query); });
+    return;
   }
 
-  if (!found) {
-    if (!masterList.length) {
-      _loadItemMaster().then(function(){ ndSearchMasterItem(query); });
-      return;
-    }
+  var matches = masterList.filter(function(i) {
+    return (i.num||i.itemNum||'').toLowerCase().includes(q)
+        || (i.name||i.itemName||'').toLowerCase().includes(q);
+  });
+
+  if (!matches.length) {
+    resultsEl.style.display = 'none';
+    resultsEl.innerHTML = '';
     notFoundEl.style.display = 'block';
     return;
   }
 
-  _ndFoundItem = found;
-  document.getElementById('ndItemName').textContent = found.itemName || found.name || '�';
-  document.getElementById('ndItemMeta').textContent =
-    (found.itemNum || found.num || '') + (found.commodityGroup ? ' � ' + found.commodityGroup : '');
-  document.getElementById('ndCurrentStock').textContent = found.stock !== null && found.stock !== undefined
-    ? 'Current stock: ' + found.stock + ' ' + (found.unit || '')
-    : 'Not yet in inventory';
+  notFoundEl.style.display = 'none';
+  resultsEl.innerHTML = matches.map(function(item, idx) {
+    var isLast = idx === matches.length - 1;
+    return '<div onclick="ndSelectItem(' + idx + ')" '
+      + 'style="padding:12px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;'
+      + (isLast ? '' : 'border-bottom:1px solid #f0f4f8;')
+      + 'background:white;transition:background 0.12s;" '
+      + 'onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'white\'">'
+      + '<div style="flex:1;min-width:0;">'
+      +   '<div style="font-weight:600;font-size:0.88rem;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (item.name||item.itemName||'') + '</div>'
+      +   '<div style="font-size:0.75rem;color:#718096;margin-top:2px;">' + (item.num||item.itemNum||'') + (item.uom ? '&nbsp;&nbsp;·&nbsp;&nbsp;' + item.uom : '') + '</div>'
+      + '</div>'
+      + '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>'
+      + '</div>';
+  }).join('');
+  window._ndSearchMatches = matches;
+  resultsEl.style.display = 'block';
+};
+
+window.ndSelectItem = function(idx) {
+  var item = (window._ndSearchMatches || [])[idx];
+  if (!item) return;
+
+  var resultsEl = document.getElementById('ndSearchResults');
+  resultsEl.style.display = 'none';
+  resultsEl.innerHTML = '';
+
+  var num = item.num || item.itemNum || '';
+  db.collection('stock_inventory').where('num', '==', num).limit(1).get().then(function(snap) {
+    var stock = snap.empty ? null : (snap.docs[0].data().stock || 0);
+    _ndFoundItem = {
+      itemNum:  num,
+      itemName: item.name || item.itemName || '',
+      unit:     item.uom  || item.unit || '',
+      stock:    stock
+    };
+    document.getElementById('ndItemName').textContent = _ndFoundItem.itemName;
+    document.getElementById('ndItemMeta').textContent = num + (_ndFoundItem.unit ? ' \u00b7 ' + _ndFoundItem.unit : '');
+    var stockEl = document.getElementById('ndCurrentStock');
+    if (stock !== null) {
+      stockEl.textContent = 'Current stock: ' + stock;
+      stockEl.style.color = '#E8001C';
+    } else {
+      stockEl.textContent = 'Not in stock inventory';
+      stockEl.style.color = '#a0aec0';
+    }
+    document.getElementById('ndExpectedQty').value = '';
+    document.getElementById('ndItemPreview').style.display = 'block';
+  });
+};
+
+window.ndClearSelection = function() {
+  _ndFoundItem = null;
+  document.getElementById('ndItemSearch').value = '';
+  document.getElementById('ndItemPreview').style.display = 'none';
+  document.getElementById('ndSearchResults').style.display = 'none';
+  document.getElementById('ndSearchResults').innerHTML = '';
   document.getElementById('ndExpectedQty').value = '';
-  previewEl.style.display  = 'block';
-  addBtnWrap.style.display = 'block';
 };
 
 window.ndAddCurrentItem = function() {
   if (!_ndFoundItem) { showToast('Search and select an item first.', 'error'); return; }
   var qty = parseInt(document.getElementById('ndExpectedQty').value) || 0;
-  if (qty <= 0) { showToast('Expected quantity must be greater than 0.', 'error'); return; }
+  if (qty <= 0) { showToast('Order quantity must be greater than 0.', 'error'); return; }
 
   var num  = _ndFoundItem.itemNum || _ndFoundItem.num  || '';
   var name = _ndFoundItem.itemName || _ndFoundItem.name || '';
@@ -844,23 +859,21 @@ window.ndAddCurrentItem = function() {
 
   var row = document.createElement('div');
   row.id = 'ndAddedRow' + idx;
-  row.style.cssText = 'background:white;border:1.5px solid #90cdf4;border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;';
+  row.style.cssText = 'background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;';
   row.innerHTML =
     '<div style="flex:1;min-width:0;">'
-    + '<div style="font-weight:700;font-size:0.85rem;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + name + '</div>'
-    + '<div style="font-size:0.75rem;color:#718096;margin-top:1px;">' + num + ' &nbsp;�&nbsp; Expected: <strong>' + qty + ' ' + uom + '</strong></div>'
+    + '<div style="font-weight:700;font-size:0.85rem;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + name + (uom ? ' <span style="font-size:0.75rem;font-weight:500;color:#718096;">(' + uom + ')</span>' : '') + '</div>'
+    + '<div style="font-size:0.75rem;color:#718096;margin-top:1px;">' + num + ' &nbsp;\u00b7&nbsp; Order Qty: <strong>' + qty + '</strong></div>'
     + '</div>'
-    + '<button type="button" onclick="ndRemoveItem(' + idx + ')" style="background:none;border:none;color:#e53e3e;cursor:pointer;font-size:1rem;flex-shrink:0;padding:2px 6px;">?</button>';
+    + '<button type="button" onclick="ndRemoveItem(' + idx + ')" style="background:none;border:none;color:#e53e3e;cursor:pointer;font-size:1rem;flex-shrink:0;padding:2px 6px;">\u2715</button>';
   document.getElementById('ndAddedItems').appendChild(row);
 
-  // Update count label and show wrapper
   document.getElementById('ndAddedCount').textContent = _ndItems.length + ' item' + (_ndItems.length !== 1 ? 's' : '');
   document.getElementById('ndAddedItemsWrap').style.display = 'flex';
 
   // Reset for next item
   document.getElementById('ndItemSearch').value = '';
   document.getElementById('ndItemPreview').style.display  = 'none';
-  document.getElementById('ndAddBtnWrap').style.display   = 'none';
   document.getElementById('ndExpectedQty').value = '';
   _ndFoundItem = null;
   showToast(name + ' added.', 'success');
@@ -877,16 +890,18 @@ window.ndRemoveItem = function(idx) {
 };
 
 window.saveNewDelivery = function() {
-  var date=document.getElementById('ndDate').value;
   var supplier=document.getElementById('ndSupplier').value.trim();
-  if(!date||!supplier){showToast('Please fill in date and supplier.','error');return;}
+  if(!supplier){showToast('Please fill in the supplier.','error');return;}
   if(!_ndItems.length){showToast('Add at least one item.','error');return;}
   var items=_ndItems.map(function(i){return{itemNum:i.itemNum,itemName:i.itemName,uom:i.uom,expectedQty:i.expectedQty};});
-  var btn=document.getElementById('ndSaveBtn'); btn.disabled=true;
-  var data = { date:date, supplier:supplier, notes:document.getElementById('ndNotes').value.trim(), items:items };
+  var btn=document.getElementById('ndSaveBtn');
+  btn.disabled=true;
+  btn.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite;flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving...</span>';
+  var data = { supplier:supplier, items:items };
 
+  var isEdit = !!_currentEditDeliveryId;
   var promise;
-  if (_currentEditDeliveryId) {
+  if (isEdit) {
     // Update existing delivery
     promise = db.collection('deliveries').doc(_currentEditDeliveryId).update(data)
       .then(function(){ closeModal('newDeliveryModal'); showToast('Delivery updated successfully!','success'); _currentEditDeliveryId = null; });
@@ -902,7 +917,8 @@ window.saveNewDelivery = function() {
     .catch(function(err){showToast('Error: '+err.message,'error');})
     .finally(function(){
       btn.disabled=false;
-      btn.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Delivery';
+      var iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
+      btn.innerHTML = iconSvg + ' ' + (isEdit ? 'Update Delivery' : 'Save Delivery');
     });
 };
 </script>
@@ -917,14 +933,12 @@ window.editDelivery = function(id) {
   _currentEditDeliveryId = id;
 
   // Pre-fill header fields
-  var _today = new Date().toISOString().split('T')[0];
-  document.getElementById('ndDate').min   = _today;
-  document.getElementById('ndDate').value = d.date || '';
   document.getElementById('ndSupplier').value = d.supplier || '';
-  document.getElementById('ndNotes').value = d.notes || '';
 
   // Clear search/preview
   document.getElementById('ndItemSearch').value = '';
+  document.getElementById('ndSearchResults').style.display = 'none';
+  document.getElementById('ndSearchResults').innerHTML = '';
   document.getElementById('ndItemPreview').style.display = 'none';
   document.getElementById('ndNotFound').style.display = 'none';
   document.getElementById('ndAddBtnWrap').style.display = 'none';
@@ -940,7 +954,7 @@ window.editDelivery = function(id) {
     row.style.cssText = 'background:white;border:1.5px solid #90cdf4;border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;';
     row.innerHTML =
       '<div style="flex:1;min-width:0;">'
-      + '<div style="font-weight:700;font-size:0.85rem;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (item.itemName||'') + '</div>'
+      + '<div style="font-weight:700;font-size:0.85rem;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (item.itemName||'') + (item.uom ? ' <span style="font-size:0.75rem;font-weight:500;color:#718096;">(' + item.uom + ')</span>' : '') + '</div>'
       + '<div style="font-size:0.75rem;color:#718096;margin-top:1px;">' + (item.itemNum||'') + ' &nbsp;�&nbsp; Expected: <strong>' + item.expectedQty + ' ' + (item.uom||'') + '</strong></div>'
       + '</div>'
       + '<button type="button" onclick="ndRemoveItem(' + idx + ')" style="background:none;border:none;color:#e53e3e;cursor:pointer;font-size:1rem;flex-shrink:0;padding:2px 6px;">?</button>';
