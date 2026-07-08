@@ -503,11 +503,11 @@ class _AdminInventoryStockBodyState extends State<AdminInventoryStockBody> {
                 _detailRow('Item Name', item['name'] as String),
                 _detailRow('Commodity Group', item['group'] as String),
                 _detailRow(
-                    'Current Stock', '${item['stock']} ${item['uom']}'),
-                _detailRow('Min Level', '${item['min']} ${item['uom']}'),
-                _detailRow('Max Level', '${item['max']} ${item['uom']}'),
+                    'Current Stock', '${item['stock']}'),
+                _detailRow('Min Level', '${item['min']}'),
+                _detailRow('Max Level', '${item['max']}'),
                 _detailRow(
-                    'Reorder Qty', '${item['reorder']} ${item['uom']}'),
+                    'Reorder Qty', '${item['reorder']}'),
                 _detailRow('Status', item['status'] as String),
                 const SizedBox(height: 16),
                 Row(children: [
