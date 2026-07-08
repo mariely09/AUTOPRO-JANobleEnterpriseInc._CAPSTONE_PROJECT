@@ -725,7 +725,7 @@ function completeService(serviceId) {
     renderInventoryList();
     renderIssuancesList();
     renderInventoryTransactions();
-    showToast('Service marked as completed!', 'success');
+    showToast('Service marked as completed successfully!', 'success');
 }
 
 function deleteService(serviceId) {
@@ -769,7 +769,7 @@ function svcApproveFromList(docId) {
                 });
             }
         });
-        showToast('Service approved — status set to Ongoing!', 'success');
+        showToast('Service approved successfully — status set to Ongoing!', 'success');
     }).catch(function(err) { showToast('Error: ' + err.message, 'error'); });
 }
 function svcCompleteFromList(docId) {
@@ -2422,7 +2422,7 @@ function toggleUserStatus(userId) {
     if (!confirm(action.charAt(0).toUpperCase()+action.slice(1)+' user "'+u.name+'"?')) return;
     var newStatus = statusLower === 'active' ? 'inactive' : 'active';
     firebase.firestore().collection('users').doc(userId).update({ status: newStatus })
-        .then(function(){ showToast('User status updated!', 'success'); })
+        .then(function(){ showToast('User status updated successfully!', 'success'); })
         .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
 }
 

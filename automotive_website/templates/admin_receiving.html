@@ -889,13 +889,13 @@ window.saveNewDelivery = function() {
   if (_currentEditDeliveryId) {
     // Update existing delivery
     promise = db.collection('deliveries').doc(_currentEditDeliveryId).update(data)
-      .then(function(){ closeModal('newDeliveryModal'); showToast('Delivery updated!','success'); _currentEditDeliveryId = null; });
+      .then(function(){ closeModal('newDeliveryModal'); showToast('Delivery updated successfully!','success'); _currentEditDeliveryId = null; });
   } else {
     // Create new delivery
     data.status = 'Pending';
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     promise = db.collection('deliveries').add(data)
-      .then(function(){ closeModal('newDeliveryModal'); showToast('Delivery created!','success'); });
+      .then(function(){ closeModal('newDeliveryModal'); showToast('Delivery created successfully!','success'); });
   }
 
   promise
@@ -972,7 +972,7 @@ window.deleteDelivery = function(id) {
   var label = d ? (d.supplier || 'this delivery') + ' (' + _fmtDate(d.date) + ')' : 'this delivery';
   if (!confirm('Delete ' + label + '? This cannot be undone.')) return;
   db.collection('deliveries').doc(id).delete()
-    .then(function(){ showToast('Delivery deleted.', 'success'); })
+    .then(function(){ showToast('Delivery deleted successfully!', 'success'); })
     .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
 };
 
@@ -1052,7 +1052,7 @@ window.submitReceiving = function() {
   var btn = document.getElementById('rmSubmitBtn');
   btn.disabled=true; btn.textContent='Submitting�';
   db.collection('deliveries').doc(_currentDeliveryId).update({ items:updatedItems, receivedBy:receivedBy, status:'Awaiting Double Check', receivedAt:firebase.firestore.FieldValue.serverTimestamp() })
-    .then(function(){ closeModal('receiveModal'); showToast('Submitted for double check!','success'); })
+    .then(function(){ closeModal('receiveModal'); showToast('Submitted for double check successfully!','success'); })
     .catch(function(err){ showToast('Error: '+err.message,'error'); })
     .finally(function(){ btn.disabled=false; btn.textContent='Submit for Double Check'; });
 };

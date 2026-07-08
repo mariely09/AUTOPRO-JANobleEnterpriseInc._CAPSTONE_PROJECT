@@ -1143,7 +1143,7 @@ window._svcViewDetails = function(docId) {
             if (!vSnap.empty) vSnap.docs[0].ref.update(vUpdate);
           });
           closeModal('svcDetailsModal');
-          showToast('Service marked as Completed!', 'success');
+          showToast('Service marked as Completed successfully!', 'success');
 
           // Also update linked service booking to "Completed" if exists
           if (s.bookingId) {

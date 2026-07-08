@@ -277,11 +277,11 @@ function dmSaveItem() {
   var col = db.collection('domains').doc(_dmCurrentKey).collection('items');
   if (_dmEditingDocId) {
     col.doc(_dmEditingDocId).update({ name: name })
-      .then(function(){ closeModal('dmItemModal'); showToast('Item updated!', 'success'); })
+      .then(function(){ closeModal('dmItemModal'); showToast('Item updated successfully!', 'success'); })
       .catch(function(e){ showToast('Error: ' + e.message, 'error'); });
   } else {
     col.add({ name: name, createdAt: firebase.firestore.FieldValue.serverTimestamp() })
-      .then(function(){ closeModal('dmItemModal'); showToast('Item added!', 'success'); })
+      .then(function(){ closeModal('dmItemModal'); showToast('Item added successfully!', 'success'); })
       .catch(function(e){ showToast('Error: ' + e.message, 'error'); });
   }
 }
@@ -290,7 +290,7 @@ function dmSaveItem() {
 function dmDeleteItem(docId, name) {
   if (!confirm('Delete "' + name + '"?')) return;
   firebase.firestore().collection('domains').doc(_dmCurrentKey).collection('items').doc(docId).delete()
-    .then(function(){ showToast('Item deleted.', 'success'); })
+    .then(function(){ showToast('Item deleted successfully!', 'success'); })
     .catch(function(e){ showToast('Error: ' + e.message, 'error'); });
 }
 
