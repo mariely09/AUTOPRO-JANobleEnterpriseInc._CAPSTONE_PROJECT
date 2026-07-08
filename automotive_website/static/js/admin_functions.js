@@ -1851,11 +1851,24 @@ function editItemMaster(itemNum) {
 }
 
 function deleteItemMaster(itemNum) {
-    if (!confirm('Delete item ' + itemNum + '?')) return;
+    if (!confirm('Delete item ' + itemNum + '? This will also remove it from Stock Inventory if it exists.')) return;
     var fbItem = (window._fbItemMaster || []).find(function(i){ return i.num === itemNum; });
     if (!fbItem || !fbItem._id) { alert('Item not found in database.'); return; }
-    firebase.firestore().collection('item_master').doc(fbItem._id).delete()
-        .then(function() { showToast('Item deleted successfully!', 'success'); })
+    var db = firebase.firestore();
+    // 1. Delete from item_master
+    db.collection('item_master').doc(fbItem._id).delete()
+        .then(function() {
+            // 2. Find and delete matching entry in stock_inventory (by num field)
+            return db.collection('stock_inventory').where('num', '==', itemNum).limit(1).get();
+        })
+        .then(function(snap) {
+            if (!snap.empty) {
+                return snap.docs[0].ref.delete();
+            }
+        })
+        .then(function() {
+            showToast('Item deleted from Item Master and Stock Inventory.', 'success');
+        })
         .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
 }
 
