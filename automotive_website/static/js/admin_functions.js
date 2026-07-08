@@ -1867,7 +1867,7 @@ function deleteItemMaster(itemNum) {
             }
         })
         .then(function() {
-            showToast('Item deleted from Item Master and Stock Inventory.', 'success');
+            showToast('Item deleted successfully!', 'success');
         })
         .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
 }
