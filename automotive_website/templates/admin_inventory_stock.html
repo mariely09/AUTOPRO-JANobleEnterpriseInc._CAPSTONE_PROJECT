@@ -557,19 +557,25 @@ function stockSaveNewItem() {
     };
 
     // Double-check not already existing
-    db.collection('stock_inventory').where('num', '==', data.num).limit(1).get().then(function(snap) {
-        if (!snap.empty) { showToast('Already in stock inventory.', 'error'); return; }
-        return db.collection('stock_inventory').add(data);
-    }).then(function(docRef) {
-        if (!docRef) return; // was already existing, early return above
-    }).then(function() {
-        closeModal('addInventoryModal');
-        showToast('Stock item added successfully!', 'success');
-    }).catch(function(err) {
-        showToast('Error: ' + err.message, 'error');
-    }).finally(function() {
-        if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
-    });
+    db.collection('stock_inventory').where('num', '==', data.num).limit(1).get()
+        .then(function(snap) {
+            if (!snap.empty) {
+                showToast('Already in stock inventory.', 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+                return Promise.reject('already_exists');
+            }
+            return db.collection('stock_inventory').add(data);
+        })
+        .then(function() {
+            closeModal('addInventoryModal');
+            showToast('Stock item added successfully!', 'success');
+        })
+        .catch(function(err) {
+            if (err !== 'already_exists') showToast('Error: ' + err.message, 'error');
+        })
+        .finally(function() {
+            if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+        });
 }
 
 // ── View / Edit / Delete ──

@@ -2050,17 +2050,45 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(function() {
                         showToast('Item added successfully!', 'success');
                         closeModal('addItemMasterModal');
-                        // Auto-prompt to set stock levels for Material items
+                        // Auto-open Set Stock Levels modal for Material items
                         if (data.type === 'Material') {
                             setTimeout(function() {
-                                if (confirm('Would you like to set stock levels (min, max, current quantity) for "' + data.name + '" now?')) {
-                                    // Pre-fill and open the Add Stock modal
-                                    _addFoundMaster = {
-                                        itemNum: data.num,
-                                        itemName: data.name,
-                                        commodityGroup: data.group,
-                                        uom: data.uom,
-                                    };
+                                _addFoundMaster = {
+                                    itemNum: data.num,
+                                    itemName: data.name,
+                                    commodityGroup: data.group,
+                                    uom: data.uom,
+                                };
+                                // Open stock modal inline — pre-fill item info
+                                var srchEl = document.getElementById('invItemSearch');
+                                var previewEl = document.getElementById('invItemPreview');
+                                var previewInfo = document.getElementById('invPreviewInfo');
+                                var fieldsEl = document.getElementById('invStockFields');
+                                var alreadyEl = document.getElementById('invAlreadyExists');
+                                var notFoundEl = document.getElementById('invNotFound');
+                                if (srchEl) srchEl.value = data.name;
+                                if (alreadyEl) alreadyEl.style.display = 'none';
+                                if (notFoundEl) notFoundEl.style.display = 'none';
+                                if (previewInfo) {
+                                    previewInfo.innerHTML =
+                                        '<div style="display:grid;grid-template-columns:110px 1fr;gap:0.3rem 0;">'
+                                        + '<span style="color:#718096;font-size:0.78rem;">Item Number</span><span style="font-weight:600;font-size:0.83rem;">' + data.num + '</span>'
+                                        + '<span style="color:#718096;font-size:0.78rem;">Item Name</span><span style="font-weight:600;font-size:0.83rem;">' + data.name + '</span>'
+                                        + '<span style="color:#718096;font-size:0.78rem;">Group</span><span style="font-weight:600;font-size:0.83rem;">' + (data.group||'—') + '</span>'
+                                        + '<span style="color:#718096;font-size:0.78rem;">UOM</span><span style="font-weight:600;font-size:0.83rem;">' + (data.uom||'—') + '</span>'
+                                        + '</div>';
+                                }
+                                if (previewEl) previewEl.style.display = 'block';
+                                if (fieldsEl) fieldsEl.style.display = 'flex';
+                                ['invStockQty','invStockMin','invStockMax','invStockReorder'].forEach(function(id) {
+                                    var el = document.getElementById(id);
+                                    if (el) el.value = '';
+                                });
+                                var addModal = document.getElementById('addInventoryModal');
+                                if (addModal) {
+                                    addModal.classList.add('active');
+                                } else {
+                                    // If stock modal not on this page, navigate there
                                     openAddInventoryModalWithItem(_addFoundMaster);
                                 }
                             }, 300);
