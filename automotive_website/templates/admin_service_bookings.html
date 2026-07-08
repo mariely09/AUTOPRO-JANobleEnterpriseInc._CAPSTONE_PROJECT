@@ -380,7 +380,7 @@
       // Delete the booking document
       return db.collection('service_bookings').doc(docId).delete()
         .then(function() {
-          showToast('Booking cancelled successfully!', 'success');
+          showToast('Booking cancelled successfully!', 'error');
           // Notify customer
           if (customerId) {
             db.collection('notifications').add({

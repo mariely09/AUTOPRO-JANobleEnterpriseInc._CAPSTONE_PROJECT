@@ -972,7 +972,7 @@ window.deleteDelivery = function(id) {
   var label = d ? (d.supplier || 'this delivery') + ' (' + _fmtDate(d.date) + ')' : 'this delivery';
   if (!confirm('Delete ' + label + '? This cannot be undone.')) return;
   db.collection('deliveries').doc(id).delete()
-    .then(function(){ showToast('Delivery deleted successfully!', 'success'); })
+    .then(function(){ showToast('Delivery deleted successfully!', 'error'); })
     .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
 };
 

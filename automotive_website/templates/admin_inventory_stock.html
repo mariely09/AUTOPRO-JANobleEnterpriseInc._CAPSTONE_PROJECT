@@ -699,7 +699,7 @@ function deleteInventoryItem(id) {
     if (!item) return;
     if (!confirm('Delete "' + item.itemName + '"? This cannot be undone.')) return;
     firebase.firestore().collection('stock_inventory').doc(id).delete()
-        .then(function() { showToast('Item deleted successfully!', 'success'); })
+        .then(function() { showToast('Item deleted successfully!', 'error'); })
         .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
 }
 

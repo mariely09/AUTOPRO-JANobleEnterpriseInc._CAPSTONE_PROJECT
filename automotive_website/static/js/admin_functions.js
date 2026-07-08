@@ -739,7 +739,7 @@ function deleteService(serviceId) {
                 return s.serviceId !== serviceId;
             });
             renderServicesList();
-            if (typeof showToast === 'function') showToast('Service deleted successfully.', 'success');
+            if (typeof showToast === 'function') showToast('Service deleted successfully.', 'error');
         })
         .catch(function (err) {
             if (typeof showToast === 'function') showToast('Delete failed: ' + err.message, 'error');
@@ -1867,7 +1867,7 @@ function deleteItemMaster(itemNum) {
             }
         })
         .then(function() {
-            showToast('Item deleted successfully!', 'success');
+            showToast('Item deleted successfully!', 'error');
         })
         .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
 }

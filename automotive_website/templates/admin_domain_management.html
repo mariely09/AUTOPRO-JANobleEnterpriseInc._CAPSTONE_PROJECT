@@ -290,7 +290,7 @@ function dmSaveItem() {
 function dmDeleteItem(docId, name) {
   if (!confirm('Delete "' + name + '"?')) return;
   firebase.firestore().collection('domains').doc(_dmCurrentKey).collection('items').doc(docId).delete()
-    .then(function(){ showToast('Item deleted successfully!', 'success'); })
+    .then(function(){ showToast('Item deleted successfully!', 'error'); })
     .catch(function(e){ showToast('Error: ' + e.message, 'error'); });
 }
 

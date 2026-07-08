@@ -464,7 +464,7 @@
     if (!confirm('Delete "' + (asset.plateNumber || asset.plate) + '"? This cannot be undone.')) return;
     var docId = asset.id;
     firebase.firestore().collection('vehicles').doc(docId).delete()
-      .then(function() { showToast('Vehicle deleted successfully!', 'success'); })
+      .then(function() { showToast('Vehicle deleted successfully!', 'error'); })
       .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
   }
 
