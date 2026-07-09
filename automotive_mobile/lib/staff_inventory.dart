@@ -17,9 +17,30 @@ class _StaffInventoryState extends State<StaffInventory> {
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
   bool _searching = false;
-  String _statusFilter = 'all'; // 'all', 'Low', 'OK'
+  String _statusFilter = 'all';
+  String _sortOrder = 'num-asc';
+  String _groupFilter = '';
+  List<String> _groups = [];
 
   CollectionReference get _db => FirebaseFirestore.instance.collection(_stockCol);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGroups();
+  }
+
+  Future<void> _loadGroups() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('domains').doc('commodity_groups').collection('items')
+          .orderBy('name').get();
+      final list = snap.docs.map((d) => d['name'] as String).toList();
+      if (mounted) setState(() => _groups = list);
+    } catch (_) {
+      if (mounted) setState(() => _groups = ['Lubricants', 'Spare Parts', 'Filter', 'AutoService']);
+    }
+  }
 
   @override
   void dispose() {
@@ -57,6 +78,35 @@ class _StaffInventoryState extends State<StaffInventory> {
               if (!_searching) { _searchCtrl.clear(); _searchQuery = ''; }
             }),
           ),
+          if (!_searching)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (val) {
+                if (val.startsWith('sort:')) {
+                  setState(() => _sortOrder = val.substring(5));
+                } else if (val.startsWith('group:')) {
+                  setState(() => _groupFilter = val.substring(6));
+                }
+              },
+              itemBuilder: (_) {
+                final groupList = _groups.isEmpty ? ['Lubricants', 'Spare Parts', 'Filter', 'AutoService'] : _groups;
+                return [
+                  const PopupMenuItem(enabled: false, child: Text('Sort By', style: TextStyle(fontSize: 11, color: Color(0xFF718096), fontWeight: FontWeight.w700))),
+                  _popItem('sort:num-asc',    'Item No. (Ascending)',  Icons.arrow_upward,    _sortOrder == 'num-asc',    _red),
+                  _popItem('sort:num-desc',   'Item No. (Descending)', Icons.arrow_downward,  _sortOrder == 'num-desc',   _red),
+                  _popItem('sort:name-asc',   'Name A → Z',            Icons.sort_by_alpha,   _sortOrder == 'name-asc',   _red),
+                  _popItem('sort:name-desc',  'Name Z → A',            Icons.sort_by_alpha,   _sortOrder == 'name-desc',  _red),
+                  _popItem('sort:stock-desc', 'Stock ↑ Highest',       Icons.trending_up,     _sortOrder == 'stock-desc', _red),
+                  _popItem('sort:stock-asc',  'Stock ↓ Lowest',        Icons.trending_down,   _sortOrder == 'stock-asc',  _red),
+                  _popItem('sort:group-asc',  'Group A → Z',           Icons.folder_outlined, _sortOrder == 'group-asc',  _red),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(enabled: false, child: Text('Filter by Group', style: TextStyle(fontSize: 11, color: Color(0xFF718096), fontWeight: FontWeight.w700))),
+                  _popItem('group:',  'All Groups', Icons.select_all,     _groupFilter.isEmpty, const Color(0xFF003087)),
+                  ...groupList.map((g) => _popItem('group:$g', g, Icons.circle_outlined, _groupFilter == g, const Color(0xFF003087))),
+                ];
+              },
+            ),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(44),
@@ -107,6 +157,33 @@ class _StaffInventoryState extends State<StaffInventory> {
     );
   }
 
+  PopupMenuItem<String> _popItem(String value, String label, IconData icon, bool active, Color color) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(children: [
+        Icon(icon, size: 16, color: active ? color : const Color(0xFF718096)),
+        const SizedBox(width: 10),
+        Text(label, style: TextStyle(fontSize: 13, color: active ? color : const Color(0xFF1a202c), fontWeight: active ? FontWeight.w700 : FontWeight.normal)),
+        if (active) ...[const Spacer(), Icon(Icons.check, size: 14, color: color)],
+      ]),
+    );
+  }
+
+  List<Map<String, dynamic>> _applySortOrder(List<Map<String, dynamic>> items) {
+    int numPart(String s) => int.tryParse(s.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    final sorted = List<Map<String, dynamic>>.from(items);
+    switch (_sortOrder) {
+      case 'num-asc':    sorted.sort((a, b) => numPart(a['num'] as String).compareTo(numPart(b['num'] as String))); break;
+      case 'num-desc':   sorted.sort((a, b) => numPart(b['num'] as String).compareTo(numPart(a['num'] as String))); break;
+      case 'name-asc':   sorted.sort((a, b) => (a['name'] as String).compareTo(b['name'] as String)); break;
+      case 'name-desc':  sorted.sort((a, b) => (b['name'] as String).compareTo(a['name'] as String)); break;
+      case 'stock-desc': sorted.sort((a, b) => (b['stock'] as int).compareTo(a['stock'] as int)); break;
+      case 'stock-asc':  sorted.sort((a, b) => (a['stock'] as int).compareTo(b['stock'] as int)); break;
+      case 'group-asc':  sorted.sort((a, b) => (a['group'] as String).compareTo(b['group'] as String)); break;
+    }
+    return sorted;
+  }
+
   Widget _buildInventoryBody() {
     return StreamBuilder<QuerySnapshot>(
         stream: _db.snapshots(),
@@ -147,10 +224,22 @@ class _StaffInventoryState extends State<StaffInventory> {
           // Apply status filter
           final afterStatusFilter = _statusFilter == 'all'
               ? filtered
-              : filtered.where((i) => i['status'] == _statusFilter).toList();
+              : _statusFilter == 'out'
+                  ? filtered.where((i) => (i['stock'] as int) == 0).toList()
+                  : _statusFilter == 'Low'
+                      ? filtered.where((i) => (i['stock'] as int) > 0 && i['status'] == 'Low').toList()
+                      : filtered.where((i) => i['status'] == _statusFilter).toList();
+
+          // Apply commodity group filter
+          final afterGroupFilter = _groupFilter.isEmpty
+              ? afterStatusFilter
+              : afterStatusFilter.where((i) => (i['group'] as String) == _groupFilter).toList();
+
+          final sortedFiltered = _applySortOrder(afterGroupFilter);
 
           final total = items.length;
-          final lowCount = items.where((i) => i['status'] == 'Low').length;
+          final lowCount = items.where((i) => (i['stock'] as int) > 0 && i['status'] == 'Low').length;
+          final outCount = items.where((i) => (i['stock'] as int) == 0).length;
           final inStock = items.where((i) => i['status'] == 'OK').length;
 
           return Column(children: [
@@ -159,19 +248,21 @@ class _StaffInventoryState extends State<StaffInventory> {
               child: Row(children: [
                 _statChip('Total Items', '$total', Colors.blue, 'all'),
                 const SizedBox(width: 8),
-                _statChip('Low Stock', '$lowCount', _red, 'Low'),
+                _statChip('Out of Stock', '$outCount', Colors.red, 'out'),
+                const SizedBox(width: 8),
+                _statChip('Low Stock', '$lowCount', Colors.orange, 'Low'),
                 const SizedBox(width: 8),
                 _statChip('In Stock', '$inStock', Colors.green, 'OK'),
               ]),
             ),
             Expanded(
-              child: afterStatusFilter.isEmpty
+              child: sortedFiltered.isEmpty
                 ? const Center(child: Text('No items found.', style: TextStyle(color: Color(0xFF718096))))
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
-                    itemCount: afterStatusFilter.length,
+                    itemCount: sortedFiltered.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _stockCard(afterStatusFilter[i]),
+                    itemBuilder: (_, i) => _stockCard(sortedFiltered[i]),
                   ),
             ),
           ]);
@@ -182,10 +273,11 @@ class _StaffInventoryState extends State<StaffInventory> {
   Widget _statChip(String label, String value, Color color, String filter) {
     IconData icon;
     switch (label) {
-      case 'Total Items': icon = Icons.inventory_2_outlined; break;
-      case 'Low Stock':   icon = Icons.warning_amber_outlined; break;
-      case 'In Stock':    icon = Icons.check_circle_outline; break;
-      default:            icon = Icons.info_outline;
+      case 'Total Items':   icon = Icons.inventory_2_outlined; break;
+      case 'Out of Stock':  icon = Icons.remove_circle_outline; break;
+      case 'Low Stock':     icon = Icons.warning_amber_outlined; break;
+      case 'In Stock':      icon = Icons.check_circle_outline; break;
+      default:              icon = Icons.info_outline;
     }
     final isActive = _statusFilter == filter;
     return Expanded(
@@ -218,14 +310,27 @@ class _StaffInventoryState extends State<StaffInventory> {
 
   Widget _stockCard(Map<String, dynamic> item) {
     final status = item['status'] as String;
-    final isLow = status == 'Low';
-    final isOver = status == 'Over';
     final stock = item['stock'] as int;
     final min = item['min'] as int;
     final max = item['max'] as int;
+    final isOut  = stock == 0;
+    final isLow  = !isOut && status == 'Low';
+    final isOver = !isOut && !isLow && status == 'Over';
     final progress = max > 0 ? (stock / max).clamp(0.0, 1.0) : 0.0;
-    final barColor = isLow ? Colors.orange : isOver ? Colors.purple : Colors.green;
-    final statusLabel = isLow ? 'Low Stock' : isOver ? 'Over Max' : 'In Stock';
+    final barColor = isOut
+        ? Colors.red
+        : isLow
+            ? Colors.orange
+            : isOver
+                ? Colors.purple
+                : Colors.green;
+    final statusLabel = isOut
+        ? 'Out of Stock'
+        : isLow
+            ? 'Low Stock'
+            : isOver
+                ? 'Over Max'
+                : 'In Stock';
 
     return GestureDetector(
       onTap: () => _showStockDetails(item),
@@ -234,7 +339,8 @@ class _StaffInventoryState extends State<StaffInventory> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: isLow ? Border.all(color: Colors.orange.shade200)
+          border: isOut ? Border.all(color: Colors.red.shade200)
+              : isLow ? Border.all(color: Colors.orange.shade200)
               : isOver ? Border.all(color: Colors.purple.shade200) : null,
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
         ),
@@ -290,7 +396,7 @@ class _StaffInventoryState extends State<StaffInventory> {
               child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(item['name'] as String, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(item['group'] as String, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text(item['uom'] as String, style: const TextStyle(color: Colors.white70, fontSize: 12)),
                 ])),
                 GestureDetector(onTap: () => Navigator.pop(context),
                   child: const Icon(Icons.close, color: Colors.white)),
@@ -307,7 +413,7 @@ class _StaffInventoryState extends State<StaffInventory> {
                 _detailRow('Min Level', '${item['min']}'),
                 _detailRow('Max Level', '${item['max']}'),
                 _detailRow('Reorder Qty', '${item['reorder']}'),
-                _detailRow('Status', item['status'] == 'OK' ? 'In Stock' : item['status'] as String),
+                _detailRow('Status', item['stock'] == 0 ? 'Out of Stock' : item['status'] == 'OK' ? 'In Stock' : item['status'] == 'Over' ? 'Over Max' : 'Low Stock'),
                 const SizedBox(height: 16),
               ]),
             ),

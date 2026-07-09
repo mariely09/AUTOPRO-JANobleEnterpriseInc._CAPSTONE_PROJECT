@@ -1,9 +1,30 @@
 // ── Shared print engine — CSS @media print overlay, zero navigation ──
 // footer (optional): { columns: [...], values: [...] } — renders a totals row at the bottom of the table
-function _doPrint(title, summary, columns, rows, footer) {
+// options (optional): { dateRange: 'June 1, 2026 – July 1, 2026' } — shown below report title, above Generated on
+function _doPrint(title, summary, columns, rows, footer, options) {
   var now = new Date();
   var dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   var timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+  // ── Extract & format date range from title if present ──
+  // Pattern: " · 2026-06-01 to 2026-07-01" — strip from title and format nicely
+  var dateRange = (options && options.dateRange) || '';
+  var cleanTitle = title;
+  var isoRangeMatch = title.match(/\s*[·•]\s*(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})/);
+  if (isoRangeMatch && !dateRange) {
+    function _fmtIsoDate(iso) {
+      var FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      var p = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!p) return iso;
+      return FULL_MONTHS[parseInt(p[2])-1] + ' ' + parseInt(p[3]) + ', ' + p[1];
+    }
+    dateRange = _fmtIsoDate(isoRangeMatch[1]) + ' – ' + _fmtIsoDate(isoRangeMatch[2]);
+    cleanTitle = title.replace(isoRangeMatch[0], '').trim();
+  }
+
+  var dateRangeHtml = dateRange
+    ? '<div class="ap-report-daterange">Date Range: <strong>' + dateRange + '</strong></div>'
+    : '';
 
   // Build table rows
   var theadHtml = (columns||[]).map(function(c) { return '<th>' + c + '</th>'; }).join('');
@@ -46,7 +67,8 @@ function _doPrint(title, summary, columns, rows, footer) {
     +     '</div>'
     +     '<div class="ap-header-right">'
     +       '<div class="ap-report-label">Official Report</div>'
-    +       '<div class="ap-report-title">' + title + '</div>'
+    +       '<div class="ap-report-title">' + cleanTitle + '</div>'
+    +       dateRangeHtml
     +       '<div class="ap-report-meta">Generated on <strong>' + dateStr + '</strong> at ' + timeStr + '</div>'
     +     '</div>'
     +   '</div>'
@@ -94,6 +116,8 @@ function _doPrint(title, summary, columns, rows, footer) {
     '.ap-report-title { font-size: 16px; font-weight: 800; color: #1a202c !important; line-height: 1.2; }',
     '.ap-report-meta { font-size: 8px; color: #718096 !important; margin-top: 3px; }',
     '.ap-report-meta strong { color: #1a202c !important; }',
+    '.ap-report-daterange { font-size: 8px; color: #718096 !important; margin-top: 2px; margin-bottom: 2px; }',
+    '.ap-report-daterange strong { color: #1a202c !important; }',
     '.ap-header-rule {',
     '  height: 2px;',
     '  background: #E8001C !important;',

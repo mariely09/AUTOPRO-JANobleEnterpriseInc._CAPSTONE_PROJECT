@@ -60,7 +60,6 @@
                         <option value="name-desc">Name Z→A</option>
                         <option value="stock-desc">Stock ↑ Highest</option>
                         <option value="stock-asc">Stock ↓ Lowest</option>
-                        <option value="group-asc">Group A→Z</option>
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -142,9 +141,9 @@
                 </div>
             </div>
             <div class="data-table">
-                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:100px 1.5fr 1fr 80px 80px 90px 90px 90px 110px 110px;">
-                    <div>Item No.</div><div>Item Name</div><div>Commodity Group</div><div>UOM</div><div>Current Qty</div>
-                    <div>Min Level</div><div>Max Level</div><div>Reorder Qty</div><div>Status</div><div>Actions</div>
+                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:100px 1.5fr 70px 140px 80px 80px 80px 90px 130px 110px;">
+                    <div>Item No.</div><div>Item Name</div><div>UOM</div><div>Commodity Group</div><div style="white-space:nowrap;text-align:center;">Current Qty</div>
+                    <div style="white-space:nowrap;text-align:center;">Min Level</div><div style="white-space:nowrap;text-align:center;">Max Level</div><div style="white-space:nowrap;text-align:center;">Reorder Qty</div><div style="text-align:center;">Status</div><div style="text-align:center;">Actions</div>
                 </div>
                 <div id="inventoryList"></div>
             </div>
@@ -267,15 +266,18 @@
             <button onclick="closeModal('addInventoryModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
         </div>
         <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
-            <div style="display:flex;gap:0.5rem;">
-                <input type="text" id="invItemSearch" placeholder="Scan or search item..." style="flex:1;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.9rem;font-size:0.88rem;outline:none;" oninput="stockSearchMasterItem(this.value)">
-                <button onclick="stockSearchMasterItem(document.getElementById('invItemSearch').value)" style="background:#E31E24;border:none;color:white;padding:0 1rem;border-radius:10px;cursor:pointer;font-size:0.85rem;font-weight:600;">Search</button>
+            <div style="position:relative;">
+                <svg style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="invItemSearch" placeholder="Search item name, number, or group..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.9rem 0.65rem 2.2rem;font-size:0.88rem;outline:none;box-sizing:border-box;" oninput="stockSearchMasterItem(this.value)">
             </div>
+            <!-- Search results list -->
+            <div id="invSearchResults" style="display:none;display:flex;flex-direction:column;gap:0.5rem;"></div>
             <!-- Found item preview -->
             <div id="invItemPreview" style="display:none;background:white;border:1.5px solid #9ae6b4;border-radius:12px;padding:1rem 1.25rem;">
                 <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    <span style="font-size:0.75rem;font-weight:700;color:#16a34a;">Item Found</span>
+                    <span style="font-size:0.75rem;font-weight:700;color:#16a34a;flex:1;">Item Selected</span>
+                    <button onclick="invClearSelection()" style="background:none;border:none;cursor:pointer;color:#718096;font-size:1rem;line-height:1;padding:0;">&times;</button>
                 </div>
                 <div id="invPreviewInfo" style="font-size:0.83rem;color:#4a5568;"></div>
             </div>
@@ -476,6 +478,8 @@ function openAddInventoryModal() {
     document.getElementById('invAlreadyExists').style.display = 'none';
     document.getElementById('invNotFound').style.display = 'none';
     document.getElementById('invStockFields').style.display = 'none';
+    var resultsEl = document.getElementById('invSearchResults');
+    if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
     ['invStockQty','invStockMin','invStockMax','invStockReorder'].forEach(function(id) {
         document.getElementById(id).value = '';
     });
@@ -483,38 +487,76 @@ function openAddInventoryModal() {
 }
 
 function stockSearchMasterItem(query) {
-    if (!query || query.trim().length < 2) return;
-    var q = query.trim().toLowerCase();
+    var q = (query || '').trim().toLowerCase();
     var master = window.itemMaster || [];
-    var found = master.find(function(i) {
-        return (i.itemNum||'').toLowerCase() === q
-            || (i.itemName||'').toLowerCase().includes(q)
-            || (i.barcode||'').toLowerCase() === q
-            || (i.qrcode||'').toLowerCase() === q;
-    });
-
+    var resultsEl = document.getElementById('invSearchResults');
     var previewEl = document.getElementById('invItemPreview');
     var alreadyEl = document.getElementById('invAlreadyExists');
     var notFoundEl = document.getElementById('invNotFound');
     var fieldsEl = document.getElementById('invStockFields');
 
-    if (!found) {
-        _addFoundMaster = null;
-        previewEl.style.display = 'none';
-        alreadyEl.style.display = 'none';
+    // If an item is already selected, don't re-search
+    if (_addFoundMaster) return;
+
+    // Clear states
+    previewEl.style.display = 'none';
+    alreadyEl.style.display = 'none';
+    notFoundEl.style.display = 'none';
+    fieldsEl.style.display = 'none';
+
+    if (q.length < 1) {
+        resultsEl.style.display = 'none';
+        resultsEl.innerHTML = '';
+        return;
+    }
+
+    var matches = master.filter(function(i) {
+        return (i.itemName||'').toLowerCase().includes(q)
+            || (i.itemNum||'').toLowerCase().includes(q)
+            || (i.commodityGroup||'').toLowerCase().includes(q)
+            || (i.barcode||'').toLowerCase() === q
+            || (i.qrcode||'').toLowerCase() === q;
+    });
+
+    if (matches.length === 0) {
+        resultsEl.style.display = 'none';
+        resultsEl.innerHTML = '';
         notFoundEl.style.display = 'block';
-        fieldsEl.style.display = 'none';
         return;
     }
 
     notFoundEl.style.display = 'none';
-    // Check if already in stock
+    resultsEl.style.display = 'flex';
+    resultsEl.innerHTML = '<div style="font-size:0.75rem;color:#718096;margin-bottom:0.25rem;">' + matches.length + ' result' + (matches.length === 1 ? '' : 's') + ' — tap to select</div>'
+        + matches.map(function(item) {
+            var safeNum = (item.itemNum||'').replace(/'/g, "\\'");
+            return '<div onclick="invSelectItem(\'' + safeNum + '\')" style="background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.75rem 1rem;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'#E31E24\'" onmouseout="this.style.borderColor=\'#e2e8f0\'">'
+                + '<div style="font-weight:700;font-size:0.88rem;color:#1a202c;">' + (item.itemName||'—') + '</div>'
+                + '<div style="font-size:0.75rem;color:#718096;margin-top:0.2rem;">' + (item.itemNum||'') + '&nbsp;&nbsp;•&nbsp;&nbsp;' + (item.commodityGroup||'—') + '&nbsp;&nbsp;•&nbsp;&nbsp;' + (item.uom||'—') + '</div>'
+                + '</div>';
+        }).join('');
+}
+
+function invSelectItem(itemNum) {
+    var master = window.itemMaster || [];
+    var found = master.find(function(i) { return (i.itemNum||'') === itemNum; });
+    if (!found) return;
+
     var inv = window.inventory || [];
+    var alreadyEl = document.getElementById('invAlreadyExists');
+    var previewEl = document.getElementById('invItemPreview');
+    var fieldsEl = document.getElementById('invStockFields');
+    var resultsEl = document.getElementById('invSearchResults');
+    var notFoundEl = document.getElementById('invNotFound');
+
+    notFoundEl.style.display = 'none';
+    resultsEl.style.display = 'none';
+
     var exists = inv.some(function(i) { return (i.itemNum||'').toLowerCase() === (found.itemNum||'').toLowerCase(); });
     if (exists) {
         _addFoundMaster = null;
-        previewEl.style.display = 'none';
         alreadyEl.style.display = 'block';
+        previewEl.style.display = 'none';
         fieldsEl.style.display = 'none';
         return;
     }
@@ -530,6 +572,17 @@ function stockSearchMasterItem(query) {
         + '</div>';
     previewEl.style.display = 'block';
     fieldsEl.style.display = 'flex';
+}
+
+function invClearSelection() {
+    _addFoundMaster = null;
+    document.getElementById('invItemPreview').style.display = 'none';
+    document.getElementById('invStockFields').style.display = 'none';
+    document.getElementById('invAlreadyExists').style.display = 'none';
+    document.getElementById('invSearchResults').style.display = 'none';
+    document.getElementById('invSearchResults').innerHTML = '';
+    document.getElementById('invItemSearch').value = '';
+    document.getElementById('invItemSearch').focus();
 }
 
 function stockSaveNewItem() {
@@ -594,18 +647,14 @@ function viewInventoryItem(id) {
     var stockPct = item.maxLevel > 0 ? Math.min(100, Math.round((item.stock / item.maxLevel) * 100)) : 0;
 
     document.getElementById('invDetailName').textContent = item.itemName;
-    document.getElementById('invDetailGroup').textContent = item.commodityGroup || '—';
+    document.getElementById('invDetailGroup').textContent = item.unit || '—';
 
     document.getElementById('invDetailBody').innerHTML =
         '<div style="background:white;border-radius:14px;padding:1.25rem;border:1px solid #e2e8f0;margin-bottom:0.75rem;">'
         // ── Stock level header ──
         + '<div style="display:flex;align-items:center;gap:0.85rem;margin-bottom:1rem;">'
-        +   '<div style="width:44px;height:44px;border-radius:10px;background:' + barColor + '18;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
-        +     '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="' + barColor + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14a2 2 0 0 1 2 2v3H3V6a2 2 0 0 1 2-2z"/><path d="M3 9h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/><path d="M10 13h4"/></svg>'
-        +   '</div>'
         +   '<div style="flex:1;">'
         +     '<div style="font-size:0.72rem;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.15rem;">Stock Level</div>'
-        +     '<div style="font-size:0.8rem;color:#718096;">' + (item.commodityGroup||'—') + ' &nbsp;•&nbsp; ' + (item.unit||'') + '</div>'
         +   '</div>'
         +   '<div style="text-align:right;">'
         +     '<div style="font-size:1.75rem;font-weight:900;line-height:1;color:' + barColor + ';">' + item.stock + '</div>'
@@ -699,7 +748,7 @@ function deleteInventoryItem(id) {
     if (!item) return;
     if (!confirm('Delete "' + item.itemName + '"? This cannot be undone.')) return;
     firebase.firestore().collection('stock_inventory').doc(id).delete()
-        .then(function() { showToast('Item deleted successfully!', 'error'); })
+        .then(function() { showToast('Stock item deleted successfully!', 'error'); })
         .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
 }
 

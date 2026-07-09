@@ -1195,21 +1195,24 @@ function renderInventoryList() {
     var rows = filtered.map(function(item) {
         var isOut = item.stock === 0;
         var isLow = !isOut && item.stock <= item.minLevel;
+        var isOver = !isOut && !isLow && item.maxLevel > 0 && item.stock > item.maxLevel;
         var statusBadge = isOut
-            ? '<span class="status-badge status-overdue">Out of Stock</span>'
+            ? '<span style="display:inline-block;background:rgba(229,62,62,0.07);color:#e53e3e;border:1.5px solid #e53e3e;padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">Out of Stock</span>'
             : isLow
-            ? '<span class="status-badge status-pending">Low Stock</span>'
-            : '<span class="status-badge status-active">In Stock</span>';
-        return '<div class="table-row" style="grid-template-columns:100px 1.5fr 1fr 80px 80px 90px 90px 90px 110px 110px;">'
+            ? '<span style="display:inline-block;background:rgba(183,121,31,0.07);color:#b7791f;border:1.5px solid #b7791f;padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">Low Stock</span>'
+            : isOver
+            ? '<span style="display:inline-block;background:rgba(128,90,213,0.07);color:#805ad5;border:1.5px solid #805ad5;padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">Over Max</span>'
+            : '<span style="display:inline-block;background:rgba(56,161,105,0.07);color:#38a169;border:1.5px solid #38a169;padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">In Stock</span>';
+        return '<div class="table-row" style="grid-template-columns:100px 1.5fr 70px 140px 80px 80px 80px 90px 130px 110px;">'
             + '<div><strong>' + item.itemNum + '</strong></div>'
             + '<div>' + item.itemName + '</div>'
-            + '<div>' + (item.commodityGroup||'-') + '</div>'
             + '<div>' + (item.unit||'-') + '</div>'
-            + '<div style="font-weight:700;color:'+(isOut?'#e53e3e':isLow?'#d69e2e':'#1a202c')+';">' + item.stock + '</div>'
-            + '<div>' + (item.minLevel||0) + '</div>'
-            + '<div>' + (item.maxLevel||0) + '</div>'
-            + '<div>' + (item.reorderQty || item.reorderLevel || '—') + '</div>'
-            + '<div>' + statusBadge + '</div>'
+            + '<div style="text-align:center;">' + (item.commodityGroup||'-') + '</div>'
+            + '<div style="text-align:center;font-weight:700;color:'+(isOut?'#e53e3e':isLow?'#d69e2e':'#1a202c')+';">' + item.stock + '</div>'
+            + '<div style="text-align:center;">' + (item.minLevel||0) + '</div>'
+            + '<div style="text-align:center;">' + (item.maxLevel||0) + '</div>'
+            + '<div style="text-align:center;">' + (item.reorderQty || item.reorderLevel || '—') + '</div>'
+            + '<div style="text-align:center;">' + statusBadge + '</div>'
             + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;">'
             +   '<button class="btn-small btn-primary" onclick="viewInventoryItem(\''+item.id+'\')" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>'
             +   '<button class="btn-small btn-secondary" onclick="editInventoryItem(\''+item.id+'\')" title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
@@ -1589,16 +1592,18 @@ function renderInventoryTransactions(filter) {
         filtered = filtered.filter(function(t) {
             var d = t.date;
             if (!d) return false;
-            // Parse "Jan 5, 2025" or "2025-01-05"
-            var dt = new Date(d);
-            if (isNaN(dt)) {
-                var parts = d.split(' ');
-                var MONTHS_ARR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                var m = MONTHS_ARR.indexOf(parts[0]);
-                if (m !== -1) dt = new Date(parseInt(parts[2]), m, parseInt(parts[1]));
-            }
-            if (isNaN(dt)) return true;
-            var ds = dt.toISOString().split('T')[0];
+            var MONTHS_ARR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            var yr, mo, dy;
+            // "Jan 5, 2025" or "January 5, 2025"
+            var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
+            if (m1) { mo = MONTHS_ARR.indexOf(m1[1].slice(0,3)); yr = parseInt(m1[3]); dy = parseInt(m1[2]); }
+            // "1/5/2025" or "01/05/2025"
+            if (mo === undefined) { var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m2) { mo = parseInt(m2[1]) - 1; dy = parseInt(m2[2]); yr = parseInt(m2[3]); } }
+            // "2025-01-05"
+            if (mo === undefined) { var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m3) { yr = parseInt(m3[1]); mo = parseInt(m3[2]) - 1; dy = parseInt(m3[3]); } }
+            if (mo === undefined || isNaN(yr) || isNaN(dy)) return true;
+            // Build local YYYY-MM-DD string — no UTC conversion
+            var ds = yr + '-' + ('0'+(mo+1)).slice(-2) + '-' + ('0'+dy).slice(-2);
             if (txnFrom && ds < txnFrom) return false;
             if (txnTo   && ds > txnTo)   return false;
             return true;
@@ -1721,9 +1726,9 @@ function renderItemMasterList() {
             + '<div><strong>' + item.itemNum + '</strong></div>'
             + '<div>' + item.itemName + '</div>'
             + '<div>' + (item.description||'-') + '</div>'
-            + '<div>' + (item.commodityGroup||'-') + '</div>'
             + '<div>' + (item.uom||'-') + '</div>'
-            + '<div><span style="background:'+(item.itemType==='Service'?'#ebf8ff':'#f0fff4')+';color:'+(item.itemType==='Service'?'#2c5282':'#276749')+';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">' + (item.itemType||'-') + '</span></div>'
+            + '<div>' + (item.commodityGroup||'-') + '</div>'
+            + '<div><span style="display:inline-block;background:'+(item.itemType==='Service'?'rgba(0,51,160,0.07)':'rgba(229,62,62,0.07)')+';color:'+(item.itemType==='Service'?'#0033A0':'#e53e3e')+';border:1.5px solid '+(item.itemType==='Service'?'#0033A0':'#e53e3e')+';padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">' + (item.itemType||'-') + '</span></div>'
             + '<div>₱' + (parseFloat(String(item.cost||0).replace(/[₱,]/g,''))||0).toLocaleString('en-PH',{minimumFractionDigits:2}) + '</div>'
             + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;">'
             +   '<button class="btn-small btn-primary" onclick="viewItemMasterDetails(\'' + item.itemNum + '\')" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>'
@@ -1896,7 +1901,7 @@ function viewItemMasterDetails(itemNum) {
     if (nameEl) nameEl.textContent = item.itemName;
 
     var groupEl = document.getElementById('imGroupBadge');
-    if (groupEl) groupEl.textContent = item.commodityGroup || '—';
+    if (groupEl) groupEl.textContent = item.uom || '—';
 
     // Detail rows — same as mobile _detailRow
     var isService = (item.itemType || '') === 'Service';
@@ -2031,6 +2036,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (currentEditingItemMaster) {
                 var fbItem = (window._fbItemMaster || []).find(function(i){ return i.num === currentEditingItemMaster.itemNum; });
                 if (!fbItem || !fbItem._id) { alert('Item not found in database.'); return; }
+                // SKU duplicate check on edit (exclude the current item being edited)
+                if (data.sku) {
+                    var skuDupeEdit = (window.itemMaster || []).some(function(i){
+                        return String(i.sku||'').trim() === String(data.sku).trim() && i.sku !== '' && i.itemNum !== currentEditingItemMaster.itemNum;
+                    });
+                    if (skuDupeEdit) { showToast('SKU "' + data.sku + '" is already used by another item.', 'error'); return; }
+                }
                 var submitBtn = document.getElementById('imSubmitBtn');
                 if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Updating…'; }
                 db.collection('item_master').doc(fbItem._id).update(data)
@@ -2043,6 +2055,11 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 var isDuplicate = (window.itemMaster || []).some(function(i){ return i.itemNum === itemNum; });
                 if (isDuplicate) { alert('Item Number already exists.'); return; }
+                // SKU duplicate check (only if SKU is provided)
+                if (data.sku) {
+                    var skuDupe = (window.itemMaster || []).some(function(i){ return String(i.sku||'').trim() === String(data.sku).trim() && i.sku !== ''; });
+                    if (skuDupe) { showToast('SKU "' + data.sku + '" is already used by another item.', 'error'); return; }
+                }
                 data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 var submitBtn2 = document.getElementById('imSubmitBtn');
                 if (submitBtn2) { submitBtn2.disabled = true; submitBtn2.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving…'; }
@@ -2190,15 +2207,18 @@ function renderIssuancesList() {
         filtered = filtered.filter(function(i) {
             var d = i.date;
             if (!d) return false;
-            var dt = new Date(d);
-            if (isNaN(dt)) {
-                var MONTHS_ARR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                var parts = d.split(' ');
-                var m = MONTHS_ARR.indexOf(parts[0]);
-                if (m !== -1) dt = new Date(parseInt(parts[2]), m, parseInt(parts[1]));
-            }
-            if (isNaN(dt)) return true;
-            var ds = dt.toISOString().split('T')[0];
+            var MONTHS_ARR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            var yr, mo, dy;
+            // "Jan 5, 2025" or "January 5, 2025"
+            var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
+            if (m1) { mo = MONTHS_ARR.indexOf(m1[1].slice(0,3)); yr = parseInt(m1[3]); dy = parseInt(m1[2]); }
+            // "1/5/2025" or "01/05/2025"
+            if (mo === undefined) { var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m2) { mo = parseInt(m2[1]) - 1; dy = parseInt(m2[2]); yr = parseInt(m2[3]); } }
+            // "2025-01-05"
+            if (mo === undefined) { var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m3) { yr = parseInt(m3[1]); mo = parseInt(m3[2]) - 1; dy = parseInt(m3[3]); } }
+            if (mo === undefined || isNaN(yr) || isNaN(dy)) return true;
+            // Build local YYYY-MM-DD string — no UTC conversion
+            var ds = yr + '-' + ('0'+(mo+1)).slice(-2) + '-' + ('0'+dy).slice(-2);
             if (issFrom && ds < issFrom) return false;
             if (issTo   && ds > issTo)   return false;
             return true;

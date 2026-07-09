@@ -64,8 +64,10 @@ class _AdminDSSState extends State<AdminDSS> {
   String _searchQuery = '';
   final _searchController = TextEditingController();
 
-  String _stockFilter = 'all'; // 'all', 'Out of Stock', 'Low Stock', 'Adequate'
-  String _pmsFilter = 'all'; // 'all', 'Overdue', 'Due Today', 'Due This Week', 'Due Soon', 'Active'
+  String _stockFilter = 'all';
+  String _pmsFilter = 'all';
+  String _stockSort = 'stock-asc';   // stock-asc, stock-desc, name-asc, name-desc
+  String _pmsSort = 'pms-asc';       // pms-asc, pms-desc, plate-asc, plate-desc
 
   @override
   void initState() {
@@ -453,6 +455,28 @@ class _AdminDSSState extends State<AdminDSS> {
               });
             },
           ),
+          if (!_isSearching)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (val) {
+                if (_tab == 0) setState(() => _stockSort = val);
+                else setState(() => _pmsSort = val);
+              },
+              itemBuilder: (_) => _tab == 0 ? [
+                const PopupMenuItem(enabled: false, child: Text('Sort By', style: TextStyle(fontSize: 11, color: Color(0xFF718096), fontWeight: FontWeight.w700))),
+                _popItem('stock-asc',  'Stock (Lowest First)',   Icons.trending_down,   _stockSort == 'stock-asc',  _red),
+                _popItem('stock-desc', 'Stock (Highest First)',  Icons.trending_up,     _stockSort == 'stock-desc', _red),
+                _popItem('name-asc',   'Item Name A → Z',        Icons.sort_by_alpha,   _stockSort == 'name-asc',  _red),
+                _popItem('name-desc',  'Item Name Z → A',        Icons.sort_by_alpha,   _stockSort == 'name-desc', _red),
+              ] : [
+                const PopupMenuItem(enabled: false, child: Text('Sort By', style: TextStyle(fontSize: 11, color: Color(0xFF718096), fontWeight: FontWeight.w700))),
+                _popItem('pms-asc',   'Next PMS Date (Soonest)', Icons.arrow_upward,    _pmsSort == 'pms-asc',   _red),
+                _popItem('pms-desc',  'Next PMS Date (Latest)',  Icons.arrow_downward,  _pmsSort == 'pms-desc',  _red),
+                _popItem('plate-asc', 'Plate A → Z',             Icons.sort_by_alpha,   _pmsSort == 'plate-asc', _red),
+                _popItem('plate-desc','Plate Z → A',             Icons.sort_by_alpha,   _pmsSort == 'plate-desc',_red),
+              ],
+            ),
         ],
       ),
       body: Column(children: [
@@ -465,6 +489,18 @@ class _AdminDSSState extends State<AdminDSS> {
           ]),
         ),
         Expanded(child: _tab == 0 ? _buildStockDSS() : _buildPMSDSS()),
+      ]),
+    );
+  }
+
+  PopupMenuItem<String> _popItem(String value, String label, IconData icon, bool active, Color color) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(children: [
+        Icon(icon, size: 16, color: active ? color : const Color(0xFF718096)),
+        const SizedBox(width: 10),
+        Text(label, style: TextStyle(fontSize: 13, color: active ? color : const Color(0xFF1a202c), fontWeight: active ? FontWeight.w700 : FontWeight.normal)),
+        if (active) ...[const Spacer(), Icon(Icons.check, size: 14, color: color)],
       ]),
     );
   }
@@ -566,7 +602,7 @@ class _AdminDSSState extends State<AdminDSS> {
               // ── Priority — 3-Tier Color-Coded System ──
               // 0 = Out of Stock  🔴 Red    (stock = 0)
               // 1 = Low Stock     🟡 Yellow (stock ≤ min qty)
-              // 2 = Adequate      🟢 Green  (stock > min qty)
+              // 2 = In Stock      🟢 Green  (stock > min qty)
               final int priorityScore;
               final String priorityLabel;
               if (stock == 0) {
@@ -577,7 +613,7 @@ class _AdminDSSState extends State<AdminDSS> {
                 priorityLabel = 'Low Stock';
               } else {
                 priorityScore = 2;
-                priorityLabel = 'Adequate';
+                priorityLabel = 'In Stock';
               }
 
               // Lead time demand (7-day buffer)
@@ -593,7 +629,7 @@ class _AdminDSSState extends State<AdminDSS> {
                 'name':            data['name'] as String? ?? '—',
                 'itemNum':         itemNum,
                 'uom':             uom,
-                'stock':           '$stock $uom',
+                'stock':           '$stock',
                 'max':             '$max',
                 'min':             '$min',
                 'reorderQty':      '$reorder',
@@ -601,22 +637,22 @@ class _AdminDSSState extends State<AdminDSS> {
                     ? '$daysLeft days'
                     : (stock > 0 ? '—' : '0 days'),
                 'order':           priorityScore <= 1 && recommendQty > 0
-                    ? '$recommendQty $uom'
+                    ? '$recommendQty'
                     : '—',
                 'priority':        priorityLabel,
                 'priorityScore':   '$priorityScore',
                 'group':           data['group'] as String? ?? '—',
                 'consumptionRate': dailyRate > 0
-                    ? '${dailyRate.toStringAsFixed(2)} $uom/day'
+                    ? '${dailyRate.toStringAsFixed(2)} /day'
                     : '—',
                 'totalConsumed':   totalConsumed > 0
-                    ? '${totalConsumed % 1 == 0 ? totalConsumed.toInt() : totalConsumed.toStringAsFixed(1)} $uom'
+                    ? '${totalConsumed % 1 == 0 ? totalConsumed.toInt() : totalConsumed.toStringAsFixed(1)}'
                     : '—',
-                'leadNeed':        leadTimeDemand > 0 ? '$leadTimeDemand $uom' : '—',
+                'leadNeed':        leadTimeDemand > 0 ? '$leadTimeDemand' : '—',
               };
             }).toList()
               ..sort((a, b) {
-                // Sort: Out of Stock(0) > Critical(1) > Low Stock(2) > Adequate(3) > Overstock(4)
+              // Sort: Out of Stock(0) > Critical(1) > Low Stock(2) > In Stock(3) > Overstock(4)
                 final aScore = int.tryParse(a['priorityScore'] ?? '3') ?? 3;
                 final bScore = int.tryParse(b['priorityScore'] ?? '3') ?? 3;
                 return aScore.compareTo(bScore);
@@ -629,6 +665,16 @@ class _AdminDSSState extends State<AdminDSS> {
                     (i['itemNum'] ?? '').toLowerCase().contains(_searchQuery) ||
                     (i['group'] ?? '').toLowerCase().contains(_searchQuery)
                   ).toList();
+
+            // Apply sort
+            filtered.sort((a, b) {
+              switch (_stockSort) {
+                case 'stock-desc': return (int.tryParse(b['stock'] ?? '0') ?? 0).compareTo(int.tryParse(a['stock'] ?? '0') ?? 0);
+                case 'name-asc':   return (a['name'] ?? '').compareTo(b['name'] ?? '');
+                case 'name-desc':  return (b['name'] ?? '').compareTo(a['name'] ?? '');
+                default:           return (int.tryParse(a['stock'] ?? '0') ?? 0).compareTo(int.tryParse(b['stock'] ?? '0') ?? 0);
+              }
+            });
 
             return _buildStockDSSContent(filtered);
           },
@@ -653,7 +699,7 @@ class _AdminDSSState extends State<AdminDSS> {
             const SizedBox(width: 8),
             _kpiChipTappable('Low Stock', '${items.where((i) => i['priority'] == 'Low Stock').length}', const Color(0xFFd69e2e), Icons.trending_down_outlined, 'Low Stock', _stockFilter, (f) => setState(() => _stockFilter = _stockFilter == f ? 'all' : f)),
             const SizedBox(width: 8),
-            _kpiChipTappable('Adequate', '${items.where((i) => i['priority'] == 'Adequate').length}', const Color(0xFF38a169), Icons.check_circle_outline, 'Adequate', _stockFilter, (f) => setState(() => _stockFilter = _stockFilter == f ? 'all' : f)),
+            _kpiChipTappable('In Stock', '${items.where((i) => i['priority'] == 'In Stock').length}', const Color(0xFF38a169), Icons.check_circle_outline, 'In Stock', _stockFilter, (f) => setState(() => _stockFilter = _stockFilter == f ? 'all' : f)),
           ]),
         ]),
       ),
@@ -674,12 +720,12 @@ class _AdminDSSState extends State<AdminDSS> {
   /// Card layout that mirrors the website table row:
   /// Item name/num/group | Stock bar | Consumption | Days Left | Order | Priority | Decision
   Widget _buildStockCard(Map<String, String> item) {
-    final priority = item['priority'] ?? 'Adequate';
+    final priority = item['priority'] ?? 'In Stock';
     final color = _priorityColor(priority);
     final isCritical = priority == 'Out of Stock';
     // Parse stock numbers for the progress bar
     final stockRaw   = item['stock'] ?? '0';
-    final stockNum   = int.tryParse(stockRaw.split(' ').first) ?? 0;
+    final stockNum   = int.tryParse(stockRaw) ?? 0;
     final maxRaw     = item['max'] ?? '0';
     final maxNum     = int.tryParse(maxRaw) ?? 0;
     final minRaw     = item['min'] ?? '0';
@@ -721,7 +767,7 @@ class _AdminDSSState extends State<AdminDSS> {
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(item['name']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 Text(
-                  '${item['itemNum'] ?? ''}${item['itemNum'] != null && item['group'] != null ? '  ·  ' : ''}${item['group'] ?? ''}',
+                  '${item['itemNum'] ?? ''}${item['itemNum'] != null && item['uom'] != null && (item['uom']?.isNotEmpty == true) ? '  ·  ' : ''}${item['uom'] ?? ''}',
                   style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
                 ),
               ])),
@@ -744,21 +790,6 @@ class _AdminDSSState extends State<AdminDSS> {
             // ── Row 2: Stock status ──
             _sectionLabel('STOCK STATUS'),
             const SizedBox(height: 6),
-            Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text(
-                stockRaw.split(' ').first,
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: color),
-              ),
-              const SizedBox(width: 4),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 3),
-                child: Text(
-                  '/ ${item['max'] ?? '—'} ${item['uom'] ?? ''}',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF718096)),
-                ),
-              ),
-            ]),
-            const SizedBox(height: 6),
             // Progress bar
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
@@ -770,10 +801,11 @@ class _AdminDSSState extends State<AdminDSS> {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              'Min: ${item['min'] ?? '—'}  ·  Reorder pt: ${item['reorderQty'] ?? '—'}',
-              style: const TextStyle(fontSize: 10, color: Color(0xFF718096)),
-            ),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text('Min: ${item['min'] ?? '—'}', style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+              Text('${item['stock'] ?? '0'} / ${item['max'] ?? '—'}', style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w500)),
+              Text('Max: ${item['max'] ?? '—'}', style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+            ]),
 
             const SizedBox(height: 12),
             const Divider(height: 1, color: Color(0xFFe2e8f0)),
@@ -788,17 +820,9 @@ class _AdminDSSState extends State<AdminDSS> {
                 RichText(text: TextSpan(
                   children: [
                     TextSpan(
-                      // consumptionRate is "0.25 L/day" — extract just the number
-                      text: (item['consumptionRate'] ?? '—') != '—'
-                          ? (item['consumptionRate']!.split(' ').first)
-                          : '—',
+                      text: item['consumptionRate'] ?? '—',
                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF1a202c)),
                     ),
-                    if ((item['consumptionRate'] ?? '—') != '—')
-                      const TextSpan(
-                        text: ' /day',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF718096)),
-                      ),
                   ],
                 )),
                 const SizedBox(height: 2),
@@ -865,7 +889,7 @@ class _AdminDSSState extends State<AdminDSS> {
       case 'Low Stock':
         return const Color(0xFFd69e2e);   // 🟡 Yellow
       default:
-        return const Color(0xFF38a169);   // 🟢 Green (Adequate)
+        return const Color(0xFF38a169);   // 🟢 Green (In Stock)
     }
   }
 
@@ -876,7 +900,7 @@ class _AdminDSSState extends State<AdminDSS> {
   }
 
   void _showStockDetails(Map<String, String> item) {
-    final priority = item['priority'] ?? 'Adequate';
+    final priority = item['priority'] ?? 'In Stock';
     final color = _priorityColor(priority);
     showModalBottomSheet(
       context: context, isScrollControlled: true,
@@ -926,8 +950,7 @@ class _AdminDSSState extends State<AdminDSS> {
                     const Text('📊  ANALYSIS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF718096), letterSpacing: 0.5)),
                     const SizedBox(height: 12),
                     Row(children: [
-                      _statBox('Current Stock', item['stock']!, const Color(0xFFebf8ff), const Color(0xFF003087)),
-                      const SizedBox(width: 8),
+                      _statBox('Current Stock', item['stock']!, const Color(0xFFebf8ff), const Color(0xFF003087)),                      const SizedBox(width: 8),
                       _statBox('Consumption', item['consumptionRate']!, const Color(0xFFfff5f5), const Color(0xFFE8001C)),
                     ]),
                     const SizedBox(height: 8),

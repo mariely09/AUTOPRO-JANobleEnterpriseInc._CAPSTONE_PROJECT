@@ -216,7 +216,16 @@
         minLevel: parseInt(i.min) || 0,
         maxLevel: parseInt(i.max) || 0,
         reorderQty: parseInt(i.reorder) || 0,
-        status: i.status || 'OK',
+        // Compute status live — same logic as mobile app (stock==0 = Out, stock<=min = Low, stock>max = Over, else OK)
+        status: (function() {
+          var s = parseInt(i.stock) || 0;
+          var mn = parseInt(i.min) || 0;
+          var mx = parseInt(i.max) || 0;
+          if (s === 0) return 'Out';
+          if (s <= mn) return 'Low';
+          if (mx > 0 && s > mx) return 'Over';
+          return 'OK';
+        })(),
         barcode: i.barcode || '',
         qrcode: i.qr || i.qrcode || '',
       }));
@@ -489,17 +498,19 @@
   }
 
   function _updateInventoryStats() {
-    const inv = window._fbInventory || [];
-    _setStat('totalInventoryItems', inv.length);
-    const low = inv.filter(i => (i.status || '').toLowerCase() === 'low' || ((i.stock ?? 0) <= (i.minLevel ?? i.min ?? 0) && (i.minLevel ?? i.min ?? 0) > 0));
-    _setStat('lowStockCount', low.length);
-    _setStat('inStockCount', inv.length - low.length);
-    const total = inv.reduce((s, i) => {
-      const qty = parseFloat(i.stock) || 0;
-      const price = parseFloat(i.price || i.cost || 0);
-      return s + qty * price;
+    const inv = window.inventory || [];
+    const total = inv.length;
+    const outCount = inv.filter(i => i.stock === 0).length;
+    const lowCount = inv.filter(i => i.stock > 0 && i.stock <= i.minLevel).length;
+    const inCount  = inv.filter(i => i.stock > i.minLevel).length;
+    _setStat('totalInventoryItems', total);
+    _setStat('outOfStockCount', outCount);
+    _setStat('lowStockCount', lowCount);
+    _setStat('inStockCount', inCount);
+    const totalValue = inv.reduce(function(s, i) {
+      return s + (parseFloat(i.stock) || 0) * (parseFloat(i.price) || 0);
     }, 0);
-    _setStat('totalInventoryValue', '₱' + total.toLocaleString('en-PH', { minimumFractionDigits: 0 }));
+    _setStat('totalInventoryValue', '₱' + totalValue.toLocaleString('en-PH', { minimumFractionDigits: 0 }));
   }
 
   function _updateIssuanceStats() {

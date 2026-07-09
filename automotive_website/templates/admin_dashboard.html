@@ -244,7 +244,7 @@
                     <!-- Month Filter -->
                     <div style="position:relative;display:flex;align-items:center;">
                         <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        <select id="txnMonthFilter" onchange="renderInventoryTransactions()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:140px;outline:none;">
+                        <select id="txnMonthFilter" onchange="txnMonthToDateRange(this.value)" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:140px;outline:none;">
                             <option value="">All Months</option>
                         </select>
                         <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -257,14 +257,7 @@
                         </select>
                         <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
-                    <!-- Date Range Filter -->
-                    <div style="display:flex;align-items:center;gap:0.3rem;">
-                        <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">From</span>
-                        <input type="date" id="txnDateFrom" onchange="renderInventoryTransactions()" style="height:36px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;min-width:130px;">
-                        <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">To</span>
-                        <input type="date" id="txnDateTo" onchange="renderInventoryTransactions()" style="height:36px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;min-width:130px;">
-                        <button onclick="document.getElementById('txnDateFrom').value='';document.getElementById('txnDateTo').value='';renderInventoryTransactions();" title="Clear date range" style="height:36px;padding:0 0.55rem;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;color:#718096;font-size:0.82rem;" type="button">✕</button>
-                    </div>
+                    <!-- Date Range Filter removed from header — now lives inside the section filter bar -->
                     <button class="btn-icon btn-secondary" onclick="printTransactions()" style="display:flex;align-items:center;gap:0.3rem;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                         Print
@@ -297,19 +290,12 @@
                     <!-- Month Filter -->
                     <div style="position:relative;display:flex;align-items:center;">
                         <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        <select id="issuanceMonthFilter" onchange="renderIssuancesList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:140px;outline:none;">
+                        <select id="issuanceMonthFilter" onchange="issMonthToDateRange(this.value)" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:140px;outline:none;">
                             <option value="">All Months</option>
                         </select>
                         <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
-                    <!-- Date Range Filter -->
-                    <div style="display:flex;align-items:center;gap:0.3rem;">
-                        <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">From</span>
-                        <input type="date" id="issuanceDateFrom" onchange="renderIssuancesList()" style="height:36px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;min-width:130px;">
-                        <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">To</span>
-                        <input type="date" id="issuanceDateTo" onchange="renderIssuancesList()" style="height:36px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;min-width:130px;">
-                        <button onclick="document.getElementById('issuanceDateFrom').value='';document.getElementById('issuanceDateTo').value='';renderIssuancesList();" title="Clear date range" style="height:36px;padding:0 0.55rem;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;color:#718096;font-size:0.82rem;" type="button">✕</button>
-                    </div>
+                    <!-- Date Range Filter removed from header — now lives inside the section filter bar -->
                     <div style="position:relative;display:flex;align-items:center;">
                         <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                         <select id="issCommodityFilterDropdown" onchange="issSetCommodityFilter(this.value)" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:150px;outline:none;">
@@ -503,7 +489,7 @@
                         </div>
                     </div>
                     <!-- Filter pills — Issuances -->
-                    <div class="dss-filter-bar">
+                    <div class="dss-filter-bar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
                         <div class="dss-filter-group">
                             <label class="dss-filter-label">Filter by Type</label>
                             <div class="dss-filter-pills" id="issFilterPills">
@@ -520,6 +506,15 @@
                                     Materials
                                 </button>
                             </div>
+                        </div>
+                        <!-- Date Range Filter -->
+                        <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">From</span>
+                            <input type="date" id="issuanceDateFrom" onchange="renderIssuancesList()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
+                            <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">To</span>
+                            <input type="date" id="issuanceDateTo" onchange="renderIssuancesList()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
+                            <button onclick="document.getElementById('issuanceDateFrom').value='';document.getElementById('issuanceDateTo').value='';renderIssuancesList();" title="Clear date range" style="height:34px;padding:0 0.55rem;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;color:#718096;font-size:0.82rem;" type="button">✕</button>
                         </div>
                     </div>
                     <div class="data-table">
@@ -560,7 +555,7 @@
                         </div>
                     </div>
                     <!-- Filter pills — Inventory Transactions -->
-                    <div class="dss-filter-bar">
+                    <div class="dss-filter-bar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
                         <div class="dss-filter-group">
                             <label class="dss-filter-label">Filter by Type</label>
                             <div class="dss-filter-pills" id="txnFilterPills">
@@ -577,6 +572,15 @@
                                     Stock Out
                                 </button>
                             </div>
+                        </div>
+                        <!-- Date Range Filter -->
+                        <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">From</span>
+                            <input type="date" id="txnDateFrom" onchange="renderInventoryTransactions()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
+                            <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">To</span>
+                            <input type="date" id="txnDateTo" onchange="renderInventoryTransactions()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
+                            <button onclick="document.getElementById('txnDateFrom').value='';document.getElementById('txnDateTo').value='';renderInventoryTransactions();" title="Clear date range" style="height:34px;padding:0 0.55rem;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;color:#718096;font-size:0.82rem;" type="button">✕</button>
                         </div>
                     </div>
                     <div class="data-table">
@@ -1415,15 +1419,13 @@
         if (txnFromP || txnToP) {
           txns = txns.filter(function(t) {
             var d = t.date; if (!d) return false;
-            var dt = new Date(d);
-            if (isNaN(dt)) {
-              var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-              var pts = d.split(' ');
-              var mi = MO.indexOf(pts[0]);
-              if (mi !== -1) dt = new Date(parseInt(pts[2]), mi, parseInt(pts[1]));
-            }
-            if (isNaN(dt)) return true;
-            var ds = dt.toISOString().split('T')[0];
+            var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            var yr, mo, dy;
+            var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/); if (m1) { mo = MO.indexOf(m1[1].slice(0,3)); yr = parseInt(m1[3]); dy = parseInt(m1[2]); }
+            if (mo === undefined) { var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m2) { mo = parseInt(m2[1])-1; dy = parseInt(m2[2]); yr = parseInt(m2[3]); } }
+            if (mo === undefined) { var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m3) { yr = parseInt(m3[1]); mo = parseInt(m3[2])-1; dy = parseInt(m3[3]); } }
+            if (mo === undefined || isNaN(yr) || isNaN(dy)) return true;
+            var ds = yr + '-' + ('0'+(mo+1)).slice(-2) + '-' + ('0'+dy).slice(-2);
             if (txnFromP && ds < txnFromP) return false;
             if (txnToP   && ds > txnToP)   return false;
             return true;
@@ -1477,18 +1479,28 @@
           return [_fmtPrintDate(t.date), '<strong>' + t.item + '</strong>', t.commodityGroup, descWithAsset, t.qty];
         });
 
+        var FULL_MONTHS_PR = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        function _fmtIsoForPrint(iso) {
+          var p = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          return p ? FULL_MONTHS_PR[parseInt(p[2])-1] + ' ' + parseInt(p[3]) + ', ' + p[1] : iso;
+        }
+
         var printTitle = 'Inventory Transactions';
         if (selectedTxnMonth) printTitle += ' — ' + selectedTxnMonth;
-        if (txnFromP || txnToP) printTitle += ' · ' + (txnFromP || '…') + ' to ' + (txnToP || '…');
         if (txnFilter === 'IN') printTitle += ' (Received)';
         else if (txnFilter === 'OUT') printTitle += ' (Issued)';
         if (cgF) printTitle += ' · ' + cgF;
+
+        var txnPrintDateRange = (txnFromP || txnToP)
+          ? _fmtIsoForPrint(txnFromP || '…') + ' – ' + _fmtIsoForPrint(txnToP || '…')
+          : '';
 
         _doPrint(printTitle,
           [{ label:'Total', value:txns.length, color:'#1a202c' }, { label:'Stock In', value:inCount, color:'#003087' }, { label:'Stock Out', value:outCount, color:'#E8001C' }],
           ['Date', 'Item', 'Commodity Group', 'Description', 'Qty'],
           rows,
-          { values: [totalQty > 0 ? totalQty : '—'] }
+          { values: [totalQty > 0 ? totalQty : '—'] },
+          { dateRange: txnPrintDateRange }
         );
       }
 
@@ -1543,17 +1555,14 @@
         var issTo   = ((document.getElementById('issuanceDateTo')   || {}).value || '').trim();
         if (issFrom || issTo) {
           filtered = filtered.filter(function(i) {
-            var d = i.date;
-            if (!d) return false;
-            var dt = new Date(d);
-            if (isNaN(dt)) {
-              var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-              var pts = d.split(' ');
-              var mi = MO.indexOf(pts[0]);
-              if (mi !== -1) dt = new Date(parseInt(pts[2]), mi, parseInt(pts[1]));
-            }
-            if (isNaN(dt)) return true;
-            var ds = dt.toISOString().split('T')[0];
+            var d = i.date; if (!d) return false;
+            var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            var yr, mo, dy;
+            var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/); if (m1) { mo = MO.indexOf(m1[1].slice(0,3)); yr = parseInt(m1[3]); dy = parseInt(m1[2]); }
+            if (mo === undefined) { var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m2) { mo = parseInt(m2[1])-1; dy = parseInt(m2[2]); yr = parseInt(m2[3]); } }
+            if (mo === undefined) { var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m3) { yr = parseInt(m3[1]); mo = parseInt(m3[2])-1; dy = parseInt(m3[3]); } }
+            if (mo === undefined || isNaN(yr) || isNaN(dy)) return true;
+            var ds = yr + '-' + ('0'+(mo+1)).slice(-2) + '-' + ('0'+dy).slice(-2);
             if (issFrom && ds < issFrom) return false;
             if (issTo   && ds > issTo)   return false;
             return true;
@@ -1585,7 +1594,6 @@
         if (issFilter === 'Service') reportTitle += ' (Services)';
         else if (issFilter === 'Material') reportTitle += ' (Materials)';
         if (selectedMonth) reportTitle += ' — ' + selectedMonth;
-        if (issFrom || issTo) reportTitle += ' · ' + (issFrom || '…') + ' to ' + (issTo || '…');
         if (issCgF) reportTitle += ' · ' + issCgF;
 
         var FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -1610,6 +1618,10 @@
           if (!isNaN(dt)) return FULL_MONTHS[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
           return d;
         }
+
+        var issPrintDateRange = (issFrom || issTo)
+          ? fmtDate(issFrom || '') + ' – ' + fmtDate(issTo || '')
+          : '';
 
         var grandTotalQty = 0;
         var grandTotalSubtotal = 0;
@@ -1642,7 +1654,8 @@
           [{ label:'Total', value:filtered.length, color:'#1a202c' }, { label:'Services', value:svcCount, color:'#003087' }, { label:'Materials', value:matCount, color:'#E8001C' }],
           ['Date', 'Plate No.', 'Item No.', 'Description', 'Group', 'UOM', 'Qty', 'Unit Cost', 'Subtotal'],
           rows,
-          { values: [grandTotalQty > 0 ? grandTotalQty : '—', '', '₱' + grandTotalSubtotal.toLocaleString('en-PH',{minimumFractionDigits:2})] }
+          { values: [grandTotalQty > 0 ? grandTotalQty : '—', '', '₱' + grandTotalSubtotal.toLocaleString('en-PH',{minimumFractionDigits:2})] },
+          { dateRange: issPrintDateRange }
         );
       }
 
@@ -1938,15 +1951,13 @@
         if (txnFromE || txnToE) {
           txns = txns.filter(function(t) {
             var d = t.date; if (!d) return false;
-            var dt = new Date(d);
-            if (isNaN(dt)) {
-              var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-              var pts = d.split(' ');
-              var mi = MO.indexOf(pts[0]);
-              if (mi !== -1) dt = new Date(parseInt(pts[2]), mi, parseInt(pts[1]));
-            }
-            if (isNaN(dt)) return true;
-            var ds = dt.toISOString().split('T')[0];
+            var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            var yr, mo, dy;
+            var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/); if (m1) { mo = MO.indexOf(m1[1].slice(0,3)); yr = parseInt(m1[3]); dy = parseInt(m1[2]); }
+            if (mo === undefined) { var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m2) { mo = parseInt(m2[1])-1; dy = parseInt(m2[2]); yr = parseInt(m2[3]); } }
+            if (mo === undefined) { var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m3) { yr = parseInt(m3[1]); mo = parseInt(m3[2])-1; dy = parseInt(m3[3]); } }
+            if (mo === undefined || isNaN(yr) || isNaN(dy)) return true;
+            var ds = yr + '-' + ('0'+(mo+1)).slice(-2) + '-' + ('0'+dy).slice(-2);
             if (txnFromE && ds < txnFromE) return false;
             if (txnToE   && ds > txnToE)   return false;
             return true;
@@ -1969,11 +1980,7 @@
 
         var now = new Date();
         var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-<<<<<<< HEAD
         // Normalize date to "July 2, 2026" format (full month name)
-=======
-
->>>>>>> dd84bfe2e0d440579f9899b0a741ecf77b3b90e8
         function _fmtTxnDateExport(d) {
           if (!d) return '—';
           var MONTHS_S_TXN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -2043,15 +2050,13 @@
         if (issFromE || issToE) {
           filtered = filtered.filter(function(i) {
             var d = i.date; if (!d) return false;
-            var dt = new Date(d);
-            if (isNaN(dt)) {
-              var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-              var pts = d.split(' ');
-              var mi = MO.indexOf(pts[0]);
-              if (mi !== -1) dt = new Date(parseInt(pts[2]), mi, parseInt(pts[1]));
-            }
-            if (isNaN(dt)) return true;
-            var ds = dt.toISOString().split('T')[0];
+            var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            var yr, mo, dy;
+            var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/); if (m1) { mo = MO.indexOf(m1[1].slice(0,3)); yr = parseInt(m1[3]); dy = parseInt(m1[2]); }
+            if (mo === undefined) { var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m2) { mo = parseInt(m2[1])-1; dy = parseInt(m2[2]); yr = parseInt(m2[3]); } }
+            if (mo === undefined) { var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m3) { yr = parseInt(m3[1]); mo = parseInt(m3[2])-1; dy = parseInt(m3[3]); } }
+            if (mo === undefined || isNaN(yr) || isNaN(dy)) return true;
+            var ds = yr + '-' + ('0'+(mo+1)).slice(-2) + '-' + ('0'+dy).slice(-2);
             if (issFromE && ds < issFromE) return false;
             if (issToE   && ds > issToE)   return false;
             return true;
@@ -2075,7 +2080,6 @@
           }
         });
 
-<<<<<<< HEAD
         // Normalize any date string to "July 2, 2026" format (full month name)
         var FULL_MONTHS_E = ['January','February','March','April','May','June','July','August','September','October','November','December'];
         function _fmtIssDate(d) {
@@ -2087,22 +2091,10 @@
             var mi = MONTHS_S.indexOf(abbr);
             var fullMo = mi !== -1 ? FULL_MONTHS_E[mi] : m1[1];
             return fullMo + ' ' + parseInt(m1[2]) + ', ' + m1[3];
-=======
-        function _fmtIssDate(d) {
-          if (!d) return '—';
-          if (/^[A-Za-z]/.test(d)) {
-            var mx = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
-            if (mx) return mx[1].slice(0,3) + ' ' + parseInt(mx[2]) + ', ' + mx[3];
-            return d;
->>>>>>> dd84bfe2e0d440579f9899b0a741ecf77b3b90e8
           }
           var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-<<<<<<< HEAD
           if (m2) return FULL_MONTHS_E[parseInt(m2[1])-1] + ' ' + parseInt(m2[2]) + ', ' + m2[3];
           // "2026-07-02"
-=======
-          if (m2) return MONTHS_S[parseInt(m2[1])-1] + ' ' + parseInt(m2[2]) + ', ' + m2[3];
->>>>>>> dd84bfe2e0d440579f9899b0a741ecf77b3b90e8
           var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
           if (m3) return FULL_MONTHS_E[parseInt(m3[2])-1] + ' ' + parseInt(m3[3]) + ', ' + m3[1];
           return d;
@@ -2137,16 +2129,6 @@
 
         var now = new Date();
         var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-<<<<<<< HEAD
-        _downloadCSV(
-          'Issuances_' + stamp + '.csv',
-          ['Date','Plate No.','Item No.','Item Name','Commodity Group','UOM','Qty','Unit Cost','Subtotal'],
-          filtered.map(function(i){
-            var qty = parseFloat(i.quantity||i.qty||0)||0;
-            var uc  = parseFloat(String(i.unitCost||0).replace(/[₱,]/g,''))||0;
-            return [_fmtIssDate(i.date),i.plate||i.assetNum||'',i.itemNum||'',i.itemName||'',i.commodityGroup||'',i.uom||i.unit||'',qty,uc,(qty*uc).toFixed(2)];
-          })
-=======
 
         _downloadExcel(
           'Issuances_' + stamp + '.xlsx',
@@ -2154,11 +2136,10 @@
           ['Date','Plate No.','Item No.','Item Name','Item Type','Commodity Group','UOM','Qty','Unit Cost','Subtotal'],
           rows,
           { values: [
-              { value: grandTotalQty > 0 ? grandTotalQty : '—',                              colIndex: 8  },  // Qty
-              { value: grandTotalSubtotal > 0 ? parseFloat(grandTotalSubtotal.toFixed(2)) : '—', colIndex: 10 }   // Subtotal
+              { value: grandTotalQty > 0 ? grandTotalQty : '—',                              colIndex: 8  },
+              { value: grandTotalSubtotal > 0 ? parseFloat(grandTotalSubtotal.toFixed(2)) : '—', colIndex: 10 }
             ]
           }
->>>>>>> dd84bfe2e0d440579f9899b0a741ecf77b3b90e8
         );
       }
     </script>
@@ -2167,6 +2148,44 @@
       // ── Inventory Transactions filter ──
       window._txnFilter = 'all';
       window._txnCommodityFilter = '';
+
+      // Month → date range sync helpers
+      function _monthToPad(n) { return ('0' + n).slice(-2); }
+      window.txnMonthToDateRange = function(val) {
+        if (val) {
+          var parts = val.split(' ');
+          var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          var m = MONTHS.indexOf(parts[0]);
+          var y = parseInt(parts[1]);
+          if (m !== -1 && !isNaN(y)) {
+            var lastDay = new Date(y, m + 1, 0).getDate();
+            document.getElementById('txnDateFrom').value = y + '-' + _monthToPad(m + 1) + '-01';
+            document.getElementById('txnDateTo').value   = y + '-' + _monthToPad(m + 1) + '-' + _monthToPad(lastDay);
+          }
+        } else {
+          document.getElementById('txnDateFrom').value = '';
+          document.getElementById('txnDateTo').value   = '';
+        }
+        if (typeof renderInventoryTransactions === 'function') renderInventoryTransactions();
+      };
+
+      window.issMonthToDateRange = function(val) {
+        if (val) {
+          var parts = val.split(' ');
+          var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          var m = MONTHS.indexOf(parts[0]);
+          var y = parseInt(parts[1]);
+          if (m !== -1 && !isNaN(y)) {
+            var lastDay = new Date(y, m + 1, 0).getDate();
+            document.getElementById('issuanceDateFrom').value = y + '-' + _monthToPad(m + 1) + '-01';
+            document.getElementById('issuanceDateTo').value   = y + '-' + _monthToPad(m + 1) + '-' + _monthToPad(lastDay);
+          }
+        } else {
+          document.getElementById('issuanceDateFrom').value = '';
+          document.getElementById('issuanceDateTo').value   = '';
+        }
+        if (typeof renderIssuancesList === 'function') renderIssuancesList();
+      };
 
       window.txnSetFilter = function(filter, btn) {
         window._txnFilter = filter;

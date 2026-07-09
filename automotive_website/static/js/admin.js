@@ -373,14 +373,14 @@ function dssAnalyze() {
         // Priority scoring — 3-Tier Color-Coded System
         // 0 = Out of Stock  🔴 Red    (stock = 0)
         // 1 = Low Stock     🟡 Yellow (stock ≤ min qty)
-        // 2 = Adequate      🟢 Green  (stock > min qty)
+        // 2 = In Stock      🟢 Green  (stock > min qty)
         let priority, priorityLabel, priorityColor;
         if (item.stock === 0) {
             priority = 0; priorityLabel = 'OUT OF STOCK'; priorityColor = '#e53e3e';
         } else if (item.stock <= item.minLevel) {
             priority = 1; priorityLabel = 'LOW STOCK';    priorityColor = '#d69e2e';
         } else {
-            priority = 2; priorityLabel = 'ADEQUATE';     priorityColor = '#38a169';
+            priority = 2; priorityLabel = 'IN STOCK';      priorityColor = '#38a169';
         }
 
         // Decision text — 3-tier
@@ -434,7 +434,7 @@ function renderDSSKpis() {
         { svg: '<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>',
           label: 'Low Stock', val: lowStock, color: '#d69e2e', bg: 'rgba(214,158,46,0.10)', filter: 'low-stock' },
         { svg: '<polyline points="20 6 9 17 4 12"/>',
-          label: 'Adequate', val: adequate, color: '#38a169', bg: 'rgba(56,161,105,0.10)', filter: 'ok' },
+          label: 'In Stock', val: adequate, color: '#38a169', bg: 'rgba(56,161,105,0.10)', filter: 'ok' },
     ].map(function (k) {
         return '<div class="stat-card" style="cursor:pointer;" onclick="dssSetFilter(\'' + k.filter + '\',document.querySelectorAll(\'#dssFilterPills .dss-pill\')[' + ({'critical':1,'low-stock':2,'ok':3}[k.filter]) + '])">'
             + '<div class="stat-icon" style="background:' + k.bg + ';color:' + k.color + ';">'
@@ -518,28 +518,31 @@ function renderDSSTable() {
             // Item
             + '<td class="dss-td">'
             + '<div class="dss-item-name">' + i.itemName + '</div>'
-            + '<div class="dss-item-sub">' + i.itemNum + ' &nbsp;·&nbsp; ' + i.commodityGroup + '</div>'
+            + '<div class="dss-item-sub">' + i.itemNum + ' &nbsp;·&nbsp; ' + (i.unit || i.uom || '—') + '</div>'
             + '</td>'
             // Stock status
             + '<td class="dss-td">'
-            + '<div class="dss-stock-nums"><span style="font-size:1.05rem;font-weight:900;color:' + barColor + ';">' + i.stock + '</span><span class="dss-stock-sep"> / </span><span class="dss-stock-max">' + i.maxLevel + ' ' + i.unit + '</span></div>'
             + '<div class="dss-bar-track"><div class="dss-bar-fill" style="width:' + x.stockPct + '%;background:' + barColor + ';"></div></div>'
-            + '<div class="dss-stock-hint">Min: ' + i.minLevel + ' &nbsp;·&nbsp; Reorder pt: ' + (i.reorderLevel || i.reorderQty || '—') + '</div>'
+            + '<div style="display:flex;justify-content:space-between;font-size:0.72rem;font-weight:600;margin-top:4px;">'
+            +   '<span style="color:#718096;">Min: ' + i.minLevel + '</span>'
+            +   '<span style="color:' + barColor + ';">' + i.stock + ' / ' + i.maxLevel + '</span>'
+            +   '<span style="color:#718096;">Max: ' + i.maxLevel + '</span>'
+            + '</div>'
             + '</td>'
             // Consumption rate
             + '<td class="dss-td">'
             + '<div class="dss-rate">' + rateText + '</div>'
-            + '<div class="dss-item-sub">Used: ' + x.totalConsumed + ' ' + i.unit + '</div>'
+            + '<div class="dss-item-sub">Used: ' + x.totalConsumed + '</div>'
             + '</td>'
             // Days left
             + '<td class="dss-td">'
             + '<div>' + daysText + '</div>'
-            + (x.leadTimeDemand > 0 ? '<div class="dss-item-sub">Lead need: ' + x.leadTimeDemand + ' ' + i.unit + '</div>' : '<div class="dss-item-sub">—</div>')
+            + (x.leadTimeDemand > 0 ? '<div class="dss-item-sub">Lead need: ' + x.leadTimeDemand + '</div>' : '<div class="dss-item-sub">—</div>')
             + '</td>'
             // Recommended order
             + '<td class="dss-td">'
             + (x.priority <= 1
-                ? '<div class="dss-order-qty" style="color:' + barColor + ';">' + x.recommendQty + ' <span style="font-size:0.78rem;font-weight:600;color:#718096;">' + i.unit + '</span></div>'
+                ? '<div class="dss-order-qty" style="color:' + barColor + ';">' + x.recommendQty + '</div>'
                 + '<div class="dss-item-sub">≈ ₱' + (x.recommendQty * (i.price || 0)).toLocaleString('en-PH', { minimumFractionDigits: 2 }) + '</div>'
                 : '<div style="color:#a0aec0;font-weight:700;font-size:0.85rem;">—</div>')
             + '</td>'

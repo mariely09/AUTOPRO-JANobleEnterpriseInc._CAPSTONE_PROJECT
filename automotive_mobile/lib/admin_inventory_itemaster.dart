@@ -5,14 +5,76 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'barcode_scanner_screen.dart';
 
 /// Standalone full-screen wrapper (for direct navigation if needed elsewhere).
-class AdminInventoryItemMaster extends StatelessWidget {
+class AdminInventoryItemMaster extends StatefulWidget {
   const AdminInventoryItemMaster({super.key});
 
   @override
+  State<AdminInventoryItemMaster> createState() => _AdminInventoryItemMasterState();
+}
+
+class _AdminInventoryItemMasterState extends State<AdminInventoryItemMaster> {
+  static const _red = Color(0xFFE8001C);
+  String _sortOrder = 'num_asc';
+  final _bodyKey = GlobalKey<AdminInventoryItemMasterBodyState>();
+
+  PopupMenuItem<String> _popItem(String value, String label, IconData icon, bool active, Color color) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(children: [
+        Icon(icon, size: 16, color: active ? color : const Color(0xFF718096)),
+        const SizedBox(width: 10),
+        Text(label, style: TextStyle(fontSize: 13, color: active ? color : const Color(0xFF1a202c), fontWeight: active ? FontWeight.w700 : FontWeight.normal)),
+        if (active) ...[const Spacer(), Icon(Icons.check, size: 14, color: color)],
+      ]),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFFF7F8FA),
-      body: AdminInventoryItemMasterBody(),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F8FA),
+      appBar: AppBar(
+        backgroundColor: _red,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('Item Master',
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            onSelected: (val) {
+              if (val.startsWith('sort:')) {
+                setState(() => _sortOrder = val.substring(5));
+              } else if (val.startsWith('group:')) {
+                _bodyKey.currentState?.setState(() {
+                  _bodyKey.currentState!.groupFilter = val.substring(6);
+                });
+              }
+            },
+            itemBuilder: (_) {
+              final groupList = _bodyKey.currentState?.groups.isNotEmpty == true
+                  ? _bodyKey.currentState!.groups
+                  : ['Lubricants', 'Spare Parts', 'Filter', 'AutoService'];
+              final currentGroup = _bodyKey.currentState?.groupFilter ?? '';
+              return [
+                const PopupMenuItem(enabled: false, child: Text('Sort By', style: TextStyle(fontSize: 11, color: Color(0xFF718096), fontWeight: FontWeight.w700))),
+                _popItem('sort:num_asc',   'Item No. (Ascending)',  Icons.arrow_upward,    _sortOrder == 'num_asc',   _red),
+                _popItem('sort:num_desc',  'Item No. (Descending)', Icons.arrow_downward,  _sortOrder == 'num_desc',  _red),
+                _popItem('sort:name_asc',  'Name A → Z',            Icons.sort_by_alpha,   _sortOrder == 'name_asc',  _red),
+                _popItem('sort:name_desc', 'Name Z → A',            Icons.sort_by_alpha,   _sortOrder == 'name_desc', _red),
+                _popItem('sort:cost_desc', 'Cost ↑ Highest',        Icons.trending_up,     _sortOrder == 'cost_desc', _red),
+                _popItem('sort:cost_asc',  'Cost ↓ Lowest',         Icons.trending_down,   _sortOrder == 'cost_asc',  _red),
+                const PopupMenuDivider(),
+                const PopupMenuItem(enabled: false, child: Text('Filter by Group', style: TextStyle(fontSize: 11, color: Color(0xFF718096), fontWeight: FontWeight.w700))),
+                _popItem('group:',  'All Groups', Icons.select_all,     currentGroup.isEmpty, const Color(0xFF003087)),
+                ...groupList.map((g) => _popItem('group:$g', g, Icons.circle_outlined, currentGroup == g, const Color(0xFF003087))),
+              ];
+            },
+          ),
+        ],
+      ),
+      body: AdminInventoryItemMasterBody(key: _bodyKey, sortOrder: _sortOrder),
     );
   }
 }
@@ -20,20 +82,43 @@ class AdminInventoryItemMaster extends StatelessWidget {
 /// Embeddable body — used inside AdminInventoryHub's IndexedStack.
 class AdminInventoryItemMasterBody extends StatefulWidget {
   final String searchQuery;
-  const AdminInventoryItemMasterBody({super.key, this.searchQuery = ''});
+  final String sortOrder;
+  final String groupFilter;
+  final VoidCallback? onStockSaved;
+  const AdminInventoryItemMasterBody({super.key, this.searchQuery = '', this.sortOrder = 'num_asc', this.groupFilter = '', this.onStockSaved});
 
   @override
-  State<AdminInventoryItemMasterBody> createState() => _AdminInventoryItemMasterBodyState();
+  AdminInventoryItemMasterBodyState createState() => AdminInventoryItemMasterBodyState();
 }
 
-class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBody> {
+class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBody> {
   static const _red = Color(0xFFE8001C);
   static const _col = 'item_master';
 
   String _searchQuery = '';
-  String _typeFilter = 'all'; // 'all', 'Material', 'Service'
+  String _typeFilter = 'all';
+  String groupFilter = '';
+  List<String> groups = [];
 
   CollectionReference get _db => FirebaseFirestore.instance.collection(_col);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGroups();
+  }
+
+  Future<void> _loadGroups() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('domains').doc('commodity_groups').collection('items')
+          .orderBy('name').get();
+      final list = snap.docs.map((d) => d['name'] as String).toList();
+      if (mounted) setState(() => groups = list);
+    } catch (_) {
+      if (mounted) setState(() => groups = ['Lubricants', 'Spare Parts', 'Filter', 'AutoService']);
+    }
+  }
 
   // Cache domains so they're only fetched once
   List<String>? _cachedGroups;
@@ -101,6 +186,35 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
             };
           }).toList();
 
+          // Apply sort
+          int numPart(String s) => int.tryParse(s.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          double costVal(Map<String, String> i) =>
+              double.tryParse((i['cost'] ?? '').replaceAll(RegExp(r'[₱,]'), '').trim()) ?? 0;
+
+          switch (widget.sortOrder) {
+            case 'num_desc':
+              items.sort((a, b) => numPart(b['num']!).compareTo(numPart(a['num']!)));
+              break;
+            case 'name_asc':
+              items.sort((a, b) => (a['name']!).compareTo(b['name']!));
+              break;
+            case 'name_desc':
+              items.sort((a, b) => (b['name']!).compareTo(a['name']!));
+              break;
+            case 'group_asc':
+              items.sort((a, b) => (a['group']!).compareTo(b['group']!));
+              break;
+            case 'cost_desc':
+              items.sort((a, b) => costVal(b).compareTo(costVal(a)));
+              break;
+            case 'cost_asc':
+              items.sort((a, b) => costVal(a).compareTo(costVal(b)));
+              break;
+            default: // 'num_asc'
+              items.sort((a, b) => numPart(a['num']!).compareTo(numPart(b['num']!)));
+              break;
+          }
+
           final filtered = activeQuery.isEmpty
               ? items
               : items.where((i) =>
@@ -112,6 +226,12 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
           final afterTypeFilter = _typeFilter == 'all'
               ? filtered
               : filtered.where((i) => i['type'] == _typeFilter).toList();
+
+          // Apply group filter — use widget prop (from hub) if set, else internal
+          final activeGroupFilter = widget.groupFilter.isNotEmpty ? widget.groupFilter : groupFilter;
+          final afterGroupFilter = activeGroupFilter.isEmpty
+              ? afterTypeFilter
+              : afterTypeFilter.where((i) => (i['group'] as String) == activeGroupFilter).toList();
 
           final total = items.length;
           final materials = items.where((i) => i['type'] == 'Material').length;
@@ -129,13 +249,13 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
               ]),
             ),
             Expanded(
-              child: afterTypeFilter.isEmpty
+              child: afterGroupFilter.isEmpty
                 ? const Center(child: Text('No items found.', style: TextStyle(color: Color(0xFF718096))))
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
-                    itemCount: afterTypeFilter.length,
+                    itemCount: afterGroupFilter.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _itemCard(afterTypeFilter[i]),
+                    itemBuilder: (_, i) => _itemCard(afterGroupFilter[i]),
                   ),
             ),
           ]);
@@ -198,8 +318,9 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(item['name']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1a202c))),
+            const SizedBox(height: 2),
             Text(
-              item['group']!.isNotEmpty ? '${item['num']!} • ${item['group']!}' : item['num']!,
+              [if (item['group']!.isNotEmpty) item['group']!, if (item['uom']!.isNotEmpty) item['uom']!].join(' • '),
               style: const TextStyle(fontSize: 11, color: Color(0xFF4a5568)),
             ),
             const SizedBox(height: 4),
@@ -211,7 +332,7 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
                   style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: typeColor)),
               ),
               const SizedBox(width: 6),
-              Text(item['uom']!, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+              Text(item['num']!, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
             ]),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -246,7 +367,7 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
               child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(item['name']!, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(item['group'] ?? '—', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text(item['uom'] ?? '—', style: const TextStyle(color: Colors.white70, fontSize: 12)),
                 ])),
                 GestureDetector(onTap: () => Navigator.pop(context),
                   child: const Icon(Icons.close, color: Colors.white)),
@@ -330,7 +451,16 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
     final clean = raw.replaceAll('₱', '').replaceAll(',', '').trim();
     final val = double.tryParse(clean);
     if (val == null || clean.isEmpty) return '₱0.00';
-    return '₱${val.toStringAsFixed(2)}';
+    // Format integer part with comma separators
+    final intPart = val.truncate();
+    final decPart = ((val - intPart) * 100).round().toString().padLeft(2, '0');
+    final intStr = intPart.toString();
+    final buffer = StringBuffer();
+    for (int i = 0; i < intStr.length; i++) {
+      if (i > 0 && (intStr.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(intStr[i]);
+    }
+    return '₱$buffer.$decPart';
   }
 
   Widget _detailRow(String label, String value) {
@@ -364,6 +494,7 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
     String selectedType = item?['type'] ?? 'Material';
     String? selectedGroup = (item?['group']?.isNotEmpty == true && groups.contains(item!['group'])) ? item['group'] : null;
     String? selectedUom = (item?['uom']?.isNotEmpty == true && uoms.contains(item!['uom'])) ? item['uom'] : null;
+    bool saving = false;
 
     showModalBottomSheet(
       context: context, isScrollControlled: true,
@@ -380,10 +511,6 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
                 decoration: const BoxDecoration(color: _red,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
                 child: Row(children: [
-                  Container(width: 44, height: 44,
-                    decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(12)),
-                    child: Icon(isEdit ? Icons.edit_outlined : Icons.add, color: Colors.white, size: 22)),
-                  const SizedBox(width: 12),
                   Expanded(child: Text(isEdit ? 'Edit Item' : 'Add Item',
                     style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
                   GestureDetector(onTap: () => Navigator.pop(ctx),
@@ -518,8 +645,9 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
                       child: const Text('Cancel'))),
                     const SizedBox(width: 12),
                     Expanded(child: ElevatedButton(
-                      onPressed: () async {
+                      onPressed: saving ? null : () async {
                         if (nameCtrl.text.trim().isEmpty) return;
+                        setModalState(() => saving = true);
                         final data = <String, dynamic>{
                           'num': itemNum,
                           'sku': skuCtrl.text.trim(),
@@ -551,7 +679,6 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
                                 content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Item added successfully!')]),
                                 backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
-                              // Auto-navigate to Stock Inventory to set stock levels for Material items
                               if (selectedType == 'Material' && context.mounted) {
                                 final shouldSetStock = await showDialog<bool>(
                                   context: context,
@@ -576,23 +703,25 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
                                   ),
                                 );
                                 if (shouldSetStock == true && context.mounted) {
-                                  // Show stock level fields directly in a modal
                                   _showSetStockModal(itemNum, nameCtrl.text.trim(), selectedGroup ?? '', selectedUom ?? '');
                                 }
                               }
                             }
                           }
                         } catch (e) {
+                          setModalState(() => saving = false);
                           if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(
                             SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
                         }
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.save_outlined, size: 16),
-                        const SizedBox(width: 6),
-                        Text(isEdit ? 'Update' : 'Save'),
-                      ]),
+                      child: saving
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.save_outlined, size: 16),
+                            const SizedBox(width: 6),
+                            Text(isEdit ? 'Update' : 'Save'),
+                          ]),
                     )),
                   ]),
                 ]),
@@ -609,6 +738,7 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
     final minCtrl = TextEditingController();
     final maxCtrl = TextEditingController();
     final reorderCtrl = TextEditingController();
+    bool savingStock = false;
 
     showModalBottomSheet(
       context: context,
@@ -616,7 +746,7 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (sheetCtx) => StatefulBuilder(
-        builder: (sheetCtx, _) => AnimatedPadding(
+        builder: (sheetCtx, setSave) => AnimatedPadding(
           duration: const Duration(milliseconds: 150),
           padding: EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
           child: SingleChildScrollView(
@@ -678,26 +808,24 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
                       child: const Text('Skip'))),
                     const SizedBox(width: 12),
                     Expanded(child: ElevatedButton(
-                      onPressed: () async {
+                      onPressed: savingStock ? null : () async {
                         final stock = int.tryParse(stockCtrl.text) ?? 0;
                         final min = int.tryParse(minCtrl.text) ?? 0;
                         final max = int.tryParse(maxCtrl.text) ?? 0;
                         final reorder = int.tryParse(reorderCtrl.text) ?? 0;
+                        setSave(() => savingStock = true);
                         try {
-                          // Check if already exists in stock_inventory
                           final existing = await FirebaseFirestore.instance
                               .collection('stock_inventory')
                               .where('num', isEqualTo: itemNum)
                               .limit(1).get();
                           if (existing.docs.isNotEmpty) {
-                            // Update existing
                             await existing.docs.first.reference.update({
                               'stock': stock, 'min': min, 'max': max, 'reorder': reorder,
                               'status': stock > min ? 'OK' : 'Low',
                               'updatedAt': FieldValue.serverTimestamp(),
                             });
                           } else {
-                            // Create new stock entry
                             await FirebaseFirestore.instance.collection('stock_inventory').add({
                               'num': itemNum,
                               'name': itemName,
@@ -715,22 +843,27 @@ class _AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterB
                               content: Row(children: const [
                                 Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
                                 SizedBox(width: 8),
-                                Text('Stock levels saved!'),
+                                Text('Stock item added successfully!'),
                               ]),
                               backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+                            // Switch to Stock tab
+                            widget.onStockSaved?.call();
                           }
                         } catch (e) {
+                          setSave(() => savingStock = false);
                           if (sheetCtx.mounted) ScaffoldMessenger.of(sheetCtx).showSnackBar(
                             SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
                         }
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF003087), foregroundColor: Colors.white),
-                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.save_outlined, size: 16),
-                        SizedBox(width: 6),
-                        Text('Save Stock'),
-                      ]),
+                      child: savingStock
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.save_outlined, size: 16),
+                            SizedBox(width: 6),
+                            Text('Save Stock'),
+                          ]),
                     )),
                   ]),
                 ]),
