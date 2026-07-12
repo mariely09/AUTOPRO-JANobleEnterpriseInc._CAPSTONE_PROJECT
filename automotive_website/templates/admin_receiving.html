@@ -56,7 +56,7 @@
 </head>
 <body class="portal-body" data-page="receiving">
 <script>
-// Instant auth guard � blocks bfcache back-navigation after logout
+// Instant auth guard - blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -186,11 +186,11 @@
 </div>
 
 <!-- ----------------------------------------------------------
-     MODAL 1 � New Delivery
+     MODAL 1 - New Delivery
 ---------------------------------------------------------- -->
 <div class="modal" id="newDeliveryModal">
   <div class="modal-content" style="max-width:520px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
-    <!-- Header � same style as staffReceiveDeliveryModal -->
+    <!-- Header - same style as staffReceiveDeliveryModal -->
     <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
       <div style="flex:1;">
         <div style="color:white;font-size:1rem;font-weight:700;">New Delivery</div>
@@ -210,13 +210,15 @@
       <hr style="border:none;border-top:1px solid #e2e8f0;">
 
       <!-- Item search -->
-      <div style="display:flex;gap:0.5rem;">
-        <input type="text" id="ndItemSearch" placeholder="Search item name or number..." style="flex:1;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.9rem;font-size:0.88rem;outline:none;" oninput="ndSearchMasterItem(this.value)">
-        <button onclick="ndSearchMasterItem(document.getElementById('ndItemSearch').value)" style="background:#E31E24;border:none;color:white;padding:0 1rem;border-radius:10px;cursor:pointer;font-size:0.85rem;font-weight:600;">Search</button>
+      <div style="font-size:0.78rem;font-weight:700;color:#4a5568;">Add Items</div>
+      <div>
+        <input type="text" id="ndItemSearch" placeholder="Search item name or number..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.9rem;font-size:0.88rem;outline:none;box-sizing:border-box;" oninput="ndSearchMasterItem(this.value)">
       </div>
 
-      <!-- Search results list (shown while typing, before selection) -->
-      <div id="ndSearchResults" style="display:none;border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.06);"></div>
+      <!-- Search results list -->
+      <div id="ndSearchResults" style="display:none;border:1.5px solid #e2e8f0;border-radius:12px;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+        <div id="ndSearchResultsInner" style="overflow-y:auto;height:260px;"></div>
+      </div>
 
       <!-- Found item card (shown after selecting from list) -->
       <div id="ndItemPreview" style="display:none;background:#fff5f5;border:1.5px solid #feb2b2;border-radius:12px;padding:1rem 1.25rem;">
@@ -236,7 +238,7 @@
           <button type="button" onclick="ndAddCurrentItem()" style="background:#E31E24;border:none;color:white;padding:0.6rem 1.1rem;border-radius:8px;font-size:0.88rem;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">Add</button>
         </div>
       </div>
-      <div id="ndNotFound" style="display:none;background:#fff5f5;border:1px solid #fed7d7;border-radius:10px;padding:0.75rem 1rem;font-size:0.83rem;color:#c53030;">No item found in Item Master.</div>
+      <div id="ndNotFound" style="display:none;background:#fff5f5;border:1px solid #fed7d7;border-radius:10px;padding:0.75rem 1rem;font-size:0.83rem;color:#c53030;">No material item found.</div>
 
       <!-- Added items list -->
       <div id="ndAddedItemsWrap" style="display:none;flex-direction:column;gap:6px;">
@@ -245,6 +247,12 @@
           <span id="ndAddedCount" style="font-size:0.75rem;color:#718096;"></span>
         </div>
         <div id="ndAddedItems" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+
+      <!-- Total amount -->
+      <div id="ndTotalAmount" style="display:none;background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 14px;justify-content:space-between;align-items:center;">
+        <span style="font-size:0.82rem;font-weight:600;color:#4a5568;">Estimated Total</span>
+        <span id="ndTotalValue" style="font-size:1rem;font-weight:800;color:#1a202c;"></span>
       </div>
 
     </div>
@@ -260,41 +268,54 @@
 </div>
 
 <!-- ----------------------------------------------------------
-     MODAL 2 � Receive Items (Lubes Admin)
+     MODAL 2 - Receive Items
 ---------------------------------------------------------- -->
 <div class="modal" id="receiveModal">
-  <div class="modal-content" style="max-width:720px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
+  <div class="modal-content" style="max-width:560px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
     <!-- Header -->
-    <div style="background:linear-gradient(135deg,#E8001C,#C41E3A);padding:1.5rem 1.75rem;display:flex;align-items:center;gap:1rem;flex-shrink:0;">
+    <div style="background:linear-gradient(135deg,#E8001C,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
       <div style="flex:1;">
-        <div style="color:white;font-size:1.05rem;font-weight:800;">Receive Items</div>
-        <div id="rmSupplierLabel" style="color:rgba(255,255,255,0.7);font-size:0.78rem;margin-top:2px;"></div>
+        <div style="color:white;font-size:1rem;font-weight:800;">Receive Items</div>
       </div>
-      <button onclick="closeModal('receiveModal')" style="background:rgba(255,255,255,0.15);border:none;color:white;width:34px;height:34px;border-radius:50%;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">&times;</button>
+      <button onclick="closeModal('receiveModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
     </div>
     <!-- Step indicator -->
-    <div style="background:white;padding:0.75rem 1.75rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;font-size:12px;color:#718096;">
-      <span style="width:22px;height:22px;background:#E8001C;color:white;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0;">1</span>
-      <span style="font-weight:600;color:#1a202c;">Input Actual Quantities &amp; Conditions</span>
-      <span style="margin:0 6px;">?</span>
-      <span style="width:22px;height:22px;background:#e2e8f0;color:#718096;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0;">2</span>
-      <span>Awaiting Double Check</span>
-      <span style="margin:0 6px;">?</span>
-      <span style="width:22px;height:22px;background:#e2e8f0;color:#718096;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0;">3</span>
-      <span>Approved &amp; Stock Updated</span>
+    <div style="background:white;padding:0.65rem 1.5rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:6px;flex-shrink:0;">
+      <!-- Step 1 active -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <span style="width:22px;height:22px;background:#E8001C;color:white;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0;">1</span>
+        <span style="font-size:8px;color:#718096;white-space:nowrap;">Input Quantities</span>
+      </div>
+      <div style="flex:1;height:1px;background:#e2e8f0;margin-bottom:10px;"></div>
+      <!-- Step 2 -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <span style="width:22px;height:22px;background:#e2e8f0;color:#718096;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0;">2</span>
+        <span style="font-size:8px;color:#718096;white-space:nowrap;">Awaiting Check</span>
+      </div>
+      <div style="flex:1;height:1px;background:#e2e8f0;margin-bottom:10px;"></div>
+      <!-- Step 3 -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <span style="width:22px;height:22px;background:#e2e8f0;color:#718096;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0;">3</span>
+        <span style="font-size:8px;color:#718096;white-space:nowrap;">Approved</span>
+      </div>
     </div>
     <!-- Body -->
-    <div style="padding:1.5rem 1.75rem;overflow-y:auto;flex:1;background:#f8fafc;">
+    <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.75rem;">
       <div id="rmItemRows"></div>
-      <div style="margin-top:1rem;background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 16px;">
-        <label class="rcv-label">Received By</label>
-        <input type="text" id="rmReceivedBy" class="rcv-input" readonly style="background:#f7f8fa;color:#1a202c;font-weight:600;cursor:default;">
+      <!-- Received By read-only box -->
+      <div style="background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;">
+        <div style="font-size:0.75rem;font-weight:600;color:#4a5568;margin-bottom:6px;">Received By</div>
+        <div style="display:flex;align-items:center;gap:8px;background:#f7f8fa;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span id="rmReceivedByLabel" style="font-size:0.88rem;font-weight:600;color:#1a202c;"></span>
+        </div>
+        <input type="hidden" id="rmReceivedBy">
       </div>
     </div>
     <!-- Footer -->
-    <div style="padding:1rem 1.75rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
-      <button type="button" class="btn-secondary" style="flex:1;" onclick="closeModal('receiveModal')">Cancel</button>
-      <button type="button" id="rmSubmitBtn" onclick="submitReceiving()" style="flex:2;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;justify-content:center;gap:6px;">
+    <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
+      <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('receiveModal')">Cancel</button>
+      <button type="button" id="rmSubmitBtn" onclick="submitReceiving()" style="flex:2;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         Submit for Double Check
       </button>
@@ -303,7 +324,7 @@
 </div>
 
 <!-- ----------------------------------------------------------
-     MODAL 3 � Review & Verify (Asst. Ops Head)
+     MODAL 3 - Review & Verify (Asst. Ops Head)
 ---------------------------------------------------------- -->
 <div class="modal" id="reviewModal">
   <div class="modal-content" style="max-width:720px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
@@ -359,7 +380,7 @@
 <div id="toast"></div>
 
 <!-- ----------------------------------------------------------
-     MODAL 4 � Compare PO vs Invoice
+     MODAL 4 - Compare PO vs Invoice
 ---------------------------------------------------------- -->
 <div class="modal" id="compareModal">
   <div class="modal-content" style="max-width:1000px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:94vh;">
@@ -551,7 +572,7 @@ var _itemMasterCache = [];
 var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 function _fmtDate(d) {
-  if (!d) return '�';
+  if (!d) return '—';
   var dt = new Date(d);
   if (isNaN(dt)) return d;
   return MONTHS[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
@@ -726,7 +747,7 @@ db.collection('deliveries').orderBy('createdAt','desc').onSnapshot(function(snap
 <script>
 function _loadItemMaster() {
   if (_itemMasterCache.length) return Promise.resolve();
-  return db.collection('item_master').get().then(function(snap) {
+  return db.collection('item_master').where('type', '==', 'Material').get().then(function(snap) {
     _itemMasterCache = snap.docs.map(function(d){ return {num:d.data().num||'',name:d.data().name||'',uom:d.data().uom||''}; }).sort(function(a,b){ return a.name.localeCompare(b.name); });
   });
 }
@@ -739,20 +760,173 @@ var _ndIdx = 0;
 window.openNewDeliveryModal = function() {
   _ndFoundItem = null; _ndItems = []; _ndIdx = 0;
   _currentEditDeliveryId = null;
+  // Reset header to New Delivery mode
+  var hdTitle = document.querySelector('#newDeliveryModal .modal-content > div:first-child div div:first-child');
+  var hdSub   = document.querySelector('#newDeliveryModal .modal-content > div:first-child div div:last-child');
+  if (hdTitle) hdTitle.textContent = 'New Delivery';
+  if (hdSub)   hdSub.textContent   = 'Record incoming stock delivery';
+  // Reset save button label
+  var saveBtn = document.getElementById('ndSaveBtn');
+  if (saveBtn) saveBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Delivery';
   document.getElementById('ndSupplier').value = '';
   document.getElementById('ndItemSearch').value = '';
   document.getElementById('ndSearchResults').style.display = 'none';
-  document.getElementById('ndSearchResults').innerHTML = '';
+  document.getElementById('ndSearchResultsInner').innerHTML = '';
   document.getElementById('ndItemPreview').style.display = 'none';
   document.getElementById('ndNotFound').style.display = 'none';
   document.getElementById('ndAddedItemsWrap').style.display = 'none';
   document.getElementById('ndAddedItems').innerHTML = '';
+  var tot = document.getElementById('ndTotalAmount'); if (tot) tot.style.display = 'none';
   document.getElementById('newDeliveryModal').classList.add('active');
+  // Auto-load all material items on open
+  _ndLoadAllItems();
+};
+
+// ── Auto-load only Low Stock / Out of Stock items on modal open ──
+window._ndLoadAllItems = function() {
+  var outerEl   = document.getElementById('ndSearchResults');
+  var resultsEl = document.getElementById('ndSearchResultsInner');
+  if (!outerEl || !resultsEl) return;
+
+  resultsEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#a0aec0;font-size:0.83rem;">Loading items…</div>';
+  outerEl.style.display = 'block';
+
+  // Fetch stock items that are Low or Out of Stock
+  db.collection('stock_inventory').get().then(function(snap) {
+    var needReplenish = snap.docs
+      .map(function(d) { return Object.assign({ _id: d.id }, d.data()); })
+      .filter(function(s) {
+        var stock = parseInt(s.stock) || 0;
+        var min   = parseInt(s.min)   || 0;
+        return stock === 0 || stock <= min;
+      });
+
+    if (!needReplenish.length) {
+      resultsEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#38a169;font-size:0.83rem;">✅ All items are sufficiently stocked.</div>';
+      outerEl.style.display = 'block';
+      return;
+    }
+
+    // Build match list — also fetch cost from item_master
+    var numToMaxCost = {};
+    var masterPromise = db.collection('item_master').where('type', '==', 'Material').get().then(function(mSnap) {
+      mSnap.docs.forEach(function(d) {
+        var data = d.data();
+        var num = data.num || '';
+        var cost = parseFloat((data.cost || '0').toString().replace(/[₱,]/g, '')) || 0;
+        if (num) numToMaxCost[num] = cost;
+      });
+    }).catch(function(){});
+
+    masterPromise.then(function() {
+      var matches = needReplenish.map(function(s) {
+        return {
+          num:        s.num  || '',
+          name:       s.name || '',
+          uom:        s.uom  || '',
+          _stock:     parseInt(s.stock) || 0,
+          _minLevel:  parseInt(s.min)   || 0,
+          _maxLevel:  parseInt(s.max)   || 0,
+          _cost:      numToMaxCost[s.num || ''] || 0,
+        };
+      }).sort(function(a, b) {
+        if (a._stock === 0 && b._stock !== 0) return -1;
+        if (b._stock === 0 && a._stock !== 0) return  1;
+        return (a.name||'').localeCompare(b.name||'');
+      });
+
+      _ndRenderItemList(matches);
+    });
+  }).catch(function() {
+    resultsEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#c53030;font-size:0.83rem;">Failed to load items.</div>';
+    outerEl.style.display = 'block';
+  });
+};
+
+// ── Render item list with DSS-style stock badges ──
+window._ndRenderItemList = function(matches) {
+  var outerEl  = document.getElementById('ndSearchResults');
+  var resultsEl = document.getElementById('ndSearchResultsInner');
+  if (!outerEl || !resultsEl) return;
+  window._ndSearchMatches = matches;
+
+  if (!matches.length) {
+    resultsEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#38a169;font-size:0.83rem;">✅ All items are sufficiently stocked.</div>';
+    outerEl.style.display = 'block';
+    return;
+  }
+
+  function _statusBadge(stock, min) {
+    if (stock === null || stock === undefined) return '<span style="font-size:0.7rem;color:#a0aec0;">Not in inventory</span>';
+    if (stock === 0) return '<span style="background:rgba(229,62,62,0.08);color:#e53e3e;border:1.5px solid rgba(229,62,62,0.3);padding:1px 8px;border-radius:20px;font-size:0.7rem;font-weight:700;">Out of Stock</span>';
+    if (stock <= min) return '<span style="background:rgba(214,158,46,0.08);color:#d69e2e;border:1.5px solid rgba(214,158,46,0.3);padding:1px 8px;border-radius:20px;font-size:0.7rem;font-weight:700;">Low Stock</span>';
+    return '<span style="background:rgba(56,161,105,0.08);color:#38a169;border:1.5px solid rgba(56,161,105,0.3);padding:1px 8px;border-radius:20px;font-size:0.7rem;font-weight:700;">In Stock</span>';
+  }
+
+  resultsEl.innerHTML = matches.map(function(item, idx) {
+    var isLast = idx === matches.length - 1;
+    var stock    = item._stock     !== undefined ? item._stock    : null;
+    var min      = item._minLevel  || 0;
+    var max      = item._maxLevel  || 0;
+    var recQty   = (stock !== null && max > 0) ? Math.max(0, max - stock) : 0;
+
+    // Stock badge — use pre-loaded _stock/_minLevel if available, else show ···
+    var badge = (stock !== null)
+      ? _statusBadge(stock, min)
+      : '<span style="font-size:0.7rem;color:#a0aec0;">···</span>';
+
+    var recHtml = recQty > 0
+      ? '<span style="font-size:0.7rem;color:#718096;">Suggest order: <strong style="color:#1a202c;">' + recQty + '</strong></span>'
+      : '';
+
+    var infoHtml = '<span style="font-size:0.75rem;color:#718096;">'
+      + (item.num||'') + (item.uom ? '&nbsp;·&nbsp;' + item.uom : '')
+      + '</span>'
+      + (stock !== null ? '<span style="font-size:0.75rem;color:#718096;">Current: <strong style="color:#1a202c;">' + stock + '</strong></span>' : '')
+      + (item._cost > 0 ? '<span style="font-size:0.75rem;color:#718096;">₱' + item._cost.toLocaleString('en-PH', {minimumFractionDigits:2}) + '/unit</span>' : '');
+
+    return '<div id="ndResult_' + idx + '" onclick="ndSelectItem(' + idx + ')" '
+      + 'style="padding:12px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;'
+      + (isLast ? '' : 'border-bottom:1px solid #f0f4f8;')
+      + 'background:white;transition:background 0.12s;" '
+      + 'onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'white\'">'
+      + '<div style="flex:1;min-width:0;">'
+      +   '<div style="font-weight:600;font-size:0.88rem;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (item.name||'') + '</div>'
+      +   '<div style="display:flex;align-items:center;gap:0.5rem;margin-top:3px;flex-wrap:wrap;">'
+      +     infoHtml
+      +     '<span id="ndStock_' + idx + '">' + badge + '</span>'
+      +     recHtml
+      +   '</div>'
+      + '</div>'
+      + '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>'
+      + '</div>';
+  }).join('');
+  outerEl.style.display = 'block';
+
+  // Only fetch stock for items that don't have it pre-loaded
+  matches.forEach(function(item, idx) {
+    if (item._stock !== undefined) return; // already loaded
+    var num = item.num || '';
+    db.collection('stock_inventory').where('num', '==', num).limit(1).get().then(function(snap) {
+      var el = document.getElementById('ndStock_' + idx);
+      if (!el) return;
+      if (snap.empty) {
+        el.innerHTML = _statusBadge(null, 0);
+        matches[idx]._stock = null; matches[idx]._minLevel = 0; matches[idx]._maxLevel = 0;
+      } else {
+        var data = snap.docs[0].data();
+        var stock = parseInt(data.stock) || 0;
+        var min   = parseInt(data.min)   || 0;
+        var max   = parseInt(data.max)   || 0;
+        el.innerHTML = _statusBadge(stock, min);
+        matches[idx]._stock = stock; matches[idx]._minLevel = min; matches[idx]._maxLevel = max;
+      }
+    }).catch(function() {});
+  });
 };
 
 window.ndSearchMasterItem = function(query) {
   var q = (query || '').trim().toLowerCase();
-  var resultsEl  = document.getElementById('ndSearchResults');
   var previewEl  = document.getElementById('ndItemPreview');
   var notFoundEl = document.getElementById('ndNotFound');
 
@@ -760,84 +934,168 @@ window.ndSearchMasterItem = function(query) {
   notFoundEl.style.display = 'none';
   _ndFoundItem = null;
 
-  if (!q) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; return; }
-
-  var masterList = _itemMasterCache.length ? _itemMasterCache : (window.itemMaster || []);
-  if (!masterList.length) {
-    _loadItemMaster().then(function(){ ndSearchMasterItem(query); });
+  // Filter within the replenishment list (already loaded in _ndSearchMatches)
+  var base = window._ndSearchMatches || [];
+  if (!q) {
+    // Re-run full load to restore original list
+    _ndLoadAllItems();
     return;
   }
 
-  var matches = masterList.filter(function(i) {
-    return (i.num||i.itemNum||'').toLowerCase().includes(q)
-        || (i.name||i.itemName||'').toLowerCase().includes(q);
+  var matches = base.filter(function(i) {
+    return (i.num||'').toLowerCase().includes(q)
+        || (i.name||'').toLowerCase().includes(q);
   });
 
   if (!matches.length) {
-    resultsEl.style.display = 'none';
-    resultsEl.innerHTML = '';
+    document.getElementById('ndSearchResultsInner').innerHTML = '';
+    document.getElementById('ndSearchResults').style.display = 'none';
     notFoundEl.style.display = 'block';
     return;
   }
 
   notFoundEl.style.display = 'none';
-  resultsEl.innerHTML = matches.map(function(item, idx) {
-    var isLast = idx === matches.length - 1;
-    return '<div onclick="ndSelectItem(' + idx + ')" '
-      + 'style="padding:12px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;'
-      + (isLast ? '' : 'border-bottom:1px solid #f0f4f8;')
-      + 'background:white;transition:background 0.12s;" '
-      + 'onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'white\'">'
+  _ndRenderItemList(matches);
+};
+
+// ── Shared card builder for "Items Added" list (New + Edit modals) ──
+window._ndBuildItemCard = function(opts) {
+  /*
+    opts: { rowIdx, num, name, uom, qty, cost, stock }
+    Returns an HTMLElement ready to appendChild.
+  */
+  var rowIdx   = opts.rowIdx;
+  var num      = opts.num   || '';
+  var name     = opts.name  || '';
+  var uom      = opts.uom   || '';
+  var qty      = opts.qty   || 1;
+  var cost     = opts.cost  || 0;
+  var stock    = opts.stock !== undefined ? opts.stock : null;
+  var subtotal = cost * qty;
+
+  // Stock status pill
+  var stockPill = '';
+  if (stock !== null) {
+    var pillColor = stock === 0 ? '#e53e3e' : '#d69e2e';
+    var pillBg    = stock === 0 ? 'rgba(229,62,62,0.08)' : 'rgba(214,158,46,0.08)';
+    var pillBorder= stock === 0 ? 'rgba(229,62,62,0.3)' : 'rgba(214,158,46,0.3)';
+    var pillLabel = stock === 0 ? 'Out of Stock' : 'Low Stock';
+    stockPill = '<span style="font-size:9px;font-weight:700;color:' + pillColor + ';background:' + pillBg + ';border:1px solid ' + pillBorder + ';border-radius:20px;padding:1px 7px;white-space:nowrap;">' + pillLabel + '</span>';
+  }
+
+  var div = document.createElement('div');
+  div.id = 'ndAddedRow' + rowIdx;
+  div.style.cssText = [
+    'background:white',
+    'border:1.5px solid #e2e8f0',
+    'border-radius:10px',
+    'padding:12px 14px',
+    'display:flex',
+    'flex-direction:column',
+    'gap:0',
+    'box-shadow:0 1px 4px rgba(0,0,0,0.05)',
+    'transition:box-shadow .15s',
+  ].join(';') + ';';
+
+  div.innerHTML =
+    // ── Row 1: item info + qty stepper + remove ──
+    '<div style="display:flex;align-items:center;gap:10px;">'
+
+      // Left: name + meta
       + '<div style="flex:1;min-width:0;">'
-      +   '<div style="font-weight:600;font-size:0.88rem;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (item.name||item.itemName||'') + '</div>'
-      +   '<div style="font-size:0.75rem;color:#718096;margin-top:2px;">' + (item.num||item.itemNum||'') + (item.uom ? '&nbsp;&nbsp;·&nbsp;&nbsp;' + item.uom : '') + '</div>'
+      +   '<div style="font-weight:700;font-size:0.87rem;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+      +     name
+      +     (uom ? '<span style="font-weight:400;font-size:0.74rem;color:#718096;margin-left:5px;background:#f0f4f8;padding:1px 6px;border-radius:20px;">' + uom + '</span>' : '')
+      +   '</div>'
+      +   '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:5px;">'
+      +     '<span style="font-size:0.72rem;color:#718096;">' + num + '</span>'
+      +     (cost > 0 ? '<span style="font-size:9px;color:#718096;">\u00b7</span><span style="font-size:0.72rem;color:#718096;">\u20b1' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '/unit</span>' : '')
+      +     (stock !== null ? '<span style="font-size:9px;color:#718096;">\u00b7</span><span style="font-size:0.72rem;color:#718096;">Stock: <strong style="color:#1a202c;">' + stock + '</strong></span>' : '')
+      +     stockPill
+      +   '</div>'
       + '</div>'
-      + '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>'
-      + '</div>';
-  }).join('');
-  window._ndSearchMatches = matches;
-  resultsEl.style.display = 'block';
+
+      // Right: qty stepper
+      + '<div style="display:flex;align-items:center;gap:0;flex-shrink:0;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;overflow:hidden;">'
+      +   '<button type="button" onclick="(function(){var el=document.getElementById(\'ndQty_' + rowIdx + '\');var v=Math.max(1,(parseInt(el.value)||1)-1);el.value=v;el.dispatchEvent(new Event(\'input\'));})()" '
+      +     'style="background:none;border:none;color:#718096;width:28px;height:32px;cursor:pointer;font-size:1rem;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .1s;" '
+      +     'onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'none\'">&minus;</button>'
+      +   '<input type="number" id="ndQty_' + rowIdx + '" value="' + qty + '" min="1"'
+      +     ' style="width:44px;border:none;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;background:white;font-size:0.85rem;text-align:center;outline:none;padding:4px 2px;height:32px;box-sizing:border-box;"'
+      +     ' oninput="(function(el,i){var v=Math.max(1,parseInt(el.value)||1);el.value=v;var found=_ndItems.find(function(x){return x._idx===i;});if(found){found.expectedQty=v;_ndUpdateTotal();var sub=document.getElementById(\'ndSub_\'+i);if(sub)sub.textContent=found._cost>0?\'\u20b1\'+(found._cost*v).toLocaleString(\'en-PH\',{minimumFractionDigits:2}):\'\'}})(this,' + rowIdx + ')">'
+      +   '<button type="button" onclick="(function(){var el=document.getElementById(\'ndQty_' + rowIdx + '\');var v=(parseInt(el.value)||1)+1;el.value=v;el.dispatchEvent(new Event(\'input\'));})()" '
+      +     'style="background:none;border:none;color:#718096;width:28px;height:32px;cursor:pointer;font-size:1rem;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .1s;" '
+      +     'onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'none\'">+</button>'
+      + '</div>'
+
+      // Remove button
+      + '<button type="button" onclick="ndRemoveItem(' + rowIdx + ')" '
+      +   'style="background:none;border:none;color:#cbd5e0;cursor:pointer;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.95rem;transition:all .15s;" '
+      +   'onmouseover="this.style.color=\'#e53e3e\';this.style.background=\'rgba(229,62,62,0.08)\'" '
+      +   'onmouseout="this.style.color=\'#cbd5e0\';this.style.background=\'none\'">\u00d7</button>'
+
+    + '</div>'
+
+    // ── Row 2: subtotal (only if cost > 0) ──
+    + (cost > 0
+        ? '<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid #f0f4f8;">'
+        +   '<span style="font-size:0.72rem;color:#a0aec0;font-weight:500;">Subtotal</span>'
+        +   '<strong id="ndSub_' + rowIdx + '" style="font-size:0.88rem;color:#1a202c;font-weight:800;">\u20b1' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</strong>'
+        + '</div>'
+        : '');
+
+  return div;
 };
 
 window.ndSelectItem = function(idx) {
   var item = (window._ndSearchMatches || [])[idx];
   if (!item) return;
 
-  var resultsEl = document.getElementById('ndSearchResults');
-  resultsEl.style.display = 'none';
-  resultsEl.innerHTML = '';
+  var num  = item.num  || item.itemNum  || '';
+  var name = item.name || item.itemName || '';
+  var uom  = item.uom  || item.unit    || '';
+  var recQty = (item._stock !== null && item._stock !== undefined && item._maxLevel > 0)
+    ? Math.max(1, item._maxLevel - item._stock)
+    : 1;
 
-  var num = item.num || item.itemNum || '';
-  db.collection('stock_inventory').where('num', '==', num).limit(1).get().then(function(snap) {
-    var stock = snap.empty ? null : (snap.docs[0].data().stock || 0);
-    _ndFoundItem = {
-      itemNum:  num,
-      itemName: item.name || item.itemName || '',
-      unit:     item.uom  || item.unit || '',
-      stock:    stock
-    };
-    document.getElementById('ndItemName').textContent = _ndFoundItem.itemName;
-    document.getElementById('ndItemMeta').textContent = num + (_ndFoundItem.unit ? ' \u00b7 ' + _ndFoundItem.unit : '');
-    var stockEl = document.getElementById('ndCurrentStock');
-    if (stock !== null) {
-      stockEl.textContent = 'Current stock: ' + stock;
-      stockEl.style.color = '#E8001C';
-    } else {
-      stockEl.textContent = 'Not in stock inventory';
-      stockEl.style.color = '#a0aec0';
-    }
-    document.getElementById('ndExpectedQty').value = '';
-    document.getElementById('ndItemPreview').style.display = 'block';
-  });
+  // Prevent duplicate
+  if (_ndItems.find(function(i){ return i.itemNum === num; })) {
+    showToast(name + ' is already added.', 'error'); return;
+  }
+
+  // Dim and mark the selected card (mobile-style: stays visible with checkmark)
+  var card = document.getElementById('ndResult_' + idx);
+  if (card) {
+    card.style.opacity = '0.35';
+    card.style.background = '#f7f8fa';
+    card.style.cursor = 'default';
+    card.onclick = null;
+    // Swap chevron for green checkmark
+    var chevron = card.querySelector('svg');
+    if (chevron) chevron.outerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+  }
+
+  _ndIdx++;
+  var rowIdx = _ndIdx;
+  _ndItems.push({ itemNum:num, itemName:name, uom:uom, expectedQty:recQty, _idx:rowIdx, _cardIdx:idx, _cost: item._cost || 0 });
+
+  var cost  = item._cost || 0;
+  var stock = (item._stock !== null && item._stock !== undefined) ? item._stock : null;
+  var row = window._ndBuildItemCard({ rowIdx:rowIdx, num:num, name:name, uom:uom, qty:recQty, cost:cost, stock:stock });
+  document.getElementById('ndAddedItems').appendChild(row);
+
+  document.getElementById('ndAddedCount').textContent = _ndItems.length + ' item' + (_ndItems.length !== 1 ? 's' : '');
+  document.getElementById('ndAddedItemsWrap').style.display = 'flex';
+  _ndUpdateTotal();
+  showToast(name + ' added.', 'success');
 };
 
 window.ndClearSelection = function() {
   _ndFoundItem = null;
   document.getElementById('ndItemSearch').value = '';
   document.getElementById('ndItemPreview').style.display = 'none';
-  document.getElementById('ndSearchResults').style.display = 'none';
-  document.getElementById('ndSearchResults').innerHTML = '';
   document.getElementById('ndExpectedQty').value = '';
+  _ndLoadAllItems();
 };
 
 window.ndAddCurrentItem = function() {
@@ -871,22 +1129,52 @@ window.ndAddCurrentItem = function() {
   document.getElementById('ndAddedCount').textContent = _ndItems.length + ' item' + (_ndItems.length !== 1 ? 's' : '');
   document.getElementById('ndAddedItemsWrap').style.display = 'flex';
 
-  // Reset for next item
+  // Reset for next item — restore the replenishment list
   document.getElementById('ndItemSearch').value = '';
   document.getElementById('ndItemPreview').style.display  = 'none';
   document.getElementById('ndExpectedQty').value = '';
   _ndFoundItem = null;
+  _ndLoadAllItems();
   showToast(name + ' added.', 'success');
 };
 
 window.ndRemoveItem = function(idx) {
+  var removed = _ndItems.find(function(i){ return i._idx === idx; });
   _ndItems = _ndItems.filter(function(i){ return i._idx !== idx; });
   var el = document.getElementById('ndAddedRow' + idx);
   if (el) el.remove();
+  // Restore the card in the results list (mobile-style)
+  if (removed && removed._cardIdx !== undefined) {
+    var card = document.getElementById('ndResult_' + removed._cardIdx);
+    if (card) {
+      card.style.opacity = '';
+      card.style.background = 'white';
+      card.style.cursor = 'pointer';
+      card.onclick = function() { ndSelectItem(removed._cardIdx); };
+      // Restore chevron
+      var check = card.querySelector('svg');
+      if (check) check.outerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>';
+    }
+  }
   var wrap = document.getElementById('ndAddedItemsWrap');
   var countEl = document.getElementById('ndAddedCount');
   if (_ndItems.length === 0) { wrap.style.display = 'none'; }
   else { countEl.textContent = _ndItems.length + ' item' + (_ndItems.length !== 1 ? 's' : ''); }
+  _ndUpdateTotal();
+};
+
+window._ndUpdateTotal = function() {
+  var totalEl = document.getElementById('ndTotalAmount');
+  if (!totalEl) return;
+  var total = _ndItems.reduce(function(sum, i) {
+    return sum + ((i._cost || 0) * (i.expectedQty || 0));
+  }, 0);
+  if (total > 0) {
+    totalEl.style.display = 'flex';
+    document.getElementById('ndTotalValue').textContent = '₱' + total.toLocaleString('en-PH', {minimumFractionDigits:2});
+  } else {
+    totalEl.style.display = 'none';
+  }
 };
 
 window.saveNewDelivery = function() {
@@ -932,50 +1220,94 @@ window.editDelivery = function(id) {
   _ndFoundItem = null; _ndItems = []; _ndIdx = 0;
   _currentEditDeliveryId = id;
 
-  // Pre-fill header fields
+  // Swap header to Edit mode
+  var hdTitle = document.querySelector('#newDeliveryModal .modal-content > div:first-child div div:first-child');
+  var hdSub   = document.querySelector('#newDeliveryModal .modal-content > div:first-child div div:last-child');
+  if (hdTitle) hdTitle.textContent = 'Edit Delivery';
+  if (hdSub)   hdSub.textContent   = 'Update supplier or items for this delivery';
+
+  // Pre-fill supplier
   document.getElementById('ndSupplier').value = d.supplier || '';
 
-  // Clear search/preview
+  // Clear search/preview/items
   document.getElementById('ndItemSearch').value = '';
   document.getElementById('ndSearchResults').style.display = 'none';
-  document.getElementById('ndSearchResults').innerHTML = '';
+  document.getElementById('ndSearchResultsInner').innerHTML = '';
   document.getElementById('ndItemPreview').style.display = 'none';
   document.getElementById('ndNotFound').style.display = 'none';
-  document.getElementById('ndAddBtnWrap').style.display = 'none';
   document.getElementById('ndAddedItems').innerHTML = '';
+  document.getElementById('ndAddedItemsWrap').style.display = 'none';
+  var tot = document.getElementById('ndTotalAmount'); if (tot) tot.style.display = 'none';
 
-  // Pre-fill existing items
-  (d.items || []).forEach(function(item) {
-    _ndIdx++;
-    var idx = _ndIdx;
-    _ndItems.push({ itemNum: item.itemNum, itemName: item.itemName, uom: item.uom||'', expectedQty: item.expectedQty, _idx: idx });
-    var row = document.createElement('div');
-    row.id = 'ndAddedRow' + idx;
-    row.style.cssText = 'background:white;border:1.5px solid #90cdf4;border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;';
-    row.innerHTML =
-      '<div style="flex:1;min-width:0;">'
-      + '<div style="font-weight:700;font-size:0.85rem;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (item.itemName||'') + (item.uom ? ' <span style="font-size:0.75rem;font-weight:500;color:#718096;">(' + item.uom + ')</span>' : '') + '</div>'
-      + '<div style="font-size:0.75rem;color:#718096;margin-top:1px;">' + (item.itemNum||'') + ' &nbsp;�&nbsp; Expected: <strong>' + item.expectedQty + ' ' + (item.uom||'') + '</strong></div>'
-      + '</div>'
-      + '<button type="button" onclick="ndRemoveItem(' + idx + ')" style="background:none;border:none;color:#e53e3e;cursor:pointer;font-size:1rem;flex-shrink:0;padding:2px 6px;">?</button>';
-    document.getElementById('ndAddedItems').appendChild(row);
-  });
-
-  // Show items wrap and update count
-  var wrap = document.getElementById('ndAddedItemsWrap');
-  var countEl = document.getElementById('ndAddedCount');
-  if (_ndItems.length > 0) {
-    wrap.style.display = 'flex';
-    countEl.textContent = _ndItems.length + ' item' + (_ndItems.length !== 1 ? 's' : '');
-  } else {
-    wrap.style.display = 'none';
+  // Update save button label
+  var saveBtn = document.getElementById('ndSaveBtn');
+  if (saveBtn) {
+    saveBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Delivery';
   }
 
-  // Change save button to update mode
-  var saveBtn = document.getElementById('ndSaveBtn');
-  saveBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Delivery';
-
   document.getElementById('newDeliveryModal').classList.add('active');
+
+  // Enrich existing items with cost + stock from Firestore, then render cards
+  var items = (d.items || []).slice();
+  var numToCost  = {};
+  var numToStock = {};
+
+  // Step 1: fetch item_master for cost
+  db.collection('item_master').where('type', '==', 'Material').get()
+    .then(function(mSnap) {
+      mSnap.docs.forEach(function(doc) {
+        var data = doc.data();
+        var n    = data.num || '';
+        var raw  = (data.cost || '0').toString().replace(/[^\d.]/g, '');
+        if (n) numToCost[n] = parseFloat(raw) || 0;
+      });
+    })
+    .catch(function(){}) // cost fetch failure is non-fatal
+    .then(function() {
+      // Step 2: fetch stock for each item
+      var stockPromises = items.map(function(item) {
+        var num = item.itemNum || '';
+        if (!num) return Promise.resolve();
+        return db.collection('stock_inventory').where('num', '==', num).limit(1).get()
+          .then(function(snap) {
+            if (!snap.empty) {
+              numToStock[num] = parseInt(snap.docs[0].data().stock) || 0;
+            }
+          }).catch(function(){});
+      });
+      return Promise.all(stockPromises);
+    })
+    .then(function() {
+      // Step 3: render each item using the same card as ndSelectItem
+      items.forEach(function(item) {
+        var num   = item.itemNum  || '';
+        var name  = item.itemName || '';
+        var uom   = item.uom      || '';
+        var qty   = item.expectedQty || 1;
+        var cost  = numToCost[num]  || 0;
+        var stock = (numToStock[num] !== undefined) ? numToStock[num] : null;
+
+        _ndIdx++;
+        var rowIdx = _ndIdx;
+        _ndItems.push({ itemNum: num, itemName: name, uom: uom, expectedQty: qty, _idx: rowIdx, _cost: cost });
+
+        var row = window._ndBuildItemCard({ rowIdx:rowIdx, num:num, name:name, uom:uom, qty:qty, cost:cost, stock:stock });
+
+        document.getElementById('ndAddedItems').appendChild(row);
+      });
+
+      // Show items wrap
+      var wrap    = document.getElementById('ndAddedItemsWrap');
+      var countEl = document.getElementById('ndAddedCount');
+      if (_ndItems.length > 0) {
+        wrap.style.display = 'flex';
+        countEl.textContent = _ndItems.length + ' item' + (_ndItems.length !== 1 ? 's' : '');
+      }
+      _ndUpdateTotal();
+
+      // Load replenishment list so user can add more items
+      _ndLoadAllItems();
+    });
 };
 
 var _currentEditDeliveryId = null;
@@ -995,107 +1327,112 @@ window.openReceiveModal = function(id) {
   var d = _allDeliveries.find(function(x){ return x.id===id; });
   if (!d) return;
   _currentDeliveryId = id;
-  document.getElementById('rmSupplierLabel').textContent = d.supplier + ' � ' + _fmtDate(d.date);
-  // Auto-fill Received By from logged-in user
   var apUser = JSON.parse(sessionStorage.getItem('apUser') || '{}');
-  document.getElementById('rmReceivedBy').value = apUser.name || '';
+  var userName = apUser.name || '';
+  document.getElementById('rmReceivedBy').value = userName;
+  document.getElementById('rmReceivedByLabel').textContent = userName || '—';
+
   document.getElementById('rmItemRows').innerHTML = (d.items||[]).map(function(item, i) {
-    // Look up current stock from inventory
-    var inv = window.inventory || [];
-    var invItem = inv.find(function(x){ return (x.itemNum||x.num||'') === item.itemNum; });
-    var currentStock = invItem !== undefined ? invItem.stock : null;
-    var stockHtml = currentStock !== null
-      ? '<div style="font-size:0.78rem;color:#2c5282;font-weight:600;margin-top:0.1rem;">Current stock: ' + currentStock + ' ' + (item.uom||'') + '</div>'
-      : '';
-    return '<div class="rcv-item-card" id="rmCard_' + i + '" style="border-color:#90cdf4;">'
-      // Item info
-      + '<div style="margin-bottom:0.9rem;">'
-      +     '<div style="font-weight:700;font-size:0.92rem;color:#1a202c;">' + item.itemName + '</div>'
-      +     '<div style="font-size:0.78rem;color:#718096;margin-top:0.1rem;">' + item.itemNum + ' &nbsp;�&nbsp; Expected: <strong>' + item.expectedQty + ' ' + (item.uom||'') + '</strong></div>'
-      +     stockHtml
+    var uom = item.uom || '';
+    var uomLabel = uom ? ' <span style="font-size:0.75rem;font-weight:400;color:#718096;">(' + uom + ')</span>' : '';
+    var metaLine = item.itemNum + (uom ? ' · ' + uom : '') + ' · Order Qty: <strong style="color:#1a202c;">' + item.expectedQty + '</strong>';
+
+    return '<div style="background:white;border:1.5px solid #90cdf4;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">'
+      + '<div style="font-weight:700;font-size:0.9rem;color:#1a202c;">' + item.itemName + uomLabel + '</div>'
+      + '<div style="font-size:0.75rem;color:#718096;margin-top:3px;">' + metaLine + '</div>'
+      + '<div style="height:1px;background:#f0f4f8;margin:10px 0;"></div>'
+      + '<div style="margin-bottom:10px;">'
+      +   '<label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Actual Qty *</label>'
+      +   '<input type="number" id="rmActual_' + i + '" value="' + item.expectedQty + '" min="0"'
+      +     ' oninput="rmAutoCondition(' + i + ',' + item.expectedQty + ')"'
+      +     ' style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.9rem;outline:none;box-sizing:border-box;transition:border-color .15s;"'
+      +     ' onfocus="this.style.borderColor=&quot;#003087&quot;" onblur="this.style.borderColor=&quot;#e2e8f0&quot;">'
       + '</div>'
-      // Actual qty input � stock inventory style
-      + '<div class="form-group" style="margin:0 0 0.75rem 0;">'
-      +   '<label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Actual Qty Received *</label>'
-      +   '<input type="number" id="rmActual_' + i + '" value="' + item.expectedQty + '" min="0" placeholder="e.g. ' + item.expectedQty + '" oninput="rmCheckDiscrepancy(' + i + ',' + item.expectedQty + ')" style="margin-top:0.3rem;width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.9rem;outline:none;box-sizing:border-box;">'
-      + '</div>'
-      // Condition buttons
-      + '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:0.75rem;">'
-      +   '<label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Condition</label>'
-      +   '<div style="display:flex;gap:5px;flex-wrap:wrap;">'
-      +     '<button class="rcv-cond ok" id="rmCond_' + i + '_ok" onclick="setCondition(' + i + ',\'OK\')">✓ OK</button>'
-      +     '<button class="rcv-cond" id="rmCond_' + i + '_defect" onclick="setCondition(' + i + ',\'Defective\')">⚠ Defective</button>'
-      +     '<button class="rcv-cond" id="rmCond_' + i + '_shortage" onclick="setCondition(' + i + ',\'Shortage\')">📉 Shortage</button>'
+      + '<div style="margin-bottom:10px;">'
+      +   '<label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:6px;">Condition</label>'
+      +   '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+      +     '<button id="rmCond_' + i + '_ok" onclick="setCondition(' + i + ',&quot;OK&quot;)" style="padding:6px 14px;border:1.5px solid #38a169;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(56,161,105,0.1);color:#38a169;transition:all .15s;">&#x2705; OK</button>'
+      +     '<button id="rmCond_' + i + '_defect" onclick="setCondition(' + i + ',&quot;Defective&quot;)" style="padding:6px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:white;color:#718096;transition:all .15s;">&#x274C; Defective</button>'
+      +     '<button id="rmCond_' + i + '_shortage" onclick="setCondition(' + i + ',&quot;Shortage&quot;)" style="padding:6px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:white;color:#718096;transition:all .15s;">&#x26A0;&#xFE0F; Shortage</button>'
       +   '</div>'
       + '</div>'
-      // Discrepancy alert
-      + '<div id="rmAlert_' + i + '" style="display:none;margin-top:6px;background:#fff5f5;border:1.5px solid #fed7d7;border-radius:8px;padding:8px 12px;font-size:12px;color:#c53030;align-items:center;gap:6px;">'
-      +   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
-      +   '<span id="rmAlertText_' + i + '"></span>'
-      + '</div>'
-      // Remarks
-      + '<div style="margin-top:0.75rem;">'
-      +   '<label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Remarks <span style="font-weight:400;color:#a0aec0;">(optional)</span></label>'
-      +   '<input type="text" id="rmRemark_' + i + '" placeholder="e.g. 1 unit damaged packaging" style="margin-top:0.3rem;width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.55rem 0.75rem;font-size:0.83rem;outline:none;box-sizing:border-box;">'
+      + '<div>'
+      +   '<label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Remarks <span style="font-weight:400;color:#a0aec0;">(optional)</span></label>'
+      +   '<input type="text" id="rmRemark_' + i + '" placeholder="e.g. 1 unit damaged packaging"'
+      +     ' style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.55rem 0.75rem;font-size:0.83rem;outline:none;box-sizing:border-box;transition:border-color .15s;"'
+      +     ' onfocus="this.style.borderColor=&quot;#003087&quot;" onblur="this.style.borderColor=&quot;#e2e8f0&quot;">'
       + '</div>'
       + '</div>';
   }).join('');
   document.getElementById('receiveModal').classList.add('active');
 };
 
+window.rmAutoCondition = function(idx, expectedQty) {
+  var actualEl = document.getElementById('rmActual_' + idx);
+  if (!actualEl) return;
+  var actual = parseInt(actualEl.value) || 0;
+  setCondition(idx, actual < expectedQty ? 'Shortage' : 'OK');
+};
+
 window.setCondition = function(idx, cond) {
-  var map = {'OK':'ok','Defective':'defect','Shortage':'shortage'};
-  ['ok','defect','shortage'].forEach(function(c){ var b=document.getElementById('rmCond_'+idx+'_'+c); if(b) b.className='rcv-cond'; });
-  var active = document.getElementById('rmCond_'+idx+'_'+map[cond]);
-  if (active) active.className = 'rcv-cond ' + map[cond];
+  var styles = {
+    'OK':        { id: 'rmCond_' + idx + '_ok',       border: '#38a169', bg: 'rgba(56,161,105,0.1)',  color: '#38a169' },
+    'Defective': { id: 'rmCond_' + idx + '_defect',   border: '#E8001C', bg: 'rgba(232,0,28,0.1)',   color: '#E8001C' },
+    'Shortage':  { id: 'rmCond_' + idx + '_shortage', border: '#d69e2e', bg: 'rgba(214,158,46,0.1)', color: '#d69e2e' }
+  };
+  Object.keys(styles).forEach(function(k) {
+    var b = document.getElementById(styles[k].id);
+    if (!b) return;
+    b.style.borderColor = '#e2e8f0';
+    b.style.background  = 'white';
+    b.style.color       = '#718096';
+    b.removeAttribute('data-active');
+  });
+  var active = styles[cond];
+  if (active) {
+    var b = document.getElementById(active.id);
+    if (b) {
+      b.style.borderColor = active.border;
+      b.style.background  = active.bg;
+      b.style.color       = active.color;
+      b.setAttribute('data-active', '1');
+    }
+  }
 };
 
 window.submitReceiving = function() {
   var receivedBy = document.getElementById('rmReceivedBy').value.trim();
-  if (!receivedBy) { showToast('Please enter your name.','error'); return; }
+  if (!receivedBy) { showToast('Could not detect logged-in user.', 'error'); return; }
   var d = _allDeliveries.find(function(x){ return x.id===_currentDeliveryId; });
   if (!d) return;
   var updatedItems = (d.items||[]).map(function(item, i) {
+    var defectBtn   = document.getElementById('rmCond_'+i+'_defect');
+    var shortageBtn = document.getElementById('rmCond_'+i+'_shortage');
     var cond = 'OK';
-    if (document.getElementById('rmCond_'+i+'_defect') && document.getElementById('rmCond_'+i+'_defect').className.includes('defect')) cond='Defective';
-    else if (document.getElementById('rmCond_'+i+'_shortage') && document.getElementById('rmCond_'+i+'_shortage').className.includes('shortage')) cond='Shortage';
+    if (defectBtn   && defectBtn.getAttribute('data-active'))   cond = 'Defective';
+    if (shortageBtn && shortageBtn.getAttribute('data-active')) cond = 'Shortage';
     var actualEl = document.getElementById('rmActual_'+i);
     var remarkEl = document.getElementById('rmRemark_'+i);
-    return Object.assign({},item,{ actualQty:parseInt(actualEl?actualEl.value:item.expectedQty)||0, condition:cond, remark:remarkEl?remarkEl.value.trim():'' });
+    return Object.assign({}, item, {
+      actualQty: parseInt(actualEl ? actualEl.value : item.expectedQty) || 0,
+      condition: cond,
+      remark: remarkEl ? remarkEl.value.trim() : ''
+    });
   });
   var btn = document.getElementById('rmSubmitBtn');
-  btn.disabled=true; btn.textContent='Submitting�';
-  db.collection('deliveries').doc(_currentDeliveryId).update({ items:updatedItems, receivedBy:receivedBy, status:'Awaiting Double Check', receivedAt:firebase.firestore.FieldValue.serverTimestamp() })
-    .then(function(){ closeModal('receiveModal'); showToast('Submitted for double check successfully!','success'); })
-    .catch(function(err){ showToast('Error: '+err.message,'error'); })
-    .finally(function(){ btn.disabled=false; btn.textContent='Submit for Double Check'; });
-};
-
-// -- Discrepancy detection --
-window.rmCheckDiscrepancy = function(idx, expectedQty) {
-  var actualEl = document.getElementById('rmActual_' + idx);
-  var alertEl  = document.getElementById('rmAlert_' + idx);
-  var alertTxt = document.getElementById('rmAlertText_' + idx);
-  if (!actualEl || !alertEl) return;
-  var actual = parseInt(actualEl.value) || 0;
-  if (actual < expectedQty) {
-    var shortage = expectedQty - actual;
-    alertEl.style.display = 'flex';
-    alertEl.style.background = '#fff5f5';
-    alertEl.style.borderColor = '#fed7d7';
-    alertEl.style.color = '#c53030';
-    alertTxt.textContent = '📉 Shortage detected: ' + shortage + ' unit(s) short of expected ' + expectedQty + '. Condition auto-set to Shortage.';
-    setCondition(idx, 'Shortage');
-  } else if (actual > expectedQty) {
-    alertEl.style.display = 'flex';
-    alertEl.style.background = '#fffbeb';
-    alertEl.style.borderColor = '#fcd34d';
-    alertEl.style.color = '#92400e';
-    alertTxt.textContent = '⚠ Over-delivery: received ' + actual + ', expected ' + expectedQty + '. Please verify.';
-  } else {
-    alertEl.style.display = 'none';
-    setCondition(idx, 'OK');
-  }
+  btn.disabled = true;
+  btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Submitting…';
+  db.collection('deliveries').doc(_currentDeliveryId).update({
+    items: updatedItems, receivedBy: receivedBy,
+    status: 'Awaiting Double Check',
+    receivedAt: firebase.firestore.FieldValue.serverTimestamp()
+  })
+    .then(function() { closeModal('receiveModal'); showToast('Submitted for double check successfully!', 'success'); })
+    .catch(function(err) { showToast('Error: ' + err.message, 'error'); })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Submit for Double Check';
+    })
 };
 </script>
 <script>
@@ -1104,7 +1441,7 @@ window.openReviewModal = function(id) {
   var d = _allDeliveries.find(function(x){ return x.id===id; });
   if (!d) return;
   _currentDeliveryId = id;
-  document.getElementById('rvSupplierLabel').textContent = d.supplier + ' � ' + _fmtDate(d.date);
+  document.getElementById('rvSupplierLabel').textContent = d.supplier + ' · ' + _fmtDate(d.date);
 
   // Update header title and warning banner based on status
   var headerTitle = document.querySelector('#reviewModal .modal-content > div:first-child div div:first-child');
@@ -1115,7 +1452,7 @@ window.openReviewModal = function(id) {
     else headerTitle.textContent = 'Review & Verify';
   }
   if (warningBanner) warningBanner.style.display = (d.status === 'Awaiting Double Check') ? 'flex' : 'none';
-  document.getElementById('rvReceivedBy').value = d.receivedBy||'�';
+  document.getElementById('rvReceivedBy').value = d.receivedBy||'—';
   var apUser = JSON.parse(sessionStorage.getItem('apUser') || '{}');
   var isReadOnly = (d.status === 'Approved' || d.status === 'Rejected');
 
@@ -1126,7 +1463,7 @@ window.openReviewModal = function(id) {
   checkedByEl.style.color = isReadOnly ? '#718096' : '#1a202c';
   var checkedByLabel = checkedByEl.previousElementSibling;
   if (checkedByLabel) checkedByLabel.textContent = 'Checked By';
-  // Review Notes � read-only for completed
+  // Review Notes - read-only for completed
   var rvNotesEl = document.getElementById('rvNotes');
   rvNotesEl.value = d.reviewNotes || '';
   rvNotesEl.readOnly = isReadOnly;
@@ -1146,13 +1483,13 @@ window.openReviewModal = function(id) {
     return '<div class="rv-item-card">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">'
       +   '<div><div class="rcv-item-name">' + item.itemName + '</div><div class="rcv-item-num">' + item.itemNum + '</div></div>'
-      +   '<span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:' + cc + '1a;color:' + cc + ';">' + (item.condition||'�') + '</span>'
+      +   '<span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:' + cc + '1a;color:' + cc + ';">' + (item.condition||'—') + '</span>'
       + '</div>'
       + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid #f0f4f8;">'
       +   '<div><div class="rv-col-label">Expected</div><div class="rv-col-val">' + item.expectedQty + ' <span style="font-size:11px;color:#718096;">' + (item.uom||'') + '</span></div></div>'
-      +   '<div><div class="rv-col-label">Actual Received</div><div class="rv-col-val" style="color:' + cc + ';">' + (item.actualQty!==undefined?item.actualQty:'�') + ' <span style="font-size:11px;">' + (item.uom||'') + '</span> ' + diffHtml + '</div></div>'
-      +   '<div><div class="rv-col-label">Condition</div><div class="rv-col-val"><span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:' + cc + '1a;color:' + cc + ';">' + (item.condition||'�') + '</span></div></div>'
-      +   '<div><div class="rv-col-label">Remarks</div><div class="rv-col-val" style="font-size:12px;color:#718096;">' + (item.remark||'�') + '</div></div>'
+      +   '<div><div class="rv-col-label">Actual Received</div><div class="rv-col-val" style="color:' + cc + ';">' + (item.actualQty!==undefined?item.actualQty:'—') + ' <span style="font-size:11px;">' + (item.uom||'') + '</span> ' + diffHtml + '</div></div>'
+      +   '<div><div class="rv-col-label">Condition</div><div class="rv-col-val"><span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:' + cc + '1a;color:' + cc + ';">' + (item.condition||'—') + '</span></div></div>'
+      +   '<div><div class="rv-col-label">Remarks</div><div class="rv-col-val" style="font-size:12px;color:#718096;">' + (item.remark||'—') + '</div></div>'
       + '</div>'
       + '</div>';
   }).join('');
@@ -1176,7 +1513,7 @@ window.submitReview = function(decision) {
           .where('num', '==', item.itemNum).limit(1).get()
           .then(function(snap) {
             if (!snap.empty) {
-              // Document found � update stock
+              // Document found - update stock
               var doc = snap.docs[0];
               var cur = parseInt(doc.data().stock) || 0;
               var newStock = cur + item.actualQty;
@@ -1188,7 +1525,7 @@ window.submitReview = function(decision) {
               }).then(function() {
                 return db.collection('transactions').add({
                   item: item.itemName,
-                  desc: 'Stock received � ' + d.supplier,
+                  desc: 'Stock received – ' + d.supplier,
                   type: 'IN',
                   qty: '+' + item.actualQty,
                   date: (function(){ var _d=new Date(),_m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return _m[_d.getMonth()]+' '+_d.getDate()+', '+_d.getFullYear(); })(),
@@ -1197,7 +1534,7 @@ window.submitReview = function(decision) {
                 });
               });
             } else {
-              // No stock_inventory doc yet � create it
+              // No stock_inventory doc yet - create it
               return db.collection('stock_inventory').add({
                 num:    item.itemNum,
                 name:   item.itemName,
@@ -1210,7 +1547,7 @@ window.submitReview = function(decision) {
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
               }).then(function() {
-                // stock_inventory doc created � no transaction logged for initial stock
+                // stock_inventory doc created - no transaction logged for initial stock
               });
             }
           });
@@ -1245,9 +1582,9 @@ window.generateIssueReport = function() {
       + '<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:600;">' + item.itemName + '</td>'
       + '<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;color:#718096;">' + item.itemNum + '</td>'
       + '<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;text-align:center;">' + item.expectedQty + ' ' + (item.uom||'') + '</td>'
-      + '<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;text-align:center;color:' + cc + ';font-weight:700;">' + (item.actualQty!==undefined?item.actualQty:'�') + ' ' + (item.uom||'') + '</td>'
+      + '<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;text-align:center;color:' + cc + ';font-weight:700;">' + (item.actualQty!==undefined?item.actualQty:'—') + ' ' + (item.uom||'') + '</td>'
       + '<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:center;"><span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:' + cc + '1a;color:' + cc + ';">' + item.condition + '</span></td>'
-      + '<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;color:#718096;">' + (item.remark||'�') + '</td>'
+      + '<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;color:#718096;">' + (item.remark||'—') + '</td>'
       + '</tr>';
   }).join('');
 
@@ -1273,14 +1610,14 @@ window.generateIssueReport = function() {
     +   '<div style="text-align:right;"><div class="report-label">Issue / Discrepancy Report</div><div class="report-title">Receiving Problem Report</div><div class="report-meta">Generated: ' + dateStr + ' at ' + timeStr + '</div></div>'
     + '</div>'
     + '<div class="info-grid">'
-    +   '<div class="info-card"><div class="info-label">Supplier / Reference</div><div class="info-val">' + (d.supplier||'�') + '</div></div>'
+    +   '<div class="info-card"><div class="info-label">Supplier / Reference</div><div class="info-val">' + (d.supplier||'—') + '</div></div>'
     +   '<div class="info-card"><div class="info-label">Delivery Date</div><div class="info-val">' + _fmtDate(d.date) + '</div></div>'
-    +   '<div class="info-card"><div class="info-label">Received By</div><div class="info-val">' + (d.receivedBy||'�') + '</div></div>'
+    +   '<div class="info-card"><div class="info-label">Received By</div><div class="info-val">' + (d.receivedBy||'—') + '</div></div>'
     + '</div>'
     + '<div style="margin-bottom:10px;"><strong style="font-size:13px;">Problem Items (' + problemItems.length + ')</strong></div>'
     + '<table><thead><tr><th>Item Name</th><th>Item No.</th><th>Expected</th><th>Actual Received</th><th>Condition</th><th>Remarks</th></tr></thead><tbody>' + rows + '</tbody></table>'
     + (d.reviewNotes ? '<div style="margin-top:16px;background:#fff5f5;border:1px solid #fed7d7;border-radius:8px;padding:10px 14px;font-size:12px;color:#c53030;"><strong>Review Notes:</strong> ' + d.reviewNotes + '</div>' : '')
-    + '<div class="footer"><span>Caltex San Pedro � JA Noble Enterprise Inc. � Confidential</span><span>This report should be forwarded to the supplier for resolution.</span></div>'
+    + '<div class="footer"><span>Caltex San Pedro · JA Noble Enterprise Inc. · Confidential</span><span>This report should be forwarded to the supplier for resolution.</span></div>'
     + '</body></html>';
 
   var win = window.open('','_blank');

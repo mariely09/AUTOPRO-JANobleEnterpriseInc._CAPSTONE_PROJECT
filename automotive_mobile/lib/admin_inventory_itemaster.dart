@@ -91,7 +91,10 @@ class AdminInventoryItemMasterBody extends StatefulWidget {
   AdminInventoryItemMasterBodyState createState() => AdminInventoryItemMasterBodyState();
 }
 
-class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBody> {
+class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBody>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   static const _red = Color(0xFFE8001C);
   static const _col = 'item_master';
 
@@ -156,6 +159,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final activeQuery = widget.searchQuery.isNotEmpty ? widget.searchQuery : _searchQuery;
     return Stack(children: [
       StreamBuilder<QuerySnapshot>(
@@ -385,46 +389,26 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                 _detailRow('UOM', item['uom']?.isNotEmpty == true ? item['uom']! : '—'),
                 _detailRow('Cost', _fmtCost(item['cost'] ?? '')),
                 _detailRow('Type', item['type'] ?? '—'),
-                if (!isSvc) ...[
-                  const Divider(height: 24),
-                  const Text('Scan Codes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF718096))),
-                  const SizedBox(height: 12),
-                  if ((item['barcode'] ?? '').isNotEmpty) ...[
-                    const Text('Barcode', style: TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: const Color(0xFFe2e8f0)), borderRadius: BorderRadius.circular(10)),
-                      child: BarcodeWidget(
-                        barcode: Barcode.code128(),
-                        data: item['barcode']!,
-                        width: double.infinity,
-                        height: 70,
-                        drawText: true,
-                        style: const TextStyle(fontSize: 10),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  if ((item['qr'] ?? '').isNotEmpty) ...[
-                    const Text('QR Code', style: TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                    const SizedBox(height: 8),
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: Colors.white, border: Border.all(color: const Color(0xFFe2e8f0)), borderRadius: BorderRadius.circular(10)),
-                        child: QrImageView(
-                          data: item['qr']!,
-                          version: QrVersions.auto,
-                          size: 160,
-                        ),
-                      ),
-                    ),
-                  ],
-                  if ((item['barcode'] ?? '').isEmpty && (item['qr'] ?? '').isEmpty)
-                    const Text('No scan codes assigned.', style: TextStyle(fontSize: 12, color: Color(0xFF718096))),
-                ],
                 const SizedBox(height: 16),
+                // Barcode + QR buttons (Material only)
+                if (!isSvc) ...[
+                  Row(children: [
+                    Expanded(child: OutlinedButton.icon(
+                      onPressed: () => _showOrGenerateBarcode(item),
+                      icon: const Icon(Icons.qr_code_2, size: 16),
+                      label: const Text('Barcode'),
+                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
+                    )),
+                    const SizedBox(width: 10),
+                    Expanded(child: OutlinedButton.icon(
+                      onPressed: () => _showOrGenerateQR(item),
+                      icon: const Icon(Icons.qr_code, size: 16),
+                      label: const Text('QR Code'),
+                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
+                    )),
+                  ]),
+                  const SizedBox(height: 10),
+                ],
                 Row(children: [
                   Expanded(child: OutlinedButton.icon(
                     onPressed: () { Navigator.pop(context); _showAddItemModal(item: item); },
@@ -444,6 +428,117 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
           ]),
         ),
       ),
+    );
+  }
+
+  // ── Show existing or generate + save barcode ──
+  void _showOrGenerateBarcode(Map<String, String> item) async {
+    String barcodeVal = item['barcode'] ?? '';
+
+    if (barcodeVal.isEmpty) {
+      // Generate random valid EAN-13
+      final rnd = DateTime.now().microsecondsSinceEpoch;
+      final digits = List.generate(12, (i) => ((rnd * (i + 7) + i * 13) % 10).abs());
+      int sum = 0;
+      for (int j = 0; j < 12; j++) sum += digits[j] * (j.isEven ? 1 : 3);
+      digits.add((10 - (sum % 10)) % 10);
+      barcodeVal = digits.join('');
+      // Save to Firestore
+      try {
+        await _db.doc(item['id']).update({'barcode': barcodeVal});
+        item['barcode'] = barcodeVal;
+      } catch (e) {
+        debugPrint('Barcode save error: $e');
+      }
+    }
+
+    if (!mounted) return;
+    _showScanCodeModal(item['name'] ?? '', item['uom'] ?? '', barcodeVal, isBarcode: true);
+  }
+
+  // ── Show existing or generate + save QR code ──
+  void _showOrGenerateQR(Map<String, String> item) async {
+    String qrVal = item['qr'] ?? '';
+
+    if (qrVal.isEmpty) {
+      qrVal = 'QR-${item['num']?.toUpperCase() ?? ''}';
+      try {
+        await _db.doc(item['id']).update({'qr': qrVal});
+        item['qr'] = qrVal;
+      } catch (e) {
+        debugPrint('QR save error: $e');
+      }
+    }
+
+    if (!mounted) return;
+    _showScanCodeModal(item['name'] ?? '', item['uom'] ?? '', qrVal, isBarcode: false);
+  }
+
+  void _showScanCodeModal(String name, String uom, String value, {required bool isBarcode}) {
+    showModalBottomSheet(
+      context: context, isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
+        // Header
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+          decoration: const BoxDecoration(
+            color: _red,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+          child: Row(children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              if (uom.isNotEmpty)
+                Text(uom, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            ])),
+            GestureDetector(onTap: () => Navigator.pop(context),
+              child: const Icon(Icons.close, color: Colors.white)),
+          ]),
+        ),
+        // Image
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFe2e8f0)),
+              borderRadius: BorderRadius.circular(14)),
+            child: isBarcode
+                ? Column(children: [
+                    BarcodeWidget(
+                      barcode: Barcode.code128(),
+                      data: value,
+                      width: double.infinity,
+                      height: 80,
+                      drawText: false,
+                      errorBuilder: (ctx, err) => Text(value,
+                        style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: Color(0xFF718096))),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 13,
+                        letterSpacing: 2,
+                        color: Color(0xFF1a202c),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ])
+                : Center(
+                    child: QrImageView(
+                      data: value,
+                      version: QrVersions.auto,
+                      size: 180,
+                    )),
+          ),
+        ),
+      ]),
     );
   }
 
@@ -566,75 +661,51 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                     TextField(controller: skuCtrl, keyboardType: TextInputType.number,
                       decoration: const InputDecoration(labelText: 'SKU', border: OutlineInputBorder(), hintText: 'e.g. 10001')),
                     const SizedBox(height: 10),
-                    // Barcode field with scan button
+                    // Barcode field with scan-only button
                     Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Expanded(child: TextField(controller: barcodeCtrl,
                         decoration: InputDecoration(
                           labelText: 'Barcode',
                           border: const OutlineInputBorder(),
-                          suffixIcon: Row(mainAxisSize: MainAxisSize.min, children: [
-                            // Auto-generate
-                            IconButton(
-                              icon: const Icon(Icons.auto_fix_high, size: 18),
-                              tooltip: 'Auto-generate',
-                              onPressed: () {
-                                barcodeCtrl.text = DateTime.now().millisecondsSinceEpoch.toString().substring(3);
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
+                            tooltip: 'Scan barcode',
+                            onPressed: () async {
+                              final result = await Navigator.push<String>(ctx,
+                                MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(
+                                  title: 'Scan Barcode',
+                                  hint: 'Point camera at the barcode',
+                                )));
+                              if (result != null && result.isNotEmpty) {
+                                barcodeCtrl.text = result;
                                 setModalState(() {});
-                              },
-                            ),
-                            // Scan
-                            IconButton(
-                              icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
-                              tooltip: 'Scan barcode',
-                              onPressed: () async {
-                                final result = await Navigator.push<String>(ctx,
-                                  MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(
-                                    title: 'Scan Barcode',
-                                    hint: 'Point camera at the barcode',
-                                  )));
-                                if (result != null && result.isNotEmpty) {
-                                  barcodeCtrl.text = result;
-                                  setModalState(() {});
-                                }
-                              },
-                            ),
-                          ]),
+                              }
+                            },
+                          ),
                         ))),
                     ]),
                     const SizedBox(height: 10),
-                    // QR Code field with scan button
+                    // QR Code field with scan-only button
                     Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Expanded(child: TextField(controller: qrCtrl,
                         decoration: InputDecoration(
                           labelText: 'QR Code',
                           border: const OutlineInputBorder(),
-                          suffixIcon: Row(mainAxisSize: MainAxisSize.min, children: [
-                            // Auto-generate
-                            IconButton(
-                              icon: const Icon(Icons.auto_fix_high, size: 18),
-                              tooltip: 'Auto-generate',
-                              onPressed: () {
-                                qrCtrl.text = 'QR-$itemNum';
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
+                            tooltip: 'Scan QR code',
+                            onPressed: () async {
+                              final result = await Navigator.push<String>(ctx,
+                                MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(
+                                  title: 'Scan QR Code',
+                                  hint: 'Point camera at the QR code',
+                                )));
+                              if (result != null && result.isNotEmpty) {
+                                qrCtrl.text = result;
                                 setModalState(() {});
-                              },
-                            ),
-                            // Scan
-                            IconButton(
-                              icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
-                              tooltip: 'Scan QR code',
-                              onPressed: () async {
-                                final result = await Navigator.push<String>(ctx,
-                                  MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(
-                                    title: 'Scan QR Code',
-                                    hint: 'Point camera at the QR code',
-                                  )));
-                                if (result != null && result.isNotEmpty) {
-                                  qrCtrl.text = result;
-                                  setModalState(() {});
-                                }
-                              },
-                            ),
-                          ]),
+                              }
+                            },
+                          ),
                         ))),
                     ]),
                   ],

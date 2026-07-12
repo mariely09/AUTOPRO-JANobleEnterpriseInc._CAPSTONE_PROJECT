@@ -89,7 +89,10 @@ class AdminInventoryStockBody extends StatefulWidget {
       AdminInventoryStockBodyState();
 }
 
-class AdminInventoryStockBodyState extends State<AdminInventoryStockBody> {
+class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   static const _red = Color(0xFFE8001C);
   static const _stockCol = 'stock_inventory';
   static const _masterCol = 'item_master';
@@ -124,40 +127,107 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody> {
 
   Future<Map<String, dynamic>?> _findItemMaster(String query) async {
     if (query.isEmpty) return null;
-    final q = query.trim();
-    var snap = await _masterDb.where('barcode', isEqualTo: q).limit(1).get();
-    if (snap.docs.isNotEmpty) return _docToMaster(snap.docs.first);
-    snap = await _masterDb.where('qr', isEqualTo: q).limit(1).get();
-    if (snap.docs.isNotEmpty) return _docToMaster(snap.docs.first);
-    snap = await _masterDb
-        .where('num', isEqualTo: q.toUpperCase())
-        .limit(1)
-        .get();
-    if (snap.docs.isNotEmpty) return _docToMaster(snap.docs.first);
-    snap = await _masterDb
-        .orderBy('name')
-        .startAt([q])
-        .endAt(['$q\uf8ff'])
-        .limit(1)
-        .get();
-    if (snap.docs.isNotEmpty) return _docToMaster(snap.docs.first);
-    return null;
+    final raw = query.trim();
+
+    String _norm(String s) {
+      final t = s.trim();
+      if (RegExp(r'^\d+$').hasMatch(t)) {
+        final stripped = t.replaceFirst(RegExp(r'^0+'), '');
+        return stripped.isEmpty ? '0' : stripped;
+      }
+      return t.toLowerCase();
+    }
+
+    bool _match(String stored, String scanned) {
+      if (stored.isEmpty || scanned.isEmpty) return false;
+      if (stored == scanned) return true;
+      if (stored.toLowerCase() == scanned.toLowerCase()) return true;
+      final sNum = RegExp(r'^\d+$').hasMatch(stored.trim());
+      final qNum = RegExp(r'^\d+$').hasMatch(scanned.trim());
+      if (sNum && qNum) {
+        final ns = _norm(stored), nq = _norm(scanned);
+        if (ns == nq) return true;
+        if (ns.length >= 10 && nq.length > ns.length && nq.contains(ns)) return true;
+        if (nq.length == ns.length + 1 && nq.startsWith(ns)) return true;
+        for (int i = 1; i <= 3 && i < nq.length; i++) {
+          if (nq.substring(i) == ns) return true;
+        }
+      }
+      return false;
+    }
+
+    final all = await _masterDb.get();
+
+    // P1: exact barcode
+    var doc = all.docs.cast<DocumentSnapshot?>().firstWhere(
+      (d) => (d!.data() as Map<String, dynamic>)['barcode']?.toString().trim() == raw,
+      orElse: () => null);
+    // P2: exact QR
+    doc ??= all.docs.cast<DocumentSnapshot?>().firstWhere(
+      (d) => (d!.data() as Map<String, dynamic>)['qr']?.toString().trim() == raw,
+      orElse: () => null);
+    // P3: normalized barcode/QR
+    doc ??= all.docs.cast<DocumentSnapshot?>().firstWhere((d) {
+      final data = d!.data() as Map<String, dynamic>;
+      return _match(data['barcode']?.toString() ?? '', raw) ||
+             _match(data['qr']?.toString()      ?? '', raw);
+    }, orElse: () => null);
+    // P4: item number
+    doc ??= all.docs.cast<DocumentSnapshot?>().firstWhere(
+      (d) => (d!.data() as Map<String, dynamic>)['num']?.toString().trim().toLowerCase() == raw.toLowerCase(),
+      orElse: () => null);
+    // P5: name contains (non-numeric only)
+    if (doc == null && raw.length >= 3 && !RegExp(r'^\d+$').hasMatch(raw)) {
+      doc = all.docs.cast<DocumentSnapshot?>().firstWhere(
+        (d) => ((d!.data() as Map<String, dynamic>)['name']?.toString() ?? '').toLowerCase().contains(raw.toLowerCase()),
+        orElse: () => null);
+    }
+
+    return doc != null ? _docToMaster(doc) : null;
   }
 
-  /// Returns all item_master docs whose name or num contains [query].
+  /// Returns all item_master docs matching [query] (name, num, group, barcode, QR).
   Future<List<Map<String, dynamic>>> _searchItemMaster(String query) async {
     if (query.trim().isEmpty) return [];
-    final q = query.trim().toLowerCase();
-    // Fetch all docs and filter client-side (Firestore doesn't support contains/ilike)
+    final raw = query.trim();
+    final q = raw.toLowerCase();
+
+    String _norm(String s) {
+      final t = s.trim();
+      if (RegExp(r'^\d+$').hasMatch(t)) {
+        final stripped = t.replaceFirst(RegExp(r'^0+'), '');
+        return stripped.isEmpty ? '0' : stripped;
+      }
+      return t.toLowerCase();
+    }
+
+    bool _match(String stored, String scanned) {
+      if (stored.isEmpty || scanned.isEmpty) return false;
+      if (stored == scanned) return true;
+      if (stored.toLowerCase() == scanned.toLowerCase()) return true;
+      final sNum = RegExp(r'^\d+$').hasMatch(stored.trim());
+      final qNum = RegExp(r'^\d+$').hasMatch(scanned.trim());
+      if (sNum && qNum) {
+        final ns = _norm(stored), nq = _norm(scanned);
+        if (ns == nq) return true;
+        if (ns.length >= 10 && nq.length > ns.length && nq.contains(ns)) return true;
+        if (nq.length == ns.length + 1 && nq.startsWith(ns)) return true;
+        for (int i = 1; i <= 3 && i < nq.length; i++) {
+          if (nq.substring(i) == ns) return true;
+        }
+      }
+      return false;
+    }
+
     final snap = await _masterDb.orderBy('name').get();
     return snap.docs
         .map((d) => _docToMaster(d))
         .where((item) =>
             (item['name'] as String).toLowerCase().contains(q) ||
-            (item['num'] as String).toLowerCase().contains(q) ||
+            (item['num']  as String).toLowerCase().contains(q) ||
             (item['group'] as String).toLowerCase().contains(q) ||
-            (item['barcode'] as String).toLowerCase() == q ||
-            (item['qr'] as String).toLowerCase() == q)
+            _match(item['barcode'] as String, raw) ||
+            _match(item['qr']      as String, raw))
         .toList();
   }
 
@@ -198,6 +268,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Stack(
       children: [
         StreamBuilder<QuerySnapshot>(

@@ -941,26 +941,44 @@ function openMaterialScanForRow(btn) {
 }
 
 function searchMaterialByScan() {
-    var q = (document.getElementById('materialRowScanInput').value || '').trim().toLowerCase();
+    var raw = (document.getElementById('materialRowScanInput').value || '').trim();
     var resultEl = document.getElementById('materialRowScanResult');
-    if (!q) { resultEl.innerHTML = ''; return; }
+    if (!raw) { resultEl.innerHTML = ''; return; }
 
-    // Search itemMaster by barcode, qrcode, itemNum, or name
-    var items = (window.itemMaster || []).filter(function(i){
-        return (i.barcode||'').toLowerCase() === q
-            || (i.qrcode||'').toLowerCase() === q
-            || (i.itemNum||'').toLowerCase() === q
-            || (i.itemName||'').toLowerCase().includes(q);
+    var q = raw.toLowerCase();
+
+    // Normalize numeric barcode — strips leading zeros for comparison
+    function normBarcode(s) {
+        if (!s) return '';
+        s = String(s).trim();
+        return /^\d+$/.test(s) ? (s.replace(/^0+/, '') || '0') : s.toLowerCase();
+    }
+    var normRaw = normBarcode(raw);
+
+    // Search itemMaster by barcode, qrcode/qr, itemNum, or name
+    var items = (window.itemMaster || []).filter(function(i) {
+        var bc  = String(i.barcode || '').trim();
+        var qrc = String(i.qrcode  || i.qr || '').trim();
+        // Exact barcode match
+        if (bc === raw) return true;
+        // Normalized barcode match (leading-zero difference)
+        if (bc && normBarcode(bc) === normRaw) return true;
+        // QR code match (case-insensitive)
+        if (qrc.toLowerCase() === q) return true;
+        // Item number match
+        if ((i.itemNum || '').toLowerCase() === q) return true;
+        // Name contains
+        if ((i.itemName || '').toLowerCase().includes(q)) return true;
+        return false;
     });
 
     // Also cross-reference inventory
     if (items.length === 0) {
-        resultEl.innerHTML = '<div style="text-align:center;padding:1.25rem;color:#718096;background:#f7fafc;border-radius:10px;font-size:0.88rem;">No item found for "<strong>'+escapeHtml(q)+'</strong>"</div>';
+        resultEl.innerHTML = '<div style="text-align:center;padding:1.25rem;color:#718096;background:#f7fafc;border-radius:10px;font-size:0.88rem;">No item found for "<strong>'+escapeHtml(raw)+'</strong>"</div>';
         return;
     }
 
     resultEl.innerHTML = items.map(function(im){
-        // Find matching inventory item
         var inv = (window.inventory||[]).find(function(i){ return i.itemNum === im.itemNum; });
         var invNum = inv ? inv.itemNum : im.itemNum;
         var unitCost = inv ? inv.price : (im.cost||0);
@@ -1343,8 +1361,17 @@ function autofillInventoryFromScan(value) {
     var feedback = document.getElementById('invScanFeedback');
     var preview = document.getElementById('invItemPreview');
     if (!value.trim()) { if(preview) preview.style.display='none'; return; }
+    var raw = value.trim();
     var itemMaster = window.itemMaster || [];
-    var found = itemMaster.find(function(i){ return i.barcode === value || i.qrcode === value || i.itemNum === value; });
+    function normB(s) { s = String(s||'').trim(); return /^\d+$/.test(s) ? (s.replace(/^0+/,'')||'0') : s.toLowerCase(); }
+    var normRaw = normB(raw);
+    var found = itemMaster.find(function(i) {
+        if (String(i.barcode||'').trim() === raw) return true;
+        if (i.barcode && normB(i.barcode) === normRaw) return true;
+        if (String(i.qrcode||'').trim().toLowerCase() === raw.toLowerCase()) return true;
+        if ((i.itemNum||'') === raw) return true;
+        return false;
+    });
     if (found) {
         document.getElementById('invItemNum').value = found.itemNum;
         document.getElementById('invItemName').value = found.itemName;
@@ -1782,10 +1809,8 @@ function onItemMasterCommodityGroupChange(select) {
         if (typeEl) typeEl.value = 'Material';
     }
     var skuRow = document.getElementById('imSkuRow');
-    var barcodeRow = document.getElementById('imBarcodeQRRow');
     var isService = (val === 'AutoService') || (typeEl && typeEl.value === 'Service');
     if (skuRow) skuRow.style.display = isService ? 'none' : '';
-    if (barcodeRow) barcodeRow.style.display = isService ? 'none' : 'grid';
 }
 
 function openAddItemMasterModal() {
@@ -1823,10 +1848,9 @@ function editItemMaster(itemNum) {
     form.elements.sku.value = item.sku || '';
     form.elements.cost.value = item.cost || '';
     form.elements.itemType.value = item.itemType || '';
-    form.elements.barcode.value = item.barcode || '';
-    form.elements.qrcode.value = item.qrcode || '';
+    // barcode and qrcode are now generated from the view modal — not in the add/edit form
 
-    // Show/hide SKU + Barcode/QR rows based on type
+    // Show/hide SKU row based on type
     if (typeof onItemTypeChange === 'function') onItemTypeChange(item.itemType || '');
 
     // Populate dropdowns from Firestore then set saved values
@@ -1883,6 +1907,13 @@ function viewItemMasterDetails(itemNum) {
     if (!item) return;
     var isSvc = item.itemType === 'Service';
 
+    // Store current item for generate functions
+    window._imCurrentViewItem = item;
+
+    // Show/hide generate buttons — only for Material
+    var genBtns = document.getElementById('imGenerateBtns');
+    if (genBtns) genBtns.style.display = isSvc ? 'none' : 'flex';
+
     // Header always red
     var header = document.getElementById('imDetailHeader');
     if (header) header.style.background = 'linear-gradient(135deg,#E31E24,#C41E3A)';
@@ -1925,61 +1956,6 @@ function viewItemMasterDetails(itemNum) {
             + '</div>';
     }).join('');
 
-    // Barcode/QR — only for Material
-    var scanSection = document.getElementById('imScanSection');
-    if (scanSection) {
-        if (!isSvc) {
-            scanSection.style.display = 'block';
-            var barcodeEl = document.getElementById('imBarcode');
-            var qrEl = document.getElementById('imQR');
-            if (barcodeEl) barcodeEl.textContent = item.barcode || '—';
-            if (qrEl) qrEl.textContent = item.qrcode || '—';
-
-            // Render barcode image
-            var barcodeSvg = document.getElementById('imBarcodeImg');
-            if (barcodeSvg && item.barcode && typeof JsBarcode !== 'undefined') {
-                try {
-                    JsBarcode(barcodeSvg, item.barcode, {
-                        format: 'CODE128',
-                        width: 1.8,
-                        height: 60,
-                        displayValue: false,
-                        margin: 4,
-                    });
-                    barcodeSvg.style.display = 'block';
-                } catch(e) {
-                    barcodeSvg.style.display = 'none';
-                }
-            } else if (barcodeSvg) {
-                barcodeSvg.style.display = 'none';
-            }
-
-            // Render QR code image
-            var qrImgEl = document.getElementById('imQRImg');
-            if (qrImgEl) {
-                qrImgEl.innerHTML = '';
-                if (item.qrcode && typeof QRCode !== 'undefined') {
-                    try {
-                        new QRCode(qrImgEl, {
-                            text: item.qrcode,
-                            width: 128,
-                            height: 128,
-                            colorDark: '#1a202c',
-                            colorLight: '#ffffff',
-                            correctLevel: QRCode.CorrectLevel.M,
-                        });
-                    } catch(e) {
-                        qrImgEl.textContent = item.qrcode;
-                    }
-                } else if (qrImgEl && !item.qrcode) {
-                    qrImgEl.textContent = '—';
-                }
-            }
-        } else {
-            scanSection.style.display = 'none';
-        }
-    }
-
     // Edit button
     var editBtn = document.getElementById('imDetailEditBtn');
     if (editBtn) {
@@ -1994,13 +1970,29 @@ function viewItemMasterDetails(itemNum) {
 
 function generateItemMasterBarcode() {
     var el = document.getElementById('itemMasterBarcode');
-    if (el) el.value = String(Math.floor(Math.random()*9000000000000)+1000000000000);
+    if (!el) return;
+    // Derive barcode deterministically from the item number
+    // so the same item always gets the same barcode (no randomness)
+    var numEl = document.getElementById('itemMasterItemNum');
+    var itemNum = numEl ? numEl.value.trim() : '';
+    // Extract numeric part from item number (e.g. "ITM-001" → 1, "ITM-042" → 42)
+    var n = parseInt((itemNum.match(/\d+/) || ['0'])[0]) || 0;
+    // Build a stable 12-digit seed: prefix 650 (PH GS1 range) + zero-padded item number (9 digits)
+    var seed = '650' + String(n).padStart(9, '0');
+    // Calculate EAN-13 check digit
+    var sum = 0;
+    for (var i = 0; i < 12; i++) {
+        sum += parseInt(seed[i]) * (i % 2 === 0 ? 1 : 3);
+    }
+    var check = (10 - (sum % 10)) % 10;
+    el.value = seed + check;
 }
 
 function generateItemMasterQRCode() {
     var el = document.getElementById('itemMasterQRCode');
     var num = document.getElementById('itemMasterItemNum');
-    if (el) el.value = 'QR-' + (num ? num.value : 'ITM-' + Date.now());
+    // Format: QR-ITM-001 (uppercase, matches mobile format)
+    if (el) el.value = 'QR-' + (num ? num.value.toUpperCase() : 'ITM-' + Date.now());
 }
 
 function openItemMasterScanModal() {
@@ -2027,8 +2019,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 uom:    form.elements.uom.value,
                 cost:   parseFloat(form.elements.cost.value) || 0,
                 type:   form.elements.itemType.value,
-                barcode: form.elements.barcode.value.trim(),
-                qr:     form.elements.qrcode.value.trim(),
+                // barcode and qr are not in the form — generated separately from view modal
             };
 
             var db = firebase.firestore();
@@ -2675,11 +2666,15 @@ function searchDeliveryItem(query) {
 
     // 2. If not found directly, try matching barcode/qrcode via itemMaster → then link to inventory by itemNum
     if (!found) {
+        var normB2 = function(s) { s = String(s||'').trim(); return /^\d+$/.test(s) ? (s.replace(/^0+/,'')||'0') : s.toLowerCase(); };
+        var normQ = normB2(query);
         var masterMatch = itemMaster.find(function(m) {
-            return (m.barcode && m.barcode === query)
-                || (m.qrcode && m.qrcode === query)
-                || (m.itemNum||'').toLowerCase() === q
-                || (m.itemName||'').toLowerCase().includes(q);
+            if (String(m.barcode||'').trim() === query) return true;
+            if (m.barcode && normB2(m.barcode) === normQ) return true;
+            if (String(m.qrcode||'').trim().toLowerCase() === q) return true;
+            if ((m.itemNum||'').toLowerCase() === q) return true;
+            if ((m.itemName||'').toLowerCase().includes(q)) return true;
+            return false;
         });
         if (masterMatch) {
             // Match inventory by itemNum suffix (INV-001 ↔ ITM-001 share the same sequence)
@@ -2824,10 +2819,14 @@ function searchInventoryByScan() {
 
     // Cross-reference via itemMaster barcode/qrcode
     if (!found) {
+        var normBScan = function(s) { s = String(s||'').trim(); return /^\d+$/.test(s) ? (s.replace(/^0+/,'')||'0') : s.toLowerCase(); };
+        var normVal = normBScan(val);
         var master = itemMaster.find(function(m) {
-            return (m.barcode && m.barcode === val)
-                || (m.qrcode && m.qrcode === val)
-                || (m.itemNum||'').toLowerCase() === q;
+            if (String(m.barcode||'').trim() === val) return true;
+            if (m.barcode && normBScan(m.barcode) === normVal) return true;
+            if (String(m.qrcode||'').trim().toLowerCase() === q) return true;
+            if ((m.itemNum||'').toLowerCase() === q) return true;
+            return false;
         });
         if (master) {
             var seq = master.itemNum.replace(/\D/g,'');
@@ -2860,11 +2859,29 @@ function searchItemMasterByScan() {
 
     var itemMaster = window.itemMaster || [];
     var q = val.toLowerCase();
+
+    // Normalize numeric barcode for comparison (strip leading zeros)
+    function normBarcode(s) {
+        if (!s) return '';
+        s = String(s).trim();
+        if (/^\d+$/.test(s)) return s.replace(/^0+/, '') || '0';
+        return s.toLowerCase();
+    }
+    var normVal = normBarcode(val);
+
     var found = itemMaster.find(function(m) {
-        return (m.barcode && m.barcode === val)
-            || (m.qrcode && m.qrcode === val)
-            || (m.itemNum||'').toLowerCase() === q
-            || (m.itemName||'').toLowerCase().includes(q);
+        // Exact barcode match (field stored as 'barcode')
+        if (m.barcode && String(m.barcode).trim() === val) return true;
+        // Normalized barcode match (handles leading-zero differences)
+        if (m.barcode && normBarcode(m.barcode) === normVal) return true;
+        // QR code match — field is 'qr' (not 'qrcode')
+        if (m.qr && String(m.qr).trim().toLowerCase() === q) return true;
+        if (m.qrcode && String(m.qrcode).trim().toLowerCase() === q) return true;
+        // Item number
+        if ((m.itemNum || '').toLowerCase() === q) return true;
+        // Item name contains
+        if ((m.itemName || '').toLowerCase().includes(q)) return true;
+        return false;
     });
 
     closeModal('itemMasterScanModal');

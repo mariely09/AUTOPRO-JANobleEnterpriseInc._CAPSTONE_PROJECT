@@ -136,44 +136,77 @@ class _StaffDashboardState extends State<StaffDashboard> {
     final trimmed = result.trim();
     final query   = trimmed.toLowerCase();
 
+    // ── Barcode/QR match helpers ──
+    String _norm(String s) {
+      final t = s.trim();
+      if (RegExp(r'^\d+$').hasMatch(t)) {
+        final stripped = t.replaceFirst(RegExp(r'^0+'), '');
+        return stripped.isEmpty ? '0' : stripped;
+      }
+      return t.toLowerCase();
+    }
+
+    bool _match(String stored, String scanned) {
+      if (stored.isEmpty || scanned.isEmpty) return false;
+      if (stored == scanned) return true;
+      if (stored.toLowerCase() == scanned.toLowerCase()) return true;
+      final sNum = RegExp(r'^\d+$').hasMatch(stored.trim());
+      final qNum = RegExp(r'^\d+$').hasMatch(scanned.trim());
+      if (sNum && qNum) {
+        final ns = _norm(stored), nq = _norm(scanned);
+        if (ns == nq) return true;
+        if (ns.length >= 10 && nq.length > ns.length && nq.contains(ns)) return true;
+        if (nq.length == ns.length + 1 && nq.startsWith(ns)) return true;
+        for (int i = 1; i <= 3 && i < nq.length; i++) {
+          if (nq.substring(i) == ns) return true;
+        }
+      }
+      return false;
+    }
+
     // Step 1: Resolve barcode/QR/num → item via item_master
     Map<String, dynamic>? masterItem;
     String resolvedNum  = '';
     String resolvedName = '';
 
     try {
-      // barcode exact match
-      QuerySnapshot snap = await FirebaseFirestore.instance
-          .collection('item_master').where('barcode', isEqualTo: trimmed).limit(1).get();
-      // qr exact match
-      if (snap.docs.isEmpty) {
-        snap = await FirebaseFirestore.instance
-            .collection('item_master').where('qr', isEqualTo: trimmed).limit(1).get();
+      final all = await FirebaseFirestore.instance.collection('item_master').get();
+
+      DocumentSnapshot? matchDoc;
+
+      // P1: exact barcode
+      matchDoc = all.docs.cast<DocumentSnapshot?>().firstWhere(
+        (d) => (d!.data() as Map<String, dynamic>)['barcode']?.toString().trim() == trimmed,
+        orElse: () => null);
+      // P2: exact QR
+      matchDoc ??= all.docs.cast<DocumentSnapshot?>().firstWhere(
+        (d) => (d!.data() as Map<String, dynamic>)['qr']?.toString().trim() == trimmed,
+        orElse: () => null);
+      // P3: normalized barcode/QR
+      matchDoc ??= all.docs.cast<DocumentSnapshot?>().firstWhere((d) {
+        final data = d!.data() as Map<String, dynamic>;
+        return _match(data['barcode']?.toString() ?? '', trimmed) ||
+               _match(data['qr']?.toString()      ?? '', trimmed);
+      }, orElse: () => null);
+      // P4: item number
+      matchDoc ??= all.docs.cast<DocumentSnapshot?>().firstWhere(
+        (d) => (d!.data() as Map<String, dynamic>)['num']?.toString().trim().toLowerCase() == trimmed.toLowerCase(),
+        orElse: () => null);
+      // P5: name (non-numeric query only)
+      if (matchDoc == null && query.length >= 3 && !RegExp(r'^\d+$').hasMatch(trimmed)) {
+        matchDoc = all.docs.cast<DocumentSnapshot?>().firstWhere(
+          (d) => ((d!.data() as Map<String, dynamic>)['name']?.toString() ?? '').toLowerCase().contains(query),
+          orElse: () => null);
       }
-      // item number (uppercase)
-      if (snap.docs.isEmpty) {
-        snap = await FirebaseFirestore.instance
-            .collection('item_master').where('num', isEqualTo: trimmed.toUpperCase()).limit(1).get();
-      }
-      // name fallback — get all and filter client-side (avoids index requirement)
-      if (snap.docs.isEmpty) {
-        final all = await FirebaseFirestore.instance.collection('item_master').get();
-        final match = all.docs.where((d) {
-          final data = d.data() as Map<String, dynamic>;
-          return (data['name'] as String? ?? '').toLowerCase().contains(query) ||
-                 (data['barcode'] as String? ?? '') == trimmed ||
-                 (data['qr']      as String? ?? '') == trimmed;
-        }).toList();
-        if (match.isNotEmpty) {
-          snap = await FirebaseFirestore.instance
-              .collection('item_master').where(FieldPath.documentId, isEqualTo: match.first.id).limit(1).get();
-        }
-      }
-      if (snap.docs.isNotEmpty) {
-        final d = snap.docs.first.data() as Map<String, dynamic>;
-        resolvedNum  = (d['num']  as String? ?? '').toLowerCase();
-        resolvedName = (d['name'] as String? ?? '').toLowerCase();
-        masterItem   = {'id': snap.docs.first.id, ...d};
+
+      if (matchDoc != null) {
+        final d = matchDoc.data() as Map<String, dynamic>;
+        resolvedNum  = (d['num']?.toString()  ?? '').toLowerCase();
+        resolvedName = (d['name']?.toString() ?? '').toLowerCase();
+        masterItem   = {'id': matchDoc.id, ...d};
+        debugPrint('✅ item_master match: ${d['name']} [barcode=${d['barcode']}, scanned=$trimmed]');
+      } else {
+        debugPrint('❌ No match for scanned: "$trimmed"');
       }
     } catch (e) {
       debugPrint('item_master lookup error: $e');

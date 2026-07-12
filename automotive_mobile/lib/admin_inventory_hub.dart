@@ -163,6 +163,7 @@ class _AdminInventoryHubState extends State<AdminInventoryHub> {
                 final active = _tab == i;
                 return Expanded(
                   child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: () => setState(() {
                       _tab = i;
                       _searching = false;
@@ -195,30 +196,44 @@ class _AdminInventoryHubState extends State<AdminInventoryHub> {
           ),
         ),
       ),
-      body: IndexedStack(
-        index: _tab,
-        children: [
-          AdminInventoryStockBody(
-            key: _stockBodyKey,
-            searchQuery: _tab == 0 && _searching ? _searchCtrl.text.toLowerCase() : '',
-            sortOrder: _stockSortOrder,
-            groupFilter: _stockGroupFilter),
-          AdminInventoryItemMasterBody(
-            key: _itemMasterKey,
-            searchQuery: _tab == 1 && _searching ? _searchCtrl.text.toLowerCase() : '',
-            sortOrder: _sortOrder,
-            groupFilter: _itemMasterGroupFilter,
-            onStockSaved: () {
-              setState(() { _tab = 0; _searching = false; _searchCtrl.clear(); });
-            }),
-          AdminReceivingBody(
-            key: _receivingKey,
-            searchQuery: _tab == 2 && _searching ? _searchCtrl.text.toLowerCase() : ''),
-          AdminTransactionsBody(
-            searchQuery: _tab == 3 && _searching ? _searchCtrl.text.toLowerCase() : ''),
-        ],
-      ),
+      body: _buildBody(),
     );
+  }
+
+  Widget _buildBody() {
+    final sq = _searching ? _searchCtrl.text.toLowerCase() : '';
+    return Stack(children: [
+      Offstage(
+        offstage: _tab != 0,
+        child: AdminInventoryStockBody(
+          key: _stockBodyKey,
+          searchQuery: _tab == 0 ? sq : '',
+          sortOrder: _stockSortOrder,
+          groupFilter: _stockGroupFilter),
+      ),
+      Offstage(
+        offstage: _tab != 1,
+        child: AdminInventoryItemMasterBody(
+          key: _itemMasterKey,
+          searchQuery: _tab == 1 ? sq : '',
+          sortOrder: _sortOrder,
+          groupFilter: _itemMasterGroupFilter,
+          onStockSaved: () {
+            setState(() { _tab = 0; _searching = false; _searchCtrl.clear(); });
+          }),
+      ),
+      Offstage(
+        offstage: _tab != 2,
+        child: AdminReceivingBody(
+          key: _receivingKey,
+          searchQuery: _tab == 2 ? sq : ''),
+      ),
+      Offstage(
+        offstage: _tab != 3,
+        child: AdminTransactionsBody(
+          searchQuery: _tab == 3 ? sq : ''),
+      ),
+    ]);
   }
 
   PopupMenuItem<String> _stockPopItem(String value, String label, IconData icon, bool active, Color color) {

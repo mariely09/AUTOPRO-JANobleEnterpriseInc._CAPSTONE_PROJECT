@@ -1,16 +1,29 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'barcode_scanner_screen.dart';
 import 'admin_inventory_hub.dart';
 import 'admin_vehicle_maintenance.dart';
+import 'admin_receiving.dart';
 
 /// Reusable bottom navigation bar for the Admin Dashboard.
 /// Handles tab switching and the center scanner button.
-class AdminBottomNavBar extends StatelessWidget {
+class AdminBottomNavBar extends StatefulWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
+  const AdminBottomNavBar({
+    super.key,
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  @override
+  State<AdminBottomNavBar> createState() => _AdminBottomNavBarState();
+}
+
+class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
   static const _red = Color(0xFFE8001C);
 
   static const _navItems = [
@@ -19,12 +32,6 @@ class AdminBottomNavBar extends StatelessWidget {
     (icon: Icons.directions_car_outlined, label: 'Vehicles'),
     (icon: Icons.more_horiz, label: 'More'),
   ];
-
-  const AdminBottomNavBar({
-    super.key,
-    required this.currentIndex,
-    required this.onTap,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +59,7 @@ class AdminBottomNavBar extends StatelessWidget {
                 top: -20, left: 0, right: 0,
                 child: Center(
                   child: GestureDetector(
-                    onTap: () => _showScanModal(context),
+                    onTap: _showScanModal,
                     child: Container(
                       width: 56, height: 56,
                       decoration: BoxDecoration(
@@ -74,10 +81,10 @@ class AdminBottomNavBar extends StatelessWidget {
   }
 
   Widget _navBtn(BuildContext context, int i) {
-    final active = currentIndex == i;
+    final active = widget.currentIndex == i;
     return Expanded(
       child: InkWell(
-        onTap: () => onTap(i),
+        onTap: () => widget.onTap(i),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(_navItems[i].icon, color: active ? _red : const Color(0xFF718096), size: 22),
           const SizedBox(height: 2),
@@ -91,73 +98,193 @@ class AdminBottomNavBar extends StatelessWidget {
     );
   }
 
-  // ── Barcode / QR scanner modal ──
-  void _showScanModal(BuildContext context) async {
+  // ── Barcode / QR scanner modal — mirrors admin_inventory_stock add flow ──
+  void _showScanModal() async {
     final result = await Navigator.push<String>(
       context,
       MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
     );
-    if (result == null) return;
-    if (!context.mounted) return;
+    if (result == null || !mounted) return;
 
     final trimmed = result.trim();
     final query   = trimmed.toLowerCase();
+    debugPrint('🔍 Scanned: "$trimmed" len=${trimmed.length}');
 
-    // Step 1: Resolve via item_master
-    Map<String, dynamic>? masterItem;
-    String resolvedNum  = '';
-    String resolvedName = '';
+    // ── Helpers (mirrors admin_inventory_stock.dart) ──
+    String str(dynamic v) => v?.toString().trim() ?? '';
 
-    try {
-      QuerySnapshot snap = await FirebaseFirestore.instance
-          .collection('item_master').where('barcode', isEqualTo: trimmed).limit(1).get();
-      if (snap.docs.isEmpty) {
-        snap = await FirebaseFirestore.instance
-            .collection('item_master').where('qr', isEqualTo: trimmed).limit(1).get();
+    String norm(String s) {
+      if (RegExp(r'^\d+$').hasMatch(s)) {
+        final stripped = s.replaceFirst(RegExp(r'^0+'), '');
+        return stripped.isEmpty ? '0' : stripped;
       }
-      if (snap.docs.isEmpty) {
-        snap = await FirebaseFirestore.instance
-            .collection('item_master').where('num', isEqualTo: trimmed.toUpperCase()).limit(1).get();
-      }
-      if (snap.docs.isEmpty) {
-        final all = await FirebaseFirestore.instance.collection('item_master').get();
-        final match = all.docs.where((d) {
-          final data = d.data() as Map<String, dynamic>;
-          return (data['name'] as String? ?? '').toLowerCase().contains(query) ||
-                 (data['barcode'] as String? ?? '') == trimmed ||
-                 (data['qr']      as String? ?? '') == trimmed;
-        }).toList();
-        if (match.isNotEmpty) {
-          snap = await FirebaseFirestore.instance
-              .collection('item_master').where(FieldPath.documentId, isEqualTo: match.first.id).limit(1).get();
+      return s.toLowerCase();
+    }
+
+    bool bcMatch(String stored, String scanned) {
+      if (stored.isEmpty || scanned.isEmpty) return false;
+      if (stored == scanned) return true;
+      if (stored.toLowerCase() == scanned.toLowerCase()) return true;
+      if (RegExp(r'^\d+$').hasMatch(stored) && RegExp(r'^\d+$').hasMatch(scanned)) {
+        final ns = norm(stored), nq = norm(scanned);
+        if (ns == nq) return true;
+        // Scanned is 1 digit longer (check digit appended by scanner/EAN-13 decode)
+        if (nq.length == ns.length + 1 && nq.startsWith(ns)) return true;
+        // Stored is 1 digit shorter (stored without check digit, scanned with check digit)
+        if (nq.length > ns.length && nq.substring(0, ns.length) == ns) return true;
+        // Leading zero differences
+        if (ns.length >= 8 && nq.contains(ns)) return true;
+        if (nq.length >= 8 && ns.contains(nq)) return true;
+        // Leading country code digits
+        for (int i = 1; i <= 3 && i < nq.length; i++) {
+          if (nq.substring(i) == ns) return true;
+          if (nq.substring(i).startsWith(ns)) return true;
         }
       }
-      if (snap.docs.isNotEmpty) {
-        final d = snap.docs.first.data() as Map<String, dynamic>;
-        resolvedNum  = (d['num']  as String? ?? '').toLowerCase();
-        resolvedName = (d['name'] as String? ?? '').toLowerCase();
-        masterItem   = {'id': snap.docs.first.id, ...d};
+      return false;
+    }
+
+    // ── Step 1: Full fetch + client-side match (same as admin_inventory_stock.dart) ──
+    // Avoids Firestore type mismatches (int vs string) that break direct queries
+    Map<String, dynamic>? masterItem;
+    List<Map<String, dynamic>> searchResults = [];
+
+    try {
+      final all = await FirebaseFirestore.instance.collection('item_master').get();
+
+      DocumentSnapshot? matchDoc;
+
+      // P1: exact barcode string match
+      matchDoc = all.docs.cast<DocumentSnapshot?>().firstWhere(
+        (d) => str((d!.data() as Map<String, dynamic>)['barcode']) == trimmed,
+        orElse: () => null);
+      // P2: exact QR string match
+      matchDoc ??= all.docs.cast<DocumentSnapshot?>().firstWhere(
+        (d) => str((d!.data() as Map<String, dynamic>)['qr']) == trimmed,
+        orElse: () => null);
+      // P3: normalized barcode/QR match (handles leading zeros, length variants)
+      matchDoc ??= all.docs.cast<DocumentSnapshot?>().firstWhere((d) {
+        final data = d!.data() as Map<String, dynamic>;
+        return bcMatch(str(data['barcode']), trimmed) ||
+               bcMatch(str(data['qr']),      trimmed);
+      }, orElse: () => null);
+      // P4: item number
+      matchDoc ??= all.docs.cast<DocumentSnapshot?>().firstWhere(
+        (d) => str((d!.data() as Map<String, dynamic>)['num']).toLowerCase() == query,
+        orElse: () => null);
+      // P5: name contains (non-numeric only)
+      if (matchDoc == null && !RegExp(r'^\d+$').hasMatch(trimmed) && query.length >= 3) {
+        matchDoc = all.docs.cast<DocumentSnapshot?>().firstWhere(
+          (d) => str((d!.data() as Map<String, dynamic>)['name']).toLowerCase().contains(query),
+          orElse: () => null);
+      }
+
+      if (matchDoc != null) {
+        final d = matchDoc.data() as Map<String, dynamic>;
+        masterItem = {'id': matchDoc.id, ...d};
+        debugPrint('✅ Match: ${d['name']} [bc=${d['barcode']}, qr=${d['qr']}, scanned=$trimmed]');
+      } else {
+        searchResults = all.docs
+            .map((d) => {'id': d.id, ...(d.data() as Map<String, dynamic>)})
+            .where((item) =>
+                str(item['name']).toLowerCase().contains(query) ||
+                bcMatch(str(item['barcode']), trimmed) ||
+                bcMatch(str(item['qr']),      trimmed))
+            .toList();
+        debugPrint('❌ No match for "$trimmed", ${searchResults.length} partial results');
       }
     } catch (e) {
       debugPrint('item_master lookup error: $e');
     }
 
-    if (!context.mounted) return;
+    if (!mounted) return;
 
-    // Step 2: Check stock_inventory
+    // ── Step 2: If multiple results, show picker sheet first ──
+    if (masterItem == null && searchResults.isNotEmpty) {
+      masterItem = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        builder: (_) => DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.55,
+          maxChildSize: 0.85,
+          builder: (_, ctrl) => Column(children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              decoration: const BoxDecoration(
+                color: _red,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+              child: Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Select Item', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('${searchResults.length} results for "$trimmed"',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                ])),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Icon(Icons.close, color: Colors.white)),
+              ]),
+            ),
+            Expanded(
+              child: ListView.separated(
+                controller: ctrl,
+                padding: const EdgeInsets.all(16),
+                itemCount: searchResults.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (_, i) {
+                  final item = searchResults[i];
+                  return GestureDetector(
+                    onTap: () => Navigator.pop(context, item),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFe2e8f0)),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4)]),
+                      child: Row(children: [
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(str(item['name']),
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                          const SizedBox(height: 2),
+                          Text('${str(item["num"])}  •  ${str(item["group"])}  •  ${str(item["uom"])}',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                        ])),
+                        const Icon(Icons.chevron_right, size: 18, color: Color(0xFFa0aec0)),
+                      ]),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ]),
+        ),
+      );
+      if (!mounted) return;
+    }
+
+    // ── Step 3: Stock + delivery lookup ──
+    final resolvedNum  = str(masterItem?['num']).toLowerCase();
+    final resolvedName = str(masterItem?['name']).toLowerCase();
+
     Map<String, dynamic>? stockItem;
     try {
       if (masterItem != null) {
         final snap = await FirebaseFirestore.instance
             .collection('stock_inventory')
-            .where('num', isEqualTo: masterItem['num'] as String? ?? '')
+            .where('num', isEqualTo: str(masterItem['num']))
             .limit(1).get();
         if (snap.docs.isNotEmpty) {
           final d = snap.docs.first.data() as Map<String, dynamic>;
           final stock = (d['stock'] as num?)?.toInt() ?? 0;
           final min   = (d['min']   as num?)?.toInt() ?? 0;
           final max   = (d['max']   as num?)?.toInt() ?? 0;
-          stockItem = {'id': snap.docs.first.id, ...d, 'stock': stock, 'min': min, 'max': max,
+          stockItem = {'id': snap.docs.first.id, ...d,
+            'stock': stock, 'min': min, 'max': max,
             'status': stock > min ? (stock > max ? 'Over' : 'OK') : 'Low'};
         }
       }
@@ -165,18 +292,16 @@ class AdminBottomNavBar extends StatelessWidget {
       debugPrint('stock lookup error: $e');
     }
 
-    // Step 3: Find matching pending delivery
     Map<String, dynamic>? foundDelivery;
     try {
       final deliveriesSnap = await FirebaseFirestore.instance
           .collection('deliveries').where('status', isEqualTo: 'Pending').get();
       for (final doc in deliveriesSnap.docs) {
         final d = {...doc.data() as Map<String, dynamic>, 'id': doc.id};
-        final items = (d['items'] as List? ?? []);
-        final match = items.any((i) {
-          final num  = (i['itemNum']  as String? ?? '').toLowerCase();
-          final name = (i['itemName'] as String? ?? '').toLowerCase();
-          return (resolvedNum.isNotEmpty  && num.contains(resolvedNum))  ||
+        final match = (d['items'] as List? ?? []).any((i) {
+          final num  = str(i['itemNum']).toLowerCase();
+          final name = str(i['itemName']).toLowerCase();
+          return (resolvedNum.isNotEmpty  && num.contains(resolvedNum)) ||
                  (resolvedName.isNotEmpty && name.contains(resolvedName)) ||
                  num.contains(query) || name.contains(query);
         });
@@ -186,7 +311,7 @@ class AdminBottomNavBar extends StatelessWidget {
       debugPrint('delivery lookup error: $e');
     }
 
-    if (!context.mounted) return;
+    if (!mounted) return;
     _showScanResultModal(context, trimmed, masterItem, stockItem, foundDelivery);
   }
 
@@ -197,12 +322,12 @@ class AdminBottomNavBar extends StatelessWidget {
     Map<String, dynamic>? stockItem,
     Map<String, dynamic>? delivery,
   ) {
-    final itemName  = masterItem?['name'] as String? ?? rawValue;
-    final itemNum   = masterItem?['num']  as String? ?? '—';
-    final itemGroup = masterItem?['group'] as String? ?? '';
-    final itemUom   = masterItem?['uom']  as String? ?? '';
-    final itemCost  = masterItem?['cost'] as String? ?? '';
-    final itemType  = masterItem?['type'] as String? ?? '';
+    final itemName  = masterItem?['name']?.toString()  ?? rawValue;
+    final itemNum   = masterItem?['num']?.toString()   ?? '—';
+    final itemGroup = masterItem?['group']?.toString() ?? '';
+    final itemUom   = masterItem?['uom']?.toString()   ?? '';
+    final itemCost  = masterItem?['cost']?.toString()  ?? '';
+    final itemType  = masterItem?['type']?.toString()  ?? '';
     final isMaterial = itemType == 'Material' || masterItem == null;
 
     showModalBottomSheet(
@@ -229,10 +354,9 @@ class AdminBottomNavBar extends StatelessWidget {
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(itemName,
                     style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
-                  if (itemNum != '—' || itemGroup.isNotEmpty) ...[
+                  if (itemUom.isNotEmpty) ...[
                     const SizedBox(height: 2),
-                    Text([itemNum, if (itemGroup.isNotEmpty) itemGroup].join(' · '),
-                      style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    Text(itemUom, style: const TextStyle(color: Colors.white70, fontSize: 12)),
                   ],
                 ])),
                 GestureDetector(
@@ -248,123 +372,361 @@ class AdminBottomNavBar extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // Item chips
-                if (masterItem != null &&
-                    (itemUom.isNotEmpty || itemCost.isNotEmpty || itemType.isNotEmpty)) ...[
-                  Wrap(spacing: 8, runSpacing: 6, children: [
-                    if (itemUom.isNotEmpty)
-                      _infoBadge(Icons.straighten_outlined,   itemUom,  const Color(0xFF003087)),
-                    if (itemCost.isNotEmpty)
-                      _infoBadge(Icons.attach_money,          itemCost, const Color(0xFF38a169)),
-                    if (itemType.isNotEmpty)
-                      _infoBadge(Icons.category_outlined,     itemType, const Color(0xFFd69e2e)),
-                  ]),
-                  const SizedBox(height: 20),
-                ],
 
-                // Item not found
+                // Item not found warning — but still show actions
                 if (masterItem == null) ...[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFF8E1), borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFFFFD54F), width: 1.5)),
                     child: Row(children: [
-                      const Icon(Icons.search_off_outlined, size: 18, color: Color(0xFFd69e2e)),
-                      const SizedBox(width: 10),
+                      const Icon(Icons.info_outline, size: 16, color: Color(0xFFd69e2e)),
+                      const SizedBox(width: 8),
                       Expanded(child: Text(
-                        'Scanned value "$rawValue" was not found in the item master.',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)))),
+                        'Item not found for "$rawValue". You can still navigate below.',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF92400E)))),
                     ]),
                   ),
-                ] else ...[
-                  const Text('What would you like to do?',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
+                ],
 
-                  // Option 1: View / Receive Stock
-                  if (isMaterial && stockItem != null) ...[
-                    _actionTile(
-                      context: context,
-                      icon: Icons.inventory_2_outlined,
-                      iconColor: const Color(0xFF003087),
-                      iconBg: const Color(0xFFEBF8FF),
-                      title: 'View Stock',
-                      subtitle: 'Current: ${stockItem['stock']} ${stockItem['uom'] ?? ''} · ${stockItem['status']}',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _showStockDetailModal(context, stockItem);
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                  ],
+                const Text('What would you like to do?',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+                const SizedBox(height: 12),
 
-                  // Option 2: Receive from delivery
-                  if (delivery != null) ...[
-                    _actionTile(
-                      context: context,
-                      icon: Icons.download_outlined,
-                      iconColor: const Color(0xFF38a169),
-                      iconBg: const Color(0xFFF0FFF4),
-                      title: 'Receive Items',
-                      subtitle: 'From delivery by ${delivery['supplier']}',
-                      badge: 'Pending',
-                      badgeColor: const Color(0xFF718096),
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => AdminInventoryHub(
-                            initialTab: 2,
-                            deliveryToReceive: delivery)));
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-
-                  // Option 3: Use in Maintenance
+                // Option 1: View Stock (only if matched item is in stock)
+                if (masterItem != null && isMaterial && stockItem != null) ...[
                   _actionTile(
                     context: context,
-                    icon: Icons.build_outlined,
-                    iconColor: const Color(0xFFd69e2e),
-                    iconBg: const Color(0xFFFFFBEB),
-                    title: 'Use in Maintenance',
-                    subtitle: 'Add to a vehicle maintenance record',
+                    icon: Icons.inventory_2_outlined,
+                    iconColor: const Color(0xFF003087),
+                    iconBg: const Color(0xFFEBF8FF),
+                    title: 'View Stock',
+                    subtitle: 'Current: ${stockItem['stock']}',
                     onTap: () {
                       Navigator.pop(context);
-                      final matData = {
-                        'name': masterItem!['name'] as String? ?? '',
-                        'num':  masterItem!['num']  as String? ?? '',
-                        'uom':  masterItem!['uom']  as String? ?? '',
-                        'cost': masterItem!['cost'] as String? ?? '0',
-                      };
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => AdminVehicleMaintenance(materialData: matData)));
+                      _showStockDetailModal(context, stockItem);
                     },
                   ),
                   const SizedBox(height: 10),
-
-                  // Option 4: Add to Stock (if not yet in stock_inventory)
-                  if (isMaterial && stockItem == null)
-                    _actionTile(
-                      context: context,
-                      icon: Icons.add_box_outlined,
-                      iconColor: _red,
-                      iconBg: const Color(0xFFFFF5F5),
-                      title: 'Add to Stock Inventory',
-                      subtitle: 'Set min/max levels and initial quantity',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(context, MaterialPageRoute(
-                          builder: (_) => const AdminInventoryHub()));
-                      },
-                    ),
                 ],
+
+                // Option 2: Receive from delivery (only if Pending)
+                if (delivery != null) ...[
+                  _actionTile(
+                    context: context,
+                    icon: Icons.download_outlined,
+                    iconColor: const Color(0xFF38a169),
+                    iconBg: const Color(0xFFF0FFF4),
+                    title: 'Receive Items',
+                    subtitle: (delivery['status'] as String? ?? '') == 'Pending'
+                        ? 'From delivery by ${delivery['supplier'] ?? 'supplier'}'
+                        : 'Delivery is ${delivery['status']} — cannot receive',
+                    badge: delivery['status'] as String? ?? 'Pending',
+                    badgeColor: (delivery['status'] as String? ?? '') == 'Pending'
+                        ? const Color(0xFF718096)
+                        : const Color(0xFFd69e2e),
+                    onTap: (delivery['status'] as String? ?? '') == 'Pending'
+                        ? () {
+                            Navigator.pop(context);
+                            Navigator.push(context, MaterialPageRoute(
+                              builder: (_) => _ReceivingWithModal(delivery: delivery)));
+                          }
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+                ],
+
+                // Option 3: Use in Maintenance
+                _actionTile(
+                  context: context,
+                  icon: Icons.build_outlined,
+                  iconColor: const Color(0xFFd69e2e),
+                  iconBg: const Color(0xFFFFFBEB),
+                  title: 'Use in Maintenance',
+                  subtitle: masterItem != null
+                      ? 'Add ${masterItem['name'] ?? ''} to a maintenance record'
+                      : 'Add to a vehicle maintenance record',
+                  onTap: () {
+                    Navigator.pop(context);
+                    final matData = {
+                      'name': masterItem?['name']?.toString() ?? rawValue,
+                      'num':  masterItem?['num']?.toString()  ?? '',
+                      'uom':  masterItem?['uom']?.toString()  ?? '',
+                      'cost': masterItem?['cost']?.toString() ?? '0',
+                    };
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => AdminVehicleMaintenance(materialData: matData)));
+                  },
+                ),
+                const SizedBox(height: 10),
+
+
               ]),
             ),
           ]),
         ),
       ),
+    );
+  }
+
+  // ── Receive Items modal (mirrors AdminReceivingBodyState._showReceiveModal) ──
+  static const _green = Color(0xFF38a169);
+  static const _amber = Color(0xFFd69e2e);
+  static const _months = [
+    'Jan','Feb','Mar','Apr','May','Jun',
+    'Jul','Aug','Sep','Oct','Nov','Dec',
+  ];
+
+  String _fmtDate(String? d) {
+    if (d == null || d.isEmpty) return '—';
+    final dt = DateTime.tryParse(d);
+    if (dt != null) return '${_months[dt.month - 1]} ${dt.day}, ${dt.year}';
+    return d;
+  }
+
+  void _showReceiveModal(BuildContext context, Map<String, dynamic> delivery) async {
+    String currentUserName = '';
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      currentUserName = (doc.data()?['name'] as String?) ?? '';
+    }
+    if (!mounted) return;
+
+    final items = List<Map<String, dynamic>>.from(
+      (delivery['items'] as List? ?? []).map((i) => Map<String, dynamic>.from(i as Map)),
+    );
+    final receivedByCtrl = TextEditingController(text: currentUserName);
+    final qtyCtrlrs = List.generate(items.length, (i) =>
+        TextEditingController(text: '${items[i]['expectedQty'] ?? 0}'));
+    final conditionList = List<String>.filled(items.length, 'OK');
+    final remarkCtrlrs = List.generate(items.length, (_) => TextEditingController());
+    bool submitting = false;
+
+    showModalBottomSheet(
+      context: context, isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setModal) => DraggableScrollableSheet(
+          expand: false, initialChildSize: 0.92, maxChildSize: 0.97,
+          builder: (_, ctrl) => SingleChildScrollView(
+            controller: ctrl,
+            child: Column(children: [
+              // Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                decoration: const BoxDecoration(
+                  color: _red,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+                child: Row(children: [
+                  Container(width: 44, height: 44,
+                    decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.download_outlined, color: Colors.white, size: 22)),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Receive Items', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text('${delivery['supplier'] ?? '—'} · ${_fmtDate(delivery['date'] as String?)}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                  ])),
+                  GestureDetector(onTap: () => Navigator.pop(ctx),
+                    child: const Icon(Icons.close, color: Colors.white)),
+                ]),
+              ),
+              // Step indicator
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(children: [
+                  _rcvStep('1', 'Input Quantities', active: true),
+                  const Expanded(child: Divider()),
+                  _rcvStep('2', 'Awaiting Check'),
+                  const Expanded(child: Divider()),
+                  _rcvStep('3', 'Approved'),
+                ]),
+              ),
+              Padding(
+                padding: EdgeInsets.only(left: 20, right: 20, top: 16,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  ...items.asMap().entries.map((e) {
+                    final i = e.key;
+                    final item = e.value;
+                    final expected = item['expectedQty'] as int? ?? 0;
+                    return _rcvItemCard(
+                      index: i, item: item, expected: expected,
+                      qtyCtrl: qtyCtrlrs[i],
+                      remarkCtrl: remarkCtrlrs[i],
+                      condition: conditionList[i],
+                      onCondChange: (c) => setModal(() => conditionList[i] = c),
+                      onQtyChange: () => setModal(() {}),
+                    );
+                  }),
+                  const SizedBox(height: 12),
+                  // Received By (read-only display)
+                  const Text('Received By',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF4a5568))),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7F8FA),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFe2e8f0)),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.person_outline, size: 16, color: Color(0xFF718096)),
+                      const SizedBox(width: 8),
+                      Text(receivedByCtrl.text.isNotEmpty ? receivedByCtrl.text : '—',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1a202c))),
+                    ]),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: submitting ? null : () async {
+                        if (receivedByCtrl.text.trim().isEmpty) return;
+                        setModal(() => submitting = true);
+                        final updatedItems = items.asMap().entries.map((e) {
+                          final i = e.key;
+                          return {
+                            ...e.value,
+                            'actualQty': int.tryParse(qtyCtrlrs[i].text) ?? e.value['expectedQty'],
+                            'condition': conditionList[i],
+                            'remark': remarkCtrlrs[i].text.trim(),
+                          };
+                        }).toList();
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('deliveries')
+                              .doc(delivery['id'] as String)
+                              .update({
+                            'items': updatedItems,
+                            'receivedBy': receivedByCtrl.text.trim(),
+                            'status': 'Awaiting Double Check',
+                            'receivedAt': FieldValue.serverTimestamp(),
+                          });
+                          if (ctx.mounted) {
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                              content: Text('Submitted for double check!'),
+                              backgroundColor: Colors.orange,
+                              behavior: SnackBarBehavior.floating));
+                          }
+                        } catch (err) {
+                          setModal(() => submitting = false);
+                          if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red));
+                        }
+                      },
+                      icon: submitting
+                        ? const SizedBox(width: 16, height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.check_circle_outline, size: 16),
+                      label: Text(submitting ? 'Submitting…' : 'Submit for Double Check'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _red, foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14)),
+                    ),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _rcvStep(String num, String label, {bool active = false}) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 22, height: 22,
+        decoration: BoxDecoration(
+          color: active ? _red : const Color(0xFFe2e8f0),
+          shape: BoxShape.circle),
+        child: Center(child: Text(num,
+          style: TextStyle(
+            color: active ? Colors.white : const Color(0xFF718096),
+            fontWeight: FontWeight.w700, fontSize: 11)))),
+      const SizedBox(height: 2),
+      Text(label, style: const TextStyle(fontSize: 8, color: Color(0xFF718096)), textAlign: TextAlign.center),
+    ],
+  );
+
+  Widget _rcvItemCard({
+    required int index, required Map<String, dynamic> item, required int expected,
+    required TextEditingController qtyCtrl, required TextEditingController remarkCtrl,
+    required String condition, required ValueChanged<String> onCondChange,
+    required VoidCallback onQtyChange,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF90cdf4)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(item['itemName'] as String? ?? '—',
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+        Text('${item['itemNum'] ?? ''} · Expected: $expected ${item['uom'] ?? ''}',
+          style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+        const SizedBox(height: 10),
+        TextField(
+          controller: qtyCtrl, keyboardType: TextInputType.number,
+          onChanged: (_) => onQtyChange(),
+          decoration: InputDecoration(
+            labelText: 'Actual Qty *', border: const OutlineInputBorder(), isDense: true,
+            suffixText: item['uom'] as String? ?? ''),
+        ),
+        const SizedBox(height: 10),
+        const Text('Condition', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4a5568))),
+        const SizedBox(height: 6),
+        Row(children: [
+          _rcvCondBtn('✅ OK',        'OK',        condition, onCondChange),
+          const SizedBox(width: 6),
+          _rcvCondBtn('❌ Defective', 'Defective', condition, onCondChange),
+          const SizedBox(width: 6),
+          _rcvCondBtn('⚠️ Shortage', 'Shortage',  condition, onCondChange),
+        ]),
+        const SizedBox(height: 10),
+        TextField(
+          controller: remarkCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Remarks (optional)', border: OutlineInputBorder(), isDense: true,
+            hintText: 'e.g. 1 unit damaged packaging')),
+      ]),
+    );
+  }
+
+  Widget _rcvCondBtn(String label, String value, String current, ValueChanged<String> onChange) {
+    final active = current == value;
+    Color color;
+    switch (value) {
+      case 'OK':        color = _green; break;
+      case 'Defective': color = _red;   break;
+      default:          color = _amber;
+    }
+    return GestureDetector(
+      onTap: () => onChange(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? color.withValues(alpha: 0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: active ? color : const Color(0xFFe2e8f0), width: 1.5)),
+        child: Text(label, style: TextStyle(
+          fontSize: 10, fontWeight: FontWeight.w700,
+          color: active ? color : const Color(0xFF718096)))),
     );
   }
 
@@ -442,15 +804,16 @@ class AdminBottomNavBar extends StatelessWidget {
   }
 
   void _showStockDetailModal(BuildContext context, Map<String, dynamic> item) {
-    final status    = item['status'] as String? ?? 'OK';
-    final isLow     = status == 'Low';
-    final isOver    = status == 'Over';
-    final stock     = (item['stock'] as num?)?.toInt() ?? 0;
-    final min       = (item['min']   as num?)?.toInt() ?? 0;
-    final max       = (item['max']   as num?)?.toInt() ?? 0;
-    final progress  = max > 0 ? (stock / max).clamp(0.0, 1.0) : 0.0;
-    final barColor  = isLow ? Colors.orange : isOver ? Colors.purple : Colors.green;
-    final statusLabel = isLow ? 'Low Stock' : isOver ? 'Over Max' : 'In Stock';
+    final status     = item['status']?.toString() ?? 'OK';
+    final stock      = (item['stock'] as num?)?.toInt() ?? 0;
+    final min        = (item['min']   as num?)?.toInt() ?? 0;
+    final max        = (item['max']   as num?)?.toInt() ?? 0;
+    final isOut      = stock == 0;
+    final isLow      = !isOut && status == 'Low';
+    final isOver     = !isOut && !isLow && status == 'Over';
+    final progress   = max > 0 ? (stock / max).clamp(0.0, 1.0) : 0.0;
+    final barColor   = isOut ? Colors.red : isLow ? Colors.orange : isOver ? Colors.purple : Colors.green;
+    final statusLabel = isOut ? 'Out of Stock' : isLow ? 'Low Stock' : isOver ? 'Over Max' : 'In Stock';
 
     showModalBottomSheet(
       context: context,
@@ -463,7 +826,7 @@ class AdminBottomNavBar extends StatelessWidget {
         builder: (_, ctrl) => SingleChildScrollView(
           controller: ctrl,
           child: Column(children: [
-            // Header
+            // Header — item name + UOM subtitle
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
@@ -472,9 +835,9 @@ class AdminBottomNavBar extends StatelessWidget {
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
               child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(item['name'] as String? ?? '—',
+                  Text(item['name']?.toString() ?? '—',
                     style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(item['group'] as String? ?? '',
+                  Text(item['uom']?.toString() ?? '',
                     style: const TextStyle(color: Colors.white70, fontSize: 12)),
                 ])),
                 GestureDetector(
@@ -489,18 +852,28 @@ class AdminBottomNavBar extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: isLow ? Colors.orange.shade50 : const Color(0xFFF0FFF4),
+                    color: isOut
+                        ? Colors.red.shade50
+                        : isLow
+                            ? Colors.orange.shade50
+                            : const Color(0xFFF0FFF4),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isLow ? Colors.orange.shade200 : const Color(0xFF9AE6B4))),
+                      color: isOut
+                          ? Colors.red.shade200
+                          : isLow
+                              ? Colors.orange.shade200
+                              : const Color(0xFF9AE6B4)),
+                  ),
                   child: Column(children: [
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text('$stock ${item['uom'] ?? ''}',
+                      Text('$stock',
                         style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: barColor)),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: barColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                          color: barColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20)),
                         child: Text(statusLabel,
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: barColor))),
                     ]),
@@ -522,10 +895,14 @@ class AdminBottomNavBar extends StatelessWidget {
                   ]),
                 ),
                 const SizedBox(height: 16),
-                _detailRowInline('Item Number',    item['num']     as String? ?? '—'),
-                _detailRowInline('Commodity Group', item['group']  as String? ?? '—'),
-                _detailRowInline('UOM',             item['uom']    as String? ?? '—'),
-                _detailRowInline('Reorder Qty',    '${(item['reorder'] as num?)?.toInt() ?? 0} ${item['uom'] ?? ''}'),
+                _detailRowInline('Item Number',     item['num']?.toString()   ?? '—'),
+                _detailRowInline('Item Name',       item['name']?.toString()  ?? '—'),
+                _detailRowInline('Commodity Group', item['group']?.toString() ?? '—'),
+                _detailRowInline('UOM',             item['uom']?.toString()   ?? '—'),
+                _detailRowInline('Current Stock',   '$stock'),
+                _detailRowInline('Min Level',       '$min'),
+                _detailRowInline('Max Level',       '$max'),
+                _detailRowInline('Reorder Qty',     '${(item['reorder'] as num?)?.toInt() ?? 0}'),
               ]),
             ),
           ]),
@@ -543,6 +920,44 @@ class AdminBottomNavBar extends StatelessWidget {
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1a202c)))),
     ]),
   );
+}
+
+// ── Receiving page wrapper that auto-opens the receive modal ────────────────
+class _ReceivingWithModal extends StatefulWidget {
+  final Map<String, dynamic> delivery;
+  const _ReceivingWithModal({required this.delivery});
+
+  @override
+  State<_ReceivingWithModal> createState() => _ReceivingWithModalState();
+}
+
+class _ReceivingWithModalState extends State<_ReceivingWithModal> {
+  static const _red = Color(0xFFE8001C);
+  final _bodyKey = GlobalKey<AdminReceivingBodyState>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Open the receive modal as soon as the page is laid out
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _bodyKey.currentState?.openReceiveModal(widget.delivery);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F8FA),
+      appBar: AppBar(
+        backgroundColor: _red,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('Receiving',
+          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+      ),
+      body: AdminReceivingBody(key: _bodyKey),
+    );
+  }
 }
 
 // ── Scan: Add to Stock ──────────────────────────────────────────────────────

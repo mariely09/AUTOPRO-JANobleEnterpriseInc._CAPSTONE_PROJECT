@@ -22,7 +22,10 @@ class AdminTransactionsBody extends StatefulWidget {
   State<AdminTransactionsBody> createState() => _AdminTransactionsBodyState();
 }
 
-class _AdminTransactionsBodyState extends State<AdminTransactionsBody> {
+class _AdminTransactionsBodyState extends State<AdminTransactionsBody>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   static const _red = Color(0xFFE8001C);
   String _txnFilter = 'all';
 
@@ -71,6 +74,7 @@ class _AdminTransactionsBodyState extends State<AdminTransactionsBody> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('vehicles').snapshots(),
       builder: (context, vehSnapshot) {

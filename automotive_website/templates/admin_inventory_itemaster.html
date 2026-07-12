@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -194,23 +194,6 @@
                 <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">SKU</label>
                 <input type="number" name="sku" placeholder="e.g. 10001" min="0" step="1" style="margin-top:0.3rem;">
             </div>
-            <!-- Barcode/QR — only for Material -->
-            <div id="imBarcodeQRRow" style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-                <div class="form-group" style="margin:0;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Barcode</label>
-                    <div style="display:flex;gap:0.3rem;margin-top:0.3rem;">
-                        <input type="text" name="barcode" id="itemMasterBarcode" placeholder="e.g., 1234567890" style="flex:1;min-width:0;">
-                        <button type="button" onclick="generateItemMasterBarcode()" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:0 0.6rem;cursor:pointer;font-size:0.75rem;white-space:nowrap;color:#4a5568;">⚙️</button>
-                    </div>
-                </div>
-                <div class="form-group" style="margin:0;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">QR Code</label>
-                    <div style="display:flex;gap:0.3rem;margin-top:0.3rem;">
-                        <input type="text" name="qrcode" id="itemMasterQRCode" placeholder="e.g., QR-ITM-001" style="flex:1;min-width:0;">
-                        <button type="button" onclick="generateItemMasterQRCode()" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:0 0.6rem;cursor:pointer;font-size:0.75rem;white-space:nowrap;color:#4a5568;">⚙️</button>
-                    </div>
-                </div>
-            </div>
             <!-- Footer buttons -->
             <div style="display:flex;gap:0.75rem;padding-top:0.5rem;">
                 <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('addItemMasterModal')">Cancel</button>
@@ -242,31 +225,19 @@
             <div style="background:white;border-radius:14px;padding:1rem 1.25rem;border:1px solid #e2e8f0;">
                 <div id="imDetailRows" style="display:flex;flex-direction:column;gap:0;"></div>
             </div>
-            <!-- Barcode/QR section — shown only for Material -->
-            <div id="imScanSection" style="display:none;margin-top:0.75rem;">
-                <div style="background:white;border-radius:14px;padding:1rem 1.25rem;border:1px solid #e2e8f0;">
-                    <div style="font-size:0.72rem;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.85rem;">Scan Codes</div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-                        <div style="text-align:center;">
-                            <div style="font-size:0.72rem;color:#718096;margin-bottom:0.6rem;font-weight:600;">Barcode</div>
-                            <div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.75rem;display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
-                                <svg id="imBarcodeImg" style="max-width:100%;"></svg>
-                                <div id="imBarcode" style="font-family:monospace;font-size:0.72rem;color:#718096;word-break:break-all;"></div>
-                            </div>
-                        </div>
-                        <div style="text-align:center;">
-                            <div style="font-size:0.72rem;color:#718096;margin-bottom:0.6rem;font-weight:600;">QR Code</div>
-                            <div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.75rem;display:flex;flex-direction:column;align-items:center;gap:0.5rem;">
-                                <div id="imQRImg" style="display:flex;justify-content:center;"></div>
-                                <div id="imQR" style="font-family:monospace;font-size:0.72rem;color:#718096;word-break:break-all;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
         <!-- Footer -->
-        <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;flex-shrink:0;">
+        <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;flex-shrink:0;display:flex;flex-direction:column;gap:0.6rem;">
+            <div style="display:flex;gap:0.6rem;" id="imGenerateBtns">
+                <button onclick="imGenerateAndShowBarcode()" style="flex:1;padding:0.7rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;color:#1a202c;font-weight:600;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:0.4rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="4" height="4"/><rect x="10" y="3" width="4" height="4"/><rect x="17" y="3" width="4" height="4"/><rect x="3" y="10" width="4" height="4"/><rect x="17" y="10" width="4" height="4"/><rect x="3" y="17" width="4" height="4"/><rect x="10" y="17" width="4" height="4"/><rect x="17" y="17" width="4" height="4"/></svg>
+                    Barcode
+                </button>
+                <button onclick="imGenerateAndShowQR()" style="flex:1;padding:0.7rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;color:#1a202c;font-weight:600;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:0.4rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M3 14h7v7H3z"/><rect x="14" y="14" width="3" height="3"/><rect x="18" y="14" width="3" height="3"/><rect x="14" y="18" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/></svg>
+                    QR Code
+                </button>
+            </div>
             <button id="imDetailEditBtn" style="width:100%;padding:0.8rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.95rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 Edit
@@ -304,6 +275,33 @@
 </button>
 
 <div id="toast"></div>
+
+<!-- Scan Code View/Print Modal -->
+<div class="modal" id="imScanCodeModal">
+    <div class="modal-content" style="max-width:400px;padding:0;border-radius:20px;overflow:hidden;">
+        <div id="imScanCodeHeader" style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <div id="imScanCodeTitle" style="color:white;font-size:1rem;font-weight:700;"></div>
+                <div id="imScanCodeSubtitle" style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.15rem;"></div>
+            </div>
+            <button onclick="closeModal('imScanCodeModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:30px;height:30px;border-radius:50%;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+        </div>
+        <div style="padding:1.5rem;background:#f8fafc;display:flex;flex-direction:column;align-items:center;gap:1rem;">
+            <div style="background:white;border-radius:14px;padding:1.25rem;border:1px solid #e2e8f0;width:100%;text-align:center;" id="imScanCodeImgWrap">
+                <svg id="imScanCodeBarcodeSvg" style="width:100%;display:none;"></svg>
+                <div id="imScanCodeQrDiv" style="display:flex;justify-content:center;"></div>
+                <div id="imScanCodeValue" style="display:none;font-family:monospace;font-size:0.78rem;color:#718096;margin-top:0.5rem;word-break:break-all;"></div>
+            </div>
+            <div style="display:flex;gap:0.75rem;width:100%;">
+                <button onclick="imPrintScanCode()" style="flex:1;padding:0.8rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;justify-content:center;gap:0.4rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Print
+                </button>
+                <button onclick="closeModal('imScanCodeModal')" style="flex:1;padding:0.8rem;background:#f7fafc;border:1.5px solid #e2e8f0;border-radius:10px;color:#4a5568;font-weight:600;cursor:pointer;font-size:0.9rem;">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -380,18 +378,11 @@
     window._imPopulateCommodityFilterDropdown();
   });
 
-  // Hide SKU + Barcode/QR fields when type is Service or AutoService
+  // Hide SKU field when type is Service or AutoService
   window.onItemTypeChange = function(val) {
     var skuRow = document.getElementById('imSkuRow');
-    var barcodeRow = document.getElementById('imBarcodeQRRow');
     var isService = val === 'Service' || val === 'AutoService' || val.toLowerCase().includes('service');
-    if (isService) {
-      if (skuRow) skuRow.style.display = 'none';
-      if (barcodeRow) barcodeRow.style.display = 'none';
-    } else {
-      if (skuRow) skuRow.style.display = '';
-      if (barcodeRow) barcodeRow.style.display = '';
-    }
+    if (skuRow) skuRow.style.display = isService ? 'none' : '';
   };
 
   // Auto-open stock level modal after adding a Material item
@@ -560,6 +551,127 @@
       ['Item No.', 'Item Name', 'Description', 'Commodity Group', 'UOM', 'Item Type', 'Cost'],
       rows
     );
+  };
+
+  // ── Generate & Show Barcode from view modal ──
+  window._imCurrentViewItem = null; // set by viewItemMasterDetails
+
+  window.imGenerateAndShowBarcode = function() {
+    var item = window._imCurrentViewItem;
+    if (!item) return;
+    var existingBarcode = item.barcode || '';
+    if (existingBarcode) {
+      _imShowScanCodeModal(item.itemName, item.uom || '', existingBarcode, 'barcode');
+      return;
+    }
+    var digits = [];
+    for (var i = 0; i < 12; i++) digits.push(Math.floor(Math.random() * 10));
+    var sum = 0;
+    for (var j = 0; j < 12; j++) sum += digits[j] * (j % 2 === 0 ? 1 : 3);
+    digits.push((10 - (sum % 10)) % 10);
+    var barcodeVal = digits.join('');
+    var fbItem = (window._fbItemMaster || []).find(function(i){ return i.num === item.itemNum; });
+    if (fbItem && fbItem._id) {
+      firebase.firestore().collection('item_master').doc(fbItem._id).update({ barcode: barcodeVal })
+        .catch(function(e) { console.warn('Save error:', e); });
+      item.barcode = barcodeVal;
+      fbItem.barcode = barcodeVal;
+    }
+    _imShowScanCodeModal(item.itemName, item.uom || '', barcodeVal, 'barcode');
+  };
+
+  window.imGenerateAndShowQR = function() {
+    var item = window._imCurrentViewItem;
+    if (!item) return;
+    var existingQr = item.qrcode || '';
+    if (existingQr) {
+      _imShowScanCodeModal(item.itemName, item.uom || '', existingQr, 'qr');
+      return;
+    }
+    var qrVal = 'QR-' + (item.itemNum || '').toUpperCase();
+    var fbItem2 = (window._fbItemMaster || []).find(function(i){ return i.num === item.itemNum; });
+    if (fbItem2 && fbItem2._id) {
+      firebase.firestore().collection('item_master').doc(fbItem2._id).update({ qr: qrVal })
+        .catch(function(e) { console.warn('Save error:', e); });
+      item.qrcode = qrVal;
+      fbItem2.qr = qrVal;
+    }
+    _imShowScanCodeModal(item.itemName, item.uom || '', qrVal, 'qr');
+  };
+
+  function _imShowScanCodeModal(title, subtitle, value, type) {
+    document.getElementById('imScanCodeTitle').textContent = title;
+    document.getElementById('imScanCodeSubtitle').textContent = subtitle;
+    document.getElementById('imScanCodeValue').textContent = value;
+    document.getElementById('imScanCodeBarcodeSvg').style.display = 'none';
+    document.getElementById('imScanCodeQrDiv').innerHTML = '';
+
+    if (type === 'barcode') {
+      var svg = document.getElementById('imScanCodeBarcodeSvg');
+      svg.innerHTML = '';
+      svg.removeAttribute('width'); svg.removeAttribute('height'); svg.removeAttribute('viewBox');
+      if (typeof JsBarcode !== 'undefined') {
+        try {
+          JsBarcode(svg, value, { format: 'CODE128', width: 2.5, height: 80, displayValue: false, margin: 10, background: '#ffffff', lineColor: '#000000' });
+          svg.style.display = 'block';
+        } catch(e) { svg.style.display = 'none'; }
+      }
+      // Show barcode number below the image
+      var valEl = document.getElementById('imScanCodeValue');
+      if (valEl) { valEl.style.display = 'block'; }
+    } else {
+      var qrDiv = document.getElementById('imScanCodeQrDiv');
+      if (typeof QRCode !== 'undefined') {
+        try {
+          new QRCode(qrDiv, { text: value, width: 180, height: 180, colorDark: '#1a202c', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+        } catch(e) { qrDiv.textContent = value; }
+      }
+    }
+    document.getElementById('imScanCodeModal').classList.add('active');
+  }
+
+  window.imPrintScanCode = function() {
+    var title = document.getElementById('imScanCodeTitle').textContent;
+    var subtitle = document.getElementById('imScanCodeSubtitle').textContent;
+    var svg = document.getElementById('imScanCodeBarcodeSvg');
+    var qrDiv = document.getElementById('imScanCodeQrDiv');
+
+    // Build print-only div
+    var existing = document.getElementById('_imPrintOverlay');
+    if (existing) existing.remove();
+    var styleEl = document.getElementById('_imPrintStyle');
+    if (styleEl) styleEl.remove();
+
+    var barcodeNumEl = document.getElementById('imScanCodeValue');
+    var barcodeNum = (barcodeNumEl && barcodeNumEl.style.display !== 'none') ? barcodeNumEl.textContent.trim() : '';
+
+    var div = document.createElement('div');
+    div.id = '_imPrintOverlay';
+    div.style.cssText = 'display:none;';
+    div.innerHTML =
+      '<div style="text-align:center;padding:2rem;font-family:sans-serif;">'
+      + '<div style="font-size:1rem;font-weight:700;color:#1a202c;margin-bottom:0.15rem;">' + title + '</div>'
+      + (subtitle ? '<div style="font-size:0.78rem;color:#718096;margin-bottom:1rem;">' + subtitle + '</div>' : '')
+      + (svg && svg.style.display !== 'none' ? svg.outerHTML : '')
+      + (barcodeNum ? '<div style="font-family:monospace;font-size:0.9rem;font-weight:600;letter-spacing:0.15em;color:#1a202c;margin-top:0.4rem;">' + barcodeNum + '</div>' : '')
+      + (qrDiv && qrDiv.innerHTML ? '<div style="display:flex;justify-content:center;margin-top:0.5rem;">' + qrDiv.innerHTML + '</div>' : '')
+      + '</div>';
+
+    var style = document.createElement('style');
+    style.id = '_imPrintStyle';
+    style.textContent = '@media print { body > *:not(#_imPrintOverlay) { display:none !important; } #_imPrintOverlay { display:block !important; } }';
+
+    document.head.appendChild(style);
+    document.body.appendChild(div);
+
+    window.print();
+
+    setTimeout(function() {
+      var s = document.getElementById('_imPrintStyle');
+      var d = document.getElementById('_imPrintOverlay');
+      if (s) s.remove();
+      if (d) d.remove();
+    }, 500);
   };
 </script>
 </body>

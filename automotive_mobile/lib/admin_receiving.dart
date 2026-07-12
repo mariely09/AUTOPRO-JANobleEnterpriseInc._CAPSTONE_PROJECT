@@ -23,7 +23,10 @@ class AdminReceivingBody extends StatefulWidget {
   State<AdminReceivingBody> createState() => AdminReceivingBodyState();
 }
 
-class AdminReceivingBodyState extends State<AdminReceivingBody> {
+class AdminReceivingBodyState extends State<AdminReceivingBody>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   static const _red   = Color(0xFFE8001C);
   static const _blue  = Color(0xFF003087);
   static const _amber = Color(0xFFd69e2e);
@@ -76,6 +79,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
   Color _statusColor(String s) {
     switch (s) {
       case 'Pending':               return const Color(0xFF718096);
+      case 'For Admin Review':      return _red;
       case 'Awaiting Double Check': return _amber;
       case 'Approved':              return _green;
       case 'Rejected':              return _red;
@@ -85,6 +89,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     // Apply search filter
     final q = widget.searchQuery.toLowerCase();
     final searched = q.isEmpty
@@ -101,10 +106,11 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
           }).toList();
 
     // Count by status
-    int pending = 0, awaiting = 0, approved = 0, rejected = 0;
+    int pending = 0, awaiting = 0, approved = 0, rejected = 0, forReview = 0;
     for (final d in _deliveries) {
       switch (d['status'] as String? ?? 'Pending') {
         case 'Pending':               pending++; break;
+        case 'For Admin Review':      forReview++; break;
         case 'Awaiting Double Check': awaiting++; break;
         case 'Approved':              approved++; break;
         case 'Rejected':              rejected++; break;
@@ -121,15 +127,20 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
         // Filter chips
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: Row(children: [
-            _chip('Pending',  '$pending',  const Color(0xFF718096), Icons.inventory_outlined,      'Pending'),
-            const SizedBox(width: 6),
-            _chip('Awaiting', '$awaiting', _amber,  Icons.hourglass_empty_outlined, 'Awaiting Double Check'),
-            const SizedBox(width: 6),
-            _chip('Approved', '$approved', _green,  Icons.check_circle_outline,     'Approved'),
-            const SizedBox(width: 6),
-            _chip('Rejected', '$rejected', _red,    Icons.cancel_outlined,          'Rejected'),
-          ]),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              _chip('Pending',  '$pending',   const Color(0xFF718096), Icons.inventory_outlined,      'Pending'),
+              const SizedBox(width: 6),
+              _chip('Review',   '$forReview', _red, Icons.rate_review_outlined,    'For Admin Review'),
+              const SizedBox(width: 6),
+              _chip('Awaiting', '$awaiting',  _amber,  Icons.hourglass_empty_outlined, 'Awaiting Double Check'),
+              const SizedBox(width: 6),
+              _chip('Approved', '$approved',  _green,  Icons.check_circle_outline,     'Approved'),
+              const SizedBox(width: 6),
+              _chip('Rejected', '$rejected',  _red,    Icons.cancel_outlined,          'Rejected'),
+            ]),
+          ),
         ),
         // List body
         Expanded(
@@ -205,28 +216,27 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
 
   Widget _chip(String label, String value, Color color, IconData icon, String filter) {
     final active = _filter == filter;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _filter = active ? 'all' : filter),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          decoration: BoxDecoration(
-            color: active ? color.withValues(alpha: 0.08) : Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: active ? color : Colors.transparent, width: 1.5),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)],
-          ),
-          child: Column(children: [
-            Container(
-              width: 28, height: 28,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-              child: Icon(icon, color: color, size: 14),
-            ),
-            const SizedBox(height: 4),
-            Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
-            Text(label, style: const TextStyle(fontSize: 8, color: Color(0xFF718096)), textAlign: TextAlign.center),
-          ]),
+    return GestureDetector(
+      onTap: () => setState(() => _filter = active ? 'all' : filter),
+      child: Container(
+        width: 72,
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: active ? color.withValues(alpha: 0.08) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: active ? color : Colors.transparent, width: 1.5),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)],
         ),
+        child: Column(children: [
+          Container(
+            width: 28, height: 28,
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+            child: Icon(icon, color: color, size: 14),
+          ),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+          Text(label, style: const TextStyle(fontSize: 8, color: Color(0xFF718096)), textAlign: TextAlign.center),
+        ]),
       ),
     );
   }
@@ -334,10 +344,58 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
   }
 
   // ── View Delivery Modal ─────────────────────────────────────
-  void _showViewModal(Map<String, dynamic> d) {
+  void _showViewModal(Map<String, dynamic> d) async {
     final status = d['status'] as String? ?? 'Pending';
     final color  = _statusColor(status);
-    final items  = (d['items'] as List? ?? []);
+    List<Map<String, dynamic>> items = List<Map<String, dynamic>>.from(
+      (d['items'] as List? ?? []).map((i) => Map<String, dynamic>.from(i as Map)));
+
+    // Fetch unit cost from item_master + current stock from stock_inventory (best-effort)
+    if (status == 'Pending' || status == 'Awaiting Double Check' || status == 'For Admin Review') {
+      try {
+        final masterSnap = await FirebaseFirestore.instance
+            .collection('item_master').get();
+        final numToCost = <String, double>{};
+        final numToGroup = <String, String>{};
+        for (final doc in masterSnap.docs) {
+          final data = doc.data();
+          final n = data['num'] as String? ?? '';
+          final c = double.tryParse(
+            (data['cost']?.toString() ?? '0')
+                .replaceAll('₱', '').replaceAll(',', '').trim()) ?? 0;
+          if (n.isNotEmpty) {
+            numToCost[n] = c;
+            numToGroup[n] = data['group'] as String? ?? '';
+          }
+        }
+        // Fetch current stock for each item
+        final numToStock = <String, int>{};
+        final numToMin   = <String, int>{};
+        try {
+          final stockSnap = await FirebaseFirestore.instance
+              .collection('stock_inventory').get();
+          for (final doc in stockSnap.docs) {
+            final data = doc.data();
+            final n = data['num'] as String? ?? '';
+            if (n.isNotEmpty) {
+              numToStock[n] = (data['stock'] as num?)?.toInt() ?? 0;
+              numToMin[n]   = (data['min']   as num?)?.toInt() ?? 0;
+            }
+          }
+        } catch (_) {}
+        items = items.map((item) {
+          final n = item['itemNum'] as String? ?? '';
+          return {
+            ...item,
+            '_cost':  numToCost[n]  ?? 0.0,
+            '_group': numToGroup[n] ?? '',
+            '_stock': numToStock[n],  // null if not found in stock_inventory
+            '_min':   numToMin[n],    // null if not found
+          };
+        }).toList();
+      } catch (_) {}
+    }
+    if (!mounted) return;
 
     showModalBottomSheet(
       context: context, isScrollControlled: true,
@@ -457,30 +515,128 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                   }
 
                   // Other statuses: simple card
+                  final itemCostVal = item['_cost'] is double ? item['_cost'] as double
+                      : double.tryParse(item['_cost']?.toString() ?? '0') ?? 0.0;
+                  final itemTotal   = itemCostVal * exp;
+                  final itemGroup   = item['_group'] as String? ?? '';
+                  final itemStock   = item['_stock'] as int?;
+                  final itemMin     = item['_min']   as int? ?? 0;
+
+                  // Badge: red = out of stock, amber = low stock, gray = ok
+                  Color? badgeColor;
+                  Color? badgeBg;
+                  Color? badgeBorder;
+                  String? badgeLabel;
+                  if (itemStock != null) {
+                    if (itemStock == 0) {
+                      badgeLabel  = 'Out of Stock';
+                      badgeColor  = const Color(0xFFe53e3e);
+                      badgeBg     = const Color(0xFFfef2f2);
+                      badgeBorder = const Color(0xFFfca5a5);
+                    } else if (itemStock <= itemMin) {
+                      badgeLabel  = 'Low Stock';
+                      badgeColor  = const Color(0xFFd69e2e);
+                      badgeBg     = const Color(0xFFFFFBEB);
+                      badgeBorder = const Color(0xFFFCD34D);
+                    } else {
+                      badgeLabel  = 'Stock: $itemStock';
+                      badgeColor  = const Color(0xFF718096);
+                      badgeBg     = const Color(0xFFF0F4F8);
+                      badgeBorder = const Color(0xFFe2e8f0);
+                    }
+                  }
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 10),
                     decoration: BoxDecoration(
-                      color: Colors.white, borderRadius: BorderRadius.circular(10),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFFe2e8f0)),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)],
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
                     ),
-                    child: Row(children: [
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(item['itemName'] as String? ?? '—',
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                        Text(item['itemNum'] as String? ?? '',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                        if ((item['remark'] as String? ?? '').isNotEmpty)
-                          Text(item['remark'] as String,
-                            style: const TextStyle(fontSize: 10, color: Color(0xFFa0aec0))),
-                      ])),
-                      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                        Text('Expected: $exp ${item['uom'] ?? ''}',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                      ]),
-                    ]),
-                  );
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                // Item name + UOM (left) + current stock badge (right)
+                                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Expanded(
+                                    child: RichText(text: TextSpan(
+                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c)),
+                                      children: [
+                                        TextSpan(text: item['itemName'] as String? ?? '—'),
+                                        if ((item['uom'] as String? ?? '').isNotEmpty)
+                                          TextSpan(
+                                            text: '  (${item['uom']})',
+                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w400, color: Color(0xFF718096))),
+                                      ],
+                                    )),
+                                  ),
+                                  if (itemStock != null) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: itemStock == 0
+                                          ? const Color(0xFFfef2f2)
+                                          : itemStock <= itemMin
+                                            ? const Color(0xFFFFFBEB)
+                                            : const Color(0xFFF0F4F8),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: itemStock == 0
+                                            ? const Color(0xFFfca5a5)
+                                            : itemStock <= itemMin
+                                              ? const Color(0xFFFCD34D)
+                                              : const Color(0xFFe2e8f0)),
+                                      ),
+                                      child: Text(
+                                        'Stock: $itemStock',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: itemStock == 0
+                                            ? const Color(0xFFe53e3e)
+                                            : itemStock <= itemMin
+                                              ? const Color(0xFFd69e2e)
+                                              : const Color(0xFF718096),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ]),
+                                const SizedBox(height: 3),
+                                // Item number · group
+                                Text(
+                                  [item['itemNum'] as String? ?? '', if (itemGroup.isNotEmpty) itemGroup].join(' · '),
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                                if (itemCostVal > 0) ...[
+                                  const SizedBox(height: 10),
+                                  const Divider(height: 1, color: Color(0xFFF0F4F8)),
+                                  const SizedBox(height: 8),
+                                  Row(children: [
+                                    _miniStat('Price', _fmtPeso(itemCostVal), const Color(0xFF003087)),
+                                    const SizedBox(width: 12),
+                                    _miniStat('Qty', '$exp', const Color(0xFF1a202c)),
+                                    const SizedBox(width: 12),
+                                    _miniStat('Total', _fmtPeso(itemTotal), const Color(0xFFE8001C)),
+                                  ]),
+                                ] else ...[
+                                  const SizedBox(height: 4),
+                                  Text('Order Qty: $exp',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                                ],
+                                if ((item['remark'] as String? ?? '').isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFFBEB),
+                                      borderRadius: BorderRadius.circular(6)),
+                                    child: Text(item['remark'] as String,
+                                      style: const TextStyle(fontSize: 10, color: Color(0xFF92400E)))),
+                                ],
+                              ]),
+                            ),
+                          );
                 }),
                 const SizedBox(height: 16),
                 if (status == 'Pending') ...[
@@ -506,6 +662,42 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                       label: const Text('Delete', style: TextStyle(color: Colors.red)),
                       style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
                     )),
+                ] else if (status == 'For Admin Review') ...[
+                  // Purple info banner
+                  Container(
+                    width: double.infinity, padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _red.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _red.withValues(alpha: 0.3))),
+                    child: const Row(children: [
+                      Icon(Icons.rate_review_outlined, size: 16, color: Color(0xFFE8001C)),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('Staff delivery request — review before approving.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFFE8001C), fontWeight: FontWeight.w500))),
+                    ])),
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    Expanded(child: OutlinedButton.icon(
+                      onPressed: () { Navigator.pop(context); _confirmDelete(d); },
+                      icon: const Icon(Icons.delete_outline, size: 15, color: Colors.red),
+                      label: const Text('Reject', style: TextStyle(color: Colors.red)),
+                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
+                    )),
+                    const SizedBox(width: 10),
+                    Expanded(flex: 2, child: ElevatedButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({'status': 'Pending'});
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Approved! Delivery is now Pending.'),
+                          backgroundColor: Color(0xFF38a169), behavior: SnackBarBehavior.floating));
+                      },
+                      icon: const Icon(Icons.check_circle_outline, size: 15),
+                      label: const Text('Approve Request'),
+                      style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
+                    )),
+                  ]),
                 ] else if (status == 'Awaiting Double Check') ...[
                   Row(children: [
                     Expanded(child: OutlinedButton.icon(
@@ -548,6 +740,15 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
       ),
     );
   }
+
+  Widget _miniStat(String label, String value, Color valueColor) => Expanded(
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700,
+        color: Color(0xFFa0aec0), letterSpacing: 0.4)),
+      const SizedBox(height: 2),
+      Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: valueColor)),
+    ]),
+  );
 
   Widget _viewRow(String label, String value) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
@@ -780,293 +981,524 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
   }
 
   // ── New / Edit Delivery Modal ──────────────────────────────
-  void _showNewDeliveryModal({Map<String, dynamic>? existing}) async {
+  void _showNewDeliveryModal({Map<String, dynamic>? existing}) {
     final isEdit = existing != null;
-    final dateCtrl     = TextEditingController(text: existing?['date'] as String? ?? DateTime.now().toIso8601String().split('T')[0]);
     final supplierCtrl = TextEditingController(text: existing?['supplier'] as String? ?? '');
-    final notesCtrl    = TextEditingController(text: existing?['notes']    as String? ?? '');
     final searchCtrl   = TextEditingController();
 
-    // Load item master for searching
-    final masterSnap = await FirebaseFirestore.instance.collection('item_master').orderBy('name').get();
-    final masterItems = masterSnap.docs.map((d) {
-      final data = d.data();
-      return {'num': data['num'] as String? ?? '', 'name': data['name'] as String? ?? '', 'uom': data['uom'] as String? ?? ''};
-    }).toList();
-
+    List<Map<String, dynamic>> replenishItems = [];
     List<Map<String, dynamic>> addedItems = List<Map<String, dynamic>>.from(
       (existing?['items'] as List? ?? []).map((i) => Map<String, dynamic>.from(i as Map)),
     );
-    Map<String, dynamic>? foundItem;
-    int? foundItemStock;
-    List<Map<String, dynamic>> searchResults = [];
-    final expectedCtrl = TextEditingController();
+    final Map<int, TextEditingController> qtyCtrlrs = {};
+    bool loadingItems = true;
     bool saving = false;
-
-    if (!mounted) return;
+    String searchQuery = '';
+    Set<String> addedNums = addedItems
+        .map((i) => i['itemNum'] as String? ?? '').toSet();
 
     showModalBottomSheet(
       context: context, isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => StatefulBuilder(
         builder: (ctx, setModal) {
-          void searchItem(String q) {
-            final lower = q.trim().toLowerCase();
-            if (lower.isEmpty) {
-              setModal(() { foundItem = null; foundItemStock = null; searchResults = []; });
-              return;
-            }
-            final matches = masterItems.where(
-              (i) => (i['name'] as String).toLowerCase().contains(lower) ||
-                     (i['num']  as String).toLowerCase().contains(lower),
-            ).toList();
-            setModal(() { foundItem = null; foundItemStock = null; searchResults = matches; });
+          // Load replenishment items once after modal opens
+          if (loadingItems) {
+            Future.microtask(() async {
+              try {
+                // Step 1: fetch stock inventory (always works)
+                final stockSnap = await FirebaseFirestore.instance
+                    .collection('stock_inventory').get();
+                final needReplenish = stockSnap.docs.map((d) => d.data()).where((s) {
+                  final stock = (s['stock'] as num?)?.toInt() ?? 0;
+                  final min   = (s['min']   as num?)?.toInt() ?? 0;
+                  return stock == 0 || stock <= min;
+                }).toList();
+
+                // Step 2: try fetching cost from item_master (optional, best-effort)
+                final numToCost = <String, double>{};
+                try {
+                  final masterSnap = await FirebaseFirestore.instance
+                      .collection('item_master').get();
+                  for (final d in masterSnap.docs) {
+                    final data = d.data();
+                    final type = data['type'] as String? ?? '';
+                    if (type != 'Material') continue;
+                    final n = data['num'] as String? ?? '';
+                    final rawCost = data['cost']?.toString() ?? '0';
+                    final c = double.tryParse(
+                      rawCost.replaceAll('₱', '').replaceAll(',', '').trim()) ?? 0;
+                    if (n.isNotEmpty) numToCost[n] = c;
+                  }
+                } catch (_) {} // cost fetch failure is non-fatal
+
+                final loaded = needReplenish.map((s) {
+                  final n = s['num'] as String? ?? '';
+                  return <String, dynamic>{
+                    'num':       n,
+                    'name':      s['name']  as String? ?? '',
+                    'uom':       s['uom']   as String? ?? '',
+                    '_stock':    (s['stock'] as num?)?.toInt() ?? 0,
+                    '_minLevel': (s['min']   as num?)?.toInt() ?? 0,
+                    '_maxLevel': (s['max']   as num?)?.toInt() ?? 0,
+                    '_cost':     numToCost[n] ?? 0.0,
+                  };
+                }).toList()
+                  ..sort((a, b) {
+                    if ((a['_stock'] as int) == 0 && (b['_stock'] as int) != 0) return -1;
+                    if ((b['_stock'] as int) == 0 && (a['_stock'] as int) != 0) return 1;
+                    return (a['name'] as String).compareTo(b['name'] as String);
+                  });
+
+                // Enrich pre-existing addedItems (from edit mode) with cost+stock
+                if (addedItems.isNotEmpty) {
+                  final enriched = <Map<String, dynamic>>[];
+                  for (final item in addedItems) {
+                    final n = item['itemNum'] as String? ?? '';
+                    final c = numToCost[n] ?? 0.0;
+                    int? stockVal;
+                    try {
+                      final ss = await FirebaseFirestore.instance
+                          .collection('stock_inventory').where('num', isEqualTo: n).limit(1).get();
+                      if (ss.docs.isNotEmpty) stockVal = (ss.docs.first['stock'] as num?)?.toInt();
+                    } catch (_) {}
+                    enriched.add({...item, '_cost': c, '_stock': stockVal});
+                  }
+                  if (ctx.mounted) setModal(() => addedItems
+                    ..clear()
+                    ..addAll(enriched));
+                }
+
+                if (ctx.mounted) setModal(() { replenishItems = loaded; loadingItems = false; });
+              } catch (e) {
+                if (ctx.mounted) setModal(() { loadingItems = false; });
+              }
+            });
           }
 
-          Future<void> selectItem(Map<String, dynamic> item) async {
-            final stockSnap = await FirebaseFirestore.instance
-                .collection('stock_inventory')
-                .where('num', isEqualTo: item['num'])
-                .limit(1)
-                .get();
-            final stock = stockSnap.docs.isNotEmpty
-                ? (stockSnap.docs.first['stock'] as num?)?.toInt()
-                : null;
-            setModal(() { foundItem = item; foundItemStock = stock; searchResults = []; });
+          final visible = replenishItems.where((item) {
+            final q = searchQuery.toLowerCase();
+            return q.isEmpty ||
+                (item['num'] as String).toLowerCase().contains(q) ||
+                (item['name'] as String).toLowerCase().contains(q);
+          }).toList();
+
+          Widget statusBadge(int stock, int min) {
+            if (stock == 0) return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(color: const Color(0xFFfef2f2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFfca5a5))),
+              child: const Text('Out of Stock',
+                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFe53e3e))));
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFFCD34D))),
+              child: const Text('Low Stock',
+                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFd69e2e))));
           }
 
           return DraggableScrollableSheet(
-            expand: false, initialChildSize: 0.92, maxChildSize: 0.97,
-            builder: (_, ctrl) => SingleChildScrollView(
-              controller: ctrl,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // Header
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                  decoration: const BoxDecoration(color: _red, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-                  child: Row(children: [
-                    Container(width: 44, height: 44,
-                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(12)),
-                      child: Icon(isEdit ? Icons.edit_outlined : Icons.add, color: Colors.white, size: 22)),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(isEdit ? 'Edit Delivery' : 'New Delivery',
+            expand: false, initialChildSize: 0.92, maxChildSize: 1.0,
+            builder: (_, ctrl) => Column(children: [
+              // ── Header ──
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                decoration: const BoxDecoration(color: _red,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+                child: Row(children: [
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(isEdit ? 'Edit Delivery' : 'New Delivery',
                         style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      const Text('Record incoming stock delivery',
+                    const Text('Record incoming stock delivery',
                         style: TextStyle(color: Colors.white70, fontSize: 11)),
-                    ])),
-                    GestureDetector(onTap: () => Navigator.pop(ctx), child: const Icon(Icons.close, color: Colors.white)),
-                  ]),
-                ),
-                Padding(
-                  padding: EdgeInsets.only(left: 20, right: 20, top: 20,
-                    bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    // Supplier
-                    _field('Supplier / Reference *', child: TextField(controller: supplierCtrl,
-                      decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, hintText: 'e.g. HNP AutoParts'))),
-                    const SizedBox(height: 16),
-                    const Divider(),
-                    const SizedBox(height: 12),
-                    // Item search
-                    const Text('Add Items', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
-                    const SizedBox(height: 8),
-                    Row(children: [
-                      Expanded(child: TextField(
-                        controller: searchCtrl,
-                        onChanged: searchItem,
-                        decoration: const InputDecoration(
-                          hintText: 'Search item name or number...',
-                          border: OutlineInputBorder(), isDense: true,
-                          prefixIcon: Icon(Icons.search, size: 18),
-                        ),
-                      )),
-                    ]),
-                    if (searchResults.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: const Color(0xFFe2e8f0)),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Column(
-                          children: searchResults.asMap().entries.map((e) {
-                            final item = e.value;
-                            final isLast = e.key == searchResults.length - 1;
+                  ])),
+                  GestureDetector(onTap: () => Navigator.pop(ctx),
+                      child: const Icon(Icons.close, color: Colors.white)),
+                ]),
+              ),
+              Expanded(child: SingleChildScrollView(
+                controller: ctrl,
+                padding: EdgeInsets.only(
+                  left: 20, right: 20, top: 20,
+                  bottom: MediaQuery.viewInsetsOf(ctx).bottom + 24),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  _field('Supplier / Reference *', child: TextField(
+                    controller: supplierCtrl,
+                    decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, hintText: 'e.g. HNP AutoParts'))),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  const Text('Add Items', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+                  const SizedBox(height: 4),
+                  Text(loadingItems ? 'Loading items…' : 'Items that need replenishment',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                  const SizedBox(height: 8),
+                  // Search
+                  TextField(
+                    controller: searchCtrl,
+                    enabled: !loadingItems,
+                    onChanged: (v) => setModal(() => searchQuery = v),
+                    decoration: InputDecoration(
+                      hintText: loadingItems ? 'Loading…' : 'Search item…',
+                      border: const OutlineInputBorder(), isDense: true,
+                      prefixIcon: loadingItems
+                        ? const SizedBox(width: 18, height: 18,
+                            child: Center(child: SizedBox(width: 14, height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2))))
+                        : const Icon(Icons.search, size: 18))),
+                  const SizedBox(height: 8),
+                  // Item cards
+                  if (loadingItems)
+                    const Center(child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: CircularProgressIndicator()))
+                  else if (visible.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(color: const Color(0xFFF0FFF4),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF9AE6B4))),
+                      child: const Row(children: [
+                        Icon(Icons.check_circle_outline, color: Color(0xFF38a169), size: 16),
+                        SizedBox(width: 8),
+                        Expanded(child: Text('All items are sufficiently stocked.',
+                          style: TextStyle(fontSize: 12, color: Color(0xFF38a169), fontWeight: FontWeight.w600))),
+                      ]))
+                  else
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFe2e8f0)),
+                        borderRadius: BorderRadius.circular(12)),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: visible.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFf0f4f8)),
+                          itemBuilder: (_, i) {
+                            final item   = visible[i];
+                            final num    = item['num']       as String;
+                            final name   = item['name']      as String;
+                            final uom    = item['uom']       as String;
+                            final stock  = item['_stock']    as int;
+                            final min    = item['_minLevel'] as int;
+                            final max    = item['_maxLevel'] as int;
+                            final cost   = item['_cost'] is double ? item['_cost'] as double : double.tryParse(item['_cost']?.toString() ?? '0') ?? 0.0;
+                            final rec    = max > 0 ? (max - stock).clamp(0, 9999) : 1;
+                            final added  = addedNums.contains(num);
                             return GestureDetector(
-                              onTap: () => selectItem(item),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: e.key == 0 ? const Radius.circular(10) : Radius.zero,
-                                    topRight: e.key == 0 ? const Radius.circular(10) : Radius.zero,
-                                    bottomLeft: isLast ? const Radius.circular(10) : Radius.zero,
-                                    bottomRight: isLast ? const Radius.circular(10) : Radius.zero,
-                                  ),
-                                  border: isLast ? null : const Border(bottom: BorderSide(color: Color(0xFFf0f4f8))),
-                                ),
-                                child: Row(children: [
-                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text(item['name'] as String,
-                                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1a202c))),
-                                    Text('${item['num']} · ${item['uom']}',
-                                      style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                                  ])),
-                                  const Icon(Icons.chevron_right, size: 16, color: Color(0xFFa0aec0)),
-                                ]),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
-                    if (foundItem != null) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: const Color(0xFFFFF5F5), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFfeb2b2))),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [
-                            Expanded(child: Text(foundItem!['name'] as String, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13))),
-                            GestureDetector(
-                              onTap: () => setModal(() { foundItem = null; foundItemStock = null; searchCtrl.clear(); expectedCtrl.clear(); }),
-                              child: const Icon(Icons.close, size: 16, color: Color(0xFF718096)),
-                            ),
-                          ]),
-                          Text('${foundItem!['num']} · ${foundItem!['uom']}', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                          const SizedBox(height: 4),
-                          Text(
-                            foundItemStock != null ? 'Current stock: $foundItemStock' : 'Not in stock inventory',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: foundItemStock != null ? _red : const Color(0xFFa0aec0),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(children: [
-                            Expanded(child: TextField(
-                              controller: expectedCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Order Qty *',
-                                border: OutlineInputBorder(), isDense: true,
-                              ),
-                            )),
-                            const SizedBox(width: 10),
-                            ElevatedButton(
-                              onPressed: () {
-                                final qty = int.tryParse(expectedCtrl.text.trim()) ?? 0;
-                                if (qty <= 0) return;
-                                final already = addedItems.any((i) => i['itemNum'] == foundItem!['num']);
-                                if (already) return;
+                              onTap: added ? null : () {
+                                final rowIdx = addedItems.length;
+                                qtyCtrlrs[rowIdx] = TextEditingController(text: '$rec');
                                 setModal(() {
-                                  addedItems.add({
-                                    'itemNum': foundItem!['num'],
-                                    'itemName': foundItem!['name'],
-                                    'uom': foundItem!['uom'],
-                                    'expectedQty': qty,
-                                  });
-                                  foundItem = null;
-                                  foundItemStock = null;
-                                  searchCtrl.clear();
-                                  expectedCtrl.clear();
+                                  addedItems.add({'itemNum': num, 'itemName': name,
+                                    'uom': uom, 'expectedQty': rec, '_rowIdx': rowIdx,
+                                    '_cost': cost, '_stock': stock});
+                                  addedNums.add(num);
                                 });
                               },
-                              style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
-                              child: const Text('Add'),
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 200),
+                                opacity: added ? 0.35 : 1.0,
+                                child: Container(
+                                  color: added ? const Color(0xFFF7F8FA) : Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                                  child: Row(children: [
+                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1a202c))),
+                                      const SizedBox(height: 3),
+                                      Wrap(spacing: 6, children: [
+                                        Text('$num · $uom', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                                        Text('Current: $stock', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                                        if (cost > 0)
+                                          Text('${_fmtPeso(cost)}/unit', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                                        statusBadge(stock, min),
+                                        if (rec > 0 && !added)
+                                          Text('Suggest: $rec', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                                      ]),
+                                    ])),
+                                    added
+                                      ? const Icon(Icons.check_circle, size: 18, color: Color(0xFF38a169))
+                                      : const Icon(Icons.add_circle_outline, size: 18, color: Color(0xFFE8001C)),
+                                  ]),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  // Added items
+                  if (addedItems.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      const Text('Items Added', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+                      Text('${addedItems.length} item${addedItems.length != 1 ? 's' : ''}',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                    ]),
+                    const SizedBox(height: 8),
+                    ...addedItems.asMap().entries.map((e) {
+                      final rowIdx   = e.key;
+                      final item     = e.value;
+                      final itemCost = (item['_cost'] is double
+                          ? item['_cost'] as double
+                          : double.tryParse(item['_cost']?.toString() ?? '0') ?? 0.0);
+                      final itemStock = item['_stock'] as int?;
+                      final uom       = item['uom'] as String? ?? '';
+                      final itemNum   = item['itemNum'] as String? ?? '';
+
+                      qtyCtrlrs.putIfAbsent(rowIdx, () =>
+                          TextEditingController(text: '${item['expectedQty'] ?? 1}'));
+                      final qty      = int.tryParse(qtyCtrlrs[rowIdx]!.text) ?? (item['expectedQty'] as int? ?? 1);
+                      final subtotal = itemCost * qty;
+
+                      // Stock status badge
+                      Widget? stockBadge;
+                      if (itemStock != null) {
+                        final isOut   = itemStock == 0;
+                        final badgeColor  = isOut ? const Color(0xFFe53e3e) : const Color(0xFFd69e2e);
+                        final badgeBg     = isOut ? const Color(0xFFfef2f2) : const Color(0xFFFFFBEB);
+                        final badgeBorder = isOut ? const Color(0xFFfca5a5) : const Color(0xFFFCD34D);
+                        stockBadge = Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: badgeBg,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: badgeBorder),
+                          ),
+                          child: Text(isOut ? 'Out of Stock' : 'Low Stock',
+                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: badgeColor)),
+                        );
+                      }
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFe2e8f0)),
+                          boxShadow: [BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 6, offset: const Offset(0, 2))],
+                        ),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          // ── Row 1: name + UOM pill + qty stepper + remove ──
+                          Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                            // Name + meta
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Row(children: [
+                                Flexible(
+                                  child: Text(item['itemName'] as String? ?? '',
+                                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c)),
+                                    overflow: TextOverflow.ellipsis),
+                                ),
+                                if (uom.isNotEmpty) ...[
+                                  const SizedBox(width: 5),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF0F4F8),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(uom,
+                                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500, color: Color(0xFF718096))),
+                                  ),
+                                ],
+                              ]),
+                              const SizedBox(height: 5),
+                              Wrap(spacing: 6, runSpacing: 4, children: [
+                                Text(itemNum,
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                                if (itemCost > 0)
+                                  Text('${_fmtPeso(itemCost)}/unit',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                                if (itemStock != null)
+                                  Text('Stock: $itemStock',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                                if (stockBadge != null) stockBadge,
+                              ]),
+                            ])),
+                            const SizedBox(width: 10),
+                            // Qty stepper: − / input / +
+                            Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF7F8FA),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFe2e8f0)),
+                              ),
+                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                GestureDetector(
+                                  onTap: () {
+                                    final v = (int.tryParse(qtyCtrlrs[rowIdx]!.text) ?? 1);
+                                    if (v <= 1) return;
+                                    qtyCtrlrs[rowIdx]!.text = '${v - 1}';
+                                    setModal(() => addedItems[rowIdx] = {...addedItems[rowIdx], 'expectedQty': v - 1});
+                                  },
+                                  child: Container(
+                                    width: 30, height: 34,
+                                    decoration: const BoxDecoration(
+                                      borderRadius: BorderRadius.only(topLeft: Radius.circular(7), bottomLeft: Radius.circular(7))),
+                                    child: const Icon(Icons.remove, size: 14, color: Color(0xFF718096)),
+                                  ),
+                                ),
+                                Container(
+                                  width: 40, height: 34,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    border: Border.symmetric(vertical: BorderSide(color: Color(0xFFe2e8f0))),
+                                  ),
+                                  child: Center(
+                                    child: TextField(
+                                      controller: qtyCtrlrs[rowIdx],
+                                      keyboardType: TextInputType.number,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1a202c)),
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                      ),
+                                      onChanged: (v) {
+                                        final q2 = int.tryParse(v) ?? 1;
+                                        setModal(() => addedItems[rowIdx] = {...addedItems[rowIdx], 'expectedQty': q2});
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () {
+                                    final v = (int.tryParse(qtyCtrlrs[rowIdx]!.text) ?? 1);
+                                    qtyCtrlrs[rowIdx]!.text = '${v + 1}';
+                                    setModal(() => addedItems[rowIdx] = {...addedItems[rowIdx], 'expectedQty': v + 1});
+                                  },
+                                  child: Container(
+                                    width: 30, height: 34,
+                                    decoration: const BoxDecoration(
+                                      borderRadius: BorderRadius.only(topRight: Radius.circular(7), bottomRight: Radius.circular(7))),
+                                    child: const Icon(Icons.add, size: 14, color: Color(0xFF718096)),
+                                  ),
+                                ),
+                              ]),
+                            ),
+                            const SizedBox(width: 8),
+                            // Remove button
+                            GestureDetector(
+                              onTap: () {
+                                final removedNum = addedItems[rowIdx]['itemNum'] as String? ?? '';
+                                setModal(() {
+                                  addedItems.removeAt(rowIdx);
+                                  qtyCtrlrs.remove(rowIdx);
+                                  addedNums.remove(removedNum);
+                                });
+                              },
+                              child: Container(
+                                width: 26, height: 26,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF5F5),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: const Color(0xFFfed7d7)),
+                                ),
+                                child: const Icon(Icons.close, size: 14, color: Color(0xFFe53e3e)),
+                              ),
                             ),
                           ]),
+                          // ── Row 2: subtotal (only if cost > 0) ──
+                          if (itemCost > 0) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.only(top: 8),
+                              decoration: const BoxDecoration(
+                                border: Border(top: BorderSide(color: Color(0xFFF0F4F8)))),
+                              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                const Text('Subtotal  ',
+                                  style: TextStyle(fontSize: 11, color: Color(0xFFa0aec0), fontWeight: FontWeight.w500)),
+                                Text(_fmtPeso(subtotal),
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF1a202c))),
+                              ]),
+                            ),
+                          ],
                         ]),
-                      ),
-                    ],
-                    if (addedItems.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Text('${addedItems.length} item${addedItems.length != 1 ? 's' : ''} added',
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                      const SizedBox(height: 6),
-                      ...addedItems.asMap().entries.map((e) => Container(
-                        margin: const EdgeInsets.only(bottom: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(color: const Color(0xFFF7F8FA), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFe2e8f0))),
-                        child: Row(children: [
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            RichText(text: TextSpan(
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Color(0xFF1a202c)),
-                              children: [
-                                TextSpan(text: e.value['itemName'] as String),
-                                if ((e.value['uom'] as String? ?? '').isNotEmpty)
-                                  TextSpan(
-                                    text: ' (${e.value['uom']})',
-                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: Color(0xFF718096)),
-                                  ),
-                              ],
-                            )),
-                            Text('${e.value['itemNum']} · Order Qty: ${e.value['expectedQty']}',
-                              style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
-                          ])),
-                          GestureDetector(
-                            onTap: () => setModal(() => addedItems.removeAt(e.key)),
-                            child: const Icon(Icons.close, size: 16, color: Colors.red),
-                          ),
+                      );
+                    }),
+                    // Grand total
+                    Builder(builder: (_) {
+                      final total = addedItems.fold<double>(0, (sum, i) {
+                        final c = i['_cost'] is double ? i['_cost'] as double : double.tryParse(i['_cost']?.toString() ?? '0') ?? 0.0;
+                        final q = i['expectedQty'] as int? ?? 1;
+                        return sum + c * q;
+                      });
+                      if (total <= 0) return const SizedBox.shrink();
+                      return Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFe2e8f0))),
+                        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          const Text('Estimated Total',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF4a5568))),
+                          Text(_fmtPeso(total),
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF1a202c))),
                         ]),
-                      )),
-                    ],
-                    const SizedBox(height: 20),
-                    Row(children: [
-                      Expanded(child: ElevatedButton(
-                        onPressed: saving ? null : () async {
-                          if (supplierCtrl.text.trim().isEmpty) return;
-                          if (addedItems.isEmpty) return;
-                          setModal(() => saving = true);
-                          final data = <String, dynamic>{
-                            'date': dateCtrl.text,
-                            'supplier': supplierCtrl.text.trim(),
-                            'notes': notesCtrl.text.trim(),
-                            'items': addedItems,
-                          };
-                          try {
-                            if (isEdit) {
-                              await FirebaseFirestore.instance.collection('deliveries').doc(existing['id'] as String).update(data);
-                            } else {
-                              data['status'] = 'Pending';
-                              data['createdAt'] = FieldValue.serverTimestamp();
-                              await FirebaseFirestore.instance.collection('deliveries').add(data);
-                            }
-                            if (ctx.mounted) {
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                                content: Text(isEdit ? 'Delivery updated successfully!' : 'Delivery created successfully!'),
-                                backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
-                            }
-                          } catch (e) {
-                            setModal(() => saving = false);
-                            if (ctx.mounted) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-                            }
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
-                        child: saving
-                          ? const SizedBox(
-                              width: 18, height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : Row(mainAxisSize: MainAxisSize.min, children: [
-                              const Icon(Icons.save_outlined, size: 16), const SizedBox(width: 6),
-                              Text(isEdit ? 'Update' : 'Save Delivery'),
-                            ]),
-                      )),
-                    ]),
-                  ]),
-                ),
-              ]),
-            ),
+                      );
+                    }),
+                  ],
+                  const SizedBox(height: 20),
+                  SizedBox(width: double.infinity, child: ElevatedButton(
+                    onPressed: saving ? null : () async {
+                      if (supplierCtrl.text.trim().isEmpty) return;
+                      if (addedItems.isEmpty) return;
+                      setModal(() => saving = true);
+                      final items = addedItems.map((i) => {
+                        'itemNum': i['itemNum'], 'itemName': i['itemName'],
+                        'uom': i['uom'], 'expectedQty': i['expectedQty'],
+                      }).toList();
+                      final data = <String, dynamic>{
+                        'supplier': supplierCtrl.text.trim(), 'items': items};
+                      try {
+                        if (isEdit) {
+                          await FirebaseFirestore.instance.collection('deliveries')
+                              .doc(existing['id'] as String).update(data);
+                        } else {
+                          data['status'] = 'Pending';
+                          data['createdAt'] = FieldValue.serverTimestamp();
+                          await FirebaseFirestore.instance.collection('deliveries').add(data);
+                        }
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(isEdit ? 'Delivery updated!' : 'Delivery created!'),
+                            backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+                        }
+                      } catch (e) {
+                        setModal(() => saving = false);
+                        if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14)),
+                    child: saving
+                      ? const SizedBox(width: 18, height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.save_outlined, size: 16), const SizedBox(width: 6),
+                          Text(isEdit ? 'Update' : 'Save Delivery'),
+                        ]),
+                  )),
+                ]),
+              )),
+            ]),
           );
         },
       ),
@@ -1081,6 +1513,19 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
       child,
     ],
   );
+
+  /// Formats a double as Philippine peso with commas e.g. ₱1,234.50
+  String _fmtPeso(double v) {
+    final parts = v.toStringAsFixed(2).split('.');
+    final intPart = parts[0];
+    final dec = parts[1];
+    final buffer = StringBuffer();
+    for (int i = 0; i < intPart.length; i++) {
+      if (i > 0 && (intPart.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(intPart[i]);
+    }
+    return '₱$buffer.$dec';
+  }
 
   /// Called externally (e.g. from AdminInventoryHub via GlobalKey) to open the receive modal directly.
   void openReceiveModal(Map<String, dynamic> delivery) => _showReceiveModal(delivery);
@@ -1123,15 +1568,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                 decoration: const BoxDecoration(color: _red, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
                 child: Row(children: [
-                  Container(width: 44, height: 44,
-                    decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.download_outlined, color: Colors.white, size: 22)),
-                  const SizedBox(width: 12),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Receive Items', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text('${delivery['supplier']} · ${_fmt(delivery['date'] as String?)}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                  ])),
+                  const Expanded(child: Text('Receive Items',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
                   GestureDetector(onTap: () => Navigator.pop(ctx), child: const Icon(Icons.close, color: Colors.white)),
                 ]),
               ),
@@ -1266,17 +1704,25 @@ class AdminReceivingBodyState extends State<AdminReceivingBody> {
         border: Border.all(color: const Color(0xFF90cdf4)),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(item['itemName'] as String, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-        Text('${item['itemNum']} · Expected: $expected ${item['uom'] ?? ''}',
+        RichText(text: TextSpan(
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c)),
+          children: [
+            TextSpan(text: item['itemName'] as String),
+            if ((item['uom'] as String? ?? '').isNotEmpty)
+              TextSpan(
+                text: '  (${item['uom']})',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w400, color: Color(0xFF718096))),
+          ],
+        )),
+        Text('${item['itemNum']} · Order Qty: $expected',
           style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
         const SizedBox(height: 10),
         Row(children: [
           Expanded(child: TextField(
             controller: qtyCtrl, keyboardType: TextInputType.number,
             onChanged: (_) => onQtyChange(),
-            decoration: InputDecoration(
-              labelText: 'Actual Qty *', border: const OutlineInputBorder(), isDense: true,
-              suffixText: item['uom'] as String? ?? ''),
+            decoration: const InputDecoration(
+              labelText: 'Actual Qty *', border: OutlineInputBorder(), isDense: true),
           )),
         ]),
         const SizedBox(height: 10),
