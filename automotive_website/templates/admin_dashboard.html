@@ -367,7 +367,7 @@
                                 </div>
                                 <div style="flex:1;min-width:0;">
                                     <div class="dash-chart-title">Services by Type — Last 7 Days</div>
-                                    <div class="dash-chart-sub">Top service types performed per day</div>
+                                    <div class="dash-chart-sub">Completed service types per day</div>
                                 </div>
                                 <div id="barChartTotal" class="dash-chart-badge" style="background:#fff5f5;color:#E8001C;flex-shrink:0;"></div>
                             </div>
@@ -723,9 +723,11 @@
         // ════════════════════════════════════════
         const { labels: barLabels, keys: barKeys } = _last7DayLabels();
 
-        // Extract all service type names from svcRows across all services
+        // Extract all service type names from svcRows across COMPLETED services only
+        const completedServices = services.filter(s => (s.status || '').toLowerCase() === 'completed');
+
         const serviceTypeCount = {};
-        services.forEach(s => {
+        completedServices.forEach(s => {
           const rows = s.svcRows || [];
           if (rows.length > 0) {
             rows.forEach(r => {
@@ -747,11 +749,11 @@
         const typeColors = ['#3b82f6','#22c55e','#f59e0b','#E8001C','#7c3aed'];
         const allTypes = [...topTypes, 'Others'];
 
-        // Count per type per day
+        // Count per type per day (completed only)
         const typeData = {};
         allTypes.forEach(type => {
           typeData[type] = barKeys.map(k => {
-            const dayServices = services.filter(s => (s.date || s.dateServiced || '') === k);
+            const dayServices = completedServices.filter(s => (s.date || s.dateServiced || '') === k);
             return dayServices.reduce((sum, s) => {
               const rows = s.svcRows || [];
               if (rows.length > 0) {
@@ -769,7 +771,7 @@
         });
 
         const total7 = barKeys.reduce((sum, k) =>
-          sum + services.filter(s => (s.date || s.dateServiced || '') === k).length, 0
+          sum + completedServices.filter(s => (s.date || s.dateServiced || '') === k).length, 0
         );
 
         const barBadge = document.getElementById('barChartTotal');
@@ -828,7 +830,7 @@
                     },
                     afterBody: items => {
                       const total = items.reduce((s, i) => s + (i.parsed.y || 0), 0);
-                      return total > 0 ? ['', '  Total: ' + total + ' service' + (total !== 1 ? 's' : '')] : [];
+                      return total > 0 ? ['', '  Total: ' + total + ' completed service' + (total !== 1 ? 's' : '')] : [];
                     }
                   }
                 }

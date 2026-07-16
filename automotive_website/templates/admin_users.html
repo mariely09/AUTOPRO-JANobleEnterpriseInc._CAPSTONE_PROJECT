@@ -12,6 +12,64 @@
     <link rel="stylesheet" href="../static/css/admin.css">
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
+/* ── Floating label fields ── */
+.fl-field {
+    position: relative;
+    width: 100%;
+}
+.fl-field input,
+.fl-field select {
+    width: 100%;
+    padding: 1rem 1rem 0.4rem 1rem;
+    border: 1.5px solid #c5cdd9;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    color: #1a202c;
+    background: white;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+}
+.fl-field select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a0aec0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    padding-right: 2.2rem;
+}
+.fl-field input:focus,
+.fl-field select:focus {
+    border-color: #E31E24;
+    box-shadow: 0 0 0 3px rgba(227, 30, 36, 0.12);
+}
+.fl-field > label {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.88rem;
+    color: #a0aec0;
+    pointer-events: none;
+    transition: all 0.18s ease;
+    background: white;
+    padding: 0 0.2rem;
+    line-height: 1;
+}
+.fl-field input:focus ~ label,
+.fl-field input:not(:placeholder-shown) ~ label,
+.fl-field select:focus ~ label,
+.fl-field.has-value > label {
+    top: 0;
+    transform: translateY(-50%);
+    font-size: 0.72rem;
+    color: #718096;
+}
+.fl-field input:focus ~ label,
+.fl-field select:focus ~ label { color: #E31E24; }
+.fl-field input::placeholder { color: transparent; }
 </style>
 </head>
 <body class="portal-body" data-page="users">
@@ -145,8 +203,9 @@
         <div style="padding:1.25rem 1.5rem;background:#f8fafc;">
             <div id="vuInfoGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;"></div>
         </div>
-        <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;">
-            <button id="vuEditBtn" style="width:100%;padding:0.8rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.95rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
+        <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;">
+            <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('viewUserModal')">Cancel</button>
+            <button id="vuEditBtn" style="flex:1;padding:0.8rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.95rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 Edit
             </button>
@@ -165,26 +224,26 @@
         </div>
         <form id="addUserForm" style="padding:1.25rem 1.5rem;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-                <div class="form-group" style="margin:0;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">First Name *</label>
-                    <input type="text" name="firstName" required style="margin-top:0.3rem;">
+                <div class="fl-field">
+                    <input type="text" name="firstName" required placeholder=" ">
+                    <label>First Name *</label>
                 </div>
-                <div class="form-group" style="margin:0;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Last Name *</label>
-                    <input type="text" name="lastName" required style="margin-top:0.3rem;">
+                <div class="fl-field">
+                    <input type="text" name="lastName" required placeholder=" ">
+                    <label>Last Name *</label>
                 </div>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Email *</label>
-                <input type="email" name="email" required style="margin-top:0.3rem;">
+            <div class="fl-field">
+                <input type="email" name="email" required placeholder=" ">
+                <label>Email *</label>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Role *</label>
-                <select name="role" required style="margin-top:0.3rem;">
+            <div class="fl-field has-value">
+                <select name="role" required>
                     <option value="admin">Admin</option>
                     <option value="staff" selected>Staff</option>
                     <option value="customer">Customer</option>
                 </select>
+                <label>Role *</label>
             </div>
             <div id="addUserEmailNote" style="display:none;background:#f0fff4;border:1px solid #9ae6b4;border-radius:10px;padding:0.75rem 1rem;font-size:0.82rem;color:#276749;display:none;align-items:center;gap:0.5rem;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
@@ -507,6 +566,14 @@ function editUser(userId) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Keep select fl-field label floated when value changes
+    document.querySelectorAll('#addUserModal .fl-field select').forEach(function(sel) {
+        sel.addEventListener('change', function() {
+            var wrap = sel.closest('.fl-field');
+            if (wrap) wrap.classList.toggle('has-value', sel.value !== '');
+        });
+    });
+
     var form = document.getElementById('addUserForm');
     if (!form) return;
 

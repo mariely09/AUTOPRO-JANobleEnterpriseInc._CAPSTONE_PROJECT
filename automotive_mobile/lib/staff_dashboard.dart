@@ -903,11 +903,11 @@ class _StaffDashboardState extends State<StaffDashboard> {
             final ongoing = myServices.where((s) => s['status'] == 'Ongoing').length;
             final pending = myServices.where((s) => s['status'] == 'Pending').length;
 
-            // Today's services — date stored as "Mon D, YYYY" e.g. "Apr 10, 2026"
+            // Today's services — ALL services today (not filtered by mechanic)
             final now = DateTime.now();
             const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
             final todayFormatted = '${months[now.month - 1]} ${now.day}, ${now.year}';
-            final todayServices = myServices.where((s) {
+            final todayServices = allServices.where((s) {
               final date = s['date'] as String? ?? '';
               return date == todayFormatted;
             }).toList();

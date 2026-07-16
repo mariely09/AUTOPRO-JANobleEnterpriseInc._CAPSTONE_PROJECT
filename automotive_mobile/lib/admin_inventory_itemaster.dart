@@ -150,11 +150,14 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
   }
 
   Future<String> _nextItemNum() async {
-    final snap = await _db.orderBy('createdAt', descending: true).limit(1).get();
-    if (snap.docs.isEmpty) return 'ITM-001';
-    final last = snap.docs.first['num'] as String? ?? 'ITM-000';
-    final n = int.tryParse(last.replaceAll('ITM-', '')) ?? 0;
-    return 'ITM-${(n + 1).toString().padLeft(3, '0')}';
+    final snap = await _db.get();
+    int maxNum = 0;
+    for (final doc in snap.docs) {
+      final n = int.tryParse(
+        (doc['num'] as String? ?? '').replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      if (n > maxNum) maxNum = n;
+    }
+    return 'ITM-${(maxNum + 1).toString().padLeft(3, '0')}';
   }
 
   @override
@@ -178,6 +181,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
             return {
               'id': d.id,
               'num': (data['num'] ?? '—').toString(),
+              'supplierCode': (data['supplierCode'] ?? '').toString(),
               'sku': (data['sku'] ?? '').toString(),
               'name': (data['name'] ?? '—').toString(),
               'desc': (data['desc'] ?? '').toString(),
@@ -335,8 +339,10 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                 child: Text(isSvc ? 'Service' : 'Material',
                   style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: typeColor)),
               ),
-              const SizedBox(width: 6),
-              Text(item['num']!, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+              if ((item['supplierCode'] as String? ?? '').isNotEmpty) ...[
+                const SizedBox(width: 6),
+                Text(item['supplierCode']!, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+              ],
             ]),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -381,10 +387,11 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
               padding: const EdgeInsets.all(20),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 _detailRow('Item Number', item['num'] ?? '—'),
+                if ((item['supplierCode'] as String? ?? '').isNotEmpty)
+                  _detailRow('Supplier Item Code', item['supplierCode']!),
                 if (!isSvc && (item['sku']?.isNotEmpty == true))
                   _detailRow('SKU', item['sku']!),
                 _detailRow('Item Name', item['name'] ?? '—'),
-                _detailRow('Description', item['desc']?.isNotEmpty == true ? item['desc']! : '—'),
                 _detailRow('Commodity Group', item['group']?.isNotEmpty == true ? item['group']! : '—'),
                 _detailRow('UOM', item['uom']?.isNotEmpty == true ? item['uom']! : '—'),
                 _detailRow('Cost', _fmtCost(item['cost'] ?? '')),
@@ -453,15 +460,16 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     }
 
     if (!mounted) return;
-    _showScanCodeModal(item['name'] ?? '', item['uom'] ?? '', barcodeVal, isBarcode: true);
+    _showScanCodeModal(item['name'] ?? '', item['supplierCode']?.isNotEmpty == true ? item['supplierCode']! : (item['num'] ?? ''), barcodeVal, isBarcode: true);
   }
 
   // ── Show existing or generate + save QR code ──
   void _showOrGenerateQR(Map<String, String> item) async {
     String qrVal = item['qr'] ?? '';
+    final supplierCode = item['supplierCode'] ?? item['num'] ?? '';
 
     if (qrVal.isEmpty) {
-      qrVal = 'QR-${item['num']?.toUpperCase() ?? ''}';
+      qrVal = 'QR-${supplierCode.toUpperCase()}';
       try {
         await _db.doc(item['id']).update({'qr': qrVal});
         item['qr'] = qrVal;
@@ -471,10 +479,10 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     }
 
     if (!mounted) return;
-    _showScanCodeModal(item['name'] ?? '', item['uom'] ?? '', qrVal, isBarcode: false);
+    _showScanCodeModal(item['name'] ?? '', supplierCode, qrVal, isBarcode: false);
   }
 
-  void _showScanCodeModal(String name, String uom, String value, {required bool isBarcode}) {
+  void _showScanCodeModal(String name, String subtitle, String value, {required bool isBarcode}) {
     showModalBottomSheet(
       context: context, isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -490,8 +498,8 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
           child: Row(children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-              if (uom.isNotEmpty)
-                Text(uom, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              if (subtitle.isNotEmpty)
+                Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 12)),
             ])),
             GestureDetector(onTap: () => Navigator.pop(context),
               child: const Icon(Icons.close, color: Colors.white)),
@@ -530,12 +538,26 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                       ),
                     ),
                   ])
-                : Center(
-                    child: QrImageView(
-                      data: value,
-                      version: QrVersions.auto,
-                      size: 180,
-                    )),
+                : Column(children: [
+                    Center(
+                      child: QrImageView(
+                        data: value,
+                        version: QrVersions.auto,
+                        size: 180,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      subtitle, // supplier code shown below QR
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 13,
+                        letterSpacing: 1.5,
+                        color: Color(0xFF1a202c),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ]),
           ),
         ),
       ]),
@@ -577,12 +599,18 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
 
     final groups = _cachedGroups!;
     final uoms = _cachedUoms!;
-    final itemNum = isEdit ? item!['num']! : await _nextItemNum();
-    if (!mounted) return;
+
+    // Auto-generate item number for new items
+    String newItemNum = '';
+    if (!isEdit) {
+      newItemNum = await _nextItemNum();
+      if (!mounted) return;
+    }
 
     final skuCtrl = TextEditingController(text: item?['sku'] ?? '');
     final nameCtrl = TextEditingController(text: item?['name'] ?? '');
-    final descCtrl = TextEditingController(text: item?['desc'] ?? '');
+    final supplierCodeCtrl = TextEditingController(text: item?['supplierCode'] ?? '');
+    final itemNumDisplay = isEdit ? (item!['num'] ?? '') : '';
     final costCtrl = TextEditingController(text: item?['cost']?.replaceAll('₱', '').replaceAll(',', '') ?? '');
     final barcodeCtrl = TextEditingController(text: item?['barcode'] ?? '');
     final qrCtrl = TextEditingController(text: item?['qr'] ?? '');
@@ -615,6 +643,26 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  TextField(controller: supplierCodeCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Supplier Item Code',
+                      border: OutlineInputBorder(),
+                    )),
+                  const SizedBox(height: 10),
+                  // Item Number — read-only display (auto-generated or existing)
+                  if (isEdit) ...[
+                    InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Item Number',
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Color(0xFFF7F8FA),
+                      ),
+                      child: Text(itemNumDisplay,
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF718096))),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   TextField(controller: nameCtrl,
                     decoration: const InputDecoration(labelText: 'Item Name *', border: OutlineInputBorder())),
                   const SizedBox(height: 10),
@@ -638,9 +686,6 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                     borderRadius: BorderRadius.circular(10),
                   ),
                   const SizedBox(height: 10),
-                  TextField(controller: descCtrl, maxLines: 2,
-                    decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
-                  const SizedBox(height: 10),
                   Row(children: [
                     Expanded(child: TextField(controller: costCtrl,
                       keyboardType: TextInputType.number,
@@ -659,7 +704,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                   if (selectedType == 'Material') ...[
                     const SizedBox(height: 10),
                     TextField(controller: skuCtrl, keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'SKU', border: OutlineInputBorder(), hintText: 'e.g. 10001')),
+                      decoration: const InputDecoration(labelText: 'SKU', border: OutlineInputBorder())),
                     const SizedBox(height: 10),
                     // Barcode field with scan-only button
                     Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -720,10 +765,10 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                         if (nameCtrl.text.trim().isEmpty) return;
                         setModalState(() => saving = true);
                         final data = <String, dynamic>{
-                          'num': itemNum,
+                          'num': isEdit ? (item!['num'] ?? '') : newItemNum,
+                          'supplierCode': supplierCodeCtrl.text.trim(),
                           'sku': skuCtrl.text.trim(),
                           'name': nameCtrl.text.trim(),
-                          'desc': descCtrl.text.trim(),
                           'group': selectedGroup ?? '',
                           'uom': selectedUom ?? '',
                           'cost': '₱${costCtrl.text.trim()}',
@@ -734,10 +779,34 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                         try {
                           if (isEdit) {
                             await _db.doc(item!['id']).update(data);
+                            // ── Sync matching stock_inventory record ──
+                            try {
+                              final oldNum = item['num'] as String? ?? '';
+                              final newNum = data['num'] as String? ?? oldNum;
+                              if (oldNum.isNotEmpty) {
+                                final stockSnap = await FirebaseFirestore.instance
+                                    .collection('stock_inventory')
+                                    .where('num', isEqualTo: oldNum)
+                                    .limit(1).get();
+                                if (stockSnap.docs.isNotEmpty) {
+                                  final stockSync = <String, dynamic>{
+                                    'num':          newNum.isNotEmpty ? newNum : oldNum,
+                                    'supplierCode': data['supplierCode'] ?? '',
+                                    'name':         data['name'] ?? '',
+                                    'group':        data['group'] ?? '',
+                                    'uom':          data['uom'] ?? '',
+                                    'updatedAt':    FieldValue.serverTimestamp(),
+                                  };
+                                  await stockSnap.docs.first.reference.update(stockSync);
+                                }
+                              }
+                            } catch (syncErr) {
+                              debugPrint('Stock sync error: $syncErr');
+                            }
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
                               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Item updated successfully!')]),
+                                content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Updated successfully!')]),
                                 backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                             }
@@ -747,7 +816,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
                               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Item added successfully!')]),
+                                content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Added successfully!')]),
                                 backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                               if (selectedType == 'Material' && context.mounted) {
@@ -774,7 +843,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                                   ),
                                 );
                                 if (shouldSetStock == true && context.mounted) {
-                                  _showSetStockModal(itemNum, nameCtrl.text.trim(), selectedGroup ?? '', selectedUom ?? '');
+                                  _showSetStockModal(newItemNum, nameCtrl.text.trim(), selectedGroup ?? '', selectedUom ?? '');
                                 }
                               }
                             }
@@ -914,7 +983,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                               content: Row(children: const [
                                 Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
                                 SizedBox(width: 8),
-                                Text('Stock item added successfully!'),
+                                Text('Added successfully!'),
                               ]),
                               backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
@@ -951,16 +1020,27 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Item'),
-        content: Text('Delete "${item['name']}"?'),
+        content: Text('Delete "${item['name']}"? This will also remove it from Stock Inventory.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
               try {
+                // Delete from item_master
                 await _db.doc(item['id']).delete();
+                // Also delete matching stock_inventory record
+                try {
+                  final stockSnap = await FirebaseFirestore.instance
+                      .collection('stock_inventory')
+                      .where('num', isEqualTo: item['num'])
+                      .limit(1).get();
+                  if (stockSnap.docs.isNotEmpty) {
+                    await stockSnap.docs.first.reference.delete();
+                  }
+                } catch (_) {} // non-fatal
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Item deleted successfully!')]),
+                  content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Deleted successfully!')]),
                   backgroundColor: Colors.red, behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
               } catch (e) {

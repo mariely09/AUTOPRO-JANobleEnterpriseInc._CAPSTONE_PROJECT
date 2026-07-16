@@ -175,6 +175,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   return {...data, 'docId': d.id};
                 }).toList();
 
+                // Only count Completed services in charts
+                final completedServices = allServices
+                    .where((s) => (s['status'] as String? ?? '').toLowerCase() == 'completed')
+                    .toList();
+
                 // Stats
                 final totalVehicles = vehicleSnap.data?.docs.length ?? 0;
                 final totalUsers = usersSnap.data?.docs.length ?? 0;
@@ -250,9 +255,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   dayKeyToLabel[key] = label;
                 }
 
-                // Collect all service type names from svcRows
+                // Collect all service type names from svcRows (completed only)
                 final Map<String, int> typeCount = {};
-                for (final s in allServices) {
+                for (final s in completedServices) {
                   final rows = s['svcRows'] as List? ?? [];
                   if (rows.isNotEmpty) {
                     for (final r in rows) {
@@ -273,12 +278,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   Color(0xFFf59e0b), Color(0xFFE8001C), Color(0xFF7c3aed),
                 ];
 
-                // Count per type per day
+                // Count per type per day (completed services only)
                 Map<String, List<double>> typeDataMap = {};
                 for (final type in allTypes) {
                   typeDataMap[type] = List.generate(7, (di) {
                     final key = last7Keys[di];
-                    final dayServices = allServices.where((s) =>
+                    final dayServices = completedServices.where((s) =>
                       (s['date'] as String? ?? '') == key).toList();
                     return dayServices.fold<double>(0, (acc, s) {
                       final rows = s['svcRows'] as List? ?? [];
@@ -305,6 +310,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   }
                   if (cumulative > stackedMaxY) stackedMaxY = cumulative;
                 }
+
+                // Total completed services in the last 7 days (for badge)
+                final total7 = last7Keys.fold<int>(0, (s, k) =>
+                  s + completedServices.where((sv) => (sv['date'] as String? ?? '') == k).length);
 
                 // ── Chart 2: Vehicle status donut ──
                 // Mirrors admin_dss.dart exactly: maintenance first, then date-math.
@@ -535,7 +544,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                               const Text('Services by Type — Last 7 Days',
                                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
-                              const Text('Top service types performed per day',
+                              const Text('Completed service types per day',
                                 style: TextStyle(fontSize: 10, color: Color(0xFF718096))),
                             ])),
                             // Badge: total count

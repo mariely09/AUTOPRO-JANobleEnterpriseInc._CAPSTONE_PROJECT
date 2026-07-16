@@ -7,6 +7,53 @@
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
     <link rel="stylesheet" href="../static/css/style.css">
     <link rel="stylesheet" href="../static/css/admin.css">
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+/* ── Floating label fields ── */
+.fl-field {
+    position: relative;
+    width: 100%;
+}
+.fl-field input {
+    width: 100%;
+    padding: 1rem 1rem 0.4rem 1rem;
+    border: 1.5px solid #c5cdd9;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    color: #1a202c;
+    background: white;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.fl-field input:focus {
+    border-color: #E31E24;
+    box-shadow: 0 0 0 3px rgba(227, 30, 36, 0.12);
+}
+.fl-field > label {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.88rem;
+    color: #a0aec0;
+    pointer-events: none;
+    transition: all 0.18s ease;
+    background: white;
+    padding: 0 0.2rem;
+    line-height: 1;
+}
+.fl-field input:focus ~ label,
+.fl-field input:not(:placeholder-shown) ~ label {
+    top: 0;
+    transform: translateY(-50%);
+    font-size: 0.72rem;
+    color: #718096;
+}
+.fl-field input:focus ~ label { color: #E31E24; }
+.fl-field input::placeholder { color: transparent; }
+</style>
 </head>
 <body class="portal-body" data-page="domains">
 
@@ -66,9 +113,9 @@
             <button onclick="closeModal('dmItemModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
         </div>
         <div style="padding:1.5rem;background:#f8fafc;">
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Name *</label>
-                <input type="text" id="dmItemName" placeholder="Enter name..." style="margin-top:0.3rem;">
+            <div class="fl-field">
+                <input type="text" id="dmItemName" placeholder=" ">
+                <label>Name *</label>
             </div>
         </div>
         <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;">
@@ -264,9 +311,12 @@ function dmOpenEditModal(docId, name) {
   _dmEditingDocId = docId;
   document.getElementById('dmModalTitle').textContent = 'Edit Item';
   document.getElementById('dmSaveBtn').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update';
-  document.getElementById('dmItemName').value = name;
+  var input = document.getElementById('dmItemName');
+  input.value = name;
+  // Trigger :not(:placeholder-shown) by dispatching an input event
+  input.dispatchEvent(new Event('input'));
   document.getElementById('dmItemModal').classList.add('active');
-  setTimeout(function(){ document.getElementById('dmItemName').focus(); }, 100);
+  setTimeout(function(){ input.focus(); }, 100);
 }
 
 // ── Save item ───────────────────────────────────────────────
@@ -275,14 +325,20 @@ function dmSaveItem() {
   if (!name) { showToast('Please enter a name.', 'error'); return; }
   var db = firebase.firestore();
   var col = db.collection('domains').doc(_dmCurrentKey).collection('items');
+  var btn = document.getElementById('dmSaveBtn');
+  var origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving…';
   if (_dmEditingDocId) {
     col.doc(_dmEditingDocId).update({ name: name })
-      .then(function(){ closeModal('dmItemModal'); showToast('Item updated successfully!', 'success'); })
-      .catch(function(e){ showToast('Error: ' + e.message, 'error'); });
+      .then(function(){ closeModal('dmItemModal'); showToast('Updated successfully!', 'success'); })
+      .catch(function(e){ showToast('Error: ' + e.message, 'error'); })
+      .finally(function(){ btn.disabled = false; btn.innerHTML = origHtml; });
   } else {
     col.add({ name: name, createdAt: firebase.firestore.FieldValue.serverTimestamp() })
-      .then(function(){ closeModal('dmItemModal'); showToast('Item added successfully!', 'success'); })
-      .catch(function(e){ showToast('Error: ' + e.message, 'error'); });
+      .then(function(){ closeModal('dmItemModal'); showToast('Added successfully!', 'success'); })
+      .catch(function(e){ showToast('Error: ' + e.message, 'error'); })
+      .finally(function(){ btn.disabled = false; btn.innerHTML = origHtml; });
   }
 }
 
@@ -290,7 +346,7 @@ function dmSaveItem() {
 function dmDeleteItem(docId, name) {
   if (!confirm('Delete "' + name + '"?')) return;
   firebase.firestore().collection('domains').doc(_dmCurrentKey).collection('items').doc(docId).delete()
-    .then(function(){ showToast('Item deleted successfully!', 'error'); })
+    .then(function(){ showToast('Deleted successfully!', 'error'); })
     .catch(function(e){ showToast('Error: ' + e.message, 'error'); });
 }
 

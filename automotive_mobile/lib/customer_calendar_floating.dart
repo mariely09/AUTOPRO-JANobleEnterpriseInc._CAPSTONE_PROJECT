@@ -159,7 +159,7 @@ class _CustomerCalendarFloatingState extends State<CustomerCalendarFloating>
       case 'today'   : return const Color(0xFF0033A0);
       case 'week'    : return const Color(0xFFed8936);
       case 'booking' : return const Color(0xFF7c3aed);
-      default        : return const Color(0xFF003087);
+      default        : return const Color(0xFFEAB308);
     }
   }
 
@@ -347,7 +347,7 @@ class _CustomerCalendarFloatingState extends State<CustomerCalendarFloating>
           child: Wrap(spacing: 12, runSpacing: 4, children: [
             _legendItem(const Color(0xFFE8001C), 'Overdue'),
             _legendItem(const Color(0xFFed8936), 'This Week'),
-            _legendItem(const Color(0xFF003087), 'Upcoming'),
+            _legendItem(const Color(0xFFEAB308), 'Upcoming'),
             _legendItem(const Color(0xFF0033A0), 'Today'),
             _legendItem(const Color(0xFF7c3aed), 'Booked'),
           ]),

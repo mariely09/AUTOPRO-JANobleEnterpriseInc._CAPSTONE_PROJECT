@@ -208,6 +208,8 @@
       window.inventory = window._fbInventory.map(i => ({
         id: i._id,
         itemNum: i.num || i._id,
+        supplierCode: i.supplierCode || '',
+        sku: i.sku || '',
         itemName: i.name || '',
         commodityGroup: i.group || '',
         unit: i.uom || '',
@@ -253,6 +255,7 @@
       window.itemMaster = window._fbItemMaster.map(i => ({
         id: i._id,
         itemNum: i.num || i._id,
+        supplierCode: i.supplierCode || '',
         itemName: i.name || '',
         description: i.desc || i.description || '',
         commodityGroup: i.group || '',

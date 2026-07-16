@@ -251,14 +251,8 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         checks.add('✅ Customer Verified: Active');
       }
 
-      // 6. Capacity Check — Sunday is closed
-      if (bookDate.weekday == DateTime.sunday) {
-        autoApprove = false;
-        denyReason = 'Shop is closed on Sundays.';
-        checks.add('❌ Capacity: Shop closed (Sunday)');
-      } else {
-        checks.add('✅ Capacity: Shop open');
-      }
+      // 6. Capacity Check — shop is open all days
+      checks.add('✅ Capacity: Shop open');
 
       // 7. Duplicate time slot — same date, same time already taken
       final timeSnap = await db.collection('service_bookings')
@@ -632,31 +626,22 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         // Suggest 3 days before earliest PMS due
         bestSuggestion = earliestPmsDue.subtract(const Duration(days: 3));
         if (bestSuggestion!.isBefore(tomorrow)) bestSuggestion = tomorrow;
-        // Skip Sunday
-        while (bestSuggestion!.weekday == DateTime.sunday) {
-          bestSuggestion = bestSuggestion!.subtract(const Duration(days: 1));
-        }
-        if (bestSuggestion!.isBefore(tomorrow)) bestSuggestion = tomorrow;
         reason = 'PMS due ${_fmtDatePretty(earliestPmsDue)} — book before it\'s overdue';
       } else {
-        // Overdue — suggest tomorrow (skip Sunday)
+        // Overdue — suggest tomorrow
         bestSuggestion = tomorrow;
-        while (bestSuggestion!.weekday == DateTime.sunday) {
-          bestSuggestion = bestSuggestion!.add(const Duration(days: 1));
-        }
         reason = 'PMS is overdue — book ASAP';
       }
     }
 
     if (bestSuggestion == null) {
-      // Default: next available weekday (not Sunday, not fully booked)
+      // Default: next available weekday (not fully booked)
       bestSuggestion = tomorrow;
       int attempts = 0;
       while (attempts < 30) {
         final dateStr = '${bestSuggestion!.year}-${bestSuggestion!.month.toString().padLeft(2, '0')}-${bestSuggestion!.day.toString().padLeft(2, '0')}';
-        final isSunday = bestSuggestion!.weekday == DateTime.sunday;
         final isFull = (_bookedDates[dateStr]?.length ?? 0) >= _allTimeSlots.length;
-        if (!isSunday && !isFull) break;
+        if (!isFull) break;
         bestSuggestion = bestSuggestion!.add(const Duration(days: 1));
         attempts++;
       }
@@ -666,9 +651,8 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       int attempts = 0;
       while (attempts < 14) {
         final dateStr = '${bestSuggestion!.year}-${bestSuggestion!.month.toString().padLeft(2, '0')}-${bestSuggestion!.day.toString().padLeft(2, '0')}';
-        final isSunday = bestSuggestion!.weekday == DateTime.sunday;
         final isFull = (_bookedDates[dateStr]?.length ?? 0) >= _allTimeSlots.length;
-        if (!isSunday && !isFull) break;
+        if (!isFull) break;
         bestSuggestion = bestSuggestion!.add(const Duration(days: 1));
         attempts++;
       }
@@ -791,14 +775,13 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
               final date = DateTime(_calYear, _calMonth, day);
               final dateStr = '${_calYear}-${_calMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
               final isPast = date.isBefore(todayMidnight);
-              final isSunday = date.weekday == DateTime.sunday;
               final takenSlots = _bookedDates[dateStr] ?? [];
               final isFull = takenSlots.length >= _allTimeSlots.length;
               final isSelected = _preferredDate != null &&
                   _preferredDate!.year == _calYear &&
                   _preferredDate!.month == _calMonth &&
                   _preferredDate!.day == day;
-              final isClosed = isPast || isSunday;
+              final isClosed = isPast;
               final isAvailable = !isClosed && !isFull;
 
               Color bgColor;

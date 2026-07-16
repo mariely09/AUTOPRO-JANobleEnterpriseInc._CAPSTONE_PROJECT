@@ -21,6 +21,8 @@ class _AdminVehiclesListState extends State<AdminVehiclesList> {
   int _tab = 0;
   bool _searching = false;
   final _searchCtrl = TextEditingController();
+  String _maintSortBy = 'date-desc';
+  String _vehicleSortBy = 'plate-asc';
 
   static const _tabs = ['Vehicles', 'Maintenance', 'Bookings', 'Issuances'];
   static const _tabTitles = ['Vehicle List', 'Maintenance', 'Bookings', 'Issuances'];
@@ -29,6 +31,19 @@ class _AdminVehiclesListState extends State<AdminVehiclesList> {
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  PopupMenuItem<String> _sortItem(String val, String label, IconData icon, String activeSortBy) {
+    final active = activeSortBy == val;
+    return PopupMenuItem(
+      value: val,
+      child: Row(children: [
+        Icon(icon, size: 16, color: active ? _red : const Color(0xFF718096)),
+        const SizedBox(width: 10),
+        Text(label, style: TextStyle(fontWeight: active ? FontWeight.w700 : FontWeight.normal, color: active ? _red : const Color(0xFF1a202c))),
+        if (active) ...[const Spacer(), const Icon(Icons.check, size: 14, color: _red)],
+      ]),
+    );
   }
 
   @override
@@ -61,6 +76,39 @@ class _AdminVehiclesListState extends State<AdminVehiclesList> {
               if (!_searching) _searchCtrl.clear();
             }),
           ),
+          if (_tab == 0 && !_searching)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (val) => setState(() => _vehicleSortBy = val),
+              itemBuilder: (_) => [
+                const PopupMenuItem(enabled: false, child: Text('Sort By', style: TextStyle(fontSize: 11, color: Color(0xFF718096), fontWeight: FontWeight.w700))),
+                _sortItem('plate-asc',  'Plate A→Z',            Icons.sort_by_alpha,   _vehicleSortBy),
+                _sortItem('plate-desc', 'Plate Z→A',             Icons.sort_by_alpha,   _vehicleSortBy),
+                _sortItem('owner-asc',  'Owner A→Z',             Icons.person_outline,  _vehicleSortBy),
+                _sortItem('owner-desc', 'Owner Z→A',             Icons.person_outline,  _vehicleSortBy),
+                _sortItem('pms-asc',    'Next PMS ↑ Soonest',   Icons.event_outlined,  _vehicleSortBy),
+                _sortItem('pms-desc',   'Next PMS ↓ Latest',    Icons.event_outlined,  _vehicleSortBy),
+                _sortItem('odo-desc',   'Odometer ↑ Highest',   Icons.trending_up,     _vehicleSortBy),
+                _sortItem('odo-asc',    'Odometer ↓ Lowest',    Icons.trending_down,   _vehicleSortBy),
+              ],
+            ),
+          if (_tab == 1 && !_searching)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (val) => setState(() => _maintSortBy = val),
+              itemBuilder: (_) => [
+                const PopupMenuItem(enabled: false, child: Text('Sort By', style: TextStyle(fontSize: 11, color: Color(0xFF718096), fontWeight: FontWeight.w700))),
+                _sortItem('date-desc',    'Date ↓ Newest',  Icons.arrow_downward, _maintSortBy),
+                _sortItem('date-asc',     'Date ↑ Oldest',  Icons.arrow_upward,   _maintSortBy),
+                _sortItem('plate-asc',    'Plate A→Z',       Icons.sort_by_alpha,  _maintSortBy),
+                _sortItem('plate-desc',   'Plate Z→A',       Icons.sort_by_alpha,  _maintSortBy),
+                _sortItem('mechanic-asc', 'Mechanic A→Z',    Icons.person_outline, _maintSortBy),
+                _sortItem('cost-desc',    'Cost ↑ Highest',  Icons.trending_up,    _maintSortBy),
+                _sortItem('cost-asc',     'Cost ↓ Lowest',   Icons.trending_down,  _maintSortBy),
+              ],
+            ),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(44),
@@ -98,8 +146,8 @@ class _AdminVehiclesListState extends State<AdminVehiclesList> {
       body: IndexedStack(
         index: _tab,
         children: [
-          AdminVehiclesListBody(searchQuery: _tab == 0 && _searching ? _searchCtrl.text.toLowerCase() : ''),
-          AdminVehicleMaintenanceBody(searchQuery: _tab == 1 && _searching ? _searchCtrl.text.toLowerCase() : ''),
+          AdminVehiclesListBody(searchQuery: _tab == 0 && _searching ? _searchCtrl.text.toLowerCase() : '', sortBy: _vehicleSortBy),
+          AdminVehicleMaintenanceBody(searchQuery: _tab == 1 && _searching ? _searchCtrl.text.toLowerCase() : '', sortBy: _maintSortBy),
           AdminServiceBookingsBody(searchQuery: _tab == 2 && _searching ? _searchCtrl.text.toLowerCase() : ''),
           AdminIssuancesBody(searchQuery: _tab == 3 && _searching ? _searchCtrl.text.toLowerCase() : ''),
         ],
@@ -111,7 +159,8 @@ class _AdminVehiclesListState extends State<AdminVehiclesList> {
 /// Embeddable body — can be placed inside any parent (e.g. a tab in the dashboard).
 class AdminVehiclesListBody extends StatefulWidget {
   final String searchQuery;
-  const AdminVehiclesListBody({super.key, this.searchQuery = ''});
+  final String sortBy;
+  const AdminVehiclesListBody({super.key, this.searchQuery = '', this.sortBy = 'plate-asc'});
 
   @override
   State<AdminVehiclesListBody> createState() => _AdminVehiclesListBodyState();
@@ -199,8 +248,38 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
             'lastSvcDate': data['lastSvcDate']?.toString() ?? '',
             'svcFreq': data['svcFreq']?.toString() ?? '',
           };
-        }).toList()
-          ..sort((a, b) => (a['plate'] as String).compareTo(b['plate'] as String));
+        }).toList();
+
+        // Apply sort
+        vehicles.sort((a, b) {
+          switch (widget.sortBy) {
+            case 'plate-desc': return (b['plate'] as String).compareTo(a['plate'] as String);
+            case 'owner-asc':  return (a['owner'] as String).compareTo(b['owner'] as String);
+            case 'owner-desc': return (b['owner'] as String).compareTo(a['owner'] as String);
+            case 'pms-asc':
+            case 'pms-desc': {
+              String pms(Map<String,String> v) {
+                final d = v['lastSvcDate'] ?? ''; final f = v['svcFreq'] ?? '';
+                if (d.isEmpty || f.isEmpty) return '9999-99-99';
+                final dt = DateTime.tryParse(d); final m = int.tryParse(f);
+                if (dt == null || m == null) return '9999-99-99';
+                final next = DateTime(dt.year, dt.month + m, dt.day);
+                return '${next.year}-${next.month.toString().padLeft(2,'0')}-${next.day.toString().padLeft(2,'0')}';
+              }
+              final cmp = pms(a).compareTo(pms(b));
+              return widget.sortBy == 'pms-asc' ? cmp : -cmp;
+            }
+            case 'odo-asc':
+              final oa = int.tryParse((a['odo'] as String).replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+              final ob = int.tryParse((b['odo'] as String).replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+              return oa.compareTo(ob);
+            case 'odo-desc':
+              final oa2 = int.tryParse((a['odo'] as String).replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+              final ob2 = int.tryParse((b['odo'] as String).replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+              return ob2.compareTo(oa2);
+            default: return (a['plate'] as String).compareTo(b['plate'] as String); // plate-asc
+          }
+        });
 
         final filtered = widget.searchQuery.isEmpty
             ? vehicles
@@ -439,9 +518,6 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                 decoration: const BoxDecoration(color: _red,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
                 child: Row(children: [
-                  Container(width: 44, height: 44,
-                    decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(12)),
-                    child: Icon(isEdit ? Icons.edit_outlined : Icons.add, color: Colors.white, size: 22)),
                   const SizedBox(width: 12),
                   Expanded(child: Text(isEdit ? 'Edit Vehicle' : 'Add Vehicle',
                     style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
@@ -455,10 +531,10 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                   TextField(controller: plateCtrl,
                     textCapitalization: TextCapitalization.characters,
                     inputFormatters: [_PlateNumberFormatter()],
-                    decoration: const InputDecoration(labelText: 'Plate Number *', border: OutlineInputBorder(), hintText: 'e.g. ABC-1234')),
+                    decoration: const InputDecoration(labelText: 'Plate Number *', border: OutlineInputBorder())),
                   const SizedBox(height: 10),
                   TextField(controller: descCtrl,
-                    decoration: const InputDecoration(labelText: 'Description *', border: OutlineInputBorder(), hintText: 'e.g. Isuzu Truck NQR 2021')),
+                    decoration: const InputDecoration(labelText: 'Description *', border: OutlineInputBorder())),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     value: selectedType,
@@ -475,7 +551,7 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                     decoration: const InputDecoration(labelText: 'Current Odometer (km)', border: OutlineInputBorder(), suffixText: 'km')),
                   const SizedBox(height: 10),
                   TextField(controller: svcFreqCtrl, keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Service Frequency (months)', border: OutlineInputBorder(), hintText: 'e.g. 3')),
+                    decoration: const InputDecoration(labelText: 'Service Frequency (months)', border: OutlineInputBorder())),
                   const SizedBox(height: 10),
                   // ── Just Serviced Toggle ──
                   _JustServicedSection(
@@ -515,7 +591,7 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                                   content: Row(children: const [
                                     Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
                                     SizedBox(width: 8),
-                                    Text('Vehicle updated successfully!'),
+                                    Text('Updated successfully!'),
                                   ]),
                                   backgroundColor: Colors.green,
                                   behavior: SnackBarBehavior.floating,
@@ -544,7 +620,7 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                                   content: Row(children: const [
                                     Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
                                     SizedBox(width: 8),
-                                    Text('Vehicle added successfully!'),
+                                    Text('Added successfully!'),
                                   ]),
                                   backgroundColor: Colors.green,
                                   behavior: SnackBarBehavior.floating,
@@ -591,7 +667,7 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                     content: Row(children: const [
                       Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
                       SizedBox(width: 8),
-                      Text('Vehicle deleted successfully!'),
+                      Text('Deleted successfully!'),
                     ]),
                     backgroundColor: Colors.red,
                     behavior: SnackBarBehavior.floating,
@@ -823,30 +899,27 @@ class _JustServicedSectionState extends State<_JustServicedSection> {
   }
 }
 
-/// Philippine plate number formatter: AAA-1234 (3 letters, dash, 4 digits)
+/// Philippine plate number formatter: AAA 1234 (3 letters, space, 4 digits)
 class _PlateNumberFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
       TextEditingValue oldValue, TextEditingValue newValue) {
-    // Strip everything except letters and digits
+    final isDeleting = newValue.text.length < oldValue.text.length;
     final raw = newValue.text.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    final letters = raw.replaceAll(RegExp(r'[^A-Z]'), '');
+    final digits  = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    final l = letters.substring(0, letters.length.clamp(0, 3));
+    final d = digits.substring(0, digits.length.clamp(0, 4));
 
-    final buffer = StringBuffer();
-    for (int i = 0; i < raw.length && i < 7; i++) {
-      if (i < 3) {
-        // First 3 must be letters
-        if (RegExp(r'[A-Z]').hasMatch(raw[i])) buffer.write(raw[i]);
-      } else if (i == 3) {
-        // Auto-insert dash after 3 letters
-        if (buffer.length == 3) buffer.write('-');
-        if (RegExp(r'[0-9]').hasMatch(raw[i])) buffer.write(raw[i]);
-      } else {
-        // Remaining must be digits
-        if (RegExp(r'[0-9]').hasMatch(raw[i])) buffer.write(raw[i]);
-      }
+    String result;
+    if (d.isNotEmpty) {
+      result = '$l $d';
+    } else if (l.length == 3 && !isDeleting) {
+      result = '$l ';
+    } else {
+      result = l;
     }
 
-    final result = buffer.toString();
     return TextEditingValue(
       text: result,
       selection: TextSelection.collapsed(offset: result.length),

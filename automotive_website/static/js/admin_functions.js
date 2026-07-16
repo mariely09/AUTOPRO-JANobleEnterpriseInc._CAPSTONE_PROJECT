@@ -204,7 +204,7 @@ function renderAssetsList() {
     var assets = window.assets || [];
 
     if (assets.length === 0) {
-        assetsList.innerHTML = '<div class="table-row" style="text-align:center;color:#718096;padding:2rem;">No assets found.</div>';
+        assetsList.innerHTML = '<div class="table-row" style="text-align:center;color:#718096;padding:2rem;">No vehicles found.</div>';
         return;
     }
 
@@ -619,7 +619,7 @@ function renderServicesList() {
         }
         topActions += '<button class="btn-small btn-danger" onclick="deleteService(\''+s.serviceId+'\')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
 
-        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 1fr 1fr 1fr 160px;">'
+        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 1fr 1fr 1fr 120px;">'
             + '<div>' + (s.dateServiced ? new Date(s.dateServiced).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '-') + '</div>'
             + '<div><strong>' + (s.assetNum||'-') + '</strong></div>'
             + '<div>' + (s.assetDescription||'-') + '</div>'
@@ -1221,11 +1221,11 @@ function renderInventoryList() {
             : isOver
             ? '<span style="display:inline-block;background:rgba(128,90,213,0.07);color:#805ad5;border:1.5px solid #805ad5;padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">Over Max</span>'
             : '<span style="display:inline-block;background:rgba(56,161,105,0.07);color:#38a169;border:1.5px solid #38a169;padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">In Stock</span>';
-        return '<div class="table-row" style="grid-template-columns:100px 1.5fr 70px 140px 80px 80px 80px 90px 130px 110px;">'
-            + '<div><strong>' + item.itemNum + '</strong></div>'
+        return '<div class="table-row" style="grid-template-columns:1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 0.7fr 0.8fr 1fr 110px;min-width:900px;">'
+            + '<div><strong>' + (item.supplierCode || '—') + '</strong></div>'
             + '<div>' + item.itemName + '</div>'
             + '<div>' + (item.unit||'-') + '</div>'
-            + '<div style="text-align:center;">' + (item.commodityGroup||'-') + '</div>'
+            + '<div>' + (item.commodityGroup||'-') + '</div>'
             + '<div style="text-align:center;font-weight:700;color:'+(isOut?'#e53e3e':isLow?'#d69e2e':'#1a202c')+';">' + item.stock + '</div>'
             + '<div style="text-align:center;">' + (item.minLevel||0) + '</div>'
             + '<div style="text-align:center;">' + (item.maxLevel||0) + '</div>'
@@ -1749,10 +1749,10 @@ function renderItemMasterList() {
     }
 
     var rows = filtered.map(function(item) {
-        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 1fr 1fr 1fr 1fr 120px;">'
+        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 110px;min-width:900px;">'
             + '<div><strong>' + item.itemNum + '</strong></div>'
+            + '<div>' + (item.supplierCode || '—') + '</div>'
             + '<div>' + item.itemName + '</div>'
-            + '<div>' + (item.description||'-') + '</div>'
             + '<div>' + (item.uom||'-') + '</div>'
             + '<div>' + (item.commodityGroup||'-') + '</div>'
             + '<div><span style="display:inline-block;background:'+(item.itemType==='Service'?'rgba(0,51,160,0.07)':'rgba(229,62,62,0.07)')+';color:'+(item.itemType==='Service'?'#0033A0':'#e53e3e')+';border:1.5px solid '+(item.itemType==='Service'?'#0033A0':'#e53e3e')+';padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">' + (item.itemType||'-') + '</span></div>'
@@ -1819,9 +1819,12 @@ function openAddItemMasterModal() {
     var submitBtn = document.getElementById('imSubmitBtn');
     if (submitBtn) submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
     document.getElementById('addItemMasterForm').reset();
+    // Clear supplier code field separately (not in standard form reset scope)
+    var scEl = document.getElementById('itemMasterSupplierCode');
+    if (scEl) scEl.value = '';
     populateItemMasterDropdowns();
+    // Auto-generate next ITM-XXX number
     var itemMaster = window.itemMaster || [];
-    // Find highest existing ITM-XXX number and increment — same as mobile app
     var maxNum = 0;
     itemMaster.forEach(function(i) {
         var n = parseInt((i.itemNum || '').replace(/[^0-9]/g, '')) || 0;
@@ -1843,8 +1846,10 @@ function editItemMaster(itemNum) {
 
     var form = document.getElementById('addItemMasterForm');
     form.elements.itemNum.value = item.itemNum;
+    var supplierCodeEl = document.getElementById('itemMasterSupplierCode');
+    if (supplierCodeEl) supplierCodeEl.value = item.supplierCode || '';
     form.elements.itemName.value = item.itemName || '';
-    form.elements.description.value = item.description || '';
+    if (form.elements.description) form.elements.description.value = item.description || '';
     form.elements.sku.value = item.sku || '';
     form.elements.cost.value = item.cost || '';
     form.elements.itemType.value = item.itemType || '';
@@ -1938,6 +1943,7 @@ function viewItemMasterDetails(itemNum) {
     var isService = (item.itemType || '') === 'Service';
     var rows = [
         ['Item Number', item.itemNum || '—'],
+        ['Supplier Item Code', item.supplierCode || '—'],
     ];
     if (!isService && item.sku) rows.push(['SKU', item.sku]);
     rows.push(
@@ -2007,13 +2013,16 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             var form = e.target;
             var itemNum = form.elements.itemNum.value.trim();
+            var supplierCodeEl = document.getElementById('itemMasterSupplierCode');
+            var supplierCode = supplierCodeEl ? supplierCodeEl.value.trim() : '';
             var itemName = form.elements.itemName.value.trim();
             if (!itemName) { alert('Item Name is required.'); return; }
 
             var data = {
-                num:    itemNum,
-                name:   itemName,
-                desc:   form.elements.description.value.trim(),
+                num:          itemNum,
+                supplierCode: supplierCode,
+                name:         itemName,
+                desc:   form.elements.description ? form.elements.description.value.trim() : '',
                 sku:    form.elements.sku.value.trim(),
                 group:  form.elements.commodityGroup.value,
                 uom:    form.elements.uom.value,
@@ -2040,6 +2049,32 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(function() {
                         showToast('Item updated successfully!', 'success');
                         closeModal('addItemMasterModal');
+                        // ── Sync matching stock_inventory record ──
+                        // Use the OLD num (before edit) to find the stock doc,
+                        // then update all mirrored fields with new values
+                        var oldNum = currentEditingItemMaster.itemNum || fbItem.num || '';
+                        if (oldNum) {
+                            db.collection('stock_inventory')
+                              .where('num', '==', oldNum)
+                              .limit(1).get()
+                              .then(function(snap) {
+                                  if (!snap.empty) {
+                                      var stockSync = {
+                                          num:          data.num  || oldNum,
+                                          supplierCode: data.supplierCode || '',
+                                          name:         data.name || '',
+                                          group:        data.group || '',
+                                          uom:          data.uom  || '',
+                                          sku:          data.sku  || '',
+                                          updatedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+                                      };
+                                      snap.docs[0].ref.update(stockSync)
+                                          .then(function() { console.log('Stock inventory synced.'); })
+                                          .catch(function(e) { console.warn('Stock sync error:', e); });
+                                  }
+                              })
+                              .catch(function(e) { console.warn('Stock sync query error:', e); });
+                        }
                     })
                     .catch(function(err) { showToast('Update failed: ' + err.message, 'error'); })
                     .finally(function() { if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update'; } });

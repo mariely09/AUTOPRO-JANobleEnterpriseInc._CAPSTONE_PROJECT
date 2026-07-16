@@ -518,7 +518,7 @@ function renderDSSTable() {
             // Item
             + '<td class="dss-td">'
             + '<div class="dss-item-name">' + i.itemName + '</div>'
-            + '<div class="dss-item-sub">' + i.itemNum + ' &nbsp;·&nbsp; ' + (i.unit || i.uom || '—') + '</div>'
+            + '<div class="dss-item-sub">' + (i.supplierCode || i.itemNum || '—') + ' &nbsp;·&nbsp; ' + (i.unit || i.uom || '—') + '</div>'
             + '</td>'
             // Stock status
             + '<td class="dss-td">'
