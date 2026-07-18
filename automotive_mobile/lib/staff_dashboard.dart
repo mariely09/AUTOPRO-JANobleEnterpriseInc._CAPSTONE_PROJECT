@@ -1045,7 +1045,16 @@ class _StaffDashboardState extends State<StaffDashboard> {
       final clean = raw.replaceAll('₱', '').replaceAll(',', '').trim();
       final val = double.tryParse(clean);
       if (val == null) return raw.startsWith('₱') ? raw : '₱$raw';
-      return '₱${val.toStringAsFixed(2)}';
+      final parts = val.toStringAsFixed(2).split('.');
+      final intPart = parts[0];
+      final decPart = parts[1];
+      if (intPart.length < 4) return '₱${val.toStringAsFixed(2)}';
+      final buf = StringBuffer();
+      for (int i = 0; i < intPart.length; i++) {
+        if (i > 0 && (intPart.length - i) % 3 == 0) buf.write(',');
+        buf.write(intPart[i]);
+      }
+      return '₱$buf.$decPart';
     }
 
     Widget detailRow(String label, String value) => Padding(
@@ -1057,6 +1066,19 @@ class _StaffDashboardState extends State<StaffDashboard> {
           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1a202c)))),
       ]),
     );
+
+    String formatNumber(double val) {
+      final parts = val.toStringAsFixed(2).split('.');
+      final intPart = parts[0];
+      final decPart = parts[1];
+      if (intPart.length < 4) return val.toStringAsFixed(2);
+      final buf = StringBuffer();
+      for (int i = 0; i < intPart.length; i++) {
+        if (i > 0 && (intPart.length - i) % 3 == 0) buf.write(',');
+        buf.write(intPart[i]);
+      }
+      return '$buf.$decPart';
+    }
 
     Widget rowDetailCard(dynamic r, {required bool isService}) {
       final name     = r['name'] as String? ?? '';
@@ -1073,15 +1095,12 @@ class _StaffDashboardState extends State<StaffDashboard> {
           border: Border.all(color: const Color(0xFFe2e8f0)),
         ),
         child: Row(children: [
-          Icon(isService ? Icons.build_outlined : Icons.inventory_2_outlined,
-            size: 16, color: isService ? const Color(0xFF003087) : _red),
-          const SizedBox(width: 8),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
             Text('$qty $uom  •  $cost / unit',
               style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
           ])),
-          Text(subtotal.toStringAsFixed(2),
+          Text(formatNumber(subtotal),
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1a202c))),
         ]),
       );

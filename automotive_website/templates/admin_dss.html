@@ -91,7 +91,23 @@
 
             <!-- Stock Replenishment Section -->
             <div class="admin-section active" id="dss">
-                <div class="dss-kpi-grid" id="dssKpiGrid"></div>
+                <div class="dss-kpi-grid" id="dssKpiGrid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(229,62,62,0.10);color:#e53e3e;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+                        <div class="stat-number" style="color:#e53e3e;">0</div>
+                        <div class="stat-label">Out of Stock</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(214,158,46,0.10);color:#d69e2e;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div>
+                        <div class="stat-number" style="color:#d69e2e;">0</div>
+                        <div class="stat-label">Low Stock</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(56,161,105,0.10);color:#38a169;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                        <div class="stat-number" style="color:#38a169;">0</div>
+                        <div class="stat-label">In Stock</div>
+                    </div>
+                </div>
                 <div class="dss-filter-bar">
                     <div class="dss-filter-group">
                         <label class="dss-filter-label">Filter by Priority</label>
@@ -133,7 +149,7 @@
                                     <th>Days of Stock Left</th><th>Recommended Order</th><th>Priority</th><th>Decision</th>
                                 </tr>
                             </thead>
-                            <tbody id="dssTableBody"></tbody>
+                            <tbody id="dssTableBody"><tr><td colspan="7" style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading...</td></tr></tbody>
                         </table>
                     </div>
                 </div>
@@ -141,7 +157,33 @@
 
             <!-- Preventive Maintenance Section -->
             <div class="admin-section" id="dss-pms">
-                <div class="dss-kpi-grid" id="dssPmsKpiGrid" style="grid-template-columns:repeat(5,1fr);"></div>
+                <div class="dss-kpi-grid" id="dssPmsKpiGrid" style="grid-template-columns:repeat(5,1fr);">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(229,62,62,0.10);color:#e53e3e;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+                        <div class="stat-number" style="color:#e53e3e;">0</div>
+                        <div class="stat-label">Overdue PMS</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(0,51,160,0.10);color:#0033A0;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                        <div class="stat-number" style="color:#0033A0;">0</div>
+                        <div class="stat-label">Due Today</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(221,107,32,0.10);color:#dd6b20;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+                        <div class="stat-number" style="color:#dd6b20;">0</div>
+                        <div class="stat-label">Due This Week</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(183,121,31,0.10);color:#b7791f;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                        <div class="stat-number" style="color:#b7791f;">0</div>
+                        <div class="stat-label">Due Soon</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(39,103,73,0.10);color:#276749;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                        <div class="stat-number" style="color:#276749;">0</div>
+                        <div class="stat-label">Active</div>
+                    </div>
+                </div>
                 <div class="dss-filter-bar">
                     <div class="dss-filter-group">
                         <label class="dss-filter-label">Filter by Status</label>
@@ -182,7 +224,7 @@
                                     <th>Days Until / Overdue</th><th>Priority</th><th>Recommendation</th>
                                 </tr>
                             </thead>
-                            <tbody id="dssPmsTableBody"></tbody>
+                            <tbody id="dssPmsTableBody"><tr><td colspan="6" style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading...</td></tr></tbody>
                         </table>
                     </div>
                 </div>
@@ -212,7 +254,7 @@
   }
 </script>
 <script src="../static/js/admin_firebase.js"></script>
-<script src="../static/js/admin_functions.js?v=202606150001"></script>
+<script src="../static/js/admin_functions.js?v=202607180001"></script>
 <script src="../static/js/admin.js"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script>
@@ -234,6 +276,10 @@
     const pmsSort   = document.getElementById('dssPmsSortWrap');
     if (stockSort) stockSort.style.display = section === 'dss-pms' ? 'none' : 'flex';
     if (pmsSort)   pmsSort.style.display   = section === 'dss-pms' ? 'flex' : 'none';
+
+    // In-page switch: data is already loaded — mark flags so guards pass
+    window._fbDSSLoaded    = true;
+    window._fbDSSPMSLoaded = true;
 
     if (section === 'dss-pms') {
       if (typeof renderDSSPMS === 'function') renderDSSPMS();
@@ -284,6 +330,8 @@
     if (section === 'dss-pms' && !pmsReady) return;
     if (section !== 'dss-pms' && !stockReady) return;
     window._dssDataReady = true;
+    window._fbDSSLoaded    = true;
+    window._fbDSSPMSLoaded = true;
     _applyDSSSectionUI(section);
     if (section === 'dss-pms') {
       if (typeof renderDSSPMS === 'function') renderDSSPMS();

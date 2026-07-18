@@ -414,6 +414,7 @@ function dssAnalyze() {
 
 // ── Render full DSS section ─────────────────────────────────
 window.renderDSS = function () {
+    if (!window._fbDSSLoaded) return;
     _dssData = dssAnalyze();
     renderDSSKpis();
     renderDSSTable();
@@ -449,6 +450,8 @@ function renderDSSKpis() {
 function renderDSSTable() {
     const body = document.getElementById('dssTableBody');
     if (!body) return;
+    // Keep "Loading..." until Firebase has fired at least once
+    if (!window._fbDSSLoaded && body.innerHTML.indexOf('Loading') !== -1) return;
 
     const search = (document.getElementById('dssSearch') || {}).value || '';
     let rows = _dssData;
@@ -898,6 +901,7 @@ function dssAnalyzePMS() {
 }
 
 window.renderDSSPMS = function () {
+    if (!window._fbDSSPMSLoaded) return;
     _dssPmsData = dssAnalyzePMS();
     renderDSSPMSKpis();
     renderDSSPMSTable();
@@ -940,6 +944,8 @@ function renderDSSPMSKpis() {
 function renderDSSPMSTable() {
     var body = document.getElementById('dssPmsTableBody');
     if (!body) return;
+    // Keep "Loading..." until Firebase has fired at least once
+    if (!window._fbDSSPMSLoaded && body.innerHTML.indexOf('Loading') !== -1) return;
 
     var search = (document.getElementById('dssPmsSearch') || {}).value || '';
     var rows = _dssPmsData;

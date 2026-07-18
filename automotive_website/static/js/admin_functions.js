@@ -202,6 +202,8 @@ function renderAssetsList() {
     var assetsList = document.getElementById('assetsList');
     if (!assetsList) return;
     var assets = window.assets || [];
+    // Keep "Loading..." until Firebase has fired at least once
+    if (!window._fbVehiclesLoaded && assetsList.innerHTML.indexOf('Loading') !== -1) return;
 
     if (assets.length === 0) {
         assetsList.innerHTML = '<div class="table-row" style="text-align:center;color:#718096;padding:2rem;">No vehicles found.</div>';
@@ -541,6 +543,8 @@ function renderServicesList() {
     var list = document.getElementById('servicesList');
     if (!list) return;
     var serviceTransactions = window.serviceTransactions || [];
+    // Keep "Loading..." until Firebase has fired at least once
+    if (!window._fbServicesLoaded && list.innerHTML.indexOf('Loading') !== -1) return;
 
     updateServiceStats();
 
@@ -1158,6 +1162,8 @@ function renderInventoryList() {
     var inventoryList = document.getElementById('inventoryList');
     if (!inventoryList) return;
     var inventory = window.inventory || [];
+    // Keep "Loading..." until real data arrives
+    if (!window._fbInventoryLoaded && inventoryList.innerHTML.indexOf('Loading') !== -1) return;
 
     var search = (document.getElementById('inventorySearch') || {}).value || '';
     var filtered = inventory;
@@ -1702,6 +1708,8 @@ function renderItemMasterList() {
     var list = document.getElementById('itemMasterList');
     if (!list) return;
     var itemMaster = window.itemMaster || [];
+    // Keep "Loading..." until real data arrives
+    if (!window._fbItemMasterLoaded && list.innerHTML.indexOf('Loading') !== -1) return;
 
     var search = (document.getElementById('itemMasterSearch')||{}).value || '';
     var filtered = itemMaster;
@@ -2315,6 +2323,9 @@ function deleteIssuance(id) {
 // ── Users ───────────────────────────────────────────────────
 function renderUsersList() {
     var allUsers = window.users || [];
+    var userCardsList = document.getElementById('userCardsList');
+    // Keep "Loading..." until Firebase has fired at least once
+    if (!window._fbUsersLoaded && userCardsList && userCardsList.innerHTML.indexOf('Loading') !== -1) return;
     var search = (document.getElementById('userSearch')||{}).value || '';
 
     // Split pending vs non-pending

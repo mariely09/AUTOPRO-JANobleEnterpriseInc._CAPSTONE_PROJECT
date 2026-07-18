@@ -97,7 +97,7 @@
                     <div>Plate Number</div><div>Vehicle Type</div><div>Owner</div>
                     <div>Odometer (km)</div><div>KM Since Last Service</div><div>Last Service Date</div><div>Next PMS Due</div><div>Actions</div>
                 </div>
-                <div id="assetsList"></div>
+                <div id="assetsList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading vehicles...</div></div>
             </div>
         </div>
     </div>
@@ -165,15 +165,11 @@
                 </select>
                 <label>Vehicle Type</label>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Owner</label>
-                <div style="position:relative;margin-top:0.3rem;">
-                    <svg style="position:absolute;left:0.65rem;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    <input type="text" name="ownerName" id="ownerNameInput" placeholder="Search customer name..." autocomplete="off"
-                        style="width:100%;padding:0.55rem 0.75rem 0.55rem 2.1rem;border:1.5px solid #c5cdd9;border-radius:8px;font-size:0.83rem;box-sizing:border-box;"
-                        oninput="ownerNameLookup(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();}">
-                </div>
-                <div id="ownerNameSuggestions" style="display:none;background:white;border:1px solid #e2e8f0;border-radius:8px;margin-top:2px;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:100;position:relative;"></div>
+            <div class="fl-field">
+                <input type="text" name="ownerName" id="ownerNameInput" placeholder=" " autocomplete="off"
+                    oninput="ownerNameLookup(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();}">
+                <label>Owner</label>
+                <div id="ownerNameSuggestions" style="display:none;background:white;border:1px solid #e2e8f0;border-radius:8px;margin-top:2px;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:100;position:absolute;left:0;right:0;top:100%;"></div>
             </div>
             <div class="fl-field">
                 <input type="number" name="currentOdometer" id="currentOdometerInput" placeholder=" " min="0" oninput="onOdometerInput()">
@@ -297,7 +293,7 @@
 </script>
 <script src="../static/js/admin_firebase.js"></script>
 
-<script src="../static/js/admin_functions.js?v=202606150001"></script>
+<script src="../static/js/admin_functions.js?v=202607180001"></script>
 <script src="../static/js/admin.js"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script>

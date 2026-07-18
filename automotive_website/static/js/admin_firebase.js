@@ -16,6 +16,18 @@
   document.addEventListener('DOMContentLoaded', function () {
     if (typeof firebase === 'undefined') return;
 
+    // If we already have a session, start Firestore listeners immediately
+    // without waiting for the full auth state check (avoids blank table delay)
+    var storedUser = sessionStorage.getItem('apUser');
+    if (storedUser) {
+      try {
+        var u = JSON.parse(storedUser);
+        if (u && u.uid) {
+          _initFirestore({ uid: u.uid, email: u.email, displayName: u.name });
+        }
+      } catch(e) {}
+    }
+
     // Wait for Firebase Auth before querying Firestore
     firebase.auth().onAuthStateChanged(function (user) {
       console.log('Firebase auth state changed, user:', user?.uid);
@@ -43,7 +55,10 @@
         console.log('Stored apUser:', userData);
       }
       
-      _initFirestore(user);
+      // Only call _initFirestore again if we didn't already start it above
+      if (!storedUser) {
+        _initFirestore(user);
+      }
     });
   });
 
@@ -130,6 +145,7 @@
           serviceFrequency: freq,
         };
       });
+      window._fbVehiclesLoaded = true;
       if (typeof renderAssetsList === 'function') renderAssetsList();
       // Update header notification badge with PMS alerts from Firestore vehicles
       if (typeof renderAdminNotifications === 'function') renderAdminNotifications();
@@ -145,6 +161,7 @@
       if (typeof window.renderPmsCalendar === 'function') window.renderPmsCalendar();
       // DSS-PMS readiness: vehicles loaded
       window._dssVehiclesReady = true;
+      window._fbDSSPMSLoaded = true;
       if (window._dssDataReady && typeof renderDSSPMS === 'function') {
         const active = document.querySelector('.admin-section.active');
         if (active && active.id === 'dss-pms') renderDSSPMS();
@@ -193,6 +210,7 @@
         createdBy: s.createdBy || '',
         createdAt: s.createdAt || null,
       }));
+      window._fbServicesLoaded = true;
       if (typeof renderServicesList === 'function') {
         const section = document.querySelector('.admin-section.active');
         if (!section || section.id === 'asset-servicing') renderServicesList();
@@ -231,6 +249,7 @@
         barcode: i.barcode || '',
         qrcode: i.qr || i.qrcode || '',
       }));
+      window._fbInventoryLoaded = true;
       if (typeof renderInventoryList === 'function') {
         const section = document.querySelector('.admin-section.active');
         if (!section || section.id === 'inventory') renderInventoryList();
@@ -239,6 +258,8 @@
       _updateOverviewStats();
       // DSS readiness: mark inventory loaded
       window._dssInventoryReady = true;
+      window._fbDSSLoaded = true;
+      window._fbDSSPMSLoaded = true;
       if (window._dssInventoryReady && window._dssIssuancesReady) {
         if (typeof window._onDSSDataReady === 'function') window._onDSSDataReady();
         // On subsequent updates re-render DSS if it's the active page
@@ -266,6 +287,7 @@
         qrcode: i.qr || i.qrcode || '',
         sku: i.sku || '',
       }));
+      window._fbItemMasterLoaded = true;
       if (typeof renderItemMasterList === 'function') {
         const section = document.querySelector('.admin-section.active');
         if (!section || section.id === 'item-master') renderItemMasterList();
@@ -334,6 +356,7 @@
         createdAt: u.createdAt || '',
         photoUrl: u.photoUrl || '',
       }));
+      window._fbUsersLoaded = true;
       if (typeof renderUsersList === 'function') {
         const section = document.querySelector('.admin-section.active');
         if (!section || section.id === 'users') renderUsersList();
