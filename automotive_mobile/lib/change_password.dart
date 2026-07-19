@@ -13,7 +13,9 @@ class ChangePasswordScreen extends StatefulWidget {
   /// true  → first-login flow (logo header, no back button, redirects to dashboard)
   /// false → profile flow (standard AppBar with back button, pops on success)
   final bool firstLogin;
-  const ChangePasswordScreen({super.key, required this.role, this.firstLogin = false});
+  /// Optional: pre-fill the "current password" field (passed from login screen)
+  final String? tempPassword;
+  const ChangePasswordScreen({super.key, required this.role, this.firstLogin = false, this.tempPassword});
 
   @override
   State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
@@ -35,6 +37,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   double _strength     = 0;
   String _strengthText = '';
   Color  _strengthColor = Colors.transparent;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.tempPassword != null && widget.tempPassword!.isNotEmpty) {
+      _currentCtrl.text = widget.tempPassword!;
+    }
+  }
 
   @override
   void dispose() {
@@ -159,7 +169,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 
   Widget _buildForm({required bool showBanner}) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // ── Title + subtitle (first-login only) ──
@@ -296,45 +306,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                             fontWeight: FontWeight.w700)),
                   ]),
           ),
-        ),
-
-        // ── Tips ──
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFe2e8f0)),
-          ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Password tips',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
-                    color: Color(0xFF4a5568))),
-            const SizedBox(height: 8),
-            ...[
-              'At least 6 characters',
-              'Mix uppercase & lowercase letters',
-              'Include numbers and symbols',
-              'Avoid using your name or email',
-            ].asMap().entries.map((e) => Padding(
-              padding: const EdgeInsets.only(bottom: 5),
-              child: Row(children: [
-                Container(
-                  width: 20, height: 20,
-                  decoration: BoxDecoration(
-                      color: _red, shape: BoxShape.circle),
-                  child: Center(child: Text('${e.key + 1}',
-                      style: const TextStyle(color: Colors.white,
-                          fontSize: 10, fontWeight: FontWeight.bold))),
-                ),
-                const SizedBox(width: 8),
-                Text(e.value,
-                    style: const TextStyle(fontSize: 12,
-                        color: Color(0xFF4a5568))),
-              ]),
-            )),
-          ]),
         ),
       ]),
     );

@@ -1279,6 +1279,9 @@ window._svcViewDetails = function(docId) {
 
     completeBtn.onclick = function() {
       if (!confirm('Mark service for ' + s.plate + ' as Completed?')) return;
+      var cBtn = document.getElementById('svcDetailCompleteBtn');
+      var cBtnOrigHtml = cBtn ? cBtn.innerHTML : '';
+      if (cBtn) { cBtn.disabled = true; cBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Completing…'; }
       db.collection('maintenance').doc(docId).update({ status: 'Completed' }).then(function() {
         var now = new Date();
         var _MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1287,6 +1290,16 @@ window._svcViewDetails = function(docId) {
         var matRows = s.matRows || [];
         var svcRows = s.svcRows || [];
         var batch = db.batch();
+
+        // Get actual user name from Firestore
+        var currentUser = firebase.auth().currentUser;
+        var byNamePromise = currentUser
+          ? db.collection('users').doc(currentUser.uid).get().then(function(uDoc) {
+              return (uDoc.exists && uDoc.data().name) ? uDoc.data().name : 'Admin';
+            }).catch(function() { return 'Admin'; })
+          : Promise.resolve('Admin');
+
+        byNamePromise.then(function(byName) {
 
         // Auto-create issuances + deduct stock for materials
         var matPromises = matRows.filter(function(r){ return r.name; }).map(function(r) {
@@ -1300,7 +1313,7 @@ window._svcViewDetails = function(docId) {
               itemNum: iData.num || '', itemName: r.name, itemType: 'Material',
               commodityGroup: iData.group || '', uom: r.uom || '',
               qty: '' + qty, unitCost: cost.toFixed(2), subtotal: (cost * qty).toFixed(2),
-              createdBy: 'Admin', maintenanceId: s.id || docId,
+              createdBy: byName, maintenanceId: s.id || docId,
               createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             });
             // Deduct stock
@@ -1315,7 +1328,7 @@ window._svcViewDetails = function(docId) {
               // Log OUT transaction
               db.collection('transactions').add({
                 item: r.name, desc: 'Issued for maintenance ' + (s.id || docId) + ' — ' + plate,
-                type: 'OUT', qty: '-' + qty, date: dateStr, by: 'Admin',
+                type: 'OUT', qty: '-' + qty, date: dateStr, by: byName,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
               });
             });
@@ -1334,7 +1347,7 @@ window._svcViewDetails = function(docId) {
               itemNum: iData.num || '', itemName: r.name, itemType: 'Service',
               commodityGroup: iData.group || '', uom: r.uom || '',
               qty: '' + qty, unitCost: cost.toFixed(2), subtotal: (cost * qty).toFixed(2),
-              createdBy: 'Admin', maintenanceId: s.id || docId,
+              createdBy: byName, maintenanceId: s.id || docId,
               createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             });
           });
@@ -1361,7 +1374,8 @@ window._svcViewDetails = function(docId) {
             db.collection('service_bookings').doc(s.bookingId).update({ status: 'Completed' }).catch(function() {});
           }
         });
-      }).catch(function(err) { showToast('Error: ' + err.message, 'error'); });
+        }); // end byNamePromise.then
+      }).catch(function(err) { showToast('Error: ' + err.message, 'error'); if (cBtn) { cBtn.disabled = false; cBtn.innerHTML = cBtnOrigHtml; } });
     };
 
     editBtn.onclick = function() { closeModal('svcDetailsModal'); editService(docId); };

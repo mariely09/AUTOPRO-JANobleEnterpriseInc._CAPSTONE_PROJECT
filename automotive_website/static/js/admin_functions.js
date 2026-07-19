@@ -623,10 +623,24 @@ function renderServicesList() {
         }
         topActions += '<button class="btn-small btn-danger" onclick="deleteService(\''+s.serviceId+'\')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
 
+        var plate = s.assetNum || s.plate || '';
+        // Look up vehicle description from live vehicles data (stays in sync with edits)
+        var assetDesc = '';
+        if (plate) {
+            var vehicles = window.assets || [];
+            var matchedVeh = vehicles.find(function(v) {
+                return (v.plateNumber || v.plate || '').trim().toUpperCase() === plate.trim().toUpperCase();
+            });
+            if (matchedVeh) {
+                assetDesc = matchedVeh.assetDescription || matchedVeh.desc || '';
+            }
+        }
+        if (!assetDesc) assetDesc = s.assetDescription || '-';
+
         return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 1fr 1fr 1fr 120px;">'
             + '<div>' + (s.dateServiced ? new Date(s.dateServiced).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '-') + '</div>'
             + '<div><strong>' + (s.assetNum||'-') + '</strong></div>'
-            + '<div>' + (s.assetDescription||'-') + '</div>'
+            + '<div>' + assetDesc + '</div>'
             + '<div>' + (s.mechanicName||'-') + '</div>'
             + '<div>₱' + ((s.totalCost||0).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})) + '</div>'
             + '<div>' + statusBadge + '</div>'
@@ -1477,6 +1491,13 @@ function openStaffReceiveDeliveryModal() {
 function renderInventoryTransactions(filter) {
     filter = filter || '';
 
+    // Show loading state if Firestore data hasn't arrived yet
+    if (typeof window._fbTransactions === 'undefined') {
+        var loadEl = document.getElementById('txnList');
+        if (loadEl) loadEl.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading transactions...</div>';
+        return;
+    }
+
     // Use Firebase transactions data
     var txns = (window._fbTransactions || []).map(function(t) {
         var rawDesc = (t.desc || t.description || '');
@@ -2156,6 +2177,13 @@ document.addEventListener('DOMContentLoaded', function() {
 function renderIssuancesList() {
     var list = document.getElementById('issuancesList');
     if (!list) return;
+
+    // Show loading state if Firestore data hasn't arrived yet
+    if (typeof window._fbIssuances === 'undefined') {
+        list.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading issuances...</div>';
+        return;
+    }
+
     var issuances = window.issuances || [];
 
     var s = function(id,val){ var el=document.getElementById(id); if(el) el.textContent=val; };
@@ -2284,7 +2312,20 @@ function renderIssuancesList() {
     });
 
     var rows = filtered.map(function(i) {
-        var assetDesc = i.assetDescription || '';
+        // Look up vehicle description from live vehicles data (stays in sync with edits)
+        var plate = (i.assetNum || i.plate || '').trim().toUpperCase();
+        var assetDesc = '';
+        if (plate) {
+            var vehicles = window.assets || [];
+            var matchedVeh = vehicles.find(function(v) {
+                return (v.plateNumber || v.plate || '').trim().toUpperCase() === plate;
+            });
+            if (matchedVeh) {
+                assetDesc = matchedVeh.assetDescription || matchedVeh.desc || '';
+            }
+        }
+        // Fallback to stored value if no vehicle match found
+        if (!assetDesc) assetDesc = i.assetDescription || '';
         var _ISS_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         function _fmtIssDate(d) {
             if (!d) return '—';
@@ -2358,6 +2399,17 @@ function renderUsersList() {
     if (userFilter !== 'all') {
         filtered = filtered.filter(function(u){ return (u.role||'').toLowerCase() === userFilter; });
     }
+
+    // Apply sort
+    var sortBy = (document.getElementById('userSortBy')||{}).value || 'name-asc';
+    filtered.sort(function(a, b) {
+        switch (sortBy) {
+            case 'name-desc':  return (b.name||'').localeCompare(a.name||'');
+            case 'email-asc':  return (a.email||'').localeCompare(b.email||'');
+            case 'role-asc':   return (a.role||'').localeCompare(b.role||'');
+            default:           return (a.name||'').localeCompare(b.name||'');
+        }
+    });
 
     var s = function(id,val){ var el=document.getElementById(id); if(el) el.textContent=val; };
     s('userStatTotal', allUsers.length);

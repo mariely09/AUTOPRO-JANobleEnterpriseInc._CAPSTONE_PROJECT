@@ -493,7 +493,7 @@ firebase.auth().onAuthStateChanged(function(user) {
 
       const el = document.getElementById('phVehiclesList');
       if (!myVehicles.length) {
-        el.innerHTML = `<div class="cu-empty">No vehicles registered under your name.<br><small style="color:#a0aec0;">(Logged in as: ${_userName || 'unknown'})</small></div>`;
+        el.innerHTML = `<div class="cu-empty">No vehicles registered under your name.</div>`;
         return;
       }
 

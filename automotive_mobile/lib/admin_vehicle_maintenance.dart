@@ -332,6 +332,10 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
 
   Widget _serviceCard(Map<String, dynamic> s) {
     final sc = _statusColor(s['status'] as String);
+    final plate = s['plate'] as String;
+    // Look up vehicle description from live vehicles data (stays in sync with edits)
+    final liveDesc = _vehicleMap[plate]?['desc'] as String? ?? s['desc'] as String;
+    final displayDesc = liveDesc.isNotEmpty ? liveDesc : plate;
     return GestureDetector(
       onTap: () => _showServiceDetails(s),
       child: Container(
@@ -340,8 +344,8 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(s['plate'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            Text((s['desc'] as String).isNotEmpty ? s['desc'] as String : s['plate'] as String,
+            Text(plate, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            Text(displayDesc,
               style: const TextStyle(fontSize: 12, color: Color(0xFF4a5568))),
             Text('${s['mechanic']} • ${s['date']}', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
           ])),
@@ -363,6 +367,9 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
 
   void _showServiceDetails(Map<String, dynamic> s) {
     final sc = _statusColor(s['status'] as String);
+    final plate = s['plate'] as String;
+    // Look up vehicle description from live vehicles data (stays in sync with edits)
+    final liveDesc = _vehicleMap[plate]?['desc'] as String? ?? s['desc'] as String;
     showModalBottomSheet(
       context: context, isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -378,8 +385,8 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
               decoration: const BoxDecoration(color: _red, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
               child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(s['plate'] as String, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(s['desc'] as String, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text(plate, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(liveDesc, style: const TextStyle(color: Colors.white70, fontSize: 12)),
                 ])),
                 GestureDetector(onTap: () => Navigator.pop(context),
                   child: const Icon(Icons.close, color: Colors.white)),
@@ -452,9 +459,21 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                           ),
                         );
                         if (confirm != true) return;
+
+                        // 1. Update status immediately
                         await _db.doc(s['docId'] as String).update({'status': 'Completed'});
 
-                        // Auto-create issuances + deduct stock for each material row
+                        // 2. Close modal + show success right away
+                        if (mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Service marked as Completed!')]),
+                            backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+                        }
+
+                        // 3. Run the rest in the background (non-blocking)
+                        () async {
                         final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
                         final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
                         final byName = (userDoc.data()?['name'] as String?) ?? 'Admin';
@@ -471,12 +490,10 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                           final cost = double.tryParse(r['cost'] as String? ?? '0') ?? 0;
                           if (name.isEmpty || qty <= 0) continue;
 
-                          // Look up item master for num/group
                           final iSnap = await FirebaseFirestore.instance
                               .collection('item_master').where('name', isEqualTo: name).limit(1).get();
                           final iData = iSnap.docs.isNotEmpty ? iSnap.docs.first.data() : <String, dynamic>{};
 
-                          // Create issuance record
                           await FirebaseFirestore.instance.collection('issuances').add({
                             'id': 'ISS-AUTO-${DateTime.now().millisecondsSinceEpoch}',
                             'date': dateStr,
@@ -495,7 +512,6 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                             'createdAt': FieldValue.serverTimestamp(),
                           });
 
-                          // Deduct from stock_inventory
                           final stockSnap = await FirebaseFirestore.instance
                               .collection('stock_inventory').where('name', isEqualTo: name).limit(1).get();
                           if (stockSnap.docs.isNotEmpty) {
@@ -510,7 +526,6 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                             });
                           }
 
-                          // Log OUT transaction
                           await FirebaseFirestore.instance.collection('transactions').add({
                             'item': name,
                             'desc': 'Issued for maintenance ${s['id']} — $plate',
@@ -525,7 +540,6 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                           });
                         }
 
-                        // Also create issuance records for service rows
                         final svcRows = s['svcRows'] as List<dynamic>? ?? [];
                         for (final r in svcRows) {
                           final name = r['name'] as String? ?? '';
@@ -557,7 +571,6 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                           });
                         }
 
-                        // Update vehicle status + last service date
                         final vSnap = await FirebaseFirestore.instance
                             .collection('vehicles').where('plate', isEqualTo: plate).limit(1).get();
                         if (vSnap.docs.isNotEmpty) {
@@ -566,7 +579,6 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                             'completedAt': FieldValue.serverTimestamp(),
                             'lastSvcDate': '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
                           };
-                          // Also update odometer fields from the maintenance record
                           final mainDoc = await _db.doc(s['docId'] as String).get();
                           final mainData = mainDoc.data() as Map<String, dynamic>? ?? {};
                           final odoReading = mainData['odometer'];
@@ -582,20 +594,13 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                           await vSnap.docs.first.reference.update(vUpdate);
                         }
 
-                        // Also update linked service booking to "Completed" if exists
                         final mainDoc2 = await _db.doc(s['docId'] as String).get();
                         final mainData2 = mainDoc2.data() as Map<String, dynamic>? ?? {};
                         final bookingId = mainData2['bookingId'] as String?;
                         if (bookingId != null && bookingId.isNotEmpty) {
                           await FirebaseFirestore.instance.collection('service_bookings').doc(bookingId).update({'status': 'Completed'}).catchError((_) {});
                         }
-                        if (mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Service marked as Completed!')]),
-                            backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
-                        }
+                        }(); // end background lambda
                       },
                       icon: const Icon(Icons.done_all, size: 16),
                       label: const Text('Mark as Completed'),
@@ -779,6 +784,8 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
         }).catchError((_) {});
       }
     }
+
+    bool saving = false;
 
     showModalBottomSheet(
       context: context, isScrollControlled: true,
@@ -1083,8 +1090,9 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                       Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel'))),
                       const SizedBox(width: 12),
                       Expanded(child: ElevatedButton(
-                        onPressed: () async {
+                        onPressed: saving ? null : () async {
                           if (plateCtrl.text.trim().isEmpty || mechanicCtrl.text.trim().isEmpty) return;
+                          setModal(() => saving = true);
                           final odoValue = int.tryParse(odoCtrl.text.trim()) ?? 0;
 
                           // Validate material quantities against stock
@@ -1097,6 +1105,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                             if (stockSnap.docs.isNotEmpty) {
                               final available = (stockSnap.docs.first['stock'] as num?)?.toInt() ?? 0;
                               if (qty > available) {
+                                setModal(() => saving = false);
                                 if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                   content: Text('Insufficient stock for "$name". Available: $available, Requested: $qty'),
                                   backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating,
@@ -1114,6 +1123,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                                 .limit(1)
                                 .get();
                             if (dupCheck.docs.isNotEmpty) {
+                              setModal(() => saving = false);
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                   content: Row(children: const [
@@ -1177,16 +1187,19 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                               }
                             }
                           } catch (e) {
+                            setModal(() => saving = false);
                             if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
                           }
                         },
                         style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.save_outlined, size: 16),
-                          const SizedBox(width: 6),
-                          Text(isEdit ? 'Update' : 'Save'),
-                        ]),
+                        child: saving
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Row(mainAxisSize: MainAxisSize.min, children: [
+                              const Icon(Icons.save_outlined, size: 16),
+                              const SizedBox(width: 6),
+                              Text(isEdit ? 'Update' : 'Save'),
+                            ]),
                       )),
                     ]),
                   ]),

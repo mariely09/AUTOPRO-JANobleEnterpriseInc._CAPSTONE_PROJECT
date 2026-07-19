@@ -29,6 +29,26 @@ class _AdminTransactionsBodyState extends State<AdminTransactionsBody>
   static const _red = Color(0xFFE8001C);
   String _txnFilter = 'all';
 
+  // Item master UOM lookup (item name -> uom)
+  Map<String, String> _itemUomMap = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadItemMaster();
+  }
+
+  Future<void> _loadItemMaster() async {
+    final snap = await FirebaseFirestore.instance.collection('item_master').get();
+    if (!mounted) return;
+    setState(() {
+      _itemUomMap = {
+        for (final d in snap.docs)
+          (d['name'] as String? ?? ''): (d['uom'] as String? ?? ''),
+      };
+    });
+  }
+
   static const _monthsShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   static const _monthsLong  = ['January','February','March','April','May','June','July','August',
                                 'September','October','November','December'];
@@ -114,6 +134,7 @@ class _AdminTransactionsBodyState extends State<AdminTransactionsBody>
                 'qty': data['qty'] as String? ?? '0',
                 'by': data['by'] as String? ?? '—',
                 'commodityGroup': data['commodityGroup'] as String? ?? '',
+                'uom': data['uom'] as String? ?? '',
                 'assetDesc': data['assetDesc'] as String? ?? '',
                 'plate': data['plate'] as String? ?? '',
               };
@@ -227,21 +248,16 @@ class _AdminTransactionsBodyState extends State<AdminTransactionsBody>
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(t['item']!, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-            if ((t['commodityGroup'] ?? '').isNotEmpty)
-              Text(t['commodityGroup']!, style: const TextStyle(fontSize: 10, color: Color(0xFF4a5568))),
-            Text(cleanDesc, style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
-              maxLines: 1, overflow: TextOverflow.ellipsis),
-            if (vehicleDesc.isNotEmpty)
-              Text(vehicleDesc, style: const TextStyle(fontSize: 10, color: Color(0xFF718096), fontStyle: FontStyle.italic)),
+            Builder(builder: (_) {
+              final uom = (t['uom'] ?? '').isNotEmpty ? t['uom']! : (_itemUomMap[t['item']] ?? '');
+              if (uom.isEmpty) return const SizedBox.shrink();
+              return Text(uom, style: const TextStyle(fontSize: 10, color: Color(0xFF4a5568)));
+            }),
             const SizedBox(height: 2),
             Row(children: [
               const Icon(Icons.calendar_today_outlined, size: 10, color: Color(0xFF718096)),
               const SizedBox(width: 3),
               Text(_fmtDateLong(t['date']!), style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
-              const SizedBox(width: 8),
-              const Icon(Icons.person_outline, size: 10, color: Color(0xFF718096)),
-              const SizedBox(width: 3),
-              Text(t['by']!, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
             ]),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -326,8 +342,11 @@ class _AdminTransactionsBodyState extends State<AdminTransactionsBody>
                   child: Row(children: [
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(t['item']!, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      Text(cg != '—' ? cg : (isIn ? 'Stock In (Received)' : 'Stock Out (Issued)'),
-                        style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                      Builder(builder: (_) {
+                        final uom = (t['uom'] ?? '').isNotEmpty ? t['uom']! : (_itemUomMap[t['item']] ?? '');
+                        return Text(uom.isNotEmpty ? uom : (isIn ? 'Stock In (Received)' : 'Stock Out (Issued)'),
+                          style: const TextStyle(color: Colors.white70, fontSize: 12));
+                      }),
                     ])),
                     GestureDetector(onTap: () => Navigator.pop(context),
                       child: const Icon(Icons.close, color: Colors.white)),

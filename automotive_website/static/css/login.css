@@ -86,7 +86,8 @@ label {
 
 .forgot-row {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   margin-top: -8px;
   margin-bottom: 24px;
 }

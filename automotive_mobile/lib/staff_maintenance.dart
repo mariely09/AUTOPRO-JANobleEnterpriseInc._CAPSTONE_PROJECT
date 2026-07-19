@@ -325,6 +325,10 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
 
   Widget _serviceCard(Map<String, dynamic> s) {
     final sc = _statusColor(s['status'] as String);
+    final plate = s['plate'] as String;
+    // Look up vehicle description from live vehicles data (stays in sync with edits)
+    final liveDesc = _vehicleMap[plate]?['desc'] as String? ?? s['desc'] as String;
+    final displayDesc = liveDesc.isNotEmpty ? liveDesc : plate;
     return GestureDetector(
       onTap: () => _showServiceDetails(s),
       child: Container(
@@ -333,8 +337,8 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(s['plate'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            Text((s['desc'] as String).isNotEmpty ? s['desc'] as String : s['plate'] as String,
+            Text(plate, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            Text(displayDesc,
               style: const TextStyle(fontSize: 12, color: Color(0xFF4a5568))),
             Text('${s['mechanic']} - ${s['date']}', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
           ])),
@@ -356,6 +360,9 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
 
   void _showServiceDetails(Map<String, dynamic> s) {
     final sc = _statusColor(s['status'] as String);
+    final plate = s['plate'] as String;
+    // Look up vehicle description from live vehicles data (stays in sync with edits)
+    final liveDesc = _vehicleMap[plate]?['desc'] as String? ?? s['desc'] as String;
     showModalBottomSheet(
       context: context, isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -372,8 +379,8 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                 decoration: const BoxDecoration(color: _red, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
                 child: Row(children: [
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(s['plate'] as String, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text(s['desc'] as String, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    Text(plate, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(liveDesc, style: const TextStyle(color: Colors.white70, fontSize: 12)),
                   ])),
                   GestureDetector(onTap: () => Navigator.pop(sheetCtx),
                     child: const Icon(Icons.close, color: Colors.white)),
@@ -735,6 +742,8 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       }
     }
 
+    bool saving = false;
+
     showModalBottomSheet(
       context: context, isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -983,8 +992,9 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                       Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel'))),
                       const SizedBox(width: 12),
                       Expanded(child: ElevatedButton(
-                        onPressed: () async {
+                        onPressed: saving ? null : () async {
                           if (plateCtrl.text.trim().isEmpty || mechanicCtrl.text.trim().isEmpty) return;
+                          setModal(() => saving = true);
                           final odoValue = int.tryParse(odoCtrl.text.trim()) ?? 0;
 
                           // Validate material quantities against stock
@@ -997,6 +1007,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                             if (stockSnap.docs.isNotEmpty) {
                               final available = (stockSnap.docs.first['stock'] as num?)?.toInt() ?? 0;
                               if (qty > available) {
+                                setModal(() => saving = false);
                                 if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                   content: Text('Insufficient stock for "$name". Available: $available, Requested: $qty'),
                                   backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating,
@@ -1014,6 +1025,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                 .limit(1)
                                 .get();
                             if (dupCheck.docs.isNotEmpty) {
+                              setModal(() => saving = false);
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                   content: Row(children: const [
@@ -1077,12 +1089,15 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                               }
                             }
                           } catch (e) {
+                            setModal(() => saving = false);
                             if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
                           }
                         },
                         style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
-                        child: Text(isEdit ? 'Update' : 'Save'),
+                        child: saving
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Text(isEdit ? 'Update' : 'Save'),
                       )),
                     ]),
                   ]),
