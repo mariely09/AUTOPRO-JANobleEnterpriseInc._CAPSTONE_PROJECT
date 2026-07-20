@@ -30,6 +30,7 @@ class _AdminUsersState extends State<AdminUsers> {
   String _searchQuery = '';
 
   String _roleFilter = 'all'; // 'all', 'admin', 'staff', 'customer'
+  String _sortBy = 'name-asc'; // 'name-asc', 'name-desc', 'email-asc'
 
   @override
   void dispose() {
@@ -45,6 +46,19 @@ class _AdminUsersState extends State<AdminUsers> {
 
   String _roleLabel(String role) =>
       role[0].toUpperCase() + role.substring(1);
+
+  PopupMenuItem<String> _sortItem(String val, String label, IconData icon) {
+    final active = _sortBy == val;
+    return PopupMenuItem(
+      value: val,
+      child: Row(children: [
+        Icon(icon, size: 16, color: active ? _red : const Color(0xFF718096)),
+        const SizedBox(width: 10),
+        Text(label, style: TextStyle(fontWeight: active ? FontWeight.w700 : FontWeight.normal, color: active ? _red : const Color(0xFF1a202c))),
+        if (active) ...[const Spacer(), const Icon(Icons.check, size: 14, color: _red)],
+      ]),
+    );
+  }
 
   String _generateTempPassword() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -182,6 +196,18 @@ class _AdminUsersState extends State<AdminUsers> {
               if (!_searching) { _searchCtrl.clear(); _searchQuery = ''; }
             }),
           ),
+          if (!_searching)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (val) => setState(() => _sortBy = val),
+              itemBuilder: (_) => [
+                const PopupMenuItem(enabled: false, child: Text('Sort By', style: TextStyle(fontSize: 11, color: Color(0xFF718096), fontWeight: FontWeight.w700))),
+                _sortItem('name-asc',  'Name A→Z',    Icons.sort_by_alpha),
+                _sortItem('name-desc', 'Name Z→A',    Icons.sort_by_alpha),
+                _sortItem('email-asc', 'Email A→Z',   Icons.email_outlined),
+              ],
+            ),
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -204,6 +230,7 @@ class _AdminUsersState extends State<AdminUsers> {
               'email': data['email'] as String? ?? '—',
               'role': data['role'] as String? ?? '—',
               'status': data['status'] as String? ?? 'Active',
+              'companyName': data['companyName'] as String? ?? '',
             };
           }).toList();
 
@@ -212,7 +239,8 @@ class _AdminUsersState extends State<AdminUsers> {
               : users.where((u) =>
                   u['name']!.toLowerCase().contains(_searchQuery) ||
                   u['username']!.toLowerCase().contains(_searchQuery) ||
-                  u['role']!.toLowerCase().contains(_searchQuery)).toList();
+                  u['role']!.toLowerCase().contains(_searchQuery) ||
+                  u['companyName']!.toLowerCase().contains(_searchQuery)).toList();
 
           final total = users.length;
           final customers = users.where((u) => u['role'] == 'customer').length;
@@ -242,6 +270,17 @@ class _AdminUsersState extends State<AdminUsers> {
                 ]),
               ),
               const SizedBox(height: 8),
+              // ── Sort ──
+              Builder(builder: (_) {
+                afterRoleFilter.sort((a, b) {
+                  switch (_sortBy) {
+                    case 'name-desc': return (b['name'] ?? '').compareTo(a['name'] ?? '');
+                    case 'email-asc': return (a['email'] ?? '').compareTo(b['email'] ?? '');
+                    default: return (a['name'] ?? '').compareTo(b['name'] ?? '');
+                  }
+                });
+                return const SizedBox.shrink();
+              }),
               // ── User list ──
               Expanded(
                 child: afterRoleFilter.isEmpty
@@ -593,6 +632,8 @@ class _AdminUsersState extends State<AdminUsers> {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 _detailRow('Full Name', u['name']!),
                 _detailRow('Email', u['email']!),
+                if ((u['companyName'] ?? '').isNotEmpty)
+                  _detailRow('Company Name', u['companyName']!),
                 _detailRow('Role', _roleLabel(u['role']!)),
                 _detailRow('Status', u['status']!),
                 const SizedBox(height: 16),
@@ -628,6 +669,7 @@ class _AdminUsersState extends State<AdminUsers> {
     final firstNameCtrl = TextEditingController(text: nameParts.isNotEmpty ? nameParts.first : '');
     final lastNameCtrl  = TextEditingController(text: nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '');
     final emailCtrl     = TextEditingController(text: user?['email'] ?? '');
+    final companyNameCtrl = TextEditingController(text: user?['companyName'] ?? '');
     String selectedRole   = isEdit
         ? (user!['role']![0].toUpperCase() + user['role']!.substring(1))
         : 'Staff';
@@ -727,6 +769,15 @@ class _AdminUsersState extends State<AdminUsers> {
                     onChanged: (v) => setModal(() => selectedRole = v!),
                     borderRadius: BorderRadius.circular(10),
                   ),
+                  if (selectedRole.toLowerCase() == 'customer') ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: companyNameCtrl,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                          labelText: 'Company Name',
+                          border: OutlineInputBorder())),
+                  ],
                   if (!isEdit) ...[
                     const SizedBox(height: 12),
                     Container(
@@ -786,6 +837,7 @@ class _AdminUsersState extends State<AdminUsers> {
                               'email':     emailCtrl.text.trim(),
                               'role':      selectedRole.toLowerCase(),
                               'status':    selectedStatus,
+                              'companyName': selectedRole.toLowerCase() == 'customer' ? companyNameCtrl.text.trim() : '',
                             });
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
@@ -843,12 +895,14 @@ class _AdminUsersState extends State<AdminUsers> {
                                   .collection('users')
                                   .doc(cred.user!.uid)
                                   .set({
+                                'uid':                cred.user!.uid,
                                 'firstName':          firstName,
                                 'lastName':           lastName,
                                 'name':               fullName,
                                 'email':              emailCtrl.text.trim(),
                                 'role':               selectedRole.toLowerCase(),
                                 'status':             selectedStatus,
+                                'companyName':        selectedRole.toLowerCase() == 'customer' ? companyNameCtrl.text.trim() : '',
                                 'mustChangePassword': true,
                                 'createdAt':          FieldValue.serverTimestamp(),
                               });

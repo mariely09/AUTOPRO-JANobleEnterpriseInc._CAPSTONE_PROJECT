@@ -170,6 +170,10 @@
                 <input type="text" name="itemName" required placeholder=" ">
                 <label>Item Name *</label>
             </div>
+            <div class="fl-field">
+                <input type="text" name="description" placeholder=" ">
+                <label>Description</label>
+            </div>
             <div class="fl-field has-value">
                 <select name="commodityGroup" id="itemMasterCommodityGroup" onchange="onItemMasterCommodityGroupChange(this)">
                     <option value="">Select group</option>
@@ -195,11 +199,6 @@
                     </select>
                     <label>Item Type *</label>
                 </div>
-            </div>
-            <!-- SKU — only for Material -->
-            <div class="fl-field" id="imSkuRow">
-                <input type="number" name="sku" min="0" step="1" placeholder=" ">
-                <label>SKU</label>
             </div>
             <!-- Footer buttons -->
             <div style="display:flex;gap:0.75rem;padding-top:0.5rem;">
@@ -303,10 +302,6 @@
                 <div id="imScanCodeValue" style="display:none;font-family:monospace;font-size:0.78rem;color:#718096;margin-top:0.5rem;word-break:break-all;"></div>
             </div>
             <div style="display:flex;gap:0.75rem;width:100%;">
-                <button onclick="imPrintScanCode()" style="flex:1;padding:0.8rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;justify-content:center;gap:0.4rem;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                    Print
-                </button>
                 <button onclick="closeModal('imScanCodeModal')" style="flex:1;padding:0.8rem;background:#f7fafc;border:1.5px solid #e2e8f0;border-radius:10px;color:#4a5568;font-weight:600;cursor:pointer;font-size:0.9rem;">Close</button>
             </div>
         </div>
@@ -455,11 +450,9 @@
     });
   });
 
-  // Hide SKU field when type is Service or AutoService
+  // Hide/show fields based on type (no SKU for Service)
   window.onItemTypeChange = function(val) {
-    var skuRow = document.getElementById('imSkuRow');
-    var isService = val === 'Service' || val === 'AutoService' || val.toLowerCase().includes('service');
-    if (skuRow) skuRow.style.display = isService ? 'none' : '';
+    // No additional fields to toggle now
   };
 
   // Auto-open stock level modal after adding a Material item
@@ -693,9 +686,9 @@
           svg.style.display = 'block';
         } catch(e) { svg.style.display = 'none'; }
       }
-      // Show barcode number below the image
+      // Show supplier item code below the barcode image (same as QR)
       var valEl = document.getElementById('imScanCodeValue');
-      if (valEl) { valEl.style.display = 'block'; }
+      if (valEl) { valEl.textContent = subtitle; valEl.style.display = 'block'; }
     } else {
       var qrDiv = document.getElementById('imScanCodeQrDiv');
       if (typeof QRCode !== 'undefined') {

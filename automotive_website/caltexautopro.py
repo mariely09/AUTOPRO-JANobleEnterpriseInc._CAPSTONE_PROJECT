@@ -230,6 +230,39 @@ def delete_user():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/api/cleanup-orphaned-users', methods=['POST'])
+def cleanup_orphaned_users():
+    """Remove Firestore user docs whose Firebase Auth account no longer exists."""
+    if not firebase_admin._apps:
+        return jsonify({'ok': False, 'error': 'Firebase Admin SDK not initialized.'}), 503
+
+    try:
+        from firebase_admin import firestore as fa_firestore
+        db = fa_firestore.client()
+        users_ref = db.collection('users')
+        docs = users_ref.stream()
+
+        deleted = []
+        for doc in docs:
+            uid = doc.id
+            try:
+                fb_auth.get_user(uid)
+            except fb_auth.UserNotFoundError:
+                # Auth account doesn't exist — delete Firestore doc
+                doc.reference.delete()
+                deleted.append(uid)
+                print(f'🧹 Cleaned up orphaned user doc: {uid}')
+            except Exception:
+                # Other errors (network, etc.) — skip this doc
+                pass
+
+        print(f'✅ Cleanup complete. Removed {len(deleted)} orphaned doc(s).')
+        return jsonify({'ok': True, 'deleted': deleted, 'count': len(deleted)})
+    except Exception as e:
+        print(f'❌ cleanup error: {e}')
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/api/send-approval-email', methods=['POST'])
 def send_approval_email():
     data     = request.get_json(silent=True) or {}

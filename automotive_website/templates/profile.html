@@ -220,10 +220,11 @@ firebase.auth().onAuthStateChanged(function(user) {
     var sess = JSON.parse(sessionStorage.getItem(sessKey) || '{}');
     if (sess.name || sess.email) {
         _renderProfile({
-            name:     sess.name     || 'User',
-            email:    sess.email    || user.email || '',
-            role:     sess.role     || _profileRole,
-            photoUrl: sess.photoUrl || null,
+            name:        sess.name        || 'User',
+            email:       sess.email       || user.email || '',
+            role:        sess.role        || _profileRole,
+            photoUrl:    sess.photoUrl    || null,
+            companyName: sess.companyName || '',
         });
     }
 
@@ -234,29 +235,31 @@ firebase.auth().onAuthStateChanged(function(user) {
         .onSnapshot(function(doc) {
             if (!doc.exists) return;
             var data = doc.data();
-            var name     = data.name     || sess.name  || 'User';
-            var email    = data.email    || user.email || '';
-            var role     = data.role     || _profileRole;
-            var photoUrl = data.photoUrl || null;
+            var name        = data.name        || sess.name  || 'User';
+            var email       = data.email       || user.email || '';
+            var role        = data.role        || _profileRole;
+            var photoUrl    = data.photoUrl    || null;
+            var companyName = data.companyName || '';
 
             if (!_pEditing) {
-                _renderProfile({ name: name, email: email, role: role, photoUrl: photoUrl });
+                _renderProfile({ name: name, email: email, role: role, photoUrl: photoUrl, companyName: companyName });
             }
 
             // Sync sessionStorage
             var key = _profileRole === 'admin' ? 'apUser' : _profileRole === 'staff' ? 'spUser' : 'cpUser';
             var s2 = JSON.parse(sessionStorage.getItem(key) || '{}');
-            s2.name = name; s2.email = email;
+            s2.name = name; s2.email = email; s2.companyName = companyName;
             sessionStorage.setItem(key, JSON.stringify(s2));
         }, function(err) { console.warn('Profile listener:', err); });
 });
 
 // ── Render profile HTML ──────────────────────────────────────
 function _renderProfile(d) {
-    var name     = d.name || 'User';
-    var email    = d.email || '';
-    var role     = d.role || _profileRole;
-    var photoUrl = d.photoUrl;
+    var name        = d.name || 'User';
+    var email       = d.email || '';
+    var role        = d.role || _profileRole;
+    var photoUrl    = d.photoUrl;
+    var companyName = d.companyName || '';
 
     var parts    = name.trim().split(' ').filter(Boolean);
     var initials = parts.length >= 2
@@ -314,6 +317,7 @@ function _renderProfile(d) {
         +     '</div>'
         +     _infoEditTile('person', 'Full Name', 'pFieldName', _esc(name), false, false)
         +     _infoEditTile('email', 'Email', 'pFieldEmail', _esc(email), false, false)
+        +     (role === 'customer' && companyName ? _infoEditTile('company', 'Company Name', 'pFieldCompany', _esc(companyName), false, false) : '')
         +     _infoEditTile('role', 'Role', 'pFieldRole', _esc(roleLabel), true, true)
         +   '</div>'
 
@@ -352,6 +356,7 @@ function _infoEditTile(type, label, fieldId, value, isLast, readOnly) {
     var icons = {
         person: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
         email:  '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',
+        company:'<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/>',
         role:   '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
     };
     return '<div class="pf-info-tile" id="tile_' + fieldId + '" style="' + (isLast ? 'border-bottom:none;' : '') + '">'
@@ -385,8 +390,10 @@ window.toggleEditMode = function() {
         var emailView = document.getElementById('view_pFieldEmail');
         window._pOrigName  = nameView  ? nameView.textContent  : '';
         window._pOrigEmail = emailView ? emailView.textContent : '';
+        var companyView = document.getElementById('view_pFieldCompany');
+        window._pOrigCompany = companyView ? companyView.textContent : '';
 
-        ['pFieldName', 'pFieldEmail'].forEach(function(id) {
+        ['pFieldName', 'pFieldEmail', 'pFieldCompany'].forEach(function(id) {
             var view = document.getElementById('view_' + id);
             var input = document.getElementById(id);
             if (view) view.style.display = 'none';
@@ -408,10 +415,12 @@ window.cancelEditMode = function() {
     // Restore original values
     var nameInput  = document.getElementById('pFieldName');
     var emailInput = document.getElementById('pFieldEmail');
-    if (nameInput)  nameInput.value  = window._pOrigName  || '';
-    if (emailInput) emailInput.value = window._pOrigEmail || '';
+    var companyInput = document.getElementById('pFieldCompany');
+    if (nameInput)    nameInput.value    = window._pOrigName    || '';
+    if (emailInput)   emailInput.value   = window._pOrigEmail   || '';
+    if (companyInput) companyInput.value  = window._pOrigCompany || '';
 
-    ['pFieldName', 'pFieldEmail'].forEach(function(id) {
+    ['pFieldName', 'pFieldEmail', 'pFieldCompany'].forEach(function(id) {
         var view = document.getElementById('view_' + id);
         var input = document.getElementById(id);
         if (view) view.style.display = 'block';
@@ -429,8 +438,10 @@ window.saveProfile = function() {
     var uid = window._profileUid;
     var nameEl  = document.getElementById('pFieldName');
     var emailEl = document.getElementById('pFieldEmail');
+    var companyEl = document.getElementById('pFieldCompany');
     var name  = nameEl  ? nameEl.value.trim()  : '';
     var email = emailEl ? emailEl.value.trim() : '';
+    var companyName = companyEl ? companyEl.value.trim() : '';
 
     if (!name)  { _showToast('Name cannot be empty.', 'error'); return; }
     if (!email) { _showToast('Email cannot be empty.', 'error'); return; }
@@ -442,7 +453,9 @@ window.saveProfile = function() {
     if (lbl) lbl.textContent = 'Saving...';
 
     var user = firebase.auth().currentUser;
-    firebase.firestore().collection('users').doc(uid).update({ name: name, email: email })
+    var updateData = { name: name, email: email };
+    if (_profileRole === 'customer') updateData.companyName = companyName;
+    firebase.firestore().collection('users').doc(uid).update(updateData)
         .then(function() { return user.updateEmail(email); })
         .then(function() {
             // Update owner field on all vehicles belonging to this customer
@@ -467,10 +480,15 @@ window.saveProfile = function() {
             sessionStorage.setItem(key, JSON.stringify(s));
 
             _pEditing = false;
-            ['pFieldName', 'pFieldEmail'].forEach(function(id) {
+            ['pFieldName', 'pFieldEmail', 'pFieldCompany'].forEach(function(id) {
                 var view = document.getElementById('view_' + id);
                 var input = document.getElementById(id);
-                if (view) { view.textContent = id === 'pFieldName' ? name : email; view.style.display = 'block'; }
+                if (view) {
+                    if (id === 'pFieldName') view.textContent = name;
+                    else if (id === 'pFieldEmail') view.textContent = email;
+                    else if (id === 'pFieldCompany') view.textContent = companyName;
+                    view.style.display = 'block';
+                }
                 if (input) input.style.display = 'none';
             });
 

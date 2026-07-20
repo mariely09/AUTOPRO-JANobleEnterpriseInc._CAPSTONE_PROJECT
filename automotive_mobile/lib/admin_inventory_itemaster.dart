@@ -389,8 +389,6 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                 _detailRow('Item Number', item['num'] ?? '—'),
                 if ((item['supplierCode'] as String? ?? '').isNotEmpty)
                   _detailRow('Supplier Item Code', item['supplierCode']!),
-                if (!isSvc && (item['sku']?.isNotEmpty == true))
-                  _detailRow('SKU', item['sku']!),
                 _detailRow('Item Name', item['name'] ?? '—'),
                 _detailRow('Commodity Group', item['group']?.isNotEmpty == true ? item['group']! : '—'),
                 _detailRow('UOM', item['uom']?.isNotEmpty == true ? item['uom']! : '—'),
@@ -528,7 +526,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      value,
+                      subtitle,
                       style: const TextStyle(
                         fontFamily: 'monospace',
                         fontSize: 13,
@@ -607,8 +605,8 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
       if (!mounted) return;
     }
 
-    final skuCtrl = TextEditingController(text: item?['sku'] ?? '');
     final nameCtrl = TextEditingController(text: item?['name'] ?? '');
+    final descCtrl = TextEditingController(text: item?['desc'] ?? '');
     final supplierCodeCtrl = TextEditingController(text: item?['supplierCode'] ?? '');
     final itemNumDisplay = isEdit ? (item!['num'] ?? '') : '';
     final costCtrl = TextEditingController(text: item?['cost']?.replaceAll('₱', '').replaceAll(',', '') ?? '');
@@ -666,6 +664,9 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                   TextField(controller: nameCtrl,
                     decoration: const InputDecoration(labelText: 'Item Name *', border: OutlineInputBorder())),
                   const SizedBox(height: 10),
+                  TextField(controller: descCtrl,
+                    decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
+                  const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     value: selectedGroup,
                     isExpanded: true,
@@ -702,9 +703,6 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                     )),
                   ]),
                   if (selectedType == 'Material') ...[
-                    const SizedBox(height: 10),
-                    TextField(controller: skuCtrl, keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'SKU', border: OutlineInputBorder())),
                     const SizedBox(height: 10),
                     // Barcode field with scan-only button
                     Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -767,8 +765,8 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                         final data = <String, dynamic>{
                           'num': isEdit ? (item!['num'] ?? '') : newItemNum,
                           'supplierCode': supplierCodeCtrl.text.trim(),
-                          'sku': skuCtrl.text.trim(),
                           'name': nameCtrl.text.trim(),
+                          'desc': descCtrl.text.trim(),
                           'group': selectedGroup ?? '',
                           'uom': selectedUom ?? '',
                           'cost': '₱${costCtrl.text.trim()}',

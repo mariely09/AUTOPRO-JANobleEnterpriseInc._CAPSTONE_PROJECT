@@ -36,6 +36,7 @@ class _UserProfileState extends State<UserProfile> {
   final _nameCtrl  = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _roleCtrl  = TextEditingController();
+  final _companyCtrl = TextEditingController();
 
   StreamSubscription<DocumentSnapshot>? _profileSub;
 
@@ -51,6 +52,7 @@ class _UserProfileState extends State<UserProfile> {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _roleCtrl.dispose();
+    _companyCtrl.dispose();
     super.dispose();
   }
 
@@ -72,6 +74,7 @@ class _UserProfileState extends State<UserProfile> {
         setState(() {
           _nameCtrl.text  = data['name']  as String? ?? _nameCtrl.text;
           _emailCtrl.text = data['email'] as String? ?? _emailCtrl.text;
+          _companyCtrl.text = data['companyName'] as String? ?? _companyCtrl.text;
           _roleCtrl.text  = role.isEmpty ? _roleCtrl.text
               : role[0].toUpperCase() + role.substring(1);
           _photoUrl       = data['photoUrl'] as String? ?? _photoUrl;
@@ -101,6 +104,7 @@ class _UserProfileState extends State<UserProfile> {
     await db.collection('users').doc(uid).update({
       'name': newName,
       'email': newEmail,
+      if (widget.role == UserRole.customer) 'companyName': _companyCtrl.text.trim(),
     });
 
     // Update owner field on all vehicles belonging to this customer
@@ -286,6 +290,8 @@ class _UserProfileState extends State<UserProfile> {
                         ),
                         _editableTile(Icons.person_outline, 'Full Name', _nameCtrl),
                         _editableTile(Icons.email_outlined, 'Email', _emailCtrl),
+                        if (widget.role == UserRole.customer && _companyCtrl.text.isNotEmpty)
+                          _editableTile(Icons.business_outlined, 'Company Name', _companyCtrl),
                         _editableTile(Icons.shield_outlined, 'Role', _roleCtrl, isLast: true, readOnly: true),
                       ]),
                     ),

@@ -353,6 +353,7 @@
         email: u.email || '',
         role: u.role || 'customer',
         status: u.status || 'active',
+        companyName: u.companyName || '',
         createdAt: u.createdAt || '',
         photoUrl: u.photoUrl || '',
       }));

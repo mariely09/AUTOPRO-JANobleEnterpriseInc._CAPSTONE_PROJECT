@@ -1837,9 +1837,7 @@ function onItemMasterCommodityGroupChange(select) {
     } else if (val) {
         if (typeEl) typeEl.value = 'Material';
     }
-    var skuRow = document.getElementById('imSkuRow');
     var isService = (val === 'AutoService') || (typeEl && typeEl.value === 'Service');
-    if (skuRow) skuRow.style.display = isService ? 'none' : '';
 }
 
 function openAddItemMasterModal() {
@@ -1879,7 +1877,6 @@ function editItemMaster(itemNum) {
     if (supplierCodeEl) supplierCodeEl.value = item.supplierCode || '';
     form.elements.itemName.value = item.itemName || '';
     if (form.elements.description) form.elements.description.value = item.description || '';
-    form.elements.sku.value = item.sku || '';
     form.elements.cost.value = item.cost || '';
     form.elements.itemType.value = item.itemType || '';
     // barcode and qrcode are now generated from the view modal — not in the add/edit form
@@ -1974,7 +1971,6 @@ function viewItemMasterDetails(itemNum) {
         ['Item Number', item.itemNum || '—'],
         ['Supplier Item Code', item.supplierCode || '—'],
     ];
-    if (!isService && item.sku) rows.push(['SKU', item.sku]);
     rows.push(
         ['Item Name', item.itemName || '—'],
         ['Description', item.description || '—'],
@@ -2052,7 +2048,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 supplierCode: supplierCode,
                 name:         itemName,
                 desc:   form.elements.description ? form.elements.description.value.trim() : '',
-                sku:    form.elements.sku.value.trim(),
                 group:  form.elements.commodityGroup.value,
                 uom:    form.elements.uom.value,
                 cost:   parseFloat(form.elements.cost.value) || 0,
@@ -2065,13 +2060,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (currentEditingItemMaster) {
                 var fbItem = (window._fbItemMaster || []).find(function(i){ return i.num === currentEditingItemMaster.itemNum; });
                 if (!fbItem || !fbItem._id) { alert('Item not found in database.'); return; }
-                // SKU duplicate check on edit (exclude the current item being edited)
-                if (data.sku) {
-                    var skuDupeEdit = (window.itemMaster || []).some(function(i){
-                        return String(i.sku||'').trim() === String(data.sku).trim() && i.sku !== '' && i.itemNum !== currentEditingItemMaster.itemNum;
-                    });
-                    if (skuDupeEdit) { showToast('SKU "' + data.sku + '" is already used by another item.', 'error'); return; }
-                }
                 var submitBtn = document.getElementById('imSubmitBtn');
                 if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Updating…'; }
                 db.collection('item_master').doc(fbItem._id).update(data)
@@ -2094,7 +2082,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                           name:         data.name || '',
                                           group:        data.group || '',
                                           uom:          data.uom  || '',
-                                          sku:          data.sku  || '',
                                           updatedAt:    firebase.firestore.FieldValue.serverTimestamp(),
                                       };
                                       snap.docs[0].ref.update(stockSync)
@@ -2110,11 +2097,6 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 var isDuplicate = (window.itemMaster || []).some(function(i){ return i.itemNum === itemNum; });
                 if (isDuplicate) { alert('Item Number already exists.'); return; }
-                // SKU duplicate check (only if SKU is provided)
-                if (data.sku) {
-                    var skuDupe = (window.itemMaster || []).some(function(i){ return String(i.sku||'').trim() === String(data.sku).trim() && i.sku !== ''; });
-                    if (skuDupe) { showToast('SKU "' + data.sku + '" is already used by another item.', 'error'); return; }
-                }
                 data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 var submitBtn2 = document.getElementById('imSubmitBtn');
                 if (submitBtn2) { submitBtn2.disabled = true; submitBtn2.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving…'; }
@@ -2390,7 +2372,8 @@ function renderUsersList() {
         filtered = nonPending.filter(function(u){
             return (u.name||'').toLowerCase().includes(q)
                 || (u.username||'').toLowerCase().includes(q)
-                || (u.email||'').toLowerCase().includes(q);
+                || (u.email||'').toLowerCase().includes(q)
+                || (u.companyName||'').toLowerCase().includes(q);
         });
     }
 
@@ -2406,7 +2389,6 @@ function renderUsersList() {
         switch (sortBy) {
             case 'name-desc':  return (b.name||'').localeCompare(a.name||'');
             case 'email-asc':  return (a.email||'').localeCompare(b.email||'');
-            case 'role-asc':   return (a.role||'').localeCompare(b.role||'');
             default:           return (a.name||'').localeCompare(b.name||'');
         }
     });
@@ -2434,10 +2416,11 @@ function renderUsersList() {
         var statusBadge = '<span style="background:'+statusColor+'20;color:'+statusColor+';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">'+statusLabel+'</span>';
         var roleLabel = (u.role||'');
         roleLabel = roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1);
-        return '<div class="table-row" style="grid-template-columns:40px 2fr 2fr 1fr 1fr 140px;">'
+        return '<div class="table-row" style="grid-template-columns:40px 2fr 2fr 1.5fr 1fr 1fr 140px;">'
             + '<div style="color:#a0aec0;font-size:0.85rem;">' + (idx+1) + '</div>'
             + '<div><strong>' + (u.name||'—') + '</strong></div>'
             + '<div style="color:#718096;font-size:0.85rem;">' + (u.email||'—') + '</div>'
+            + '<div style="color:#4a5568;font-size:0.85rem;">' + (u.companyName||'—') + '</div>'
             + '<div><span style="background:'+roleColor+'20;color:'+roleColor+';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">' + roleLabel + '</span></div>'
             + '<div>' + statusBadge + '</div>'
             + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;">'

@@ -86,6 +86,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _loading = true);
     try {
+      // Pre-check: verify the email exists in Firestore before attempting auth
+      try {
+        final preCheck = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: email)
+            .limit(1)
+            .get();
+        if (preCheck.docs.isEmpty) {
+          _showError('No account found with this email. Please sign up first.');
+          setState(() => _loading = false);
+          return;
+        }
+      } catch (_) {
+        // If Firestore rules block unauthenticated reads, skip pre-check
+      }
+
       final cred = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: email, password: password);
 

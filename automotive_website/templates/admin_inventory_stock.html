@@ -688,7 +688,7 @@ function invSelectItem(itemNum) {
     alreadyEl.style.display = 'none';
     document.getElementById('invPreviewInfo').innerHTML =
         '<div style="display:grid;grid-template-columns:110px 1fr;gap:0.3rem 0;">'
-        + '<span style="color:#718096;font-size:0.78rem;">Supplier Item Code</span><span style="font-weight:600;font-size:0.83rem;">' + (found.supplierCode||found.itemNum||'—') + '</span>'
+        + '<span style="color:#718096;font-size:0.78rem;">Supplier Item Code</span><span style="font-weight:600;font-size:0.83rem;">' + (found.supplierCode||'—') + '</span>'
         + '<span style="color:#718096;font-size:0.78rem;">Item Name</span><span style="font-weight:600;font-size:0.83rem;">' + (found.itemName||'—') + '</span>'
         + '<span style="color:#718096;font-size:0.78rem;">Group</span><span style="font-weight:600;font-size:0.83rem;">' + (found.commodityGroup||'—') + '</span>'
         + '<span style="color:#718096;font-size:0.78rem;">UOM</span><span style="font-weight:600;font-size:0.83rem;">' + (found.uom||'—') + '</span>'
@@ -803,8 +803,7 @@ function viewInventoryItem(id) {
         + '</div>'
         + '</div>'
         + '<div style="background:white;border-radius:14px;padding:1rem 1.25rem;border:1px solid #e2e8f0;">'
-        + _invRow('Supplier Item Code', item.supplierCode || item.itemNum || '—')
-        + _invRow('SKU', item.sku || '—')
+        + _invRow('Supplier Item Code', item.supplierCode || '—')
         + _invRow('Item Name', item.itemName)
         + _invRow('Commodity Group', item.commodityGroup || '—')
         + _invRow('UOM', item.unit || '—')
@@ -834,10 +833,10 @@ function editInventoryItem(id) {
     var item = inv.find(function(i){ return i.id === id; });
     if (!item) return;
     _editingInvDocId = id;
-    document.getElementById('editInvItemLabel').textContent = item.itemNum + ' · ' + item.itemName;
+    document.getElementById('editInvItemLabel').textContent = (item.supplierCode||item.itemNum) + ' · ' + item.itemName;
     document.getElementById('editInvInfoBox').innerHTML =
         '<div style="display:grid;grid-template-columns:110px 1fr;gap:0.25rem 0;font-size:0.82rem;">'
-        + '<span style="color:#718096;">Supplier Item Code</span><span style="font-weight:600;">' + item.itemNum + '</span>'
+        + '<span style="color:#718096;">Supplier Item Code</span><span style="font-weight:600;">' + (item.supplierCode||'—') + '</span>'
         + '<span style="color:#718096;">Item Name</span><span style="font-weight:600;">' + item.itemName + '</span>'
         + '<span style="color:#718096;">Group</span><span style="font-weight:600;">' + (item.commodityGroup||'—') + '</span>'
         + '<span style="color:#718096;">UOM</span><span style="font-weight:600;">' + (item.unit||'—') + '</span>'

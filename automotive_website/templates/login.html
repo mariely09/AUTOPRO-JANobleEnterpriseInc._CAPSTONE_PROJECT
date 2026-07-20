@@ -212,6 +212,20 @@
 
     setLoading(signinBtn, true, signinDefault);
     try {
+      // Pre-check: verify the email exists in Firestore before attempting auth
+      try {
+        const preCheck = await firebase.firestore().collection('users')
+          .where('email', '==', email).limit(1).get();
+        if (preCheck.empty) {
+          showToast('No account found with this email. Please sign up first.');
+          setLoading(signinBtn, false, signinDefault);
+          return;
+        }
+      } catch (preErr) {
+        // If Firestore rules block unauthenticated reads, skip pre-check
+        console.log('Pre-check skipped (rules may require auth):', preErr.code);
+      }
+
       // Set Firebase Auth persistence based on "Remember me"
       const persistence = rememberCheckbox.checked
         ? firebase.auth.Auth.Persistence.LOCAL

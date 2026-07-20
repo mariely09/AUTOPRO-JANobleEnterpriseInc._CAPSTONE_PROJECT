@@ -94,7 +94,7 @@
             </div>
             <div class="data-table">
                 <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr 120px;">
-                    <div>Plate Number</div><div>Vehicle Type</div><div>Owner</div>
+                    <div>Plate Number</div><div>Vehicle Type</div><div>Owner / Company Name</div>
                     <div>Odometer (km)</div><div>KM Since Last Service</div><div>Last Service Date</div><div>Next PMS Due</div><div>Actions</div>
                 </div>
                 <div id="assetsList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading vehicles...</div></div>
@@ -168,7 +168,7 @@
             <div class="fl-field">
                 <input type="text" name="ownerName" id="ownerNameInput" placeholder=" " autocomplete="off"
                     oninput="ownerNameLookup(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();}">
-                <label>Owner</label>
+                <label>Owner Name or Company Name</label>
                 <div id="ownerNameSuggestions" style="display:none;background:white;border:1px solid #e2e8f0;border-radius:8px;margin-top:2px;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:100;position:absolute;left:0;right:0;top:100%;"></div>
             </div>
             <div class="fl-field">
@@ -445,7 +445,7 @@
       _vehDetailRow('Plate Number', asset.plateNumber || asset.plate)
       + _vehDetailRow('Description', asset.assetDescription || asset.desc)
       + _vehDetailRow('Vehicle Type', asset.type)
-      + _vehDetailRow('Owner', asset.owner)
+      + _vehDetailRow('Owner Name / Company Name', asset.owner)
       + _vehDetailRow('Current Odometer', asset.odometer ? asset.odometer.toLocaleString() + ' km' : (asset.odo || '—'))
       + _vehDetailRow('Last Service Date', _fmtDate(lastSvcDateVal))
       + _vehDetailRow('Last Service Odometer', lastSvcOdoVal ? Number(lastSvcOdoVal).toLocaleString() + ' km' : '—')
@@ -620,10 +620,15 @@
     return firebase.firestore().collection('users')
       .where('role', '==', 'customer').get()
       .then(function(snap) {
-        _ownerNames = snap.docs
-          .map(function(d) { return d.data().name || ''; })
-          .filter(function(n) { return n.trim() !== ''; })
-          .sort();
+        _ownerNames = [];
+        snap.docs.forEach(function(d) {
+          var data = d.data();
+          var name = data.name || '';
+          var company = data.companyName || '';
+          if (name.trim()) _ownerNames.push(name);
+          if (company.trim() && !_ownerNames.includes(company)) _ownerNames.push(company);
+        });
+        _ownerNames.sort();
         _ownerNamesLoaded = true;
       }).catch(function() {});
   }

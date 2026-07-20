@@ -427,7 +427,7 @@ class _StaffVehicleListState extends State<StaffVehicleList> {
                   _detailRow('Plate Number', v['plate']!),
                   _detailRow('Description', v['desc']!),
                   _detailRow('Vehicle Type', v['type']!),
-                  _detailRow('Owner', v['owner']!),
+                  _detailRow('Owner Name / Company Name', v['owner']!),
                   _detailRow('Current Odometer', v['odo']!.isNotEmpty ? v['odo']! : '—'),
                   _detailRow('Last Service Date', _fmtDate(v['lastSvcDate']!)),
                   _detailRow('Last Service Odometer', lastSvcOdo > 0 ? '$lastSvcOdo km' : '—'),
@@ -663,11 +663,15 @@ class _OwnerAutocompleteState extends State<_OwnerAutocomplete> {
         .where('role', isEqualTo: 'customer')
         .get();
     if (!mounted) return;
-    _allNames = snap.docs
-        .map((d) => d['name'] as String? ?? '')
-        .where((n) => n.isNotEmpty)
-        .toList()
-      ..sort();
+    final names = <String>{};
+    for (final d in snap.docs) {
+      final data = d.data() as Map<String, dynamic>;
+      final name = data['name'] as String? ?? '';
+      final company = data['companyName'] as String? ?? '';
+      if (name.isNotEmpty) names.add(name);
+      if (company.isNotEmpty) names.add(company);
+    }
+    _allNames = names.toList()..sort();
   }
 
   @override
@@ -746,7 +750,7 @@ class _OwnerAutocompleteState extends State<_OwnerAutocomplete> {
         controller: widget.controller,
         focusNode: _focusNode,
         decoration: const InputDecoration(
-          labelText: 'Owner *',
+          labelText: 'Owner Name or Company Name',
           border: OutlineInputBorder(),
           suffixIcon: Icon(Icons.person_search_outlined, size: 20, color: Color(0xFF718096)),
         ),
