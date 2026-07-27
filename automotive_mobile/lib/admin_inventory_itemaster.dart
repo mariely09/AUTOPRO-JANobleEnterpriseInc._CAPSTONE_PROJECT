@@ -182,6 +182,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
               'id': d.id,
               'num': (data['num'] ?? '—').toString(),
               'supplierCode': (data['supplierCode'] ?? '').toString(),
+              'oem': (data['oem'] ?? '').toString(),
               'sku': (data['sku'] ?? '').toString(),
               'name': (data['name'] ?? '—').toString(),
               'desc': (data['desc'] ?? '').toString(),
@@ -389,6 +390,8 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                 _detailRow('Item Number', item['num'] ?? '—'),
                 if ((item['supplierCode'] as String? ?? '').isNotEmpty)
                   _detailRow('Supplier Item Code', item['supplierCode']!),
+                if ((item['oem'] as String? ?? '').isNotEmpty)
+                  _detailRow('OEM', item['oem']!),
                 _detailRow('Item Name', item['name'] ?? '—'),
                 _detailRow('Commodity Group', item['group']?.isNotEmpty == true ? item['group']! : '—'),
                 _detailRow('UOM', item['uom']?.isNotEmpty == true ? item['uom']! : '—'),
@@ -458,7 +461,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     }
 
     if (!mounted) return;
-    _showScanCodeModal(item['name'] ?? '', item['supplierCode']?.isNotEmpty == true ? item['supplierCode']! : (item['num'] ?? ''), barcodeVal, isBarcode: true);
+    _showScanCodeModal(item['name'] ?? '', item['uom'] ?? '', barcodeVal, isBarcode: true, codeLabel: item['supplierCode']?.isNotEmpty == true ? item['supplierCode']! : (item['num'] ?? ''));
   }
 
   // ── Show existing or generate + save QR code ──
@@ -477,10 +480,11 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     }
 
     if (!mounted) return;
-    _showScanCodeModal(item['name'] ?? '', supplierCode, qrVal, isBarcode: false);
+    _showScanCodeModal(item['name'] ?? '', item['uom'] ?? '', qrVal, isBarcode: false, codeLabel: supplierCode.isNotEmpty ? supplierCode : (item['num'] ?? ''));
   }
 
-  void _showScanCodeModal(String name, String subtitle, String value, {required bool isBarcode}) {
+  void _showScanCodeModal(String name, String subtitle, String value, {required bool isBarcode, String? codeLabel}) {
+    final labelBelow = codeLabel ?? subtitle;
     showModalBottomSheet(
       context: context, isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -526,7 +530,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      subtitle,
+                      labelBelow,
                       style: const TextStyle(
                         fontFamily: 'monospace',
                         fontSize: 13,
@@ -546,7 +550,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      subtitle, // supplier code shown below QR
+                      labelBelow, // supplier code shown below QR
                       style: const TextStyle(
                         fontFamily: 'monospace',
                         fontSize: 13,
@@ -608,10 +612,8 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     final nameCtrl = TextEditingController(text: item?['name'] ?? '');
     final descCtrl = TextEditingController(text: item?['desc'] ?? '');
     final supplierCodeCtrl = TextEditingController(text: item?['supplierCode'] ?? '');
-    final itemNumDisplay = isEdit ? (item!['num'] ?? '') : '';
+    final oemCtrl = TextEditingController(text: item?['oem'] ?? '');
     final costCtrl = TextEditingController(text: item?['cost']?.replaceAll('₱', '').replaceAll(',', '') ?? '');
-    final barcodeCtrl = TextEditingController(text: item?['barcode'] ?? '');
-    final qrCtrl = TextEditingController(text: item?['qr'] ?? '');
     String selectedType = item?['type'] ?? 'Material';
     String? selectedGroup = (item?['group']?.isNotEmpty == true && groups.contains(item!['group'])) ? item['group'] : null;
     String? selectedUom = (item?['uom']?.isNotEmpty == true && uoms.contains(item!['uom'])) ? item['uom'] : null;
@@ -642,25 +644,33 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   TextField(controller: supplierCodeCtrl,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Supplier Item Code',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
+                        tooltip: 'Scan barcode / QR code',
+                        onPressed: () async {
+                          final result = await Navigator.push<String>(ctx,
+                            MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(
+                              title: 'Scan Supplier Code',
+                              hint: 'Point camera at barcode or QR code',
+                            )));
+                          if (result != null && result.isNotEmpty) {
+                            supplierCodeCtrl.text = result;
+                            setModalState(() {});
+                          }
+                        },
+                      ),
+                    )),
+                  const SizedBox(height: 10),
+                  TextField(controller: oemCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'OEM',
                       border: OutlineInputBorder(),
                     )),
                   const SizedBox(height: 10),
-                  // Item Number — read-only display (auto-generated or existing)
-                  if (isEdit) ...[
-                    InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Item Number',
-                        border: OutlineInputBorder(),
-                        filled: true,
-                        fillColor: Color(0xFFF7F8FA),
-                      ),
-                      child: Text(itemNumDisplay,
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF718096))),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
+                  // Item Number is auto-generated — not shown in modal
                   TextField(controller: nameCtrl,
                     decoration: const InputDecoration(labelText: 'Item Name *', border: OutlineInputBorder())),
                   const SizedBox(height: 10),
@@ -673,7 +683,9 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                     decoration: const InputDecoration(labelText: 'Commodity Group', border: OutlineInputBorder()),
                     hint: const Text('Select group'),
                     items: groups.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-                    onChanged: (v) => setModalState(() => selectedGroup = v),
+                    onChanged: (v) {
+                      setModalState(() => selectedGroup = v);
+                    },
                     borderRadius: BorderRadius.circular(10),
                   ),
                   const SizedBox(height: 10),
@@ -704,53 +716,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                   ]),
                   if (selectedType == 'Material') ...[
                     const SizedBox(height: 10),
-                    // Barcode field with scan-only button
-                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Expanded(child: TextField(controller: barcodeCtrl,
-                        decoration: InputDecoration(
-                          labelText: 'Barcode',
-                          border: const OutlineInputBorder(),
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
-                            tooltip: 'Scan barcode',
-                            onPressed: () async {
-                              final result = await Navigator.push<String>(ctx,
-                                MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(
-                                  title: 'Scan Barcode',
-                                  hint: 'Point camera at the barcode',
-                                )));
-                              if (result != null && result.isNotEmpty) {
-                                barcodeCtrl.text = result;
-                                setModalState(() {});
-                              }
-                            },
-                          ),
-                        ))),
-                    ]),
-                    const SizedBox(height: 10),
-                    // QR Code field with scan-only button
-                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Expanded(child: TextField(controller: qrCtrl,
-                        decoration: InputDecoration(
-                          labelText: 'QR Code',
-                          border: const OutlineInputBorder(),
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
-                            tooltip: 'Scan QR code',
-                            onPressed: () async {
-                              final result = await Navigator.push<String>(ctx,
-                                MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(
-                                  title: 'Scan QR Code',
-                                  hint: 'Point camera at the QR code',
-                                )));
-                              if (result != null && result.isNotEmpty) {
-                                qrCtrl.text = result;
-                                setModalState(() {});
-                              }
-                            },
-                          ),
-                        ))),
-                    ]),
+                    // (barcode and QR are derived from supplier item code)
                   ],
                   const SizedBox(height: 20),
                   Row(children: [
@@ -765,14 +731,15 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                         final data = <String, dynamic>{
                           'num': isEdit ? (item!['num'] ?? '') : newItemNum,
                           'supplierCode': supplierCodeCtrl.text.trim(),
+                          'oem': oemCtrl.text.trim(),
                           'name': nameCtrl.text.trim(),
                           'desc': descCtrl.text.trim(),
                           'group': selectedGroup ?? '',
                           'uom': selectedUom ?? '',
                           'cost': '₱${costCtrl.text.trim()}',
                           'type': selectedType,
-                          'barcode': selectedType == 'Material' ? barcodeCtrl.text.trim() : '',
-                          'qr': selectedType == 'Material' ? qrCtrl.text.trim() : '',
+                          'barcode': selectedType == 'Material' ? supplierCodeCtrl.text.trim() : '',
+                          'qr': selectedType == 'Material' ? supplierCodeCtrl.text.trim() : '',
                         };
                         try {
                           if (isEdit) {

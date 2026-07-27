@@ -1555,6 +1555,23 @@ function renderInventoryTransactions(filter) {
             type: type,
             qty: t.qty || t.quantity || 0,
             by: t.by || t.performedBy || '—',
+            uom: (function() {
+                if (t.uom || t.unit) return t.uom || t.unit;
+                var itemName = (t.item || t.name || '').toLowerCase().trim();
+                var itemNum  = (t.itemNum || '').toLowerCase().trim();
+                var inv = window.inventory || [];
+                var found = inv.find(function(i) {
+                    return (i.itemName||'').toLowerCase() === itemName
+                        || (itemNum && (i.itemNum||'').toLowerCase() === itemNum);
+                });
+                if (found && (found.unit || found.uom)) return found.unit || found.uom;
+                var master = window.itemMaster || [];
+                var mf = master.find(function(i) {
+                    return (i.itemName||'').toLowerCase() === itemName
+                        || (itemNum && (i.itemNum||'').toLowerCase() === itemNum);
+                });
+                return (mf && mf.uom) ? mf.uom : '';
+            })(),
             commodityGroup: (function() {
                 // 1. Try direct field on the transaction document
                 if (t.commodityGroup) return t.commodityGroup;
@@ -1709,7 +1726,7 @@ function renderInventoryTransactions(filter) {
         var dateStr = _fmtTxnDate(t.date);
         return '<div class="table-row" style="grid-template-columns:120px 1fr 1fr 1.5fr 80px 80px 100px;">'
             + '<div>' + dateStr + '</div>'
-            + '<div><strong>' + t.item + '</strong></div>'
+            + '<div><strong>' + t.item + '</strong>' + (t.uom ? '<span style="font-size:0.75rem;color:#718096;margin-left:4px;">(' + t.uom + ')</span>' : '') + '</div>'
             + '<div>' + (t.commodityGroup || '—') + '</div>'
             + '<div>' + t.description + (t.assetLine ? '<div style="font-size:0.75rem;color:#718096;margin-top:2px;">' + t.assetLine + '</div>' : '') + '</div>'
             + '<div><span style="background:' + typeBg + ';color:' + typeColor + ';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">' + t.type + '</span></div>'
@@ -1838,6 +1855,18 @@ function onItemMasterCommodityGroupChange(select) {
         if (typeEl) typeEl.value = 'Material';
     }
     var isService = (val === 'AutoService') || (typeEl && typeEl.value === 'Service');
+    // Auto-fill barcode/QR with supplier code for Spare Parts
+    if (val === 'Spare Parts') {
+        var scEl = document.getElementById('itemMasterSupplierCode');
+        var sc = scEl ? scEl.value.trim() : '';
+        if (sc) {
+            var form = document.getElementById('addItemMasterForm');
+            var barcodeEl = form ? form.elements['barcode'] : null;
+            var qrEl = form ? form.elements['qr'] : null;
+            if (barcodeEl && !barcodeEl.value) barcodeEl.value = sc;
+            if (qrEl && !qrEl.value) qrEl.value = sc;
+        }
+    }
 }
 
 function openAddItemMasterModal() {
@@ -1847,8 +1876,10 @@ function openAddItemMasterModal() {
     if (submitBtn) submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
     document.getElementById('addItemMasterForm').reset();
     // Clear supplier code field separately (not in standard form reset scope)
-    var scEl = document.getElementById('itemMasterSupplierCode');
-    if (scEl) scEl.value = '';
+    var supplierCodeEl = document.getElementById('itemMasterSupplierCode');
+    if (supplierCodeEl) supplierCodeEl.value = '';
+    var oemEl = document.getElementById('itemMasterOEM');
+    if (oemEl) oemEl.value = '';
     populateItemMasterDropdowns();
     // Auto-generate next ITM-XXX number
     var itemMaster = window.itemMaster || [];
@@ -1875,6 +1906,8 @@ function editItemMaster(itemNum) {
     form.elements.itemNum.value = item.itemNum;
     var supplierCodeEl = document.getElementById('itemMasterSupplierCode');
     if (supplierCodeEl) supplierCodeEl.value = item.supplierCode || '';
+    var oemEl = document.getElementById('itemMasterOEM');
+    if (oemEl) oemEl.value = item.oem || '';
     form.elements.itemName.value = item.itemName || '';
     if (form.elements.description) form.elements.description.value = item.description || '';
     form.elements.cost.value = item.cost || '';
@@ -1908,6 +1941,20 @@ function editItemMaster(itemNum) {
     });
 
     document.getElementById('addItemMasterModal').classList.add('active');
+
+    // Auto-fill barcode/QR with supplier code if group is Spare Parts
+    setTimeout(function() {
+        if (item.commodityGroup === 'Spare Parts') {
+            var form = document.getElementById('addItemMasterForm');
+            var sc = (item.supplierCode || '').trim();
+            if (sc && form) {
+                var barcodeEl = form.elements['barcode'];
+                var qrEl = form.elements['qr'];
+                if (barcodeEl) barcodeEl.value = sc;
+                if (qrEl) qrEl.value = sc;
+            }
+        }
+    }, 300);
 }
 
 function deleteItemMaster(itemNum) {
@@ -1970,6 +2017,7 @@ function viewItemMasterDetails(itemNum) {
     var rows = [
         ['Item Number', item.itemNum || '—'],
         ['Supplier Item Code', item.supplierCode || '—'],
+        ['OEM', item.oem || '—'],
     ];
     rows.push(
         ['Item Name', item.itemName || '—'],
@@ -2040,12 +2088,15 @@ document.addEventListener('DOMContentLoaded', function() {
             var itemNum = form.elements.itemNum.value.trim();
             var supplierCodeEl = document.getElementById('itemMasterSupplierCode');
             var supplierCode = supplierCodeEl ? supplierCodeEl.value.trim() : '';
+            var oemEl = document.getElementById('itemMasterOEM');
+            var oem = oemEl ? oemEl.value.trim() : '';
             var itemName = form.elements.itemName.value.trim();
             if (!itemName) { alert('Item Name is required.'); return; }
 
             var data = {
                 num:          itemNum,
                 supplierCode: supplierCode,
+                oem:          oem,
                 name:         itemName,
                 desc:   form.elements.description ? form.elements.description.value.trim() : '',
                 group:  form.elements.commodityGroup.value,
@@ -2112,6 +2163,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     itemName: data.name,
                                     commodityGroup: data.group,
                                     uom: data.uom,
+                                    supplierCode: data.supplierCode || '',
                                 };
                                 // Open stock modal inline — pre-fill item info
                                 var srchEl = document.getElementById('invItemSearch');
@@ -2126,7 +2178,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (previewInfo) {
                                     previewInfo.innerHTML =
                                         '<div style="display:grid;grid-template-columns:110px 1fr;gap:0.3rem 0;">'
-                                        + '<span style="color:#718096;font-size:0.78rem;">Item Number</span><span style="font-weight:600;font-size:0.83rem;">' + data.num + '</span>'
+                                        + '<span style="color:#718096;font-size:0.78rem;">Supplier Item Code</span><span style="font-weight:600;font-size:0.83rem;">' + (data.supplierCode || '—') + '</span>'
                                         + '<span style="color:#718096;font-size:0.78rem;">Item Name</span><span style="font-weight:600;font-size:0.83rem;">' + data.name + '</span>'
                                         + '<span style="color:#718096;font-size:0.78rem;">Group</span><span style="font-weight:600;font-size:0.83rem;">' + (data.group||'—') + '</span>'
                                         + '<span style="color:#718096;font-size:0.78rem;">UOM</span><span style="font-weight:600;font-size:0.83rem;">' + (data.uom||'—') + '</span>'

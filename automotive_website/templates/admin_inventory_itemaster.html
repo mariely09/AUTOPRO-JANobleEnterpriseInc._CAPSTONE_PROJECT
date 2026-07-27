@@ -167,6 +167,10 @@
                 <label>Supplier Item Code</label>
             </div>
             <div class="fl-field">
+                <input type="text" name="oem" id="itemMasterOEM" placeholder=" ">
+                <label>OEM</label>
+            </div>
+            <div class="fl-field">
                 <input type="text" name="itemName" required placeholder=" ">
                 <label>Item Name *</label>
             </div>
@@ -293,7 +297,6 @@
                 <div id="imScanCodeTitle" style="color:white;font-size:1rem;font-weight:700;"></div>
                 <div id="imScanCodeSubtitle" style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.15rem;"></div>
             </div>
-            <button onclick="closeModal('imScanCodeModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:30px;height:30px;border-radius:50%;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
         </div>
         <div style="padding:1.5rem;background:#f8fafc;display:flex;flex-direction:column;align-items:center;gap:1rem;">
             <div style="background:white;border-radius:14px;padding:1.25rem;border:1px solid #e2e8f0;width:100%;text-align:center;" id="imScanCodeImgWrap">
@@ -458,7 +461,7 @@
   // Auto-open stock level modal after adding a Material item
   window.openAddInventoryModalWithItem = function(item) {
     // Navigate to stock inventory page with the item pre-selected
-    window.location.href = 'admin_inventory_stock.html#add=' + encodeURIComponent(item.itemNum + '|' + item.itemName + '|' + item.commodityGroup + '|' + item.uom);
+    window.location.href = 'admin_inventory_stock.html#add=' + encodeURIComponent(item.itemNum + '|' + item.itemName + '|' + item.commodityGroup + '|' + item.uom + '|' + (item.supplierCode || ''));
   };
 
   // Update Item Master stat cards from live data
@@ -631,7 +634,7 @@
     if (!item) return;
     var existingBarcode = item.barcode || '';
     if (existingBarcode) {
-      _imShowScanCodeModal(item.itemName, item.supplierCode || item.itemNum || '', existingBarcode, 'barcode');
+      _imShowScanCodeModal(item.itemName, item.uom || '', existingBarcode, 'barcode', item.supplierCode || item.itemNum || '');
       return;
     }
     var digits = [];
@@ -647,7 +650,7 @@
       item.barcode = barcodeVal;
       fbItem.barcode = barcodeVal;
     }
-    _imShowScanCodeModal(item.itemName, item.supplierCode || item.itemNum || '', barcodeVal, 'barcode');
+    _imShowScanCodeModal(item.itemName, item.uom || '', barcodeVal, 'barcode', item.supplierCode || item.itemNum || '');
   };
 
   window.imGenerateAndShowQR = function() {
@@ -655,7 +658,7 @@
     if (!item) return;
     var existingQr = item.qrcode || '';
     if (existingQr) {
-      _imShowScanCodeModal(item.itemName, item.supplierCode || item.itemNum || '', existingQr, 'qr');
+      _imShowScanCodeModal(item.itemName, item.uom || '', existingQr, 'qr', item.supplierCode || item.itemNum || '');
       return;
     }
     var qrVal = 'QR-' + (item.supplierCode || item.itemNum || '').toUpperCase();
@@ -666,13 +669,14 @@
       item.qrcode = qrVal;
       fbItem2.qr = qrVal;
     }
-    _imShowScanCodeModal(item.itemName, item.supplierCode || item.itemNum || '', qrVal, 'qr');
+    _imShowScanCodeModal(item.itemName, item.uom || '', qrVal, 'qr', item.supplierCode || item.itemNum || '');
   };
 
-  function _imShowScanCodeModal(title, subtitle, value, type) {
+  function _imShowScanCodeModal(title, subtitle, value, type, codeLabel) {
+    var labelBelow = codeLabel || subtitle;
     document.getElementById('imScanCodeTitle').textContent = title;
     document.getElementById('imScanCodeSubtitle').textContent = subtitle;
-    document.getElementById('imScanCodeValue').textContent = value;
+    document.getElementById('imScanCodeValue').textContent = labelBelow;
     document.getElementById('imScanCodeBarcodeSvg').style.display = 'none';
     document.getElementById('imScanCodeQrDiv').innerHTML = '';
 
@@ -686,9 +690,9 @@
           svg.style.display = 'block';
         } catch(e) { svg.style.display = 'none'; }
       }
-      // Show supplier item code below the barcode image (same as QR)
+      // Show supplier item code below the barcode image
       var valEl = document.getElementById('imScanCodeValue');
-      if (valEl) { valEl.textContent = subtitle; valEl.style.display = 'block'; }
+      if (valEl) { valEl.textContent = labelBelow; valEl.style.display = 'block'; }
     } else {
       var qrDiv = document.getElementById('imScanCodeQrDiv');
       if (typeof QRCode !== 'undefined') {
@@ -699,7 +703,7 @@
       // Show supplier code below the QR image
       var valEl = document.getElementById('imScanCodeValue');
       if (valEl) {
-        valEl.textContent = document.getElementById('imScanCodeSubtitle').textContent;
+        // labelBelow already set at top of function
         valEl.style.display = 'block';
       }
     }

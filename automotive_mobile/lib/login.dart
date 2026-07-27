@@ -159,7 +159,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!kIsWeb) {
         OneSignal.login(uid);
         debugPrint('✅ OneSignal login: $uid');
+        _ensurePushPermission(uid);
         _saveOneSignalId(uid);
+        _watchOneSignalSubscription(uid);
       }
 
       // Check first-login flag — force password change before entering app
@@ -225,7 +227,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (uid != null && !kIsWeb) {
         OneSignal.login(uid);
         debugPrint('✅ OneSignal login (Google): $uid');
+        _ensurePushPermission(uid);
         _saveOneSignalId(uid);
+        _watchOneSignalSubscription(uid);
       }
 
       // Check first-login flag for Google sign-in users too
@@ -291,24 +295,87 @@ class _LoginScreenState extends State<LoginScreen> {
       SnackBar(content: Text(msg), backgroundColor: Colors.redAccent));
   }
 
-  /// Saves the OneSignal subscription (player) ID to Firestore under users/{uid}.
-  /// This lets us target this specific device by subscription ID instead of
-  /// external user ID (which requires a paid OneSignal plan).
+  /// Saves the OneSignal subscription ID to Firestore.
+  /// Uses the push subscription observer as the primary mechanism — fires as soon
+  /// as OneSignal assigns an ID (which can take 10–60s on first install).
+  /// Also does a single immediate check in case the ID is already available.
   Future<void> _saveOneSignalId(String uid) async {
-    try {
-      // Give OneSignal a moment to register the subscription after login()
-      await Future.delayed(const Duration(seconds: 2));
-      final subId = OneSignal.User.pushSubscription.id;
-      if (subId == null || subId.isEmpty) {
-        debugPrint('⚠️ OneSignal subscription ID not available yet');
-        return;
+    if (kIsWeb) return;
+
+    Future<void> _persist(String subId) async {
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .update({'oneSignalId': subId});
+        debugPrint('✅ OneSignal subscription ID saved: $subId');
+      } catch (e) {
+        debugPrint('⚠️ Could not save OneSignal ID: $e');
       }
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'oneSignalId': subId,
+    }
+
+    // Immediate check — already assigned (e.g. returning user / app restart)
+    final existing = OneSignal.User.pushSubscription.id;
+    if (existing != null && existing.isNotEmpty) {
+      await _persist(existing);
+      return;
+    }
+
+    // Otherwise wait for the observer to fire when OneSignal assigns the ID
+    debugPrint('⏳ Waiting for OneSignal to assign subscription ID...');
+    OneSignal.User.pushSubscription.addObserver((state) {
+      final newId = state.current.id;
+      if (newId == null || newId.isEmpty) return;
+      debugPrint('🔔 OneSignal subscription ID ready: $newId');
+      _persist(newId);
+    });
+  }
+
+  /// Watches for future subscription ID changes (token rotation, re-install, etc.)
+  /// and keeps Firestore in sync. Call once after login — separate from _saveOneSignalId
+  /// so we don't add duplicate observers.
+  void _watchOneSignalSubscription(String uid) {
+    if (kIsWeb) return;
+    OneSignal.User.pushSubscription.addObserver((state) {
+      final newId = state.current.id;
+      if (newId == null || newId.isEmpty) return;
+      FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'oneSignalId': newId,
+      }).then((_) {
+        debugPrint('🔄 OneSignal subscription ID updated: $newId');
+      }).catchError((e) {
+        debugPrint('⚠️ Could not update OneSignal ID: $e');
       });
-      debugPrint('✅ OneSignal subscription ID saved: $subId');
-    } catch (e) {
-      debugPrint('⚠️ Could not save OneSignal ID: $e');
+    });
+  }
+
+  /// Ensures push notifications are opted in. Re-requests permission if denied.
+  Future<void> _ensurePushPermission(String uid) async {
+    if (kIsWeb) return;
+    final isOptedIn = OneSignal.User.pushSubscription.optedIn ?? false;
+    if (!isOptedIn) {
+      debugPrint('⚠️ Push not opted in — requesting permission...');
+      final granted = await OneSignal.Notifications.requestPermission(true);
+      debugPrint(granted ? '✅ Push permission granted' : '❌ Push permission denied by user');
+      if (granted) {
+        await OneSignal.User.pushSubscription.optIn();
+        debugPrint('✅ OneSignal subscription opted in');
+        // Give it a moment then save the new ID
+        await Future.delayed(const Duration(seconds: 2));
+        final subId = OneSignal.User.pushSubscription.id;
+        if (subId != null && subId.isNotEmpty) {
+          try {
+            await FirebaseFirestore.instance.collection('users').doc(uid).update({
+              'oneSignalId': subId,
+            });
+            debugPrint('✅ OneSignal ID saved after opt-in: $subId');
+          } catch (e) {
+            debugPrint('⚠️ Could not save ID after opt-in: $e');
+          }
+        }
+      }
+    } else {
+      debugPrint('✅ Push already opted in');
     }
   }
 

@@ -277,6 +277,7 @@
         id: i._id,
         itemNum: i.num || i._id,
         supplierCode: i.supplierCode || '',
+        oem: i.oem || '',
         itemName: i.name || '',
         description: i.desc || i.description || '',
         commodityGroup: i.group || '',

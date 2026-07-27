@@ -136,6 +136,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
     final trimmed = result.trim();
     final query   = trimmed.toLowerCase();
 
+    if (trimmed.isEmpty) return;
+
     // ── Barcode/QR match helpers ──
     String _norm(String s) {
       final t = s.trim();
@@ -172,39 +174,67 @@ class _StaffDashboardState extends State<StaffDashboard> {
     try {
       final all = await FirebaseFirestore.instance.collection('item_master').get();
 
-      DocumentSnapshot? matchDoc;
+      Map<String, dynamic>? matchData;
+      String? matchId;
 
-      // P1: exact barcode
-      matchDoc = all.docs.cast<DocumentSnapshot?>().firstWhere(
-        (d) => (d!.data() as Map<String, dynamic>)['barcode']?.toString().trim() == trimmed,
-        orElse: () => null);
-      // P2: exact QR
-      matchDoc ??= all.docs.cast<DocumentSnapshot?>().firstWhere(
-        (d) => (d!.data() as Map<String, dynamic>)['qr']?.toString().trim() == trimmed,
-        orElse: () => null);
-      // P3: normalized barcode/QR
-      matchDoc ??= all.docs.cast<DocumentSnapshot?>().firstWhere((d) {
-        final data = d!.data() as Map<String, dynamic>;
-        return _match(data['barcode']?.toString() ?? '', trimmed) ||
-               _match(data['qr']?.toString()      ?? '', trimmed);
-      }, orElse: () => null);
-      // P4: item number
-      matchDoc ??= all.docs.cast<DocumentSnapshot?>().firstWhere(
-        (d) => (d!.data() as Map<String, dynamic>)['num']?.toString().trim().toLowerCase() == trimmed.toLowerCase(),
-        orElse: () => null);
-      // P5: name (non-numeric query only)
-      if (matchDoc == null && query.length >= 3 && !RegExp(r'^\d+$').hasMatch(trimmed)) {
-        matchDoc = all.docs.cast<DocumentSnapshot?>().firstWhere(
-          (d) => ((d!.data() as Map<String, dynamic>)['name']?.toString() ?? '').toLowerCase().contains(query),
-          orElse: () => null);
+      for (final doc in all.docs) {
+        final data = doc.data();
+        final barcode = (data['barcode']?.toString() ?? '').trim();
+        final qr = (data['qr']?.toString() ?? '').trim();
+        final num = (data['num']?.toString() ?? '').trim();
+        final name = (data['name']?.toString() ?? '').trim();
+
+        // P1: exact barcode match
+        if (barcode.isNotEmpty && barcode == trimmed) {
+          matchData = data; matchId = doc.id; break;
+        }
+        // P2: exact QR match
+        if (qr.isNotEmpty && qr == trimmed) {
+          matchData = data; matchId = doc.id; break;
+        }
+        // P3: case-insensitive barcode/QR
+        if (barcode.isNotEmpty && barcode.toLowerCase() == query) {
+          matchData = data; matchId = doc.id; break;
+        }
+        if (qr.isNotEmpty && qr.toLowerCase() == query) {
+          matchData = data; matchId = doc.id; break;
+        }
+        // P4: normalized numeric barcode/QR match
+        if (barcode.isNotEmpty && _match(barcode, trimmed)) {
+          matchData = data; matchId = doc.id; break;
+        }
+        if (qr.isNotEmpty && _match(qr, trimmed)) {
+          matchData = data; matchId = doc.id; break;
+        }
       }
 
-      if (matchDoc != null) {
-        final d = matchDoc.data() as Map<String, dynamic>;
-        resolvedNum  = (d['num']?.toString()  ?? '').toLowerCase();
-        resolvedName = (d['name']?.toString() ?? '').toLowerCase();
-        masterItem   = {'id': matchDoc.id, ...d};
-        debugPrint('✅ item_master match: ${d['name']} [barcode=${d['barcode']}, scanned=$trimmed]');
+      // P5: item number match (if not found yet)
+      if (matchData == null) {
+        for (final doc in all.docs) {
+          final data = doc.data();
+          final num = (data['num']?.toString() ?? '').trim();
+          if (num.isNotEmpty && num.toLowerCase() == query) {
+            matchData = data; matchId = doc.id; break;
+          }
+        }
+      }
+
+      // P6: name match (non-numeric query only, if not found yet)
+      if (matchData == null && query.length >= 3 && !RegExp(r'^\d+$').hasMatch(trimmed)) {
+        for (final doc in all.docs) {
+          final data = doc.data();
+          final name = (data['name']?.toString() ?? '').toLowerCase();
+          if (name.contains(query)) {
+            matchData = data; matchId = doc.id; break;
+          }
+        }
+      }
+
+      if (matchData != null && matchId != null) {
+        resolvedNum  = (matchData['num']?.toString()  ?? '').toLowerCase();
+        resolvedName = (matchData['name']?.toString() ?? '').toLowerCase();
+        masterItem   = {'id': matchId, ...matchData};
+        debugPrint('✅ item_master match: ${matchData['name']} [barcode=${matchData['barcode']}, qr=${matchData['qr']}, scanned=$trimmed]');
       } else {
         debugPrint('❌ No match for scanned: "$trimmed"');
       }
@@ -214,25 +244,34 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
     if (!mounted) return;
 
-    // Step 2: Find matching pending delivery
+    // Step 2: Find matching delivery (any active status) and get the per-item status
     Map<String, dynamic>? foundDelivery;
+    String? foundItemStatus;
     try {
       final deliveriesSnap = await FirebaseFirestore.instance
           .collection('deliveries')
-          .where('status', isEqualTo: 'Pending')
+          .orderBy('createdAt', descending: true)
           .get();
 
       for (final doc in deliveriesSnap.docs) {
         final d = {...doc.data() as Map<String, dynamic>, 'id': doc.id};
+        final deliveryStatus = d['status'] as String? ?? 'Pending';
+        // Skip completed deliveries
+        if (deliveryStatus == 'Approved' || deliveryStatus == 'Rejected') continue;
         final items = (d['items'] as List? ?? []);
-        final match = items.any((i) {
+        for (final i in items) {
           final num  = (i['itemNum']  as String? ?? '').toLowerCase();
           final name = (i['itemName'] as String? ?? '').toLowerCase();
-          return (resolvedNum.isNotEmpty  && num.contains(resolvedNum))  ||
+          final matched = (resolvedNum.isNotEmpty && num.contains(resolvedNum)) ||
                  (resolvedName.isNotEmpty && name.contains(resolvedName)) ||
                  num.contains(query) || name.contains(query);
-        });
-        if (match) { foundDelivery = d; break; }
+          if (matched) {
+            foundDelivery = d;
+            foundItemStatus = i['itemStatus'] as String? ?? deliveryStatus;
+            break;
+          }
+        }
+        if (foundDelivery != null) break;
       }
     } catch (e) {
       debugPrint('delivery lookup error: $e');
@@ -245,6 +284,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       rawValue:   trimmed,
       masterItem: masterItem,
       delivery:   foundDelivery,
+      itemStatus: foundItemStatus,
     );
   }
 
@@ -252,14 +292,15 @@ class _StaffDashboardState extends State<StaffDashboard> {
     required String rawValue,
     required Map<String, dynamic>? masterItem,
     required Map<String, dynamic>? delivery,
+    String? itemStatus,
   }) {
-    final itemName  = masterItem?['name'] as String? ?? rawValue;
-    final itemNum   = masterItem?['num']  as String? ?? '—';
-    final itemGroup = masterItem?['group'] as String? ?? '';
-    final itemUom   = masterItem?['uom']  as String? ?? '';
-    final itemCost  = masterItem?['cost'] as String? ?? '';
-    final itemType  = masterItem?['type'] as String? ?? '';
-    final isMaterial = (masterItem?['type'] as String? ?? '') == 'Material';
+    final itemName  = masterItem?['name']?.toString() ?? rawValue;
+    final itemNum   = masterItem?['num']?.toString()  ?? '—';
+    final itemGroup = masterItem?['group']?.toString() ?? '';
+    final itemUom   = masterItem?['uom']?.toString()  ?? '';
+    final itemCost  = masterItem?['cost']?.toString() ?? '';
+    final itemType  = masterItem?['type']?.toString() ?? '';
+    final isMaterial = itemType == 'Material';
 
     showModalBottomSheet(
       context: context,
@@ -286,10 +327,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(itemName,
                     style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
-                  if (itemNum != '—' || itemGroup.isNotEmpty) ...[
+                  if (itemUom.isNotEmpty) ...[
                     const SizedBox(height: 2),
-                    Text([itemNum, if (itemGroup.isNotEmpty) itemGroup].join(' · '),
-                      style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    Text(itemUom, style: const TextStyle(color: Colors.white70, fontSize: 12)),
                   ],
                 ])),
                 GestureDetector(
@@ -305,87 +345,80 @@ class _StaffDashboardState extends State<StaffDashboard> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // ── Item chips ───────────────────────────────────────────
-                if (masterItem != null && (itemUom.isNotEmpty || itemCost.isNotEmpty || itemType.isNotEmpty)) ...[
-                  Wrap(spacing: 8, runSpacing: 6, children: [
-                    if (itemUom.isNotEmpty)
-                      _infoBadge(Icons.straighten_outlined, itemUom,  const Color(0xFF003087)),
-                    if (itemCost.isNotEmpty)
-                      _infoBadge(Icons.attach_money,        itemCost, const Color(0xFF38a169)),
-                    if (itemType.isNotEmpty)
-                      _infoBadge(Icons.category_outlined,   itemType, const Color(0xFFd69e2e)),
-                  ]),
-                  const SizedBox(height: 20),
-                ],
 
                 // ── Item not found ───────────────────────────────────────
                 if (masterItem == null) ...[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFF8E1), borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFFFFD54F), width: 1.5)),
                     child: Row(children: [
-                      const Icon(Icons.search_off_outlined, size: 18, color: Color(0xFFd69e2e)),
-                      const SizedBox(width: 10),
+                      const Icon(Icons.info_outline, size: 16, color: Color(0xFFd69e2e)),
+                      const SizedBox(width: 8),
                       Expanded(child: Text(
-                        'Scanned value "$rawValue" was not found in the item master.',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)))),
+                        'Item not found for "$rawValue". You can still navigate below.',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF92400E)))),
                     ]),
                   ),
+                  const SizedBox(height: 14),
+                ],
+
+                const Text('What would you like to do?',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+                const SizedBox(height: 12),
+
+                // ── Option 1: Receive Items ──
+                if (delivery != null) ...[
+                  Builder(builder: (_) {
+                    final isPending = itemStatus == 'Pending';
+                    return _actionTile(
+                      icon: Icons.download_outlined,
+                      iconColor: isPending ? const Color(0xFF38a169) : const Color(0xFFa0aec0),
+                      iconBg: isPending ? const Color(0xFFF0FFF4) : const Color(0xFFF7F8FA),
+                      title: 'Receive Items',
+                      subtitle: isPending
+                          ? 'From pending delivery'
+                          : 'Item is $itemStatus — cannot receive',
+                      badge: itemStatus ?? 'Pending',
+                      badgeColor: isPending ? const Color(0xFF718096) : const Color(0xFFd69e2e),
+                      onTap: isPending
+                          ? () { Navigator.pop(context); _showReceiveFromDashboard(delivery); }
+                          : null,
+                    );
+                  }),
+                  const SizedBox(height: 10),
                 ] else ...[
-                  // ── Section title ────────────────────────────────────────
-                  const Text('What would you like to do?',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
-                  const SizedBox(height: 12),
+                  _actionTile(
+                    icon: Icons.download_outlined,
+                    iconColor: const Color(0xFFa0aec0),
+                    iconBg: const Color(0xFFF7F8FA),
+                    title: 'Receive Items',
+                    subtitle: 'No active delivery found for this item',
+                    onTap: null,
+                  ),
+                  const SizedBox(height: 10),
+                ],
 
-                  // ── Option 1: Receive Items (only if pending delivery exists) ──
-                  if (delivery != null) ...[
-                    _actionTile(
-                      icon: Icons.download_outlined,
-                      iconColor: const Color(0xFF38a169),
-                      iconBg: const Color(0xFFF0FFF4),
-                      title: 'Receive Items',
-                      subtitle: 'From delivery by ${delivery['supplier']}',
-                      badge: 'Pending',
-                      badgeColor: const Color(0xFF718096),
-                      onTap: () {
-                        Navigator.pop(context);
-                        _showReceiveFromDashboard(delivery);
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                  ] else ...[
-                    // No pending delivery — greyed out tile
-                    _actionTile(
-                      icon: Icons.download_outlined,
-                      iconColor: const Color(0xFFa0aec0),
-                      iconBg: const Color(0xFFF7F8FA),
-                      title: 'Receive Items',
-                      subtitle: 'No pending delivery found for this item',
-                      onTap: null,
-                    ),
-                    const SizedBox(height: 10),
-                  ],
+                // ── Option 2: View Stock ─────────────────────────────────
+                if (masterItem != null && isMaterial)
+                  _actionTile(
+                    icon: Icons.inventory_2_outlined,
+                    iconColor: const Color(0xFF003087),
+                    iconBg: const Color(0xFFEBF8FF),
+                    title: 'View Stock',
+                    subtitle: 'Check current inventory levels',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showStockDetailFromScan(masterItem!);
+                    },
+                  ),
 
-                  // ── Option 2: View Stock ─────────────────────────────────
-                  if (isMaterial)
-                    _actionTile(
-                      icon: Icons.inventory_2_outlined,
-                      iconColor: const Color(0xFF003087),
-                      iconBg: const Color(0xFFEBF8FF),
-                      title: 'View Stock',
-                      subtitle: 'Check current inventory levels',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _showStockDetailFromScan(masterItem!);
-                      },
-                    ),
+                if (masterItem != null && isMaterial) const SizedBox(height: 10),
 
-                  if (isMaterial) const SizedBox(height: 10),
-
-                  // ── Option 3: Use in Maintenance ─────────────────────────
+                // ── Option 3: Use in Maintenance ─────────────────────────
+                if (masterItem != null)
                   _actionTile(
                     icon: Icons.build_outlined,
                     iconColor: const Color(0xFFd69e2e),
@@ -394,18 +427,16 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     subtitle: 'Add to a service / maintenance record',
                     onTap: () {
                       Navigator.pop(context);
-                      // Build materialData map from masterItem
                       final matData = {
-                        'name': masterItem!['name'] as String? ?? '',
-                        'num':  masterItem!['num']  as String? ?? '',
-                        'uom':  masterItem!['uom']  as String? ?? '',
-                        'cost': masterItem!['cost'] as String? ?? '0',
+                        'name': masterItem!['name']?.toString() ?? '',
+                        'num':  masterItem!['num']?.toString()  ?? '',
+                        'uom':  masterItem!['uom']?.toString()  ?? '',
+                        'cost': masterItem!['cost']?.toString() ?? '0',
                       };
                       Navigator.push(context, MaterialPageRoute(
                         builder: (_) => StaffMaintenance(materialData: matData)));
                     },
                   ),
-                ],
               ]),
             ),
           ]),
@@ -510,11 +541,14 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
     final items = List<Map<String, dynamic>>.from(
       (delivery['items'] as List? ?? []).map((i) => Map<String, dynamic>.from(i as Map)));
+    // Find the first pending item to receive
+    final rcvIdx = items.indexWhere((i) => (i['itemStatus'] ?? 'Pending') == 'Pending');
+    if (rcvIdx < 0) return; // no pending items
+    final rcvItem = items[rcvIdx];
     final receivedByCtrl = TextEditingController(text: currentUserName);
-    final qtyCtrlrs = List.generate(items.length, (i) =>
-        TextEditingController(text: '${items[i]['expectedQty'] ?? 0}'));
-    final conditionList = List<String>.filled(items.length, 'OK');
-    final remarkCtrlrs = List.generate(items.length, (_) => TextEditingController());
+    final qtyCtrlrs = [TextEditingController(text: '${rcvItem['expectedQty'] ?? 0}')];
+    final conditionList = ['OK'];
+    final remarkCtrlrs = [TextEditingController()];
 
     Widget step(String num, String label, {bool active = false}) => Column(
       mainAxisSize: MainAxisSize.min,
@@ -571,15 +605,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 decoration: BoxDecoration(color: red,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
                 child: Row(children: [
-                  Container(width: 44, height: 44,
-                    decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.download_outlined, color: Colors.white, size: 22)),
-                  const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Receive Items',
+                    const Text('Receive Item',
                       style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text('${delivery['supplier']} · ${fmt(delivery['date'] as String?)}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 11)),
                   ])),
                   GestureDetector(onTap: () => Navigator.pop(ctx),
                     child: const Icon(Icons.close, color: Colors.white)),
@@ -601,47 +629,49 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 padding: EdgeInsets.only(left: 20, right: 20, top: 16,
                   bottom: MediaQuery.of(context).viewInsets.bottom + 24),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  ...items.asMap().entries.map((e) {
-                    final i = e.key;
-                    final item = e.value;
-                    final expected = item['expectedQty'] as int? ?? 0;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white, borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF90cdf4)),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)]),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(item['itemName'] as String? ?? '—',
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                        Text('${item['itemNum']} · Expected: $expected ${item['uom'] ?? ''}',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: qtyCtrlrs[i], keyboardType: TextInputType.number,
-                          onChanged: (_) => setModal(() {}),
-                          decoration: InputDecoration(
-                            labelText: 'Actual Qty *', border: const OutlineInputBorder(), isDense: true,
-                            suffixText: item['uom'] as String? ?? '')),
-                        const SizedBox(height: 10),
-                        const Text('Condition', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4a5568))),
-                        const SizedBox(height: 6),
-                        Row(children: [
-                          condBtn('✅ OK',         'OK',        conditionList[i], (c) => setModal(() => conditionList[i] = c)),
-                          const SizedBox(width: 6),
-                          condBtn('❌ Defective',  'Defective', conditionList[i], (c) => setModal(() => conditionList[i] = c)),
-                          const SizedBox(width: 6),
-                          condBtn('⚠️ Shortage',  'Shortage',  conditionList[i], (c) => setModal(() => conditionList[i] = c)),
-                        ]),
-                        const SizedBox(height: 10),
-                        TextField(controller: remarkCtrlrs[i],
-                          decoration: const InputDecoration(
-                            labelText: 'Remarks (optional)', border: OutlineInputBorder(), isDense: true,
-                            hintText: 'e.g. 1 unit damaged packaging')),
+                  // Show only the single pending item
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white, borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF90cdf4)),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)]),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      RichText(text: TextSpan(
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c)),
+                        children: [
+                          TextSpan(text: rcvItem['itemName'] as String? ?? '—'),
+                          if ((rcvItem['uom'] as String? ?? '').isNotEmpty)
+                            TextSpan(text: '  (${rcvItem['uom']})', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w400, color: Color(0xFF718096))),
+                        ],
+                      )),
+                      Text('${rcvItem['supplierCode'] ?? ''} · Order Qty: ${rcvItem['expectedQty'] ?? 0}',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: qtyCtrlrs[0], keyboardType: TextInputType.number,
+                        onChanged: (_) => setModal(() {}),
+                        decoration: InputDecoration(
+                          labelText: 'Actual Qty *', border: const OutlineInputBorder(), isDense: true,
+                          suffixText: rcvItem['uom'] as String? ?? '')),
+                      const SizedBox(height: 10),
+                      const Text('Condition', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4a5568))),
+                      const SizedBox(height: 6),
+                      Row(children: [
+                        condBtn('✅ OK',         'OK',        conditionList[0], (c) => setModal(() => conditionList[0] = c)),
+                        const SizedBox(width: 6),
+                        condBtn('❌ Defective',  'Defective', conditionList[0], (c) => setModal(() => conditionList[0] = c)),
+                        const SizedBox(width: 6),
+                        condBtn('⚠️ Shortage',  'Shortage',  conditionList[0], (c) => setModal(() => conditionList[0] = c)),
                       ]),
-                    );
-                  }),
+                      const SizedBox(height: 10),
+                      TextField(controller: remarkCtrlrs[0],
+                        decoration: const InputDecoration(
+                          labelText: 'Remarks (optional)', border: OutlineInputBorder(), isDense: true,
+                          hintText: 'e.g. 1 unit damaged packaging')),
+                    ]),
+                  ),
                   const SizedBox(height: 12),
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     const Text('Received By (Your Name) *',
@@ -657,27 +687,40 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     child: ElevatedButton.icon(
                       onPressed: () async {
                         if (receivedByCtrl.text.trim().isEmpty) return;
-                        final updatedItems = items.asMap().entries.map((e) {
-                          final i = e.key;
-                          return {
-                            ...e.value,
-                            'actualQty': int.tryParse(qtyCtrlrs[i].text) ?? e.value['expectedQty'],
-                            'condition': conditionList[i],
-                            'remark': remarkCtrlrs[i].text.trim(),
-                          };
-                        }).toList();
+                        // Per-item logic: update only the first pending item
+                        final allItems = List<Map<String, dynamic>>.from(
+                          (delivery['items'] as List? ?? []).map((i) => Map<String, dynamic>.from(i as Map)));
+                        final rcvIdx = allItems.indexWhere((i) => (i['itemStatus'] ?? 'Pending') == 'Pending');
+                        if (rcvIdx < 0) return;
+                        // Fetch current stock to freeze at receive time
+                        int? stockAtReceive;
+                        try {
+                          final sSnap = await FirebaseFirestore.instance.collection('stock_inventory').where('num', isEqualTo: allItems[rcvIdx]['itemNum'] ?? '').limit(1).get();
+                          if (sSnap.docs.isNotEmpty) stockAtReceive = (sSnap.docs.first['stock'] as num?)?.toInt();
+                        } catch (_) {}
+                        allItems[rcvIdx] = {
+                          ...allItems[rcvIdx],
+                          'actualQty': int.tryParse(qtyCtrlrs[0].text) ?? allItems[rcvIdx]['expectedQty'],
+                          'condition': conditionList[0],
+                          'remark': remarkCtrlrs[0].text.trim(),
+                          'itemStatus': 'Awaiting Double Check',
+                          'receivedBy': receivedByCtrl.text.trim(),
+                          'receivedAt': DateTime.now().toIso8601String(),
+                          if (stockAtReceive != null) 'stockAtReceive': stockAtReceive,
+                        };
+                        final allReceived = allItems.every((i) => i['itemStatus'] == 'Awaiting Double Check' || i['itemStatus'] == 'Approved');
                         try {
                           await FirebaseFirestore.instance.collection('deliveries')
                               .doc(delivery['id'] as String).update({
-                            'items': updatedItems,
+                            'items': allItems,
                             'receivedBy': receivedByCtrl.text.trim(),
-                            'status': 'Awaiting Double Check',
+                            'status': allReceived ? 'Awaiting Double Check' : 'Pending',
                             'receivedAt': FieldValue.serverTimestamp(),
                           });
                           if (ctx.mounted) {
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                              content: Text('Submitted for double check!'),
+                              content: Text('Item submitted for double check!'),
                               backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating));
                           }
                         } catch (err) {
@@ -701,8 +744,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
   // ── View Stock Detail from scan (shows stock_inventory modal inline) ────────
   void _showStockDetailFromScan(Map<String, dynamic> masterItem) async {
     const red = Color(0xFFE8001C);
-    final itemNum  = masterItem['num']  as String? ?? '';
-    final itemName = masterItem['name'] as String? ?? '';
+    final itemNum  = masterItem['num']?.toString() ?? '';
+    final itemName = masterItem['name']?.toString() ?? '';
+    final supplierCode = masterItem['supplierCode']?.toString() ?? '';
 
     // Look up in stock_inventory
     Map<String, dynamic>? stockItem;
@@ -718,11 +762,12 @@ class _StaffDashboardState extends State<StaffDashboard> {
         final min    = (d['min']     as num?)?.toInt() ?? 0;
         final max    = (d['max']     as num?)?.toInt() ?? 0;
         stockItem = {
-          'id':      snap.docs.first.id,
-          'num':     d['num']     as String? ?? itemNum,
-          'name':    d['name']    as String? ?? itemName,
-          'group':   d['group']   as String? ?? '',
-          'uom':     d['uom']     as String? ?? '',
+          'id':           snap.docs.first.id,
+          'num':          d['num']?.toString()   ?? itemNum,
+          'name':         d['name']?.toString()  ?? itemName,
+          'group':        d['group']?.toString() ?? '',
+          'uom':          d['uom']?.toString()   ?? masterItem['uom']?.toString() ?? '',
+          'supplierCode': supplierCode,
           'stock':   stock,
           'min':     min,
           'max':     max,
@@ -798,8 +843,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(item['name'] as String,
                     style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(item['group'] as String,
-                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  if ((item['uom'] as String).isNotEmpty)
+                    Text(item['uom'] as String,
+                      style: const TextStyle(color: Colors.white70, fontSize: 12)),
                 ])),
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
@@ -819,7 +865,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                       color: isLow ? Colors.orange.shade200 : const Color(0xFF9AE6B4))),
                   child: Column(children: [
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text('$stock ${item['uom']}',
+                      Text('$stock',
                         style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: barColor)),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -846,11 +892,18 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   ]),
                 ),
                 const SizedBox(height: 16),
-                // Detail rows
+                // Detail rows — same as staff_inventory _showStockDetails
+                if ((item['supplierCode'] as String).isNotEmpty)
+                  _stockDetailRow('Supplier Item Code', item['supplierCode'] as String),
                 _stockDetailRow('Item Number',    item['num']     as String),
+                _stockDetailRow('Item Name',      item['name']    as String),
                 _stockDetailRow('Commodity Group', item['group']  as String),
                 _stockDetailRow('UOM',             item['uom']    as String),
+                _stockDetailRow('Current Stock',  '$stock'),
+                _stockDetailRow('Min Level',       '$min'),
+                _stockDetailRow('Max Level',       '$max'),
                 _stockDetailRow('Reorder Qty',    '${item['reorder']} ${item['uom']}'),
+                _stockDetailRow('Status',         stock == 0 ? 'Out of Stock' : isLow ? 'Low Stock' : isOver ? 'Over Max' : 'In Stock'),
               ]),
             ),
           ]),

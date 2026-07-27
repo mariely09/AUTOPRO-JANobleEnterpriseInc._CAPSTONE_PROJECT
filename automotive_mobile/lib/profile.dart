@@ -11,6 +11,7 @@ import 'notifs_manageAlerts.dart';
 import 'help_support.dart';
 import 'privacy_policy.dart';
 import 'terms_conditions.dart';
+import 'onesignal_debug.dart';
 
 enum UserRole { customer, staff, admin }
 
@@ -315,6 +316,11 @@ class _UserProfileState extends State<UserProfile> {
                           role: widget.role.name, // 'admin', 'staff', or 'customer'
                         )));
                       }),
+                      if (widget.role == UserRole.admin)
+                        _actionTile(Icons.bug_report_outlined, 'Push Notification Status', 'Check OneSignal setup', () {
+                          Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => const OneSignalDebugScreen()));
+                        }),
                       _actionTile(Icons.help_outline, 'Help & Support', 'Get assistance', () {
                         final helpRole = switch (widget.role) {
                           UserRole.admin    => HelpSupportRole.admin,

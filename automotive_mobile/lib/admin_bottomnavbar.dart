@@ -283,9 +283,12 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
           final stock = (d['stock'] as num?)?.toInt() ?? 0;
           final min   = (d['min']   as num?)?.toInt() ?? 0;
           final max   = (d['max']   as num?)?.toInt() ?? 0;
-          stockItem = {'id': snap.docs.first.id, ...d,
+          stockItem = {
+            'id': snap.docs.first.id, ...d,
             'stock': stock, 'min': min, 'max': max,
-            'status': stock > min ? (stock > max ? 'Over' : 'OK') : 'Low'};
+            'status': stock > min ? (stock > max ? 'Over' : 'OK') : 'Low',
+            'supplierCode': masterItem['supplierCode']?.toString() ?? '',
+          };
         }
       }
     } catch (e) {
@@ -293,26 +296,35 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
     }
 
     Map<String, dynamic>? foundDelivery;
+    String? foundItemStatus;
     try {
       final deliveriesSnap = await FirebaseFirestore.instance
-          .collection('deliveries').where('status', isEqualTo: 'Pending').get();
+          .collection('deliveries').orderBy('createdAt', descending: true).get();
       for (final doc in deliveriesSnap.docs) {
         final d = {...doc.data() as Map<String, dynamic>, 'id': doc.id};
-        final match = (d['items'] as List? ?? []).any((i) {
+        final deliveryStatus = d['status'] as String? ?? 'Pending';
+        if (deliveryStatus == 'Approved' || deliveryStatus == 'Rejected') continue;
+        final items = (d['items'] as List? ?? []);
+        for (final i in items) {
           final num  = str(i['itemNum']).toLowerCase();
           final name = str(i['itemName']).toLowerCase();
-          return (resolvedNum.isNotEmpty  && num.contains(resolvedNum)) ||
+          final matched = (resolvedNum.isNotEmpty && num.contains(resolvedNum)) ||
                  (resolvedName.isNotEmpty && name.contains(resolvedName)) ||
                  num.contains(query) || name.contains(query);
-        });
-        if (match) { foundDelivery = d; break; }
+          if (matched) {
+            foundDelivery = d;
+            foundItemStatus = (i['itemStatus'] as String?) ?? deliveryStatus;
+            break;
+          }
+        }
+        if (foundDelivery != null) break;
       }
     } catch (e) {
       debugPrint('delivery lookup error: $e');
     }
 
     if (!mounted) return;
-    _showScanResultModal(context, trimmed, masterItem, stockItem, foundDelivery);
+    _showScanResultModal(context, trimmed, masterItem, stockItem, foundDelivery, foundItemStatus);
   }
 
   void _showScanResultModal(
@@ -321,6 +333,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
     Map<String, dynamic>? masterItem,
     Map<String, dynamic>? stockItem,
     Map<String, dynamic>? delivery,
+    String? foundItemStatus,
   ) {
     final itemName  = masterItem?['name']?.toString()  ?? rawValue;
     final itemNum   = masterItem?['num']?.toString()   ?? '—';
@@ -413,29 +426,30 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
                   const SizedBox(height: 10),
                 ],
 
-                // Option 2: Receive from delivery (only if Pending)
+                // Option 2: Receive from delivery
                 if (delivery != null) ...[
-                  _actionTile(
-                    context: context,
-                    icon: Icons.download_outlined,
-                    iconColor: const Color(0xFF38a169),
-                    iconBg: const Color(0xFFF0FFF4),
-                    title: 'Receive Items',
-                    subtitle: (delivery['status'] as String? ?? '') == 'Pending'
-                        ? 'From delivery by ${delivery['supplier'] ?? 'supplier'}'
-                        : 'Delivery is ${delivery['status']} — cannot receive',
-                    badge: delivery['status'] as String? ?? 'Pending',
-                    badgeColor: (delivery['status'] as String? ?? '') == 'Pending'
-                        ? const Color(0xFF718096)
-                        : const Color(0xFFd69e2e),
-                    onTap: (delivery['status'] as String? ?? '') == 'Pending'
-                        ? () {
-                            Navigator.pop(context);
-                            Navigator.push(context, MaterialPageRoute(
-                              builder: (_) => _ReceivingWithModal(delivery: delivery)));
-                          }
-                        : null,
-                  ),
+                  Builder(builder: (_) {
+                    final isPending = foundItemStatus == 'Pending';
+                    return _actionTile(
+                      context: context,
+                      icon: Icons.download_outlined,
+                      iconColor: isPending ? const Color(0xFF38a169) : const Color(0xFFa0aec0),
+                      iconBg: isPending ? const Color(0xFFF0FFF4) : const Color(0xFFF7F8FA),
+                      title: 'Receive Items',
+                      subtitle: isPending
+                          ? 'From pending delivery'
+                          : 'Item is $foundItemStatus — cannot receive',
+                      badge: foundItemStatus ?? 'Pending',
+                      badgeColor: isPending ? const Color(0xFF718096) : const Color(0xFFd69e2e),
+                      onTap: isPending
+                          ? () {
+                              Navigator.pop(context);
+                              Navigator.push(context, MaterialPageRoute(
+                                builder: (_) => _ReceivingWithModal(delivery: delivery)));
+                            }
+                          : null,
+                    );
+                  }),
                   const SizedBox(height: 10),
                 ],
 
@@ -524,15 +538,8 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
                   color: _red,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
                 child: Row(children: [
-                  Container(width: 44, height: 44,
-                    decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.download_outlined, color: Colors.white, size: 22)),
-                  const SizedBox(width: 12),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Receive Items', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text('${delivery['supplier'] ?? '—'} · ${_fmtDate(delivery['date'] as String?)}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                  ])),
+                  Expanded(child: const Text('Receive Items',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
                   GestureDetector(onTap: () => Navigator.pop(ctx),
                     child: const Icon(Icons.close, color: Colors.white)),
                 ]),
@@ -895,6 +902,9 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
                   ]),
                 ),
                 const SizedBox(height: 16),
+                // Detail rows — same as admin_inventory_stock _showStockDetails
+                if ((item['supplierCode']?.toString() ?? '').isNotEmpty)
+                  _detailRowInline('Supplier Item Code', item['supplierCode']?.toString() ?? '—'),
                 _detailRowInline('Item Number',     item['num']?.toString()   ?? '—'),
                 _detailRowInline('Item Name',       item['name']?.toString()  ?? '—'),
                 _detailRowInline('Commodity Group', item['group']?.toString() ?? '—'),
@@ -903,6 +913,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
                 _detailRowInline('Min Level',       '$min'),
                 _detailRowInline('Max Level',       '$max'),
                 _detailRowInline('Reorder Qty',     '${(item['reorder'] as num?)?.toInt() ?? 0}'),
+                _detailRowInline('Status',          isOut ? 'Out of Stock' : isLow ? 'Low Stock' : isOver ? 'Over Max' : 'In Stock'),
               ]),
             ),
           ]),

@@ -560,17 +560,19 @@ window.printStockInventory = function() {
         var parts = decodeURIComponent(hash.substring(5)).split('|');
         if (parts.length >= 4) {
             setTimeout(function() {
+                var supplierCode = parts[4] || '';
                 _addFoundMaster = {
                     itemNum: parts[0],
                     itemName: parts[1],
                     commodityGroup: parts[2],
                     uom: parts[3],
+                    supplierCode: supplierCode,
                 };
                 // Open modal and pre-fill
                 document.getElementById('invItemSearch').value = parts[1];
                 document.getElementById('invPreviewInfo').innerHTML =
                     '<div style="display:grid;grid-template-columns:110px 1fr;gap:0.3rem 0;">'
-                    + '<span style="color:#718096;font-size:0.78rem;">Supplier Item Code</span><span style="font-weight:600;font-size:0.83rem;">' + parts[0] + '</span>'
+                    + '<span style="color:#718096;font-size:0.78rem;">Supplier Item Code</span><span style="font-weight:600;font-size:0.83rem;">' + (supplierCode || '—') + '</span>'
                     + '<span style="color:#718096;font-size:0.78rem;">Item Name</span><span style="font-weight:600;font-size:0.83rem;">' + parts[1] + '</span>'
                     + '<span style="color:#718096;font-size:0.78rem;">Group</span><span style="font-weight:600;font-size:0.83rem;">' + parts[2] + '</span>'
                     + '<span style="color:#718096;font-size:0.78rem;">UOM</span><span style="font-weight:600;font-size:0.83rem;">' + parts[3] + '</span>'
@@ -723,6 +725,7 @@ function stockSaveNewItem() {
     var db = firebase.firestore();
     var data = {
         num: _addFoundMaster.itemNum || '',
+        supplierCode: _addFoundMaster.supplierCode || '',
         name: _addFoundMaster.itemName || '',
         group: _addFoundMaster.commodityGroup || '',
         uom: _addFoundMaster.uom || '',
