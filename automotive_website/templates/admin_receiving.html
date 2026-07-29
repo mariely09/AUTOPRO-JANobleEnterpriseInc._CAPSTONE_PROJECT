@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1174,13 +1174,13 @@ window.saveNewDelivery = function() {
   if (isEdit) {
     // Update existing delivery
     promise = db.collection('deliveries').doc(_currentEditDeliveryId).update(data)
-      .then(function(){ closeModal('newDeliveryModal'); showToast('Delivery updated successfully!','success'); _currentEditDeliveryId = null; });
+      .then(function(){ closeModal('newDeliveryModal'); showToast('Delivery record updated successfully!','success'); _currentEditDeliveryId = null; });
   } else {
     // Create new delivery
     data.status = 'Pending';
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     promise = db.collection('deliveries').add(data)
-      .then(function(){ closeModal('newDeliveryModal'); showToast('Delivery created successfully!','success'); });
+      .then(function(){ closeModal('newDeliveryModal'); showToast('Delivery record created successfully!','success'); });
   }
 
   promise
@@ -1300,7 +1300,7 @@ window.deleteDelivery = function(id) {
   var label = d ? (d.supplier || 'this delivery') + ' (' + _fmtDate(d.date) + ')' : 'this delivery';
   if (!confirm('Delete ' + label + '? This cannot be undone.')) return;
   db.collection('deliveries').doc(id).delete()
-    .then(function(){ showToast('Delivery deleted successfully!', 'error'); })
+    .then(function(){ showToast('Delivery record deleted successfully!', 'error'); })
     .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
 };
 
@@ -1333,7 +1333,7 @@ window.rejectAdminReview = function(id, itemIdx) {
   if (updatedItems.length === 0) {
     // Last item — delete the whole delivery
     db.collection('deliveries').doc(id).delete()
-      .then(function(){ showToast('Request rejected. Delivery deleted (no items left).', 'error'); })
+      .then(function(){ showToast('Request rejected. Delivery record deleted (no items left).', 'error'); })
       .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
   } else {
     // Remove just this item
@@ -1445,11 +1445,11 @@ window.deleteItemFromDelivery = function(deliveryId, itemIdx) {
   if (updatedItems.length === 0) {
     // Last item — delete entire delivery
     db.collection('deliveries').doc(deliveryId).delete()
-      .then(function(){ showToast('Delivery deleted (last item removed).', 'error'); })
+      .then(function(){ showToast('Delivery record deleted successfully!', 'error'); })
       .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
   } else {
     db.collection('deliveries').doc(deliveryId).update({ items: updatedItems })
-      .then(function(){ showToast('Item removed from delivery.', 'success'); })
+      .then(function(){ showToast('Item removed successfully!', 'error'); })
       .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
   }
 };

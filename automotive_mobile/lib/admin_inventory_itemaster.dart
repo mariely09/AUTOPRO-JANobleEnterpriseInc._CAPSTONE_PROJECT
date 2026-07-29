@@ -177,7 +177,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
         (doc['num'] as String? ?? '').replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
       if (n > maxNum) maxNum = n;
     }
-    return 'ITM-${(maxNum + 1).toString().padLeft(3, '0')}';
+    return (maxNum + 1).toString().padLeft(3, '0');
   }
 
   @override
@@ -638,7 +638,16 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     String selectedType = item?['type'] ?? 'Material';
     String? selectedGroup = (item?['group']?.isNotEmpty == true && groupOptions.contains(item!['group'])) ? item['group'] : null;
     String? selectedUom   = (item?['uom']?.isNotEmpty   == true && uomOptions.contains(item!['uom']))     ? item['uom']   : null;
+    // Auto-apply AutoService → Service rule on modal open
+    if (selectedGroup == 'AutoService') selectedType = 'Service';
     bool saving = false;
+    bool nameDuplicate = false;
+
+    // All existing item names (lowercased) for live duplicate check
+    final existingNames = (await _db.get()).docs
+        .where((d) => isEdit ? d.id != item!['id'] : true) // exclude self in edit mode
+        .map((d) => (d['name'] as String? ?? '').toLowerCase().trim())
+        .toSet();
 
     showModalBottomSheet(
       context: context, isScrollControlled: true,
@@ -693,7 +702,16 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                   const SizedBox(height: 10),
                   // Item Number is auto-generated — not shown in modal
                   TextField(controller: nameCtrl,
-                    decoration: const InputDecoration(labelText: 'Item Name *', border: OutlineInputBorder())),
+                    onChanged: (v) {
+                      final isDup = existingNames.contains(v.trim().toLowerCase());
+                      if (isDup != nameDuplicate) setModalState(() => nameDuplicate = isDup);
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Item Name *',
+                      border: const OutlineInputBorder(),
+                      errorText: nameDuplicate ? 'An item with this name already exists.' : null,
+                      errorStyle: const TextStyle(fontSize: 11),
+                    )),
                   const SizedBox(height: 10),
                   TextField(controller: descCtrl,
                     decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
@@ -727,7 +745,15 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                           const SizedBox(height: 8),
                         ]),
                       );
-                      if (picked != null) setModalState(() => selectedGroup = picked);
+                      if (picked != null) setModalState(() {
+                        selectedGroup = picked;
+                        // Auto-set type: AutoService group → Service, others → Material
+                        if (picked == 'AutoService') {
+                          selectedType = 'Service';
+                        } else if (selectedType == 'Service' && picked != 'AutoService') {
+                          selectedType = 'Material';
+                        }
+                      });
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
@@ -806,12 +832,22 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                     const SizedBox(width: 10),
                     Expanded(child: DropdownButtonFormField<String>(
                       value: selectedType,
-                      decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
+                      decoration: InputDecoration(
+                        labelText: 'Type',
+                        border: const OutlineInputBorder(),
+                        filled: selectedGroup == 'AutoService',
+                        fillColor: selectedGroup == 'AutoService' ? const Color(0xFFF7F8FA) : null,
+                        suffixIcon: selectedGroup == 'AutoService'
+                          ? const Tooltip(
+                              message: 'Auto-set to Service for AutoService group',
+                              child: Icon(Icons.lock_outline, size: 16, color: Color(0xFF718096)))
+                          : null,
+                      ),
                       items: const [
                         DropdownMenuItem(value: 'Material', child: Text('Material')),
                         DropdownMenuItem(value: 'Service', child: Text('Service')),
                       ],
-                      onChanged: (v) => setModalState(() => selectedType = v!),
+                      onChanged: selectedGroup == 'AutoService' ? null : (v) => setModalState(() => selectedType = v!),
                     )),
                   ]),
                   if (selectedType == 'Material') ...[
@@ -827,7 +863,16 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                     Expanded(child: ElevatedButton(
                       onPressed: saving ? null : () async {
                         if (nameCtrl.text.trim().isEmpty) return;
+                        if (nameDuplicate) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                            content: Text('An item with this name already exists.'),
+                            backgroundColor: Colors.orange,
+                            behavior: SnackBarBehavior.floating,
+                          ));
+                          return;
+                        }
                         setModalState(() => saving = true);
+
                         final data = <String, dynamic>{
                           'num': isEdit ? (item!['num'] ?? '') : newItemNum,
                           'supplierCode': supplierCodeCtrl.text.trim(),
@@ -884,8 +929,8 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                                 content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Added successfully!')]),
                                 backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
-                              // For Material items — navigate directly to Stock to set levels
-                              if (selectedType == 'Material' && context.mounted) {
+                              // For Material items (excluding AutoService group) — navigate to Stock to set levels
+                              if (selectedType == 'Material' && (selectedGroup ?? '') != 'AutoService' && context.mounted) {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(

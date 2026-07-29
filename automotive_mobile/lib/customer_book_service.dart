@@ -64,10 +64,14 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     // Load user's vehicles
     final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
     final userName = (userDoc.data()?['name'] as String? ?? '').toLowerCase();
+    final companyName = (userDoc.data()?['companyName'] as String? ?? '').toLowerCase();
 
     final vehSnap = await FirebaseFirestore.instance.collection('vehicles').get();
     final myVehicles = vehSnap.docs
-        .where((d) => (d.data()['owner'] as String? ?? '').toLowerCase() == userName)
+        .where((d) {
+          final owner = (d.data()['owner'] as String? ?? '').toLowerCase();
+          return owner == userName || (companyName.isNotEmpty && owner == companyName);
+        })
         .map((d) => {'id': d.id, ...d.data()})
         .toList();
 

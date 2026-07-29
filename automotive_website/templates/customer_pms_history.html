@@ -293,14 +293,22 @@ async function _aiLoadData() {
         var stored = sessionStorage.getItem('cpUser');
         var cpUser = stored ? JSON.parse(stored) : {};
         var userName = cpUser.name || '';
+        var companyName = cpUser.companyName || '';
         if (!userName) {
             var uDoc = await firebase.firestore().collection('users').doc(user.uid).get();
-            if (uDoc.exists) userName = uDoc.data().name || '';
+            if (uDoc.exists) {
+              userName = uDoc.data().name || '';
+              companyName = uDoc.data().companyName || '';
+            }
         }
         var vSnap = await firebase.firestore().collection('vehicles').get();
         _aiVehicles = vSnap.docs
             .map(function(d) { return Object.assign({id: d.id}, d.data()); })
-            .filter(function(v) { return (v.owner || '').toLowerCase() === userName.toLowerCase(); });
+            .filter(function(v) {
+              var owner = (v.owner || '').toLowerCase();
+              return owner === userName.toLowerCase() ||
+                     (companyName && owner === companyName.toLowerCase());
+            });
 
         document.getElementById('aiWelcomeSub').textContent = _aiVehicles.length
             ? 'Ask me anything about your ' + _aiVehicles.length + ' vehicle' + (_aiVehicles.length !== 1 ? 's' : '') + ' — PMS status, maintenance history, and more.'
@@ -470,24 +478,35 @@ firebase.auth().onAuthStateChanged(function(user) {
 
       // Get user name from Firestore (authenticated)
       let userName = cpUser.name || '';
+      let companyName = cpUser.companyName || '';
       if (!userName) {
         const userDoc = await db.collection('users').doc(user.uid).get();
-        if (userDoc.exists) userName = userDoc.data().name || '';
+        if (userDoc.exists) {
+          userName = userDoc.data().name || '';
+          companyName = userDoc.data().companyName || '';
+        }
       }
       if (!userName && cpUser.email) {
         const snap = await db.collection('users').where('email', '==', cpUser.email).limit(1).get();
-        if (!snap.empty) userName = snap.docs[0].data().name || '';
+        if (!snap.empty) {
+          userName = snap.docs[0].data().name || '';
+          companyName = snap.docs[0].data().companyName || '';
+        }
       }
 
       _userName = userName;
       const initials = _userName.split(' ').filter(Boolean).map(p => p[0]).join('').toUpperCase().slice(0, 2) || 'CU';
       document.getElementById('cuAvatar').textContent = initials;
 
-      // ── Step 2: Load vehicles filtered by owner (exactly like Flutter) ──
+      // ── Step 2: Load vehicles filtered by owner (name OR company name) ──
       const vSnap = await db.collection('vehicles').get();
       const myVehicles = vSnap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(v => (v.owner || '').toLowerCase() === _userName.toLowerCase());
+        .filter(v => {
+          const owner = (v.owner || '').toLowerCase();
+          return owner === _userName.toLowerCase() ||
+                 (companyName && owner === companyName.toLowerCase());
+        });
 
 
 

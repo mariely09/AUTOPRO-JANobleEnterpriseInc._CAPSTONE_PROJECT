@@ -171,8 +171,9 @@
                 <label>OEM</label>
             </div>
             <div class="fl-field">
-                <input type="text" name="itemName" required placeholder=" ">
+                <input type="text" name="itemName" required placeholder=" " oninput="imCheckDuplicateName(this)">
                 <label>Item Name *</label>
+                <div id="imNameError" style="display:none;font-size:0.72rem;color:#E31E24;margin-top:0.25rem;padding-left:0.25rem;">⚠ An item with this name already exists.</div>
             </div>
             <div class="fl-field">
                 <input type="text" name="description" placeholder=" ">
@@ -403,6 +404,23 @@
   // ── Item Master filter ──
   window._imFilter = 'all';
   window._imCommodityFilter = '';
+
+  // ── Live duplicate name check on Item Name field ──
+  window.imCheckDuplicateName = function(input) {
+    var errEl = document.getElementById('imNameError');
+    if (!errEl) return;
+    var val = (input.value || '').trim().toLowerCase();
+    // In edit mode, skip check for the item's own name
+    var editingNum = (document.getElementById('itemMasterItemNum') || {}).value || '';
+    var items = window.itemMaster || [];
+    var isDup = val.length > 0 && items.some(function(i) {
+      if (editingNum && (i.itemNum || '') === editingNum) return false; // skip self
+      return (i.itemName || '').toLowerCase().trim() === val;
+    });
+    errEl.style.display = isDup ? 'block' : 'none';
+    input.style.borderColor = isDup ? '#E31E24' : '';
+    input.style.boxShadow   = isDup ? '0 0 0 3px rgba(227,30,36,0.12)' : '';
+  };
 
   window.imSetFilter = function(filter, btn) {
     window._imFilter = filter;

@@ -476,67 +476,8 @@ function deleteAsset(assetNum) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    var addAssetForm = document.getElementById('addAssetForm');
-    if (addAssetForm) {
-        addAssetForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            var form = e.target;
-            var assets = window.assets || [];
-            var plateNum = form.elements.plateNumber.value.trim().toUpperCase();
-            var assetDesc = form.elements.assetDescription.value.trim();
-            var assetType = form.elements.assetType.value.trim().toLowerCase();
-            var owner = form.elements.ownerName.value.trim();
-            var odometer = parseInt(form.elements.currentOdometer.value) || 0;
-            var lastServiceOdo = parseInt(form.elements.lastServiceOdometer.value) || 0;
-            var serviceFreq = parseInt(form.elements.serviceFrequency.value) || null;
-
-            var lastServiceDate = null;
-            var nextPMSDue = null;
-            if (serviceFreq) {
-                lastServiceDate = new Date().toISOString().split('T')[0];
-                var next = new Date();
-                next.setMonth(next.getMonth() + serviceFreq);
-                nextPMSDue = next.toISOString().split('T')[0];
-            }
-
-            var typeIcons = { truck:'🚛', car:'🚗' };
-            var icon = typeIcons[assetType] || '🚗';
-
-            if (currentEditingAsset) {
-                var asset = assets.find(function(a){ return a.assetNum === currentEditingAsset.assetNum; });
-                if (asset) {
-                    asset.plateNumber = plateNum;
-                    asset.assetDescription = assetDesc;
-                    asset.type = assetType;
-                    asset.icon = icon;
-                    asset.owner = owner;
-                    asset.odometer = odometer;
-                    asset.lastServiceOdometer = lastServiceOdo;
-                    asset.serviceFrequency = serviceFreq;
-                    if (serviceFreq && !asset.nextPMSDue) asset.nextPMSDue = nextPMSDue;
-                }
-                showToast('Vehicle updated successfully!', 'success');
-            } else {
-                var newAsset = {
-                    id: nextAssetId, assetNum: 'ASSET-' + String(nextAssetId).padStart(3,'0'),
-                    plateNumber: plateNum, assetDescription: assetDesc, type: assetType, icon: icon,
-                    owner: owner, odometer: odometer, lastServiceOdometer: lastServiceOdo, status: 'active',
-                    lastServiceDate: lastServiceDate, nextPMSDue: nextPMSDue,
-                    serviceFrequency: serviceFreq, assignedMechanic: null, image: null,
-                    meters: odometer ? [{ name:'Odometer', type:'continuous', value:String(odometer), unit:'km' }] : [],
-                    maintenanceHistory: []
-                };
-                assets.push(newAsset);
-                window.assets = assets;
-                nextAssetId++;
-                showToast('Vehicle added successfully!', 'success');
-            }
-            closeModal('addAssetModal');
-            renderAssetsList();
-        });
-    }
-});
+// ── Vehicle form submit is handled by the page-level script in admin_vehicle_list.html ──
+// (Firestore save logic lives there to avoid double-submit conflicts)
 
 // ── Services ────────────────────────────────────────────────
 function renderServicesList() {
@@ -1875,20 +1816,30 @@ function openAddItemMasterModal() {
     var submitBtn = document.getElementById('imSubmitBtn');
     if (submitBtn) submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
     document.getElementById('addItemMasterForm').reset();
+    // Clear duplicate name error
+    var nameErrEl = document.getElementById('imNameError');
+    if (nameErrEl) nameErrEl.style.display = 'none';
+    var nameInput = document.querySelector('#addItemMasterForm [name="itemName"]');
+    if (nameInput) { nameInput.style.borderColor = ''; nameInput.style.boxShadow = ''; }
     // Clear supplier code field separately (not in standard form reset scope)
     var supplierCodeEl = document.getElementById('itemMasterSupplierCode');
     if (supplierCodeEl) supplierCodeEl.value = '';
     var oemEl = document.getElementById('itemMasterOEM');
     if (oemEl) oemEl.value = '';
     populateItemMasterDropdowns();
-    // Auto-generate next ITM-XXX number
+    // Auto-generate next item number (number only, no prefix)
     var itemMaster = window.itemMaster || [];
     var maxNum = 0;
     itemMaster.forEach(function(i) {
         var n = parseInt((i.itemNum || '').replace(/[^0-9]/g, '')) || 0;
         if (n > maxNum) maxNum = n;
     });
-    document.getElementById('itemMasterItemNum').value = 'ITM-' + String(maxNum + 1).padStart(3, '0');
+    // Also check _fbItemMaster raw data for any nums not yet in itemMaster
+    (window._fbItemMaster || []).forEach(function(i) {
+        var n = parseInt((i.num || '').replace(/[^0-9]/g, '')) || 0;
+        if (n > maxNum) maxNum = n;
+    });
+    document.getElementById('itemMasterItemNum').value = String(maxNum + 1).padStart(3, '0');
     document.getElementById('addItemMasterModal').classList.add('active');
 }
 
@@ -2070,8 +2021,8 @@ function generateItemMasterBarcode() {
 function generateItemMasterQRCode() {
     var el = document.getElementById('itemMasterQRCode');
     var num = document.getElementById('itemMasterItemNum');
-    // Format: QR-ITM-001 (uppercase, matches mobile format)
-    if (el) el.value = 'QR-' + (num ? num.value.toUpperCase() : 'ITM-' + Date.now());
+    // Format: QR-001 (number only, no ITM prefix)
+    if (el) el.value = 'QR-' + (num ? num.value.toUpperCase() : String(Date.now()));
 }
 
 function openItemMasterScanModal() {
@@ -2092,6 +2043,12 @@ document.addEventListener('DOMContentLoaded', function() {
             var oem = oemEl ? oemEl.value.trim() : '';
             var itemName = form.elements.itemName.value.trim();
             if (!itemName) { alert('Item Name is required.'); return; }
+            // Block save if duplicate name error is visible
+            var nameErrEl = document.getElementById('imNameError');
+            if (nameErrEl && nameErrEl.style.display !== 'none') {
+                showToast('An item with this name already exists.', 'error');
+                return;
+            }
 
             var data = {
                 num:          itemNum,
@@ -2148,6 +2105,15 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 var isDuplicate = (window.itemMaster || []).some(function(i){ return i.itemNum === itemNum; });
                 if (isDuplicate) { alert('Item Number already exists.'); return; }
+                // Check for duplicate item name (case-insensitive)
+                var nameLower = (data.name || '').toLowerCase().trim();
+                var isDuplicateName = (window.itemMaster || []).some(function(i){
+                    return (i.itemName || '').toLowerCase().trim() === nameLower;
+                });
+                if (isDuplicateName) {
+                    showToast('An item with this name already exists.', 'error');
+                    return;
+                }
                 data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 var submitBtn2 = document.getElementById('imSubmitBtn');
                 if (submitBtn2) { submitBtn2.disabled = true; submitBtn2.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving…'; }
@@ -2155,8 +2121,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(function() {
                         showToast('Item added successfully!', 'success');
                         closeModal('addItemMasterModal');
-                        // Auto-open Set Stock Levels modal for Material items
-                        if (data.type === 'Material') {
+                        // Auto-open Set Stock Levels modal for Material items only
+                        // Skip for AutoService group — these are services, not stocked materials
+                        if (data.type === 'Material' && data.group !== 'AutoService') {
                             setTimeout(function() {
                                 _addFoundMaster = {
                                     itemNum: data.num,

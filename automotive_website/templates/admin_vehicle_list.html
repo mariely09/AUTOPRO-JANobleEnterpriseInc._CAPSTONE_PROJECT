@@ -568,40 +568,53 @@
       }
 
       var db = firebase.firestore();
+      var _savedEditingId = _editingVehicleId; // capture at submit time to avoid race
 
       // Resolve ownerId from owner name so PMS notifications can target the customer
       function _saveVehicle(extraData) {
         var finalData = Object.assign({}, data, extraData || {});
-        if (_editingVehicleId) {
+        if (_savedEditingId) {
+          // ── EDIT MODE ──
           var vBtn = document.getElementById('assetSubmitBtn');
           if (vBtn) { vBtn.disabled = true; vBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Updating…'; }
-          db.collection('vehicles').doc(_editingVehicleId).update(finalData)
+          db.collection('vehicles').doc(_savedEditingId).update(finalData)
             .then(function() { closeModal('addAssetModal'); showToast('Vehicle updated successfully!', 'success'); })
             .catch(function(err) { showToast('Update failed: ' + err.message, 'error'); })
             .finally(function() { if (vBtn) { vBtn.disabled = false; vBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update'; } });
         } else {
+          // ── ADD MODE ──
           var vBtn2 = document.getElementById('assetSubmitBtn');
           db.collection('vehicles').where('plate', '==', plate).limit(1).get().then(function(snap) {
-            if (!snap.empty) { showToast('A vehicle with this plate already exists.', 'error'); return; }
+            if (!snap.empty) { showToast('A vehicle with this plate already exists.', 'error'); return Promise.reject('duplicate'); }
             if (vBtn2) { vBtn2.disabled = true; vBtn2.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving…'; }
             finalData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             finalData.status = 'Active';
             return db.collection('vehicles').add(finalData);
           }).then(function(ref) {
             if (ref) { closeModal('addAssetModal'); showToast('Vehicle added successfully!', 'success'); }
-          }).catch(function(err) { showToast('Save failed: ' + err.message, 'error'); })
-          .finally(function() { if (vBtn2) { vBtn2.disabled = false; vBtn2.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save'; } });
+          }).catch(function(err) {
+            if (err !== 'duplicate') showToast('Save failed: ' + (err.message || err), 'error');
+          }).finally(function() { if (vBtn2) { vBtn2.disabled = false; vBtn2.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save'; } });
         }
       }
 
-      // Look up customer UID by name and attach as ownerId
+      // Look up customer UID by name AND company name, then attach as ownerId
       if (ownerName) {
+        // Search by name first, then by companyName
         db.collection('users')
-          .where('name', '==', ownerName)
           .where('role', '==', 'customer')
-          .limit(1).get()
+          .get()
           .then(function(snap) {
-            var ownerId = snap.empty ? '' : snap.docs[0].id;
+            var ownerId = '';
+            var ownerLower = ownerName.toLowerCase();
+            snap.docs.forEach(function(d) {
+              if (ownerId) return;
+              var udata = d.data();
+              if ((udata.name || '').toLowerCase() === ownerLower ||
+                  (udata.companyName || '').toLowerCase() === ownerLower) {
+                ownerId = d.id;
+              }
+            });
             _saveVehicle({ ownerId: ownerId });
           })
           .catch(function() { _saveVehicle({}); });

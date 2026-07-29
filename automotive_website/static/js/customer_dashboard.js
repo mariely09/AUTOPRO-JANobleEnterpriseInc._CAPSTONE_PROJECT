@@ -56,15 +56,30 @@
   async function loadUserInfo(user) {
     // Use stored name immediately — fast path
     _userName = cpUser.name || '';
+    let _companyName = cpUser.companyName || '';
 
     if (!_userName) {
       // Fetch from Firestore (authenticated)
       const userDoc = await db.collection('users').doc(user.uid).get();
-      if (userDoc.exists) _userName = userDoc.data().name || '';
+      if (userDoc.exists) {
+        _userName = userDoc.data().name || '';
+        _companyName = userDoc.data().companyName || '';
+      }
     }
     if (!_userName && cpUser.email) {
       const snap = await db.collection('users').where('email', '==', cpUser.email).limit(1).get();
-      if (!snap.empty) _userName = snap.docs[0].data().name || '';
+      if (!snap.empty) {
+        _userName = snap.docs[0].data().name || '';
+        _companyName = snap.docs[0].data().companyName || '';
+      }
+    }
+
+    // Store companyName so vehicle filter can use it
+    window._cpCompanyName = _companyName;
+    // Also update cpUser in session with companyName if missing
+    if (_companyName && !cpUser.companyName) {
+      cpUser.companyName = _companyName;
+      try { sessionStorage.setItem('cpUser', JSON.stringify(cpUser)); } catch(e) {}
     }
 
     const initials = _userName.split(' ').filter(Boolean).map(p => p[0]).join('').toUpperCase().slice(0, 2) || 'CU';
@@ -79,11 +94,12 @@
     db.collection('vehicles').onSnapshot(snap => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      // Filter by owner name — exact match like Flutter
+      // Filter by owner name — match on customer's name OR company name
       _vehicles = all.filter(v => {
         const owner = (v.owner || '').toLowerCase().trim();
         const name = _userName.toLowerCase().trim();
-        return owner === name;
+        const company = (window._cpCompanyName || '').toLowerCase().trim();
+        return owner === name || (company && owner === company);
       });
 
       updateStats();

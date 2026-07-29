@@ -1130,3 +1130,9 @@ if __name__ == '__main__':
 def setup_notifications():
     """Setup page to create notifications collection in Firestore"""
     return render_template('setup_notifications.html')
+
+@app.route('/fix_item_numbers.html')
+def fix_item_numbers():
+    """One-time utility to fix duplicate item numbers in item_master"""
+    return render_template('fix_item_numbers.html')
+

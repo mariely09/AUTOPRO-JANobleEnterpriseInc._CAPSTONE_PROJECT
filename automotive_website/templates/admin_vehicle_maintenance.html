@@ -687,7 +687,7 @@ function svcAddSvcRow(name, qty, uom, cost) {
     + '<div class="svc-svc-search-wrap">'
     + '<input type="text" class="svc-svc-search" autocomplete="off"'
     + ' style="width:100%;padding:1rem 1rem 0.4rem 1rem;border:1.5px solid #c5cdd9;border-radius:8px;font-size:0.85rem;font-family:inherit;color:#1a202c;background:white;outline:none;box-sizing:border-box;transition:border-color 0.2s;"'
-    + ' oninput="svcSvcLookup(this)" onfocus="svcSvcLookup(this)"'
+    + ' oninput="svcSvcLookup(this)"'
     + ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();svcSvcLookupExact(this);}">'
     + '<label style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:0.88rem;color:#a0aec0;pointer-events:none;transition:all 0.18s;background:white;padding:0 0.2rem;line-height:1;">Service Name *</label>'
     + '<div class="svc-svc-suggestions" style="display:none;position:fixed;background:white;border:1px solid #e2e8f0;border-radius:8px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.14);z-index:99999;"></div>'
@@ -732,6 +732,11 @@ function svcAddSvcRow(name, qty, uom, cost) {
     searchInput.style.borderColor = '#c5cdd9';
     searchInput.style.boxShadow = '';
     _floatLabel(div.querySelector('.svc-svc-search-wrap label'), searchInput.value);
+    // Hide suggestions when focus leaves the field
+    setTimeout(function() {
+      var sugg = div.querySelector('.svc-svc-suggestions');
+      if (sugg) sugg.style.display = 'none';
+    }, 150);
   });
 
   if (name) svcSvcApply(div, name, uom, cost);
@@ -745,12 +750,16 @@ function svcSvcLookup(input) {
     ? _svcServiceItems.filter(function(i){ return i.itemName.toLowerCase().includes(q); })
     : _svcServiceItems;
   if (matches.length === 0) {
-    suggestions.innerHTML = '<div style="padding:0.75rem 0.85rem;font-size:0.83rem;color:#a0aec0;text-align:center;">No services found.</div>';
-    var rect = input.getBoundingClientRect();
-    suggestions.style.left  = rect.left + 'px';
-    suggestions.style.top   = (rect.bottom + 2) + 'px';
-    suggestions.style.width = rect.width + 'px';
-    suggestions.style.display = 'block';
+    suggestions.style.display = 'none';
+    // Only show "no results" message if user has actually typed something
+    if (q) {
+      suggestions.innerHTML = '<div style="padding:0.75rem 0.85rem;font-size:0.83rem;color:#a0aec0;text-align:center;">No services found.</div>';
+      var rect = input.getBoundingClientRect();
+      suggestions.style.left  = rect.left + 'px';
+      suggestions.style.top   = (rect.bottom + 2) + 'px';
+      suggestions.style.width = rect.width + 'px';
+      suggestions.style.display = 'block';
+    }
     return;
   }
   suggestions.innerHTML = matches.map(function(i){
@@ -824,7 +833,7 @@ function svcAddMatRow(name, qty, uom, cost) {
     + '<div class="svc-mat-search-wrap">'
     + '<input type="text" class="svc-mat-search" autocomplete="off"'
     + ' style="width:100%;padding:1rem 2.2rem 0.4rem 1rem;border:1.5px solid #c5cdd9;border-radius:8px;font-size:0.85rem;font-family:inherit;color:#1a202c;background:white;outline:none;box-sizing:border-box;transition:border-color 0.2s;"'
-    + ' oninput="svcMatLookup(this)" onfocus="svcMatLookup(this)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();svcMatLookup(this,true);}">'
+    + ' oninput="svcMatLookup(this)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();svcMatLookup(this,true);}">'
     + '<label style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:0.88rem;color:#a0aec0;pointer-events:none;transition:all 0.18s;background:white;padding:0 0.2rem;line-height:1;">Material Name *</label>'
     + '<button type="button" onclick="svcMatLookup(this.previousElementSibling.previousElementSibling,true)" title="Search" style="position:absolute;right:0.4rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#718096;padding:0;display:flex;align-items:center;justify-content:center;"><svg xmlns=\'http://www.w3.org/2000/svg\' width=\'15\' height=\'15\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><circle cx=\'11\' cy=\'11\' r=\'8\'/><line x1=\'21\' y1=\'21\' x2=\'16.65\' y2=\'16.65\'/></svg></button>'
     + '<div class="svc-mat-suggestions" style="display:none;position:fixed;background:white;border:1px solid #e2e8f0;border-radius:8px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.14);z-index:99999;"></div>'
@@ -872,6 +881,11 @@ function svcAddMatRow(name, qty, uom, cost) {
     searchInput.style.borderColor = '#c5cdd9';
     searchInput.style.boxShadow = '';
     div.querySelector('.svc-mat-search-wrap label').style.color = searchInput.value ? '#718096' : '#a0aec0';
+    // Hide suggestions when focus leaves the field
+    setTimeout(function() {
+      var sugg = div.querySelector('.svc-mat-suggestions');
+      if (sugg) sugg.style.display = 'none';
+    }, 150);
   });
 
   if (name) {
@@ -896,12 +910,16 @@ function svcMatLookup(input, exact) {
   }
   if (exact && matches.length === 0) return;
   if (matches.length === 0) {
-    suggestions.innerHTML = '<div style="padding:0.75rem 0.85rem;font-size:0.83rem;color:#a0aec0;text-align:center;">No materials found.</div>';
-    var rect2 = input.getBoundingClientRect();
-    suggestions.style.left  = rect2.left + 'px';
-    suggestions.style.top   = (rect2.bottom + 2) + 'px';
-    suggestions.style.width = rect2.width + 'px';
-    suggestions.style.display = 'block';
+    suggestions.style.display = 'none';
+    // Only show "no results" message if user has actually typed something
+    if (q) {
+      suggestions.innerHTML = '<div style="padding:0.75rem 0.85rem;font-size:0.83rem;color:#a0aec0;text-align:center;">No materials found.</div>';
+      var rect2 = input.getBoundingClientRect();
+      suggestions.style.left  = rect2.left + 'px';
+      suggestions.style.top   = (rect2.bottom + 2) + 'px';
+      suggestions.style.width = rect2.width + 'px';
+      suggestions.style.display = 'block';
+    }
     return;
   }
 

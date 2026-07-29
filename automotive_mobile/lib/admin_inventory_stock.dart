@@ -274,8 +274,8 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
         .map((d) => _docToMaster(d))
         .where((item) =>
             (item['name'] as String).toLowerCase().contains(q) ||
-            (item['num']  as String).toLowerCase().contains(q) ||
             (item['group'] as String).toLowerCase().contains(q) ||
+            (item['supplierCode'] as String).toLowerCase().contains(q) ||
             _match(item['barcode'] as String, raw) ||
             _match(item['qr']      as String, raw))
         .toList();
@@ -1025,7 +1025,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                         child: TextField(
                       controller: scanCtrl,
                       decoration: InputDecoration(
-                        hintText: 'Scan or search item...',
+                        hintText: 'Search by name, number, supplier code...',
                         border: const OutlineInputBorder(),
                         prefixIcon: const Icon(Icons.search),
                         suffixIcon: scanCtrl.text.isNotEmpty
@@ -1101,41 +1101,59 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                       Text('${searchResults.length} result${searchResults.length == 1 ? '' : 's'} found — tap to select',
                           style: const TextStyle(fontSize: 12, color: Color(0xFF718096))),
                       const SizedBox(height: 8),
-                      ...searchResults.map((master) => GestureDetector(
-                        onTap: () => setModal(() {
-                          selectedMaster = master;
-                          _dupCheckFuture = _db.where('num', isEqualTo: master['num']).limit(1).get();
-                        }),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: const Color(0xFFe2e8f0)),
-                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4)]),
-                          child: Row(children: [
-                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Wrap(
-                                crossAxisAlignment: WrapCrossAlignment.end,
-                                spacing: 4,
-                                children: [
-                                  Text(master['name'] as String,
-                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c))),
-                                  Text(master['uom'] as String,
-                                      style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                                ],
+                      ...searchResults.map((master) {
+                        return FutureBuilder<QuerySnapshot>(
+                          future: _db.where('num', isEqualTo: master['num']).limit(1).get(),
+                          builder: (ctx, snap) {
+                            final inStock = snap.hasData && snap.data!.docs.isNotEmpty;
+                            return GestureDetector(
+                              onTap: () => setModal(() {
+                                selectedMaster = master;
+                                _dupCheckFuture = _db.where('num', isEqualTo: master['num']).limit(1).get();
+                              }),
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                    color: inStock ? const Color(0xFFFFFBEB) : Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: inStock ? const Color(0xFFFCD34D) : const Color(0xFFe2e8f0)),
+                                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4)]),
+                                child: Row(children: [
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Wrap(
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      spacing: 6,
+                                      children: [
+                                        Text(master['name'] as String,
+                                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c))),
+                                        Text(master['uom'] as String,
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                                        if (inStock)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                                color: const Color(0xFFFEF3C7),
+                                                borderRadius: BorderRadius.circular(20)),
+                                            child: const Text('⚠ Already in Stock',
+                                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF92400E))),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${(master['supplierCode'] as String).isNotEmpty ? master['supplierCode'] : master['num']}  •  ${master['group']}',
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
+                                    ),
+                                  ])),
+                                  const Icon(Icons.chevron_right, size: 18, color: Color(0xFFa0aec0)),
+                                ]),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${(master['supplierCode'] as String).isNotEmpty ? master['supplierCode'] : master['num']}  •  ${master['group']}',
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
-                              ),
-                            ])),
-                            const Icon(Icons.chevron_right, size: 18, color: Color(0xFFa0aec0)),
-                          ]),
-                        ),
-                      )),
+                            );
+                          },
+                        );
+                      }),
                     ],
                   ],
 

@@ -107,13 +107,15 @@ class _CustomerCalendarFloatingState extends State<CustomerCalendarFloating>
     final userDoc  = await db.collection('users').doc(uid).get();
     final userName =
         (userDoc.data()?['name'] as String? ?? '').toLowerCase();
+    final companyName =
+        (userDoc.data()?['companyName'] as String? ?? '').toLowerCase();
 
     if (userName.isNotEmpty) {
       final vehiclesSnap = await db.collection('vehicles').get();
       for (final doc in vehiclesSnap.docs) {
         final data  = doc.data();
         final owner = (data['owner'] as String? ?? '').toLowerCase();
-        if (owner != userName) continue;
+        if (owner != userName && (companyName.isEmpty || owner != companyName)) continue;
 
         final plate       = data['plate']      as String? ?? '';
         final lastSvcDate = data['lastSvcDate'] as String? ?? '';

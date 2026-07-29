@@ -580,7 +580,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
       await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({'items': items});
     }
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(items.isEmpty ? 'Delivery deleted.' : 'Item removed.'),
+      content: Text(items.isEmpty ? 'Delivery record deleted successfully!' : 'Item removed successfully!'),
       backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
   }
 
@@ -1493,7 +1493,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(isEdit ? 'Delivery updated!' : 'Delivery created!'),
+                            content: Text(isEdit ? 'Delivery record updated!' : 'Delivery record created!'),
                             backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                         }
@@ -2094,7 +2094,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
     if (items.isEmpty) {
       await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).delete();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Request rejected. Delivery deleted.'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
+        content: Text('Request rejected. Delivery record deleted.'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
     } else {
       final allPending = items.every((i) => (i['itemStatus'] ?? 'Pending') == 'Pending' || i['itemStatus'] == null);
       final deliveryStatus = allPending ? 'Pending' : d['status'];
@@ -2118,7 +2118,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
               await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).delete();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: const Text('Delivery deleted successfully.'), backgroundColor: Colors.red,
+                  SnackBar(content: const Text('Delivery record deleted successfully.'), backgroundColor: Colors.red,
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
               }
