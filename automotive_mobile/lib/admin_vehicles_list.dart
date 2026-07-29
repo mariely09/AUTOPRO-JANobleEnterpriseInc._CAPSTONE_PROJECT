@@ -423,20 +423,20 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                 _detailRow('Next PMS Due', _fmtDate(_calcNextPms(v['lastSvcDate']!, v['svcFreq']!))),
                 _detailRow('Service Frequency', v['svcFreq']!.isNotEmpty ? '${v['svcFreq']} month(s)' : '—'),
                 const SizedBox(height: 16),
-                SizedBox(width: double.infinity,
-                  child: OutlinedButton.icon(
+                Row(children: [
+                  Expanded(child: OutlinedButton.icon(
                     onPressed: () { Navigator.pop(context); _showAddVehicleModal(vehicle: v); },
                     icon: const Icon(Icons.edit_outlined, size: 16),
-                    label: const Text('Edit Vehicle'),
+                    label: const Text('Edit'),
                   )),
-                const SizedBox(height: 10),
-                SizedBox(width: double.infinity,
-                  child: OutlinedButton.icon(
+                  const SizedBox(width: 10),
+                  Expanded(child: OutlinedButton.icon(
                     onPressed: () { Navigator.pop(context); _confirmDelete(v); },
                     icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                    label: const Text('Delete Vehicle', style: TextStyle(color: Colors.red)),
+                    label: const Text('Delete', style: TextStyle(color: Colors.red)),
                     style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
                   )),
+                ]),
               ]),
             ),
           ]),
@@ -536,14 +536,51 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                   TextField(controller: descCtrl,
                     decoration: const InputDecoration(labelText: 'Description *', border: OutlineInputBorder())),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    value: selectedType,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Vehicle Type *', border: OutlineInputBorder()),
-                    hint: const Text('Select type'),
-                    items: types.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                    onChanged: (v) => setModal(() => selectedType = v),
-                    borderRadius: BorderRadius.circular(10),
+                  // Vehicle Type — bottom sheet picker (same style as item master UOM/Group)
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () async {
+                      final picked = await showModalBottomSheet<String>(
+                        context: sheetCtx,
+                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                        builder: (pickerCtx) => Column(mainAxisSize: MainAxisSize.min, children: [
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                            child: Text('Select Vehicle Type', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          ),
+                          const Divider(height: 1),
+                          Flexible(
+                            child: ListView(
+                              shrinkWrap: true,
+                              children: types.map((t) => ListTile(
+                                title: Text(t),
+                                trailing: selectedType == t ? const Icon(Icons.check, color: Color(0xFFE8001C)) : null,
+                                onTap: () => Navigator.pop(pickerCtx, t),
+                              )).toList(),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ]),
+                      );
+                      if (picked != null) setModal(() => selectedType = picked);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFbdbdbd)),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(children: [
+                        Expanded(child: Text(
+                          selectedType ?? 'Select type',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: selectedType != null ? const Color(0xFF1a202c) : const Color(0xFF9e9e9e),
+                          ),
+                        )),
+                        const Icon(Icons.arrow_drop_down, color: Color(0xFF718096)),
+                      ]),
+                    ),
                   ),
                   const SizedBox(height: 10),
                   _OwnerAutocomplete(controller: ownerCtrl),                  const SizedBox(height: 10),
