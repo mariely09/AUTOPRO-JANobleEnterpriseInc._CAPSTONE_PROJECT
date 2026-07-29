@@ -31,6 +31,17 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  // ── Firestore offline persistence ──
+  // Writes made while offline are queued locally and automatically synced
+  // to Firestore once internet is restored. Works across app restarts.
+  if (!kIsWeb) {
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED, // no size limit on local cache
+    );
+    debugPrint('✅ Firestore offline persistence enabled');
+  }
+
   // ── OneSignal: initialize and request permission (skip on web for now) ──
   if (!kIsWeb) {
     OneSignal.initialize('c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea');
@@ -119,7 +130,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'JA Noble',
+      title: 'AutoPro',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE8001C)),

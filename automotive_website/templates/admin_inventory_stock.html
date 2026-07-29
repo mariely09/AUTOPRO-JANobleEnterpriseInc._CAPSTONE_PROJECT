@@ -294,17 +294,17 @@
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
                 <div class="fl-field">
-                    <input type="number" id="editInvMin" min="0" placeholder=" ">
+                    <input type="number" id="editInvMin" min="0" placeholder=" " oninput="editInvCalcReorder()">
                     <label>Min Level *</label>
                 </div>
                 <div class="fl-field">
-                    <input type="number" id="editInvMax" min="0" placeholder=" ">
+                    <input type="number" id="editInvMax" min="0" placeholder=" " oninput="editInvCalcReorder()">
                     <label>Max Level *</label>
                 </div>
             </div>
             <div class="fl-field">
-                <input type="number" id="editInvReorder" min="0" placeholder=" ">
-                <label>Reorder Quantity *</label>
+                <input type="number" id="editInvReorder" min="0" placeholder=" " readonly style="background:#f7f8fa;cursor:default;">
+                <label>Reorder Quantity (auto)</label>
             </div>
         </div>
         <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
@@ -388,17 +388,17 @@
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
                     <div class="fl-field">
-                        <input type="number" id="invStockMin" min="0" placeholder=" ">
+                        <input type="number" id="invStockMin" min="0" placeholder=" " oninput="invCalcReorder()">
                         <label>Min Level *</label>
                     </div>
                     <div class="fl-field">
-                        <input type="number" id="invStockMax" min="0" placeholder=" ">
+                        <input type="number" id="invStockMax" min="0" placeholder=" " oninput="invCalcReorder()">
                         <label>Max Level *</label>
                     </div>
                 </div>
                 <div class="fl-field">
-                    <input type="number" id="invStockReorder" min="0" placeholder=" ">
-                    <label>Reorder Quantity *</label>
+                    <input type="number" id="invStockReorder" min="0" placeholder=" " readonly style="background:#f7f8fa;cursor:default;">
+                    <label>Reorder Quantity (auto)</label>
                 </div>
             </div>
         </div>
@@ -699,6 +699,20 @@ function invSelectItem(itemNum) {
     fieldsEl.style.display = 'flex';
 }
 
+function invCalcReorder() {
+    var min = parseInt(document.getElementById('invStockMin').value) || 0;
+    var max = parseInt(document.getElementById('invStockMax').value) || 0;
+    var reorder = max > min ? max - min : 0;
+    document.getElementById('invStockReorder').value = reorder > 0 ? reorder : '';
+}
+
+function editInvCalcReorder() {
+    var min = parseInt(document.getElementById('editInvMin').value) || 0;
+    var max = parseInt(document.getElementById('editInvMax').value) || 0;
+    var reorder = max > min ? max - min : 0;
+    document.getElementById('editInvReorder').value = reorder > 0 ? reorder : '';
+}
+
 function invClearSelection() {
     _addFoundMaster = null;
     document.getElementById('invItemPreview').style.display = 'none';
@@ -708,6 +722,10 @@ function invClearSelection() {
     document.getElementById('invSearchResults').innerHTML = '';
     document.getElementById('invItemSearch').value = '';
     document.getElementById('invItemSearch').focus();
+    // Reset all stock fields
+    ['invStockQty','invStockMin','invStockMax','invStockReorder'].forEach(function(id) {
+        document.getElementById(id).value = '';
+    });
 }
 
 function stockSaveNewItem() {
@@ -848,6 +866,8 @@ function editInventoryItem(id) {
     document.getElementById('editInvMin').value = item.minLevel;
     document.getElementById('editInvMax').value = item.maxLevel;
     document.getElementById('editInvReorder').value = item.reorderQty || 0;
+    // Re-calculate reorder in case stored value is stale
+    editInvCalcReorder();
     document.getElementById('editInventoryModal').classList.add('active');
 }
 

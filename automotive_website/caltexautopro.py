@@ -540,6 +540,24 @@ def send_welcome_email():
 def index():
     return render_template('index.html')
 
+@app.route('/download/autopro.apk')
+def download_apk():
+    """Serve the AutoPro APK for direct download. Always serves the latest file."""
+    from flask import send_from_directory
+    import os
+    apk_dir = os.path.join(os.path.dirname(__file__), 'static', 'apk')
+    apk_path = os.path.join(apk_dir, 'autopro.apk')
+    if not os.path.exists(apk_path):
+        return 'APK not found. Run build_and_deploy_apk.bat first.', 404
+    response = send_from_directory(apk_dir, 'autopro.apk',
+                                   as_attachment=True,
+                                   download_name='AutoPro.apk')
+    # Prevent browser from caching the old APK
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
 # ── Auth ────────────────────────────────────────────────────
 @app.route('/login.html')
 def login():

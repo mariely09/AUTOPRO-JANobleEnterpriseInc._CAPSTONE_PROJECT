@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -144,6 +144,272 @@
     </div>
   </section>
 
+  <!-- ── Get the App Section ── -->
+  <section id="get-app" style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);padding:80px 5%;overflow:hidden;position:relative;">
+    <!-- Background decorative circles -->
+    <div style="position:absolute;top:-60px;right:-60px;width:300px;height:300px;border-radius:50%;background:rgba(232,0,28,0.06);pointer-events:none;"></div>
+    <div style="position:absolute;bottom:-80px;left:-40px;width:240px;height:240px;border-radius:50%;background:rgba(0,48,135,0.08);pointer-events:none;"></div>
+
+    <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;">
+
+      <!-- Left: text content -->
+      <div>
+        <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(232,0,28,0.12);border:1px solid rgba(232,0,28,0.25);border-radius:20px;padding:6px 14px;margin-bottom:20px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          <span style="font-size:11px;font-weight:700;color:#E8001C;letter-spacing:1px;text-transform:uppercase;">Mobile App</span>
+        </div>
+
+        <h2 style="font-size:clamp(1.75rem,3vw,2.4rem);font-weight:900;color:#fff;line-height:1.2;margin:0 0 16px;">
+          Your AutoPro Portal,<br/>Right in Your Pocket
+        </h2>
+        <p style="font-size:14px;color:rgba(255,255,255,0.6);line-height:1.8;margin:0 0 28px;max-width:420px;">
+          Download the AutoPro app and manage your entire fleet from anywhere — book services, track PMS schedules, receive real-time alerts, and view full vehicle history.
+        </p>
+
+        <!-- QR Code — no outer box, just the image + text centered -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=http%3A%2F%2F192.168.1.9%3A5001%2Fdownload%2Fautopro.apk&color=1a202c&bgcolor=ffffff&margin=2&qzone=1"
+               alt="Scan to download AutoPro APK"
+               width="150" height="150"
+               style="display:block;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.3);" />
+          <p style="font-size:12px;color:rgba(255,255,255,0.55);margin:0;line-height:1.5;">Scan the QR code to download</p>
+        </div>
+      </div>
+
+      <!-- Right: 3 phone mockups — dashboard | welcome (center) | pms history -->
+      <div style="display:flex;align-items:flex-end;justify-content:center;gap:12px;position:relative;">
+
+        <!-- LEFT phone: Customer Dashboard screen -->
+        <div style="position:relative;width:150px;transform:rotate(-6deg) translateY(20px);opacity:0.85;flex-shrink:0;">
+          <div style="background:linear-gradient(160deg,#1e293b,#0f172a);border:2px solid rgba(255,255,255,0.10);border-radius:28px;padding:9px 8px;box-shadow:0 16px 40px rgba(0,0,0,0.5);">
+            <div style="width:44px;height:5px;background:rgba(255,255,255,0.10);border-radius:3px;margin:0 auto 6px;"></div>
+            <!-- Dashboard screen — matches customer_dashboard.dart -->
+            <div style="background:#F7F8FA;border-radius:18px;overflow:hidden;aspect-ratio:9/16;display:flex;flex-direction:column;">
+              <!-- Red AppBar -->
+              <div style="background:#E8001C;padding:8px 10px;flex-shrink:0;display:flex;align-items:center;gap:6px;">
+                <div style="width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;">
+                  <span style="font-size:6px;color:#fff;font-weight:700;">MA</span>
+                </div>
+                <span style="font-size:7px;font-weight:700;color:#fff;">Maria Santos</span>
+              </div>
+              <!-- Body -->
+              <div style="padding:5px;flex:1;display:flex;flex-direction:column;gap:4px;overflow:hidden;">
+                <!-- Welcome card — red gradient -->
+                <div style="background:linear-gradient(135deg,#E8001C,#a50014);border-radius:8px;padding:7px 8px;">
+                  <div style="font-size:6px;font-weight:800;color:#fff;">☀️ Good morning, Maria!</div>
+                  <div style="font-size:4px;color:rgba(255,255,255,0.7);margin-top:1px;">Monday, July 28, 2026</div>
+                </div>
+                <!-- 2x3 mini stat grid -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">
+                  <div style="background:#fff;border-radius:5px;padding:4px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                    <div style="font-size:9px;font-weight:800;color:#E8001C;">3</div>
+                    <div style="font-size:3.5px;color:#718096;">Total Vehicles</div>
+                  </div>
+                  <div style="background:#fff;border-radius:5px;padding:4px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                    <div style="font-size:9px;font-weight:800;color:#38a169;">2</div>
+                    <div style="font-size:3.5px;color:#718096;">Active</div>
+                  </div>
+                  <div style="background:#fff;border-radius:5px;padding:4px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                    <div style="font-size:9px;font-weight:800;color:orange;">1</div>
+                    <div style="font-size:3.5px;color:#718096;">Maintenance</div>
+                  </div>
+                  <div style="background:#fff;border-radius:5px;padding:4px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                    <div style="font-size:9px;font-weight:800;color:#E8001C;">1</div>
+                    <div style="font-size:3.5px;color:#718096;">PMS Overdue</div>
+                  </div>
+                </div>
+                <!-- Vehicle card -->
+                <div style="background:#fff;border-radius:6px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                  <div style="padding:5px 6px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                      <div style="font-size:6px;font-weight:800;color:#1a202c;">ABC-1234</div>
+                      <div style="background:#fff5f5;border-radius:8px;padding:1px 4px;">
+                        <span style="font-size:3.5px;color:#E8001C;font-weight:700;">Overdue</span>
+                      </div>
+                    </div>
+                    <div style="font-size:4px;color:#718096;">Isuzu Truck NQR</div>
+                  </div>
+                  <div style="background:#F8FAFC;padding:3px 6px;border-top:1px solid #F0F4F8;">
+                    <span style="font-size:3.5px;color:#E8001C;font-weight:600;">View details →</span>
+                  </div>
+                </div>
+                <div style="background:#fff;border-radius:6px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                  <div style="padding:5px 6px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                      <div style="font-size:6px;font-weight:800;color:#1a202c;">XYZ-5678</div>
+                      <div style="background:#f0fff4;border-radius:8px;padding:1px 4px;">
+                        <span style="font-size:3.5px;color:#38a169;font-weight:700;">Active</span>
+                      </div>
+                    </div>
+                    <div style="font-size:4px;color:#718096;">Toyota Hilux</div>
+                  </div>
+                  <div style="background:#F8FAFC;padding:3px 6px;border-top:1px solid #F0F4F8;">
+                    <span style="font-size:3.5px;color:#E8001C;font-weight:600;">View details →</span>
+                  </div>
+                </div>
+              </div>
+              <!-- Bottom nav -->
+              <div style="background:#fff;display:flex;justify-content:space-around;padding:4px 0;border-top:1px solid #e2e8f0;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+                  <div style="width:10px;height:10px;background:rgba(232,0,28,0.15);border-radius:3px;"></div>
+                  <div style="font-size:3.5px;color:#E8001C;font-weight:700;">Fleet</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+                  <div style="width:10px;height:10px;background:rgba(0,0,0,0.05);border-radius:3px;"></div>
+                  <div style="font-size:3.5px;color:#a0aec0;">Bookings</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+                  <div style="width:10px;height:10px;background:rgba(0,0,0,0.05);border-radius:3px;"></div>
+                  <div style="font-size:3.5px;color:#a0aec0;">PMS</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+                  <div style="width:10px;height:10px;background:rgba(0,0,0,0.05);border-radius:3px;"></div>
+                  <div style="font-size:3.5px;color:#a0aec0;">Profile</div>
+                </div>
+              </div>
+            </div>
+            <div style="width:32px;height:3px;background:rgba(255,255,255,0.15);border-radius:2px;margin:6px auto 0;"></div>
+          </div>
+        </div>
+
+        <!-- CENTER phone: Welcome screen (larger, upright, in front) -->
+        <div style="position:relative;width:180px;z-index:2;flex-shrink:0;">
+          <div style="background:linear-gradient(160deg,#1e293b,#0f172a);border:2.5px solid rgba(255,255,255,0.12);border-radius:34px;padding:12px 10px;box-shadow:0 24px 60px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.04),inset 0 1px 0 rgba(255,255,255,0.08);">
+            <div style="width:54px;height:6px;background:rgba(255,255,255,0.12);border-radius:3px;margin:0 auto 8px;"></div>
+            <!-- Screen: welcome screen gradient — uses scale() so everything is proportionally small -->
+            <div style="background:linear-gradient(135deg,#1a202c 0%,#2d3748 60%,#E8001C 100%);border-radius:22px;overflow:hidden;aspect-ratio:9/16;position:relative;">
+              <!-- Decorative circles -->
+              <div style="position:absolute;top:-20px;right:-20px;width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,0.06);pointer-events:none;"></div>
+              <div style="position:absolute;bottom:30px;left:-25px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.04);pointer-events:none;"></div>
+              <!-- Inner content scaled to match real app proportions -->
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;">
+                <!-- Animated canvas scene -->
+                <div style="height:38%;position:relative;overflow:hidden;flex-shrink:0;">
+                  <canvas id="phoneScene" style="width:100%;height:100%;display:block;"></canvas>
+                </div>
+                <!-- Branding -->
+                <div style="display:flex;flex-direction:column;align-items:center;padding:8px 8px 4px;gap:4px;overflow:hidden;width:100%;box-sizing:border-box;">
+                  <div style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.22);border-radius:20px;padding:3px 7px;max-width:90%;">
+                    <img src="../static/img/LOGO_CALTEX.png" style="width:8px;height:8px;object-fit:contain;flex-shrink:0;" alt=""/>
+                    <span style="font-size:5px;color:rgba(255,255,255,0.9);font-weight:600;white-space:nowrap;">Authorized Caltex Partner</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:1px;width:100%;">
+                    <span style="font-size:8px;font-weight:900;color:#fff;text-align:center;line-height:1.2;letter-spacing:0.5px;word-break:break-word;">JA Noble Enterprise Inc.</span>
+                    <span style="font-size:4px;font-weight:600;color:rgba(255,255,255,0.65);letter-spacing:2px;text-transform:uppercase;">Caltex San Pedro</span>
+                  </div>
+                  <div style="width:22px;height:1.5px;background:linear-gradient(to right,rgba(255,255,255,0.2),rgba(255,255,255,0.7),rgba(255,255,255,0.2));border-radius:1px;"></div>
+                  <div style="font-size:6px;color:rgba(255,255,255,0.75);text-align:center;line-height:1.6;">Your trusted automotive<br/>service partner.</div>
+                </div>
+                <!-- Spacer -->
+                <div style="flex:1;"></div>
+                <!-- Buttons — same height ratio as real app -->
+                <div style="padding:0 8px 6px;display:flex;flex-direction:column;gap:3px;">
+                  <div style="background:#fff;border-radius:6px;padding:4px 0;text-align:center;line-height:1;">
+                    <span style="font-size:7.5px;font-weight:800;color:#E8001C;">Sign In</span>
+                  </div>
+                  <div style="border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:3px 0;text-align:center;line-height:1;">
+                    <span style="font-size:7.5px;font-weight:700;color:#fff;">Create Account</span>
+                  </div>
+                </div>
+                <!-- Footer -->
+                <div style="padding:0 0 6px;text-align:center;display:flex;align-items:center;justify-content:center;gap:3px;">
+                  <span style="font-size:5px;color:rgba(255,255,255,0.5);text-decoration:underline;">Privacy Policy</span>
+                  <span style="font-size:5px;color:rgba(255,255,255,0.3);">·</span>
+                  <span style="font-size:5px;color:rgba(255,255,255,0.5);text-decoration:underline;">Terms & Conditions</span>
+                </div>
+              </div>
+            </div>
+            <div style="width:40px;height:4px;background:rgba(255,255,255,0.18);border-radius:2px;margin:8px auto 0;"></div>
+          </div>
+          <div style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);width:120px;height:20px;background:radial-gradient(ellipse,rgba(232,0,28,0.30),transparent 70%);pointer-events:none;"></div>
+        </div>
+
+        <!-- RIGHT phone: PMS History screen — matches customer_pms_history.dart -->
+        <div style="position:relative;width:150px;transform:rotate(6deg) translateY(20px);opacity:0.85;flex-shrink:0;">
+          <div style="background:linear-gradient(160deg,#1e293b,#0f172a);border:2px solid rgba(255,255,255,0.10);border-radius:28px;padding:9px 8px;box-shadow:0 16px 40px rgba(0,0,0,0.5);">
+            <div style="width:44px;height:5px;background:rgba(255,255,255,0.10);border-radius:3px;margin:0 auto 6px;"></div>
+            <!-- PMS History screen -->
+            <div style="background:#F7F8FA;border-radius:18px;overflow:hidden;aspect-ratio:9/16;display:flex;flex-direction:column;">
+              <!-- Red AppBar with back arrow + title + search icon -->
+              <div style="background:#E8001C;padding:8px 10px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <div style="font-size:8px;color:rgba(255,255,255,0.9);">←</div>
+                  <span style="font-size:7px;font-weight:700;color:#fff;">PMS History</span>
+                </div>
+                <div style="font-size:8px;color:rgba(255,255,255,0.9);">🔍</div>
+              </div>
+              <!-- Search bar -->
+              <div style="padding:5px 5px 3px;">
+                <div style="background:#fff;border-radius:6px;padding:3px 7px;border:1px solid #e2e8f0;display:flex;align-items:center;gap:3px;">
+                  <span style="font-size:6px;color:#a0aec0;">🔍</span>
+                  <span style="font-size:4.5px;color:#a0aec0;">Search by plate or description...</span>
+                </div>
+              </div>
+              <!-- Vehicle history cards -->
+              <div style="padding:3px 5px;flex:1;display:flex;flex-direction:column;gap:4px;overflow:hidden;">
+                <!-- Card 1 -->
+                <div style="background:#fff;border-radius:8px;padding:6px 7px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <div>
+                      <div style="font-size:6px;font-weight:800;color:#1a202c;">ABC-1234</div>
+                      <div style="font-size:4px;color:#718096;">Isuzu Truck NQR</div>
+                      <div style="font-size:3.5px;color:#718096;margin-top:2px;">📋 3 service records</div>
+                    </div>
+                    <div style="text-align:right;">
+                      <div style="font-size:5.5px;font-weight:700;color:#1a202c;">₱8,500</div>
+                      <div style="font-size:3.5px;color:#718096;">total spent</div>
+                      <div style="font-size:7px;color:#718096;margin-top:1px;">›</div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Card 2 -->
+                <div style="background:#fff;border-radius:8px;padding:6px 7px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <div>
+                      <div style="font-size:6px;font-weight:800;color:#1a202c;">XYZ-5678</div>
+                      <div style="font-size:4px;color:#718096;">Toyota Hilux</div>
+                      <div style="font-size:3.5px;color:#718096;margin-top:2px;">📋 5 service records</div>
+                    </div>
+                    <div style="text-align:right;">
+                      <div style="font-size:5.5px;font-weight:700;color:#1a202c;">₱14,200</div>
+                      <div style="font-size:3.5px;color:#718096;">total spent</div>
+                      <div style="font-size:7px;color:#718096;margin-top:1px;">›</div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Card 3 -->
+                <div style="background:#fff;border-radius:8px;padding:6px 7px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <div>
+                      <div style="font-size:6px;font-weight:800;color:#1a202c;">DEF-9012</div>
+                      <div style="font-size:4px;color:#718096;">Mitsubishi L300</div>
+                      <div style="font-size:3.5px;color:#718096;margin-top:2px;">📋 2 service records</div>
+                    </div>
+                    <div style="text-align:right;">
+                      <div style="font-size:5.5px;font-weight:700;color:#1a202c;">₱4,750</div>
+                      <div style="font-size:3.5px;color:#718096;">total spent</div>
+                      <div style="font-size:7px;color:#718096;margin-top:1px;">›</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="width:32px;height:3px;background:rgba(255,255,255,0.15);border-radius:2px;margin:6px auto 0;"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Mobile layout: stack vertically -->
+    <style>
+      @media (max-width: 768px) {
+        #get-app > div { grid-template-columns: 1fr !important; gap: 48px !important; }
+        #get-app > div > div:last-child { flex-direction: row !important; justify-content: center !important; flex-wrap: wrap !important; }
+      }
+    </style>
+  </section>
+
   <!-- CTA -->
   <section class="cta">
     <div class="cta-inner">
@@ -223,6 +489,220 @@
     </div>
   </footer>
 
+<script>
+// ── Phone mockup scene (welcome_screen.dart clone) ──
+(function() {
+  var canvas = document.getElementById('phoneScene');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+
+  function resize() {
+    var p = canvas.parentElement;
+    canvas.width  = p.offsetWidth  || 180;
+    canvas.height = p.offsetHeight || 80;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  var entryStart = null, ENTRY_DUR = 2000, LOOP_DUR = 3000;
+  function ease(t) { return 1 - Math.pow(1-t, 3); }
+
+  function draw(ts) {
+    if (!entryStart) entryStart = ts;
+    var entryT = ease(Math.min((ts - entryStart) / ENTRY_DUR, 1));
+    var loopT  = (ts % LOOP_DUR) / LOOP_DUR;
+    var w = canvas.width, h = canvas.height, gY = h * 0.78;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Floor
+    var g = ctx.createLinearGradient(0, gY, 0, h);
+    g.addColorStop(0,'rgba(255,255,255,0.18)'); g.addColorStop(1,'rgba(255,255,255,0.06)');
+    ctx.fillStyle=g; ctx.fillRect(0,gY,w,h-gY);
+    ctx.fillStyle='rgba(232,0,28,0.7)'; ctx.fillRect(0,gY,w,2);
+    ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=1.2;
+    ctx.setLineDash([10,10]);
+    ctx.beginPath(); ctx.moveTo(0,gY+6); ctx.lineTo(w,gY+6); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Vehicles
+    var carPk=w*0.62, carSt=w*1.55, carCx=carSt-(carSt-carPk)*entryT;
+    var trPk=w*0.28,  trSt=w*-0.6,  trCx=trSt+(trPk-trSt)*entryT;
+    var moving=entryT<0.98, parked=entryT>0.92;
+
+    // Gears
+    _gear(w*0.06,h*0.14,10,loopT,false);
+    _gear(w*0.94,h*0.16,8,loopT,true);
+
+    if(moving){ _smoke(carCx-22,gY-18,loopT,true); _smoke(trCx+16,gY-28,loopT,false); }
+
+    _truck(trCx,gY,w*0.42,loopT,moving);
+    _car(carCx,gY,w*0.40,loopT,moving);
+
+    if(parked){
+      _lift(carCx,gY,loopT);
+      _mechanic(carCx+w*0.22,gY-8,loopT,-1);
+      _mechanic(trCx-w*0.11,gY-8,loopT,1);
+      _sparkles(carCx+w*0.18,gY-14,loopT,0);
+      _sparkles(trCx-w*0.08,gY-14,loopT,0.5);
+    }
+    requestAnimationFrame(draw);
+  }
+
+  function _car(cx,cy,cw,lt,mv){
+    var ch=cw*0.40;
+    // shadow
+    ctx.save();ctx.shadowColor='rgba(0,0,0,0.3)';ctx.shadowBlur=4;
+    ctx.beginPath();ctx.ellipse(cx,cy+1,cw*0.44,4,0,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,0,0,0.25)';ctx.fill();ctx.restore();
+    // body
+    var g=ctx.createLinearGradient(cx,cy-ch*0.52,cx,cy);
+    g.addColorStop(0,'#1E3F6F');g.addColorStop(1,'#0F2D54');
+    _rr(cx-cw*0.5,cy-ch*0.52,cw,ch*0.52,10,g,'rgba(37,99,235,0.55)',1.4);
+    // cabin
+    ctx.save();ctx.beginPath();
+    ctx.moveTo(cx-cw*0.30,cy-ch*0.52);
+    ctx.quadraticCurveTo(cx-cw*0.20,cy-ch*0.95,cx-cw*0.06,cy-ch*0.97);
+    ctx.lineTo(cx+cw*0.19,cy-ch*0.97);
+    ctx.quadraticCurveTo(cx+cw*0.32,cy-ch*0.93,cx+cw*0.36,cy-ch*0.52);
+    ctx.closePath();
+    ctx.fillStyle='#1A3560';ctx.fill();
+    ctx.strokeStyle='rgba(37,99,235,0.4)';ctx.lineWidth=1.2;ctx.stroke();
+    // windshield
+    ctx.beginPath();
+    ctx.moveTo(cx-cw*0.26,cy-ch*0.52);
+    ctx.quadraticCurveTo(cx-cw*0.16,cy-ch*0.91,cx-cw*0.04,cy-ch*0.93);
+    ctx.lineTo(cx+cw*0.15,cy-ch*0.93);
+    ctx.quadraticCurveTo(cx+cw*0.28,cy-ch*0.89,cx+cw*0.32,cy-ch*0.52);
+    ctx.closePath();
+    ctx.fillStyle='rgba(186,230,253,0.35)';ctx.fill();ctx.restore();
+    // lights
+    _rr(cx+cw*0.44,cy-ch*0.32,10,6,3,'#FEF9C3',null,0);
+    _rr(cx-cw*0.49,cy-ch*0.32,8,6,3,mv?'#E8001C':'rgba(232,0,28,0.4)',null,0);
+    // wheels
+    _wheel(cx-cw*0.30,cy+1,cw*0.12,lt,mv,false);
+    _wheel(cx+cw*0.265,cy+1,cw*0.12,lt,mv,false);
+  }
+
+  function _truck(cx,cy,tw,lt,mv){
+    var th=tw*0.50;
+    // shadow
+    ctx.beginPath();ctx.ellipse(cx+tw*0.06,cy+1,tw*0.46,4,0,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,0,0,0.22)';ctx.fill();
+    // trailer
+    var tX=cx-tw*0.50,tW=tw*0.58,tH=th*0.72;
+    var tg=ctx.createLinearGradient(tX,cy-tH,tX,cy);
+    tg.addColorStop(0,'#252535');tg.addColorStop(1,'#1C1C2E');
+    _rr(tX,cy-tH,tW,tH,6,tg,'rgba(232,0,28,0.55)',1.5);
+    ctx.fillStyle='rgba(232,0,28,0.45)';ctx.fillRect(tX,cy-tH*0.55,tW,2);
+    // cab
+    var cX=cx+tw*0.09,cW=tw*0.40,cH=th*0.95;
+    var cg=ctx.createLinearGradient(cX,cy-cH,cX+cW,cy);
+    cg.addColorStop(0,'#2C2C44');cg.addColorStop(1,'#1C1C2E');
+    _rr(cX,cy-cH,cW,cH,8,cg,'rgba(232,0,28,0.60)',1.5);
+    _rr(cX+cW*0.10,cy-cH*0.92,cW*0.78,cH*0.48,5,'rgba(186,230,253,0.30)',null,0);
+    // headlight
+    _rr(cx+tw*0.45,cy-th*0.60,10,5,3,'#FEF9C3',null,0);
+    // wheels
+    var wr=tw*0.082;
+    _wheel(cx-tw*0.31,cy+1,wr,lt,mv,true);
+    _wheel(cx+tw*0.05,cy+1,wr,lt,mv,true);
+    _wheel(cx+tw*0.22,cy+1,wr,lt,mv,true);
+    _wheel(cx+tw*0.39,cy+1,wr,lt,mv,true);
+  }
+
+  function _wheel(cx,cy,r,lt,mv,big){
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle='#111827';ctx.fill();
+    ctx.save();ctx.translate(cx,cy);
+    if(mv)ctx.rotate(lt*Math.PI*2);
+    ctx.strokeStyle='#94A3B8';ctx.lineWidth=1.2;
+    var n=big?5:4;
+    for(var i=0;i<n;i++){
+      var a=(i/n)*Math.PI*2;
+      ctx.beginPath();ctx.moveTo(Math.cos(a)*r*0.22,Math.sin(a)*r*0.22);
+      ctx.lineTo(Math.cos(a)*r*0.80,Math.sin(a)*r*0.80);ctx.stroke();
+    }
+    ctx.restore();
+    ctx.beginPath();ctx.arc(cx,cy,r*0.20,0,Math.PI*2);ctx.fillStyle='#475569';ctx.fill();
+  }
+
+  function _gear(gx,gy,r,lt,rev){
+    ctx.save();ctx.translate(gx,gy);
+    ctx.rotate(rev?-lt*Math.PI*2:lt*Math.PI*2);
+    ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.stroke();
+    ctx.lineWidth=2.5;ctx.lineCap='round';
+    for(var i=0;i<6;i++){
+      var a=(i/6)*Math.PI*2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a)*r*0.88,Math.sin(a)*r*0.88);
+      ctx.lineTo(Math.cos(a)*r*1.3,Math.sin(a)*r*1.3);ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function _smoke(fx,fy,lt,sm){
+    for(var i=0;i<3;i++){
+      var ph=(lt+i*0.25)%1,op=ph<0.4?ph/0.4:(1-ph)/0.6;
+      ctx.beginPath();ctx.arc(fx,fy-ph*16-i*4,(sm?3:4)+ph*2,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,255,255,'+Math.max(0,op)*0.18+')';ctx.fill();
+    }
+  }
+
+  function _lift(cx,gY,lt){
+    var lH=5+Math.sin(lt*Math.PI*2)*3;
+    ctx.strokeStyle='rgba(255,255,255,0.28)';ctx.lineWidth=3;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(cx-18,gY);ctx.lineTo(cx-18,gY+lH);
+    ctx.moveTo(cx+18,gY);ctx.lineTo(cx+18,gY+lH);ctx.stroke();
+    _rr(cx-24,gY+lH,48,3,2,'rgba(255,255,255,0.20)',null,0);
+  }
+
+  function _mechanic(px,py,lt,f){
+    ctx.beginPath();ctx.arc(px,py-14,5.5,0,Math.PI*2);
+    ctx.fillStyle='#FDE68A';ctx.fill();
+    ctx.beginPath();ctx.arc(px,py-14,5.5,Math.PI*1.2,Math.PI*1.8);
+    ctx.strokeStyle='#E8001C';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,0.85)';ctx.lineWidth=2.8;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(px,py-9);ctx.lineTo(px,py+6);ctx.stroke();
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(px,py-4);ctx.lineTo(px-f*10,py-9);ctx.stroke();
+    // wrench
+    ctx.save();ctx.translate(px-f*12,py-11);
+    if(f>0)ctx.scale(-1,1);
+    ctx.rotate(Math.sin(lt*Math.PI*2)*0.35);
+    ctx.strokeStyle='#FBBF24';ctx.lineWidth=2.5;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(0,1);ctx.lineTo(0,11);ctx.stroke();
+    ctx.beginPath();ctx.arc(0,-2,4.5,Math.PI*0.1,Math.PI*0.1+Math.PI*1.8);ctx.stroke();
+    ctx.restore();
+    // legs
+    ctx.strokeStyle='rgba(147,197,253,0.7)';ctx.lineWidth=2;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(px,py+6);ctx.lineTo(px-f*3,py+13);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(px,py+6);ctx.lineTo(px+f*2,py+13);ctx.stroke();
+  }
+
+  var SP=[[-8,-3],[7,-7],[-3,5],[9,2],[0,-10],[-6,8]];
+  function _sparkles(cx,cy,lt,off){
+    for(var i=0;i<SP.length;i++){
+      var ph=(lt+i/SP.length+off)%1,op=ph<0.5?ph*2:(1-ph)*2;
+      var sz=0.8+ph*1.8;
+      ctx.beginPath();ctx.arc(cx+SP[i][0],cy+SP[i][1],sz,0,Math.PI*2);
+      ctx.fillStyle='rgba(253,224,71,'+Math.max(0,op)*0.9+')';ctx.fill();
+    }
+  }
+
+  function _rr(x,y,w,h,r,fill,stroke,sw){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+    if(fill){ctx.fillStyle=fill;ctx.fill();}
+    if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=sw||1;ctx.stroke();}
+  }
+
+  requestAnimationFrame(draw);
+})();
+</script>
 <script>
 (function() {
   var canvas = document.getElementById('serviceScene');

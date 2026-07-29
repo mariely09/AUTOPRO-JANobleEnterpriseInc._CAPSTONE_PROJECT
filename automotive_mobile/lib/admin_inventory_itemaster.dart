@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'barcode_scanner_screen.dart';
+import 'admin_inventory_stock.dart';
 
 /// Standalone full-screen wrapper (for direct navigation if needed elsewhere).
 class AdminInventoryItemMaster extends StatefulWidget {
@@ -102,6 +103,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
   String _typeFilter = 'all';
   String groupFilter = '';
   List<String> groups = [];
+  List<String> uomList = [];
 
   CollectionReference get _db => FirebaseFirestore.instance.collection(_col);
 
@@ -109,6 +111,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
   void initState() {
     super.initState();
     _loadGroups();
+    _loadUoms();
   }
 
   Future<void> _loadGroups() async {
@@ -117,9 +120,21 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
           .collection('domains').doc('commodity_groups').collection('items')
           .orderBy('name').get();
       final list = snap.docs.map((d) => d['name'] as String).toList();
-      if (mounted) setState(() => groups = list);
+      if (mounted) setState(() => groups = list.isNotEmpty ? list : ['Lubricants', 'Spare Parts', 'Filter', 'AutoService']);
     } catch (_) {
       if (mounted) setState(() => groups = ['Lubricants', 'Spare Parts', 'Filter', 'AutoService']);
+    }
+  }
+
+  Future<void> _loadUoms() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('domains').doc('uom').collection('items')
+          .orderBy('name').get();
+      final list = snap.docs.map((d) => d['name'] as String).toList();
+      if (mounted) setState(() => uomList = list.isNotEmpty ? list : ['pcs', 'L', 'set', 'job', 'kg', 'box', 'pair', 'm']);
+    } catch (_) {
+      if (mounted) setState(() => uomList = ['pcs', 'L', 'set', 'job', 'kg', 'box', 'pair', 'm']);
     }
   }
 
@@ -133,8 +148,13 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
       _fetchDomain('commodity_groups'),
       _fetchDomain('uom'),
     ]);
-    _cachedGroups = results[0];
-    _cachedUoms = results[1];
+    _cachedGroups = results[0].isNotEmpty ? results[0] : ['Lubricants', 'Spare Parts', 'Filter', 'AutoService'];
+    _cachedUoms   = results[1].isNotEmpty ? results[1] : ['pcs', 'L', 'set', 'job', 'kg', 'box', 'pair', 'm'];
+    // Also sync to state lists so pickers always have data
+    if (mounted) setState(() {
+      if (groups.isEmpty) groups = _cachedGroups!;
+      if (uomList.isEmpty) uomList = _cachedUoms!;
+    });
   }
 
   @override
@@ -599,8 +619,9 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     await _ensureDomainsLoaded();
     if (!mounted) return;
 
-    final groups = _cachedGroups!;
-    final uoms = _cachedUoms!;
+    // Use state-level lists (always fresh from Firestore, never empty)
+    final groupOptions = this.groups.isNotEmpty ? this.groups : (_cachedGroups ?? ['Lubricants', 'Spare Parts', 'Filter', 'AutoService']);
+    final uomOptions   = this.uomList.isNotEmpty ? this.uomList : (_cachedUoms ?? ['pcs', 'L', 'set', 'job', 'kg', 'box', 'pair', 'm']);
 
     // Auto-generate item number for new items
     String newItemNum = '';
@@ -615,8 +636,8 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     final oemCtrl = TextEditingController(text: item?['oem'] ?? '');
     final costCtrl = TextEditingController(text: item?['cost']?.replaceAll('₱', '').replaceAll(',', '') ?? '');
     String selectedType = item?['type'] ?? 'Material';
-    String? selectedGroup = (item?['group']?.isNotEmpty == true && groups.contains(item!['group'])) ? item['group'] : null;
-    String? selectedUom = (item?['uom']?.isNotEmpty == true && uoms.contains(item!['uom'])) ? item['uom'] : null;
+    String? selectedGroup = (item?['group']?.isNotEmpty == true && groupOptions.contains(item!['group'])) ? item['group'] : null;
+    String? selectedUom   = (item?['uom']?.isNotEmpty   == true && uomOptions.contains(item!['uom']))     ? item['uom']   : null;
     bool saving = false;
 
     showModalBottomSheet(
@@ -677,26 +698,105 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                   TextField(controller: descCtrl,
                     decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    value: selectedGroup,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Commodity Group', border: OutlineInputBorder()),
-                    hint: const Text('Select group'),
-                    items: groups.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-                    onChanged: (v) {
-                      setModalState(() => selectedGroup = v);
+                  // Commodity Group — GestureDetector-based picker avoids scroll conflict
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () async {
+                      final groupList = groupOptions.isNotEmpty
+                          ? groupOptions
+                          : ['Lubricants', 'Filters', 'Spare Parts', 'AutoService'];
+                      final picked = await showModalBottomSheet<String>(
+                        context: ctx,
+                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                        builder: (sheetCtx) => Column(mainAxisSize: MainAxisSize.min, children: [
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                            child: Text('Select Commodity Group', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          ),
+                          const Divider(height: 1),
+                          Flexible(
+                            child: ListView(
+                              shrinkWrap: true,
+                              children: groupList.map((g) => ListTile(
+                                title: Text(g),
+                                trailing: selectedGroup == g ? const Icon(Icons.check, color: Color(0xFFE8001C)) : null,
+                                onTap: () => Navigator.pop(sheetCtx, g),
+                              )).toList(),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ]),
+                      );
+                      if (picked != null) setModalState(() => selectedGroup = picked);
                     },
-                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFbdbdbd)),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(children: [
+                        Expanded(child: Text(
+                          selectedGroup ?? 'Select group',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: selectedGroup != null ? const Color(0xFF1a202c) : const Color(0xFF9e9e9e),
+                          ),
+                        )),
+                        const Icon(Icons.arrow_drop_down, color: Color(0xFF718096)),
+                      ]),
+                    ),
                   ),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    value: selectedUom,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'UOM', border: OutlineInputBorder()),
-                    hint: const Text('Select UOM'),
-                    items: uoms.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
-                    onChanged: (v) => setModalState(() => selectedUom = v),
-                    borderRadius: BorderRadius.circular(10),
+                  // UOM — GestureDetector-based picker avoids scroll conflict
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () async {
+                      // Ensure list is never empty — fallback to seeds
+                      final uomList = uomOptions.isNotEmpty
+                          ? uomOptions
+                          : ['pcs', 'L', 'set', 'job', 'kg', 'box', 'pair', 'm'];
+                      final picked = await showModalBottomSheet<String>(
+                        context: ctx,
+                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                        builder: (sheetCtx) => Column(mainAxisSize: MainAxisSize.min, children: [
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                            child: Text('Select UOM', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          ),
+                          const Divider(height: 1),
+                          Flexible(
+                            child: ListView(
+                              shrinkWrap: true,
+                              children: uomList.map((u) => ListTile(
+                                title: Text(u),
+                                trailing: selectedUom == u ? const Icon(Icons.check, color: Color(0xFFE8001C)) : null,
+                                onTap: () => Navigator.pop(sheetCtx, u),
+                              )).toList(),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ]),
+                      );
+                      if (picked != null) setModalState(() => selectedUom = picked);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFbdbdbd)),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(children: [
+                        Expanded(child: Text(
+                          selectedUom ?? 'Select UOM',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: selectedUom != null ? const Color(0xFF1a202c) : const Color(0xFF9e9e9e),
+                          ),
+                        )),
+                        const Icon(Icons.arrow_drop_down, color: Color(0xFF718096)),
+                      ]),
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Row(children: [
@@ -784,32 +884,20 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                                 content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Added successfully!')]),
                                 backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+                              // For Material items — navigate directly to Stock to set levels
                               if (selectedType == 'Material' && context.mounted) {
-                                final shouldSetStock = await showDialog<bool>(
-                                  context: context,
-                                  builder: (_) => AlertDialog(
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    title: const Text('Set Stock Levels?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                    content: const Text(
-                                      'Would you like to set the stock levels (min, max, current quantity) for this item now?',
-                                      style: TextStyle(fontSize: 13, color: Color(0xFF4a5568)),
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AdminInventoryStock(
+                                      prefilledItemNum:      newItemNum,
+                                      prefilledItemName:     nameCtrl.text.trim(),
+                                      prefilledGroup:        selectedGroup        ?? '',
+                                      prefilledUom:          selectedUom          ?? '',
+                                      prefilledSupplierCode: supplierCodeCtrl.text.trim(),
                                     ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context, false),
-                                        child: const Text('Later', style: TextStyle(color: Color(0xFF718096))),
-                                      ),
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context, true),
-                                        style: TextButton.styleFrom(foregroundColor: _red),
-                                        child: const Text('Set Now', style: TextStyle(fontWeight: FontWeight.bold)),
-                                      ),
-                                    ],
                                   ),
                                 );
-                                if (shouldSetStock == true && context.mounted) {
-                                  _showSetStockModal(newItemNum, nameCtrl.text.trim(), selectedGroup ?? '', selectedUom ?? '');
-                                }
                               }
                             }
                           }

@@ -6,7 +6,20 @@ import 'barcode_scanner_screen.dart';
 /// Standalone full-screen wrapper for Stock Inventory.
 /// Can be navigated to directly (e.g. from dashboard stat card).
 class AdminInventoryStock extends StatefulWidget {
-  const AdminInventoryStock({super.key});
+  final String? prefilledItemNum;
+  final String? prefilledItemName;
+  final String? prefilledGroup;
+  final String? prefilledUom;
+  final String? prefilledSupplierCode;
+
+  const AdminInventoryStock({
+    super.key,
+    this.prefilledItemNum,
+    this.prefilledItemName,
+    this.prefilledGroup,
+    this.prefilledUom,
+    this.prefilledSupplierCode,
+  });
 
   @override
   State<AdminInventoryStock> createState() => _AdminInventoryStockState();
@@ -60,7 +73,15 @@ class _AdminInventoryStockState extends State<AdminInventoryStock> {
           ),
         ],
       ),
-      body: AdminInventoryStockBody(key: _bodyKey, sortOrder: _sortOrder),
+      body: AdminInventoryStockBody(
+        key: _bodyKey,
+        sortOrder: _sortOrder,
+        prefilledItemNum:      widget.prefilledItemNum,
+        prefilledItemName:     widget.prefilledItemName,
+        prefilledGroup:        widget.prefilledGroup,
+        prefilledUom:          widget.prefilledUom,
+        prefilledSupplierCode: widget.prefilledSupplierCode,
+      ),
     );
   }
 
@@ -83,7 +104,23 @@ class AdminInventoryStockBody extends StatefulWidget {
   final String searchQuery;
   final String sortOrder;
   final String groupFilter;
-  const AdminInventoryStockBody({super.key, this.searchQuery = '', this.sortOrder = 'num-asc', this.groupFilter = ''});
+  final String? prefilledItemNum;
+  final String? prefilledItemName;
+  final String? prefilledGroup;
+  final String? prefilledUom;
+  final String? prefilledSupplierCode;
+
+  const AdminInventoryStockBody({
+    super.key,
+    this.searchQuery = '',
+    this.sortOrder = 'num-asc',
+    this.groupFilter = '',
+    this.prefilledItemNum,
+    this.prefilledItemName,
+    this.prefilledGroup,
+    this.prefilledUom,
+    this.prefilledSupplierCode,
+  });
 
   @override
   AdminInventoryStockBodyState createState() =>
@@ -107,6 +144,18 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
   void initState() {
     super.initState();
     _loadGroups();
+    // Auto-open Add Stock modal if navigated from Item Master with prefilled item
+    if (widget.prefilledItemNum != null && widget.prefilledItemNum!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showNewStockModalWithItem(
+          itemNum:      widget.prefilledItemNum!,
+          itemName:     widget.prefilledItemName    ?? '',
+          group:        widget.prefilledGroup       ?? '',
+          uom:          widget.prefilledUom         ?? '',
+          supplierCode: widget.prefilledSupplierCode ?? '',
+        );
+      });
+    }
   }
 
   Future<void> _loadGroups() async {
@@ -246,8 +295,25 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
     };
   }
 
-  void showOptionsSheet() {
-    // No longer used — options are now in the AppBar PopupMenuButton
+  /// Resolves supplier code — uses stored value if available,
+  /// otherwise fetches from item_master by num.
+  Future<String> _resolveSupplierCode(Map<String, dynamic> item) async {
+    final sc = item['supplierCode'] as String? ?? '';
+    if (sc.isNotEmpty) return sc;
+    final num = item['num'] as String? ?? '';
+    if (num.isEmpty) return '—';
+    try {
+      final snap = await _masterDb.where('num', isEqualTo: num).limit(1).get();
+      if (snap.docs.isNotEmpty) {
+        final resolved = (snap.docs.first.data() as Map<String, dynamic>)['supplierCode']?.toString() ?? '';
+        if (resolved.isNotEmpty) {
+          // Backfill the stock doc so next time it's immediate
+          _db.doc(item['id'] as String).update({'supplierCode': resolved}).catchError((_) {});
+          return resolved;
+        }
+      }
+    } catch (_) {}
+    return '—';
   }
 
   List<Map<String, dynamic>> _applySortOrder(List<Map<String, dynamic>> items) {
@@ -588,29 +654,10 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                _detailRow('Supplier Item Code', (item['supplierCode'] as String? ?? '').isNotEmpty ? item['supplierCode'] as String : item['num'] as String),
                 FutureBuilder<String>(
-                  future: () async {
-                    final sku = item['sku'] as String? ?? '';
-                    if (sku.isNotEmpty) return sku;
-                    // Fall back to item_master
-                    final num = item['num'] as String? ?? '';
-                    if (num.isEmpty) return '—';
-                    try {
-                      final snap = await _masterDb
-                          .where('num', isEqualTo: num)
-                          .limit(1)
-                          .get();
-                      if (snap.docs.isNotEmpty) {
-                        return (snap.docs.first.data() as Map<String, dynamic>)['sku']?.toString() ?? '—';
-                      }
-                    } catch (_) {}
-                    return '—';
-                  }(),
-                  builder: (_, skuSnap) => _detailRow('SKU',
-                      skuSnap.connectionState == ConnectionState.done
-                          ? (skuSnap.data ?? '—')
-                          : '…'),
+                  future: _resolveSupplierCode(item),
+                  builder: (_, snap) => _detailRow('Supplier Item Code',
+                    snap.connectionState == ConnectionState.done ? (snap.data ?? '—') : '…'),
                 ),
                 _detailRow('Item Name', item['name'] as String),
                 _detailRow('Commodity Group', item['group'] as String),
@@ -666,12 +713,20 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
   }
 
   void _showEditStockModal(Map<String, dynamic> item) {
-    final stockCtrl =
-        TextEditingController(text: '${item['stock']}');
-    final minCtrl = TextEditingController(text: '${item['min']}');
-    final maxCtrl = TextEditingController(text: '${item['max']}');
-    final reorderCtrl =
-        TextEditingController(text: '${item['reorder']}');
+    final stockCtrl = TextEditingController(text: '${item['stock']}');
+    final minCtrl   = TextEditingController(text: '${item['min']}');
+    final maxCtrl   = TextEditingController(text: '${item['max']}');
+    final reorderCtrl = TextEditingController(text: '${item['reorder']}');
+
+    // Auto-calculate reorder = max - min
+    void calcReorder() {
+      final min = int.tryParse(minCtrl.text) ?? 0;
+      final max = int.tryParse(maxCtrl.text) ?? 0;
+      final r = max > min ? max - min : 0;
+      reorderCtrl.text = r > 0 ? '$r' : '';
+    }
+    minCtrl.addListener(calcReorder);
+    maxCtrl.addListener(calcReorder);
 
     showModalBottomSheet(
       context: context,
@@ -726,8 +781,11 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      _infoRow('Supplier Item Code',
-                          (item['supplierCode'] as String? ?? '').isNotEmpty ? item['supplierCode'] as String : item['num'] as String),
+                      FutureBuilder<String>(
+                        future: _resolveSupplierCode(item),
+                        builder: (_, snap) => _infoRow('Supplier Item Code',
+                          snap.connectionState == ConnectionState.done ? (snap.data ?? '—') : '…'),
+                      ),
                       _infoRow('Item Name', item['name'] as String),
                       _infoRow('Group', item['group'] as String),
                       _infoRow('UOM', item['uom'] as String),
@@ -766,9 +824,17 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                   TextField(
                       controller: reorderCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                          labelText: 'Reorder Quantity *',
-                          border: OutlineInputBorder())),
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: 'Reorder Quantity (auto)',
+                        border: const OutlineInputBorder(),
+                        filled: true,
+                        fillColor: const Color(0xFFF7F8FA),
+                        suffixIcon: Tooltip(
+                          message: 'Auto-calculated: Max − Min',
+                          child: Icon(Icons.info_outline, size: 16, color: Colors.grey.shade400),
+                        ),
+                      )),
                   const SizedBox(height: 20),
                   Row(children: [
                     Expanded(
@@ -853,11 +919,31 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
 
 
   void _showNewStockModal() {
+    _showNewStockModalWithItem();
+  }
+
+  void _showNewStockModalWithItem({
+    String? itemNum,
+    String? itemName,
+    String? group,
+    String? uom,
+    String? supplierCode,
+  }) {
     final scanCtrl = TextEditingController();
     final stockCtrl = TextEditingController();
     final minCtrl = TextEditingController();
     final maxCtrl = TextEditingController();
     final reorderCtrl = TextEditingController();
+
+    // Auto-calculate reorder qty = max - min whenever either changes
+    void _calcReorder() {
+      final min = int.tryParse(minCtrl.text) ?? 0;
+      final max = int.tryParse(maxCtrl.text) ?? 0;
+      final reorder = max > min ? max - min : 0;
+      reorderCtrl.text = reorder > 0 ? '$reorder' : '';
+    }
+    minCtrl.addListener(_calcReorder);
+    maxCtrl.addListener(_calcReorder);
     Map<String, dynamic>? selectedMaster;
     List<Map<String, dynamic>> searchResults = [];
     bool searching = false;
@@ -865,6 +951,21 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
     Timer? _debounce;
     Future<QuerySnapshot>? _dupCheckFuture;
     bool saving = false;
+
+    // Pre-select item if navigated from Item Master — use passed supplierCode directly
+    if (itemNum != null && itemNum.isNotEmpty) {
+      selectedMaster = {
+        'id':           '',
+        'num':          itemNum,
+        'supplierCode': supplierCode ?? '',
+        'name':         itemName ?? '',
+        'group':        group    ?? '',
+        'uom':          uom      ?? '',
+        'barcode':      '',
+        'qr':           '',
+      };
+      _dupCheckFuture = _db.where('num', isEqualTo: itemNum).limit(1).get();
+    }
 
     Future<void> doSearch(String query, StateSetter setModal) async {
       if (query.trim().isEmpty) {
@@ -1121,7 +1222,17 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                           TextField(
                               controller: reorderCtrl,
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(labelText: 'Reorder Quantity *', border: OutlineInputBorder())),
+                              readOnly: true,
+                              decoration: InputDecoration(
+                                labelText: 'Reorder Quantity (auto)',
+                                border: const OutlineInputBorder(),
+                                filled: true,
+                                fillColor: const Color(0xFFF7F8FA),
+                                suffixIcon: Tooltip(
+                                  message: 'Auto-calculated: Max − Min',
+                                  child: Icon(Icons.info_outline, size: 16, color: Colors.grey.shade400),
+                                ),
+                              )),
                           const SizedBox(height: 20),
                           Row(children: [
                             Expanded(child: OutlinedButton(
