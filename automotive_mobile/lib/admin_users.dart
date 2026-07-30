@@ -30,6 +30,7 @@ class _AdminUsersState extends State<AdminUsers> {
   String _searchQuery = '';
 
   String _roleFilter = 'all'; // 'all', 'admin', 'staff', 'customer'
+  String _sortBy = 'name-asc'; // 'name-asc', 'name-desc', 'email-asc'
 
   @override
   void dispose() {
@@ -46,6 +47,19 @@ class _AdminUsersState extends State<AdminUsers> {
   String _roleLabel(String role) =>
       role[0].toUpperCase() + role.substring(1);
 
+  PopupMenuItem<String> _sortItem(String val, String label, IconData icon) {
+    final active = _sortBy == val;
+    return PopupMenuItem(
+      value: val,
+      child: Row(children: [
+        Icon(icon, size: 16, color: active ? _red : const Color(0xFF718096)),
+        const SizedBox(width: 10),
+        Text(label, style: TextStyle(fontWeight: active ? FontWeight.w700 : FontWeight.normal, color: active ? _red : const Color(0xFF1a202c))),
+        if (active) ...[const Spacer(), const Icon(Icons.check, size: 14, color: _red)],
+      ]),
+    );
+  }
+
   String _generateTempPassword() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
     final rand = Random.secure();
@@ -61,23 +75,20 @@ class _AdminUsersState extends State<AdminUsers> {
     required String tempPassword,
     required String roleLabel,
   }) => '''
-<div style="text-align:center;margin-bottom:18px;"><div style="display:inline-block;background:#E8001C;border-radius:16px;padding:14px 22px;box-shadow:0 2px 8px rgba(232,0,28,0.25);"><div style="font-size:11px;font-weight:800;letter-spacing:4px;color:rgba(255,255,255,0.85);margin-bottom:3px;">CALTEX</div><div style="font-size:18px;font-weight:900;color:#fff;letter-spacing:2px;line-height:1;">AutoPro</div></div></div>
-<h1 style="margin:0 0 8px;text-align:center;font-size:22px;font-weight:800;color:#1a202c;">Welcome to Caltex AutoPro!</h1>
+<h1 style="margin:0 0 8px;text-align:center;font-size:22px;font-weight:800;color:#1a202c;">Welcome to AutoPro!</h1>
 <p style="margin:0 0 26px;text-align:center;font-size:13px;color:#718096;line-height:1.6;">Hi <strong>$toName</strong>, your account has been created.<br/>Here are your login credentials:</p>
-<div style="background:#f7f8fa;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;margin-bottom:26px;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td style="padding:6px 0;font-size:12px;color:#718096;width:110px;">Email</td><td style="padding:6px 0;font-size:13px;font-weight:600;color:#1a202c;">$toEmail</td></tr><tr><td style="padding:6px 0;font-size:12px;color:#718096;">Temp Password</td><td style="padding:6px 0;"><span style="background:#E8001C;color:#fff;font-size:13px;font-weight:700;padding:4px 12px;border-radius:6px;letter-spacing:1px;">$tempPassword</span></td></tr><tr><td style="padding:6px 0;font-size:12px;color:#718096;">Role</td><td style="padding:6px 0;font-size:13px;font-weight:600;color:#1a202c;">$roleLabel</td></tr></table></div>
-<div style="background:#fffbeb;border-left:4px solid #f6ad55;border-radius:8px;padding:13px 16px;margin-bottom:26px;"><p style="margin:0;font-size:12px;color:#744210;line-height:1.6;">&#x1F512; For your security, please <strong>change your password</strong> after your first login.<br/>Go to <strong>Profile &rarr; Change Password</strong> in the app.</p></div>
-<p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#4a5568;">Getting started:</p>
-<table cellpadding="0" cellspacing="0" width="100%"><tr><td style="padding:5px 0;"><span style="display:inline-block;width:22px;height:22px;background:#E8001C;border-radius:50%;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:22px;margin-right:10px;">1</span><span style="font-size:13px;color:#4a5568;">Open the <strong>Caltex AutoPro</strong> mobile app</span></td></tr><tr><td style="padding:5px 0;"><span style="display:inline-block;width:22px;height:22px;background:#E8001C;border-radius:50%;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:22px;margin-right:10px;">2</span><span style="font-size:13px;color:#4a5568;">Sign in with your email and temporary password above</span></td></tr><tr><td style="padding:5px 0;"><span style="display:inline-block;width:22px;height:22px;background:#E8001C;border-radius:50%;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:22px;margin-right:10px;">3</span><span style="font-size:13px;color:#4a5568;">Go to <strong>Profile &rarr; Change Password</strong> to set your own password</span></td></tr></table>''';
+<div style="background:#f7f8fa;border:1px solid #e2e8f0;border-radius:12px;padding:20px 24px;margin-bottom:26px;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td style="padding:8px 0;font-size:12px;color:#718096;font-weight:700;text-transform:uppercase;width:130px;">Email</td><td style="padding:8px 0;font-size:13px;font-weight:600;color:#1a202c;">$toEmail</td></tr><tr style="border-top:1px solid #e2e8f0;"><td style="padding:8px 0;font-size:12px;color:#718096;font-weight:700;text-transform:uppercase;">Temp Password</td><td style="padding:8px 0;"><span style="background:#E8001C;color:#fff;font-size:14px;font-weight:700;padding:5px 14px;border-radius:6px;letter-spacing:2px;">$tempPassword</span></td></tr><tr style="border-top:1px solid #e2e8f0;"><td style="padding:8px 0;font-size:12px;color:#718096;font-weight:700;text-transform:uppercase;">Role</td><td style="padding:8px 0;font-size:13px;font-weight:600;color:#1a202c;">$roleLabel</td></tr></table></div>
+<table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:26px;"><tr><td style="padding:0 0 12px;"><div style="font-size:13px;font-weight:700;color:#1a202c;">What happens next?</div></td></tr><tr><td><table cellpadding="0" cellspacing="0" width="100%"><tr><td style="width:40px;vertical-align:top;padding:0 12px 14px 0;"><div style="width:36px;height:36px;background:#fff0f0;border-radius:10px;text-align:center;line-height:36px;font-size:18px;">&#x1F4F1;</div></td><td style="vertical-align:top;padding-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#1a202c;margin-bottom:2px;">Open the app</div><div style="font-size:12px;color:#718096;line-height:1.5;">Download or open the <strong>AutoPro</strong> mobile app on your device.</div></td></tr><tr><td style="width:40px;vertical-align:top;padding:0 12px 14px 0;"><div style="width:36px;height:36px;background:#fff0f0;border-radius:10px;text-align:center;line-height:36px;font-size:18px;">&#x1F511;</div></td><td style="vertical-align:top;padding-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#1a202c;margin-bottom:2px;">Sign in with your credentials</div><div style="font-size:12px;color:#718096;line-height:1.5;">Use the email and temporary password above to log in for the first time.</div></td></tr><tr><td style="width:40px;vertical-align:top;padding:0 12px 0 0;"><div style="width:36px;height:36px;background:#fff0f0;border-radius:10px;text-align:center;line-height:36px;font-size:18px;">&#x1F512;</div></td><td style="vertical-align:top;"><div style="font-size:13px;font-weight:700;color:#1a202c;margin-bottom:2px;">Set your own password</div><div style="font-size:12px;color:#718096;line-height:1.5;">You'll be prompted to change your password immediately after your first login.</div></td></tr></table></td></tr></table>''';
 
   static String _approvalBlock({
     required String toName,
     required String toEmail,
   }) => '''
 <h1 style="margin:0 0 8px;text-align:center;font-size:22px;font-weight:800;color:#1a202c;">Account Approved!</h1>
-<p style="margin:0 0 26px;text-align:center;font-size:13px;color:#718096;line-height:1.6;">Hi <strong>$toName</strong>, great news!<br/>Your Caltex AutoPro account has been approved by the administrator.</p>
-<div style="background:#f0fff4;border:1px solid #9ae6b4;border-radius:12px;padding:24px;margin-bottom:26px;text-align:center;"><div style="font-size:28px;margin-bottom:10px;">&#x1F389;</div><p style="margin:0;font-size:15px;font-weight:700;color:#276749;">You\'re all set!</p><p style="margin:8px 0 0;font-size:13px;color:#2f855a;">Your account <strong>$toEmail</strong> is now active.<br/>You can sign in to the Caltex AutoPro app right now.</p></div>
+<p style="margin:0 0 26px;text-align:center;font-size:13px;color:#718096;line-height:1.6;">Hi <strong>$toName</strong>, great news!<br/>Your AutoPro account has been approved by the administrator.</p>
+<div style="background:#f0fff4;border:1px solid #9ae6b4;border-radius:12px;padding:24px;margin-bottom:26px;text-align:center;"><div style="font-size:28px;margin-bottom:10px;">&#x1F389;</div><p style="margin:0;font-size:15px;font-weight:700;color:#276749;">You\'re all set!</p><p style="margin:8px 0 0;font-size:13px;color:#2f855a;">Your account <strong>$toEmail</strong> is now active.<br/>You can sign in to the AutoPro app right now.</p></div>
 <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#4a5568;">Getting started:</p>
-<table cellpadding="0" cellspacing="0" width="100%"><tr><td style="padding:5px 0;"><span style="display:inline-block;width:22px;height:22px;background:#E8001C;border-radius:50%;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:22px;margin-right:10px;">1</span><span style="font-size:13px;color:#4a5568;">Open the <strong>Caltex AutoPro</strong> mobile app</span></td></tr><tr><td style="padding:5px 0;"><span style="display:inline-block;width:22px;height:22px;background:#E8001C;border-radius:50%;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:22px;margin-right:10px;">2</span><span style="font-size:13px;color:#4a5568;">Sign in with your registered email and password</span></td></tr><tr><td style="padding:5px 0;"><span style="display:inline-block;width:22px;height:22px;background:#E8001C;border-radius:50%;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:22px;margin-right:10px;">3</span><span style="font-size:13px;color:#4a5568;">Explore your dashboard and manage your vehicles &#x2713;</span></td></tr></table>''';
+<table cellpadding="0" cellspacing="0" width="100%"><tr><td style="padding:5px 0;"><span style="display:inline-block;width:22px;height:22px;background:#E8001C;border-radius:50%;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:22px;margin-right:10px;">1</span><span style="font-size:13px;color:#4a5568;">Open the <strong>AutoPro</strong> mobile app</span></td></tr><tr><td style="padding:5px 0;"><span style="display:inline-block;width:22px;height:22px;background:#E8001C;border-radius:50%;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:22px;margin-right:10px;">2</span><span style="font-size:13px;color:#4a5568;">Sign in with your registered email and password</span></td></tr><tr><td style="padding:5px 0;"><span style="display:inline-block;width:22px;height:22px;background:#E8001C;border-radius:50%;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:22px;margin-right:10px;">3</span><span style="font-size:13px;color:#4a5568;">Explore your dashboard and manage your vehicles &#x2713;</span></td></tr></table>''';
 
   Future<bool> _sendWelcomeEmail({
     required String toEmail,
@@ -100,7 +111,7 @@ class _AdminUsersState extends State<AdminUsers> {
           'template_params': {
             'email':         toEmail,
             'name':          toName,
-            'subject':       'Welcome to Caltex AutoPro',
+            'subject':       'Welcome to AutoPro',
             'dynamic_block': _welcomeBlock(
               toName:       toName,
               toEmail:      toEmail,
@@ -185,6 +196,18 @@ class _AdminUsersState extends State<AdminUsers> {
               if (!_searching) { _searchCtrl.clear(); _searchQuery = ''; }
             }),
           ),
+          if (!_searching)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (val) => setState(() => _sortBy = val),
+              itemBuilder: (_) => [
+                const PopupMenuItem(enabled: false, child: Text('Sort By', style: TextStyle(fontSize: 11, color: Color(0xFF718096), fontWeight: FontWeight.w700))),
+                _sortItem('name-asc',  'Name A→Z',    Icons.sort_by_alpha),
+                _sortItem('name-desc', 'Name Z→A',    Icons.sort_by_alpha),
+                _sortItem('email-asc', 'Email A→Z',   Icons.email_outlined),
+              ],
+            ),
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -207,6 +230,7 @@ class _AdminUsersState extends State<AdminUsers> {
               'email': data['email'] as String? ?? '—',
               'role': data['role'] as String? ?? '—',
               'status': data['status'] as String? ?? 'Active',
+              'companyName': data['companyName'] as String? ?? '',
             };
           }).toList();
 
@@ -215,7 +239,8 @@ class _AdminUsersState extends State<AdminUsers> {
               : users.where((u) =>
                   u['name']!.toLowerCase().contains(_searchQuery) ||
                   u['username']!.toLowerCase().contains(_searchQuery) ||
-                  u['role']!.toLowerCase().contains(_searchQuery)).toList();
+                  u['role']!.toLowerCase().contains(_searchQuery) ||
+                  u['companyName']!.toLowerCase().contains(_searchQuery)).toList();
 
           final total = users.length;
           final customers = users.where((u) => u['role'] == 'customer').length;
@@ -245,6 +270,17 @@ class _AdminUsersState extends State<AdminUsers> {
                 ]),
               ),
               const SizedBox(height: 8),
+              // ── Sort ──
+              Builder(builder: (_) {
+                afterRoleFilter.sort((a, b) {
+                  switch (_sortBy) {
+                    case 'name-desc': return (b['name'] ?? '').compareTo(a['name'] ?? '');
+                    case 'email-asc': return (a['email'] ?? '').compareTo(b['email'] ?? '');
+                    default: return (a['name'] ?? '').compareTo(b['name'] ?? '');
+                  }
+                });
+                return const SizedBox.shrink();
+              }),
               // ── User list ──
               Expanded(
                 child: afterRoleFilter.isEmpty
@@ -596,6 +632,8 @@ class _AdminUsersState extends State<AdminUsers> {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 _detailRow('Full Name', u['name']!),
                 _detailRow('Email', u['email']!),
+                if ((u['companyName'] ?? '').isNotEmpty)
+                  _detailRow('Company Name', u['companyName']!),
                 _detailRow('Role', _roleLabel(u['role']!)),
                 _detailRow('Status', u['status']!),
                 const SizedBox(height: 16),
@@ -631,6 +669,7 @@ class _AdminUsersState extends State<AdminUsers> {
     final firstNameCtrl = TextEditingController(text: nameParts.isNotEmpty ? nameParts.first : '');
     final lastNameCtrl  = TextEditingController(text: nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '');
     final emailCtrl     = TextEditingController(text: user?['email'] ?? '');
+    final companyNameCtrl = TextEditingController(text: user?['companyName'] ?? '');
     String selectedRole   = isEdit
         ? (user!['role']![0].toUpperCase() + user['role']!.substring(1))
         : 'Staff';
@@ -659,14 +698,6 @@ class _AdminUsersState extends State<AdminUsers> {
                     color: _red,
                     borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
                 child: Row(children: [
-                  Container(
-                    width: 44, height: 44,
-                    decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Icon(
-                        isEdit ? Icons.edit_outlined : Icons.person_add_outlined,
-                        color: Colors.white, size: 22)),
                   const SizedBox(width: 12),
                   Expanded(child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -738,6 +769,15 @@ class _AdminUsersState extends State<AdminUsers> {
                     onChanged: (v) => setModal(() => selectedRole = v!),
                     borderRadius: BorderRadius.circular(10),
                   ),
+                  if (selectedRole.toLowerCase() == 'customer') ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: companyNameCtrl,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                          labelText: 'Company Name',
+                          border: OutlineInputBorder())),
+                  ],
                   if (!isEdit) ...[
                     const SizedBox(height: 12),
                     Container(
@@ -797,6 +837,7 @@ class _AdminUsersState extends State<AdminUsers> {
                               'email':     emailCtrl.text.trim(),
                               'role':      selectedRole.toLowerCase(),
                               'status':    selectedStatus,
+                              'companyName': selectedRole.toLowerCase() == 'customer' ? companyNameCtrl.text.trim() : '',
                             });
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
@@ -854,12 +895,14 @@ class _AdminUsersState extends State<AdminUsers> {
                                   .collection('users')
                                   .doc(cred.user!.uid)
                                   .set({
+                                'uid':                cred.user!.uid,
                                 'firstName':          firstName,
                                 'lastName':           lastName,
                                 'name':               fullName,
                                 'email':              emailCtrl.text.trim(),
                                 'role':               selectedRole.toLowerCase(),
                                 'status':             selectedStatus,
+                                'companyName':        selectedRole.toLowerCase() == 'customer' ? companyNameCtrl.text.trim() : '',
                                 'mustChangePassword': true,
                                 'createdAt':          FieldValue.serverTimestamp(),
                               });
@@ -953,63 +996,72 @@ class _AdminUsersState extends State<AdminUsers> {
 
   void _confirmDelete(Map<String, String> u) {
     final isActive = (u['status'] ?? '').toLowerCase() == 'active';
+    bool loading = false;
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [
-          Icon(isActive ? Icons.block_outlined : Icons.check_circle_outline,
-              color: isActive ? Colors.orange : Colors.green, size: 22),
-          const SizedBox(width: 8),
-          Text(isActive ? 'Deactivate User' : 'Activate User'),
-        ]),
-        content: Text(
-          isActive
-            ? 'Deactivate "${u['name']}"? They will no longer be able to log in.'
-            : 'Activate "${u['name']}"? They will be able to log in again.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isActive ? Colors.orange : Colors.green,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      barrierDismissible: false,
+      builder: (_) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(children: [
+              Icon(isActive ? Icons.block_outlined : Icons.check_circle_outline,
+                  color: isActive ? Colors.orange : Colors.green, size: 22),
+              const SizedBox(width: 8),
+              Text(isActive ? 'Deactivate User' : 'Activate User'),
+            ]),
+            content: Text(
+              isActive
+                ? 'Deactivate "${u['name']}"? They will no longer be able to log in.'
+                : 'Activate "${u['name']}"? They will be able to log in again.',
             ),
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                // Only toggle between Active ↔ Inactive — never touch 'pending' status here
-                final newStatus = isActive ? 'Inactive' : 'Active';
-                await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(u['uid'])
-                    .update({'status': newStatus});
-
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Row(children: [
-                    Icon(
-                      isActive ? Icons.block_outlined : Icons.check_circle_outline,
-                      color: Colors.white, size: 18),
-                    const SizedBox(width: 8),
-                    Text('User ${isActive ? 'deactivated' : 'activated'} successfully.'),
-                  ]),
+            actions: [
+              TextButton(
+                onPressed: loading ? null : () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
                   backgroundColor: isActive ? Colors.orange : Colors.green,
-                  behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 3),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ));
-              } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-              }
-            },
-            child: Text(isActive ? 'Deactivate' : 'Activate'),
-          ),
-        ],
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: loading ? null : () async {
+                  setDialogState(() => loading = true);
+                  try {
+                    final newStatus = isActive ? 'Inactive' : 'Active';
+                    await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(u['uid'])
+                        .update({'status': newStatus});
+
+                    if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Row(children: [
+                        Icon(
+                          isActive ? Icons.block_outlined : Icons.check_circle_outline,
+                          color: Colors.white, size: 18),
+                        const SizedBox(width: 8),
+                        Text('User ${isActive ? 'deactivated' : 'activated'} successfully.'),
+                      ]),
+                      backgroundColor: isActive ? Colors.orange : Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 3),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ));
+                  } catch (e) {
+                    setDialogState(() => loading = false);
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                  }
+                },
+                child: loading
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : Text(isActive ? 'Deactivate' : 'Activate'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

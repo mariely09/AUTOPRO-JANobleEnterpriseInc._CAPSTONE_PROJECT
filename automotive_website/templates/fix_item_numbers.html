@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fix Duplicate Item Numbers</title>
+    <style>
+        body { font-family: monospace; padding: 2rem; background: #f8fafc; color: #1a202c; }
+        h2 { color: #E31E24; }
+        #log { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; max-height: 60vh; overflow-y: auto; font-size: 0.82rem; line-height: 1.7; white-space: pre-wrap; }
+        button { margin: 0.5rem 0.5rem 0.5rem 0; padding: 0.65rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 700; }
+        #btnPreview  { background: #003087; color: white; }
+        #btnFix      { background: #E31E24; color: white; display: none; }
+        #btnRefresh  { background: #38a169; color: white; display: none; }
+        .warn  { color: #d69e2e; }
+        .ok    { color: #38a169; }
+        .error { color: #e53e3e; }
+        .info  { color: #3182ce; }
+    </style>
+</head>
+<body>
+<h2>🔧 Fix Duplicate Item Numbers</h2>
+<p>This tool scans <code>item_master</code> in Firestore for duplicate <code>num</code> values and re-numbers them sequentially.</p>
+<button id="btnPreview" onclick="previewFix()">1. Preview Duplicates</button>
+<button id="btnFix"     onclick="applyFix()">2. Apply Fix (writes to Firestore)</button>
+<button id="btnRefresh" onclick="location.reload()">Reload Page</button>
+<div id="log">Ready. Click "Preview Duplicates" to start.</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+    apiKey: "AIzaSyCaoJWbwJk0Xi694ARHpdHhiNjT0SpASRs",
+    authDomain: "caltex-autopro-1e664.firebaseapp.com",
+    projectId: "caltex-autopro-1e664",
+    storageBucket: "caltex-autopro-1e664.firebasestorage.app",
+    messagingSenderId: "930140433367",
+    appId: "1:930140433367:web:cf67bfa388fa517422b992"
+});
+var db = firebase.firestore();
+var _plan = []; // array of { docId, oldNum, newNum }
+
+function log(msg, cls) {
+    var el = document.getElementById('log');
+    var span = document.createElement('span');
+    if (cls) span.className = cls;
+    span.textContent = msg + '\n';
+    el.appendChild(span);
+    el.scrollTop = el.scrollHeight;
+}
+
+function clearLog() {
+    document.getElementById('log').innerHTML = '';
+}
+
+async function previewFix() {
+    clearLog();
+    _plan = [];
+    document.getElementById('btnFix').style.display = 'none';
+    log('Fetching all item_master documents...', 'info');
+
+    try {
+        var snap = await db.collection('item_master').get();
+        var docs = snap.docs.map(function(d) {
+            return { docId: d.id, data: d.data() };
+        });
+        log('Total documents: ' + docs.length, 'info');
+
+        // Sort by numeric value of num field (ascending), then by document creation order (Firestore doc ID)
+        docs.sort(function(a, b) {
+            var na = parseInt((a.data.num || '').replace(/[^0-9]/g, '')) || 0;
+            var nb = parseInt((b.data.num || '').replace(/[^0-9]/g, '')) || 0;
+            if (na !== nb) return na - nb;
+            // same num — keep stable order by docId
+            return a.docId < b.docId ? -1 : 1;
+        });
+
+        // Detect duplicates
+        var numCount = {};
+        docs.forEach(function(d) {
+            var n = (d.data.num || '').trim();
+            numCount[n] = (numCount[n] || 0) + 1;
+        });
+
+        var duplicateNums = Object.keys(numCount).filter(function(n) { return numCount[n] > 1; });
+        if (duplicateNums.length === 0) {
+            log('\n✅ No duplicate item numbers found! Data is already clean.', 'ok');
+            return;
+        }
+
+        log('\nDuplicate nums found: ' + duplicateNums.join(', '), 'warn');
+        log('─'.repeat(60));
+
+        // Find the highest existing number across ALL docs to start renumbering from
+        var maxExisting = 0;
+        docs.forEach(function(d) {
+            var n = parseInt((d.data.num || '').replace(/[^0-9]/g, '')) || 0;
+            if (n > maxExisting) maxExisting = n;
+        });
+
+        var nextNum = maxExisting + 1;
+
+        // For each duplicate num, all docs sharing it EXCEPT the first one get a new sequential number
+        // Track which nums we've already seen once
+        var seen = {};
+        docs.forEach(function(d) {
+            var curNum = (d.data.num || '').trim();
+            if (!seen[curNum]) {
+                // First occurrence — keep it as-is
+                seen[curNum] = true;
+            } else {
+                // Duplicate — assign next sequential number
+                var newNum = String(nextNum).padStart(3, '0');
+                nextNum++;
+                _plan.push({ docId: d.docId, oldNum: curNum, newNum: newNum, name: d.data.name || d.docId });
+            }
+        });
+
+        if (_plan.length === 0) {
+            log('\n✅ No changes needed.', 'ok');
+            return;
+        }
+
+        log('\n📋 Proposed changes (' + _plan.length + ' documents will be renumbered):\n');
+        _plan.forEach(function(p) {
+            log('  [' + p.docId.substring(0,10) + '…]  "' + p.name + '"', '');
+            log('    ' + p.oldNum + '  →  ' + p.newNum + '\n', 'warn');
+        });
+
+        log('─'.repeat(60));
+        log('Click "Apply Fix" to write these changes to Firestore.', 'info');
+        document.getElementById('btnFix').style.display = 'inline-block';
+
+    } catch(err) {
+        log('ERROR: ' + err.message, 'error');
+    }
+}
+
+async function applyFix() {
+    if (_plan.length === 0) { log('Nothing to fix.', 'warn'); return; }
+    document.getElementById('btnFix').disabled = true;
+    document.getElementById('btnFix').textContent = 'Applying…';
+    log('\n⏳ Applying ' + _plan.length + ' updates...', 'info');
+
+    var success = 0, fail = 0;
+    for (var i = 0; i < _plan.length; i++) {
+        var p = _plan[i];
+        try {
+            await db.collection('item_master').doc(p.docId).update({ num: p.newNum });
+            log('  ✅ "' + p.name + '"  ' + p.oldNum + ' → ' + p.newNum, 'ok');
+            success++;
+        } catch(err) {
+            log('  ❌ "' + p.name + '"  FAILED: ' + err.message, 'error');
+            fail++;
+        }
+    }
+
+    log('\n─'.repeat(60));
+    log('Done! ' + success + ' updated, ' + fail + ' failed.', success > 0 ? 'ok' : 'error');
+    log('\nYou can now close this page and reload the Item Master.', 'info');
+    document.getElementById('btnFix').style.display = 'none';
+    document.getElementById('btnRefresh').style.display = 'inline-block';
+}
+</script>
+</body>
+</html>

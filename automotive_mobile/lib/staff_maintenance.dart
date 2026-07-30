@@ -15,6 +15,15 @@ class StaffMaintenance extends StatefulWidget {
 
 class _StaffMaintenanceState extends State<StaffMaintenance> {
   final _bodyKey = GlobalKey<StaffMaintenanceBodyState>();
+  bool _searching = false;
+  final _searchCtrl = TextEditingController();
+  String _sortBy = 'date-desc';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,15 +33,65 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
         backgroundColor: const Color(0xFFE8001C),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('Vehicle Maintenance',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        title: _searching
+            ? TextField(
+                controller: _searchCtrl,
+                autofocus: true,
+                onChanged: (_) => setState(() {}),
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: 'Search services...',
+                  hintStyle: TextStyle(color: Colors.white54),
+                  border: InputBorder.none,
+                ),
+              )
+            : const Text('Vehicle Maintenance',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: Icon(_searching ? Icons.close : Icons.search, color: Colors.white),
+            onPressed: () => setState(() {
+              _searching = !_searching;
+              if (!_searching) _searchCtrl.clear();
+            }),
+          ),
+          if (!_searching)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (val) => setState(() => _sortBy = val),
+              itemBuilder: (_) => [
+                const PopupMenuItem(enabled: false, child: Text('Sort By', style: TextStyle(fontSize: 11, color: Color(0xFF718096), fontWeight: FontWeight.w700))),
+                _sortItem('date-desc',    'Date ↓ Newest',   Icons.arrow_downward),
+                _sortItem('date-asc',     'Date ↑ Oldest',   Icons.arrow_upward),
+                _sortItem('plate-asc',    'Plate A→Z',        Icons.sort_by_alpha),
+                _sortItem('plate-desc',   'Plate Z→A',        Icons.sort_by_alpha),
+                _sortItem('mechanic-asc', 'Mechanic A→Z',     Icons.person_outline),
+                _sortItem('cost-desc',    'Cost ↑ Highest',   Icons.trending_up),
+                _sortItem('cost-asc',     'Cost ↓ Lowest',    Icons.trending_down),
+              ],
+            ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _bodyKey.currentState?.triggerAdd(),
         backgroundColor: const Color(0xFFE8001C),
         child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
-      body: StaffMaintenanceBody(key: _bodyKey, bookingData: widget.bookingData, materialData: widget.materialData),
+      body: StaffMaintenanceBody(key: _bodyKey, bookingData: widget.bookingData, materialData: widget.materialData, searchQuery: _searchCtrl.text.toLowerCase(), sortBy: _sortBy),
+    );
+  }
+
+  PopupMenuItem<String> _sortItem(String val, String label, IconData icon) {
+    final active = _sortBy == val;
+    return PopupMenuItem(
+      value: val,
+      child: Row(children: [
+        Icon(icon, size: 16, color: active ? const Color(0xFFE8001C) : const Color(0xFF718096)),
+        const SizedBox(width: 10),
+        Text(label, style: TextStyle(fontWeight: active ? FontWeight.w700 : FontWeight.normal, color: active ? const Color(0xFFE8001C) : const Color(0xFF1a202c))),
+        if (active) ...[const Spacer(), const Icon(Icons.check, size: 14, color: Color(0xFFE8001C))],
+      ]),
     );
   }
 }
@@ -40,9 +99,10 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
 // ── Embeddable body (used inside StaffVehicleList tabs) ──────────
 class StaffMaintenanceBody extends StatefulWidget {
   final String searchQuery;
+  final String sortBy;
   final Map<String, dynamic>? bookingData;
   final Map<String, dynamic>? materialData; // pre-fill a material row
-  const StaffMaintenanceBody({super.key, this.searchQuery = '', this.bookingData, this.materialData});
+  const StaffMaintenanceBody({super.key, this.searchQuery = '', this.sortBy = 'date-desc', this.bookingData, this.materialData});
 
   @override
   State<StaffMaintenanceBody> createState() => StaffMaintenanceBodyState();
@@ -181,6 +241,26 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
               ? filtered
               : filtered.where((s) => s['status'] == _statusFilter).toList();
 
+          // ── Sort ──
+          final sorted = List<Map<String, dynamic>>.from(afterStatusFilter);
+          sorted.sort((a, b) {
+            switch (widget.sortBy) {
+              case 'date-asc':  return (a['date'] as String).compareTo(b['date'] as String);
+              case 'plate-asc': return (a['plate'] as String).compareTo(b['plate'] as String);
+              case 'plate-desc':return (b['plate'] as String).compareTo(a['plate'] as String);
+              case 'mechanic-asc': return (a['mechanic'] as String).compareTo(b['mechanic'] as String);
+              case 'cost-asc':
+                final ca = double.tryParse((a['cost'] as String).replaceAll(RegExp(r'[₱,]'),'')) ?? 0;
+                final cb = double.tryParse((b['cost'] as String).replaceAll(RegExp(r'[₱,]'),'')) ?? 0;
+                return ca.compareTo(cb);
+              case 'cost-desc':
+                final ca2 = double.tryParse((a['cost'] as String).replaceAll(RegExp(r'[₱,]'),'')) ?? 0;
+                final cb2 = double.tryParse((b['cost'] as String).replaceAll(RegExp(r'[₱,]'),'')) ?? 0;
+                return cb2.compareTo(ca2);
+              default: return (b['date'] as String).compareTo(a['date'] as String); // date-desc
+            }
+          });
+
           final total = services.length;
           final ongoing = services.where((s) => s['status'] == 'Ongoing').length;
           final completed = services.where((s) => s['status'] == 'Completed').length;
@@ -197,13 +277,13 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
               ]),
             ),
             Expanded(
-              child: afterStatusFilter.isEmpty
+              child: sorted.isEmpty
                 ? const Center(child: Text('No services found.', style: TextStyle(color: Color(0xFF718096))))
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
-                    itemCount: afterStatusFilter.length,
+                    itemCount: sorted.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _serviceCard(afterStatusFilter[i]),
+                    itemBuilder: (_, i) => _serviceCard(sorted[i]),
                   ),
             ),
           ]);
@@ -245,6 +325,10 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
 
   Widget _serviceCard(Map<String, dynamic> s) {
     final sc = _statusColor(s['status'] as String);
+    final plate = s['plate'] as String;
+    // Look up vehicle description from live vehicles data (stays in sync with edits)
+    final liveDesc = _vehicleMap[plate]?['desc'] as String? ?? s['desc'] as String;
+    final displayDesc = liveDesc.isNotEmpty ? liveDesc : plate;
     return GestureDetector(
       onTap: () => _showServiceDetails(s),
       child: Container(
@@ -253,8 +337,8 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(s['plate'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            Text((s['desc'] as String).isNotEmpty ? s['desc'] as String : s['plate'] as String,
+            Text(plate, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            Text(displayDesc,
               style: const TextStyle(fontSize: 12, color: Color(0xFF4a5568))),
             Text('${s['mechanic']} - ${s['date']}', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
           ])),
@@ -276,6 +360,9 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
 
   void _showServiceDetails(Map<String, dynamic> s) {
     final sc = _statusColor(s['status'] as String);
+    final plate = s['plate'] as String;
+    // Look up vehicle description from live vehicles data (stays in sync with edits)
+    final liveDesc = _vehicleMap[plate]?['desc'] as String? ?? s['desc'] as String;
     showModalBottomSheet(
       context: context, isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -292,8 +379,8 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                 decoration: const BoxDecoration(color: _red, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
                 child: Row(children: [
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(s['plate'] as String, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text(s['desc'] as String, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    Text(plate, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(liveDesc, style: const TextStyle(color: Colors.white70, fontSize: 12)),
                   ])),
                   GestureDetector(onTap: () => Navigator.pop(sheetCtx),
                     child: const Icon(Icons.close, color: Colors.white)),
@@ -305,7 +392,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                   _detailRow('Plate Number', s['plate'] as String),
                   _detailRow('Mechanic', s['mechanic'] as String),
                   _detailRow('Service Date', s['date'] as String),
-                  _detailRow('Odometer Reading', s['odometer'] != null ? '${s['odometer']} km' : '—'),
+                  _detailRow('Odometer Reading', (s['odometer'] != null && (s['odometer'] as num?) != 0) ? '${s['odometer']} km' : '—'),
                   _detailRow('Total Cost', _formatCost(s['cost'] as String)),
                   Row(children: [
                     const SizedBox(width: 130, child: Text('Status', style: TextStyle(fontSize: 12, color: Color(0xFF718096), fontWeight: FontWeight.w500))),
@@ -522,7 +609,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
           Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           Text('$qty $uom  -  $cost / unit', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
         ])),
-        Text(subtotal.toStringAsFixed(2),
+        Text(_fmtMoney(subtotal),
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1a202c))),
       ]),
     );
@@ -562,7 +649,10 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
     final plateCtrl    = TextEditingController(text: prefillPlate);
     final mechanicCtrl = TextEditingController(text: service?['mechanic'] as String? ?? (isEdit ? '' : _currentUserName));
     final dateCtrl     = TextEditingController(text: prefillDate);
-    final odoCtrl      = TextEditingController(text: (service?['odometer'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), ''));
+    final odoCtrl      = TextEditingController(text: () {
+      final raw = (service?['odometer'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+      return (raw == '0' || raw.isEmpty) ? '' : raw;
+    }());
     Map<String, dynamic>? foundVehicle = isEdit ? _vehicleMap[service!['plate']] : _vehicleMap[prefillPlate.toUpperCase()];
 
     // ── Issue tags ──
@@ -583,6 +673,8 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
           'qty':  TextEditingController(text: r['qty']  ?? ''),
           'uom':  TextEditingController(text: r['uom']  ?? ''),
           'cost': TextEditingController(text: r['cost'] ?? ''),
+          'maxStock':   TextEditingController(text: '99999'),
+          'searchText': TextEditingController(text: r['name'] ?? ''),
         }).toList();
       }
       return [{'name': TextEditingController(), 'qty': TextEditingController(), 'uom': TextEditingController(), 'cost': TextEditingController()}];
@@ -635,7 +727,22 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       }).catchError((_) {});
     } else {
       matRows = makeRows(service?['matRows'] as List<dynamic>?);
+      // Look up stock for each existing material row (edit mode)
+      for (final row in matRows) {
+        final name = row['name']!.text;
+        if (name.isEmpty) continue;
+        final maxStockCtrl = row['maxStock']!;
+        FirebaseFirestore.instance
+            .collection('stock_inventory').where('name', isEqualTo: name).limit(1).get()
+            .then((snap) {
+          maxStockCtrl.text = snap.docs.isNotEmpty
+              ? '${(snap.docs.first['stock'] as num?)?.toInt() ?? 0}'
+              : '-1';
+        }).catchError((_) {});
+      }
     }
+
+    bool saving = false;
 
     showModalBottomSheet(
       context: context, isScrollControlled: true,
@@ -660,9 +767,6 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                   decoration: const BoxDecoration(color: _red, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
                   child: Row(children: [
-                    Container(width: 44, height: 44,
-                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(12)),
-                      child: Icon(isEdit ? Icons.edit_outlined : Icons.add, color: Colors.white, size: 22)),
                     const SizedBox(width: 12),
                     Expanded(child: Text(isEdit ? 'Edit Service' : 'New Service',
                       style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
@@ -673,8 +777,6 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Plate Number *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF4a5568))),
-                    const SizedBox(height: 6),
                     Autocomplete<String>(
                       initialValue: TextEditingValue(text: plateCtrl.text),
                       optionsBuilder: (value) {
@@ -692,7 +794,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         textCapitalization: TextCapitalization.characters,
                         onChanged: (v) => setModal(() => foundVehicle = _vehicleMap[v.trim().toUpperCase()]),
                         decoration: InputDecoration(
-                          hintText: 'Search or scan plate number...',
+                          labelText: 'Plate Number *',
                           border: const OutlineInputBorder(),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF718096)),
@@ -726,7 +828,6 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                 final v = _vehicleMap[plate];
                                 return ListTile(
                                   dense: true,
-                                  leading: const Icon(Icons.directions_car_outlined, size: 18, color: Color(0xFF003087)),
                                   title: Text(plate, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                   subtitle: Text(v?['desc'] as String? ?? '', style: const TextStyle(fontSize: 11)),
                                   onTap: () => onSelected(plate),
@@ -747,8 +848,6 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                           border: Border.all(color: const Color(0xFFe2e8f0)),
                         ),
                         child: Row(children: [
-                          const Icon(Icons.directions_car_outlined, color: _red, size: 20),
-                          const SizedBox(width: 10),
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text(foundVehicle!['desc'] as String? ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                             Text(foundVehicle!['owner'] as String? ?? '', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
@@ -758,12 +857,14 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                     ],
                     const SizedBox(height: 12),
                     TextField(controller: mechanicCtrl,
-                      decoration: const InputDecoration(labelText: 'Mechanic Name *', border: OutlineInputBorder())),
+                      decoration: const InputDecoration(labelText: 'Mechanic Name *', hintText: 'Search or type name...', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person_outline, size: 20, color: Color(0xFF718096)))),
                     const SizedBox(height: 10),
                     TextField(
                       controller: dateCtrl, readOnly: true,
                       decoration: InputDecoration(
-                        labelText: 'Service Date *', border: const OutlineInputBorder(), hintText: 'Select date',
+                        labelText: 'Service Date *',
+                        hintText: 'Select date',
+                        border: const OutlineInputBorder(),
                         suffixIcon: IconButton(
                           icon: const Icon(Icons.calendar_today_outlined, color: Color(0xFF718096)),
                           onPressed: () async {
@@ -785,7 +886,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                     const SizedBox(height: 16),
                     // ── Odometer Reading ──
                     TextField(controller: odoCtrl, keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Odometer Reading (km)', border: OutlineInputBorder(), suffixText: 'km', hintText: 'e.g. 45000')),
+                      decoration: const InputDecoration(labelText: 'Odometer Reading (km)', border: OutlineInputBorder(), suffixText: 'km')),
                     const SizedBox(height: 16),
                     // ── Vehicle Issues ──
                     const Text('Vehicle Issues', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF4a5568))),
@@ -870,7 +971,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         icon: const Icon(Icons.add, size: 16), label: const Text('Add Row', style: TextStyle(fontSize: 12)),
                       ),
                     ]),
-                    ...svcRows.asMap().entries.map((e) => _svcRow(e.value, () => setModal(() => svcRows.removeAt(e.key)), setModal)),
+                    ...svcRows.asMap().entries.map((e) => _svcRow(e.value, () => setModal(() => svcRows.removeAt(e.key)), setModal, svcRows, ctx)),
                     const SizedBox(height: 12),
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                       const Text('Materials Used', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF4a5568))),
@@ -879,11 +980,11 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         icon: const Icon(Icons.add, size: 16), label: const Text('Add Row', style: TextStyle(fontSize: 12)),
                       ),
                     ]),
-                    ...matRows.asMap().entries.map((e) => _matRow(e.value, () => setModal(() => matRows.removeAt(e.key)), setModal, ctx)),
+                    ...matRows.asMap().entries.map((e) => _matRow(e.value, () => setModal(() => matRows.removeAt(e.key)), setModal, ctx, matRows)),
                     const SizedBox(height: 12),
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                       const Text('Total Cost:', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF2c5282), fontSize: 14)),
-                      Text('₱${totalCost().toStringAsFixed(2)}',
+                      Text(_fmtMoney(totalCost()),
                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2b6cb0))),
                     ]),
                     const SizedBox(height: 20),
@@ -891,8 +992,9 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                       Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel'))),
                       const SizedBox(width: 12),
                       Expanded(child: ElevatedButton(
-                        onPressed: () async {
+                        onPressed: saving ? null : () async {
                           if (plateCtrl.text.trim().isEmpty || mechanicCtrl.text.trim().isEmpty) return;
+                          setModal(() => saving = true);
                           final odoValue = int.tryParse(odoCtrl.text.trim()) ?? 0;
 
                           // Validate material quantities against stock
@@ -905,6 +1007,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                             if (stockSnap.docs.isNotEmpty) {
                               final available = (stockSnap.docs.first['stock'] as num?)?.toInt() ?? 0;
                               if (qty > available) {
+                                setModal(() => saving = false);
                                 if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                   content: Text('Insufficient stock for "$name". Available: $available, Requested: $qty'),
                                   backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating,
@@ -922,6 +1025,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                 .limit(1)
                                 .get();
                             if (dupCheck.docs.isNotEmpty) {
+                              setModal(() => saving = false);
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                   content: Row(children: const [
@@ -944,7 +1048,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                             'mechanic': mechanicCtrl.text.trim(),
                             'date': dateCtrl.text.trim(),
                             'odometer': odoValue,
-                            'cost': '₱${totalCost().toStringAsFixed(2)}',
+                            'cost': _fmtMoney(totalCost()),
                             'status': isEdit ? service['status'] as String : 'Ongoing',
                             'issues': selectedIssues,
                             'svcRows': svcRows.map((r) => {'name': r['name']!.text, 'qty': r['qty']!.text, 'uom': r['uom']!.text, 'cost': r['cost']!.text}).toList(),
@@ -959,7 +1063,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                               if (context.mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                  content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Service updated successfully!')]),
+                                  content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Updated successfully!')]),
                                   backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                               }
@@ -979,18 +1083,21 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                               if (context.mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                  content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Service added successfully!')]),
+                                  content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Added successfully!')]),
                                   backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                               }
                             }
                           } catch (e) {
+                            setModal(() => saving = false);
                             if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
                           }
                         },
                         style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
-                        child: Text(isEdit ? 'Update' : 'Save'),
+                        child: saving
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Text(isEdit ? 'Update' : 'Save'),
                       )),
                     ]),
                   ]),
@@ -1003,53 +1110,128 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
     );
   }
 
-  Widget _svcRow(Map<String, TextEditingController> row, VoidCallback onRemove, StateSetter setModal) {
-    final currentVal = _serviceItems.contains(row['name']!.text) ? row['name']!.text : null;
+  Widget _svcRow(Map<String, TextEditingController> row, VoidCallback onRemove, StateSetter setModal, List<Map<String, TextEditingController>> allSvcRows, BuildContext ctx) {
+    row.putIfAbsent('searchText', () => TextEditingController(text: row['name']!.text));
+
+    Future<void> applyService(String name) async {
+      final alreadyUsed = allSvcRows.any((r) => r != row && r['name']!.text == name);
+      if (alreadyUsed) {
+        showDialog(
+          context: ctx,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            title: const Row(children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 22),
+              SizedBox(width: 8),
+              Text('Duplicate Service', style: TextStyle(fontSize: 15)),
+            ]),
+            content: const Text('This service is already added.'),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+          ),
+        );
+        return;
+      }
+      row['name']!.text = name;
+      row['searchText']!.text = name;
+      final d = _itemMasterMap[name];
+      row['uom']!.text = (d?['uom'] ?? 'job').toString();
+      row['cost']!.text = (d?['cost'] ?? '0').toString().replaceAll('₱', '').replaceAll(',', '').trim();
+      if (row['qty']!.text.isEmpty) row['qty']!.text = '1';
+      setModal(() {});
+    }
+
+    final isSelected = row['name']!.text.isNotEmpty;
+    final q = row['searchText']!.text.trim().toLowerCase();
+    final svcResults = isSelected ? <String>[] : (q.isEmpty
+        ? <String>[]
+        : _serviceItems.where((n) => n.toLowerCase().contains(q)).toList());
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Expanded(child: DropdownButtonFormField<String>(
-            initialValue: currentVal,
-            hint: const Text('Select service...', style: TextStyle(fontSize: 11)),
-            isExpanded: true,
-            decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10), isDense: true),
-            items: _serviceItems.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12)))).toList(),
-            onChanged: (v) {
-              if (v != null) {
-                row['name']!.text = v;
-                final d = _itemMasterMap[v];
-                row['uom']!.text = (d?['uom'] ?? 'job').toString();
-                row['cost']!.text = (d?['cost'] ?? '0').toString().replaceAll('₱', '').replaceAll(',', '').trim();
-                if (row['qty']!.text.isEmpty) row['qty']!.text = '1';
-              }
-              setModal(() {});
-            },
-          )),
+          Expanded(
+            child: isSelected
+              ? Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFe2e8f0)),
+                  ),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Expanded(child: Text(row['name']!.text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+                      GestureDetector(
+                        onTap: () {
+                          row['name']!.text = '';
+                          row['searchText']!.text = '';
+                          row['uom']!.text = '';
+                          row['cost']!.text = '';
+                          setModal(() {});
+                        },
+                        child: const Icon(Icons.close, size: 14, color: Color(0xFF718096)),
+                      ),
+                    ]),
+                    const SizedBox(height: 4),
+                    Text('${row['uom']!.text}  •  ₱${row['cost']!.text}',
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                    const SizedBox(height: 8),
+                    TextField(controller: row['qty'], keyboardType: TextInputType.number, onChanged: (_) => setModal(() {}),
+                      decoration: const InputDecoration(labelText: 'Quantity *', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), isDense: true)),
+                  ]),
+                )
+              : TextField(
+                  controller: row['searchText']!,
+                  onChanged: (_) => setModal(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Service Name *',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    isDense: true,
+                    prefixIcon: Icon(Icons.search, size: 18, color: Color(0xFF718096)),
+                  ),
+                ),
+          ),
           SizedBox(width: 32, child: IconButton(icon: const Icon(Icons.close, size: 16, color: Colors.red), padding: EdgeInsets.zero, onPressed: onRemove)),
         ]),
-        if (row['name']!.text.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFe2e8f0)),
-            ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('UOM: ${row['uom']!.text}  -  Unit Cost: ${row['cost']!.text}', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-              const SizedBox(height: 8),
-              TextField(controller: row['qty'], keyboardType: TextInputType.number, onChanged: (_) => setModal(() {}),
-                decoration: const InputDecoration(labelText: 'Quantity *', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), isDense: true)),
-            ]),
-          ),
+        if (!isSelected) ...[
+          if (svcResults.isEmpty && q.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: const Color(0xFFF7F8FA), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFe2e8f0))),
+                child: const Center(child: Text('No services found.', style: TextStyle(fontSize: 12, color: Color(0xFFa0aec0)))),
+              ),
+            )
+          else
+            ...svcResults.take(6).map((name) {
+              final d = _itemMasterMap[name];
+              return GestureDetector(
+                onTap: () => applyService(name),
+                child: Container(
+                  margin: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFe2e8f0)),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)]),
+                  child: Row(children: [
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1a202c))),
+                      if (d != null) Text('${d['uom'] ?? ''}  •  ₱${(d['cost'] ?? '0').toString().replaceAll('₱','').replaceAll(',','').trim()}',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                    ])),
+                    const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF718096)),
+                  ]),
+                ),
+              );
+            }),
         ],
       ]),
     );
   }
 
-  Widget _matRow(Map<String, TextEditingController> row, VoidCallback onRemove, StateSetter setModal, BuildContext ctx) {
+  Widget _matRow(Map<String, TextEditingController> row, VoidCallback onRemove, StateSetter setModal, BuildContext ctx, List<Map<String, TextEditingController>> allMatRows) {
     row.putIfAbsent('maxStock', () => TextEditingController(text: '99999'));
     row.putIfAbsent('searchText', () => TextEditingController());
 
@@ -1060,6 +1242,23 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
         .toList()..sort();
 
     Future<void> applyMaterial(String name) async {
+      final alreadyUsed = allMatRows.any((r) => r != row && r['name']!.text == name);
+      if (alreadyUsed) {
+        showDialog(
+          context: ctx,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            title: const Row(children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 22),
+              SizedBox(width: 8),
+              Text('Duplicate Material', style: TextStyle(fontSize: 15)),
+            ]),
+            content: const Text('This material is already added.'),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+          ),
+        );
+        return;
+      }
       final d = _itemMasterMap[name];
       if (d == null) return;
       row['name']!.text = name;
@@ -1099,8 +1298,6 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
-                      const Icon(Icons.inventory_2_outlined, size: 16, color: Color(0xFF003087)),
-                      const SizedBox(width: 6),
                       Expanded(child: Text(row['name']!.text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
                       GestureDetector(
                         onTap: () {
@@ -1115,7 +1312,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                       ),
                     ]),
                     const SizedBox(height: 4),
-                    Text('UOM: ${row['uom']!.text}  •  Unit Cost: ₱${row['cost']!.text}',
+                    Text('${row['uom']!.text}  •  ₱${row['cost']!.text}',
                       style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
                     const SizedBox(height: 4),
                     // Always show stock badge once material is selected
@@ -1172,76 +1369,29 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                     ),
                   ]),
                 )
-              : RawAutocomplete<String>(
-                  textEditingController: row['searchText']!,
-                  focusNode: FocusNode(),
-                  optionsBuilder: (value) {
-                    final q = value.text.trim().toLowerCase();
-                    if (q.isEmpty) return materialNames;
-                    return materialNames.where((n) => n.toLowerCase().contains(q));
-                  },
-                  onSelected: (name) => applyMaterial(name),
-                  fieldViewBuilder: (ctx2, ctrl, focusNode, onSubmit) => TextField(
-                    controller: ctrl,
-                    focusNode: focusNode,
-                    decoration: InputDecoration(
-                      hintText: 'Search material name...',
-                      hintStyle: const TextStyle(fontSize: 11),
-                      border: const OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                      isDense: true,
-                      prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF718096)),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
-                        padding: EdgeInsets.zero,
-                        onPressed: () async {
-                          final result = await Navigator.push<String>(ctx,
-                            MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()));
-                          if (result != null) {
-                            final match = _itemMasterMap.entries.firstWhere(
-                              (e) => e.value['barcode'] == result || e.value['qr'] == result,
-                              orElse: () => MapEntry('', {}),
-                            );
-                            if (match.key.isNotEmpty) applyMaterial(match.key);
-                          }
-                        },
-                      ),
-                    ),
-                    onSubmitted: (v) {
-                      final q = v.trim().toLowerCase();
-                      final match = materialNames.firstWhere(
-                        (n) => n.toLowerCase() == q, orElse: () => '');
-                      if (match.isNotEmpty) applyMaterial(match);
-                    },
-                  ),
-                  optionsViewBuilder: (ctx2, onSelected, options) => Align(
-                    alignment: Alignment.topLeft,
-                    child: Material(
-                      elevation: 6,
-                      borderRadius: BorderRadius.circular(10),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 200),
-                        child: ListView.separated(
-                          padding: EdgeInsets.zero,
-                          shrinkWrap: true,
-                          itemCount: options.length,
-                          separatorBuilder: (_, _) => const Divider(height: 1),
-                          itemBuilder: (_, i) {
-                            final name = options.elementAt(i);
-                            final d = _itemMasterMap[name];
-                            return ListTile(
-                              dense: true,
-                              leading: const Icon(Icons.inventory_2_outlined, size: 16, color: Color(0xFF003087)),
-                              title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                              subtitle: d != null
-                                ? Text('${d['uom'] ?? ''}  •  ₱${(d['cost'] ?? '0').toString().replaceAll('₱', '').replaceAll(',', '').trim()}',
-                                    style: const TextStyle(fontSize: 11))
-                                : null,
-                              onTap: () => onSelected(name),
-                            );
-                          },
-                        ),
-                      ),
+              : TextField(
+                  controller: row['searchText']!,
+                  onChanged: (_) => setModal(() {}),
+                  decoration: InputDecoration(
+                    labelText: 'Material Name *',
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    isDense: true,
+                    prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF718096)),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
+                      padding: EdgeInsets.zero,
+                      onPressed: () async {
+                        final result = await Navigator.push<String>(ctx,
+                          MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()));
+                        if (result != null) {
+                          final match = _itemMasterMap.entries.firstWhere(
+                            (e) => e.value['barcode'] == result || e.value['qr'] == result,
+                            orElse: () => MapEntry('', {}),
+                          );
+                          if (match.key.isNotEmpty) applyMaterial(match.key);
+                        }
+                      },
                     ),
                   ),
                 ),
@@ -1252,6 +1402,39 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
             onPressed: onRemove,
           )),
         ]),
+        // ── Inline material results ──
+        if (!isSelected) ...[
+          if (row['searchText']!.text.trim().isNotEmpty &&
+              materialNames.where((n) => n.toLowerCase().contains(row['searchText']!.text.trim().toLowerCase())).isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: const Color(0xFFF7F8FA), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFe2e8f0))),
+                child: const Center(child: Text('No materials found.', style: TextStyle(fontSize: 12, color: Color(0xFFa0aec0)))),
+              ),
+            )
+          else
+            ...(() {
+              final q = row['searchText']!.text.trim().toLowerCase();
+              final res = q.isEmpty ? <String>[] : materialNames.where((n) => n.toLowerCase().contains(q)).toList();
+              return res.take(6).map((name) {
+                final d = _itemMasterMap[name];
+                return GestureDetector(
+                  onTap: () => applyMaterial(name),
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFe2e8f0)),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)]),
+                    child: Row(children: [
+                      Expanded(child: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1a202c)))),
+                    ]),
+                  ),
+                );
+              });
+            })(),
+        ],
       ]),
     );
   }
@@ -1289,7 +1472,19 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
     final clean = raw.replaceAll('₱', '').replaceAll(',', '').trim();
     final val = double.tryParse(clean);
     if (val == null) return raw.startsWith('₱') ? raw : '₱$raw';
-    return '₱${val.toStringAsFixed(2)}';
+    return _fmtMoney(val);
+  }
+
+  String _fmtMoney(double val) {
+    final parts = val.toStringAsFixed(2).split('.');
+    final intPart = parts[0];
+    final decPart = parts[1];
+    final buffer = StringBuffer();
+    for (int i = 0; i < intPart.length; i++) {
+      if (i > 0 && (intPart.length - i) % 3 == 0) buffer.write(',');
+      buffer.write(intPart[i]);
+    }
+    return '₱$buffer.$decPart';
   }
 
   String _monthName(int m) => const ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1];

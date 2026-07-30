@@ -54,6 +54,10 @@
     </div>
 
     <div class="forgot-row">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#4a5568;user-select:none;">
+        <input type="checkbox" id="rememberMe" style="width:14px;height:14px;accent-color:#E8001C;cursor:pointer;" />
+        Remember me
+      </label>
       <a href="forgot_password.html">Forgot Password?</a>
     </div>
 
@@ -138,6 +142,14 @@
       : defaultContent;
   }
 
+  // ── Remember Me ──
+  const rememberCheckbox = document.getElementById('rememberMe');
+  const savedEmail = localStorage.getItem('_rememberedEmail');
+  if (savedEmail) {
+    document.getElementById('email').value = savedEmail;
+    rememberCheckbox.checked = true;
+  }
+
   // ── Toggle password ──
   const passwordInput = document.getElementById('password');
   const togglePassword = document.getElementById('togglePassword');
@@ -168,7 +180,21 @@
     if (e.key === 'Enter') signinBtn.click();
   });
 
+  // ── Login attempt rate limiting ──
+  let _loginAttempts = 0;
+  let _lockoutUntil = 0;
+  const MAX_ATTEMPTS = 5;
+  const LOCKOUT_SECONDS = 60;
+
   signinBtn.addEventListener('click', async () => {
+    // Check lockout
+    const now = Date.now();
+    if (_lockoutUntil > now) {
+      const remaining = Math.ceil((_lockoutUntil - now) / 1000);
+      showToast(`Too many failed attempts. Please try again in ${remaining} seconds.`);
+      return;
+    }
+
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value.trim();
 
@@ -186,6 +212,26 @@
 
     setLoading(signinBtn, true, signinDefault);
     try {
+      // Pre-check: verify the email exists in Firestore before attempting auth
+      try {
+        const preCheck = await firebase.firestore().collection('users')
+          .where('email', '==', email).limit(1).get();
+        if (preCheck.empty) {
+          showToast('No account found with this email. Please sign up first.');
+          setLoading(signinBtn, false, signinDefault);
+          return;
+        }
+      } catch (preErr) {
+        // If Firestore rules block unauthenticated reads, skip pre-check
+        console.log('Pre-check skipped (rules may require auth):', preErr.code);
+      }
+
+      // Set Firebase Auth persistence based on "Remember me"
+      const persistence = rememberCheckbox.checked
+        ? firebase.auth.Auth.Persistence.LOCAL
+        : firebase.auth.Auth.Persistence.SESSION;
+      await firebase.auth().setPersistence(persistence);
+
       console.log('=== Email/Password Login ===');
       console.log('Step 1: Attempting Firebase Auth with:', email);
       const cred = await firebase.auth().signInWithEmailAndPassword(email, password);
@@ -290,6 +336,7 @@
         email: cred.user.email,
         name: data.name || '',
         role: role,
+        companyName: data.companyName || '',
       };
       
       console.log('Step 14: Storing session data for role:', role);
@@ -301,14 +348,30 @@
         sessionStorage.setItem('cpUser', JSON.stringify(userData));
       }
       
-      // Check if user must change password on first login
-      if (data.mustChangePassword === true) {
+      // Check if user must change password on first login (admin & customer only)
+      if (data.mustChangePassword === true && (role === 'admin' || role === 'customer')) {
         console.log('Step 15: First login — redirecting to change password');
+        _loginAttempts = 0;
+        if (rememberCheckbox.checked) {
+          localStorage.setItem('_rememberedEmail', document.getElementById('email').value.trim());
+        } else {
+          localStorage.removeItem('_rememberedEmail');
+        }
+        localStorage.setItem('_loggedIn', Date.now().toString());
+        localStorage.removeItem('_loggedOut');
+        sessionStorage.setItem('_tempPass', document.getElementById('password').value);
         window.location.href = 'change_password.html';
         return;
       }
 
       console.log('Step 15: Redirecting to dashboard');
+      _loginAttempts = 0; // Reset on successful login
+      // Save or clear remembered email
+      if (rememberCheckbox.checked) {
+        localStorage.setItem('_rememberedEmail', document.getElementById('email').value.trim());
+      } else {
+        localStorage.removeItem('_rememberedEmail');
+      }
       redirectByRole(role);
     } catch (e) {
       console.error('=== Login Error ===');
@@ -334,6 +397,11 @@
       }
       
       showToast(msg);
+      _loginAttempts++;
+      if (_loginAttempts >= MAX_ATTEMPTS) {
+        _lockoutUntil = Date.now() + (LOCKOUT_SECONDS * 1000);
+        showToast(`Account locked for ${LOCKOUT_SECONDS} seconds due to too many failed attempts.`);
+      }
       setLoading(signinBtn, false, signinDefault);
     }
   });

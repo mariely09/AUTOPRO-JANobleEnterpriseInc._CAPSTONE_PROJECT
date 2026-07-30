@@ -150,7 +150,7 @@ class _DomainDetailScreenState extends State<_DomainDetailScreen> {
               try {
                 await doc.reference.delete();
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: const Row(children: [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Item deleted successfully!')]),
+                  content: const Row(children: [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Deleted successfully!')]),
                   backgroundColor: Colors.red, behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
               } catch (e) {
@@ -263,6 +263,8 @@ class _AddEditSheet extends StatefulWidget {
 }
 
 class _AddEditSheetState extends State<_AddEditSheet> {
+  bool _saving = false;
+
   @override
   void dispose() {
     widget.ctrl.dispose();
@@ -297,34 +299,37 @@ class _AddEditSheetState extends State<_AddEditSheet> {
           const SizedBox(height: 16),
           Row(children: [
             Expanded(child: OutlinedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: _saving ? null : () => Navigator.pop(context),
               child: const Text('Cancel'),
             )),
             const SizedBox(width: 12),
             Expanded(child: ElevatedButton(
-              onPressed: () async {
+              onPressed: _saving ? null : () async {
                 final name = widget.ctrl.text.trim();
                 if (name.isEmpty) return;
-                Navigator.pop(context);
+                setState(() => _saving = true);
                 try {
                   if (widget.doc == null) {
                     await widget.col.add({'name': name, 'createdAt': FieldValue.serverTimestamp()});
+                    if (context.mounted) Navigator.pop(context);
                     if (widget.parentMounted()) {
                       ScaffoldMessenger.of(widget.parentContext).showSnackBar(SnackBar(
-                        content: const Row(children: [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Item added successfully!')]),
+                        content: const Row(children: [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Added successfully!')]),
                         backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                     }
                   } else {
                     await widget.doc!.reference.update({'name': name});
+                    if (context.mounted) Navigator.pop(context);
                     if (widget.parentMounted()) {
                       ScaffoldMessenger.of(widget.parentContext).showSnackBar(SnackBar(
-                        content: const Row(children: [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Item updated successfully!')]),
+                        content: const Row(children: [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Updated successfully!')]),
                         backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                     }
                   }
                 } catch (e) {
+                  if (mounted) setState(() => _saving = false);
                   if (widget.parentMounted()) {
                     ScaffoldMessenger.of(widget.parentContext).showSnackBar(
                       SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
@@ -332,11 +337,13 @@ class _AddEditSheetState extends State<_AddEditSheet> {
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: widget.color, foregroundColor: Colors.white),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.save_outlined, size: 16),
-                const SizedBox(width: 6),
-                Text(widget.doc == null ? 'Save' : 'Update'),
-              ]),
+              child: _saving
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.save_outlined, size: 16),
+                      const SizedBox(width: 6),
+                      Text(widget.doc == null ? 'Save' : 'Update'),
+                    ]),
             )),
           ]),
         ]),

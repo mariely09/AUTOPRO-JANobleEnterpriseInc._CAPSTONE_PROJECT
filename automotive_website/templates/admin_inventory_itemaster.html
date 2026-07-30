@@ -56,8 +56,8 @@
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
                     <select id="imSortSelect" onchange="renderItemMasterList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:160px;outline:none;transition:border-color 0.2s ease;">
-                        <option value="num-asc">Item No. (Ascending)</option>
-                        <option value="num-desc">Item No. (Descending)</option>
+                        <option value="num-asc">Supplier Code (Ascending)</option>
+                        <option value="num-desc">Supplier Code (Descending)</option>
                         <option value="name-asc">Name A→Z</option>
                         <option value="name-desc">Name Z→A</option>
                         <option value="cost-desc">Cost ↑ Highest</option>
@@ -129,12 +129,18 @@
                     </div>
                 </div>
             </div>
-            <div class="data-table">
-                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1.5fr 1fr 1fr 1fr 1fr 120px;">
-                    <div>Item Number</div><div>Item Name</div><div>Description</div><div>UOM</div>
-                    <div>Commodity Group</div><div>Item Type</div><div>Cost</div><div>Actions</div>
+            <div class="data-table" style="overflow-x:auto;">
+                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 110px;min-width:900px;">
+                    <div style="white-space:nowrap;">Item Number</div>
+                    <div style="white-space:nowrap;">Supplier Item Code</div>
+                    <div>Item Name</div>
+                    <div>UOM</div>
+                    <div style="white-space:nowrap;">Commodity Group</div>
+                    <div style="white-space:nowrap;">Item Type</div>
+                    <div>Cost</div>
+                    <div style="text-align:center;">Actions</div>
                 </div>
-                <div id="itemMasterList"></div>
+                <div id="itemMasterList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading items...</div></div>
             </div>
             </div><!-- /.data-table wrapper -->
         </div>
@@ -155,44 +161,49 @@
         </div>
         <!-- Form -->
         <form id="addItemMasterForm" style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:0.85rem;">
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Item Number</label>
-                <input type="text" name="itemNum" id="itemMasterItemNum" readonly style="background:#f7fafc;margin-top:0.3rem;">
+            <input type="hidden" name="itemNum" id="itemMasterItemNum">
+            <div class="fl-field">
+                <input type="text" name="supplierCode" id="itemMasterSupplierCode" placeholder=" ">
+                <label>Supplier Item Code</label>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Item Name *</label>
-                <input type="text" name="itemName" placeholder="e.g., Engine Oil 5W-30" required style="margin-top:0.3rem;">
+            <div class="fl-field">
+                <input type="text" name="oem" id="itemMasterOEM" placeholder=" ">
+                <label>OEM</label>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Commodity Group</label>
-                <select name="commodityGroup" id="itemMasterCommodityGroup" onchange="onItemMasterCommodityGroupChange(this)" style="margin-top:0.3rem;"><option value="">Select group</option></select>
+            <div class="fl-field">
+                <input type="text" name="itemName" required placeholder=" " oninput="imCheckDuplicateName(this)">
+                <label>Item Name *</label>
+                <div id="imNameError" style="display:none;font-size:0.72rem;color:#E31E24;margin-top:0.25rem;padding-left:0.25rem;">⚠ An item with this name already exists.</div>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">UOM</label>
-                <select name="uom" id="itemMasterUOM" style="margin-top:0.3rem;"><option value="">Select UOM</option></select>
+            <div class="fl-field">
+                <input type="text" name="description" placeholder=" ">
+                <label>Description</label>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Description</label>
-                <textarea name="description" rows="2" placeholder="Detailed description..." style="margin-top:0.3rem;"></textarea>
+            <div class="fl-field has-value">
+                <select name="commodityGroup" id="itemMasterCommodityGroup" onchange="onItemMasterCommodityGroupChange(this)">
+                    <option value="">Select group</option>
+                </select>
+                <label>Commodity Group</label>
+            </div>
+            <div class="fl-field has-value">
+                <select name="uom" id="itemMasterUOM">
+                    <option value="">Select UOM</option>
+                </select>
+                <label>UOM</label>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-                <div class="form-group" style="margin:0;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Cost (₱)</label>
-                    <input type="number" name="cost" placeholder="e.g., 450.00" step="0.01" min="0" style="margin-top:0.3rem;">
+                <div class="fl-field">
+                    <input type="number" name="cost" step="0.01" min="0" placeholder=" ">
+                    <label>Cost (₱)</label>
                 </div>
-                <div class="form-group" style="margin:0;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Type *</label>
-                    <select name="itemType" id="itemMasterItemType" required style="margin-top:0.3rem;" onchange="onItemTypeChange(this.value)">
+                <div class="fl-field has-value">
+                    <select name="itemType" id="itemMasterItemType" required onchange="onItemTypeChange(this.value)">
                         <option value="">Select Type</option>
                         <option value="Material">Material</option>
                         <option value="Service">Service</option>
                     </select>
+                    <label>Item Type *</label>
                 </div>
-            </div>
-            <!-- SKU — only for Material -->
-            <div class="form-group" style="margin:0;" id="imSkuRow">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">SKU</label>
-                <input type="number" name="sku" placeholder="e.g. 10001" min="0" step="1" style="margin-top:0.3rem;">
             </div>
             <!-- Footer buttons -->
             <div style="display:flex;gap:0.75rem;padding-top:0.5rem;">
@@ -238,10 +249,13 @@
                     QR Code
                 </button>
             </div>
-            <button id="imDetailEditBtn" style="width:100%;padding:0.8rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.95rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                Edit
-            </button>
+            <div style="display:flex;gap:0.75rem;">
+                <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('itemMasterDetailsModal')">Cancel</button>
+                <button id="imDetailEditBtn" style="flex:1;padding:0.8rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.95rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Edit
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -284,7 +298,6 @@
                 <div id="imScanCodeTitle" style="color:white;font-size:1rem;font-weight:700;"></div>
                 <div id="imScanCodeSubtitle" style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.15rem;"></div>
             </div>
-            <button onclick="closeModal('imScanCodeModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:30px;height:30px;border-radius:50%;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
         </div>
         <div style="padding:1.5rem;background:#f8fafc;display:flex;flex-direction:column;align-items:center;gap:1rem;">
             <div style="background:white;border-radius:14px;padding:1.25rem;border:1px solid #e2e8f0;width:100%;text-align:center;" id="imScanCodeImgWrap">
@@ -293,10 +306,6 @@
                 <div id="imScanCodeValue" style="display:none;font-family:monospace;font-size:0.78rem;color:#718096;margin-top:0.5rem;word-break:break-all;"></div>
             </div>
             <div style="display:flex;gap:0.75rem;width:100%;">
-                <button onclick="imPrintScanCode()" style="flex:1;padding:0.8rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;justify-content:center;gap:0.4rem;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                    Print
-                </button>
                 <button onclick="closeModal('imScanCodeModal')" style="flex:1;padding:0.8rem;background:#f7fafc;border:1.5px solid #e2e8f0;border-radius:10px;color:#4a5568;font-weight:600;cursor:pointer;font-size:0.9rem;">Close</button>
             </div>
         </div>
@@ -305,6 +314,66 @@
 
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
+/* ── Floating label field — Flutter OutlineInputBorder equivalent ── */
+.fl-field {
+    position: relative;
+    width: 100%;
+}
+.fl-field input,
+.fl-field select {
+    width: 100%;
+    padding: 1rem 1rem 0.4rem 1rem;
+    border: 1.5px solid #c5cdd9;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    color: #1a202c;
+    background: white;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+}
+.fl-field select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a0aec0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    padding-right: 2.2rem;
+}
+.fl-field input:focus,
+.fl-field select:focus {
+    border-color: #E31E24;
+    box-shadow: 0 0 0 3px rgba(227, 30, 36, 0.12);
+}
+.fl-field label {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.88rem;
+    color: #a0aec0;
+    pointer-events: none;
+    transition: all 0.18s ease;
+    background: white;
+    padding: 0 0.2rem;
+    line-height: 1;
+}
+.fl-field input:focus ~ label,
+.fl-field input:not(:placeholder-shown) ~ label,
+.fl-field select:focus ~ label,
+.fl-field.has-value label {
+    top: 0;
+    transform: translateY(-50%);
+    font-size: 0.72rem;
+    color: #718096;
+}
+.fl-field input:focus ~ label,
+.fl-field select:focus ~ label {
+    color: #E31E24;
+}
+.fl-field input::placeholder { color: transparent; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
@@ -326,7 +395,7 @@
   }
 </script>
 <script src="../static/js/admin_firebase.js"></script>
-<script src="../static/js/admin_functions.js?v=202606150001"></script>
+<script src="../static/js/admin_functions.js?v=202607180001"></script>
 <script src="../static/js/admin.js"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script src="../static/js/print_layout_header.js"></script>
@@ -335,6 +404,23 @@
   // ── Item Master filter ──
   window._imFilter = 'all';
   window._imCommodityFilter = '';
+
+  // ── Live duplicate name check on Item Name field ──
+  window.imCheckDuplicateName = function(input) {
+    var errEl = document.getElementById('imNameError');
+    if (!errEl) return;
+    var val = (input.value || '').trim().toLowerCase();
+    // In edit mode, skip check for the item's own name
+    var editingNum = (document.getElementById('itemMasterItemNum') || {}).value || '';
+    var items = window.itemMaster || [];
+    var isDup = val.length > 0 && items.some(function(i) {
+      if (editingNum && (i.itemNum || '') === editingNum) return false; // skip self
+      return (i.itemName || '').toLowerCase().trim() === val;
+    });
+    errEl.style.display = isDup ? 'block' : 'none';
+    input.style.borderColor = isDup ? '#E31E24' : '';
+    input.style.boxShadow   = isDup ? '0 0 0 3px rgba(227,30,36,0.12)' : '';
+  };
 
   window.imSetFilter = function(filter, btn) {
     window._imFilter = filter;
@@ -376,19 +462,24 @@
 
   document.addEventListener('DOMContentLoaded', function() {
     window._imPopulateCommodityFilterDropdown();
+    // Keep select fl-field labels floated when a value is chosen
+    document.querySelectorAll('#addItemMasterModal .fl-field select').forEach(function(sel) {
+      sel.addEventListener('change', function() {
+        var wrap = sel.closest('.fl-field');
+        if (wrap) wrap.classList.toggle('has-value', sel.value !== '');
+      });
+    });
   });
 
-  // Hide SKU field when type is Service or AutoService
+  // Hide/show fields based on type (no SKU for Service)
   window.onItemTypeChange = function(val) {
-    var skuRow = document.getElementById('imSkuRow');
-    var isService = val === 'Service' || val === 'AutoService' || val.toLowerCase().includes('service');
-    if (skuRow) skuRow.style.display = isService ? 'none' : '';
+    // No additional fields to toggle now
   };
 
   // Auto-open stock level modal after adding a Material item
   window.openAddInventoryModalWithItem = function(item) {
     // Navigate to stock inventory page with the item pre-selected
-    window.location.href = 'admin_inventory_stock.html#add=' + encodeURIComponent(item.itemNum + '|' + item.itemName + '|' + item.commodityGroup + '|' + item.uom);
+    window.location.href = 'admin_inventory_stock.html#add=' + encodeURIComponent(item.itemNum + '|' + item.itemName + '|' + item.commodityGroup + '|' + item.uom + '|' + (item.supplierCode || ''));
   };
 
   // Update Item Master stat cards from live data
@@ -561,7 +652,7 @@
     if (!item) return;
     var existingBarcode = item.barcode || '';
     if (existingBarcode) {
-      _imShowScanCodeModal(item.itemName, item.uom || '', existingBarcode, 'barcode');
+      _imShowScanCodeModal(item.itemName, item.uom || '', existingBarcode, 'barcode', item.supplierCode || item.itemNum || '');
       return;
     }
     var digits = [];
@@ -577,7 +668,7 @@
       item.barcode = barcodeVal;
       fbItem.barcode = barcodeVal;
     }
-    _imShowScanCodeModal(item.itemName, item.uom || '', barcodeVal, 'barcode');
+    _imShowScanCodeModal(item.itemName, item.uom || '', barcodeVal, 'barcode', item.supplierCode || item.itemNum || '');
   };
 
   window.imGenerateAndShowQR = function() {
@@ -585,10 +676,10 @@
     if (!item) return;
     var existingQr = item.qrcode || '';
     if (existingQr) {
-      _imShowScanCodeModal(item.itemName, item.uom || '', existingQr, 'qr');
+      _imShowScanCodeModal(item.itemName, item.uom || '', existingQr, 'qr', item.supplierCode || item.itemNum || '');
       return;
     }
-    var qrVal = 'QR-' + (item.itemNum || '').toUpperCase();
+    var qrVal = 'QR-' + (item.supplierCode || item.itemNum || '').toUpperCase();
     var fbItem2 = (window._fbItemMaster || []).find(function(i){ return i.num === item.itemNum; });
     if (fbItem2 && fbItem2._id) {
       firebase.firestore().collection('item_master').doc(fbItem2._id).update({ qr: qrVal })
@@ -596,13 +687,14 @@
       item.qrcode = qrVal;
       fbItem2.qr = qrVal;
     }
-    _imShowScanCodeModal(item.itemName, item.uom || '', qrVal, 'qr');
+    _imShowScanCodeModal(item.itemName, item.uom || '', qrVal, 'qr', item.supplierCode || item.itemNum || '');
   };
 
-  function _imShowScanCodeModal(title, subtitle, value, type) {
+  function _imShowScanCodeModal(title, subtitle, value, type, codeLabel) {
+    var labelBelow = codeLabel || subtitle;
     document.getElementById('imScanCodeTitle').textContent = title;
     document.getElementById('imScanCodeSubtitle').textContent = subtitle;
-    document.getElementById('imScanCodeValue').textContent = value;
+    document.getElementById('imScanCodeValue').textContent = labelBelow;
     document.getElementById('imScanCodeBarcodeSvg').style.display = 'none';
     document.getElementById('imScanCodeQrDiv').innerHTML = '';
 
@@ -616,15 +708,21 @@
           svg.style.display = 'block';
         } catch(e) { svg.style.display = 'none'; }
       }
-      // Show barcode number below the image
+      // Show supplier item code below the barcode image
       var valEl = document.getElementById('imScanCodeValue');
-      if (valEl) { valEl.style.display = 'block'; }
+      if (valEl) { valEl.textContent = labelBelow; valEl.style.display = 'block'; }
     } else {
       var qrDiv = document.getElementById('imScanCodeQrDiv');
       if (typeof QRCode !== 'undefined') {
         try {
           new QRCode(qrDiv, { text: value, width: 180, height: 180, colorDark: '#1a202c', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
         } catch(e) { qrDiv.textContent = value; }
+      }
+      // Show supplier code below the QR image
+      var valEl = document.getElementById('imScanCodeValue');
+      if (valEl) {
+        // labelBelow already set at top of function
+        valEl.style.display = 'block';
       }
     }
     document.getElementById('imScanCodeModal').classList.add('active');

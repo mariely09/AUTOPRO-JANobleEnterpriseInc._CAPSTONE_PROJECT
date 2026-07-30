@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'barcode_scanner_screen.dart';
+import 'admin_inventory_stock.dart';
 
 /// Standalone full-screen wrapper (for direct navigation if needed elsewhere).
 class AdminInventoryItemMaster extends StatefulWidget {
@@ -102,6 +103,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
   String _typeFilter = 'all';
   String groupFilter = '';
   List<String> groups = [];
+  List<String> uomList = [];
 
   CollectionReference get _db => FirebaseFirestore.instance.collection(_col);
 
@@ -109,6 +111,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
   void initState() {
     super.initState();
     _loadGroups();
+    _loadUoms();
   }
 
   Future<void> _loadGroups() async {
@@ -117,9 +120,21 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
           .collection('domains').doc('commodity_groups').collection('items')
           .orderBy('name').get();
       final list = snap.docs.map((d) => d['name'] as String).toList();
-      if (mounted) setState(() => groups = list);
+      if (mounted) setState(() => groups = list.isNotEmpty ? list : ['Lubricants', 'Spare Parts', 'Filter', 'AutoService']);
     } catch (_) {
       if (mounted) setState(() => groups = ['Lubricants', 'Spare Parts', 'Filter', 'AutoService']);
+    }
+  }
+
+  Future<void> _loadUoms() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('domains').doc('uom').collection('items')
+          .orderBy('name').get();
+      final list = snap.docs.map((d) => d['name'] as String).toList();
+      if (mounted) setState(() => uomList = list.isNotEmpty ? list : ['pcs', 'L', 'set', 'job', 'kg', 'box', 'pair', 'm']);
+    } catch (_) {
+      if (mounted) setState(() => uomList = ['pcs', 'L', 'set', 'job', 'kg', 'box', 'pair', 'm']);
     }
   }
 
@@ -133,8 +148,13 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
       _fetchDomain('commodity_groups'),
       _fetchDomain('uom'),
     ]);
-    _cachedGroups = results[0];
-    _cachedUoms = results[1];
+    _cachedGroups = results[0].isNotEmpty ? results[0] : ['Lubricants', 'Spare Parts', 'Filter', 'AutoService'];
+    _cachedUoms   = results[1].isNotEmpty ? results[1] : ['pcs', 'L', 'set', 'job', 'kg', 'box', 'pair', 'm'];
+    // Also sync to state lists so pickers always have data
+    if (mounted) setState(() {
+      if (groups.isEmpty) groups = _cachedGroups!;
+      if (uomList.isEmpty) uomList = _cachedUoms!;
+    });
   }
 
   @override
@@ -150,11 +170,14 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
   }
 
   Future<String> _nextItemNum() async {
-    final snap = await _db.orderBy('createdAt', descending: true).limit(1).get();
-    if (snap.docs.isEmpty) return 'ITM-001';
-    final last = snap.docs.first['num'] as String? ?? 'ITM-000';
-    final n = int.tryParse(last.replaceAll('ITM-', '')) ?? 0;
-    return 'ITM-${(n + 1).toString().padLeft(3, '0')}';
+    final snap = await _db.get();
+    int maxNum = 0;
+    for (final doc in snap.docs) {
+      final n = int.tryParse(
+        (doc['num'] as String? ?? '').replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      if (n > maxNum) maxNum = n;
+    }
+    return (maxNum + 1).toString().padLeft(3, '0');
   }
 
   @override
@@ -178,6 +201,8 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
             return {
               'id': d.id,
               'num': (data['num'] ?? '—').toString(),
+              'supplierCode': (data['supplierCode'] ?? '').toString(),
+              'oem': (data['oem'] ?? '').toString(),
               'sku': (data['sku'] ?? '').toString(),
               'name': (data['name'] ?? '—').toString(),
               'desc': (data['desc'] ?? '').toString(),
@@ -335,8 +360,10 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                 child: Text(isSvc ? 'Service' : 'Material',
                   style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: typeColor)),
               ),
-              const SizedBox(width: 6),
-              Text(item['num']!, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+              if ((item['supplierCode'] as String? ?? '').isNotEmpty) ...[
+                const SizedBox(width: 6),
+                Text(item['supplierCode']!, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+              ],
             ]),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -381,10 +408,11 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
               padding: const EdgeInsets.all(20),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 _detailRow('Item Number', item['num'] ?? '—'),
-                if (!isSvc && (item['sku']?.isNotEmpty == true))
-                  _detailRow('SKU', item['sku']!),
+                if ((item['supplierCode'] as String? ?? '').isNotEmpty)
+                  _detailRow('Supplier Item Code', item['supplierCode']!),
+                if ((item['oem'] as String? ?? '').isNotEmpty)
+                  _detailRow('OEM', item['oem']!),
                 _detailRow('Item Name', item['name'] ?? '—'),
-                _detailRow('Description', item['desc']?.isNotEmpty == true ? item['desc']! : '—'),
                 _detailRow('Commodity Group', item['group']?.isNotEmpty == true ? item['group']! : '—'),
                 _detailRow('UOM', item['uom']?.isNotEmpty == true ? item['uom']! : '—'),
                 _detailRow('Cost', _fmtCost(item['cost'] ?? '')),
@@ -453,15 +481,16 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     }
 
     if (!mounted) return;
-    _showScanCodeModal(item['name'] ?? '', item['uom'] ?? '', barcodeVal, isBarcode: true);
+    _showScanCodeModal(item['name'] ?? '', item['uom'] ?? '', barcodeVal, isBarcode: true, codeLabel: item['supplierCode']?.isNotEmpty == true ? item['supplierCode']! : (item['num'] ?? ''));
   }
 
   // ── Show existing or generate + save QR code ──
   void _showOrGenerateQR(Map<String, String> item) async {
     String qrVal = item['qr'] ?? '';
+    final supplierCode = item['supplierCode'] ?? item['num'] ?? '';
 
     if (qrVal.isEmpty) {
-      qrVal = 'QR-${item['num']?.toUpperCase() ?? ''}';
+      qrVal = 'QR-${supplierCode.toUpperCase()}';
       try {
         await _db.doc(item['id']).update({'qr': qrVal});
         item['qr'] = qrVal;
@@ -471,10 +500,11 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     }
 
     if (!mounted) return;
-    _showScanCodeModal(item['name'] ?? '', item['uom'] ?? '', qrVal, isBarcode: false);
+    _showScanCodeModal(item['name'] ?? '', item['uom'] ?? '', qrVal, isBarcode: false, codeLabel: supplierCode.isNotEmpty ? supplierCode : (item['num'] ?? ''));
   }
 
-  void _showScanCodeModal(String name, String uom, String value, {required bool isBarcode}) {
+  void _showScanCodeModal(String name, String subtitle, String value, {required bool isBarcode, String? codeLabel}) {
+    final labelBelow = codeLabel ?? subtitle;
     showModalBottomSheet(
       context: context, isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -490,8 +520,8 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
           child: Row(children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-              if (uom.isNotEmpty)
-                Text(uom, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              if (subtitle.isNotEmpty)
+                Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 12)),
             ])),
             GestureDetector(onTap: () => Navigator.pop(context),
               child: const Icon(Icons.close, color: Colors.white)),
@@ -520,7 +550,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      value,
+                      labelBelow,
                       style: const TextStyle(
                         fontFamily: 'monospace',
                         fontSize: 13,
@@ -530,12 +560,26 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                       ),
                     ),
                   ])
-                : Center(
-                    child: QrImageView(
-                      data: value,
-                      version: QrVersions.auto,
-                      size: 180,
-                    )),
+                : Column(children: [
+                    Center(
+                      child: QrImageView(
+                        data: value,
+                        version: QrVersions.auto,
+                        size: 180,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      labelBelow, // supplier code shown below QR
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 13,
+                        letterSpacing: 1.5,
+                        color: Color(0xFF1a202c),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ]),
           ),
         ),
       ]),
@@ -575,21 +619,35 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     await _ensureDomainsLoaded();
     if (!mounted) return;
 
-    final groups = _cachedGroups!;
-    final uoms = _cachedUoms!;
-    final itemNum = isEdit ? item!['num']! : await _nextItemNum();
-    if (!mounted) return;
+    // Use state-level lists (always fresh from Firestore, never empty)
+    final groupOptions = this.groups.isNotEmpty ? this.groups : (_cachedGroups ?? ['Lubricants', 'Spare Parts', 'Filter', 'AutoService']);
+    final uomOptions   = this.uomList.isNotEmpty ? this.uomList : (_cachedUoms ?? ['pcs', 'L', 'set', 'job', 'kg', 'box', 'pair', 'm']);
 
-    final skuCtrl = TextEditingController(text: item?['sku'] ?? '');
+    // Auto-generate item number for new items
+    String newItemNum = '';
+    if (!isEdit) {
+      newItemNum = await _nextItemNum();
+      if (!mounted) return;
+    }
+
     final nameCtrl = TextEditingController(text: item?['name'] ?? '');
     final descCtrl = TextEditingController(text: item?['desc'] ?? '');
+    final supplierCodeCtrl = TextEditingController(text: item?['supplierCode'] ?? '');
+    final oemCtrl = TextEditingController(text: item?['oem'] ?? '');
     final costCtrl = TextEditingController(text: item?['cost']?.replaceAll('₱', '').replaceAll(',', '') ?? '');
-    final barcodeCtrl = TextEditingController(text: item?['barcode'] ?? '');
-    final qrCtrl = TextEditingController(text: item?['qr'] ?? '');
     String selectedType = item?['type'] ?? 'Material';
-    String? selectedGroup = (item?['group']?.isNotEmpty == true && groups.contains(item!['group'])) ? item['group'] : null;
-    String? selectedUom = (item?['uom']?.isNotEmpty == true && uoms.contains(item!['uom'])) ? item['uom'] : null;
+    String? selectedGroup = (item?['group']?.isNotEmpty == true && groupOptions.contains(item!['group'])) ? item['group'] : null;
+    String? selectedUom   = (item?['uom']?.isNotEmpty   == true && uomOptions.contains(item!['uom']))     ? item['uom']   : null;
+    // Auto-apply AutoService → Service rule on modal open
+    if (selectedGroup == 'AutoService') selectedType = 'Service';
     bool saving = false;
+    bool nameDuplicate = false;
+
+    // All existing item names (lowercased) for live duplicate check
+    final existingNames = (await _db.get()).docs
+        .where((d) => isEdit ? d.id != item!['id'] : true) // exclude self in edit mode
+        .map((d) => (d['name'] as String? ?? '').toLowerCase().trim())
+        .toSet();
 
     showModalBottomSheet(
       context: context, isScrollControlled: true,
@@ -615,31 +673,157 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  TextField(controller: supplierCodeCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Supplier Item Code',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
+                        tooltip: 'Scan barcode / QR code',
+                        onPressed: () async {
+                          final result = await Navigator.push<String>(ctx,
+                            MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(
+                              title: 'Scan Supplier Code',
+                              hint: 'Point camera at barcode or QR code',
+                            )));
+                          if (result != null && result.isNotEmpty) {
+                            supplierCodeCtrl.text = result;
+                            setModalState(() {});
+                          }
+                        },
+                      ),
+                    )),
+                  const SizedBox(height: 10),
+                  TextField(controller: oemCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'OEM',
+                      border: OutlineInputBorder(),
+                    )),
+                  const SizedBox(height: 10),
+                  // Item Number is auto-generated — not shown in modal
                   TextField(controller: nameCtrl,
-                    decoration: const InputDecoration(labelText: 'Item Name *', border: OutlineInputBorder())),
+                    onChanged: (v) {
+                      final isDup = existingNames.contains(v.trim().toLowerCase());
+                      if (isDup != nameDuplicate) setModalState(() => nameDuplicate = isDup);
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Item Name *',
+                      border: const OutlineInputBorder(),
+                      errorText: nameDuplicate ? 'An item with this name already exists.' : null,
+                      errorStyle: const TextStyle(fontSize: 11),
+                    )),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    value: selectedGroup,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Commodity Group', border: OutlineInputBorder()),
-                    hint: const Text('Select group'),
-                    items: groups.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-                    onChanged: (v) => setModalState(() => selectedGroup = v),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    value: selectedUom,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'UOM', border: OutlineInputBorder()),
-                    hint: const Text('Select UOM'),
-                    items: uoms.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
-                    onChanged: (v) => setModalState(() => selectedUom = v),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(controller: descCtrl, maxLines: 2,
+                  TextField(controller: descCtrl,
                     decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
+                  const SizedBox(height: 10),
+                  // Commodity Group — GestureDetector-based picker avoids scroll conflict
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () async {
+                      final groupList = groupOptions.isNotEmpty
+                          ? groupOptions
+                          : ['Lubricants', 'Filters', 'Spare Parts', 'AutoService'];
+                      final picked = await showModalBottomSheet<String>(
+                        context: ctx,
+                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                        builder: (sheetCtx) => Column(mainAxisSize: MainAxisSize.min, children: [
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                            child: Text('Select Commodity Group', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          ),
+                          const Divider(height: 1),
+                          Flexible(
+                            child: ListView(
+                              shrinkWrap: true,
+                              children: groupList.map((g) => ListTile(
+                                title: Text(g),
+                                trailing: selectedGroup == g ? const Icon(Icons.check, color: Color(0xFFE8001C)) : null,
+                                onTap: () => Navigator.pop(sheetCtx, g),
+                              )).toList(),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ]),
+                      );
+                      if (picked != null) setModalState(() {
+                        selectedGroup = picked;
+                        // Auto-set type: AutoService group → Service, others → Material
+                        if (picked == 'AutoService') {
+                          selectedType = 'Service';
+                        } else if (selectedType == 'Service' && picked != 'AutoService') {
+                          selectedType = 'Material';
+                        }
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFbdbdbd)),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(children: [
+                        Expanded(child: Text(
+                          selectedGroup ?? 'Select group',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: selectedGroup != null ? const Color(0xFF1a202c) : const Color(0xFF9e9e9e),
+                          ),
+                        )),
+                        const Icon(Icons.arrow_drop_down, color: Color(0xFF718096)),
+                      ]),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // UOM — GestureDetector-based picker avoids scroll conflict
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () async {
+                      // Ensure list is never empty — fallback to seeds
+                      final uomList = uomOptions.isNotEmpty
+                          ? uomOptions
+                          : ['pcs', 'L', 'set', 'job', 'kg', 'box', 'pair', 'm'];
+                      final picked = await showModalBottomSheet<String>(
+                        context: ctx,
+                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                        builder: (sheetCtx) => Column(mainAxisSize: MainAxisSize.min, children: [
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                            child: Text('Select UOM', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          ),
+                          const Divider(height: 1),
+                          Flexible(
+                            child: ListView(
+                              shrinkWrap: true,
+                              children: uomList.map((u) => ListTile(
+                                title: Text(u),
+                                trailing: selectedUom == u ? const Icon(Icons.check, color: Color(0xFFE8001C)) : null,
+                                onTap: () => Navigator.pop(sheetCtx, u),
+                              )).toList(),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ]),
+                      );
+                      if (picked != null) setModalState(() => selectedUom = picked);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFbdbdbd)),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(children: [
+                        Expanded(child: Text(
+                          selectedUom ?? 'Select UOM',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: selectedUom != null ? const Color(0xFF1a202c) : const Color(0xFF9e9e9e),
+                          ),
+                        )),
+                        const Icon(Icons.arrow_drop_down, color: Color(0xFF718096)),
+                      ]),
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   Row(children: [
                     Expanded(child: TextField(controller: costCtrl,
@@ -648,66 +832,27 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                     const SizedBox(width: 10),
                     Expanded(child: DropdownButtonFormField<String>(
                       value: selectedType,
-                      decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
+                      decoration: InputDecoration(
+                        labelText: 'Type',
+                        border: const OutlineInputBorder(),
+                        filled: selectedGroup == 'AutoService',
+                        fillColor: selectedGroup == 'AutoService' ? const Color(0xFFF7F8FA) : null,
+                        suffixIcon: selectedGroup == 'AutoService'
+                          ? const Tooltip(
+                              message: 'Auto-set to Service for AutoService group',
+                              child: Icon(Icons.lock_outline, size: 16, color: Color(0xFF718096)))
+                          : null,
+                      ),
                       items: const [
                         DropdownMenuItem(value: 'Material', child: Text('Material')),
                         DropdownMenuItem(value: 'Service', child: Text('Service')),
                       ],
-                      onChanged: (v) => setModalState(() => selectedType = v!),
+                      onChanged: selectedGroup == 'AutoService' ? null : (v) => setModalState(() => selectedType = v!),
                     )),
                   ]),
                   if (selectedType == 'Material') ...[
                     const SizedBox(height: 10),
-                    TextField(controller: skuCtrl, keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'SKU', border: OutlineInputBorder(), hintText: 'e.g. 10001')),
-                    const SizedBox(height: 10),
-                    // Barcode field with scan-only button
-                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Expanded(child: TextField(controller: barcodeCtrl,
-                        decoration: InputDecoration(
-                          labelText: 'Barcode',
-                          border: const OutlineInputBorder(),
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
-                            tooltip: 'Scan barcode',
-                            onPressed: () async {
-                              final result = await Navigator.push<String>(ctx,
-                                MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(
-                                  title: 'Scan Barcode',
-                                  hint: 'Point camera at the barcode',
-                                )));
-                              if (result != null && result.isNotEmpty) {
-                                barcodeCtrl.text = result;
-                                setModalState(() {});
-                              }
-                            },
-                          ),
-                        ))),
-                    ]),
-                    const SizedBox(height: 10),
-                    // QR Code field with scan-only button
-                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Expanded(child: TextField(controller: qrCtrl,
-                        decoration: InputDecoration(
-                          labelText: 'QR Code',
-                          border: const OutlineInputBorder(),
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
-                            tooltip: 'Scan QR code',
-                            onPressed: () async {
-                              final result = await Navigator.push<String>(ctx,
-                                MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(
-                                  title: 'Scan QR Code',
-                                  hint: 'Point camera at the QR code',
-                                )));
-                              if (result != null && result.isNotEmpty) {
-                                qrCtrl.text = result;
-                                setModalState(() {});
-                              }
-                            },
-                          ),
-                        ))),
-                    ]),
+                    // (barcode and QR are derived from supplier item code)
                   ],
                   const SizedBox(height: 20),
                   Row(children: [
@@ -718,26 +863,60 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                     Expanded(child: ElevatedButton(
                       onPressed: saving ? null : () async {
                         if (nameCtrl.text.trim().isEmpty) return;
+                        if (nameDuplicate) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                            content: Text('An item with this name already exists.'),
+                            backgroundColor: Colors.orange,
+                            behavior: SnackBarBehavior.floating,
+                          ));
+                          return;
+                        }
                         setModalState(() => saving = true);
+
                         final data = <String, dynamic>{
-                          'num': itemNum,
-                          'sku': skuCtrl.text.trim(),
+                          'num': isEdit ? (item!['num'] ?? '') : newItemNum,
+                          'supplierCode': supplierCodeCtrl.text.trim(),
+                          'oem': oemCtrl.text.trim(),
                           'name': nameCtrl.text.trim(),
                           'desc': descCtrl.text.trim(),
                           'group': selectedGroup ?? '',
                           'uom': selectedUom ?? '',
                           'cost': '₱${costCtrl.text.trim()}',
                           'type': selectedType,
-                          'barcode': selectedType == 'Material' ? barcodeCtrl.text.trim() : '',
-                          'qr': selectedType == 'Material' ? qrCtrl.text.trim() : '',
+                          'barcode': selectedType == 'Material' ? supplierCodeCtrl.text.trim() : '',
+                          'qr': selectedType == 'Material' ? supplierCodeCtrl.text.trim() : '',
                         };
                         try {
                           if (isEdit) {
                             await _db.doc(item!['id']).update(data);
+                            // ── Sync matching stock_inventory record ──
+                            try {
+                              final oldNum = item['num'] as String? ?? '';
+                              final newNum = data['num'] as String? ?? oldNum;
+                              if (oldNum.isNotEmpty) {
+                                final stockSnap = await FirebaseFirestore.instance
+                                    .collection('stock_inventory')
+                                    .where('num', isEqualTo: oldNum)
+                                    .limit(1).get();
+                                if (stockSnap.docs.isNotEmpty) {
+                                  final stockSync = <String, dynamic>{
+                                    'num':          newNum.isNotEmpty ? newNum : oldNum,
+                                    'supplierCode': data['supplierCode'] ?? '',
+                                    'name':         data['name'] ?? '',
+                                    'group':        data['group'] ?? '',
+                                    'uom':          data['uom'] ?? '',
+                                    'updatedAt':    FieldValue.serverTimestamp(),
+                                  };
+                                  await stockSnap.docs.first.reference.update(stockSync);
+                                }
+                              }
+                            } catch (syncErr) {
+                              debugPrint('Stock sync error: $syncErr');
+                            }
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
                               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Item updated successfully!')]),
+                                content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Updated successfully!')]),
                                 backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                             }
@@ -747,35 +926,23 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
                               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Item added successfully!')]),
+                                content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Added successfully!')]),
                                 backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
-                              if (selectedType == 'Material' && context.mounted) {
-                                final shouldSetStock = await showDialog<bool>(
-                                  context: context,
-                                  builder: (_) => AlertDialog(
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                    title: const Text('Set Stock Levels?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                    content: const Text(
-                                      'Would you like to set the stock levels (min, max, current quantity) for this item now?',
-                                      style: TextStyle(fontSize: 13, color: Color(0xFF4a5568)),
+                              // For Material items (excluding AutoService group) — navigate to Stock to set levels
+                              if (selectedType == 'Material' && (selectedGroup ?? '') != 'AutoService' && context.mounted) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AdminInventoryStock(
+                                      prefilledItemNum:      newItemNum,
+                                      prefilledItemName:     nameCtrl.text.trim(),
+                                      prefilledGroup:        selectedGroup        ?? '',
+                                      prefilledUom:          selectedUom          ?? '',
+                                      prefilledSupplierCode: supplierCodeCtrl.text.trim(),
                                     ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context, false),
-                                        child: const Text('Later', style: TextStyle(color: Color(0xFF718096))),
-                                      ),
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context, true),
-                                        style: TextButton.styleFrom(foregroundColor: _red),
-                                        child: const Text('Set Now', style: TextStyle(fontWeight: FontWeight.bold)),
-                                      ),
-                                    ],
                                   ),
                                 );
-                                if (shouldSetStock == true && context.mounted) {
-                                  _showSetStockModal(itemNum, nameCtrl.text.trim(), selectedGroup ?? '', selectedUom ?? '');
-                                }
                               }
                             }
                           }
@@ -914,7 +1081,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                               content: Row(children: const [
                                 Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
                                 SizedBox(width: 8),
-                                Text('Stock item added successfully!'),
+                                Text('Added successfully!'),
                               ]),
                               backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
@@ -951,16 +1118,27 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Item'),
-        content: Text('Delete "${item['name']}"?'),
+        content: Text('Delete "${item['name']}"? This will also remove it from Stock Inventory.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
               try {
+                // Delete from item_master
                 await _db.doc(item['id']).delete();
+                // Also delete matching stock_inventory record
+                try {
+                  final stockSnap = await FirebaseFirestore.instance
+                      .collection('stock_inventory')
+                      .where('num', isEqualTo: item['num'])
+                      .limit(1).get();
+                  if (stockSnap.docs.isNotEmpty) {
+                    await stockSnap.docs.first.reference.delete();
+                  }
+                } catch (_) {} // non-fatal
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Item deleted successfully!')]),
+                  content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Deleted successfully!')]),
                   backgroundColor: Colors.red, behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
               } catch (e) {

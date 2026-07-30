@@ -31,6 +31,17 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  // ── Firestore offline persistence ──
+  // Writes made while offline are queued locally and automatically synced
+  // to Firestore once internet is restored. Works across app restarts.
+  if (!kIsWeb) {
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED, // no size limit on local cache
+    );
+    debugPrint('✅ Firestore offline persistence enabled');
+  }
+
   // ── OneSignal: initialize and request permission (skip on web for now) ──
   if (!kIsWeb) {
     OneSignal.initialize('c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea');
@@ -41,20 +52,55 @@ void main() async {
     if (user != null) {
       OneSignal.login(user.uid);
       debugPrint('✅ OneSignal auto-login with UID: ${user.uid}');
-      // Save subscription ID after a short delay to let OneSignal register
-      Future.delayed(const Duration(seconds: 3), () async {
-        try {
-          final subId = OneSignal.User.pushSubscription.id;
-          if (subId != null && subId.isNotEmpty) {
+
+      // Ensure push is opted in (re-request permission if previously denied)
+      final isOptedIn = OneSignal.User.pushSubscription.optedIn ?? false;
+      if (!isOptedIn) {
+        final granted = await OneSignal.Notifications.requestPermission(true);
+        if (granted) await OneSignal.User.pushSubscription.optIn();
+        debugPrint(granted ? '✅ Push re-opted in on restart' : '❌ Push permission denied on restart');
+      }
+
+      // Save/refresh subscription ID — use observer as primary, immediate check as fast path
+      Future(() async {
+        Future<void> persistSubId(String subId) async {
+          try {
             await FirebaseFirestore.instance
                 .collection('users')
                 .doc(user.uid)
                 .update({'oneSignalId': subId});
             debugPrint('✅ OneSignal subscription ID saved on restart: $subId');
+          } catch (e) {
+            debugPrint('⚠️ Could not save OneSignal ID on restart: $e');
           }
-        } catch (e) {
-          debugPrint('⚠️ Could not save OneSignal ID on restart: $e');
         }
+
+        // Immediate check — ID already assigned (returning user)
+        final existing = OneSignal.User.pushSubscription.id;
+        if (existing != null && existing.isNotEmpty) {
+          await persistSubId(existing);
+          return;
+        }
+
+        // Wait for OneSignal to assign it (first install or token expired)
+        debugPrint('⏳ Waiting for OneSignal to assign subscription ID on restart...');
+        OneSignal.User.pushSubscription.addObserver((state) {
+          final newId = state.current.id;
+          if (newId == null || newId.isEmpty) return;
+          persistSubId(newId);
+        });
+      });
+
+      // Watch for subscription ID changes (e.g. after token rotation)
+      OneSignal.User.pushSubscription.addObserver((state) {
+        final newId = state.current.id;
+        if (newId == null || newId.isEmpty) return;
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({'oneSignalId': newId})
+            .then((_) => debugPrint('🔄 OneSignal sub ID updated: $newId'))
+            .catchError((e) => debugPrint('⚠️ Sub ID update failed: $e'));
       });
     }
 
@@ -84,7 +130,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'JA Noble',
+      title: 'AutoPro',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE8001C)),

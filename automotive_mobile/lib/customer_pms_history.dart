@@ -97,9 +97,10 @@ class _CustomerPmsState extends State<CustomerPms> {
   static const _bg  = Color(0xFFF7F8FA);
 
   String _userName = '';
+  String _companyName = '';
 
   // Search state lives here — NOT rebuilt by StreamBuilder
-  final _searchCtrl = TextEditingController();
+  final _searchCtrl     = TextEditingController();
   final _searchNotifier = ValueNotifier<String>('');
 
   @override
@@ -119,7 +120,10 @@ class _CustomerPmsState extends State<CustomerPms> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    if (mounted) setState(() => _userName = doc['name'] as String? ?? '');
+    if (mounted) setState(() {
+      _userName = doc['name'] as String? ?? '';
+      _companyName = doc.data()?['companyName'] as String? ?? '';
+    });
   }
 
   @override
@@ -143,8 +147,13 @@ class _CustomerPmsState extends State<CustomerPms> {
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('vehicles').snapshots(),
               builder: (_, snap) {
+                final uname = _userName.toLowerCase();
+                final cname = _companyName.toLowerCase();
                 final count = (snap.data?.docs ?? [])
-                    .where((d) => (d['owner'] as String? ?? '').toLowerCase() == _userName.toLowerCase())
+                    .where((d) {
+                      final owner = (d['owner'] as String? ?? '').toLowerCase();
+                      return owner == uname || (cname.isNotEmpty && owner == cname);
+                    })
                     .length;
                 return Text('$count vehicle${count != 1 ? 's' : ''}',
                   style: const TextStyle(fontSize: 12, color: Color(0xFF718096)));
@@ -293,6 +302,7 @@ class _CustomerPmsBody extends StatefulWidget {
 
 class _CustomerPmsBodyState extends State<_CustomerPmsBody> {
   String _userName = '';
+  String _companyName = '';
 
   @override
   void initState() {
@@ -304,7 +314,10 @@ class _CustomerPmsBodyState extends State<_CustomerPmsBody> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    if (mounted) setState(() => _userName = doc['name'] as String? ?? '');
+    if (mounted) setState(() {
+      _userName = doc['name'] as String? ?? '';
+      _companyName = doc.data()?['companyName'] as String? ?? '';
+    });
   }
 
   @override
@@ -320,10 +333,13 @@ class _CustomerPmsBodyState extends State<_CustomerPmsBody> {
           return const Center(child: CircularProgressIndicator());
         }
 
+        final uname = _userName.toLowerCase();
+        final cname = _companyName.toLowerCase();
         final allVehicles = (vSnap.data?.docs ?? [])
-            .where((d) =>
-                (d['owner'] as String? ?? '').toLowerCase() ==
-                _userName.toLowerCase())
+            .where((d) {
+              final owner = (d['owner'] as String? ?? '').toLowerCase();
+              return owner == uname || (cname.isNotEmpty && owner == cname);
+            })
             .toList();
 
         return ValueListenableBuilder<String>(

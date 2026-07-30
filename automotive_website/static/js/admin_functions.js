@@ -202,9 +202,11 @@ function renderAssetsList() {
     var assetsList = document.getElementById('assetsList');
     if (!assetsList) return;
     var assets = window.assets || [];
+    // Keep "Loading..." until Firebase has fired at least once
+    if (!window._fbVehiclesLoaded && assetsList.innerHTML.indexOf('Loading') !== -1) return;
 
     if (assets.length === 0) {
-        assetsList.innerHTML = '<div class="table-row" style="text-align:center;color:#718096;padding:2rem;">No assets found.</div>';
+        assetsList.innerHTML = '<div class="table-row" style="text-align:center;color:#718096;padding:2rem;">No vehicles found.</div>';
         return;
     }
 
@@ -474,73 +476,16 @@ function deleteAsset(assetNum) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    var addAssetForm = document.getElementById('addAssetForm');
-    if (addAssetForm) {
-        addAssetForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            var form = e.target;
-            var assets = window.assets || [];
-            var plateNum = form.elements.plateNumber.value.trim().toUpperCase();
-            var assetDesc = form.elements.assetDescription.value.trim();
-            var assetType = form.elements.assetType.value.trim().toLowerCase();
-            var owner = form.elements.ownerName.value.trim();
-            var odometer = parseInt(form.elements.currentOdometer.value) || 0;
-            var lastServiceOdo = parseInt(form.elements.lastServiceOdometer.value) || 0;
-            var serviceFreq = parseInt(form.elements.serviceFrequency.value) || null;
-
-            var lastServiceDate = null;
-            var nextPMSDue = null;
-            if (serviceFreq) {
-                lastServiceDate = new Date().toISOString().split('T')[0];
-                var next = new Date();
-                next.setMonth(next.getMonth() + serviceFreq);
-                nextPMSDue = next.toISOString().split('T')[0];
-            }
-
-            var typeIcons = { truck:'🚛', car:'🚗' };
-            var icon = typeIcons[assetType] || '🚗';
-
-            if (currentEditingAsset) {
-                var asset = assets.find(function(a){ return a.assetNum === currentEditingAsset.assetNum; });
-                if (asset) {
-                    asset.plateNumber = plateNum;
-                    asset.assetDescription = assetDesc;
-                    asset.type = assetType;
-                    asset.icon = icon;
-                    asset.owner = owner;
-                    asset.odometer = odometer;
-                    asset.lastServiceOdometer = lastServiceOdo;
-                    asset.serviceFrequency = serviceFreq;
-                    if (serviceFreq && !asset.nextPMSDue) asset.nextPMSDue = nextPMSDue;
-                }
-                showToast('Vehicle updated successfully!', 'success');
-            } else {
-                var newAsset = {
-                    id: nextAssetId, assetNum: 'ASSET-' + String(nextAssetId).padStart(3,'0'),
-                    plateNumber: plateNum, assetDescription: assetDesc, type: assetType, icon: icon,
-                    owner: owner, odometer: odometer, lastServiceOdometer: lastServiceOdo, status: 'active',
-                    lastServiceDate: lastServiceDate, nextPMSDue: nextPMSDue,
-                    serviceFrequency: serviceFreq, assignedMechanic: null, image: null,
-                    meters: odometer ? [{ name:'Odometer', type:'continuous', value:String(odometer), unit:'km' }] : [],
-                    maintenanceHistory: []
-                };
-                assets.push(newAsset);
-                window.assets = assets;
-                nextAssetId++;
-                showToast('Vehicle added successfully!', 'success');
-            }
-            closeModal('addAssetModal');
-            renderAssetsList();
-        });
-    }
-});
+// ── Vehicle form submit is handled by the page-level script in admin_vehicle_list.html ──
+// (Firestore save logic lives there to avoid double-submit conflicts)
 
 // ── Services ────────────────────────────────────────────────
 function renderServicesList() {
     var list = document.getElementById('servicesList');
     if (!list) return;
     var serviceTransactions = window.serviceTransactions || [];
+    // Keep "Loading..." until Firebase has fired at least once
+    if (!window._fbServicesLoaded && list.innerHTML.indexOf('Loading') !== -1) return;
 
     updateServiceStats();
 
@@ -619,10 +564,24 @@ function renderServicesList() {
         }
         topActions += '<button class="btn-small btn-danger" onclick="deleteService(\''+s.serviceId+'\')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
 
-        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 1fr 1fr 1fr 160px;">'
+        var plate = s.assetNum || s.plate || '';
+        // Look up vehicle description from live vehicles data (stays in sync with edits)
+        var assetDesc = '';
+        if (plate) {
+            var vehicles = window.assets || [];
+            var matchedVeh = vehicles.find(function(v) {
+                return (v.plateNumber || v.plate || '').trim().toUpperCase() === plate.trim().toUpperCase();
+            });
+            if (matchedVeh) {
+                assetDesc = matchedVeh.assetDescription || matchedVeh.desc || '';
+            }
+        }
+        if (!assetDesc) assetDesc = s.assetDescription || '-';
+
+        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 1fr 1fr 1fr 120px;">'
             + '<div>' + (s.dateServiced ? new Date(s.dateServiced).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '-') + '</div>'
             + '<div><strong>' + (s.assetNum||'-') + '</strong></div>'
-            + '<div>' + (s.assetDescription||'-') + '</div>'
+            + '<div>' + assetDesc + '</div>'
             + '<div>' + (s.mechanicName||'-') + '</div>'
             + '<div>₱' + ((s.totalCost||0).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})) + '</div>'
             + '<div>' + statusBadge + '</div>'
@@ -1158,6 +1117,8 @@ function renderInventoryList() {
     var inventoryList = document.getElementById('inventoryList');
     if (!inventoryList) return;
     var inventory = window.inventory || [];
+    // Keep "Loading..." until real data arrives
+    if (!window._fbInventoryLoaded && inventoryList.innerHTML.indexOf('Loading') !== -1) return;
 
     var search = (document.getElementById('inventorySearch') || {}).value || '';
     var filtered = inventory;
@@ -1221,11 +1182,11 @@ function renderInventoryList() {
             : isOver
             ? '<span style="display:inline-block;background:rgba(128,90,213,0.07);color:#805ad5;border:1.5px solid #805ad5;padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">Over Max</span>'
             : '<span style="display:inline-block;background:rgba(56,161,105,0.07);color:#38a169;border:1.5px solid #38a169;padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">In Stock</span>';
-        return '<div class="table-row" style="grid-template-columns:100px 1.5fr 70px 140px 80px 80px 80px 90px 130px 110px;">'
-            + '<div><strong>' + item.itemNum + '</strong></div>'
+        return '<div class="table-row" style="grid-template-columns:1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 0.7fr 0.8fr 1fr 110px;min-width:900px;">'
+            + '<div><strong>' + (item.supplierCode || '—') + '</strong></div>'
             + '<div>' + item.itemName + '</div>'
             + '<div>' + (item.unit||'-') + '</div>'
-            + '<div style="text-align:center;">' + (item.commodityGroup||'-') + '</div>'
+            + '<div>' + (item.commodityGroup||'-') + '</div>'
             + '<div style="text-align:center;font-weight:700;color:'+(isOut?'#e53e3e':isLow?'#d69e2e':'#1a202c')+';">' + item.stock + '</div>'
             + '<div style="text-align:center;">' + (item.minLevel||0) + '</div>'
             + '<div style="text-align:center;">' + (item.maxLevel||0) + '</div>'
@@ -1471,6 +1432,13 @@ function openStaffReceiveDeliveryModal() {
 function renderInventoryTransactions(filter) {
     filter = filter || '';
 
+    // Show loading state if Firestore data hasn't arrived yet
+    if (typeof window._fbTransactions === 'undefined') {
+        var loadEl = document.getElementById('txnList');
+        if (loadEl) loadEl.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading transactions...</div>';
+        return;
+    }
+
     // Use Firebase transactions data
     var txns = (window._fbTransactions || []).map(function(t) {
         var rawDesc = (t.desc || t.description || '');
@@ -1528,6 +1496,23 @@ function renderInventoryTransactions(filter) {
             type: type,
             qty: t.qty || t.quantity || 0,
             by: t.by || t.performedBy || '—',
+            uom: (function() {
+                if (t.uom || t.unit) return t.uom || t.unit;
+                var itemName = (t.item || t.name || '').toLowerCase().trim();
+                var itemNum  = (t.itemNum || '').toLowerCase().trim();
+                var inv = window.inventory || [];
+                var found = inv.find(function(i) {
+                    return (i.itemName||'').toLowerCase() === itemName
+                        || (itemNum && (i.itemNum||'').toLowerCase() === itemNum);
+                });
+                if (found && (found.unit || found.uom)) return found.unit || found.uom;
+                var master = window.itemMaster || [];
+                var mf = master.find(function(i) {
+                    return (i.itemName||'').toLowerCase() === itemName
+                        || (itemNum && (i.itemNum||'').toLowerCase() === itemNum);
+                });
+                return (mf && mf.uom) ? mf.uom : '';
+            })(),
             commodityGroup: (function() {
                 // 1. Try direct field on the transaction document
                 if (t.commodityGroup) return t.commodityGroup;
@@ -1682,7 +1667,7 @@ function renderInventoryTransactions(filter) {
         var dateStr = _fmtTxnDate(t.date);
         return '<div class="table-row" style="grid-template-columns:120px 1fr 1fr 1.5fr 80px 80px 100px;">'
             + '<div>' + dateStr + '</div>'
-            + '<div><strong>' + t.item + '</strong></div>'
+            + '<div><strong>' + t.item + '</strong>' + (t.uom ? '<span style="font-size:0.75rem;color:#718096;margin-left:4px;">(' + t.uom + ')</span>' : '') + '</div>'
             + '<div>' + (t.commodityGroup || '—') + '</div>'
             + '<div>' + t.description + (t.assetLine ? '<div style="font-size:0.75rem;color:#718096;margin-top:2px;">' + t.assetLine + '</div>' : '') + '</div>'
             + '<div><span style="background:' + typeBg + ';color:' + typeColor + ';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">' + t.type + '</span></div>'
@@ -1702,6 +1687,8 @@ function renderItemMasterList() {
     var list = document.getElementById('itemMasterList');
     if (!list) return;
     var itemMaster = window.itemMaster || [];
+    // Keep "Loading..." until real data arrives
+    if (!window._fbItemMasterLoaded && list.innerHTML.indexOf('Loading') !== -1) return;
 
     var search = (document.getElementById('itemMasterSearch')||{}).value || '';
     var filtered = itemMaster;
@@ -1749,10 +1736,10 @@ function renderItemMasterList() {
     }
 
     var rows = filtered.map(function(item) {
-        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 1fr 1fr 1fr 1fr 120px;">'
+        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 110px;min-width:900px;">'
             + '<div><strong>' + item.itemNum + '</strong></div>'
+            + '<div>' + (item.supplierCode || '—') + '</div>'
             + '<div>' + item.itemName + '</div>'
-            + '<div>' + (item.description||'-') + '</div>'
             + '<div>' + (item.uom||'-') + '</div>'
             + '<div>' + (item.commodityGroup||'-') + '</div>'
             + '<div><span style="display:inline-block;background:'+(item.itemType==='Service'?'rgba(0,51,160,0.07)':'rgba(229,62,62,0.07)')+';color:'+(item.itemType==='Service'?'#0033A0':'#e53e3e')+';border:1.5px solid '+(item.itemType==='Service'?'#0033A0':'#e53e3e')+';padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">' + (item.itemType||'-') + '</span></div>'
@@ -1808,9 +1795,19 @@ function onItemMasterCommodityGroupChange(select) {
     } else if (val) {
         if (typeEl) typeEl.value = 'Material';
     }
-    var skuRow = document.getElementById('imSkuRow');
     var isService = (val === 'AutoService') || (typeEl && typeEl.value === 'Service');
-    if (skuRow) skuRow.style.display = isService ? 'none' : '';
+    // Auto-fill barcode/QR with supplier code for Spare Parts
+    if (val === 'Spare Parts') {
+        var scEl = document.getElementById('itemMasterSupplierCode');
+        var sc = scEl ? scEl.value.trim() : '';
+        if (sc) {
+            var form = document.getElementById('addItemMasterForm');
+            var barcodeEl = form ? form.elements['barcode'] : null;
+            var qrEl = form ? form.elements['qr'] : null;
+            if (barcodeEl && !barcodeEl.value) barcodeEl.value = sc;
+            if (qrEl && !qrEl.value) qrEl.value = sc;
+        }
+    }
 }
 
 function openAddItemMasterModal() {
@@ -1819,15 +1816,30 @@ function openAddItemMasterModal() {
     var submitBtn = document.getElementById('imSubmitBtn');
     if (submitBtn) submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
     document.getElementById('addItemMasterForm').reset();
+    // Clear duplicate name error
+    var nameErrEl = document.getElementById('imNameError');
+    if (nameErrEl) nameErrEl.style.display = 'none';
+    var nameInput = document.querySelector('#addItemMasterForm [name="itemName"]');
+    if (nameInput) { nameInput.style.borderColor = ''; nameInput.style.boxShadow = ''; }
+    // Clear supplier code field separately (not in standard form reset scope)
+    var supplierCodeEl = document.getElementById('itemMasterSupplierCode');
+    if (supplierCodeEl) supplierCodeEl.value = '';
+    var oemEl = document.getElementById('itemMasterOEM');
+    if (oemEl) oemEl.value = '';
     populateItemMasterDropdowns();
+    // Auto-generate next item number (number only, no prefix)
     var itemMaster = window.itemMaster || [];
-    // Find highest existing ITM-XXX number and increment — same as mobile app
     var maxNum = 0;
     itemMaster.forEach(function(i) {
         var n = parseInt((i.itemNum || '').replace(/[^0-9]/g, '')) || 0;
         if (n > maxNum) maxNum = n;
     });
-    document.getElementById('itemMasterItemNum').value = 'ITM-' + String(maxNum + 1).padStart(3, '0');
+    // Also check _fbItemMaster raw data for any nums not yet in itemMaster
+    (window._fbItemMaster || []).forEach(function(i) {
+        var n = parseInt((i.num || '').replace(/[^0-9]/g, '')) || 0;
+        if (n > maxNum) maxNum = n;
+    });
+    document.getElementById('itemMasterItemNum').value = String(maxNum + 1).padStart(3, '0');
     document.getElementById('addItemMasterModal').classList.add('active');
 }
 
@@ -1843,9 +1855,12 @@ function editItemMaster(itemNum) {
 
     var form = document.getElementById('addItemMasterForm');
     form.elements.itemNum.value = item.itemNum;
+    var supplierCodeEl = document.getElementById('itemMasterSupplierCode');
+    if (supplierCodeEl) supplierCodeEl.value = item.supplierCode || '';
+    var oemEl = document.getElementById('itemMasterOEM');
+    if (oemEl) oemEl.value = item.oem || '';
     form.elements.itemName.value = item.itemName || '';
-    form.elements.description.value = item.description || '';
-    form.elements.sku.value = item.sku || '';
+    if (form.elements.description) form.elements.description.value = item.description || '';
     form.elements.cost.value = item.cost || '';
     form.elements.itemType.value = item.itemType || '';
     // barcode and qrcode are now generated from the view modal — not in the add/edit form
@@ -1877,6 +1892,20 @@ function editItemMaster(itemNum) {
     });
 
     document.getElementById('addItemMasterModal').classList.add('active');
+
+    // Auto-fill barcode/QR with supplier code if group is Spare Parts
+    setTimeout(function() {
+        if (item.commodityGroup === 'Spare Parts') {
+            var form = document.getElementById('addItemMasterForm');
+            var sc = (item.supplierCode || '').trim();
+            if (sc && form) {
+                var barcodeEl = form.elements['barcode'];
+                var qrEl = form.elements['qr'];
+                if (barcodeEl) barcodeEl.value = sc;
+                if (qrEl) qrEl.value = sc;
+            }
+        }
+    }, 300);
 }
 
 function deleteItemMaster(itemNum) {
@@ -1938,8 +1967,9 @@ function viewItemMasterDetails(itemNum) {
     var isService = (item.itemType || '') === 'Service';
     var rows = [
         ['Item Number', item.itemNum || '—'],
+        ['Supplier Item Code', item.supplierCode || '—'],
+        ['OEM', item.oem || '—'],
     ];
-    if (!isService && item.sku) rows.push(['SKU', item.sku]);
     rows.push(
         ['Item Name', item.itemName || '—'],
         ['Description', item.description || '—'],
@@ -1991,8 +2021,8 @@ function generateItemMasterBarcode() {
 function generateItemMasterQRCode() {
     var el = document.getElementById('itemMasterQRCode');
     var num = document.getElementById('itemMasterItemNum');
-    // Format: QR-ITM-001 (uppercase, matches mobile format)
-    if (el) el.value = 'QR-' + (num ? num.value.toUpperCase() : 'ITM-' + Date.now());
+    // Format: QR-001 (number only, no ITM prefix)
+    if (el) el.value = 'QR-' + (num ? num.value.toUpperCase() : String(Date.now()));
 }
 
 function openItemMasterScanModal() {
@@ -2007,14 +2037,25 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             var form = e.target;
             var itemNum = form.elements.itemNum.value.trim();
+            var supplierCodeEl = document.getElementById('itemMasterSupplierCode');
+            var supplierCode = supplierCodeEl ? supplierCodeEl.value.trim() : '';
+            var oemEl = document.getElementById('itemMasterOEM');
+            var oem = oemEl ? oemEl.value.trim() : '';
             var itemName = form.elements.itemName.value.trim();
             if (!itemName) { alert('Item Name is required.'); return; }
+            // Block save if duplicate name error is visible
+            var nameErrEl = document.getElementById('imNameError');
+            if (nameErrEl && nameErrEl.style.display !== 'none') {
+                showToast('An item with this name already exists.', 'error');
+                return;
+            }
 
             var data = {
-                num:    itemNum,
-                name:   itemName,
-                desc:   form.elements.description.value.trim(),
-                sku:    form.elements.sku.value.trim(),
+                num:          itemNum,
+                supplierCode: supplierCode,
+                oem:          oem,
+                name:         itemName,
+                desc:   form.elements.description ? form.elements.description.value.trim() : '',
                 group:  form.elements.commodityGroup.value,
                 uom:    form.elements.uom.value,
                 cost:   parseFloat(form.elements.cost.value) || 0,
@@ -2027,29 +2068,51 @@ document.addEventListener('DOMContentLoaded', function() {
             if (currentEditingItemMaster) {
                 var fbItem = (window._fbItemMaster || []).find(function(i){ return i.num === currentEditingItemMaster.itemNum; });
                 if (!fbItem || !fbItem._id) { alert('Item not found in database.'); return; }
-                // SKU duplicate check on edit (exclude the current item being edited)
-                if (data.sku) {
-                    var skuDupeEdit = (window.itemMaster || []).some(function(i){
-                        return String(i.sku||'').trim() === String(data.sku).trim() && i.sku !== '' && i.itemNum !== currentEditingItemMaster.itemNum;
-                    });
-                    if (skuDupeEdit) { showToast('SKU "' + data.sku + '" is already used by another item.', 'error'); return; }
-                }
                 var submitBtn = document.getElementById('imSubmitBtn');
                 if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Updating…'; }
                 db.collection('item_master').doc(fbItem._id).update(data)
                     .then(function() {
                         showToast('Item updated successfully!', 'success');
                         closeModal('addItemMasterModal');
+                        // ── Sync matching stock_inventory record ──
+                        // Use the OLD num (before edit) to find the stock doc,
+                        // then update all mirrored fields with new values
+                        var oldNum = currentEditingItemMaster.itemNum || fbItem.num || '';
+                        if (oldNum) {
+                            db.collection('stock_inventory')
+                              .where('num', '==', oldNum)
+                              .limit(1).get()
+                              .then(function(snap) {
+                                  if (!snap.empty) {
+                                      var stockSync = {
+                                          num:          data.num  || oldNum,
+                                          supplierCode: data.supplierCode || '',
+                                          name:         data.name || '',
+                                          group:        data.group || '',
+                                          uom:          data.uom  || '',
+                                          updatedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+                                      };
+                                      snap.docs[0].ref.update(stockSync)
+                                          .then(function() { console.log('Stock inventory synced.'); })
+                                          .catch(function(e) { console.warn('Stock sync error:', e); });
+                                  }
+                              })
+                              .catch(function(e) { console.warn('Stock sync query error:', e); });
+                        }
                     })
                     .catch(function(err) { showToast('Update failed: ' + err.message, 'error'); })
                     .finally(function() { if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update'; } });
             } else {
                 var isDuplicate = (window.itemMaster || []).some(function(i){ return i.itemNum === itemNum; });
                 if (isDuplicate) { alert('Item Number already exists.'); return; }
-                // SKU duplicate check (only if SKU is provided)
-                if (data.sku) {
-                    var skuDupe = (window.itemMaster || []).some(function(i){ return String(i.sku||'').trim() === String(data.sku).trim() && i.sku !== ''; });
-                    if (skuDupe) { showToast('SKU "' + data.sku + '" is already used by another item.', 'error'); return; }
+                // Check for duplicate item name (case-insensitive)
+                var nameLower = (data.name || '').toLowerCase().trim();
+                var isDuplicateName = (window.itemMaster || []).some(function(i){
+                    return (i.itemName || '').toLowerCase().trim() === nameLower;
+                });
+                if (isDuplicateName) {
+                    showToast('An item with this name already exists.', 'error');
+                    return;
                 }
                 data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 var submitBtn2 = document.getElementById('imSubmitBtn');
@@ -2058,14 +2121,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(function() {
                         showToast('Item added successfully!', 'success');
                         closeModal('addItemMasterModal');
-                        // Auto-open Set Stock Levels modal for Material items
-                        if (data.type === 'Material') {
+                        // Auto-open Set Stock Levels modal for Material items only
+                        // Skip for AutoService group — these are services, not stocked materials
+                        if (data.type === 'Material' && data.group !== 'AutoService') {
                             setTimeout(function() {
                                 _addFoundMaster = {
                                     itemNum: data.num,
                                     itemName: data.name,
                                     commodityGroup: data.group,
                                     uom: data.uom,
+                                    supplierCode: data.supplierCode || '',
                                 };
                                 // Open stock modal inline — pre-fill item info
                                 var srchEl = document.getElementById('invItemSearch');
@@ -2080,7 +2145,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (previewInfo) {
                                     previewInfo.innerHTML =
                                         '<div style="display:grid;grid-template-columns:110px 1fr;gap:0.3rem 0;">'
-                                        + '<span style="color:#718096;font-size:0.78rem;">Item Number</span><span style="font-weight:600;font-size:0.83rem;">' + data.num + '</span>'
+                                        + '<span style="color:#718096;font-size:0.78rem;">Supplier Item Code</span><span style="font-weight:600;font-size:0.83rem;">' + (data.supplierCode || '—') + '</span>'
                                         + '<span style="color:#718096;font-size:0.78rem;">Item Name</span><span style="font-weight:600;font-size:0.83rem;">' + data.name + '</span>'
                                         + '<span style="color:#718096;font-size:0.78rem;">Group</span><span style="font-weight:600;font-size:0.83rem;">' + (data.group||'—') + '</span>'
                                         + '<span style="color:#718096;font-size:0.78rem;">UOM</span><span style="font-weight:600;font-size:0.83rem;">' + (data.uom||'—') + '</span>'
@@ -2113,6 +2178,13 @@ document.addEventListener('DOMContentLoaded', function() {
 function renderIssuancesList() {
     var list = document.getElementById('issuancesList');
     if (!list) return;
+
+    // Show loading state if Firestore data hasn't arrived yet
+    if (typeof window._fbIssuances === 'undefined') {
+        list.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading issuances...</div>';
+        return;
+    }
+
     var issuances = window.issuances || [];
 
     var s = function(id,val){ var el=document.getElementById(id); if(el) el.textContent=val; };
@@ -2241,7 +2313,20 @@ function renderIssuancesList() {
     });
 
     var rows = filtered.map(function(i) {
-        var assetDesc = i.assetDescription || '';
+        // Look up vehicle description from live vehicles data (stays in sync with edits)
+        var plate = (i.assetNum || i.plate || '').trim().toUpperCase();
+        var assetDesc = '';
+        if (plate) {
+            var vehicles = window.assets || [];
+            var matchedVeh = vehicles.find(function(v) {
+                return (v.plateNumber || v.plate || '').trim().toUpperCase() === plate;
+            });
+            if (matchedVeh) {
+                assetDesc = matchedVeh.assetDescription || matchedVeh.desc || '';
+            }
+        }
+        // Fallback to stored value if no vehicle match found
+        if (!assetDesc) assetDesc = i.assetDescription || '';
         var _ISS_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         function _fmtIssDate(d) {
             if (!d) return '—';
@@ -2280,6 +2365,9 @@ function deleteIssuance(id) {
 // ── Users ───────────────────────────────────────────────────
 function renderUsersList() {
     var allUsers = window.users || [];
+    var userCardsList = document.getElementById('userCardsList');
+    // Keep "Loading..." until Firebase has fired at least once
+    if (!window._fbUsersLoaded && userCardsList && userCardsList.innerHTML.indexOf('Loading') !== -1) return;
     var search = (document.getElementById('userSearch')||{}).value || '';
 
     // Split pending vs non-pending
@@ -2303,7 +2391,8 @@ function renderUsersList() {
         filtered = nonPending.filter(function(u){
             return (u.name||'').toLowerCase().includes(q)
                 || (u.username||'').toLowerCase().includes(q)
-                || (u.email||'').toLowerCase().includes(q);
+                || (u.email||'').toLowerCase().includes(q)
+                || (u.companyName||'').toLowerCase().includes(q);
         });
     }
 
@@ -2312,6 +2401,16 @@ function renderUsersList() {
     if (userFilter !== 'all') {
         filtered = filtered.filter(function(u){ return (u.role||'').toLowerCase() === userFilter; });
     }
+
+    // Apply sort
+    var sortBy = (document.getElementById('userSortBy')||{}).value || 'name-asc';
+    filtered.sort(function(a, b) {
+        switch (sortBy) {
+            case 'name-desc':  return (b.name||'').localeCompare(a.name||'');
+            case 'email-asc':  return (a.email||'').localeCompare(b.email||'');
+            default:           return (a.name||'').localeCompare(b.name||'');
+        }
+    });
 
     var s = function(id,val){ var el=document.getElementById(id); if(el) el.textContent=val; };
     s('userStatTotal', allUsers.length);
@@ -2336,10 +2435,11 @@ function renderUsersList() {
         var statusBadge = '<span style="background:'+statusColor+'20;color:'+statusColor+';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">'+statusLabel+'</span>';
         var roleLabel = (u.role||'');
         roleLabel = roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1);
-        return '<div class="table-row" style="grid-template-columns:40px 2fr 2fr 1fr 1fr 140px;">'
+        return '<div class="table-row" style="grid-template-columns:40px 2fr 2fr 1.5fr 1fr 1fr 140px;">'
             + '<div style="color:#a0aec0;font-size:0.85rem;">' + (idx+1) + '</div>'
             + '<div><strong>' + (u.name||'—') + '</strong></div>'
             + '<div style="color:#718096;font-size:0.85rem;">' + (u.email||'—') + '</div>'
+            + '<div style="color:#4a5568;font-size:0.85rem;">' + (u.companyName||'—') + '</div>'
             + '<div><span style="background:'+roleColor+'20;color:'+roleColor+';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">' + roleLabel + '</span></div>'
             + '<div>' + statusBadge + '</div>'
             + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;">'

@@ -94,10 +94,10 @@
             </div>
             <div class="data-table">
                 <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr 120px;">
-                    <div>Plate Number</div><div>Vehicle Type</div><div>Owner</div>
+                    <div>Plate Number</div><div>Vehicle Type</div><div>Owner / Company Name</div>
                     <div>Odometer (km)</div><div>KM Since Last Service</div><div>Last Service Date</div><div>Next PMS Due</div><div>Actions</div>
                 </div>
-                <div id="assetsList"></div>
+                <div id="assetsList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading vehicles...</div></div>
             </div>
         </div>
     </div>
@@ -122,8 +122,9 @@
         <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;">
             <div style="background:white;border-radius:14px;padding:1rem 1.25rem;border:1px solid #e2e8f0;" id="adDetailRows"></div>
         </div>
-        <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;flex-shrink:0;">
-            <button id="adEditBtn" style="width:100%;padding:0.8rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.95rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
+        <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;flex-shrink:0;display:flex;gap:0.75rem;">
+            <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('assetDetailsModal')">Cancel</button>
+            <button id="adEditBtn" style="flex:1;padding:0.8rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.95rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 Edit Vehicle
             </button>
@@ -142,41 +143,37 @@
             <button onclick="closeModal('addAssetModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
         </div>
         <form id="addAssetForm" style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:0.85rem;">
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Plate Number *</label>
-                <input type="text" name="plateNumber" placeholder="e.g. ABC-1234" required
+            <div class="fl-field">
+                <input type="text" name="plateNumber" placeholder=" " required
                     maxlength="8"
-                    style="margin-top:0.3rem;text-transform:uppercase;"
+                    style="text-transform:uppercase;"
                     oninput="formatPlateNumber(this)"
                     onkeydown="return filterPlateKey(event, this)">
+                <label>Plate Number *</label>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Description *</label>
-                <input type="text" name="assetDescription" placeholder="e.g. Isuzu Truck NQR 2021" required style="margin-top:0.3rem;">
+            <div class="fl-field">
+                <input type="text" name="assetDescription" placeholder=" " required>
+                <label>Description *</label>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Vehicle Type</label>
-                <select name="assetType" id="assetTypeSelect" style="margin-top:0.3rem;">
+            <div class="fl-field has-value">
+                <select name="assetType" id="assetTypeSelect">
                     <option value="">Select type</option>
                     <option value="Truck">Truck</option>
                     <option value="Car">Car</option>
                     <option value="Van">Van</option>
                     <option value="Motorcycle">Motorcycle</option>
                 </select>
+                <label>Vehicle Type</label>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Owner</label>
-                <div style="position:relative;margin-top:0.3rem;">
-                    <svg style="position:absolute;left:0.65rem;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    <input type="text" name="ownerName" id="ownerNameInput" placeholder="Search customer name..." autocomplete="off"
-                        style="width:100%;padding:0.55rem 0.75rem 0.55rem 2.1rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.83rem;box-sizing:border-box;"
-                        oninput="ownerNameLookup(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();}">
-                </div>
-                <div id="ownerNameSuggestions" style="display:none;background:white;border:1px solid #e2e8f0;border-radius:8px;margin-top:2px;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:100;position:relative;"></div>
+            <div class="fl-field">
+                <input type="text" name="ownerName" id="ownerNameInput" placeholder=" " autocomplete="off"
+                    oninput="ownerNameLookup(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();}">
+                <label>Owner Name or Company Name</label>
+                <div id="ownerNameSuggestions" style="display:none;background:white;border:1px solid #e2e8f0;border-radius:8px;margin-top:2px;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:100;position:absolute;left:0;right:0;top:100%;"></div>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Current Odometer (km)</label>
-                <input type="number" name="currentOdometer" id="currentOdometerInput" placeholder="e.g. 45000" min="0" style="margin-top:0.3rem;" oninput="onOdometerInput()">
+            <div class="fl-field">
+                <input type="number" name="currentOdometer" id="currentOdometerInput" placeholder=" " min="0" oninput="onOdometerInput()">
+                <label>Current Odometer (km)</label>
             </div>
 
             <!-- Just Serviced Toggle -->
@@ -187,18 +184,18 @@
 
             <!-- Last Service Fields — hidden until checkbox is ticked -->
             <div id="lastServiceSection" style="display:none;grid-template-columns:1fr 1fr;gap:0.75rem;">
-                <div class="form-group" style="margin:0;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Last Service Date</label>
-                    <input type="date" name="lastServiceDate" id="lastServiceDateInput" style="margin-top:0.3rem;">
+                <div class="fl-field">
+                    <input type="date" name="lastServiceDate" id="lastServiceDateInput" placeholder=" ">
+                    <label>Last Service Date</label>
                 </div>
-                <div class="form-group" style="margin:0;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Last Service Odometer (km)</label>
-                    <input type="number" name="lastServiceOdometer" id="lastServiceOdoInput" placeholder="e.g. 44500" min="0" style="margin-top:0.3rem;">
+                <div class="fl-field">
+                    <input type="number" name="lastServiceOdometer" id="lastServiceOdoInput" placeholder=" " min="0">
+                    <label>Last Service Odometer (km)</label>
                 </div>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Service Frequency (months)</label>
-                <input type="number" name="serviceFrequency" placeholder="e.g. 3" min="1" style="margin-top:0.3rem;">
+            <div class="fl-field">
+                <input type="number" name="serviceFrequency" placeholder=" " min="1">
+                <label>Service Frequency (months)</label>
             </div>
             <div style="display:flex;gap:0.75rem;padding-top:0.5rem;">
                 <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('addAssetModal')">Cancel</button>
@@ -212,7 +209,69 @@
 </div>
 
 <div id="toast"></div>
-<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+/* ── Floating label fields ── */
+.fl-field {
+    position: relative;
+    width: 100%;
+}
+.fl-field input,
+.fl-field select {
+    width: 100%;
+    padding: 1rem 1rem 0.4rem 1rem;
+    border: 1.5px solid #c5cdd9;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    color: #1a202c;
+    background: white;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+}
+.fl-field select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a0aec0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    padding-right: 2.2rem;
+}
+.fl-field input:focus,
+.fl-field select:focus {
+    border-color: #E31E24;
+    box-shadow: 0 0 0 3px rgba(227, 30, 36, 0.12);
+}
+.fl-field > label {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.88rem;
+    color: #a0aec0;
+    pointer-events: none;
+    transition: all 0.18s ease;
+    background: white;
+    padding: 0 0.2rem;
+    line-height: 1;
+}
+.fl-field input:focus ~ label,
+.fl-field input:not(:placeholder-shown) ~ label,
+.fl-field select:focus ~ label,
+.fl-field.has-value > label {
+    top: 0;
+    transform: translateY(-50%);
+    font-size: 0.72rem;
+    color: #718096;
+}
+.fl-field input:focus ~ label,
+.fl-field select:focus ~ label {
+    color: #E31E24;
+}
+.fl-field input::placeholder { color: transparent; }
+</style>
 
 <script src="../static/js/data.js"></script>
 
@@ -234,7 +293,7 @@
 </script>
 <script src="../static/js/admin_firebase.js"></script>
 
-<script src="../static/js/admin_functions.js?v=202606150001"></script>
+<script src="../static/js/admin_functions.js?v=202607180001"></script>
 <script src="../static/js/admin.js"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script>
@@ -386,7 +445,7 @@
       _vehDetailRow('Plate Number', asset.plateNumber || asset.plate)
       + _vehDetailRow('Description', asset.assetDescription || asset.desc)
       + _vehDetailRow('Vehicle Type', asset.type)
-      + _vehDetailRow('Owner', asset.owner)
+      + _vehDetailRow('Owner Name / Company Name', asset.owner)
       + _vehDetailRow('Current Odometer', asset.odometer ? asset.odometer.toLocaleString() + ' km' : (asset.odo || '—'))
       + _vehDetailRow('Last Service Date', _fmtDate(lastSvcDateVal))
       + _vehDetailRow('Last Service Odometer', lastSvcOdoVal ? Number(lastSvcOdoVal).toLocaleString() + ' km' : '—')
@@ -470,6 +529,13 @@
 
   document.addEventListener('DOMContentLoaded', function() {
     var form = document.getElementById('addAssetForm');
+    // Keep select fl-field label floated when value is chosen
+    document.querySelectorAll('#addAssetModal .fl-field select').forEach(function(sel) {
+      sel.addEventListener('change', function() {
+        var wrap = sel.closest('.fl-field');
+        if (wrap) wrap.classList.toggle('has-value', sel.value !== '');
+      });
+    });
     if (!form) return;
     form.addEventListener('submit', function(e) {
       e.preventDefault();
@@ -502,40 +568,53 @@
       }
 
       var db = firebase.firestore();
+      var _savedEditingId = _editingVehicleId; // capture at submit time to avoid race
 
       // Resolve ownerId from owner name so PMS notifications can target the customer
       function _saveVehicle(extraData) {
         var finalData = Object.assign({}, data, extraData || {});
-        if (_editingVehicleId) {
+        if (_savedEditingId) {
+          // ── EDIT MODE ──
           var vBtn = document.getElementById('assetSubmitBtn');
           if (vBtn) { vBtn.disabled = true; vBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Updating…'; }
-          db.collection('vehicles').doc(_editingVehicleId).update(finalData)
+          db.collection('vehicles').doc(_savedEditingId).update(finalData)
             .then(function() { closeModal('addAssetModal'); showToast('Vehicle updated successfully!', 'success'); })
             .catch(function(err) { showToast('Update failed: ' + err.message, 'error'); })
             .finally(function() { if (vBtn) { vBtn.disabled = false; vBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update'; } });
         } else {
+          // ── ADD MODE ──
           var vBtn2 = document.getElementById('assetSubmitBtn');
           db.collection('vehicles').where('plate', '==', plate).limit(1).get().then(function(snap) {
-            if (!snap.empty) { showToast('A vehicle with this plate already exists.', 'error'); return; }
+            if (!snap.empty) { showToast('A vehicle with this plate already exists.', 'error'); return Promise.reject('duplicate'); }
             if (vBtn2) { vBtn2.disabled = true; vBtn2.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving…'; }
             finalData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             finalData.status = 'Active';
             return db.collection('vehicles').add(finalData);
           }).then(function(ref) {
             if (ref) { closeModal('addAssetModal'); showToast('Vehicle added successfully!', 'success'); }
-          }).catch(function(err) { showToast('Save failed: ' + err.message, 'error'); })
-          .finally(function() { if (vBtn2) { vBtn2.disabled = false; vBtn2.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save'; } });
+          }).catch(function(err) {
+            if (err !== 'duplicate') showToast('Save failed: ' + (err.message || err), 'error');
+          }).finally(function() { if (vBtn2) { vBtn2.disabled = false; vBtn2.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save'; } });
         }
       }
 
-      // Look up customer UID by name and attach as ownerId
+      // Look up customer UID by name AND company name, then attach as ownerId
       if (ownerName) {
+        // Search by name first, then by companyName
         db.collection('users')
-          .where('name', '==', ownerName)
           .where('role', '==', 'customer')
-          .limit(1).get()
+          .get()
           .then(function(snap) {
-            var ownerId = snap.empty ? '' : snap.docs[0].id;
+            var ownerId = '';
+            var ownerLower = ownerName.toLowerCase();
+            snap.docs.forEach(function(d) {
+              if (ownerId) return;
+              var udata = d.data();
+              if ((udata.name || '').toLowerCase() === ownerLower ||
+                  (udata.companyName || '').toLowerCase() === ownerLower) {
+                ownerId = d.id;
+              }
+            });
             _saveVehicle({ ownerId: ownerId });
           })
           .catch(function() { _saveVehicle({}); });
@@ -554,10 +633,15 @@
     return firebase.firestore().collection('users')
       .where('role', '==', 'customer').get()
       .then(function(snap) {
-        _ownerNames = snap.docs
-          .map(function(d) { return d.data().name || ''; })
-          .filter(function(n) { return n.trim() !== ''; })
-          .sort();
+        _ownerNames = [];
+        snap.docs.forEach(function(d) {
+          var data = d.data();
+          var name = data.name || '';
+          var company = data.companyName || '';
+          if (name.trim()) _ownerNames.push(name);
+          if (company.trim() && !_ownerNames.includes(company)) _ownerNames.push(company);
+        });
+        _ownerNames.sort();
         _ownerNamesLoaded = true;
       }).catch(function() {});
   }
@@ -604,31 +688,29 @@
     if (typeof _origOpenAddAssetModal === 'function') _origOpenAddAssetModal();
   };
 
-  // ── Plate number formatter: AAA-1234 ──────────────────────
+  // ── Plate number formatter: AAA 1234 ─────────────────────
   function formatPlateNumber(input) {
+    // Store cursor position before we mess with the value
     var raw = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    var result = '';
-    var letters = 0, digits = 0;
-    for (var i = 0; i < raw.length; i++) {
-      var ch = raw[i];
-      if (letters < 3 && /[A-Z]/.test(ch)) {
-        result += ch; letters++;
-        if (letters === 3) result += '-';
-      } else if (letters === 3 && digits < 4 && /[0-9]/.test(ch)) {
-        result += ch; digits++;
-      }
-    }
+    var letters = raw.replace(/[^A-Z]/g, '').substring(0, 3);
+    var digits  = raw.replace(/[^0-9]/g, '').substring(0, 4);
+    var result = letters + (digits.length > 0 ? ' ' + digits : (letters.length === 3 && input._addSpace ? ' ' : ''));
     input.value = result;
+    input._addSpace = false;
   }
 
   function filterPlateKey(e, input) {
-    var val = input.value;
-    var letters = val.replace(/[^A-Z]/gi, '').length;
-    var digits  = val.replace(/[^0-9]/g, '').length;
     var key = e.key;
-    // Always allow control keys
-    if (key.length > 1) return true;
-    if (letters < 3 && /[a-zA-Z]/.test(key)) return true;
+    // Always allow: backspace, delete, tab, arrows, home, end, ctrl+A/C/V/X
+    if (key.length > 1 || e.ctrlKey || e.metaKey) return true;
+    var raw = input.value.replace(/[^A-Z0-9]/gi, '');
+    var letters = raw.replace(/[^A-Z]/gi, '').length;
+    var digits  = raw.replace(/[^0-9]/g, '').length;
+    if (letters < 3 && /[a-zA-Z]/.test(key)) {
+      // If this will complete the 3 letters, flag to add space
+      if (letters === 2) input._addSpace = true;
+      return true;
+    }
     if (letters >= 3 && digits < 4 && /[0-9]/.test(key)) return true;
     e.preventDefault(); return false;
   }

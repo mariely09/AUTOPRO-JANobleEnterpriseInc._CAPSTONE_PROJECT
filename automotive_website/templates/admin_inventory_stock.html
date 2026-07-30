@@ -54,8 +54,8 @@
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
                     <select id="invSortSelect" onchange="renderInventoryList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
-                        <option value="num-asc">Item No. (Ascending)</option>
-                        <option value="num-desc">Item No. (Descending)</option>
+                        <option value="num-asc">Supplier Code (Ascending)</option>
+                        <option value="num-desc">Supplier Code (Descending)</option>
                         <option value="name-asc">Name A→Z</option>
                         <option value="name-desc">Name Z→A</option>
                         <option value="stock-desc">Stock ↑ Highest</option>
@@ -140,12 +140,12 @@
                     </div>
                 </div>
             </div>
-            <div class="data-table">
-                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:100px 1.5fr 70px 140px 80px 80px 80px 90px 130px 110px;">
-                    <div>Item No.</div><div>Item Name</div><div>UOM</div><div>Commodity Group</div><div style="white-space:nowrap;text-align:center;">Current Qty</div>
+            <div class="data-table" style="overflow-x:auto;">
+                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 0.7fr 0.8fr 1fr 110px;min-width:900px;">
+                    <div style="white-space:nowrap;">Supplier Item Code</div><div>Item Name</div><div>UOM</div><div style="white-space:nowrap;">Commodity Group</div><div style="white-space:nowrap;text-align:center;">Current Qty</div>
                     <div style="white-space:nowrap;text-align:center;">Min Level</div><div style="white-space:nowrap;text-align:center;">Max Level</div><div style="white-space:nowrap;text-align:center;">Reorder Qty</div><div style="text-align:center;">Status</div><div style="text-align:center;">Actions</div>
                 </div>
-                <div id="inventoryList"></div>
+                <div id="inventoryList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading inventory...</div></div>
             </div>
         </div>
     </div>
@@ -153,7 +153,102 @@
 </div>
 
 <div id="toast"></div>
-<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+<style>@keyframes spin { to { transform: rotate(360deg); } }
+/* ── Flutter-matched OutlineInputBorder field style for modals ── */
+#addInventoryModal input[type="number"],
+#addInventoryModal input[type="text"],
+#editInventoryModal input[type="number"],
+#editInventoryModal input[type="text"] {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    border: 1.5px solid #c5cdd9;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: #1a202c;
+    background: white;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    appearance: none;
+    -moz-appearance: textfield;
+}
+#addInventoryModal input[type="number"]:focus,
+#addInventoryModal input[type="text"]:focus,
+#editInventoryModal input[type="number"]:focus,
+#editInventoryModal input[type="text"]:focus {
+    border-color: #E31E24;
+    box-shadow: 0 0 0 3px rgba(227, 30, 36, 0.12);
+}
+#addInventoryModal input::placeholder,
+#editInventoryModal input::placeholder {
+    color: #a0aec0;
+    font-size: 0.88rem;
+}
+
+/* ── Floating label field ── */
+.fl-field {
+    position: relative;
+    width: 100%;
+}
+.fl-field input,
+.fl-field select {
+    width: 100%;
+    padding: 1rem 1rem 0.4rem 1rem;
+    border: 1.5px solid #c5cdd9;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    color: #1a202c;
+    background: white;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+}
+.fl-field select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a0aec0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    padding-right: 2.2rem;
+}
+.fl-field input:focus,
+.fl-field select:focus {
+    border-color: #E31E24;
+    box-shadow: 0 0 0 3px rgba(227, 30, 36, 0.12);
+}
+.fl-field label {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.88rem;
+    color: #a0aec0;
+    pointer-events: none;
+    transition: all 0.18s ease;
+    background: white;
+    padding: 0 0.2rem;
+    line-height: 1;
+}
+/* Float up when input has content or is focused */
+.fl-field input:focus ~ label,
+.fl-field input:not(:placeholder-shown) ~ label,
+.fl-field select:focus ~ label,
+.fl-field.has-value label {
+    top: 0;
+    transform: translateY(-50%);
+    font-size: 0.72rem;
+    color: #718096;
+}
+.fl-field input:focus ~ label,
+.fl-field select:focus ~ label {
+    color: #E31E24;
+}
+/* Hide the placeholder when floating label is used */
+.fl-field input::placeholder { color: transparent; }
+</style>
 
 <!-- ── View Stock Item Modal ── -->
 <div class="modal" id="inventoryDetailsModal">
@@ -170,8 +265,9 @@
         <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;">
             <div id="invDetailBody"></div>
         </div>
-        <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;flex-shrink:0;">
-            <button id="invDetailEditBtn" style="width:100%;padding:0.8rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.95rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
+        <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;flex-shrink:0;display:flex;gap:0.75rem;">
+            <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('inventoryDetailsModal')">Cancel</button>
+            <button id="invDetailEditBtn" style="flex:1;padding:0.8rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.95rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 Edit
             </button>
@@ -192,23 +288,23 @@
         <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
             <div style="background:white;border-radius:12px;padding:1rem 1.25rem;border:1px solid #e2e8f0;font-size:0.83rem;color:#4a5568;" id="editInvInfoBox"></div>
             <div style="font-size:0.85rem;font-weight:700;color:#1a202c;">Stock Level Settings</div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Current Quantity *</label>
-                <input type="number" id="editInvStock" min="0" style="margin-top:0.3rem;">
+            <div class="fl-field">
+                <input type="number" id="editInvStock" min="0" placeholder=" ">
+                <label>Current Quantity *</label>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-                <div class="form-group" style="margin:0;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Min Level *</label>
-                    <input type="number" id="editInvMin" min="0" style="margin-top:0.3rem;">
+                <div class="fl-field">
+                    <input type="number" id="editInvMin" min="0" placeholder=" " oninput="editInvCalcReorder()">
+                    <label>Min Level *</label>
                 </div>
-                <div class="form-group" style="margin:0;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Max Level *</label>
-                    <input type="number" id="editInvMax" min="0" style="margin-top:0.3rem;">
+                <div class="fl-field">
+                    <input type="number" id="editInvMax" min="0" placeholder=" " oninput="editInvCalcReorder()">
+                    <label>Max Level *</label>
                 </div>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Reorder Quantity *</label>
-                <input type="number" id="editInvReorder" min="0" style="margin-top:0.3rem;">
+            <div class="fl-field">
+                <input type="number" id="editInvReorder" min="0" placeholder=" " readonly style="background:#f7f8fa;cursor:default;">
+                <label>Reorder Quantity (auto)</label>
             </div>
         </div>
         <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
@@ -249,7 +345,7 @@
 </script>
 <script src="../static/js/admin_firebase.js"></script>
 
-<script src="../static/js/admin_functions.js?v=202606150001"></script>
+<script src="../static/js/admin_functions.js?v=202607180001"></script>
 <script src="../static/js/admin.js"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script src="../static/js/print_layout_header.js"></script>
@@ -268,7 +364,7 @@
         <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
             <div style="position:relative;">
                 <svg style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" id="invItemSearch" placeholder="Search item name, number, or group..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.9rem 0.65rem 2.2rem;font-size:0.88rem;outline:none;box-sizing:border-box;" oninput="stockSearchMasterItem(this.value)">
+                <input type="text" id="invItemSearch" placeholder="Search item name, number, supplier code..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.9rem 0.65rem 2.2rem;font-size:0.88rem;outline:none;box-sizing:border-box;" oninput="stockSearchMasterItem(this.value)">
             </div>
             <!-- Search results list -->
             <div id="invSearchResults" style="display:none;display:flex;flex-direction:column;gap:0.5rem;"></div>
@@ -286,23 +382,23 @@
             <!-- Stock level fields — shown after item found -->
             <div id="invStockFields" style="display:none;display:flex;flex-direction:column;gap:0.75rem;">
                 <div style="font-size:0.85rem;font-weight:700;color:#1a202c;">Stock Level Settings</div>
-                <div class="form-group" style="margin:0;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Current Quantity *</label>
-                    <input type="number" id="invStockQty" min="0" placeholder="e.g. 50" style="margin-top:0.3rem;">
+                <div class="fl-field">
+                    <input type="number" id="invStockQty" min="0" placeholder=" ">
+                    <label>Current Quantity *</label>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-                    <div class="form-group" style="margin:0;">
-                        <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Min Level *</label>
-                        <input type="number" id="invStockMin" min="0" placeholder="e.g. 10" style="margin-top:0.3rem;">
+                    <div class="fl-field">
+                        <input type="number" id="invStockMin" min="0" placeholder=" " oninput="invCalcReorder()">
+                        <label>Min Level *</label>
                     </div>
-                    <div class="form-group" style="margin:0;">
-                        <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Max Level *</label>
-                        <input type="number" id="invStockMax" min="0" placeholder="e.g. 100" style="margin-top:0.3rem;">
+                    <div class="fl-field">
+                        <input type="number" id="invStockMax" min="0" placeholder=" " oninput="invCalcReorder()">
+                        <label>Max Level *</label>
                     </div>
                 </div>
-                <div class="form-group" style="margin:0;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Reorder Quantity *</label>
-                    <input type="number" id="invStockReorder" min="0" placeholder="e.g. 20" style="margin-top:0.3rem;">
+                <div class="fl-field">
+                    <input type="number" id="invStockReorder" min="0" placeholder=" " readonly style="background:#f7f8fa;cursor:default;">
+                    <label>Reorder Quantity (auto)</label>
                 </div>
             </div>
         </div>
@@ -359,6 +455,30 @@ window._invPopulateCommodityFilterDropdown = function() {
 
 document.addEventListener('DOMContentLoaded', function() {
     window._invPopulateCommodityFilterDropdown();
+    // ── One-time backfill: write supplierCode to stock_inventory docs that are missing it ──
+    setTimeout(function() {
+        if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return;
+        var db = firebase.firestore();
+        db.collection('stock_inventory').get().then(function(stockSnap) {
+            stockSnap.docs.forEach(function(doc) {
+                var data = doc.data();
+                if (data.supplierCode !== undefined && data.supplierCode !== '') return; // already set
+                var num = data.num || '';
+                if (!num) return;
+                // Look up supplierCode from item_master
+                db.collection('item_master').where('num', '==', num).limit(1).get()
+                    .then(function(masterSnap) {
+                        if (masterSnap.empty) return;
+                        var sc = masterSnap.docs[0].data().supplierCode || '';
+                        if (sc) {
+                            doc.ref.update({ supplierCode: sc })
+                                .catch(function(e) { console.warn('Backfill error:', e); });
+                        }
+                    })
+                    .catch(function() {});
+            });
+        }).catch(function() {});
+    }, 3000);
 });
 
 // ── Print Stock Inventory ──
@@ -440,17 +560,19 @@ window.printStockInventory = function() {
         var parts = decodeURIComponent(hash.substring(5)).split('|');
         if (parts.length >= 4) {
             setTimeout(function() {
+                var supplierCode = parts[4] || '';
                 _addFoundMaster = {
                     itemNum: parts[0],
                     itemName: parts[1],
                     commodityGroup: parts[2],
                     uom: parts[3],
+                    supplierCode: supplierCode,
                 };
                 // Open modal and pre-fill
                 document.getElementById('invItemSearch').value = parts[1];
                 document.getElementById('invPreviewInfo').innerHTML =
                     '<div style="display:grid;grid-template-columns:110px 1fr;gap:0.3rem 0;">'
-                    + '<span style="color:#718096;font-size:0.78rem;">Item Number</span><span style="font-weight:600;font-size:0.83rem;">' + parts[0] + '</span>'
+                    + '<span style="color:#718096;font-size:0.78rem;">Supplier Item Code</span><span style="font-weight:600;font-size:0.83rem;">' + (supplierCode || '—') + '</span>'
                     + '<span style="color:#718096;font-size:0.78rem;">Item Name</span><span style="font-weight:600;font-size:0.83rem;">' + parts[1] + '</span>'
                     + '<span style="color:#718096;font-size:0.78rem;">Group</span><span style="font-weight:600;font-size:0.83rem;">' + parts[2] + '</span>'
                     + '<span style="color:#718096;font-size:0.78rem;">UOM</span><span style="font-weight:600;font-size:0.83rem;">' + parts[3] + '</span>'
@@ -512,8 +634,8 @@ function stockSearchMasterItem(query) {
 
     var matches = master.filter(function(i) {
         return (i.itemName||'').toLowerCase().includes(q)
-            || (i.itemNum||'').toLowerCase().includes(q)
             || (i.commodityGroup||'').toLowerCase().includes(q)
+            || (i.supplierCode||'').toLowerCase().includes(q)
             || (i.barcode||'').toLowerCase() === q
             || (i.qrcode||'').toLowerCase() === q;
     });
@@ -530,9 +652,23 @@ function stockSearchMasterItem(query) {
     resultsEl.innerHTML = '<div style="font-size:0.75rem;color:#718096;margin-bottom:0.25rem;">' + matches.length + ' result' + (matches.length === 1 ? '' : 's') + ' — tap to select</div>'
         + matches.map(function(item) {
             var safeNum = (item.itemNum||'').replace(/'/g, "\\'");
-            return '<div onclick="invSelectItem(\'' + safeNum + '\')" style="background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.75rem 1rem;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'#E31E24\'" onmouseout="this.style.borderColor=\'#e2e8f0\'">'
-                + '<div style="font-weight:700;font-size:0.88rem;color:#1a202c;">' + (item.itemName||'—') + '</div>'
-                + '<div style="font-size:0.75rem;color:#718096;margin-top:0.2rem;">' + (item.itemNum||'') + '&nbsp;&nbsp;•&nbsp;&nbsp;' + (item.commodityGroup||'—') + '&nbsp;&nbsp;•&nbsp;&nbsp;' + (item.uom||'—') + '</div>'
+            var inv = window.inventory || [];
+            var inStock = inv.some(function(i) { return (i.itemNum||'').toLowerCase() === (item.itemNum||'').toLowerCase(); });
+            var borderColor = inStock ? '#fcd34d' : '#e2e8f0';
+            var bgColor = inStock ? '#fffbeb' : 'white';
+            var badge = inStock
+                ? '<span style="display:inline-flex;align-items:center;gap:0.25rem;background:#fef3c7;color:#92400e;font-size:0.7rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:20px;margin-left:0.4rem;">⚠ Already in Stock</span>'
+                : '';
+            var clickHandler = inStock
+                ? 'invSelectItem(\'' + safeNum + '\')'
+                : 'invSelectItem(\'' + safeNum + '\')';
+            return '<div onclick="' + clickHandler + '" style="background:' + bgColor + ';border:1.5px solid ' + borderColor + ';border-radius:10px;padding:0.75rem 1rem;cursor:pointer;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'' + (inStock ? '#f59e0b' : '#E31E24') + '\'" onmouseout="this.style.borderColor=\'' + borderColor + '\'">'
+                + '<div style="display:flex;align-items:baseline;gap:0.4rem;flex-wrap:wrap;">'
+                +   '<span style="font-weight:700;font-size:0.88rem;color:#1a202c;">' + (item.itemName||'—') + '</span>'
+                +   '<span style="font-size:0.75rem;color:#718096;">' + (item.uom||'') + '</span>'
+                +   badge
+                + '</div>'
+                + '<div style="font-size:0.75rem;color:#718096;margin-top:0.2rem;">' + (item.supplierCode||item.itemNum||'') + '&nbsp;&nbsp;•&nbsp;&nbsp;' + (item.commodityGroup||'—') + '</div>'
                 + '</div>';
         }).join('');
 }
@@ -555,6 +691,7 @@ function invSelectItem(itemNum) {
     var exists = inv.some(function(i) { return (i.itemNum||'').toLowerCase() === (found.itemNum||'').toLowerCase(); });
     if (exists) {
         _addFoundMaster = null;
+        alreadyEl.innerHTML = '⚠️ <strong>"' + (found.itemName||found.itemNum) + '"</strong> already exists in stock inventory. Use <strong>Edit</strong> to update its stock levels.';
         alreadyEl.style.display = 'block';
         previewEl.style.display = 'none';
         fieldsEl.style.display = 'none';
@@ -565,13 +702,27 @@ function invSelectItem(itemNum) {
     alreadyEl.style.display = 'none';
     document.getElementById('invPreviewInfo').innerHTML =
         '<div style="display:grid;grid-template-columns:110px 1fr;gap:0.3rem 0;">'
-        + '<span style="color:#718096;font-size:0.78rem;">Item Number</span><span style="font-weight:600;font-size:0.83rem;">' + (found.itemNum||'—') + '</span>'
+        + '<span style="color:#718096;font-size:0.78rem;">Supplier Item Code</span><span style="font-weight:600;font-size:0.83rem;">' + (found.supplierCode||'—') + '</span>'
         + '<span style="color:#718096;font-size:0.78rem;">Item Name</span><span style="font-weight:600;font-size:0.83rem;">' + (found.itemName||'—') + '</span>'
         + '<span style="color:#718096;font-size:0.78rem;">Group</span><span style="font-weight:600;font-size:0.83rem;">' + (found.commodityGroup||'—') + '</span>'
         + '<span style="color:#718096;font-size:0.78rem;">UOM</span><span style="font-weight:600;font-size:0.83rem;">' + (found.uom||'—') + '</span>'
         + '</div>';
     previewEl.style.display = 'block';
     fieldsEl.style.display = 'flex';
+}
+
+function invCalcReorder() {
+    var min = parseInt(document.getElementById('invStockMin').value) || 0;
+    var max = parseInt(document.getElementById('invStockMax').value) || 0;
+    var reorder = max > min ? max - min : 0;
+    document.getElementById('invStockReorder').value = reorder > 0 ? reorder : '';
+}
+
+function editInvCalcReorder() {
+    var min = parseInt(document.getElementById('editInvMin').value) || 0;
+    var max = parseInt(document.getElementById('editInvMax').value) || 0;
+    var reorder = max > min ? max - min : 0;
+    document.getElementById('editInvReorder').value = reorder > 0 ? reorder : '';
 }
 
 function invClearSelection() {
@@ -583,6 +734,10 @@ function invClearSelection() {
     document.getElementById('invSearchResults').innerHTML = '';
     document.getElementById('invItemSearch').value = '';
     document.getElementById('invItemSearch').focus();
+    // Reset all stock fields
+    ['invStockQty','invStockMin','invStockMax','invStockReorder'].forEach(function(id) {
+        document.getElementById(id).value = '';
+    });
 }
 
 function stockSaveNewItem() {
@@ -600,6 +755,7 @@ function stockSaveNewItem() {
     var db = firebase.firestore();
     var data = {
         num: _addFoundMaster.itemNum || '',
+        supplierCode: _addFoundMaster.supplierCode || '',
         name: _addFoundMaster.itemName || '',
         group: _addFoundMaster.commodityGroup || '',
         uom: _addFoundMaster.uom || '',
@@ -639,6 +795,13 @@ function viewInventoryItem(id) {
     var item = inv.find(function(i){ return i.id === id; });
     if (!item) return;
 
+    // Pull SKU from item_master if not stored on the stock doc
+    if (!item.sku) {
+        var master = window.itemMaster || [];
+        var masterItem = master.find(function(m){ return (m.itemNum||'') === (item.itemNum||''); });
+        if (masterItem && masterItem.sku) item = Object.assign({}, item, { sku: masterItem.sku });
+    }
+
     var isLow = item.stock <= item.minLevel;
     var isOut = item.stock === 0;
     var isOver = item.maxLevel > 0 && item.stock > item.maxLevel;
@@ -673,7 +836,7 @@ function viewInventoryItem(id) {
         + '</div>'
         + '</div>'
         + '<div style="background:white;border-radius:14px;padding:1rem 1.25rem;border:1px solid #e2e8f0;">'
-        + _invRow('Item Number', item.itemNum)
+        + _invRow('Supplier Item Code', item.supplierCode || '—')
         + _invRow('Item Name', item.itemName)
         + _invRow('Commodity Group', item.commodityGroup || '—')
         + _invRow('UOM', item.unit || '—')
@@ -703,10 +866,10 @@ function editInventoryItem(id) {
     var item = inv.find(function(i){ return i.id === id; });
     if (!item) return;
     _editingInvDocId = id;
-    document.getElementById('editInvItemLabel').textContent = item.itemNum + ' · ' + item.itemName;
+    document.getElementById('editInvItemLabel').textContent = (item.supplierCode||item.itemNum) + ' · ' + item.itemName;
     document.getElementById('editInvInfoBox').innerHTML =
         '<div style="display:grid;grid-template-columns:110px 1fr;gap:0.25rem 0;font-size:0.82rem;">'
-        + '<span style="color:#718096;">Item Number</span><span style="font-weight:600;">' + item.itemNum + '</span>'
+        + '<span style="color:#718096;">Supplier Item Code</span><span style="font-weight:600;">' + (item.supplierCode||'—') + '</span>'
         + '<span style="color:#718096;">Item Name</span><span style="font-weight:600;">' + item.itemName + '</span>'
         + '<span style="color:#718096;">Group</span><span style="font-weight:600;">' + (item.commodityGroup||'—') + '</span>'
         + '<span style="color:#718096;">UOM</span><span style="font-weight:600;">' + (item.unit||'—') + '</span>'
@@ -715,6 +878,8 @@ function editInventoryItem(id) {
     document.getElementById('editInvMin').value = item.minLevel;
     document.getElementById('editInvMax').value = item.maxLevel;
     document.getElementById('editInvReorder').value = item.reorderQty || 0;
+    // Re-calculate reorder in case stored value is stale
+    editInvCalcReorder();
     document.getElementById('editInventoryModal').classList.add('active');
 }
 

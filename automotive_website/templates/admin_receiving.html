@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -47,11 +47,9 @@
         .rv-col-label { font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px; }
         .rv-col-val { font-size:13px;font-weight:600;color:#1a202c; }
         @keyframes spin { to { transform:rotate(360deg); } }
-        /* -- Image compare upload zones -- */
-        .img-drop-zone { border:2px dashed #cbd5e0;border-radius:14px;background:#f8fafc;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.5rem;cursor:pointer;transition:all .2s;position:relative;overflow:hidden; }
-        .img-drop-zone:hover, .img-drop-zone.drag-over { border-color:#003087;background:#ebf0ff; }
-        .img-drop-zone img { max-width:100%;max-height:340px;border-radius:10px;object-fit:contain;display:block; }
-        .img-drop-zone input[type=file] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+        /* Hide number input spinners */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none;margin:0; }
     </style>
 </head>
 <body class="portal-body" data-page="receiving">
@@ -111,11 +109,12 @@
         </div>
         <div class="admin-content">
             <!-- Stat cards -->
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;">
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.5rem;">
                 <div class="stat-card" onclick="setFilter('Pending',document.querySelectorAll('#rcvFilterPills .dss-pill')[1])" style="cursor:pointer;"><div class="stat-icon" style="background:rgba(113,128,150,0.1);color:#718096;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><div class="stat-number" id="statPending" style="color:#718096;">0</div><div class="stat-label">Pending</div></div>
-                <div class="stat-card" onclick="setFilter('Awaiting Double Check',document.querySelectorAll('#rcvFilterPills .dss-pill')[2])" style="cursor:pointer;"><div class="stat-icon orange"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-number" id="statAwaiting">0</div><div class="stat-label">Awaiting Check</div></div>
-                <div class="stat-card" onclick="setFilter('Approved',document.querySelectorAll('#rcvFilterPills .dss-pill')[3])" style="cursor:pointer;"><div class="stat-icon green"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="stat-number" id="statApproved">0</div><div class="stat-label">Approved</div></div>
-                <div class="stat-card" onclick="setFilter('Rejected',document.querySelectorAll('#rcvFilterPills .dss-pill')[4])" style="cursor:pointer;"><div class="stat-icon red"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="stat-number" id="statRejected">0</div><div class="stat-label">Rejected</div></div>
+                <div class="stat-card" onclick="setFilter('For Admin Review',document.querySelectorAll('#rcvFilterPills .dss-pill')[2])" style="cursor:pointer;"><div class="stat-icon red"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><div class="stat-number" id="statForReview">0</div><div class="stat-label">For Review</div></div>
+                <div class="stat-card" onclick="setFilter('Awaiting Double Check',document.querySelectorAll('#rcvFilterPills .dss-pill')[3])" style="cursor:pointer;"><div class="stat-icon orange"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-number" id="statAwaiting">0</div><div class="stat-label">Awaiting Check</div></div>
+                <div class="stat-card" onclick="setFilter('Approved',document.querySelectorAll('#rcvFilterPills .dss-pill')[4])" style="cursor:pointer;"><div class="stat-icon green"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="stat-number" id="statApproved">0</div><div class="stat-label">Approved</div></div>
+                <div class="stat-card" onclick="setFilter('Rejected',document.querySelectorAll('#rcvFilterPills .dss-pill')[5])" style="cursor:pointer;"><div class="stat-icon red"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="stat-number" id="statRejected">0</div><div class="stat-label">Rejected</div></div>
             </div>
             <!-- Filter pills -->
             <div class="dss-filter-bar">
@@ -129,6 +128,10 @@
                         <button class="dss-pill dss-pill--pending" onclick="setFilter('Pending',this)">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                             Pending
+                        </button>
+                        <button class="dss-pill dss-pill--overdue" onclick="setFilter('For Admin Review',this)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                            For Review
                         </button>
                         <button class="dss-pill dss-pill--duesoon" onclick="setFilter('Awaiting Double Check',this)">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -147,8 +150,8 @@
             </div>
             <!-- Table -->
             <div class="data-table">
-                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:110px 1.4fr 1.6fr 1fr 1fr 160px 130px;">
-                    <div>Date</div><div>Supplier / Reference</div><div>Item Description</div><div>Received By</div><div>Checked By</div><div>Status</div><div>Actions</div>
+                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:90px 1.1fr 1.6fr 0.7fr 0.7fr 0.8fr 0.9fr 140px 120px;">
+                    <div>Date</div><div>Supplier Code</div><div>Item Description</div><div>Stock</div><div>Order Qty</div><div>Price</div><div>Subtotal</div><div>Status</div><div>Actions</div>
                 </div>
                 <div id="deliveriesList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading deliveries...</div></div>
             </div>
@@ -157,31 +160,10 @@
     </div>
 </div>
 
-<!-- Speed-dial backdrop -->
-<div id="fabBackdrop" onclick="closeFabMenu()" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.25);"></div>
-
-<!-- Speed-dial FAB -->
-<div id="fabContainer" style="position:fixed;bottom:2rem;right:2rem;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:0.75rem;">
-
-  <!-- Action: Compare PO / Invoice -->
-  <div id="fabAction1" style="display:none;align-items:center;gap:0.6rem;opacity:0;transform:translateY(10px);transition:all .2s;">
-    <span style="background:white;color:#1a202c;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.15);white-space:nowrap;">Compare PO / Invoice</span>
-    <button onclick="closeFabMenu();openCompareModal();" style="width:46px;height:46px;border-radius:50%;background:white;border:none;color:#E31E24;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-    </button>
-  </div>
-
-  <!-- Action: New Delivery -->
-  <div id="fabAction2" style="display:none;align-items:center;gap:0.6rem;opacity:0;transform:translateY(10px);transition:all .2s 0.05s;">
-    <span style="background:white;color:#1a202c;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.15);white-space:nowrap;">New Delivery</span>
-    <button onclick="closeFabMenu();openNewDeliveryModal();" style="width:46px;height:46px;border-radius:50%;background:white;border:none;color:#E31E24;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    </button>
-  </div>
-
-  <!-- Main FAB -->
-  <button id="fabMain" onclick="toggleFabMenu()" style="width:56px;height:56px;border-radius:50%;background:#E31E24;border:none;color:white;cursor:pointer;box-shadow:0 4px 16px rgba(227,30,36,0.4);display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 6px 24px rgba(227,30,36,0.5)'" onmouseout="this.style.boxShadow='0 4px 16px rgba(227,30,36,0.4)'" title="Actions">
-    <svg id="fabIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+<!-- FAB - New Delivery -->
+<div style="position:fixed;bottom:2rem;right:2rem;z-index:9999;">
+  <button onclick="openNewDeliveryModal()" style="width:56px;height:56px;border-radius:50%;background:#E31E24;border:none;color:white;cursor:pointer;box-shadow:0 4px 16px rgba(227,30,36,0.4);display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 6px 24px rgba(227,30,36,0.5)'" onmouseout="this.style.boxShadow='0 4px 16px rgba(227,30,36,0.4)'" title="New Delivery">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
   </button>
 </div>
 
@@ -201,21 +183,8 @@
     <!-- Body -->
     <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
 
-      <!-- Supplier only -->
-      <div class="form-group" style="margin:0;">
-        <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Supplier / Reference *</label>
-        <input type="text" id="ndSupplier" placeholder="e.g. HNP AutoParts" style="margin-top:0.3rem;width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;">
-      </div>
-
-      <hr style="border:none;border-top:1px solid #e2e8f0;">
-
-      <!-- Item search -->
-      <div style="font-size:0.78rem;font-weight:700;color:#4a5568;">Add Items</div>
-      <div>
-        <input type="text" id="ndItemSearch" placeholder="Search item name or number..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.9rem;font-size:0.88rem;outline:none;box-sizing:border-box;" oninput="ndSearchMasterItem(this.value)">
-      </div>
-
-      <!-- Search results list -->
+      <!-- Items that need replenishment -->
+      <div style="font-size:0.75rem;color:#718096;">Items that need replenishment</div>
       <div id="ndSearchResults" style="display:none;border:1.5px solid #e2e8f0;border-radius:12px;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
         <div id="ndSearchResultsInner" style="overflow-y:auto;height:260px;"></div>
       </div>
@@ -238,8 +207,6 @@
           <button type="button" onclick="ndAddCurrentItem()" style="background:#E31E24;border:none;color:white;padding:0.6rem 1.1rem;border-radius:8px;font-size:0.88rem;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">Add</button>
         </div>
       </div>
-      <div id="ndNotFound" style="display:none;background:#fff5f5;border:1px solid #fed7d7;border-radius:10px;padding:0.75rem 1rem;font-size:0.83rem;color:#c53030;">No material item found.</div>
-
       <!-- Added items list -->
       <div id="ndAddedItemsWrap" style="display:none;flex-direction:column;gap:6px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -336,11 +303,6 @@
       </div>
       <button onclick="closeModal('reviewModal')" style="background:rgba(255,255,255,0.15);border:none;color:white;width:34px;height:34px;border-radius:50%;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">&times;</button>
     </div>
-    <!-- Warning banner -->
-    <div style="background:#fffbeb;border-bottom:1px solid #fcd34d;padding:10px 1.75rem;display:flex;align-items:center;gap:8px;font-size:12px;color:#92400e;flex-shrink:0;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <span><strong>Asst. Ops Head:</strong> Verify the physical count. Approving will automatically update Stock Inventory and log transactions.</span>
-    </div>
     <!-- Body -->
     <div style="padding:1.5rem 1.75rem;overflow-y:auto;flex:1;background:#f8fafc;">
       <div id="rvItemRows"></div>
@@ -361,13 +323,9 @@
     </div>
     <!-- Footer -->
     <div id="rvFooter" style="padding:1rem 1.75rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;flex-wrap:wrap;">
-      <button type="button" onclick="generateIssueReport()" style="flex:1;min-width:160px;padding:0.75rem;background:white;border:2px solid #E31E24;border-radius:10px;color:#E31E24;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;" onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-        Report Issue (PDF)
-      </button>
       <button type="button" onclick="submitReview('Rejected')" style="flex:1;min-width:160px;padding:0.75rem;background:white;border:2px solid #E8001C;border-radius:10px;color:#E8001C;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;" onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-        Reject / Revision
+        Reject
       </button>
       <button type="button" onclick="submitReview('Approved')" style="flex:1.5;min-width:160px;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
@@ -377,173 +335,55 @@
   </div>
 </div>
 
-<div id="toast"></div>
-
 <!-- ----------------------------------------------------------
-     MODAL 4 - Compare PO vs Invoice
+     MODAL - Edit Item Quantity
 ---------------------------------------------------------- -->
-<div class="modal" id="compareModal">
-  <div class="modal-content" style="max-width:1000px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:94vh;">
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.4rem 1.75rem;display:flex;align-items:center;gap:1rem;flex-shrink:0;">
+<div class="modal" id="editItemModal">
+  <div class="modal-content" style="max-width:520px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
+    <!-- Header - same style as New Delivery modal -->
+    <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
       <div style="flex:1;">
-        <div style="color:white;font-size:1.05rem;font-weight:800;">Compare PO vs Invoice</div>
-        <div style="color:rgba(255,255,255,0.6);font-size:0.78rem;margin-top:2px;">Upload images side-by-side to verify supplier invoice against your Purchase Order</div>
+        <div style="color:white;font-size:1rem;font-weight:700;">Edit Order Quantity</div>
+        <div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.1rem;">Update the quantity for this item</div>
       </div>
-      <button onclick="closeModal('compareModal')" style="background:rgba(255,255,255,0.15);border:none;color:white;width:34px;height:34px;border-radius:50%;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">&times;</button>
-    </div>
-    <!-- Info banner -->
-    <div style="background:#eff6ff;border-bottom:1px solid #bfdbfe;padding:10px 1.75rem;display:flex;align-items:center;gap:8px;font-size:12px;color:#1e40af;flex-shrink:0;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      Upload your PO copy and the supplier's invoice to compare them side by side. Images are kept locally and not stored.
+      <button onclick="closeModal('editItemModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
     </div>
     <!-- Body -->
-    <div style="padding:1.5rem 1.75rem;overflow-y:auto;flex:1;background:#f8fafc;">
-      <!-- Delivery selector -->
-      <div style="background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:0.85rem 1.1rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-        <label class="rcv-label" style="margin:0;white-space:nowrap;">Link to Delivery <span style="font-weight:400;color:#a0aec0;">(optional)</span></label>
-        <select id="cmpDeliverySelect" class="rcv-input" style="max-width:340px;flex:1;" onchange="cmpLinkDelivery(this.value)">
-          <option value="">-- Select a delivery record --</option>
-        </select>
-        <div id="cmpDeliveryInfo" style="font-size:11px;color:#718096;"></div>
-      </div>
-      <!-- Side-by-side upload -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
-        <!-- PO side -->
-        <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;">
-            <div>
-              <div style="font-size:13px;font-weight:700;color:#1a202c;">📄 Purchase Order</div>
-              <div style="font-size:11px;color:#718096;">Your internal PO copy</div>
-            </div>
-            <button id="cmpClearPO" onclick="cmpClear('po')" style="display:none;background:none;border:none;color:#e53e3e;font-size:11px;font-weight:600;cursor:pointer;">✕ Clear</button>
-          </div>
-          <div class="img-drop-zone" id="cmpZonePO"
-               ondragover="event.preventDefault();this.classList.add('drag-over')"
-               ondragleave="this.classList.remove('drag-over')"
-               ondrop="cmpHandleDrop(event,'po')">
-            <input type="file" accept="image/*,.pdf" id="cmpFilePO" onchange="cmpHandleFile(this,'po')">
-            <div id="cmpPlaceholderPO" style="text-align:center;pointer-events:none;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <div style="font-size:12px;font-weight:600;color:#718096;margin-top:0.4rem;">Click or drag PO image here</div>
-              <div style="font-size:11px;color:#a0aec0;margin-top:2px;">PNG, JPG, PDF supported</div>
-            </div>
-            <img id="cmpImgPO" style="display:none;" alt="PO">
-            <div id="cmpPdfLabelPO" style="display:none;text-align:center;padding:1rem;">
-              <div style="font-size:2rem;">📄</div>
-              <div id="cmpPdfNamePO" style="font-size:12px;font-weight:600;color:#1a202c;margin-top:0.3rem;"></div>
-              <div style="font-size:11px;color:#718096;margin-top:2px;">PDF uploaded</div>
-            </div>
-          </div>
-          <div id="cmpCtrlPO" style="display:none;margin-top:0.5rem;justify-content:center;gap:0.5rem;">
-            <button onclick="cmpZoom('po',-0.2)" style="padding:3px 10px;border:1px solid #e2e8f0;border-radius:6px;background:white;cursor:pointer;font-size:13px;">-</button>
-            <span id="cmpZoomLabelPO" style="font-size:11px;color:#718096;line-height:28px;">100%</span>
-            <button onclick="cmpZoom('po',0.2)" style="padding:3px 10px;border:1px solid #e2e8f0;border-radius:6px;background:white;cursor:pointer;font-size:13px;">+</button>
-            <button onclick="cmpReset('po')" style="padding:3px 10px;border:1px solid #e2e8f0;border-radius:6px;background:white;cursor:pointer;font-size:11px;color:#718096;">Reset</button>
-          </div>
-        </div>
-        <!-- Invoice side -->
-        <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;">
-            <div>
-              <div style="font-size:13px;font-weight:700;color:#1a202c;">📋 Supplier Invoice</div>
-              <div style="font-size:11px;color:#718096;">Invoice received from supplier</div>
-            </div>
-            <button id="cmpClearInv" onclick="cmpClear('inv')" style="display:none;background:none;border:none;color:#e53e3e;font-size:11px;font-weight:600;cursor:pointer;">✕ Clear</button>
-          </div>
-          <div class="img-drop-zone" id="cmpZoneInv"
-               ondragover="event.preventDefault();this.classList.add('drag-over')"
-               ondragleave="this.classList.remove('drag-over')"
-               ondrop="cmpHandleDrop(event,'inv')">
-            <input type="file" accept="image/*,.pdf" id="cmpFileInv" onchange="cmpHandleFile(this,'inv')">
-            <div id="cmpPlaceholderInv" style="text-align:center;pointer-events:none;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <div style="font-size:12px;font-weight:600;color:#718096;margin-top:0.4rem;">Click or drag Invoice image here</div>
-              <div style="font-size:11px;color:#a0aec0;margin-top:2px;">PNG, JPG, PDF supported</div>
-            </div>
-            <img id="cmpImgInv" style="display:none;" alt="Invoice">
-            <div id="cmpPdfLabelInv" style="display:none;text-align:center;padding:1rem;">
-              <div style="font-size:2rem;">📄</div>
-              <div id="cmpPdfNameInv" style="font-size:12px;font-weight:600;color:#1a202c;margin-top:0.3rem;"></div>
-              <div style="font-size:11px;color:#718096;margin-top:2px;">PDF uploaded</div>
-            </div>
-          </div>
-          <div id="cmpCtrlInv" style="display:none;margin-top:0.5rem;justify-content:center;gap:0.5rem;">
-            <button onclick="cmpZoom('inv',-0.2)" style="padding:3px 10px;border:1px solid #e2e8f0;border-radius:6px;background:white;cursor:pointer;font-size:13px;">-</button>
-            <span id="cmpZoomLabelInv" style="font-size:11px;color:#718096;line-height:28px;">100%</span>
-            <button onclick="cmpZoom('inv',0.2)" style="padding:3px 10px;border:1px solid #e2e8f0;border-radius:6px;background:white;cursor:pointer;font-size:13px;">+</button>
-            <button onclick="cmpReset('inv')" style="padding:3px 10px;border:1px solid #e2e8f0;border-radius:6px;background:white;cursor:pointer;font-size:11px;color:#718096;">Reset</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── OCR Status + Invoice Items (auto-populated) ── -->
-      <div style="margin-top:1.25rem;background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 16px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-          <div>
-            <div style="font-size:13px;font-weight:700;color:#1a202c;">🧾 Invoice Line Items</div>
-            <div style="font-size:11px;color:#718096;margin-top:2px;">Auto-extracted from invoice image via OCR — edit if needed, then compare</div>
-          </div>
-          <button type="button" onclick="cmpAddInvoiceRow()" style="background:#718096;border:none;color:white;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">+ Add Row</button>
-        </div>
-
-        <!-- OCR progress bar -->
-        <div id="cmpOcrStatus" style="display:none;margin-bottom:0.75rem;">
-          <div style="display:flex;align-items:center;gap:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite;flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg>
-            <div style="flex:1;">
-              <div style="font-size:12px;font-weight:600;color:#1e40af;" id="cmpOcrMsg">Reading invoice image…</div>
-              <div style="height:4px;background:#dbeafe;border-radius:4px;margin-top:5px;overflow:hidden;">
-                <div id="cmpOcrBar" style="height:100%;background:#3b82f6;border-radius:4px;transition:width 0.3s ease;width:0%;"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Extracted items table -->
-        <div style="display:grid;grid-template-columns:2.5fr 1fr 1.2fr 1fr 30px;gap:6px;margin-bottom:5px;padding:0 2px;">
-          <div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;">Item Name / Description</div>
-          <div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;">Qty</div>
-          <div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;">Unit Price (₱)</div>
-          <div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;">UOM</div>
-          <div></div>
-        </div>
-        <div id="cmpInvoiceRows" style="display:flex;flex-direction:column;gap:5px;"></div>
-        <div id="cmpInvoiceEmpty" style="text-align:center;padding:1rem;color:#a0aec0;font-size:12px;">
-          Upload an invoice image above — items will be extracted automatically.<br>
-          Or click <strong>+ Add Row</strong> to enter manually.
-        </div>
-      </div>
-
-      <!-- ── Comparison Result ── -->
-      <div id="cmpResultWrap" style="display:none;margin-top:1.25rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-          <div style="font-size:13px;font-weight:700;color:#1a202c;">🔍 Comparison Result</div>
-          <div id="cmpResultBadge" style="font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;"></div>
-        </div>
-        <div id="cmpResultTable"></div>
-        <div id="cmpResultSummary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:0.75rem;"></div>
-      </div>
-
-      <!-- Notes -->
-      <div style="margin-top:1.25rem;">
-        <label class="rcv-label">Comparison Notes</label>
-        <textarea id="cmpNotes" class="rcv-textarea" rows="2" placeholder="Auto-filled after comparison…"></textarea>      </div>
+    <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
+      <!-- Item card - same style as Items Added card -->
+      <div id="eiCardContainer"></div>
     </div>
     <!-- Footer -->
-    <div style="padding:1rem 1.75rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;flex-wrap:wrap;">
-      <button type="button" class="btn-secondary" style="flex:1;" onclick="closeModal('compareModal')">Close</button>
-      <button type="button" onclick="cmpRunComparison()" style="flex:2;padding:0.72rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        Compare &amp; Detect
+    <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
+      <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('editItemModal')">Cancel</button>
+      <button type="button" class="btn-primary" style="flex:1;display:flex;align-items:center;justify-content:center;gap:0.4rem;" id="eiSaveBtn" onclick="saveEditItem()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Update Quantity
       </button>
     </div>
   </div>
 </div>
 
+<!-- ----------------------------------------------------------
+     MODAL - Item View Details
+---------------------------------------------------------- -->
+<div class="modal" id="itemViewModal">
+  <div class="modal-content" style="max-width:480px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:88vh;">
+    <div id="ivHeader" style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
+      <div style="flex:1;">
+        <div id="ivItemName" style="color:white;font-size:1rem;font-weight:700;"></div>
+        <div id="ivItemMeta" style="color:rgba(255,255,255,0.7);font-size:0.78rem;margin-top:2px;"></div>
+      </div>
+      <button onclick="closeModal('itemViewModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+    </div>
+    <div id="ivBody" style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;"></div>
+    <div id="ivFooter" style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
 <script src="../static/js/data.js"></script>
-<!-- Tesseract.js OCR — loaded lazily when invoice image is uploaded -->
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -560,7 +400,7 @@
   }
 </script>
 <script src="../static/js/admin_firebase.js"></script>
-<script src="../static/js/admin_functions.js?v=202606150001"></script>
+<script src="../static/js/admin_functions.js?v=202607180001"></script>
 <script src="../static/js/admin.js"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script>
@@ -573,17 +413,51 @@ var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov',
 
 function _fmtDate(d) {
   if (!d) return '—';
+  // Handle Firestore Timestamp objects
+  if (d && typeof d === 'object' && d.toDate) d = d.toDate().toISOString();
+  if (d && typeof d === 'object' && d.seconds) d = new Date(d.seconds * 1000).toISOString();
   var dt = new Date(d);
   if (isNaN(dt)) return d;
   return MONTHS[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
 }
 
+// Get the delivery date — use receivedAt (when received) or createdAt as fallback
+function _getDeliveryDate(d) {
+  if (d.receivedAt) return d.receivedAt;
+  if (d.createdAt) return d.createdAt;
+  return d.date || '';
+}
+
+// Get per-item date — use item's receivedAt, else delivery receivedAt, else createdAt
+function _getItemDate(item, d) {
+  if (item.receivedAt) return item.receivedAt;
+  if (d.receivedAt) return d.receivedAt;
+  if (d.createdAt) return d.createdAt;
+  return d.date || '';
+}
+
 window._updateStats = function _updateStats() {
   var s = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
-  s('statPending',  _allDeliveries.filter(function(d){ return d.status==='Pending'; }).length);
-  s('statAwaiting', _allDeliveries.filter(function(d){ return d.status==='Awaiting Double Check'; }).length);
-  s('statApproved', _allDeliveries.filter(function(d){ return d.status==='Approved'; }).length);
-  s('statRejected', _allDeliveries.filter(function(d){ return d.status==='Rejected'; }).length);
+  // Count by per-item status (not delivery-level)
+  var pending = 0, forReview = 0, awaiting = 0, approved = 0, rejected = 0;
+  _allDeliveries.forEach(function(d) {
+    var deliveryStatus = d.status || 'Pending';
+    (d.items || []).forEach(function(item) {
+      var st = item.itemStatus || deliveryStatus;
+      switch(st) {
+        case 'Pending':               pending++; break;
+        case 'For Admin Review':      forReview++; break;
+        case 'Awaiting Double Check': awaiting++; break;
+        case 'Approved':              approved++; break;
+        case 'Rejected':              rejected++; break;
+      }
+    });
+  });
+  s('statPending', pending);
+  s('statForReview', forReview);
+  s('statAwaiting', awaiting);
+  s('statApproved', approved);
+  s('statRejected', rejected);
 }
 
 window._populateMonthFilter = function _populateMonthFilter() {
@@ -644,7 +518,11 @@ window._renderList = function _renderList() {
 
   // Sort
   function _dms(d) {
-    var s=d.date||'';
+    var raw = d.receivedAt || d.createdAt || d.date || '';
+    // Handle Firestore Timestamp
+    if (raw && typeof raw === 'object' && raw.toDate) raw = raw.toDate().toISOString();
+    if (raw && typeof raw === 'object' && raw.seconds) raw = new Date(raw.seconds * 1000).toISOString();
+    var s = (typeof raw === 'string') ? raw : '';
     var m1=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if(m1) return new Date(parseInt(m1[1]),parseInt(m1[2])-1,parseInt(m1[3])).getTime();
     var m2=s.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
@@ -663,38 +541,59 @@ window._renderList = function _renderList() {
   var el = document.getElementById('deliveriesList');
   if (!el) return;
   if (!list.length) { el.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">No deliveries found.</div>'; _apPages['deliveriesList'] = 1; return; }
-  var sc = { 'Pending':['#718096','rgba(113,128,150,0.1)'], 'Awaiting Double Check':['#d69e2e','rgba(214,158,46,0.1)'], 'Approved':['#38a169','rgba(56,161,105,0.1)'], 'Rejected':['#E8001C','rgba(232,0,28,0.1)'] };
-  var rows = list.map(function(d) {
+  var sc = { 'Pending':['#718096','rgba(113,128,150,0.1)'], 'For Admin Review':['#E8001C','rgba(232,0,28,0.08)'], 'Awaiting Double Check':['#d69e2e','rgba(214,158,46,0.1)'], 'Approved':['#38a169','rgba(56,161,105,0.1)'], 'Rejected':['#E8001C','rgba(232,0,28,0.1)'] };
+  var rows = [];
+  list.forEach(function(d) {
     var c = sc[d.status] || ['#718096','rgba(113,128,150,0.1)'];
     var badge = '<span class="rcv-badge" style="color:' + c[0] + ';background:' + c[1] + ';">' + (d.status||'Pending') + '</span>';
-    var editBtn = '<button class="btn-small btn-secondary" onclick="editDelivery(\'' + d.id + '\')" title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
-    var deleteBtn = '<button class="btn-small btn-danger" onclick="deleteDelivery(\'' + d.id + '\')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
-    var actions = '';
-    if (d.status === 'Pending') {
-      actions = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.25rem;">'
-        + '<button class="btn-small btn-primary" onclick="openReceiveModal(\'' + d.id + '\')" title="Receive" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>'
-        + editBtn + deleteBtn + '</div>';
-    } else if (d.status === 'Awaiting Double Check') {
-      actions = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.25rem;">'
-        + '<button class="btn-small btn-primary" onclick="openReviewModal(\'' + d.id + '\')" title="Review" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>'
-        + '<button class="btn-small btn-secondary" disabled style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
-        + deleteBtn + '</div>';
+    // One row per item — every row gets actions
+    var items = d.items || [];
+    if (!items.length) {
+      var emptyActions = '<button class="btn-small btn-primary" onclick="openItemViewModal(\'' + d.id + '\',0)" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>';
+      rows.push('<div class="table-row" style="grid-template-columns:90px 1.1fr 1.6fr 0.7fr 0.7fr 0.8fr 0.9fr 140px 120px;align-items:center;">'
+        + '<div style="font-size:11px;color:#718096;">—</div>'
+        + '<div style="font-size:11px;color:#718096;">\u2014</div>'
+        + '<div style="font-size:12px;color:#4a5568;">\u2014</div>'
+        + '<div style="font-size:12px;color:#4a5568;">\u2014</div>'
+        + '<div style="font-size:12px;color:#4a5568;">\u2014</div>'
+        + '<div style="font-size:12px;color:#4a5568;">\u2014</div>'
+        + '<div style="font-size:12px;color:#4a5568;">\u2014</div>'
+        + '<div>' + badge + '</div>'
+        + '<div>' + emptyActions + '</div>'
+        + '</div>');
     } else {
-      actions = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.25rem;">'
-        + '<button class="btn-small btn-primary" onclick="openReviewModal(\'' + d.id + '\')" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>'
-        + '<button class="btn-small btn-secondary" disabled style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
-        + deleteBtn + '</div>';
+      items.forEach(function(item, idx) {
+        var itemCost = item._cost || 0;
+        var itemQty = item.expectedQty || 0;
+        var itemSubtotal = itemCost * itemQty;
+        var itemStock = (item.stockAtReceive !== undefined && item.stockAtReceive !== null) ? item.stockAtReceive : (item._stock !== undefined && item._stock !== null ? item._stock : '\u2014');
+        // Per-item status: use itemStatus if set, else fall back to delivery status
+        var itemSt = item.itemStatus || d.status || 'Pending';
+        var ic = sc[itemSt] || ['#718096','rgba(113,128,150,0.1)'];
+        var itemBadge = '<span class="rcv-badge" style="color:' + ic[0] + ';background:' + ic[1] + ';font-size:10px;">' + itemSt + '</span>';
+        // Actions for every row: View + Edit (if item pending) + Delete
+        var viewBtn = '<button class="btn-small btn-primary" onclick="openItemViewModal(\'' + d.id + '\',' + idx + ')" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>';
+        var editBtn = (!item.itemStatus || item.itemStatus === 'Pending')
+          ? '<button class="btn-small btn-secondary" onclick="editItemInDelivery(\'' + d.id + '\',' + idx + ')" title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
+          : '<button class="btn-small btn-secondary" disabled title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
+        var deleteBtn = '<button class="btn-small btn-danger" onclick="deleteItemFromDelivery(\'' + d.id + '\',' + idx + ')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
+        var cols = [viewBtn, editBtn, deleteBtn].filter(function(b){return b;});
+        var rowActions = '<div style="display:grid;grid-template-columns:repeat(' + cols.length + ',1fr);gap:0.2rem;">' + cols.join('') + '</div>';
+
+        rows.push('<div class="table-row" style="grid-template-columns:90px 1.1fr 1.6fr 0.7fr 0.7fr 0.8fr 0.9fr 140px 120px;align-items:center;">'
+          + '<div style="font-size:11px;color:#718096;">' + (item.receivedAt ? _fmtDate(item.receivedAt) : '—') + '</div>'
+          + '<div style="font-size:11px;color:#718096;">' + (item.supplierCode || '\u2014') + '</div>'
+          + '<div><div style="font-weight:600;color:#1a202c;font-size:12px;">' + (item.itemName||'\u2014') + '</div>'
+          + (item.uom ? '<div style="font-size:10px;color:#a0aec0;">' + item.uom + '</div>' : '') + '</div>'
+          + '<div style="font-size:12px;color:#4a5568;">' + itemStock + '</div>'
+          + '<div style="font-size:12px;font-weight:600;color:#1a202c;">' + itemQty + '</div>'
+          + '<div style="font-size:11px;color:#4a5568;">' + (itemCost > 0 ? '\u20b1' + itemCost.toLocaleString('en-PH',{minimumFractionDigits:2}) : '\u2014') + '</div>'
+          + '<div style="font-size:11px;font-weight:600;color:#1a202c;">' + (itemSubtotal > 0 ? '\u20b1' + itemSubtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) : '\u2014') + '</div>'
+          + '<div>' + itemBadge + '</div>'
+          + '<div>' + rowActions + '</div>'
+          + '</div>');
+      });
     }
-    return '<div class="table-row" style="grid-template-columns:110px 1.4fr 1.6fr 1fr 1fr 160px 130px;align-items:center;">'
-      + '<div style="font-size:12px;color:#718096;">' + _fmtDate(d.date) + '</div>'
-      + '<div><div style="font-weight:700;color:#1a202c;font-size:13px;">' + (d.supplier||'\u2014') + '</div>'
-      + (d.notes ? '<div style="font-size:11px;color:#a0aec0;margin-top:2px;">' + d.notes + '</div>' : '') + '</div>'
-      + '<div style="font-size:12px;color:#4a5568;">' + ((d.items||[]).map(function(i){ return i.itemName||i.itemNum||'\u2014'; }).join(', ') || '\u2014') + '</div>'
-      + '<div style="font-size:12px;color:#4a5568;">' + (d.receivedBy||'\u2014') + '</div>'
-      + '<div style="font-size:12px;color:#4a5568;">' + (d.checkedBy||'\u2014') + '</div>'
-      + '<div>' + badge + '</div>'
-      + '<div>' + actions + '</div>'
-      + '</div>';
   });
   apRenderPaged('deliveriesList', rows, 10, '_renderList');
 }
@@ -710,33 +609,142 @@ window.setFilter = function(f, btn) {
 // -- Search deliveries --
 window.deliveryApplySearch = function() { _apPages['deliveriesList'] = 1; _renderList(); };
 
-// -- Speed-dial FAB --
-var _fabOpen = false;
-window.toggleFabMenu = function() { _fabOpen ? closeFabMenu() : openFabMenu(); };
-window.openFabMenu = function() {
-  _fabOpen = true;
-  document.getElementById('fabBackdrop').style.display = 'block';
-  document.getElementById('fabIcon').style.transform = 'rotate(45deg)';
-  ['fabAction1','fabAction2'].forEach(function(id, i) {
-    var el = document.getElementById(id);
-    el.style.display = 'flex';
-    setTimeout(function(){ el.style.opacity='1'; el.style.transform='translateY(0)'; }, 10 + i*40);
-  });
+// -- Item View Modal --
+window.openItemViewModal = function(deliveryId, itemIdx) {
+  var d = _allDeliveries.find(function(x){ return x.id === deliveryId; });
+  if (!d) return;
+  var item = (d.items || [])[itemIdx];
+  if (!item) return;
+
+  var status = d.status || 'Pending';
+  var statusColors = { 'Pending':'#718096', 'For Admin Review':'#E8001C', 'Awaiting Double Check':'#d69e2e', 'Approved':'#38a169', 'Rejected':'#E8001C' };
+  var sc = statusColors[status] || '#718096';
+
+  // Header
+  document.getElementById('ivItemName').textContent = (item.itemName || '—') + (item.uom ? '  (' + item.uom + ')' : '');
+  document.getElementById('ivItemMeta').textContent = (item.supplierCode || '');
+
+  // Body
+  var cost = item._cost || 0;
+  var qty = item.expectedQty || 0;
+  var stock = (item.stockAtReceive !== undefined && item.stockAtReceive !== null) ? item.stockAtReceive : ((item._stock !== undefined && item._stock !== null) ? item._stock : null);
+  var subtotal = cost * qty;
+  var actual = item.actualQty;
+  var cond = item.condition || '—';
+  var remark = item.remark || '';
+
+  var html = '';
+
+  // Info grid
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;">';
+  html += _ivInfoCard('Order Quantity', '' + qty);
+  if (stock !== null) html += _ivInfoCard('Current Stock', '' + stock);
+  if (cost > 0) html += _ivInfoCard('Unit Price', '\u20b1' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}));
+  if (subtotal > 0) html += _ivInfoCard('Subtotal', '\u20b1' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}), '#E8001C');
+  html += '</div>';
+
+  // Receiving details (if received)
+  if (actual !== undefined) {
+    var condColor = cond === 'OK' ? '#38a169' : cond === 'Defective' ? '#E8001C' : '#d69e2e';
+    html += '<div style="background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:1rem;">'
+      + '<div style="font-size:0.75rem;font-weight:700;color:#4a5568;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Receiving Details</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">'
+      + '<div><div style="font-size:10px;color:#a0aec0;font-weight:600;">Actual Qty</div><div style="font-size:14px;font-weight:700;color:' + condColor + ';">' + actual + '</div></div>'
+      + '<div><div style="font-size:10px;color:#a0aec0;font-weight:600;">Condition</div><div><span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:' + condColor + '1a;color:' + condColor + ';">' + cond + '</span></div></div>'
+      + '<div><div style="font-size:10px;color:#a0aec0;font-weight:600;">Difference</div><div style="font-size:14px;font-weight:700;color:' + (actual - qty !== 0 ? (actual - qty < 0 ? '#E8001C' : '#d69e2e') : '#38a169') + ';">' + (actual - qty === 0 ? '0' : (actual - qty > 0 ? '+' : '') + (actual - qty)) + '</div></div>'
+      + '</div>'
+      + (remark ? '<div style="margin-top:10px;padding:8px 10px;background:#fffbeb;border-radius:8px;font-size:11px;color:#92400e;"><strong>Remarks:</strong> ' + remark + '</div>' : '')
+      + '</div>';
+  }
+
+  // Delivery info
+  var _rcvDate = item.receivedAt || d.receivedAt || '';
+  html += '<div style="background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;">'
+    + '<div style="font-size:0.75rem;font-weight:700;color:#4a5568;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Delivery Info</div>'
+    + (_rcvDate ? '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f4f8;"><span style="font-size:12px;color:#718096;">Received Date</span><span style="font-size:12px;font-weight:600;color:#1a202c;">' + _fmtDate(_rcvDate) + '</span></div>' : '')
+    + (d.receivedBy ? '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f4f8;"><span style="font-size:12px;color:#718096;">Received By</span><span style="font-size:12px;font-weight:600;color:#1a202c;">' + d.receivedBy + '</span></div>' : '')
+    + (d.checkedBy ? '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f4f8;"><span style="font-size:12px;color:#718096;">Checked By</span><span style="font-size:12px;font-weight:600;color:#1a202c;">' + d.checkedBy + '</span></div>' : '')
+    + (d.reviewNotes ? '<div style="display:flex;justify-content:space-between;padding:6px 0;"><span style="font-size:12px;color:#718096;">Review Notes</span><span style="font-size:12px;font-weight:600;color:#1a202c;max-width:60%;text-align:right;">' + d.reviewNotes + '</span></div>' : '')
+    + '</div>';
+
+  document.getElementById('ivBody').innerHTML = html;
+
+  // Footer buttons — use per-item status
+  var itemStatus = item.itemStatus || status;
+  var footer = '';
+  if (status === 'For Admin Review') {
+    footer = '<button type="button" style="flex:1;padding:0.7rem;background:white;border:2px solid #E8001C;border-radius:10px;color:#E8001C;font-weight:700;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="closeModal(\'itemViewModal\');rejectAdminReview(\'' + deliveryId + '\',' + itemIdx + ');">'
+      + '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+      + 'Reject</button>'
+      + '<button type="button" style="flex:1.5;padding:0.7rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="closeModal(\'itemViewModal\');approveAdminReview(\'' + deliveryId + '\',' + itemIdx + ');">'
+      + '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+      + 'Approve Request</button>';
+  } else if (!item.itemStatus || item.itemStatus === 'Pending' || itemStatus === 'Pending') {
+    footer = '<button type="button" class="btn-secondary" style="flex:1;" onclick="closeModal(\'itemViewModal\')">Close</button>'
+      + '<button type="button" style="flex:1.5;padding:0.7rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="closeModal(\'itemViewModal\');openReceiveModal(\'' + deliveryId + '\',' + itemIdx + ');">'
+      + '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+      + 'Receive Item</button>';
+  } else if (itemStatus === 'Awaiting Double Check') {
+    footer = '<button type="button" class="btn-secondary" style="flex:1;" onclick="closeModal(\'itemViewModal\')">Close</button>'
+      + '<button type="button" style="flex:1.5;padding:0.7rem;background:linear-gradient(135deg,#d69e2e,#b7791f);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="closeModal(\'itemViewModal\');openReviewModal(\'' + deliveryId + '\',' + itemIdx + ');">'
+      + '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'
+      + 'Review &amp; Verify</button>';
+  } else if (itemStatus === 'Approved') {
+    footer = '<button type="button" class="btn-secondary" style="flex:1;" onclick="closeModal(\'itemViewModal\')">Close</button>'
+      + '<div style="flex:1.5;padding:0.7rem;background:rgba(56,161,105,0.08);border:1.5px solid rgba(56,161,105,0.3);border-radius:10px;color:#38a169;font-weight:700;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:6px;">'
+      + '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+      + 'Approved</div>';
+  } else if (itemStatus === 'Rejected') {
+    footer = '<button type="button" class="btn-secondary" style="flex:1;" onclick="closeModal(\'itemViewModal\')">Close</button>'
+      + '<div style="flex:1.5;padding:0.7rem;background:rgba(232,0,28,0.08);border:1.5px solid rgba(232,0,28,0.3);border-radius:10px;color:#E8001C;font-weight:700;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:6px;">'
+      + '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+      + 'Rejected</div>';
+  } else {
+    footer = '<button type="button" class="btn-secondary" style="flex:1;" onclick="closeModal(\'itemViewModal\')">Close</button>';
+  }
+  document.getElementById('ivFooter').innerHTML = footer;
+  document.getElementById('itemViewModal').classList.add('active');
 };
-window.closeFabMenu = function() {
-  _fabOpen = false;
-  document.getElementById('fabBackdrop').style.display = 'none';
-  document.getElementById('fabIcon').style.transform = 'rotate(0)';
-  ['fabAction1','fabAction2'].forEach(function(id) {
-    var el = document.getElementById(id);
-    el.style.opacity = '0'; el.style.transform = 'translateY(10px)';
-    setTimeout(function(){ el.style.display='none'; }, 200);
-  });
-};
+
+function _ivInfoCard(label, value, valueColor) {
+  return '<div style="background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;">'
+    + '<div style="font-size:10px;color:#a0aec0;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">' + label + '</div>'
+    + '<div style="font-size:15px;font-weight:700;color:' + (valueColor || '#1a202c') + ';margin-top:3px;">' + value + '</div>'
+    + '</div>';
+}
 
 db.collection('deliveries').orderBy('createdAt','desc').onSnapshot(function(snap) {
   _allDeliveries = snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
-  _updateStats(); _populateMonthFilter(); _renderList();
+  // Enrich items with cost + stock from item_master and stock_inventory
+  Promise.all([
+    db.collection('item_master').where('type','==','Material').get(),
+    db.collection('stock_inventory').get()
+  ]).then(function(results) {
+    var numToCost = {}, numToStock = {};
+    results[0].docs.forEach(function(d) {
+      var data = d.data(); var n = data.num||'';
+      if (n) numToCost[n] = parseFloat((data.cost||'0').toString().replace(/[₱,]/g,''))||0;
+    });
+    results[1].docs.forEach(function(d) {
+      var data = d.data(); var n = data.num||'';
+      if (n) numToStock[n] = parseInt(data.stock)||0;
+    });
+    _allDeliveries.forEach(function(del) {
+      (del.items||[]).forEach(function(item) {
+        var n = item.itemNum||'';
+        item._cost = numToCost[n]||0;
+        // Use stockAtReceive (frozen at receive time) if available; otherwise use live stock
+        if (item.stockAtReceive !== undefined && item.stockAtReceive !== null) {
+          item._stock = item.stockAtReceive;
+        } else {
+          item._stock = numToStock[n] !== undefined ? numToStock[n] : null;
+        }
+      });
+    });
+    _updateStats(); _populateMonthFilter(); _renderList();
+  }).catch(function() {
+    _updateStats(); _populateMonthFilter(); _renderList();
+  });
 }, function() {
   db.collection('deliveries').get().then(function(snap) {
     _allDeliveries = snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
@@ -768,12 +776,9 @@ window.openNewDeliveryModal = function() {
   // Reset save button label
   var saveBtn = document.getElementById('ndSaveBtn');
   if (saveBtn) saveBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Delivery';
-  document.getElementById('ndSupplier').value = '';
-  document.getElementById('ndItemSearch').value = '';
   document.getElementById('ndSearchResults').style.display = 'none';
   document.getElementById('ndSearchResultsInner').innerHTML = '';
   document.getElementById('ndItemPreview').style.display = 'none';
-  document.getElementById('ndNotFound').style.display = 'none';
   document.getElementById('ndAddedItemsWrap').style.display = 'none';
   document.getElementById('ndAddedItems').innerHTML = '';
   var tot = document.getElementById('ndTotalAmount'); if (tot) tot.style.display = 'none';
@@ -807,27 +812,32 @@ window._ndLoadAllItems = function() {
       return;
     }
 
-    // Build match list — also fetch cost from item_master
+    // Build match list — also fetch cost and supplierCode from item_master
     var numToMaxCost = {};
+    var numToSupplierCode = {};
     var masterPromise = db.collection('item_master').where('type', '==', 'Material').get().then(function(mSnap) {
       mSnap.docs.forEach(function(d) {
         var data = d.data();
         var num = data.num || '';
         var cost = parseFloat((data.cost || '0').toString().replace(/[₱,]/g, '')) || 0;
-        if (num) numToMaxCost[num] = cost;
+        if (num) {
+          numToMaxCost[num] = cost;
+          numToSupplierCode[num] = data.supplierCode || '';
+        }
       });
     }).catch(function(){});
 
     masterPromise.then(function() {
       var matches = needReplenish.map(function(s) {
         return {
-          num:        s.num  || '',
-          name:       s.name || '',
-          uom:        s.uom  || '',
-          _stock:     parseInt(s.stock) || 0,
-          _minLevel:  parseInt(s.min)   || 0,
-          _maxLevel:  parseInt(s.max)   || 0,
-          _cost:      numToMaxCost[s.num || ''] || 0,
+          num:           s.num  || '',
+          name:          s.name || '',
+          uom:           s.uom  || '',
+          supplierCode:  numToSupplierCode[s.num || ''] || '',
+          _stock:        parseInt(s.stock) || 0,
+          _minLevel:     parseInt(s.min)   || 0,
+          _maxLevel:     parseInt(s.max)   || 0,
+          _cost:         numToMaxCost[s.num || ''] || 0,
         };
       }).sort(function(a, b) {
         if (a._stock === 0 && b._stock !== 0) return -1;
@@ -879,10 +889,8 @@ window._ndRenderItemList = function(matches) {
       ? '<span style="font-size:0.7rem;color:#718096;">Suggest order: <strong style="color:#1a202c;">' + recQty + '</strong></span>'
       : '';
 
-    var infoHtml = '<span style="font-size:0.75rem;color:#718096;">'
-      + (item.num||'') + (item.uom ? '&nbsp;·&nbsp;' + item.uom : '')
-      + '</span>'
-      + (stock !== null ? '<span style="font-size:0.75rem;color:#718096;">Current: <strong style="color:#1a202c;">' + stock + '</strong></span>' : '')
+    var infoHtml = (item.supplierCode ? '<span style="font-size:0.75rem;color:#718096;">' + item.supplierCode + '</span>' : '')
+      + (stock !== null ? '<span style="font-size:0.75rem;color:#718096;">' + (item.supplierCode ? '&nbsp;·&nbsp;' : '') + 'Current: <strong style="color:#1a202c;">' + stock + '</strong></span>' : '')
       + (item._cost > 0 ? '<span style="font-size:0.75rem;color:#718096;">₱' + item._cost.toLocaleString('en-PH', {minimumFractionDigits:2}) + '/unit</span>' : '');
 
     return '<div id="ndResult_' + idx + '" onclick="ndSelectItem(' + idx + ')" '
@@ -891,7 +899,7 @@ window._ndRenderItemList = function(matches) {
       + 'background:white;transition:background 0.12s;" '
       + 'onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'white\'">'
       + '<div style="flex:1;min-width:0;">'
-      +   '<div style="font-weight:600;font-size:0.88rem;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (item.name||'') + '</div>'
+      +   '<div style="font-weight:600;font-size:0.88rem;color:#1a202c;">' + (item.name||'') + (item.uom ? '&nbsp;&nbsp;<span style="font-weight:400;font-size:0.78rem;color:#718096;">(' + item.uom + ')</span>' : '') + '</div>'
       +   '<div style="display:flex;align-items:center;gap:0.5rem;margin-top:3px;flex-wrap:wrap;">'
       +     infoHtml
       +     '<span id="ndStock_' + idx + '">' + badge + '</span>'
@@ -925,122 +933,77 @@ window._ndRenderItemList = function(matches) {
   });
 };
 
-window.ndSearchMasterItem = function(query) {
-  var q = (query || '').trim().toLowerCase();
-  var previewEl  = document.getElementById('ndItemPreview');
-  var notFoundEl = document.getElementById('ndNotFound');
-
-  previewEl.style.display  = 'none';
-  notFoundEl.style.display = 'none';
-  _ndFoundItem = null;
-
-  // Filter within the replenishment list (already loaded in _ndSearchMatches)
-  var base = window._ndSearchMatches || [];
-  if (!q) {
-    // Re-run full load to restore original list
-    _ndLoadAllItems();
-    return;
-  }
-
-  var matches = base.filter(function(i) {
-    return (i.num||'').toLowerCase().includes(q)
-        || (i.name||'').toLowerCase().includes(q);
-  });
-
-  if (!matches.length) {
-    document.getElementById('ndSearchResultsInner').innerHTML = '';
-    document.getElementById('ndSearchResults').style.display = 'none';
-    notFoundEl.style.display = 'block';
-    return;
-  }
-
-  notFoundEl.style.display = 'none';
-  _ndRenderItemList(matches);
-};
-
 // ── Shared card builder for "Items Added" list (New + Edit modals) ──
 window._ndBuildItemCard = function(opts) {
   /*
-    opts: { rowIdx, num, name, uom, qty, cost, stock }
+    opts: { rowIdx, num, name, uom, qty, cost, stock, supplierCode }
     Returns an HTMLElement ready to appendChild.
   */
-  var rowIdx   = opts.rowIdx;
-  var num      = opts.num   || '';
-  var name     = opts.name  || '';
-  var uom      = opts.uom   || '';
-  var qty      = opts.qty   || 1;
-  var cost     = opts.cost  || 0;
-  var stock    = opts.stock !== undefined ? opts.stock : null;
+  var rowIdx       = opts.rowIdx;
+  var num          = opts.num   || '';
+  var name         = opts.name  || '';
+  var uom          = opts.uom   || '';
+  var qty          = opts.qty   || 1;
+  var cost         = opts.cost  || 0;
+  var stock        = opts.stock !== undefined ? opts.stock : null;
+  var supplierCode = opts.supplierCode || '';
   var subtotal = cost * qty;
-
-  // Stock status pill
-  var stockPill = '';
-  if (stock !== null) {
-    var pillColor = stock === 0 ? '#e53e3e' : '#d69e2e';
-    var pillBg    = stock === 0 ? 'rgba(229,62,62,0.08)' : 'rgba(214,158,46,0.08)';
-    var pillBorder= stock === 0 ? 'rgba(229,62,62,0.3)' : 'rgba(214,158,46,0.3)';
-    var pillLabel = stock === 0 ? 'Out of Stock' : 'Low Stock';
-    stockPill = '<span style="font-size:9px;font-weight:700;color:' + pillColor + ';background:' + pillBg + ';border:1px solid ' + pillBorder + ';border-radius:20px;padding:1px 7px;white-space:nowrap;">' + pillLabel + '</span>';
-  }
 
   var div = document.createElement('div');
   div.id = 'ndAddedRow' + rowIdx;
-  div.style.cssText = [
-    'background:white',
-    'border:1.5px solid #e2e8f0',
-    'border-radius:10px',
-    'padding:12px 14px',
-    'display:flex',
-    'flex-direction:column',
-    'gap:0',
-    'box-shadow:0 1px 4px rgba(0,0,0,0.05)',
-    'transition:box-shadow .15s',
-  ].join(';') + ';';
+  div.style.cssText = 'background:white;border:1.2px solid #e2e8f0;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:0;box-shadow:0 2px 8px rgba(0,0,0,0.03),0 1px 2px rgba(0,0,0,0.02);transition:box-shadow .15s;margin-bottom:2px;';
+
+  // Meta chips builder
+  function _chip(text, icon, color) {
+    return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;color:' + color + ';background:' + color + '0f;border:1px solid ' + color + '26;">'
+      + '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + icon + '</svg>'
+      + text + '</span>';
+  }
+
+  var metaChips = '';
+  if (supplierCode) metaChips += _chip(supplierCode, '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h3v3H7z"/>', '#4a5568');
+  if (cost > 0) metaChips += _chip('\u20b1' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}), '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>', '#003087');
+  if (stock !== null) metaChips += _chip('Stock: ' + stock, '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>', stock === 0 ? '#e53e3e' : '#718096');
 
   div.innerHTML =
-    // ── Row 1: item info + qty stepper + remove ──
-    '<div style="display:flex;align-items:center;gap:10px;">'
-
-      // Left: name + meta
+    // ── Header: name + remove button ──
+    '<div style="display:flex;align-items:flex-start;gap:10px;">'
       + '<div style="flex:1;min-width:0;">'
-      +   '<div style="font-weight:700;font-size:0.87rem;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+      +   '<div style="font-weight:700;font-size:0.9rem;color:#1a202c;line-height:1.35;">'
       +     name
-      +     (uom ? '<span style="font-weight:400;font-size:0.74rem;color:#718096;margin-left:5px;background:#f0f4f8;padding:1px 6px;border-radius:20px;">' + uom + '</span>' : '')
-      +   '</div>'
-      +   '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:5px;">'
-      +     '<span style="font-size:0.72rem;color:#718096;">' + num + '</span>'
-      +     (cost > 0 ? '<span style="font-size:9px;color:#718096;">\u00b7</span><span style="font-size:0.72rem;color:#718096;">\u20b1' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '/unit</span>' : '')
-      +     (stock !== null ? '<span style="font-size:9px;color:#718096;">\u00b7</span><span style="font-size:0.72rem;color:#718096;">Stock: <strong style="color:#1a202c;">' + stock + '</strong></span>' : '')
-      +     stockPill
+      +     (uom ? '&nbsp;&nbsp;<span style="font-weight:400;font-size:0.76rem;color:#718096;">(' + uom + ')</span>' : '')
       +   '</div>'
       + '</div>'
-
-      // Right: qty stepper
-      + '<div style="display:flex;align-items:center;gap:0;flex-shrink:0;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;overflow:hidden;">'
-      +   '<button type="button" onclick="(function(){var el=document.getElementById(\'ndQty_' + rowIdx + '\');var v=Math.max(1,(parseInt(el.value)||1)-1);el.value=v;el.dispatchEvent(new Event(\'input\'));})()" '
-      +     'style="background:none;border:none;color:#718096;width:28px;height:32px;cursor:pointer;font-size:1rem;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .1s;" '
-      +     'onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'none\'">&minus;</button>'
-      +   '<input type="number" id="ndQty_' + rowIdx + '" value="' + qty + '" min="1"'
-      +     ' style="width:44px;border:none;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;background:white;font-size:0.85rem;text-align:center;outline:none;padding:4px 2px;height:32px;box-sizing:border-box;"'
-      +     ' oninput="(function(el,i){var v=Math.max(1,parseInt(el.value)||1);el.value=v;var found=_ndItems.find(function(x){return x._idx===i;});if(found){found.expectedQty=v;_ndUpdateTotal();var sub=document.getElementById(\'ndSub_\'+i);if(sub)sub.textContent=found._cost>0?\'\u20b1\'+(found._cost*v).toLocaleString(\'en-PH\',{minimumFractionDigits:2}):\'\'}})(this,' + rowIdx + ')">'
-      +   '<button type="button" onclick="(function(){var el=document.getElementById(\'ndQty_' + rowIdx + '\');var v=(parseInt(el.value)||1)+1;el.value=v;el.dispatchEvent(new Event(\'input\'));})()" '
-      +     'style="background:none;border:none;color:#718096;width:28px;height:32px;cursor:pointer;font-size:1rem;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .1s;" '
-      +     'onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'none\'">+</button>'
-      + '</div>'
-
-      // Remove button
       + '<button type="button" onclick="ndRemoveItem(' + rowIdx + ')" '
-      +   'style="background:none;border:none;color:#cbd5e0;cursor:pointer;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.95rem;transition:all .15s;" '
-      +   'onmouseover="this.style.color=\'#e53e3e\';this.style.background=\'rgba(229,62,62,0.08)\'" '
-      +   'onmouseout="this.style.color=\'#cbd5e0\';this.style.background=\'none\'">\u00d7</button>'
-
+      +   'style="background:#fef2f2;border:1px solid #fecaca;color:#e53e3e;cursor:pointer;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1rem;transition:all .15s;line-height:1;" '
+      +   'onmouseover="this.style.background=\'#fee2e2\'" '
+      +   'onmouseout="this.style.background=\'#fef2f2\'">\u00d7</button>'
     + '</div>'
 
-    // ── Row 2: subtotal (only if cost > 0) ──
+    // ── Meta chips ──
+    + (metaChips ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">' + metaChips + '</div>' : '')
+
+    // ── Order Quantity stepper ──
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">'
+    +   '<span style="font-size:0.78rem;font-weight:600;color:#4a5568;">Order Quantity</span>'
+    +   '<div style="display:flex;align-items:center;gap:0;background:white;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);overflow:hidden;">'
+    +     '<button type="button" onclick="(function(){var el=document.getElementById(\'ndQty_' + rowIdx + '\');var v=Math.max(1,(parseInt(el.value)||1)-1);el.value=v;el.dispatchEvent(new Event(\'input\'));})()" '
+    +       'style="background:none;border:none;color:#718096;width:34px;height:34px;cursor:pointer;font-size:1.1rem;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .1s;" '
+    +       'onmouseover="this.style.background=\'#f0f4f8\'" onmouseout="this.style.background=\'none\'">&minus;</button>'
+    +     '<input type="number" id="ndQty_' + rowIdx + '" value="' + qty + '" min="1"'
+    +       ' style="width:48px;border:none;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;background:white;font-size:0.9rem;font-weight:700;text-align:center;outline:none;padding:4px 0;height:34px;box-sizing:border-box;-moz-appearance:textfield;-webkit-appearance:none;appearance:none;"'
+    +       ' oninput="(function(el,i){var v=Math.max(1,parseInt(el.value)||1);el.value=v;var found=_ndItems.find(function(x){return x._idx===i;});if(found){found.expectedQty=v;_ndUpdateTotal();var sub=document.getElementById(\'ndSub_\'+i);if(sub)sub.textContent=found._cost>0?\'\u20b1\'+(found._cost*v).toLocaleString(\'en-PH\',{minimumFractionDigits:2}):\'\'}})(this,' + rowIdx + ')">'
+    +     '<button type="button" onclick="(function(){var el=document.getElementById(\'ndQty_' + rowIdx + '\');var v=(parseInt(el.value)||1)+1;el.value=v;el.dispatchEvent(new Event(\'input\'));})()" '
+    +       'style="background:none;border:none;color:#E8001C;width:34px;height:34px;cursor:pointer;font-size:1.1rem;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .1s;" '
+    +       'onmouseover="this.style.background=\'#fff5f5\'" onmouseout="this.style.background=\'none\'">+</button>'
+    +   '</div>'
+    + '</div>'
+
+    // ── Subtotal ──
     + (cost > 0
-        ? '<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid #f0f4f8;">'
+        ? '<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:10px;">'
         +   '<span style="font-size:0.72rem;color:#a0aec0;font-weight:500;">Subtotal</span>'
-        +   '<strong id="ndSub_' + rowIdx + '" style="font-size:0.88rem;color:#1a202c;font-weight:800;">\u20b1' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</strong>'
+        +   '<strong id="ndSub_' + rowIdx + '" style="font-size:0.9rem;color:#E8001C;font-weight:800;">\u20b1' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</strong>'
         + '</div>'
         : '');
 
@@ -1077,11 +1040,11 @@ window.ndSelectItem = function(idx) {
 
   _ndIdx++;
   var rowIdx = _ndIdx;
-  _ndItems.push({ itemNum:num, itemName:name, uom:uom, expectedQty:recQty, _idx:rowIdx, _cardIdx:idx, _cost: item._cost || 0 });
+  _ndItems.push({ itemNum:num, itemName:name, uom:uom, expectedQty:recQty, _idx:rowIdx, _cardIdx:idx, _cost: item._cost || 0, supplierCode: item.supplierCode || '' });
 
   var cost  = item._cost || 0;
   var stock = (item._stock !== null && item._stock !== undefined) ? item._stock : null;
-  var row = window._ndBuildItemCard({ rowIdx:rowIdx, num:num, name:name, uom:uom, qty:recQty, cost:cost, stock:stock });
+  var row = window._ndBuildItemCard({ rowIdx:rowIdx, num:num, name:name, uom:uom, qty:recQty, cost:cost, stock:stock, supplierCode: item.supplierCode || '' });
   document.getElementById('ndAddedItems').appendChild(row);
 
   document.getElementById('ndAddedCount').textContent = _ndItems.length + ' item' + (_ndItems.length !== 1 ? 's' : '');
@@ -1092,7 +1055,6 @@ window.ndSelectItem = function(idx) {
 
 window.ndClearSelection = function() {
   _ndFoundItem = null;
-  document.getElementById('ndItemSearch').value = '';
   document.getElementById('ndItemPreview').style.display = 'none';
   document.getElementById('ndExpectedQty').value = '';
   _ndLoadAllItems();
@@ -1120,8 +1082,8 @@ window.ndAddCurrentItem = function() {
   row.style.cssText = 'background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;';
   row.innerHTML =
     '<div style="flex:1;min-width:0;">'
-    + '<div style="font-weight:700;font-size:0.85rem;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + name + (uom ? ' <span style="font-size:0.75rem;font-weight:500;color:#718096;">(' + uom + ')</span>' : '') + '</div>'
-    + '<div style="font-size:0.75rem;color:#718096;margin-top:1px;">' + num + ' &nbsp;\u00b7&nbsp; Order Qty: <strong>' + qty + '</strong></div>'
+    + '<div style="font-weight:700;font-size:0.85rem;color:#1a202c;">' + name + (uom ? '&nbsp;&nbsp;<span style="font-size:0.75rem;font-weight:400;color:#718096;">(' + uom + ')</span>' : '') + '</div>'
+    + '<div style="font-size:0.75rem;color:#718096;margin-top:1px;">Order Qty: <strong>' + qty + '</strong></div>'
     + '</div>'
     + '<button type="button" onclick="ndRemoveItem(' + idx + ')" style="background:none;border:none;color:#e53e3e;cursor:pointer;font-size:1rem;flex-shrink:0;padding:2px 6px;">\u2715</button>';
   document.getElementById('ndAddedItems').appendChild(row);
@@ -1130,7 +1092,6 @@ window.ndAddCurrentItem = function() {
   document.getElementById('ndAddedItemsWrap').style.display = 'flex';
 
   // Reset for next item — restore the replenishment list
-  document.getElementById('ndItemSearch').value = '';
   document.getElementById('ndItemPreview').style.display  = 'none';
   document.getElementById('ndExpectedQty').value = '';
   _ndFoundItem = null;
@@ -1178,27 +1139,48 @@ window._ndUpdateTotal = function() {
 };
 
 window.saveNewDelivery = function() {
-  var supplier=document.getElementById('ndSupplier').value.trim();
-  if(!supplier){showToast('Please fill in the supplier.','error');return;}
   if(!_ndItems.length){showToast('Add at least one item.','error');return;}
-  var items=_ndItems.map(function(i){return{itemNum:i.itemNum,itemName:i.itemName,uom:i.uom,expectedQty:i.expectedQty};});
+
+  // Check for duplicate items in other active deliveries
+  var activeDeliveries = _allDeliveries.filter(function(d) {
+    if (_currentEditDeliveryId && d.id === _currentEditDeliveryId) return false; // skip the one being edited
+    var st = d.status || 'Pending';
+    return st !== 'Approved' && st !== 'Rejected';
+  });
+  var duplicates = [];
+  _ndItems.forEach(function(item) {
+    activeDeliveries.forEach(function(d) {
+      (d.items || []).forEach(function(existingItem) {
+        if (existingItem.itemNum === item.itemNum) {
+          duplicates.push(item.itemName);
+        }
+      });
+    });
+  });
+  if (duplicates.length > 0) {
+    var unique = duplicates.filter(function(v, i, a) { return a.indexOf(v) === i; });
+    showToast('Item already in an active delivery: ' + unique.join(', '), 'error');
+    return;
+  }
+
+  var items=_ndItems.map(function(i){return{itemNum:i.itemNum,itemName:i.itemName,uom:i.uom,expectedQty:i.expectedQty,supplierCode:i.supplierCode||''};});
   var btn=document.getElementById('ndSaveBtn');
   btn.disabled=true;
   btn.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite;flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving...</span>';
-  var data = { supplier:supplier, items:items };
+  var data = { items:items };
 
   var isEdit = !!_currentEditDeliveryId;
   var promise;
   if (isEdit) {
     // Update existing delivery
     promise = db.collection('deliveries').doc(_currentEditDeliveryId).update(data)
-      .then(function(){ closeModal('newDeliveryModal'); showToast('Delivery updated successfully!','success'); _currentEditDeliveryId = null; });
+      .then(function(){ closeModal('newDeliveryModal'); showToast('Delivery record updated successfully!','success'); _currentEditDeliveryId = null; });
   } else {
     // Create new delivery
     data.status = 'Pending';
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     promise = db.collection('deliveries').add(data)
-      .then(function(){ closeModal('newDeliveryModal'); showToast('Delivery created successfully!','success'); });
+      .then(function(){ closeModal('newDeliveryModal'); showToast('Delivery record created successfully!','success'); });
   }
 
   promise
@@ -1224,17 +1206,12 @@ window.editDelivery = function(id) {
   var hdTitle = document.querySelector('#newDeliveryModal .modal-content > div:first-child div div:first-child');
   var hdSub   = document.querySelector('#newDeliveryModal .modal-content > div:first-child div div:last-child');
   if (hdTitle) hdTitle.textContent = 'Edit Delivery';
-  if (hdSub)   hdSub.textContent   = 'Update supplier or items for this delivery';
-
-  // Pre-fill supplier
-  document.getElementById('ndSupplier').value = d.supplier || '';
+  if (hdSub)   hdSub.textContent   = 'Update items for this delivery';
 
   // Clear search/preview/items
-  document.getElementById('ndItemSearch').value = '';
   document.getElementById('ndSearchResults').style.display = 'none';
   document.getElementById('ndSearchResultsInner').innerHTML = '';
   document.getElementById('ndItemPreview').style.display = 'none';
-  document.getElementById('ndNotFound').style.display = 'none';
   document.getElementById('ndAddedItems').innerHTML = '';
   document.getElementById('ndAddedItemsWrap').style.display = 'none';
   var tot = document.getElementById('ndTotalAmount'); if (tot) tot.style.display = 'none';
@@ -1251,15 +1228,19 @@ window.editDelivery = function(id) {
   var items = (d.items || []).slice();
   var numToCost  = {};
   var numToStock = {};
+  var numToSupplierCode = {};
 
-  // Step 1: fetch item_master for cost
+  // Step 1: fetch item_master for cost and supplierCode
   db.collection('item_master').where('type', '==', 'Material').get()
     .then(function(mSnap) {
       mSnap.docs.forEach(function(doc) {
         var data = doc.data();
         var n    = data.num || '';
         var raw  = (data.cost || '0').toString().replace(/[^\d.]/g, '');
-        if (n) numToCost[n] = parseFloat(raw) || 0;
+        if (n) {
+          numToCost[n] = parseFloat(raw) || 0;
+          numToSupplierCode[n] = data.supplierCode || '';
+        }
       });
     })
     .catch(function(){}) // cost fetch failure is non-fatal
@@ -1286,12 +1267,13 @@ window.editDelivery = function(id) {
         var qty   = item.expectedQty || 1;
         var cost  = numToCost[num]  || 0;
         var stock = (numToStock[num] !== undefined) ? numToStock[num] : null;
+        var sc    = numToSupplierCode[num] || item.supplierCode || '';
 
         _ndIdx++;
         var rowIdx = _ndIdx;
-        _ndItems.push({ itemNum: num, itemName: name, uom: uom, expectedQty: qty, _idx: rowIdx, _cost: cost });
+        _ndItems.push({ itemNum: num, itemName: name, uom: uom, expectedQty: qty, _idx: rowIdx, _cost: cost, supplierCode: sc });
 
-        var row = window._ndBuildItemCard({ rowIdx:rowIdx, num:num, name:name, uom:uom, qty:qty, cost:cost, stock:stock });
+        var row = window._ndBuildItemCard({ rowIdx:rowIdx, num:num, name:name, uom:uom, qty:qty, cost:cost, stock:stock, supplierCode: sc });
 
         document.getElementById('ndAddedItems').appendChild(row);
       });
@@ -1318,52 +1300,209 @@ window.deleteDelivery = function(id) {
   var label = d ? (d.supplier || 'this delivery') + ' (' + _fmtDate(d.date) + ')' : 'this delivery';
   if (!confirm('Delete ' + label + '? This cannot be undone.')) return;
   db.collection('deliveries').doc(id).delete()
-    .then(function(){ showToast('Delivery deleted successfully!', 'error'); })
+    .then(function(){ showToast('Delivery record deleted successfully!', 'error'); })
     .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
 };
 
-// -- Receive Modal --
-window.openReceiveModal = function(id) {
+// -- Approve Admin Review (staff request) — per item --
+window.approveAdminReview = function(id, itemIdx) {
+  var d = _allDeliveries.find(function(x){ return x.id === id; });
+  if (!d) return;
+  if (!confirm('Approve this item? It will be set to Pending for receiving.')) return;
+  var updatedItems = (d.items || []).slice();
+  if (updatedItems[itemIdx]) {
+    updatedItems[itemIdx] = Object.assign({}, updatedItems[itemIdx], { itemStatus: 'Pending' });
+  }
+  // Determine delivery-level status: if all items are Pending (approved from review), set delivery to Pending
+  var allPending = updatedItems.every(function(i){ return !i.itemStatus || i.itemStatus === 'Pending'; });
+  var deliveryStatus = allPending ? 'Pending' : d.status;
+  db.collection('deliveries').doc(id).update({ items: updatedItems, status: deliveryStatus })
+    .then(function(){ showToast('Item approved! Ready for receiving.', 'success'); })
+    .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
+};
+
+// -- Reject Admin Review (staff request) — per item --
+window.rejectAdminReview = function(id, itemIdx) {
+  var d = _allDeliveries.find(function(x){ return x.id === id; });
+  if (!d) return;
+  var item = (d.items || [])[itemIdx];
+  var itemName = item ? (item.itemName || 'this item') : 'this item';
+  if (!confirm('Reject "' + itemName + '" from this delivery request?')) return;
+  var updatedItems = (d.items || []).slice();
+  updatedItems.splice(itemIdx, 1);
+  if (updatedItems.length === 0) {
+    // Last item — delete the whole delivery
+    db.collection('deliveries').doc(id).delete()
+      .then(function(){ showToast('Request rejected. Delivery record deleted (no items left).', 'error'); })
+      .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
+  } else {
+    // Remove just this item
+    var allPending = updatedItems.every(function(i){ return !i.itemStatus || i.itemStatus === 'Pending'; });
+    var deliveryStatus = allPending ? 'Pending' : d.status;
+    db.collection('deliveries').doc(id).update({ items: updatedItems, status: deliveryStatus })
+      .then(function(){ showToast('Item rejected and removed.', 'error'); })
+      .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
+  }
+};
+
+// -- Edit single item in delivery (update qty) --
+var _editDeliveryId = null;
+var _editItemIdx = null;
+
+window.editItemInDelivery = function(deliveryId, itemIdx) {
+  var d = _allDeliveries.find(function(x){ return x.id === deliveryId; });
+  if (!d || !d.items || !d.items[itemIdx]) return;
+  var item = d.items[itemIdx];
+  _editDeliveryId = deliveryId;
+  _editItemIdx = itemIdx;
+
+  var name = item.itemName || '';
+  var uom = item.uom || '';
+  var supplierCode = item.supplierCode || '';
+  var cost = item._cost || 0;
+  var stock = (item._stock !== undefined && item._stock !== null) ? item._stock : null;
+  var qty = item.expectedQty || 1;
+
+  // Build card using same style as Items Added
+  function _chip(text, icon, color) {
+    return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;color:' + color + ';background:' + color + '0f;border:1px solid ' + color + '26;">'
+      + '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + icon + '</svg>'
+      + text + '</span>';
+  }
+
+  var metaChips = '';
+  if (supplierCode) metaChips += _chip(supplierCode, '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h3v3H7z"/>', '#4a5568');
+  if (cost > 0) metaChips += _chip('\u20b1' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}), '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>', '#003087');
+  if (stock !== null) metaChips += _chip('Stock: ' + stock, '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>', stock === 0 ? '#e53e3e' : '#718096');
+
+  var cardHtml = '<div style="background:white;border:1.2px solid #e2e8f0;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.03),0 1px 2px rgba(0,0,0,0.02);">'
+    // Name
+    + '<div style="font-weight:700;font-size:0.9rem;color:#1a202c;line-height:1.35;">'
+    +   name + (uom ? '&nbsp;&nbsp;<span style="font-weight:400;font-size:0.76rem;color:#718096;">(' + uom + ')</span>' : '')
+    + '</div>'
+    // Meta chips
+    + (metaChips ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">' + metaChips + '</div>' : '')
+    // Order Quantity stepper
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">'
+    +   '<span style="font-size:0.78rem;font-weight:600;color:#4a5568;">Order Quantity</span>'
+    +   '<div style="display:flex;align-items:center;gap:0;background:white;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);overflow:hidden;">'
+    +     '<button type="button" onclick="var el=document.getElementById(\'eiQtyInput\');var v=Math.max(1,(parseInt(el.value)||1)-1);el.value=v;" '
+    +       'style="background:none;border:none;color:#718096;width:34px;height:34px;cursor:pointer;font-size:1.1rem;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .1s;" '
+    +       'onmouseover="this.style.background=\'#f0f4f8\'" onmouseout="this.style.background=\'none\'">&minus;</button>'
+    +     '<input type="number" id="eiQtyInput" value="' + qty + '" min="1"'
+    +       ' style="width:48px;border:none;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;background:white;font-size:0.9rem;font-weight:700;text-align:center;outline:none;padding:4px 0;height:34px;box-sizing:border-box;-moz-appearance:textfield;-webkit-appearance:none;appearance:none;">'
+    +     '<button type="button" onclick="var el=document.getElementById(\'eiQtyInput\');var v=(parseInt(el.value)||1)+1;el.value=v;" '
+    +       'style="background:none;border:none;color:#E8001C;width:34px;height:34px;cursor:pointer;font-size:1.1rem;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .1s;" '
+    +       'onmouseover="this.style.background=\'#fff5f5\'" onmouseout="this.style.background=\'none\'">+</button>'
+    +   '</div>'
+    + '</div>'
+    // Subtotal
+    + (cost > 0
+      ? '<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:10px;">'
+      +   '<span style="font-size:0.72rem;color:#a0aec0;font-weight:500;">Subtotal</span>'
+      +   '<strong id="eiSubtotal" style="font-size:0.9rem;color:#E8001C;font-weight:800;">\u20b1' + (cost * qty).toLocaleString('en-PH',{minimumFractionDigits:2}) + '</strong>'
+      + '</div>'
+      : '')
+    + '</div>';
+
+  document.getElementById('eiCardContainer').innerHTML = cardHtml;
+  document.getElementById('editItemModal').classList.add('active');
+  setTimeout(function(){ document.getElementById('eiQtyInput').select(); }, 100);
+};
+
+window.saveEditItem = function() {
+  if (!_editDeliveryId || _editItemIdx === null) return;
+  var d = _allDeliveries.find(function(x){ return x.id === _editDeliveryId; });
+  if (!d || !d.items || !d.items[_editItemIdx]) return;
+  var newQty = parseInt(document.getElementById('eiQtyInput').value);
+  if (!newQty || newQty <= 0) { showToast('Quantity must be greater than 0.', 'error'); return; }
+  var btn = document.getElementById('eiSaveBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving...';
+  var updatedItems = d.items.slice();
+  updatedItems[_editItemIdx] = Object.assign({}, updatedItems[_editItemIdx], { expectedQty: newQty });
+  db.collection('deliveries').doc(_editDeliveryId).update({ items: updatedItems })
+    .then(function(){
+      closeModal('editItemModal');
+      showToast('Quantity updated to ' + newQty + '.', 'success');
+    })
+    .catch(function(err){ showToast('Error: ' + err.message, 'error'); })
+    .finally(function(){
+      btn.disabled = false;
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update Quantity';
+    });
+};
+
+// -- Delete single item from delivery --
+window.deleteItemFromDelivery = function(deliveryId, itemIdx) {
+  var d = _allDeliveries.find(function(x){ return x.id === deliveryId; });
+  if (!d || !d.items) return;
+  var item = d.items[itemIdx];
+  if (!item) return;
+  if (!confirm('Remove "' + (item.itemName || 'this item') + '" from delivery?')) return;
+  var updatedItems = d.items.slice();
+  updatedItems.splice(itemIdx, 1);
+  if (updatedItems.length === 0) {
+    // Last item — delete entire delivery
+    db.collection('deliveries').doc(deliveryId).delete()
+      .then(function(){ showToast('Delivery record deleted successfully!', 'error'); })
+      .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
+  } else {
+    db.collection('deliveries').doc(deliveryId).update({ items: updatedItems })
+      .then(function(){ showToast('Item removed successfully!', 'error'); })
+      .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
+  }
+};
+
+// -- Receive Modal (single item) --
+var _rcvItemIdx = null;
+
+window.openReceiveModal = function(id, itemIdx) {
   var d = _allDeliveries.find(function(x){ return x.id===id; });
   if (!d) return;
   _currentDeliveryId = id;
+  _rcvItemIdx = (itemIdx !== undefined) ? itemIdx : 0;
+  var item = (d.items || [])[_rcvItemIdx];
+  if (!item) return;
+
   var apUser = JSON.parse(sessionStorage.getItem('apUser') || '{}');
   var userName = apUser.name || '';
   document.getElementById('rmReceivedBy').value = userName;
   document.getElementById('rmReceivedByLabel').textContent = userName || '—';
 
-  document.getElementById('rmItemRows').innerHTML = (d.items||[]).map(function(item, i) {
-    var uom = item.uom || '';
-    var uomLabel = uom ? ' <span style="font-size:0.75rem;font-weight:400;color:#718096;">(' + uom + ')</span>' : '';
-    var metaLine = item.itemNum + (uom ? ' · ' + uom : '') + ' · Order Qty: <strong style="color:#1a202c;">' + item.expectedQty + '</strong>';
+  var uom = item.uom || '';
+  var uomLabel = uom ? ' <span style="font-size:0.75rem;font-weight:400;color:#718096;">(' + uom + ')</span>' : '';
 
-    return '<div style="background:white;border:1.5px solid #90cdf4;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">'
-      + '<div style="font-weight:700;font-size:0.9rem;color:#1a202c;">' + item.itemName + uomLabel + '</div>'
-      + '<div style="font-size:0.75rem;color:#718096;margin-top:3px;">' + metaLine + '</div>'
-      + '<div style="height:1px;background:#f0f4f8;margin:10px 0;"></div>'
-      + '<div style="margin-bottom:10px;">'
-      +   '<label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Actual Qty *</label>'
-      +   '<input type="number" id="rmActual_' + i + '" value="' + item.expectedQty + '" min="0"'
-      +     ' oninput="rmAutoCondition(' + i + ',' + item.expectedQty + ')"'
-      +     ' style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.9rem;outline:none;box-sizing:border-box;transition:border-color .15s;"'
-      +     ' onfocus="this.style.borderColor=&quot;#003087&quot;" onblur="this.style.borderColor=&quot;#e2e8f0&quot;">'
-      + '</div>'
-      + '<div style="margin-bottom:10px;">'
-      +   '<label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:6px;">Condition</label>'
-      +   '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
-      +     '<button id="rmCond_' + i + '_ok" onclick="setCondition(' + i + ',&quot;OK&quot;)" style="padding:6px 14px;border:1.5px solid #38a169;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(56,161,105,0.1);color:#38a169;transition:all .15s;">&#x2705; OK</button>'
-      +     '<button id="rmCond_' + i + '_defect" onclick="setCondition(' + i + ',&quot;Defective&quot;)" style="padding:6px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:white;color:#718096;transition:all .15s;">&#x274C; Defective</button>'
-      +     '<button id="rmCond_' + i + '_shortage" onclick="setCondition(' + i + ',&quot;Shortage&quot;)" style="padding:6px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:white;color:#718096;transition:all .15s;">&#x26A0;&#xFE0F; Shortage</button>'
-      +   '</div>'
-      + '</div>'
-      + '<div>'
-      +   '<label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Remarks <span style="font-weight:400;color:#a0aec0;">(optional)</span></label>'
-      +   '<input type="text" id="rmRemark_' + i + '" placeholder="e.g. 1 unit damaged packaging"'
-      +     ' style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.55rem 0.75rem;font-size:0.83rem;outline:none;box-sizing:border-box;transition:border-color .15s;"'
-      +     ' onfocus="this.style.borderColor=&quot;#003087&quot;" onblur="this.style.borderColor=&quot;#e2e8f0&quot;">'
-      + '</div>'
-      + '</div>';
-  }).join('');
+  document.getElementById('rmItemRows').innerHTML =
+    '<div style="background:white;border:1.5px solid #90cdf4;border-radius:12px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">'
+    + '<div style="font-weight:700;font-size:0.9rem;color:#1a202c;">' + (item.itemName||'') + uomLabel + '</div>'
+    + '<div style="font-size:0.75rem;color:#718096;margin-top:3px;">'
+    +   (item.supplierCode ? item.supplierCode + ' · ' : '') + 'Order Qty: <strong style="color:#1a202c;">' + (item.expectedQty||0) + '</strong>'
+    + '</div>'
+    + '<div style="height:1px;background:#f0f4f8;margin:10px 0;"></div>'
+    + '<div style="margin-bottom:10px;">'
+    +   '<label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Actual Qty *</label>'
+    +   '<input type="number" id="rmActual_0" value="' + (item.expectedQty||0) + '" min="0"'
+    +     ' oninput="rmAutoCondition(0,' + (item.expectedQty||0) + ')"'
+    +     ' style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.9rem;outline:none;box-sizing:border-box;transition:border-color .15s;"'
+    +     ' onfocus="this.style.borderColor=\'#003087\'" onblur="this.style.borderColor=\'#e2e8f0\'">'
+    + '</div>'
+    + '<div style="margin-bottom:10px;">'
+    +   '<label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:6px;">Condition</label>'
+    +   '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+    +     '<button id="rmCond_0_ok" onclick="setCondition(0,\'OK\')" style="padding:6px 14px;border:1.5px solid #38a169;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(56,161,105,0.1);color:#38a169;transition:all .15s;">&#x2705; OK</button>'
+    +     '<button id="rmCond_0_defect" onclick="setCondition(0,\'Defective\')" style="padding:6px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:white;color:#718096;transition:all .15s;">&#x274C; Defective</button>'
+    +     '<button id="rmCond_0_shortage" onclick="setCondition(0,\'Shortage\')" style="padding:6px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:white;color:#718096;transition:all .15s;">&#x26A0;&#xFE0F; Shortage</button>'
+    +   '</div>'
+    + '</div>'
+    + '<div>'
+    +   '<label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Remarks <span style="font-weight:400;color:#a0aec0;">(optional)</span></label>'
+    +   '<input type="text" id="rmRemark_0" placeholder="e.g. 1 unit damaged packaging"'
+    +     ' style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.55rem 0.75rem;font-size:0.83rem;outline:none;box-sizing:border-box;transition:border-color .15s;"'
+    +     ' onfocus="this.style.borderColor=\'#003087\'" onblur="this.style.borderColor=\'#e2e8f0\'">'
+    + '</div>'
+    + '</div>';
+
   document.getElementById('receiveModal').classList.add('active');
 };
 
@@ -1405,29 +1544,41 @@ window.submitReceiving = function() {
   if (!receivedBy) { showToast('Could not detect logged-in user.', 'error'); return; }
   var d = _allDeliveries.find(function(x){ return x.id===_currentDeliveryId; });
   if (!d) return;
-  var updatedItems = (d.items||[]).map(function(item, i) {
-    var defectBtn   = document.getElementById('rmCond_'+i+'_defect');
-    var shortageBtn = document.getElementById('rmCond_'+i+'_shortage');
-    var cond = 'OK';
-    if (defectBtn   && defectBtn.getAttribute('data-active'))   cond = 'Defective';
-    if (shortageBtn && shortageBtn.getAttribute('data-active')) cond = 'Shortage';
-    var actualEl = document.getElementById('rmActual_'+i);
-    var remarkEl = document.getElementById('rmRemark_'+i);
-    return Object.assign({}, item, {
-      actualQty: parseInt(actualEl ? actualEl.value : item.expectedQty) || 0,
-      condition: cond,
-      remark: remarkEl ? remarkEl.value.trim() : ''
-    });
+
+  var defectBtn   = document.getElementById('rmCond_0_defect');
+  var shortageBtn = document.getElementById('rmCond_0_shortage');
+  var cond = 'OK';
+  if (defectBtn   && defectBtn.getAttribute('data-active'))   cond = 'Defective';
+  if (shortageBtn && shortageBtn.getAttribute('data-active')) cond = 'Shortage';
+  var actualEl = document.getElementById('rmActual_0');
+  var remarkEl = document.getElementById('rmRemark_0');
+
+  var updatedItems = (d.items||[]).slice();
+  var _rcvItem = updatedItems[_rcvItemIdx];
+  updatedItems[_rcvItemIdx] = Object.assign({}, _rcvItem, {
+    actualQty: parseInt(actualEl ? actualEl.value : _rcvItem.expectedQty) || 0,
+    condition: cond,
+    remark: remarkEl ? remarkEl.value.trim() : '',
+    itemStatus: 'Awaiting Double Check',
+    receivedBy: receivedBy,
+    receivedAt: new Date().toISOString(),
+    stockAtReceive: (_rcvItem._stock !== undefined && _rcvItem._stock !== null) ? _rcvItem._stock : null
   });
+
+  // Determine delivery-level status based on all items
+  var allReceived = updatedItems.every(function(item) { return item.itemStatus === 'Awaiting Double Check' || item.itemStatus === 'Approved'; });
+  var deliveryStatus = allReceived ? 'Awaiting Double Check' : d.status;
+
   var btn = document.getElementById('rmSubmitBtn');
   btn.disabled = true;
   btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Submitting…';
   db.collection('deliveries').doc(_currentDeliveryId).update({
-    items: updatedItems, receivedBy: receivedBy,
-    status: 'Awaiting Double Check',
+    items: updatedItems,
+    receivedBy: receivedBy,
+    status: deliveryStatus,
     receivedAt: firebase.firestore.FieldValue.serverTimestamp()
   })
-    .then(function() { closeModal('receiveModal'); showToast('Submitted for double check successfully!', 'success'); })
+    .then(function() { closeModal('receiveModal'); showToast('Item submitted for double check!', 'success'); })
     .catch(function(err) { showToast('Error: ' + err.message, 'error'); })
     .finally(function() {
       btn.disabled = false;
@@ -1436,65 +1587,85 @@ window.submitReceiving = function() {
 };
 </script>
 <script>
-// -- Review Modal --
-window.openReviewModal = function(id) {
+// -- Review Modal (per-item) --
+var _rvItemIdx = null;
+
+window.openReviewModal = function(id, itemIdx) {
   var d = _allDeliveries.find(function(x){ return x.id===id; });
   if (!d) return;
   _currentDeliveryId = id;
-  document.getElementById('rvSupplierLabel').textContent = d.supplier + ' · ' + _fmtDate(d.date);
+  _rvItemIdx = (itemIdx !== undefined) ? itemIdx : null;
 
-  // Update header title and warning banner based on status
-  var headerTitle = document.querySelector('#reviewModal .modal-content > div:first-child div div:first-child');
-  var warningBanner = document.querySelector('#reviewModal .modal-content > div:nth-child(2)');
-  if (headerTitle) {
-    if (d.status === 'Approved') headerTitle.textContent = 'Delivery Details';
-    else if (d.status === 'Rejected') headerTitle.textContent = 'Delivery Details';
-    else headerTitle.textContent = 'Review & Verify';
+  // If itemIdx provided, show single item; otherwise find first awaiting item
+  var item = null;
+  if (_rvItemIdx !== null) {
+    item = (d.items||[])[_rvItemIdx];
+  } else {
+    // Find first item awaiting double check
+    (d.items||[]).forEach(function(it, idx) {
+      if (!item && it.itemStatus === 'Awaiting Double Check') { item = it; _rvItemIdx = idx; }
+    });
+    if (!item && d.items && d.items.length) { item = d.items[0]; _rvItemIdx = 0; }
   }
-  if (warningBanner) warningBanner.style.display = (d.status === 'Awaiting Double Check') ? 'flex' : 'none';
-  document.getElementById('rvReceivedBy').value = d.receivedBy||'—';
-  var apUser = JSON.parse(sessionStorage.getItem('apUser') || '{}');
-  var isReadOnly = (d.status === 'Approved' || d.status === 'Rejected');
+  if (!item) return;
 
-  // Checked By — always read-only, auto-filled from logged-in user
-  var checkedByEl = document.getElementById('rvCheckedBy');
-  checkedByEl.value = d.checkedBy || (isReadOnly ? '—' : (apUser.name || ''));
-  checkedByEl.style.background = '#f7f8fa';
-  checkedByEl.style.color = isReadOnly ? '#718096' : '#1a202c';
-  var checkedByLabel = checkedByEl.previousElementSibling;
-  if (checkedByLabel) checkedByLabel.textContent = 'Checked By';
-  // Review Notes - read-only for completed
-  var rvNotesEl = document.getElementById('rvNotes');
-  rvNotesEl.value = d.reviewNotes || '';
-  rvNotesEl.readOnly = isReadOnly;
-  rvNotesEl.style.background = isReadOnly ? '#f7f8fa' : '';
-  rvNotesEl.style.color = isReadOnly ? '#4a5568' : '';
-  rvNotesEl.placeholder = isReadOnly ? (d.reviewNotes ? '' : 'No notes added.') : 'Add notes for rejection or revision request...';
-  // Review Notes label
-  var rvNotesLabel = rvNotesEl.previousElementSibling;
-  if (rvNotesLabel) rvNotesLabel.innerHTML = isReadOnly
-    ? '<span style="font-size:0.78rem;font-weight:600;color:#4a5568;">Review Notes</span>'
-    : '<span style="font-size:0.78rem;font-weight:600;color:#4a5568;">Review Notes</span> <span style="font-weight:400;color:#a0aec0;">(required for rejection)</span>';
+  var apUser = JSON.parse(sessionStorage.getItem('apUser') || '{}');
   var condColor = {'OK':'#38a169','Defective':'#E8001C','Shortage':'#d69e2e'};
-  document.getElementById('rvItemRows').innerHTML = (d.items||[]).map(function(item) {
-    var cc = condColor[item.condition]||'#718096';
-    var diff = (item.actualQty!==undefined) ? (item.actualQty - item.expectedQty) : null;
-    var diffHtml = (diff !== null && diff !== 0) ? '<span style="font-size:11px;font-weight:700;color:' + (diff<0?'#E8001C':'#d69e2e') + ';">' + (diff>0?'+':'') + diff + '</span>' : '';
-    return '<div class="rv-item-card">'
-      + '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">'
-      +   '<div><div class="rcv-item-name">' + item.itemName + '</div><div class="rcv-item-num">' + item.itemNum + '</div></div>'
-      +   '<span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:' + cc + '1a;color:' + cc + ';">' + (item.condition||'—') + '</span>'
-      + '</div>'
-      + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid #f0f4f8;">'
-      +   '<div><div class="rv-col-label">Expected</div><div class="rv-col-val">' + item.expectedQty + ' <span style="font-size:11px;color:#718096;">' + (item.uom||'') + '</span></div></div>'
-      +   '<div><div class="rv-col-label">Actual Received</div><div class="rv-col-val" style="color:' + cc + ';">' + (item.actualQty!==undefined?item.actualQty:'—') + ' <span style="font-size:11px;">' + (item.uom||'') + '</span> ' + diffHtml + '</div></div>'
-      +   '<div><div class="rv-col-label">Condition</div><div class="rv-col-val"><span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:' + cc + '1a;color:' + cc + ';">' + (item.condition||'—') + '</span></div></div>'
-      +   '<div><div class="rv-col-label">Remarks</div><div class="rv-col-val" style="font-size:12px;color:#718096;">' + (item.remark||'—') + '</div></div>'
-      + '</div>'
-      + '</div>';
-  }).join('');
+  var cc = condColor[item.condition] || '#718096';
+  var diff = (item.actualQty !== undefined) ? (item.actualQty - item.expectedQty) : null;
+
+  // Header
+  document.getElementById('rvSupplierLabel').textContent = 'Verify the physical count for this item';
+
+  var headerTitle = document.querySelector('#reviewModal .modal-content > div:first-child div div:first-child');
+  var itemSt = item.itemStatus || d.status || 'Pending';
+  if (headerTitle) headerTitle.textContent = 'Review & Verify';
+
+  // Checked By
+  var checkedByEl = document.getElementById('rvCheckedBy');
+  checkedByEl.value = item.checkedBy || (apUser.name || '');
+
+  // Notes
+  var rvNotesEl = document.getElementById('rvNotes');
+  rvNotesEl.value = item.reviewNotes || '';
+  rvNotesEl.readOnly = false;
+
+  // Received By
+  document.getElementById('rvReceivedBy').value = item.receivedBy || d.receivedBy || '—';
+
+  // Item details card
+  document.getElementById('rvItemRows').innerHTML =
+    '<div style="background:white;border:1.2px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.03);">'
+    // Item name + condition badge
+    + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">'
+    +   '<div style="flex:1;">'
+    +     '<div style="font-weight:700;font-size:0.95rem;color:#1a202c;">' + (item.itemName||'—') + (item.uom ? '&nbsp;&nbsp;<span style="font-weight:400;font-size:0.78rem;color:#718096;">(' + item.uom + ')</span>' : '') + '</div>'
+    +     (item.supplierCode ? '<div style="font-size:0.75rem;color:#718096;margin-top:3px;">' + item.supplierCode + '</div>' : '')
+    +   '</div>'
+    +   '<span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:' + cc + '1a;color:' + cc + ';flex-shrink:0;">' + (item.condition||'—') + '</span>'
+    + '</div>'
+    // Stats grid
+    + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid #f0f4f8;">'
+    +   '<div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;">'
+    +     '<div style="font-size:9px;color:#a0aec0;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">Order Qty</div>'
+    +     '<div style="font-size:1.1rem;font-weight:800;color:#1a202c;margin-top:2px;">' + item.expectedQty + '</div>'
+    +   '</div>'
+    +   '<div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;">'
+    +     '<div style="font-size:9px;color:#a0aec0;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">Actual Received</div>'
+    +     '<div style="font-size:1.1rem;font-weight:800;color:' + cc + ';margin-top:2px;">' + (item.actualQty !== undefined ? item.actualQty : '—') + '</div>'
+    +   '</div>'
+    +   '<div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;">'
+    +     '<div style="font-size:9px;color:#a0aec0;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">Difference</div>'
+    +     '<div style="font-size:1.1rem;font-weight:800;color:' + (diff !== null && diff !== 0 ? (diff < 0 ? '#E8001C' : '#d69e2e') : '#38a169') + ';margin-top:2px;">' + (diff !== null ? (diff === 0 ? '0' : (diff > 0 ? '+' : '') + diff) : '—') + '</div>'
+    +   '</div>'
+    + '</div>'
+    // Remarks
+    + (item.remark ? '<div style="margin-top:12px;padding:8px 12px;background:#fffbeb;border-radius:8px;border:1px solid #fcd34d;font-size:11px;color:#92400e;"><strong>Remarks:</strong> ' + item.remark + '</div>' : '')
+    + '</div>';
+
+  // Footer
   var footer = document.getElementById('rvFooter');
-  if (footer) footer.style.display = (d.status==='Approved'||d.status==='Rejected') ? 'none' : 'flex';
+  if (footer) footer.style.display = (itemSt === 'Awaiting Double Check') ? 'flex' : 'none';
   document.getElementById('reviewModal').classList.add('active');
 };
 
@@ -1503,622 +1674,91 @@ window.submitReview = function(decision) {
   if (!checkedBy) { showToast('Please enter your name.','error'); return; }
   var notes = document.getElementById('rvNotes').value.trim();
   var d = _allDeliveries.find(function(x){ return x.id===_currentDeliveryId; });
-  if (!d) return;
-  var stockPromises = [];
+  if (!d || _rvItemIdx === null) return;
+
+  // Show loading state on buttons
+  var footerEl = document.getElementById('rvFooter');
+  var originalFooter = footerEl.innerHTML;
+  var btns = footerEl.querySelectorAll('button');
+  btns.forEach(function(b){ b.disabled = true; b.style.opacity = '0.6'; b.style.cursor = 'not-allowed'; });
   if (decision === 'Approved') {
-    (d.items||[]).forEach(function(item) {
-      if (item.actualQty > 0) {
-        // Try matching by 'num' field (Firestore field name), fallback to 'itemNum'
-        var p = db.collection('stock_inventory')
-          .where('num', '==', item.itemNum).limit(1).get()
-          .then(function(snap) {
-            if (!snap.empty) {
-              // Document found - update stock
-              var doc = snap.docs[0];
-              var cur = parseInt(doc.data().stock) || 0;
-              var newStock = cur + item.actualQty;
-              var minLevel = parseInt(doc.data().min) || 0;
-              return doc.ref.update({
-                stock: newStock,
-                status: newStock >= minLevel ? 'OK' : 'Low',
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-              }).then(function() {
-                return db.collection('transactions').add({
-                  item: item.itemName,
-                  desc: 'Stock received – ' + d.supplier,
-                  type: 'IN',
-                  qty: '+' + item.actualQty,
-                  date: (function(){ var _d=new Date(),_m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return _m[_d.getMonth()]+' '+_d.getDate()+', '+_d.getFullYear(); })(),
-                  by: checkedBy,
-                  createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-              });
-            } else {
-              // No stock_inventory doc yet - create it
-              return db.collection('stock_inventory').add({
-                num:    item.itemNum,
-                name:   item.itemName,
-                uom:    item.uom || '',
-                stock:  item.actualQty,
-                min:    0,
-                max:    0,
-                reorder: 0,
-                status: 'OK',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-              }).then(function() {
-                // stock_inventory doc created - no transaction logged for initial stock
-              });
-            }
-          });
-        stockPromises.push(p);
-      }
-    });
+    var approveBtn = btns[1] || btns[0];
+    if (approveBtn) approveBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Processing...';
+  } else {
+    var rejectBtn = btns[0];
+    if (rejectBtn) rejectBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Processing...';
   }
+
+  var updatedItems = (d.items||[]).slice();
+  var item = updatedItems[_rvItemIdx];
+  if (!item) return;
+
+  // Update this specific item
+  updatedItems[_rvItemIdx] = Object.assign({}, item, {
+    itemStatus: decision,
+    checkedBy: checkedBy,
+    reviewNotes: notes,
+    reviewedAt: new Date().toISOString()
+  });
+
+  var stockPromises = [];
+  if (decision === 'Approved' && item.actualQty > 0) {
+    var p = db.collection('stock_inventory')
+      .where('num', '==', item.itemNum).limit(1).get()
+      .then(function(snap) {
+        if (!snap.empty) {
+          var doc = snap.docs[0];
+          var cur = parseInt(doc.data().stock) || 0;
+          var newStock = cur + item.actualQty;
+          var minLevel = parseInt(doc.data().min) || 0;
+          return doc.ref.update({
+            stock: newStock,
+            status: newStock >= minLevel ? 'OK' : 'Low',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }).then(function() {
+            return db.collection('transactions').add({
+              item: item.itemName,
+              desc: 'Stock received – delivery',
+              type: 'IN',
+              qty: '+' + item.actualQty,
+              date: (function(){ var _d=new Date(),_m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return _m[_d.getMonth()]+' '+_d.getDate()+', '+_d.getFullYear(); })(),
+              by: checkedBy,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          });
+        } else {
+          return db.collection('stock_inventory').add({
+            num: item.itemNum, name: item.itemName, uom: item.uom || '',
+            stock: item.actualQty, min: 0, max: 0, reorder: 0, status: 'OK',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      });
+    stockPromises.push(p);
+  }
+
+  // Determine delivery-level status
+  var allApproved = updatedItems.every(function(i){ return i.itemStatus === 'Approved'; });
+  var anyRejected = updatedItems.some(function(i){ return i.itemStatus === 'Rejected'; });
+  var allDone = updatedItems.every(function(i){ return i.itemStatus === 'Approved' || i.itemStatus === 'Rejected'; });
+  var deliveryStatus = allApproved ? 'Approved' : anyRejected && allDone ? 'Rejected' : d.status;
+
   Promise.all(stockPromises).then(function() {
-    return db.collection('deliveries').doc(_currentDeliveryId).update({ status:decision, checkedBy:checkedBy, reviewNotes:notes, reviewedAt:firebase.firestore.FieldValue.serverTimestamp() });
+    return db.collection('deliveries').doc(_currentDeliveryId).update({
+      items: updatedItems,
+      status: deliveryStatus,
+      checkedBy: checkedBy,
+      reviewNotes: notes,
+      reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
   }).then(function() {
     closeModal('reviewModal');
-    showToast(decision==='Approved'?'? Approved! Stock inventory updated.':'? Rejected. Revision requested.', decision==='Approved'?'success':'error');
-  }).catch(function(err){ showToast('Error: '+err.message,'error'); });
-};
-</script>
-<script>
-// -- Report Issue / Notify Supplier (PDF) --
-window.generateIssueReport = function() {
-  var d = _allDeliveries.find(function(x){ return x.id===_currentDeliveryId; });
-  if (!d) return;
-  var now = new Date();
-  var MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var dateStr = MONTHS_SHORT[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
-  var timeStr = now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-
-  var problemItems = (d.items||[]).filter(function(i){ return i.condition==='Defective'||i.condition==='Shortage'||i.condition==='Damaged'; });
-  if (!problemItems.length) { showToast('No defective or shortage items to report.','error'); return; }
-
-  var rows = problemItems.map(function(item, idx) {
-    var cc = item.condition==='Defective'||item.condition==='Damaged' ? '#E8001C' : '#d69e2e';
-    return '<tr style="' + (idx%2===1?'background:#f8fafc;':'') + '">'
-      + '<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:600;">' + item.itemName + '</td>'
-      + '<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;color:#718096;">' + item.itemNum + '</td>'
-      + '<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;text-align:center;">' + item.expectedQty + ' ' + (item.uom||'') + '</td>'
-      + '<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:12px;text-align:center;color:' + cc + ';font-weight:700;">' + (item.actualQty!==undefined?item.actualQty:'—') + ' ' + (item.uom||'') + '</td>'
-      + '<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:center;"><span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:' + cc + '1a;color:' + cc + ';">' + item.condition + '</span></td>'
-      + '<td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;color:#718096;">' + (item.remark||'—') + '</td>'
-      + '</tr>';
-  }).join('');
-
-  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Issue Report</title>'
-    + '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:"Segoe UI",Arial,sans-serif;padding:32px;color:#1a202c;}'
-    + '.header{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;border-bottom:3px solid #E8001C;margin-bottom:20px;}'
-    + '.brand{font-size:20px;font-weight:900;color:#1a202c;}.brand span{color:#E8001C;}'
-    + '.brand-sub{font-size:8px;color:#718096;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-top:2px;}'
-    + '.report-label{font-size:8px;color:#a0aec0;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px;}'
-    + '.report-title{font-size:16px;font-weight:800;color:#E8001C;}'
-    + '.report-meta{font-size:10px;color:#718096;margin-top:2px;}'
-    + '.info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;}'
-    + '.info-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;}'
-    + '.info-label{font-size:9px;color:#a0aec0;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;}'
-    + '.info-val{font-size:13px;font-weight:700;color:#1a202c;}'
-    + 'table{width:100%;border-collapse:collapse;}'
-    + 'thead tr{background:#1a202c;}thead th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:0.4px;}'
-    + '.footer{margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#a0aec0;display:flex;justify-content:space-between;}'
-    + '@media print{body{padding:16px;}@page{margin:10mm;}}'
-    + '</style></head><body>'
-    + '<div class="header">'
-    +   '<div><div class="brand">Caltex <span>Auto</span>Pro</div><div class="brand-sub">Fleet Management System</div></div>'
-    +   '<div style="text-align:right;"><div class="report-label">Issue / Discrepancy Report</div><div class="report-title">Receiving Problem Report</div><div class="report-meta">Generated: ' + dateStr + ' at ' + timeStr + '</div></div>'
-    + '</div>'
-    + '<div class="info-grid">'
-    +   '<div class="info-card"><div class="info-label">Supplier / Reference</div><div class="info-val">' + (d.supplier||'—') + '</div></div>'
-    +   '<div class="info-card"><div class="info-label">Delivery Date</div><div class="info-val">' + _fmtDate(d.date) + '</div></div>'
-    +   '<div class="info-card"><div class="info-label">Received By</div><div class="info-val">' + (d.receivedBy||'—') + '</div></div>'
-    + '</div>'
-    + '<div style="margin-bottom:10px;"><strong style="font-size:13px;">Problem Items (' + problemItems.length + ')</strong></div>'
-    + '<table><thead><tr><th>Item Name</th><th>Item No.</th><th>Expected</th><th>Actual Received</th><th>Condition</th><th>Remarks</th></tr></thead><tbody>' + rows + '</tbody></table>'
-    + (d.reviewNotes ? '<div style="margin-top:16px;background:#fff5f5;border:1px solid #fed7d7;border-radius:8px;padding:10px 14px;font-size:12px;color:#c53030;"><strong>Review Notes:</strong> ' + d.reviewNotes + '</div>' : '')
-    + '<div class="footer"><span>Caltex San Pedro · JA Noble Enterprise Inc. · Confidential</span><span>This report should be forwarded to the supplier for resolution.</span></div>'
-    + '</body></html>';
-
-  var win = window.open('','_blank');
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  setTimeout(function(){ win.print(); }, 400);
-};
-</script>
-<script>
-// -- Compare PO vs Invoice ----------------------------------
-var _cmpZoom = { po: 1, inv: 1 };
-var _cmpInvoiceIdx = 0;   // counter for unique row IDs
-
-window.openCompareModal = function() {
-  cmpClear('po');
-  cmpClear('inv');
-  document.getElementById('cmpNotes').value = '';
-  document.getElementById('cmpDeliveryInfo').textContent = '';
-  document.getElementById('cmpInvoiceRows').innerHTML = '';
-  document.getElementById('cmpInvoiceEmpty').innerHTML =
-    'Upload an invoice image above — items will be extracted automatically.<br>Or click <strong>+ Add Row</strong> to enter manually.';
-  document.getElementById('cmpInvoiceEmpty').style.display = 'block';
-  document.getElementById('cmpResultWrap').style.display = 'none';
-  document.getElementById('cmpOcrStatus').style.display = 'none';
-  _cmpInvoiceIdx = 0;
-  var sel = document.getElementById('cmpDeliverySelect');
-  sel.innerHTML = '<option value="">-- Select a delivery record --</option>';
-  _allDeliveries.forEach(function(d) {
-    var opt = document.createElement('option');
-    opt.value = d.id;
-    opt.textContent = _fmtDate(d.date) + ' - ' + (d.supplier||'N/A') + ' (' + (d.status||'') + ')';
-    sel.appendChild(opt);
+    showToast(decision==='Approved'?'✅ Approved! Stock updated.':'❌ Rejected.', decision==='Approved'?'success':'error');
+  }).catch(function(err){
+    showToast('Error: '+err.message,'error');
+    footerEl.innerHTML = originalFooter;
   });
-  document.getElementById('compareModal').classList.add('active');
-};
-
-window.cmpLinkDelivery = function(id) {
-  var infoEl = document.getElementById('cmpDeliveryInfo');
-  document.getElementById('cmpResultWrap').style.display = 'none';
-  if (!id) { infoEl.textContent = ''; document.getElementById('cmpNotes').value = ''; return; }
-  var d = _allDeliveries.find(function(x){ return x.id === id; });
-  if (!d) return;
-  infoEl.textContent = (d.items||[]).length + ' item(s) · Received by: ' + (d.receivedBy||'—');
-  if (d.compareNotes) document.getElementById('cmpNotes').value = d.compareNotes;
-
-  // Auto-populate invoice rows from delivery items so user just adjusts values
-  var rowsEl = document.getElementById('cmpInvoiceRows');
-  rowsEl.innerHTML = '';
-  _cmpInvoiceIdx = 0;
-  (d.items || []).forEach(function(item) {
-    _cmpAddRowData(item.itemName || '', item.expectedQty || '', '', item.uom || '');
-  });
-  document.getElementById('cmpInvoiceEmpty').style.display =
-    (d.items || []).length ? 'none' : 'block';
-};
-
-// ── Add blank invoice row ──
-window.cmpAddInvoiceRow = function() {
-  _cmpAddRowData('', '', '', '');
-};
-
-function _cmpAddRowData(name, qty, price, uom) {
-  _cmpInvoiceIdx++;
-  var idx = _cmpInvoiceIdx;
-  var rowsEl = document.getElementById('cmpInvoiceRows');
-  document.getElementById('cmpInvoiceEmpty').style.display = 'none';
-  var row = document.createElement('div');
-  row.id = 'cmpInvRow' + idx;
-  row.style.cssText = 'display:grid;grid-template-columns:2.5fr 1fr 1.2fr 1fr 30px;gap:6px;align-items:center;';
-  row.innerHTML =
-    '<input type="text" placeholder="Item name…" value="' + (name||'') + '" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 8px;font-size:12px;outline:none;width:100%;box-sizing:border-box;" onfocus="this.style.borderColor=\'#003087\'" onblur="this.style.borderColor=\'#e2e8f0\'">'
-    + '<input type="number" min="0" placeholder="Qty" value="' + (qty||'') + '" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 8px;font-size:12px;outline:none;width:100%;box-sizing:border-box;text-align:center;" onfocus="this.style.borderColor=\'#003087\'" onblur="this.style.borderColor=\'#e2e8f0\'">'
-    + '<input type="number" min="0" step="0.01" placeholder="0.00" value="' + (price||'') + '" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 8px;font-size:12px;outline:none;width:100%;box-sizing:border-box;text-align:right;" onfocus="this.style.borderColor=\'#003087\'" onblur="this.style.borderColor=\'#e2e8f0\'">'
-    + '<input type="text" placeholder="UOM" value="' + (uom||'') + '" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 8px;font-size:12px;outline:none;width:100%;box-sizing:border-box;" onfocus="this.style.borderColor=\'#003087\'" onblur="this.style.borderColor=\'#e2e8f0\'">'
-    + '<button type="button" onclick="cmpRemoveInvRow(' + idx + ')" style="background:none;border:none;color:#e53e3e;cursor:pointer;font-size:14px;padding:0;line-height:1;">✕</button>';
-  rowsEl.appendChild(row);
-}
-
-window.cmpRemoveInvRow = function(idx) {
-  var el = document.getElementById('cmpInvRow' + idx);
-  if (el) el.remove();
-  if (!document.getElementById('cmpInvoiceRows').children.length) {
-    document.getElementById('cmpInvoiceEmpty').style.display = 'block';
-  }
-  document.getElementById('cmpResultWrap').style.display = 'none';
-};
-
-// ── Read all invoice rows from inputs ──
-function _cmpGetInvoiceItems() {
-  var rows = document.getElementById('cmpInvoiceRows').children;
-  var items = [];
-  for (var i = 0; i < rows.length; i++) {
-    var inputs = rows[i].querySelectorAll('input');
-    var name  = (inputs[0] && inputs[0].value.trim()) || '';
-    var qty   = parseFloat(inputs[1] && inputs[1].value) || 0;
-    var price = parseFloat(inputs[2] && inputs[2].value) || 0;
-    var uom   = (inputs[3] && inputs[3].value.trim()) || '';
-    if (name) items.push({ name: name, qty: qty, price: price, uom: uom });
-  }
-  return items;
-}
-
-// ── Core comparison engine ──
-window.cmpRunComparison = function() {
-  var deliveryId = document.getElementById('cmpDeliverySelect').value;
-  var invoiceItems = _cmpGetInvoiceItems();
-
-  if (!deliveryId) { showToast('Select a linked delivery first.', 'error'); return; }
-  if (!invoiceItems.length) { showToast('Add at least one invoice line item.', 'error'); return; }
-
-  var d = _allDeliveries.find(function(x){ return x.id === deliveryId; });
-  if (!d) return;
-
-  var poItems = (d.items || []).map(function(item) {
-    return {
-      itemNum:  item.itemNum  || '',
-      name:     item.itemName || '',
-      qty:      item.expectedQty || 0,
-      uom:      item.uom || ''
-    };
-  });
-
-  // ── Match invoice items to PO items by fuzzy name ──
-  function _normalize(s) { return (s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
-
-  var results = [];
-  var matchedPOIndices = [];
-
-  invoiceItems.forEach(function(inv) {
-    var invNorm = _normalize(inv.name);
-    var bestIdx = -1, bestScore = 0;
-
-    poItems.forEach(function(po, pi) {
-      if (matchedPOIndices.indexOf(pi) !== -1) return;
-      var poNorm = _normalize(po.name);
-      // Exact match
-      if (invNorm === poNorm) { bestIdx = pi; bestScore = 1; return; }
-      // Contains match
-      if (invNorm.length >= 4 && (poNorm.includes(invNorm) || invNorm.includes(poNorm))) {
-        var score = Math.min(invNorm.length, poNorm.length) / Math.max(invNorm.length, poNorm.length);
-        if (score > bestScore) { bestScore = score; bestIdx = pi; }
-      }
-      // Check item number match
-      if (po.itemNum && invNorm.includes(_normalize(po.itemNum))) { bestIdx = pi; bestScore = 0.95; }
-    });
-
-    if (bestIdx !== -1 && bestScore >= 0.5) {
-      var po = poItems[bestIdx];
-      matchedPOIndices.push(bestIdx);
-      var qtyMatch   = inv.qty === po.qty;
-      var status = qtyMatch ? 'match' : 'mismatch';
-      results.push({ status: status, poName: po.name, poQty: po.qty, poUom: po.uom,
-                     invName: inv.name, invQty: inv.qty, invPrice: inv.price, invUom: inv.uom,
-                     qtyDiff: inv.qty - po.qty });
-    } else {
-      // Invoice item not in PO — extra
-      results.push({ status: 'extra', poName: '—', poQty: '—', poUom: '',
-                     invName: inv.name, invQty: inv.qty, invPrice: inv.price, invUom: inv.uom,
-                     qtyDiff: null });
-    }
-  });
-
-  // PO items not matched — missing from invoice
-  poItems.forEach(function(po, pi) {
-    if (matchedPOIndices.indexOf(pi) === -1) {
-      results.push({ status: 'missing', poName: po.name, poQty: po.qty, poUom: po.uom,
-                     invName: '—', invQty: '—', invPrice: '—', invUom: '',
-                     qtyDiff: null });
-    }
-  });
-
-  // ── Render result table ──
-  var matchCount   = results.filter(function(r){ return r.status === 'match'; }).length;
-  var mismatchCount= results.filter(function(r){ return r.status === 'mismatch'; }).length;
-  var missingCount = results.filter(function(r){ return r.status === 'missing'; }).length;
-  var extraCount   = results.filter(function(r){ return r.status === 'extra'; }).length;
-  var allMatch     = mismatchCount === 0 && missingCount === 0 && extraCount === 0;
-
-  var statusConfig = {
-    match:    { bg: 'rgba(56,161,105,0.08)',  border: '#9ae6b4', label: '✅ Match',    color: '#38a169' },
-    mismatch: { bg: 'rgba(214,158,46,0.08)',  border: '#f6e05e', label: '⚠️ Mismatch', color: '#d69e2e' },
-    missing:  { bg: 'rgba(232,0,28,0.08)',    border: '#fed7d7', label: '❌ Missing',  color: '#E8001C' },
-    extra:    { bg: 'rgba(124,58,237,0.08)',  border: '#d6bcfa', label: '➕ Extra',   color: '#7c3aed' }
-  };
-
-  var badge = document.getElementById('cmpResultBadge');
-  badge.textContent = allMatch ? '✅ All Items Match' : '⚠️ Discrepancies Found';
-  badge.style.cssText = 'font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;'
-    + (allMatch ? 'background:rgba(56,161,105,0.1);color:#38a169;' : 'background:rgba(232,0,28,0.1);color:#E8001C;');
-
-  var colHdr = '<div style="display:grid;grid-template-columns:1.8fr 1fr 1.8fr 1fr 1fr 90px;gap:8px;padding:6px 10px;margin-bottom:4px;">'
-    + '<div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;">PO Item</div>'
-    + '<div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;text-align:center;">PO Qty</div>'
-    + '<div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;">Invoice Item</div>'
-    + '<div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;text-align:center;">Inv. Qty</div>'
-    + '<div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;text-align:right;">Unit Price</div>'
-    + '<div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;text-align:center;">Status</div>'
-    + '</div>';
-
-  var rows = results.map(function(r) {
-    var cfg = statusConfig[r.status];
-    var diffHtml = (r.qtyDiff !== null && r.qtyDiff !== 0)
-      ? ' <span style="font-size:10px;font-weight:700;color:' + (r.qtyDiff < 0 ? '#E8001C' : '#d69e2e') + ';">(' + (r.qtyDiff > 0 ? '+' : '') + r.qtyDiff + ')</span>'
-      : '';
-    var priceHtml = (r.invPrice && r.invPrice !== '—' && r.invPrice > 0)
-      ? '₱' + parseFloat(r.invPrice).toLocaleString('en-PH', { minimumFractionDigits: 2 })
-      : (r.invPrice === '—' ? '—' : '—');
-    return '<div style="display:grid;grid-template-columns:1.8fr 1fr 1.8fr 1fr 1fr 90px;gap:8px;align-items:center;'
-      + 'padding:8px 10px;border-radius:8px;margin-bottom:5px;'
-      + 'background:' + cfg.bg + ';border:1px solid ' + cfg.border + ';">'
-      + '<div style="font-size:12px;font-weight:600;color:#1a202c;">' + r.poName + '</div>'
-      + '<div style="font-size:12px;font-weight:600;color:#4a5568;text-align:center;">' + r.poQty + (r.poUom ? ' ' + r.poUom : '') + '</div>'
-      + '<div style="font-size:12px;font-weight:600;color:#1a202c;">' + r.invName + '</div>'
-      + '<div style="font-size:12px;font-weight:600;color:' + cfg.color + ';text-align:center;">'
-      +   r.invQty + (r.invUom ? ' ' + r.invUom : '') + diffHtml + '</div>'
-      + '<div style="font-size:12px;font-weight:600;color:#4a5568;text-align:right;">' + priceHtml + '</div>'
-      + '<div style="text-align:center;"><span style="font-size:11px;font-weight:700;color:' + cfg.color + ';">' + cfg.label + '</span></div>'
-      + '</div>';
-  }).join('');
-
-  document.getElementById('cmpResultTable').innerHTML = colHdr + rows;
-
-  // Summary bar
-  var summaryItems = [
-    { label: 'Match',     count: matchCount,    color: '#38a169', bg: 'rgba(56,161,105,0.08)'  },
-    { label: 'Mismatch',  count: mismatchCount, color: '#d69e2e', bg: 'rgba(214,158,46,0.08)'  },
-    { label: 'Missing',   count: missingCount,  color: '#E8001C', bg: 'rgba(232,0,28,0.08)'    },
-    { label: 'Extra',     count: extraCount,    color: '#7c3aed', bg: 'rgba(124,58,237,0.08)'  }
-  ];
-  document.getElementById('cmpResultSummary').innerHTML = summaryItems.map(function(s) {
-    return '<div style="text-align:center;background:' + s.bg + ';border-radius:8px;padding:8px;border:1px solid ' + s.color + '30;">'
-      + '<div style="font-size:1.3rem;font-weight:800;color:' + s.color + ';">' + s.count + '</div>'
-      + '<div style="font-size:10px;font-weight:700;color:' + s.color + ';text-transform:uppercase;">' + s.label + '</div>'
-      + '</div>';
-  }).join('');
-
-  document.getElementById('cmpResultWrap').style.display = 'block';
-
-  // Auto-generate notes from discrepancies
-  if (!allMatch) {
-    var noteLines = [];
-    results.forEach(function(r) {
-      if (r.status === 'mismatch') noteLines.push('QTY MISMATCH — "' + r.poName + '": PO=' + r.poQty + ', Invoice=' + r.invQty + ' (diff: ' + (r.qtyDiff > 0 ? '+' : '') + r.qtyDiff + ')');
-      if (r.status === 'missing')  noteLines.push('MISSING from invoice: "' + r.poName + '" (PO qty: ' + r.poQty + ')');
-      if (r.status === 'extra')    noteLines.push('EXTRA in invoice (not in PO): "' + r.invName + '" qty=' + r.invQty);
-    });
-    if (noteLines.length) {
-      var existing = document.getElementById('cmpNotes').value.trim();
-      document.getElementById('cmpNotes').value =
-        (existing ? existing + '\n' : '') + noteLines.join('\n');
-    }
-  } else {
-    document.getElementById('cmpNotes').value = '✅ All items match between PO and Invoice.';
-  }
-
-  showToast(allMatch ? '✅ All items match!' : '⚠️ ' + (mismatchCount + missingCount + extraCount) + ' discrepancy(ies) found.', allMatch ? 'success' : 'error');};
-
-window.cmpHandleFile = function(input, side) {
-  var file = input.files[0];
-  if (!file) return;
-  cmpShowFile(file, side);
-};
-
-window.cmpHandleDrop = function(event, side) {
-  event.preventDefault();
-  var zone = document.getElementById('cmpZone' + (side === 'po' ? 'PO' : 'Inv'));
-  zone.classList.remove('drag-over');
-  var file = event.dataTransfer.files[0];
-  if (!file) return;
-  cmpShowFile(file, side);
-};
-
-function cmpShowFile(file, side) {
-  var S = side === 'po' ? 'PO' : 'Inv';
-  var imgEl      = document.getElementById('cmpImg' + S);
-  var pdfLabel   = document.getElementById('cmpPdfLabel' + S);
-  var pdfName    = document.getElementById('cmpPdfName' + S);
-  var placeholder= document.getElementById('cmpPlaceholder' + S);
-  var clearBtn   = document.getElementById('cmpClear' + S);
-  var ctrlEl     = document.getElementById('cmpCtrl' + S);
-
-  if (file.type === 'application/pdf') {
-    placeholder.style.display  = 'none';
-    imgEl.style.display        = 'none';
-    pdfLabel.style.display     = 'block';
-    pdfName.textContent        = file.name;
-    if (ctrlEl) { ctrlEl.style.display = 'none'; }
-  } else {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      imgEl.src = e.target.result;
-      imgEl.style.display        = 'block';
-      placeholder.style.display  = 'none';
-      pdfLabel.style.display     = 'none';
-      _cmpZoom[side] = 1;
-      imgEl.style.transform       = 'scale(1)';
-      imgEl.style.transformOrigin = 'top center';
-      if (ctrlEl) { ctrlEl.style.display = 'flex'; }
-      if (document.getElementById('cmpZoomLabel' + S))
-        document.getElementById('cmpZoomLabel' + S).textContent = '100%';
-
-      // ── Trigger OCR automatically when invoice image is uploaded ──
-      if (side === 'inv') {
-        _cmpRunOCR(e.target.result);
-      }
-    };
-    reader.readAsDataURL(file);
-  }
-  clearBtn.style.display = 'inline-block';
-}
-
-// ── OCR pipeline: scan invoice image → extract items → populate rows → auto-compare ──
-function _cmpRunOCR(imageSrc) {
-  if (typeof Tesseract === 'undefined') {
-    showToast('OCR engine not loaded yet, please try again.', 'error');
-    return;
-  }
-
-  var statusEl = document.getElementById('cmpOcrStatus');
-  var msgEl    = document.getElementById('cmpOcrMsg');
-  var barEl    = document.getElementById('cmpOcrBar');
-  statusEl.style.display = 'block';
-  msgEl.textContent = 'Initialising OCR engine…';
-  barEl.style.width = '5%';
-
-  // Clear previous rows
-  document.getElementById('cmpInvoiceRows').innerHTML = '';
-  document.getElementById('cmpInvoiceEmpty').style.display = 'none';
-  document.getElementById('cmpResultWrap').style.display = 'none';
-  _cmpInvoiceIdx = 0;
-
-  Tesseract.recognize(imageSrc, 'eng', {
-    logger: function(m) {
-      if (m.status === 'loading tesseract core') {
-        msgEl.textContent = 'Loading OCR engine…';
-        barEl.style.width = '15%';
-      } else if (m.status === 'initializing tesseract') {
-        msgEl.textContent = 'Initialising OCR…';
-        barEl.style.width = '30%';
-      } else if (m.status === 'loading language traineddata') {
-        msgEl.textContent = 'Loading language model…';
-        barEl.style.width = '50%';
-      } else if (m.status === 'recognizing text') {
-        var pct = Math.round((m.progress || 0) * 50) + 50;
-        msgEl.textContent = 'Reading invoice text… ' + Math.round((m.progress||0)*100) + '%';
-        barEl.style.width = pct + '%';
-      }
-    }
-  }).then(function(result) {
-    barEl.style.width = '100%';
-    msgEl.textContent = 'Parsing line items…';
-
-    var items = _cmpParseOCRText(result.data.text);
-
-    setTimeout(function() {
-      statusEl.style.display = 'none';
-
-      if (!items.length) {
-        document.getElementById('cmpInvoiceEmpty').style.display = 'block';
-        document.getElementById('cmpInvoiceEmpty').innerHTML =
-          '⚠️ No line items detected from the image. Please check image quality or add rows manually.';
-        showToast('OCR complete — no line items detected. Try a clearer image.', 'error');
-        return;
-      }
-
-      // Populate rows from OCR
-      items.forEach(function(item) {
-        _cmpAddRowData(item.name, item.qty, item.price, item.uom);
-      });
-
-      showToast('✅ OCR complete — ' + items.length + ' item(s) extracted. Reviewing…', 'success');
-
-      // Auto-run comparison if a delivery is already linked
-      var deliveryId = document.getElementById('cmpDeliverySelect').value;
-      if (deliveryId) {
-        setTimeout(cmpRunComparison, 400);
-      }
-    }, 300);
-
-  }).catch(function(err) {
-    statusEl.style.display = 'none';
-    document.getElementById('cmpInvoiceEmpty').style.display = 'block';
-    showToast('OCR failed: ' + (err.message || err), 'error');
-  });
-}
-
-// ── Parse raw OCR text into structured line items ──
-// Handles common invoice/delivery receipt formats:
-//   "Engine Oil 5W-30   10   pcs   ₱450.00"
-//   "1. Delo 15W-40     5L         750"
-//   "ITEM: Air Filter   QTY: 3     PRICE: 320"
-function _cmpParseOCRText(rawText) {
-  var lines = rawText.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 2; });
-  var items = [];
-
-  // ── Common unit-of-measure tokens ──
-  var UOM_TOKENS = /\b(pcs?|pieces?|units?|liters?|litres?|ltrs?|l|gals?|gallons?|kgs?|kilos?|grams?|g|bottles?|btls?|boxes?|bxs?|cans?|sets?|pairs?|rolls?|bags?|drums?)\b/i;
-
-  // ── Patterns to skip (headers, totals, meta lines) ──
-  var SKIP_PATTERN = /^(invoice|delivery|receipt|date|po|purchase\s*order|supplier|total|sub.?total|vat|tax|amount|payment|balance|grand|terms|note|prepared|checked|approved|address|tel|fax|page|qty|quantity|description|unit\s*price|price|item\s*no|#|no\.|s\.?n|—+|-{3,}|={3,})/i;
-
-  lines.forEach(function(line) {
-    // Skip header/footer lines
-    if (SKIP_PATTERN.test(line.replace(/\s+/g,' ').trim())) return;
-    if (line.replace(/[\d\s.,₱\-]/g,'').length < 2) return; // mostly numbers/symbols, no item text
-
-    // Strip leading numbering: "1.", "1)", "•", "-"
-    var clean = line.replace(/^\s*[\d]+[.)]\s*/, '').replace(/^[-•*]\s*/, '').trim();
-    if (!clean) return;
-
-    // Try to extract qty and price from the line
-    // Patterns: numbers possibly preceded by ₱ or followed by UOM
-    var nums = [];
-    var numRegex = /(?:₱\s*)?(\d+(?:[,]\d{3})*(?:[.]\d{1,2})?)/g;
-    var m;
-    while ((m = numRegex.exec(clean)) !== null) {
-      nums.push({ val: parseFloat(m[1].replace(/,/g,'')), pos: m.index });
-    }
-
-    // Find UOM in line
-    var uomMatch = clean.match(UOM_TOKENS);
-    var uom = uomMatch ? uomMatch[0].toLowerCase() : '';
-
-    // Remove numbers + UOM from the line to isolate the item name
-    var namePart = clean
-      .replace(numRegex, ' ')
-      .replace(UOM_TOKENS, ' ')
-      .replace(/₱/g, ' ')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-
-    // Need at least 3 alphabetic characters to be a real item name
-    if (namePart.replace(/[^a-zA-Z]/g,'').length < 3) return;
-    if (!nums.length) return; // no quantities found → skip
-
-    // Heuristic: first small integer is qty, larger number(s) are price
-    var qty = 0, price = 0;
-    var integers   = nums.filter(function(n){ return Number.isInteger(n.val) && n.val > 0 && n.val < 10000; });
-    var decimals   = nums.filter(function(n){ return !Number.isInteger(n.val) || n.val >= 100; });
-
-    if (integers.length)  qty   = integers[0].val;
-    if (decimals.length)  price = decimals[decimals.length - 1].val; // last decimal = subtotal or unit price
-
-    // If only one number exists, treat as qty
-    if (!qty && nums.length)  qty = nums[0].val;
-
-    if (qty > 0) {
-      items.push({ name: namePart, qty: qty, price: price, uom: uom });
-    }
-  });
-
-  return items;
-}
-
-window.cmpClear = function(side) {
-  var S = side === 'po' ? 'PO' : 'Inv';
-  var imgEl    = document.getElementById('cmpImg' + S);
-  var pdfLabel = document.getElementById('cmpPdfLabel' + S);
-  var placeholder = document.getElementById('cmpPlaceholder' + S);
-  var clearBtn = document.getElementById('cmpClear' + S);
-  var ctrlEl   = document.getElementById('cmpCtrl' + S);
-  var fileInput= document.getElementById('cmpFile' + S);
-  if (imgEl)      { imgEl.src = ''; imgEl.style.display = 'none'; }
-  if (pdfLabel)   { pdfLabel.style.display = 'none'; }
-  if (placeholder){ placeholder.style.display = 'block'; }
-  if (clearBtn)   { clearBtn.style.display = 'none'; }
-  if (ctrlEl)     { ctrlEl.style.display = 'none'; }
-  if (fileInput)  { fileInput.value = ''; }
-  _cmpZoom[side] = 1;
-  // When invoice is cleared, also reset the extracted rows and result
-  if (side === 'inv') {
-    document.getElementById('cmpInvoiceRows').innerHTML = '';
-    document.getElementById('cmpInvoiceEmpty').innerHTML =
-      'Upload an invoice image above — items will be extracted automatically.<br>Or click <strong>+ Add Row</strong> to enter manually.';
-    document.getElementById('cmpInvoiceEmpty').style.display = 'block';
-    document.getElementById('cmpResultWrap').style.display = 'none';
-    document.getElementById('cmpOcrStatus').style.display = 'none';
-    _cmpInvoiceIdx = 0;
-  }
-};
-
-window.cmpZoom = function(side, delta) {
-  var S = side === 'po' ? 'PO' : 'Inv';
-  _cmpZoom[side] = Math.min(3, Math.max(0.3, (_cmpZoom[side] || 1) + delta));
-  var imgEl = document.getElementById('cmpImg' + S);
-  if (imgEl) {
-    imgEl.style.transform = 'scale(' + _cmpZoom[side] + ')';
-    imgEl.style.transformOrigin = 'top center';
-  }
-  var labelEl = document.getElementById('cmpZoomLabel' + S);
-  if (labelEl) labelEl.textContent = Math.round(_cmpZoom[side] * 100) + '%';
-};
-
-window.cmpReset = function(side) {
-  _cmpZoom[side] = 1;
-  var S = side === 'po' ? 'PO' : 'Inv';
-  var imgEl = document.getElementById('cmpImg' + S);
-  if (imgEl) { imgEl.style.transform = 'scale(1)'; }
-  var labelEl = document.getElementById('cmpZoomLabel' + S);
-  if (labelEl) labelEl.textContent = '100%';
 };
 </script>
 </body>

@@ -83,7 +83,7 @@ SMTP_HOST     = 'smtp.gmail.com'
 SMTP_PORT     = 587
 SMTP_USER     = 'caltexautopro2026@gmail.com'
 SMTP_PASSWORD = os.environ.get('SMTP_APP_PASSWORD', 'kvvp uflz pbdc rcyv')
-SMTP_FROM     = 'Caltex AutoPro <caltexautopro2026@gmail.com>'
+SMTP_FROM     = 'JA Noble Enterprise Inc <caltexautopro2026@gmail.com>'
 
 @app.route('/api/send-google-otp', methods=['POST'])
 def send_google_otp():
@@ -136,9 +136,9 @@ def send_google_otp():
                     'otp':            otp,
                     'expiry_minutes': '5',
                     # Purpose: Sign-In Verification
-                    'email_title':    'Sign-In Verification — Caltex AutoPro',
+                    'email_title':    'Sign-In Verification',
                     'email_heading':  'Sign-In Verification',
-                    'email_intro':    f'Hi {to_name}, someone is signing in to your Caltex AutoPro account using Google.\nUse the code below to verify your identity.',
+                    'email_intro':    f'Hi {to_name}, someone is signing in to your AutoPro account using Google.\nUse the code below to verify your identity.',
                     'steps_heading':  'Verify your sign-in:',
                     'step1_icon':  '📲', 'step1_title': 'Enter the code',     'step1_desc': 'Enter the 6-digit code in the verification screen.',
                     'step2_icon':  '✅', 'step2_title': 'Access your account', 'step2_desc': 'Once verified, you will be signed in to your dashboard.',
@@ -230,6 +230,39 @@ def delete_user():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/api/cleanup-orphaned-users', methods=['POST'])
+def cleanup_orphaned_users():
+    """Remove Firestore user docs whose Firebase Auth account no longer exists."""
+    if not firebase_admin._apps:
+        return jsonify({'ok': False, 'error': 'Firebase Admin SDK not initialized.'}), 503
+
+    try:
+        from firebase_admin import firestore as fa_firestore
+        db = fa_firestore.client()
+        users_ref = db.collection('users')
+        docs = users_ref.stream()
+
+        deleted = []
+        for doc in docs:
+            uid = doc.id
+            try:
+                fb_auth.get_user(uid)
+            except fb_auth.UserNotFoundError:
+                # Auth account doesn't exist — delete Firestore doc
+                doc.reference.delete()
+                deleted.append(uid)
+                print(f'🧹 Cleaned up orphaned user doc: {uid}')
+            except Exception:
+                # Other errors (network, etc.) — skip this doc
+                pass
+
+        print(f'✅ Cleanup complete. Removed {len(deleted)} orphaned doc(s).')
+        return jsonify({'ok': True, 'deleted': deleted, 'count': len(deleted)})
+    except Exception as e:
+        print(f'❌ cleanup error: {e}')
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/api/send-approval-email', methods=['POST'])
 def send_approval_email():
     data     = request.get_json(silent=True) or {}
@@ -242,7 +275,7 @@ def send_approval_email():
 
     print(f'📧 Sending approval email → {to_email} ({to_name})')
 
-    subject   = 'Your Caltex AutoPro Account Has Been Approved!'
+    subject   = 'Your AutoPro Account Has Been Approved!'
     html_body = f"""<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"/></head>
@@ -263,7 +296,7 @@ def send_approval_email():
           <h1 style="margin:0 0 8px;text-align:center;font-size:22px;font-weight:800;color:#1a202c;">Account Approved!</h1>
           <p style="margin:0 0 26px;text-align:center;font-size:13px;color:#718096;line-height:1.6;">
             Hi <strong>{to_name}</strong>, great news!<br/>
-            Your Caltex AutoPro account has been approved by the administrator.
+            Your AutoPro account has been approved by the administrator.
           </p>
           <div style="background:#f0fff4;border:1px solid #9ae6b4;border-radius:12px;padding:20px 24px;margin-bottom:26px;text-align:center;">
             <p style="margin:0;font-size:15px;font-weight:700;color:#276749;">You're all set!</p>
@@ -296,7 +329,7 @@ def send_approval_email():
       <tr>
         <td style="background:#f7f8fa;padding:18px 40px;text-align:center;border-top:1px solid #e2e8f0;">
           <p style="margin:0;font-size:11px;color:#a0aec0;line-height:1.6;">
-            &copy; 2025 Caltex AutoPro &middot; JA Noble Enterprise INC<br/>
+            &copy; 2025 AutoPro &middot; JA Noble Enterprise INC<br/>
             This is an automated message &mdash; please do not reply.
           </p>
         </td>
@@ -339,7 +372,7 @@ def send_welcome_email():
     if not to_email or not temp_password:
         return jsonify({'ok': False, 'error': 'Missing required fields'}), 400
 
-    subject = 'Welcome to Caltex AutoPro – Your Login Credentials'
+    subject = f'Welcome to AutoPro - {to_name}'
     html_body = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -359,10 +392,6 @@ def send_welcome_email():
       <!-- ── Red Header ── -->
       <tr>
         <td style="background:#E8001C;padding:30px 40px 0;text-align:center;">
-          <div style="font-size:13px;font-weight:700;letter-spacing:4px;
-                      color:rgba(255,255,255,.8);margin-bottom:6px;">CALTEX</div>
-          <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:2px;">AutoPro</div>
-          <div style="background:#fff;border-radius:24px 24px 0 0;height:22px;margin-top:20px;"></div>
         </td>
       </tr>
 
@@ -372,7 +401,7 @@ def send_welcome_email():
 
           <!-- Title -->
           <h1 style="margin:0 0 8px;text-align:center;font-size:22px;
-                     font-weight:800;color:#1a202c;">Welcome to Caltex AutoPro!</h1>
+                     font-weight:800;color:#1a202c;">Welcome to AutoPro!</h1>
           <p style="margin:0 0 26px;text-align:center;font-size:13px;
                     color:#718096;line-height:1.6;">
             Hi <strong>{to_name}</strong>, your account has been created.<br/>
@@ -434,7 +463,7 @@ def send_welcome_email():
                     </td>
                     <td style="vertical-align:top;padding-bottom:14px;">
                       <div style="font-size:13px;font-weight:700;color:#1a202c;margin-bottom:2px;">Open the app</div>
-                      <div style="font-size:12px;color:#718096;line-height:1.5;">Download or open the <strong>Caltex AutoPro</strong> mobile app on your device.</div>
+                      <div style="font-size:12px;color:#718096;line-height:1.5;">Download or open the <strong>AutoPro</strong> mobile app on your device.</div>
                     </td>
                   </tr>
                   <tr>
@@ -466,8 +495,8 @@ def send_welcome_email():
 
           <p style="margin:0;font-size:12px;color:#a0aec0;text-align:center;line-height:1.6;">
             Need help? Contact us at
-            <a href="mailto:caltexautopro2026@gmail.com"
-               style="color:#E8001C;">caltexautopro2026@gmail.com</a>
+            <a href="mailto:janobleenterprisesinc@gmail.com"
+               style="color:#E8001C;">janobleenterprisesinc@gmail.com</a>
           </p>
 
         </td>
@@ -510,6 +539,24 @@ def send_welcome_email():
 @app.route('/index.html')
 def index():
     return render_template('index.html')
+
+@app.route('/download/autopro.apk')
+def download_apk():
+    """Serve the AutoPro APK for direct download. Always serves the latest file."""
+    from flask import send_from_directory
+    import os
+    apk_dir = os.path.join(os.path.dirname(__file__), 'static', 'apk')
+    apk_path = os.path.join(apk_dir, 'autopro.apk')
+    if not os.path.exists(apk_path):
+        return 'APK not found. Run build_and_deploy_apk.bat first.', 404
+    response = send_from_directory(apk_dir, 'autopro.apk',
+                                   as_attachment=True,
+                                   download_name='AutoPro.apk')
+    # Prevent browser from caching the old APK
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 # ── Auth ────────────────────────────────────────────────────
 @app.route('/login.html')
@@ -1066,7 +1113,7 @@ def send_reschedule_email():
 
     print(f'📧 Sending reschedule email → {to_email} ({to_name})')
 
-    subject = 'Your Caltex AutoPro Booking Has Been Rescheduled'
+    subject = 'Your Booking Has Been Rescheduled'
     html_body = f"""<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"/></head>
@@ -1126,7 +1173,7 @@ def send_reschedule_email():
       <tr>
         <td style="background:#f7f8fa;padding:18px 40px;text-align:center;border-top:1px solid #e2e8f0;">
           <p style="margin:0;font-size:11px;color:#a0aec0;line-height:1.6;">
-            &copy; 2025 Caltex AutoPro &middot; JA Noble Enterprise INC<br/>
+            &copy; 2025 AutoPro &middot; JA Noble Enterprise INC<br/>
             This is an automated message &mdash; please do not reply.
           </p>
         </td>
@@ -1168,3 +1215,9 @@ if __name__ == '__main__':
 def setup_notifications():
     """Setup page to create notifications collection in Firestore"""
     return render_template('setup_notifications.html')
+
+@app.route('/fix_item_numbers.html')
+def fix_item_numbers():
+    """One-time utility to fix duplicate item numbers in item_master"""
+    return render_template('fix_item_numbers.html')
+

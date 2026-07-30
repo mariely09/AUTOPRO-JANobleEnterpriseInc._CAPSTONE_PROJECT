@@ -11,6 +11,7 @@ import 'notifs_manageAlerts.dart';
 import 'help_support.dart';
 import 'privacy_policy.dart';
 import 'terms_conditions.dart';
+import 'onesignal_debug.dart';
 
 enum UserRole { customer, staff, admin }
 
@@ -36,6 +37,7 @@ class _UserProfileState extends State<UserProfile> {
   final _nameCtrl  = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _roleCtrl  = TextEditingController();
+  final _companyCtrl = TextEditingController();
 
   StreamSubscription<DocumentSnapshot>? _profileSub;
 
@@ -51,6 +53,7 @@ class _UserProfileState extends State<UserProfile> {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _roleCtrl.dispose();
+    _companyCtrl.dispose();
     super.dispose();
   }
 
@@ -72,6 +75,7 @@ class _UserProfileState extends State<UserProfile> {
         setState(() {
           _nameCtrl.text  = data['name']  as String? ?? _nameCtrl.text;
           _emailCtrl.text = data['email'] as String? ?? _emailCtrl.text;
+          _companyCtrl.text = data['companyName'] as String? ?? _companyCtrl.text;
           _roleCtrl.text  = role.isEmpty ? _roleCtrl.text
               : role[0].toUpperCase() + role.substring(1);
           _photoUrl       = data['photoUrl'] as String? ?? _photoUrl;
@@ -101,6 +105,7 @@ class _UserProfileState extends State<UserProfile> {
     await db.collection('users').doc(uid).update({
       'name': newName,
       'email': newEmail,
+      if (widget.role == UserRole.customer) 'companyName': _companyCtrl.text.trim(),
     });
 
     // Update owner field on all vehicles belonging to this customer
@@ -286,6 +291,8 @@ class _UserProfileState extends State<UserProfile> {
                         ),
                         _editableTile(Icons.person_outline, 'Full Name', _nameCtrl),
                         _editableTile(Icons.email_outlined, 'Email', _emailCtrl),
+                        if (widget.role == UserRole.customer && _companyCtrl.text.isNotEmpty)
+                          _editableTile(Icons.business_outlined, 'Company Name', _companyCtrl),
                         _editableTile(Icons.shield_outlined, 'Role', _roleCtrl, isLast: true, readOnly: true),
                       ]),
                     ),
@@ -309,6 +316,11 @@ class _UserProfileState extends State<UserProfile> {
                           role: widget.role.name, // 'admin', 'staff', or 'customer'
                         )));
                       }),
+                      if (widget.role == UserRole.admin)
+                        _actionTile(Icons.bug_report_outlined, 'Push Notification Status', 'Check OneSignal setup', () {
+                          Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => const OneSignalDebugScreen()));
+                        }),
                       _actionTile(Icons.help_outline, 'Help & Support', 'Get assistance', () {
                         final helpRole = switch (widget.role) {
                           UserRole.admin    => HelpSupportRole.admin,

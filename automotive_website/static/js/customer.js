@@ -29,7 +29,12 @@
     // ── Render vehicles ─────────────────────────────────────
     function renderMobVehicles() {
         var ownerName = cpUser.name;
-        var myAssets = assets.filter(function (a) { return a.owner === ownerName; });
+        var companyName = cpUser.companyName || window._cpCompanyName || '';
+        var myAssets = assets.filter(function (a) {
+            var owner = (a.owner || '').toLowerCase().trim();
+            return owner === ownerName.toLowerCase().trim() ||
+                   (companyName && owner === companyName.toLowerCase().trim());
+        });
         var today = new Date(); today.setHours(0, 0, 0, 0);
 
         var total = myAssets.length;
@@ -212,7 +217,12 @@
     };
 
     function buildMobSmartResponse(q, ownerName) {
-        var myAssets = assets.filter(function (a) { return a.owner === ownerName; });
+        var companyName = window._cpCompanyName || '';
+        var myAssets = assets.filter(function (a) {
+            var owner = (a.owner || '').toLowerCase().trim();
+            return owner === ownerName.toLowerCase().trim() ||
+                   (companyName && owner === companyName.toLowerCase().trim());
+        });
         var today = new Date(); today.setHours(0, 0, 0, 0);
 
         function fmtDate(d) {
@@ -482,7 +492,12 @@
 
     // ── Notifications ────────────────────────────────────────
     function buildNotifications() {
-        var myAssets = assets.filter(function (a) { return a.owner === cpUser.name; });
+        var companyName = window._cpCompanyName || '';
+        var myAssets = assets.filter(function (a) {
+            var owner = (a.owner || '').toLowerCase().trim();
+            return owner === cpUser.name.toLowerCase().trim() ||
+                   (companyName && owner === companyName.toLowerCase().trim());
+        });
         var today = new Date(); today.setHours(0, 0, 0, 0);
         var notifs = [];
 
@@ -544,7 +559,12 @@
     // ── Profile ─────────────────────────────────────────────
     function renderMobProfile() {
         var ownerName = cpUser.name;
-        var myAssets = assets.filter(function (a) { return a.owner === ownerName; });
+        var companyName = window._cpCompanyName || '';
+        var myAssets = assets.filter(function (a) {
+            var owner = (a.owner || '').toLowerCase().trim();
+            return owner === ownerName.toLowerCase().trim() ||
+                   (companyName && owner === companyName.toLowerCase().trim());
+        });
         var today = new Date(); today.setHours(0, 0, 0, 0);
 
         var underMaint = myAssets.filter(function (a) { return a.status === 'maintenance'; }).length;

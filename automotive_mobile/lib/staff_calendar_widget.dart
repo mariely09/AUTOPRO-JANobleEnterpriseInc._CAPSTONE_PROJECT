@@ -144,7 +144,7 @@ class _StaffCalendarFloatingState extends State<StaffCalendarFloating>
       case 'booking':
         return const Color(0xFF7c3aed);
       default:
-        return _blue;
+        return const Color(0xFFEAB308);
     }
   }
 
@@ -369,7 +369,7 @@ class _StaffCalendarFloatingState extends State<StaffCalendarFloating>
           child: Wrap(spacing: 12, runSpacing: 4, children: [
             _legendItem(const Color(0xFFE8001C), 'Overdue'),
             _legendItem(const Color(0xFFed8936), 'This Week'),
-            _legendItem(_blue, 'Upcoming'),
+            _legendItem(const Color(0xFFEAB308), 'Upcoming'),
             _legendItem(const Color(0xFF0033A0), 'Today'),
             _legendItem(const Color(0xFF7c3aed), 'Booked'),
           ]),

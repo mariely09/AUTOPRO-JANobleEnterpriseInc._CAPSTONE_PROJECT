@@ -29,8 +29,31 @@ class _AdminIssuancesBodyState extends State<AdminIssuancesBody> {
   String _searchQuery = '';
   String _typeFilter = 'all'; // 'all', 'Material', 'Service'
 
+  // Live vehicle lookup (plate -> desc)
+  Map<String, String> _vehicleDescMap = {};
+
   static const _monthsShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   static const _monthsLong  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVehicles();
+  }
+
+  Future<void> _loadVehicles() async {
+    final snap = await FirebaseFirestore.instance.collection('vehicles').get();
+    if (!mounted) return;
+    setState(() {
+      _vehicleDescMap = {};
+      for (final d in snap.docs) {
+        final data = d.data();
+        final plate = data['plate'] as String? ?? '';
+        final desc = data['desc'] as String? ?? data['assetDescription'] as String? ?? '';
+        if (plate.isNotEmpty) _vehicleDescMap[plate] = desc;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -169,6 +192,8 @@ class _AdminIssuancesBodyState extends State<AdminIssuancesBody> {
     final isMat    = (iss['itemType']  as String? ?? '') == 'Material';
     final typeColor = isMat ? _red : const Color(0xFF003087);
     final typeBg    = isMat ? const Color(0xFFFFF5F5) : const Color(0xFFebf8ff);
+    // Look up vehicle description from live vehicles data
+    final liveDesc  = _vehicleDescMap[plate] ?? '';
 
     return GestureDetector(
       onTap: () => _showDetail(iss),
@@ -181,9 +206,11 @@ class _AdminIssuancesBodyState extends State<AdminIssuancesBody> {
         ),
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(plate, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            Text(plate ?? '—', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            if (liveDesc.isNotEmpty)
+              Text(liveDesc, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
             Text(
-              group.isNotEmpty ? '$name • $group' : name,
+              name,
               style: const TextStyle(fontSize: 11, color: Color(0xFF4a5568)),
             ),
             const SizedBox(height: 4),
@@ -214,7 +241,8 @@ class _AdminIssuancesBodyState extends State<AdminIssuancesBody> {
     final name      = (iss['itemName'] ?? iss['item'] ?? '—') as String;
     final itemNum   = iss['itemNum']       as String? ?? '—';
     final plate     = iss['plate']         as String? ?? '—';
-    final assetDesc = iss['assetDesc']     as String? ?? '';
+    // Look up vehicle description from live vehicles data (stays in sync with edits)
+    final assetDesc = _vehicleDescMap[plate] ?? (iss['assetDesc'] as String? ?? '');
     final date      = iss['date']          as String? ?? '—';
     final qty       = iss['qty']?.toString() ?? '0';
     final uom       = iss['uom']           as String? ?? '';

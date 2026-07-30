@@ -86,6 +86,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'createdAt':  FieldValue.serverTimestamp(),
       });
 
+      // Notify admins about new registration
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'title':      '🆕 New Account Registered',
+        'message':    '$firstName $lastName ($email) has created a new account.',
+        'type':       'info',
+        'targetRole': 'admin',
+        'targetUid':  '',
+        'createdAt':  FieldValue.serverTimestamp(),
+        'readBy':     <String, bool>{},
+        'isRead':     false,
+      });
+
       if (!mounted) return;
       // Sign out — they need to login with their new credentials
       await FirebaseAuth.instance.signOut();

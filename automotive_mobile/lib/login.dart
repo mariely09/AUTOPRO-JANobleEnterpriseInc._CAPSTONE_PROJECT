@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'google_sign_in.dart';
 import 'staff_dashboard.dart';
 import 'customer_dashboard.dart';
@@ -27,11 +28,30 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _showPasswordToggle = false;
   static const _red = Color(0xFFE8001C);
 
+  // ── Login attempt rate limiting ──
+  int _loginAttempts = 0;
+  DateTime? _lockoutUntil;
+  static const _maxAttempts = 5;
+  static const _lockoutDuration = Duration(seconds: 60);
+
+  // ── Remember me ──
+  bool _rememberMe = false;
+
   @override
   void initState() {
     super.initState();
-    // Do NOT sign out here — it breaks OneSignal UID linking in main.dart
-    // and forces users to re-login every time the app restarts.
+    _loadRememberedEmail();
+  }
+
+  Future<void> _loadRememberedEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('_rememberedEmail') ?? '';
+    if (saved.isNotEmpty && mounted) {
+      setState(() {
+        _emailCtrl.text = saved;
+        _rememberMe = true;
+      });
+    }
   }
 
   @override
@@ -42,6 +62,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
+    // Check lockout
+    if (_lockoutUntil != null && DateTime.now().isBefore(_lockoutUntil!)) {
+      final remaining = _lockoutUntil!.difference(DateTime.now()).inSeconds;
+      _showError('Too many failed attempts. Please try again in $remaining seconds.');
+      return;
+    }
+
     final email = _emailCtrl.text.trim();
     final password = _passwordCtrl.text.trim();
 
@@ -59,6 +86,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _loading = true);
     try {
+      // Pre-check: verify the email exists in Firestore before attempting auth
+      try {
+        final preCheck = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: email)
+            .limit(1)
+            .get();
+        if (preCheck.docs.isEmpty) {
+          _showError('No account found with this email. Please sign up first.');
+          setState(() => _loading = false);
+          return;
+        }
+      } catch (_) {
+        // If Firestore rules block unauthenticated reads, skip pre-check
+      }
+
       final cred = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: email, password: password);
 
@@ -116,16 +159,22 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!kIsWeb) {
         OneSignal.login(uid);
         debugPrint('✅ OneSignal login: $uid');
+        _ensurePushPermission(uid);
         _saveOneSignalId(uid);
+        _watchOneSignalSubscription(uid);
       }
 
       // Check first-login flag — force password change before entering app
       if (data['mustChangePassword'] == true) {
+        _loginAttempts = 0;
+        await _saveRememberMe();
         Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (_) => ChangePasswordScreen(role: role, firstLogin: true)));
+          MaterialPageRoute(builder: (_) => ChangePasswordScreen(role: role, firstLogin: true, tempPassword: _passwordCtrl.text)));
         return;
       }
 
+      _loginAttempts = 0;
+      await _saveRememberMe();
       switch (role) {
         case 'admin':
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminDashboard()));
@@ -141,14 +190,20 @@ class _LoginScreenState extends State<LoginScreen> {
           _showError('Unknown account role.');
       }
     } on FirebaseAuthException catch (e) {
-      final msg = (e.code == 'user-not-found' ||
-              e.code == 'wrong-password' ||
-              e.code == 'invalid-credential')
-          ? 'Invalid email or password.'
-          : e.code == 'invalid-email'
-              ? 'Please enter a valid email address.'
-              : e.message ?? 'Login failed.';
-      _showError(msg);
+      _loginAttempts++;
+      if (_loginAttempts >= _maxAttempts) {
+        _lockoutUntil = DateTime.now().add(_lockoutDuration);
+        _showError('Account locked for ${_lockoutDuration.inSeconds} seconds due to too many failed attempts.');
+      } else {
+        final msg = (e.code == 'user-not-found' ||
+                e.code == 'wrong-password' ||
+                e.code == 'invalid-credential')
+            ? 'Invalid email or password.'
+            : e.code == 'invalid-email'
+                ? 'Please enter a valid email address.'
+                : e.message ?? 'Login failed.';
+        _showError(msg);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -172,7 +227,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (uid != null && !kIsWeb) {
         OneSignal.login(uid);
         debugPrint('✅ OneSignal login (Google): $uid');
+        _ensurePushPermission(uid);
         _saveOneSignalId(uid);
+        _watchOneSignalSubscription(uid);
       }
 
       // Check first-login flag for Google sign-in users too
@@ -238,30 +295,102 @@ class _LoginScreenState extends State<LoginScreen> {
       SnackBar(content: Text(msg), backgroundColor: Colors.redAccent));
   }
 
-  /// Saves the OneSignal subscription (player) ID to Firestore under users/{uid}.
-  /// This lets us target this specific device by subscription ID instead of
-  /// external user ID (which requires a paid OneSignal plan).
+  /// Saves the OneSignal subscription ID to Firestore.
+  /// Uses the push subscription observer as the primary mechanism — fires as soon
+  /// as OneSignal assigns an ID (which can take 10–60s on first install).
+  /// Also does a single immediate check in case the ID is already available.
   Future<void> _saveOneSignalId(String uid) async {
-    try {
-      // Give OneSignal a moment to register the subscription after login()
-      await Future.delayed(const Duration(seconds: 2));
-      final subId = OneSignal.User.pushSubscription.id;
-      if (subId == null || subId.isEmpty) {
-        debugPrint('⚠️ OneSignal subscription ID not available yet');
-        return;
+    if (kIsWeb) return;
+
+    Future<void> _persist(String subId) async {
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .update({'oneSignalId': subId});
+        debugPrint('✅ OneSignal subscription ID saved: $subId');
+      } catch (e) {
+        debugPrint('⚠️ Could not save OneSignal ID: $e');
       }
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'oneSignalId': subId,
+    }
+
+    // Immediate check — already assigned (e.g. returning user / app restart)
+    final existing = OneSignal.User.pushSubscription.id;
+    if (existing != null && existing.isNotEmpty) {
+      await _persist(existing);
+      return;
+    }
+
+    // Otherwise wait for the observer to fire when OneSignal assigns the ID
+    debugPrint('⏳ Waiting for OneSignal to assign subscription ID...');
+    OneSignal.User.pushSubscription.addObserver((state) {
+      final newId = state.current.id;
+      if (newId == null || newId.isEmpty) return;
+      debugPrint('🔔 OneSignal subscription ID ready: $newId');
+      _persist(newId);
+    });
+  }
+
+  /// Watches for future subscription ID changes (token rotation, re-install, etc.)
+  /// and keeps Firestore in sync. Call once after login — separate from _saveOneSignalId
+  /// so we don't add duplicate observers.
+  void _watchOneSignalSubscription(String uid) {
+    if (kIsWeb) return;
+    OneSignal.User.pushSubscription.addObserver((state) {
+      final newId = state.current.id;
+      if (newId == null || newId.isEmpty) return;
+      FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'oneSignalId': newId,
+      }).then((_) {
+        debugPrint('🔄 OneSignal subscription ID updated: $newId');
+      }).catchError((e) {
+        debugPrint('⚠️ Could not update OneSignal ID: $e');
       });
-      debugPrint('✅ OneSignal subscription ID saved: $subId');
-    } catch (e) {
-      debugPrint('⚠️ Could not save OneSignal ID: $e');
+    });
+  }
+
+  /// Ensures push notifications are opted in. Re-requests permission if denied.
+  Future<void> _ensurePushPermission(String uid) async {
+    if (kIsWeb) return;
+    final isOptedIn = OneSignal.User.pushSubscription.optedIn ?? false;
+    if (!isOptedIn) {
+      debugPrint('⚠️ Push not opted in — requesting permission...');
+      final granted = await OneSignal.Notifications.requestPermission(true);
+      debugPrint(granted ? '✅ Push permission granted' : '❌ Push permission denied by user');
+      if (granted) {
+        await OneSignal.User.pushSubscription.optIn();
+        debugPrint('✅ OneSignal subscription opted in');
+        // Give it a moment then save the new ID
+        await Future.delayed(const Duration(seconds: 2));
+        final subId = OneSignal.User.pushSubscription.id;
+        if (subId != null && subId.isNotEmpty) {
+          try {
+            await FirebaseFirestore.instance.collection('users').doc(uid).update({
+              'oneSignalId': subId,
+            });
+            debugPrint('✅ OneSignal ID saved after opt-in: $subId');
+          } catch (e) {
+            debugPrint('⚠️ Could not save ID after opt-in: $e');
+          }
+        }
+      }
+    } else {
+      debugPrint('✅ Push already opted in');
     }
   }
 
   void _showForgotPassword() {
     Navigator.push(context,
       MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()));
+  }
+
+  Future<void> _saveRememberMe() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberMe) {
+      await prefs.setString('_rememberedEmail', _emailCtrl.text.trim());
+    } else {
+      await prefs.remove('_rememberedEmail');
+    }
   }
 
   @override
@@ -309,9 +438,25 @@ class _LoginScreenState extends State<LoginScreen> {
                           )
                         : null),
                 ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  GestureDetector(
+                    onTap: () => setState(() => _rememberMe = !_rememberMe),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      SizedBox(
+                        width: 18, height: 18,
+                        child: Checkbox(
+                          value: _rememberMe,
+                          onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                          activeColor: _red,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text('Remember me', style: TextStyle(fontSize: 12, color: Color(0xFF4a5568))),
+                    ]),
+                  ),
+                  TextButton(
                     onPressed: _loading ? null : _showForgotPassword,
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -321,7 +466,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text('Forgot Password?',
                       style: TextStyle(fontSize: 12, color: Color(0xFF718096))),
                   ),
-                ),
+                ]),
                 const SizedBox(height: 28),
                 SizedBox(
                   width: double.infinity,

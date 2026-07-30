@@ -378,7 +378,21 @@ class _StaffInventoryState extends State<StaffInventory> {
     );
   }
 
-  void _showStockDetails(Map<String, dynamic> item) {
+  void _showStockDetails(Map<String, dynamic> item) async {
+    // Fetch supplierCode from item_master since stock_inventory doesn't store it
+    String supplierCode = '';
+    try {
+      final num = item['num'] as String? ?? '';
+      if (num.isNotEmpty) {
+        final snap = await FirebaseFirestore.instance
+            .collection('item_master').where('num', isEqualTo: num).limit(1).get();
+        if (snap.docs.isNotEmpty) {
+          supplierCode = (snap.docs.first.data() as Map<String, dynamic>)['supplierCode']?.toString() ?? '';
+        }
+      }
+    } catch (_) {}
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context, isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -405,6 +419,8 @@ class _StaffInventoryState extends State<StaffInventory> {
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if (supplierCode.isNotEmpty)
+                  _detailRow('Supplier Item Code', supplierCode),
                 _detailRow('Item Number', item['num'] as String),
                 _detailRow('Item Name', item['name'] as String),
                 _detailRow('Commodity Group', item['group'] as String),

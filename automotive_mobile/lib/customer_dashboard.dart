@@ -26,6 +26,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
   String _initials = '?';
   String? _photoUrl;
   String _userName = '';
+  String _companyName = '';
   IconData _fleetNavIcon = Icons.directions_car_outlined;
   bool _iconComputed = false;
 
@@ -55,6 +56,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
     final data = doc.data() ?? {};
     final name = data['name'] as String? ?? '';
+    final companyName = data['companyName'] as String? ?? '';
     final photo = data['photoUrl'] as String?;
     if (name.isEmpty && photo == null) return;
     String ini = '?';
@@ -64,7 +66,12 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
           ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
           : parts[0][0].toUpperCase();
     }
-    if (mounted) setState(() { _initials = ini; _photoUrl = photo; _userName = name; });
+    if (mounted) setState(() {
+      _initials = ini;
+      _photoUrl = photo;
+      _userName = name;
+      _companyName = companyName;
+    });
   }
 
   // nav items moved to CustomerBottomNavBar
@@ -180,8 +187,11 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
         final vehicles = allDocs
             .where((d) {
               final data = d.data() as Map<String, dynamic>;
-              final owner = data['owner'] as String? ?? '';
-              return owner.toLowerCase() == userName.toLowerCase();
+              final owner = (data['owner'] as String? ?? '').toLowerCase();
+              final uname = userName.toLowerCase();
+              final cname = _companyName.toLowerCase();
+              // Match if owner equals the customer's name OR their company name
+              return owner == uname || (cname.isNotEmpty && owner == cname);
             })
             .map((d) {
               final data = d.data() as Map<String, dynamic>;

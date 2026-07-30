@@ -12,6 +12,64 @@
     <link rel="stylesheet" href="../static/css/admin.css">
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
+/* ── Floating label fields ── */
+.fl-field {
+    position: relative;
+    width: 100%;
+}
+.fl-field input,
+.fl-field select {
+    width: 100%;
+    padding: 1rem 1rem 0.4rem 1rem;
+    border: 1.5px solid #c5cdd9;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    color: #1a202c;
+    background: white;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+}
+.fl-field select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a0aec0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    padding-right: 2.2rem;
+}
+.fl-field input:focus,
+.fl-field select:focus {
+    border-color: #E31E24;
+    box-shadow: 0 0 0 3px rgba(227, 30, 36, 0.12);
+}
+.fl-field > label {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.88rem;
+    color: #a0aec0;
+    pointer-events: none;
+    transition: all 0.18s ease;
+    background: white;
+    padding: 0 0.2rem;
+    line-height: 1;
+}
+.fl-field input:focus ~ label,
+.fl-field input:not(:placeholder-shown) ~ label,
+.fl-field select:focus ~ label,
+.fl-field.has-value > label {
+    top: 0;
+    transform: translateY(-50%);
+    font-size: 0.72rem;
+    color: #718096;
+}
+.fl-field input:focus ~ label,
+.fl-field select:focus ~ label { color: #E31E24; }
+.fl-field input::placeholder { color: transparent; }
 </style>
 </head>
 <body class="portal-body" data-page="users">
@@ -47,9 +105,16 @@
                 <div class="breadcrumb">Admin Portal</div>
                 <div class="admin-header-title">User Management</div>
             </div>
-            <div style="margin-left:auto;position:relative;display:flex;align-items:center;">
-                <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" class="search-bar" placeholder="Search users..." id="userSearch" style="width:220px;padding-left:2rem;" oninput="renderUsersList()">
+            <div style="margin-left:auto;position:relative;display:flex;align-items:center;gap:0.75rem;">
+                <div style="position:relative;">
+                    <svg style="position:absolute;left:0.65rem;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" class="search-bar" placeholder="Search users..." id="userSearch" style="width:220px;padding-left:2rem;" oninput="renderUsersList()">
+                </div>
+                <select id="userSortBy" onchange="renderUsersList()" class="search-bar" style="width:160px;padding:0.5rem 2rem 0.5rem 0.75rem;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%23a0aec0%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpolyline points=%276 9 12 15 18 9%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 0.6rem center;">
+                    <option value="name-asc">Name A→Z</option>
+                    <option value="name-desc">Name Z→A</option>
+                    <option value="email-asc">Email A→Z</option>
+                </select>
             </div>
         </div>
 
@@ -113,10 +178,10 @@
             <!-- ── Users Table ── -->
             <div id="tabAll">
                 <div class="data-table">
-                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:40px 2fr 2fr 1fr 1fr 140px;">
-                        <div>#</div><div>Full Name</div><div>Email</div><div>Role</div><div>Status</div><div>Actions</div>
+                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:40px 2fr 2fr 1.5fr 1fr 1fr 140px;">
+                        <div>#</div><div>Full Name</div><div>Email</div><div>Company Name</div><div>Role</div><div>Status</div><div>Actions</div>
                     </div>
-                    <div id="userCardsList"></div>
+                    <div id="userCardsList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading users...</div></div>
                 </div>
             </div>
         </div>
@@ -132,23 +197,24 @@
 <!-- View User Modal -->
 <div class="modal" id="viewUserModal">
     <div class="modal-content" style="max-width:480px;padding:0;border-radius:20px;overflow:hidden;">
-        <div id="vuHeader" style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;">
-            <div style="background:rgba(255,255,255,0.2);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                <span id="vuAvatar" style="color:white;font-size:1.1rem;font-weight:800;"></span>
+        <div id="vuHeader" style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.5rem 1.5rem;display:flex;align-items:center;gap:1rem;">
+            <div style="background:rgba(255,255,255,0.2);width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid rgba(255,255,255,0.3);">
+                <span id="vuAvatar" style="color:white;font-size:1.2rem;font-weight:800;"></span>
             </div>
             <div style="flex:1;">
-                <div id="vuName" style="color:white;font-size:1rem;font-weight:700;"></div>
-                <div id="vuUsername" style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.1rem;"></div>
+                <div id="vuName" style="color:white;font-size:1.1rem;font-weight:700;"></div>
+                <div id="vuUsername" style="color:rgba(255,255,255,0.8);font-size:0.8rem;margin-top:0.2rem;"></div>
             </div>
-            <button onclick="closeModal('viewUserModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+            <button onclick="closeModal('viewUserModal')" style="background:rgba(255,255,255,0.15);border:none;color:white;width:34px;height:34px;border-radius:50%;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">&times;</button>
         </div>
         <div style="padding:1.25rem 1.5rem;background:#f8fafc;">
             <div id="vuInfoGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;"></div>
         </div>
-        <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;">
-            <button id="vuEditBtn" style="width:100%;padding:0.8rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.95rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                Edit
+        <div style="padding:1.1rem 1.5rem;background:white;border-top:1px solid #f0f4f8;display:flex;gap:0.75rem;">
+            <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;border-radius:10px;padding:0.75rem;" onclick="closeModal('viewUserModal')">Close</button>
+            <button id="vuEditBtn" style="flex:1;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit User
             </button>
         </div>
     </div>
@@ -165,26 +231,30 @@
         </div>
         <form id="addUserForm" style="padding:1.25rem 1.5rem;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-                <div class="form-group" style="margin:0;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">First Name *</label>
-                    <input type="text" name="firstName" required style="margin-top:0.3rem;">
+                <div class="fl-field">
+                    <input type="text" name="firstName" required placeholder=" ">
+                    <label>First Name *</label>
                 </div>
-                <div class="form-group" style="margin:0;">
-                    <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Last Name *</label>
-                    <input type="text" name="lastName" required style="margin-top:0.3rem;">
+                <div class="fl-field">
+                    <input type="text" name="lastName" required placeholder=" ">
+                    <label>Last Name *</label>
                 </div>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Email *</label>
-                <input type="email" name="email" required style="margin-top:0.3rem;">
+            <div class="fl-field">
+                <input type="email" name="email" required placeholder=" ">
+                <label>Email *</label>
             </div>
-            <div class="form-group" style="margin:0;">
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;">Role *</label>
-                <select name="role" required style="margin-top:0.3rem;">
+            <div class="fl-field has-value">
+                <select name="role" required onchange="document.getElementById('companyNameField').style.display = this.value === 'customer' ? 'block' : 'none';">
                     <option value="admin">Admin</option>
                     <option value="staff" selected>Staff</option>
                     <option value="customer">Customer</option>
                 </select>
+                <label>Role *</label>
+            </div>
+            <div class="fl-field" id="companyNameField" style="display:none;">
+                <input type="text" name="companyName" placeholder=" ">
+                <label>Company Name</label>
             </div>
             <div id="addUserEmailNote" style="display:none;background:#f0fff4;border:1px solid #9ae6b4;border-radius:10px;padding:0.75rem 1rem;font-size:0.82rem;color:#276749;display:none;align-items:center;gap:0.5rem;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
@@ -244,7 +314,7 @@
 </script>
 <script src="../static/js/admin_firebase.js"></script>
 
-<script src="../static/js/admin_functions.js?v=202606150001"></script>
+<script src="../static/js/admin_functions.js?v=202607180001"></script>
 <script src="../static/js/admin.js"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script>
@@ -329,7 +399,7 @@ function showConfirm(opts) {
     dialog.style.display = 'flex';
 
     function close() { dialog.style.display = 'none'; okBtn.onclick = null; cancelBtn.onclick = null; }
-    okBtn.onclick     = function() { close(); if (opts.onOk) opts.onOk(); };
+    okBtn.onclick     = function() { if (opts.onOk) { var result = opts.onOk(); if (result === false) return; } close(); };
     cancelBtn.onclick = function() { close(); };
 }
 
@@ -409,9 +479,27 @@ function toggleUserStatus(uid, currentStatus) {
         okLabel: label,
         okColor: newStatus === 'Inactive' ? '#dd6b20' : '#38a169',
         onOk: function() {
+            var okBtn = document.getElementById('confirmOkBtn');
+            var cancelBtn = document.getElementById('confirmCancelBtn');
+            var dialog = document.getElementById('confirmDialog');
+            // Show loading on button
+            okBtn.disabled = true;
+            cancelBtn.disabled = true;
+            okBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite;display:inline-block;vertical-align:middle;margin-right:6px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>' + label.replace('e','') + 'ing...';
             firebase.firestore().collection('users').doc(uid).update({ status: newStatus })
-                .then(function() { showToast('User ' + label.toLowerCase() + 'd successfully.', 'success'); })
-                .catch(function(err) { showToast('Error: ' + err.message, 'error'); });
+                .then(function() {
+                    dialog.style.display = 'none';
+                    okBtn.disabled = false;
+                    cancelBtn.disabled = false;
+                    showToast('User ' + label.toLowerCase() + 'd successfully.', 'success');
+                })
+                .catch(function(err) {
+                    dialog.style.display = 'none';
+                    okBtn.disabled = false;
+                    cancelBtn.disabled = false;
+                    showToast('Error: ' + err.message, 'error');
+                });
+            return false; // prevent default close
         }
     });
 }
@@ -453,6 +541,9 @@ function openAddUserModal() {
     // Show email note for add mode
     var note = document.getElementById('addUserEmailNote');
     if (note) note.style.display = 'flex';
+    // Hide company name field (default role is Staff)
+    var companyField = document.getElementById('companyNameField');
+    if (companyField) companyField.style.display = 'none';
     document.getElementById('addUserModal').classList.add('active');
 }
 
@@ -464,20 +555,28 @@ function viewUser(userId) {
     var rc = roleColors[(u.role||'').toLowerCase()] || '#718096';
     document.getElementById('vuAvatar').textContent = (u.name||'?').split(' ').map(function(n){ return n[0]; }).join('').toUpperCase().slice(0,2);
     document.getElementById('vuName').textContent = u.name || '—';
-    document.getElementById('vuUsername').textContent = '';
-    document.getElementById('vuUsername').style.display = 'none';
+    document.getElementById('vuUsername').textContent = u.email || '';
+    document.getElementById('vuUsername').style.display = u.email ? 'block' : 'none';
     var roleLabel = (u.role||''); roleLabel = roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1);
     var statusLower = (u.status||'').toLowerCase();
     var statusColor = statusLower === 'active' ? '#38a169' : '#718096';
     var statusLabel = statusLower === 'active' ? 'Active' : 'Inactive';
-    document.getElementById('vuInfoGrid').innerHTML = [
-        ['Email', u.email||'—'],
-        ['Role', '<span style="background:'+rc+'20;color:'+rc+';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">'+roleLabel+'</span>'],
-        ['Status', '<span style="background:'+statusColor+'20;color:'+statusColor+';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">'+statusLabel+'</span>'],
-    ].map(function(item){
-        return '<div style="background:white;border-radius:10px;padding:0.85rem;border:1px solid #e2e8f0;">'
-            + '<div style="font-size:0.7rem;color:#718096;font-weight:700;text-transform:uppercase;margin-bottom:0.3rem;">'+item[0]+'</div>'
-            + '<div style="font-weight:600;color:#1a202c;font-size:0.85rem;">'+item[1]+'</div>'
+
+    // Build info items — only include company name if it has a value
+    var infoItems = [
+        ['Email', '<span style="word-break:break-all;">' + escHtml(u.email||'—') + '</span>'],
+    ];
+    if ((u.companyName||'').trim()) {
+        infoItems.push(['Company Name', '<span style="font-weight:700;color:#1a202c;">' + escHtml(u.companyName) + '</span>']);
+    }
+    infoItems.push(['Role', '<span style="background:'+rc+'15;color:'+rc+';padding:0.25rem 0.7rem;border-radius:20px;font-size:0.78rem;font-weight:700;display:inline-block;">'+roleLabel+'</span>']);
+    infoItems.push(['Status', '<span style="background:'+statusColor+'15;color:'+statusColor+';padding:0.25rem 0.7rem;border-radius:20px;font-size:0.78rem;font-weight:700;display:inline-block;">'+statusLabel+'</span>']);
+
+    document.getElementById('vuInfoGrid').style.display = 'block';
+    document.getElementById('vuInfoGrid').innerHTML = infoItems.map(function(item){
+        return '<div style="display:flex;padding:0.6rem 0;border-bottom:1px solid #f0f4f8;">'
+            + '<span style="width:120px;flex-shrink:0;font-size:0.78rem;color:#718096;font-weight:500;">'+item[0]+'</span>'
+            + '<span style="font-size:0.88rem;font-weight:600;color:#1a202c;flex:1;">'+item[1]+'</span>'
             + '</div>';
     }).join('');
     document.getElementById('vuEditBtn').onclick = function(){ closeModal('viewUserModal'); editUser(userId); };
@@ -497,6 +596,12 @@ function editUser(userId) {
     form.elements.lastName.value  = nameParts.slice(1).join(' ') || '';
     form.elements.email.value = u.email || '';
     form.elements.role.value = (u.role||'staff').toLowerCase();
+    // Show/hide company name field based on role
+    var companyField = document.getElementById('companyNameField');
+    if (companyField) {
+        companyField.style.display = (u.role||'').toLowerCase() === 'customer' ? 'block' : 'none';
+    }
+    if (form.elements.companyName) form.elements.companyName.value = u.companyName || '';
     // Switch button to Update state
     var c = document.getElementById('userSubmitContent');
     if (c) c.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Update';
@@ -507,6 +612,22 @@ function editUser(userId) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Auto-cleanup orphaned user docs (Auth deleted but Firestore still exists)
+    fetch('/api/cleanup-orphaned-users', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.count > 0) console.log('🧹 Cleaned ' + data.count + ' orphaned user doc(s)');
+        })
+        .catch(function() {});
+
+    // Keep select fl-field label floated when value changes
+    document.querySelectorAll('#addUserModal .fl-field select').forEach(function(sel) {
+        sel.addEventListener('change', function() {
+            var wrap = sel.closest('.fl-field');
+            if (wrap) wrap.classList.toggle('has-value', sel.value !== '');
+        });
+    });
+
     var form = document.getElementById('addUserForm');
     if (!form) return;
 
@@ -527,6 +648,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var fullName  = (firstName + ' ' + lastName).trim();
         var email     = form.elements.email.value.trim();
         var role      = form.elements.role.value;
+        var companyName = (form.elements.companyName ? form.elements.companyName.value.trim() : '');
         if (!firstName || !lastName || !email) { showToast('Please fill all required fields.', 'error'); return; }
 
         setLoading(true);
@@ -539,7 +661,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 lastName:  lastName,
                 name:      fullName,
                 email:     email,
-                role:      role
+                role:      role,
+                companyName: role === 'customer' ? companyName : ''
             })
                 .then(function(){
                     closeModal('addUserModal');
@@ -567,11 +690,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (data.error) throw new Error(data.error.message);
                         var uid = data.localId;
                         return db.collection('users').doc(uid).set({
+                            uid:           uid,
                             firstName: firstName,
                             lastName:  lastName,
                             name:      fullName,
                             email:     email,
                             role:      role,
+                            companyName: role === 'customer' ? companyName : '',
                             status:    'Active',
                             mustChangePassword: true,
                             createdAt: firebase.firestore.FieldValue.serverTimestamp()

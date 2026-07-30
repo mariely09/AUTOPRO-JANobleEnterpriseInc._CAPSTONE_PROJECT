@@ -107,13 +107,15 @@ class _CustomerCalendarFloatingState extends State<CustomerCalendarFloating>
     final userDoc  = await db.collection('users').doc(uid).get();
     final userName =
         (userDoc.data()?['name'] as String? ?? '').toLowerCase();
+    final companyName =
+        (userDoc.data()?['companyName'] as String? ?? '').toLowerCase();
 
     if (userName.isNotEmpty) {
       final vehiclesSnap = await db.collection('vehicles').get();
       for (final doc in vehiclesSnap.docs) {
         final data  = doc.data();
         final owner = (data['owner'] as String? ?? '').toLowerCase();
-        if (owner != userName) continue;
+        if (owner != userName && (companyName.isEmpty || owner != companyName)) continue;
 
         final plate       = data['plate']      as String? ?? '';
         final lastSvcDate = data['lastSvcDate'] as String? ?? '';
@@ -159,7 +161,7 @@ class _CustomerCalendarFloatingState extends State<CustomerCalendarFloating>
       case 'today'   : return const Color(0xFF0033A0);
       case 'week'    : return const Color(0xFFed8936);
       case 'booking' : return const Color(0xFF7c3aed);
-      default        : return const Color(0xFF003087);
+      default        : return const Color(0xFFEAB308);
     }
   }
 
@@ -347,7 +349,7 @@ class _CustomerCalendarFloatingState extends State<CustomerCalendarFloating>
           child: Wrap(spacing: 12, runSpacing: 4, children: [
             _legendItem(const Color(0xFFE8001C), 'Overdue'),
             _legendItem(const Color(0xFFed8936), 'This Week'),
-            _legendItem(const Color(0xFF003087), 'Upcoming'),
+            _legendItem(const Color(0xFFEAB308), 'Upcoming'),
             _legendItem(const Color(0xFF0033A0), 'Today'),
             _legendItem(const Color(0xFF7c3aed), 'Booked'),
           ]),

@@ -1,11 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import 'barcode_scanner_screen.dart';
 
 /// Standalone full-screen wrapper for Stock Inventory.
 /// Can be navigated to directly (e.g. from dashboard stat card).
 class AdminInventoryStock extends StatefulWidget {
-  const AdminInventoryStock({super.key});
+  final String? prefilledItemNum;
+  final String? prefilledItemName;
+  final String? prefilledGroup;
+  final String? prefilledUom;
+  final String? prefilledSupplierCode;
+
+  const AdminInventoryStock({
+    super.key,
+    this.prefilledItemNum,
+    this.prefilledItemName,
+    this.prefilledGroup,
+    this.prefilledUom,
+    this.prefilledSupplierCode,
+  });
 
   @override
   State<AdminInventoryStock> createState() => _AdminInventoryStockState();
@@ -59,7 +73,15 @@ class _AdminInventoryStockState extends State<AdminInventoryStock> {
           ),
         ],
       ),
-      body: AdminInventoryStockBody(key: _bodyKey, sortOrder: _sortOrder),
+      body: AdminInventoryStockBody(
+        key: _bodyKey,
+        sortOrder: _sortOrder,
+        prefilledItemNum:      widget.prefilledItemNum,
+        prefilledItemName:     widget.prefilledItemName,
+        prefilledGroup:        widget.prefilledGroup,
+        prefilledUom:          widget.prefilledUom,
+        prefilledSupplierCode: widget.prefilledSupplierCode,
+      ),
     );
   }
 
@@ -82,7 +104,23 @@ class AdminInventoryStockBody extends StatefulWidget {
   final String searchQuery;
   final String sortOrder;
   final String groupFilter;
-  const AdminInventoryStockBody({super.key, this.searchQuery = '', this.sortOrder = 'num-asc', this.groupFilter = ''});
+  final String? prefilledItemNum;
+  final String? prefilledItemName;
+  final String? prefilledGroup;
+  final String? prefilledUom;
+  final String? prefilledSupplierCode;
+
+  const AdminInventoryStockBody({
+    super.key,
+    this.searchQuery = '',
+    this.sortOrder = 'num-asc',
+    this.groupFilter = '',
+    this.prefilledItemNum,
+    this.prefilledItemName,
+    this.prefilledGroup,
+    this.prefilledUom,
+    this.prefilledSupplierCode,
+  });
 
   @override
   AdminInventoryStockBodyState createState() =>
@@ -106,6 +144,18 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
   void initState() {
     super.initState();
     _loadGroups();
+    // Auto-open Add Stock modal if navigated from Item Master with prefilled item
+    if (widget.prefilledItemNum != null && widget.prefilledItemNum!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showNewStockModalWithItem(
+          itemNum:      widget.prefilledItemNum!,
+          itemName:     widget.prefilledItemName    ?? '',
+          group:        widget.prefilledGroup       ?? '',
+          uom:          widget.prefilledUom         ?? '',
+          supplierCode: widget.prefilledSupplierCode ?? '',
+        );
+      });
+    }
   }
 
   Future<void> _loadGroups() async {
@@ -224,8 +274,8 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
         .map((d) => _docToMaster(d))
         .where((item) =>
             (item['name'] as String).toLowerCase().contains(q) ||
-            (item['num']  as String).toLowerCase().contains(q) ||
             (item['group'] as String).toLowerCase().contains(q) ||
+            (item['supplierCode'] as String).toLowerCase().contains(q) ||
             _match(item['barcode'] as String, raw) ||
             _match(item['qr']      as String, raw))
         .toList();
@@ -236,6 +286,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
     return {
       'id': doc.id,
       'num': d['num'] ?? '',
+      'supplierCode': d['supplierCode'] ?? '',
       'name': d['name'] ?? '',
       'group': d['group'] ?? '',
       'uom': d['uom'] ?? '',
@@ -244,8 +295,25 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
     };
   }
 
-  void showOptionsSheet() {
-    // No longer used — options are now in the AppBar PopupMenuButton
+  /// Resolves supplier code — uses stored value if available,
+  /// otherwise fetches from item_master by num.
+  Future<String> _resolveSupplierCode(Map<String, dynamic> item) async {
+    final sc = item['supplierCode'] as String? ?? '';
+    if (sc.isNotEmpty) return sc;
+    final num = item['num'] as String? ?? '';
+    if (num.isEmpty) return '—';
+    try {
+      final snap = await _masterDb.where('num', isEqualTo: num).limit(1).get();
+      if (snap.docs.isNotEmpty) {
+        final resolved = (snap.docs.first.data() as Map<String, dynamic>)['supplierCode']?.toString() ?? '';
+        if (resolved.isNotEmpty) {
+          // Backfill the stock doc so next time it's immediate
+          _db.doc(item['id'] as String).update({'supplierCode': resolved}).catchError((_) {});
+          return resolved;
+        }
+      }
+    } catch (_) {}
+    return '—';
   }
 
   List<Map<String, dynamic>> _applySortOrder(List<Map<String, dynamic>> items) {
@@ -290,6 +358,8 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
               return {
                 'id': d.id,
                 'num': data['num'] as String? ?? '',
+                'supplierCode': data['supplierCode'] as String? ?? '',
+                'sku': data['sku'] as String? ?? '',
                 'name': data['name'] as String? ?? '',
                 'group': data['group'] as String? ?? '',
                 'uom': data['uom'] as String? ?? '',
@@ -487,7 +557,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                   Text(item['name'] as String,
                       style: const TextStyle(
                           fontWeight: FontWeight.w600, fontSize: 13)),
-                  Text('${item['group']}  •  ${item['uom']}',
+                  Text(item['uom'] as String,
                       style: const TextStyle(
                           fontSize: 11, color: Color(0xFF718096))),
                 ])),
@@ -584,7 +654,11 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                _detailRow('Item Number', item['num'] as String),
+                FutureBuilder<String>(
+                  future: _resolveSupplierCode(item),
+                  builder: (_, snap) => _detailRow('Supplier Item Code',
+                    snap.connectionState == ConnectionState.done ? (snap.data ?? '—') : '…'),
+                ),
                 _detailRow('Item Name', item['name'] as String),
                 _detailRow('Commodity Group', item['group'] as String),
                 _detailRow('UOM', item['uom'] as String),
@@ -639,12 +713,20 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
   }
 
   void _showEditStockModal(Map<String, dynamic> item) {
-    final stockCtrl =
-        TextEditingController(text: '${item['stock']}');
-    final minCtrl = TextEditingController(text: '${item['min']}');
-    final maxCtrl = TextEditingController(text: '${item['max']}');
-    final reorderCtrl =
-        TextEditingController(text: '${item['reorder']}');
+    final stockCtrl = TextEditingController(text: '${item['stock']}');
+    final minCtrl   = TextEditingController(text: '${item['min']}');
+    final maxCtrl   = TextEditingController(text: '${item['max']}');
+    final reorderCtrl = TextEditingController(text: '${item['reorder']}');
+
+    // Auto-calculate reorder = max - min
+    void calcReorder() {
+      final min = int.tryParse(minCtrl.text) ?? 0;
+      final max = int.tryParse(maxCtrl.text) ?? 0;
+      final r = max > min ? max - min : 0;
+      reorderCtrl.text = r > 0 ? '$r' : '';
+    }
+    minCtrl.addListener(calcReorder);
+    maxCtrl.addListener(calcReorder);
 
     showModalBottomSheet(
       context: context,
@@ -699,8 +781,11 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      _infoRow('Item Number',
-                          item['num'] as String),
+                      FutureBuilder<String>(
+                        future: _resolveSupplierCode(item),
+                        builder: (_, snap) => _infoRow('Supplier Item Code',
+                          snap.connectionState == ConnectionState.done ? (snap.data ?? '—') : '…'),
+                      ),
                       _infoRow('Item Name', item['name'] as String),
                       _infoRow('Group', item['group'] as String),
                       _infoRow('UOM', item['uom'] as String),
@@ -739,9 +824,17 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                   TextField(
                       controller: reorderCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                          labelText: 'Reorder Quantity *',
-                          border: OutlineInputBorder())),
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: 'Reorder Quantity (auto)',
+                        border: const OutlineInputBorder(),
+                        filled: true,
+                        fillColor: const Color(0xFFF7F8FA),
+                        suffixIcon: Tooltip(
+                          message: 'Auto-calculated: Max − Min',
+                          child: Icon(Icons.info_outline, size: 16, color: Colors.grey.shade400),
+                        ),
+                      )),
                   const SizedBox(height: 20),
                   Row(children: [
                     Expanded(
@@ -826,17 +919,53 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
 
 
   void _showNewStockModal() {
+    _showNewStockModalWithItem();
+  }
+
+  void _showNewStockModalWithItem({
+    String? itemNum,
+    String? itemName,
+    String? group,
+    String? uom,
+    String? supplierCode,
+  }) {
     final scanCtrl = TextEditingController();
     final stockCtrl = TextEditingController();
     final minCtrl = TextEditingController();
     final maxCtrl = TextEditingController();
     final reorderCtrl = TextEditingController();
+
+    // Auto-calculate reorder qty = max - min whenever either changes
+    void _calcReorder() {
+      final min = int.tryParse(minCtrl.text) ?? 0;
+      final max = int.tryParse(maxCtrl.text) ?? 0;
+      final reorder = max > min ? max - min : 0;
+      reorderCtrl.text = reorder > 0 ? '$reorder' : '';
+    }
+    minCtrl.addListener(_calcReorder);
+    maxCtrl.addListener(_calcReorder);
     Map<String, dynamic>? selectedMaster;
     List<Map<String, dynamic>> searchResults = [];
     bool searching = false;
     bool searched = false;
-    // ignore: cancel_subscriptions
-    dynamic _debounce; // Timer for debounce
+    Timer? _debounce;
+    Future<QuerySnapshot>? _dupCheckFuture;
+    bool saving = false;
+
+    // Pre-select item if navigated from Item Master — use passed supplierCode directly
+    if (itemNum != null && itemNum.isNotEmpty) {
+      selectedMaster = {
+        'id':           '',
+        'num':          itemNum,
+        'supplierCode': supplierCode ?? '',
+        'name':         itemName ?? '',
+        'group':        group    ?? '',
+        'uom':          uom      ?? '',
+        'barcode':      '',
+        'qr':           '',
+      };
+      _dupCheckFuture = _db.where('num', isEqualTo: itemNum).limit(1).get();
+    }
 
     Future<void> doSearch(String query, StateSetter setModal) async {
       if (query.trim().isEmpty) {
@@ -855,45 +984,48 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => StatefulBuilder(
-        builder: (ctx, setModal) => DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.75,
-          maxChildSize: 0.95,
-          builder: (_, ctrl) => SingleChildScrollView(
-            controller: ctrl,
-            child: Column(
+        builder: (ctx, setModal) {
+          final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+          return Padding(
+            padding: EdgeInsets.only(bottom: bottomInset),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.92,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-              // Header
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                decoration: const BoxDecoration(
-                    color: _red,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-                child: Row(children: [
-                  const Expanded(
-                      child: Text('Add Stock Item',
-                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
-                  GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Icon(Icons.close, color: Colors.white)),
-                ]),
-              ),
-              Padding(
-                padding: EdgeInsets.only(
-                    left: 20, right: 20, top: 20,
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 24),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  // ── Search row ──
+                  // Header
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                    decoration: const BoxDecoration(
+                        color: _red,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+                    child: Row(children: [
+                      const Expanded(
+                          child: Text('Add Stock Item',
+                              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
+                      GestureDetector(
+                          onTap: () => Navigator.pop(ctx),
+                          child: const Icon(Icons.close, color: Colors.white)),
+                    ]),
+                  ),
+                  // Scrollable body
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                   Row(children: [
                     Expanded(
                         child: TextField(
                       controller: scanCtrl,
                       decoration: InputDecoration(
-                        hintText: 'Scan or search item...',
+                        hintText: 'Search by name, number, supplier code...',
                         border: const OutlineInputBorder(),
                         prefixIcon: const Icon(Icons.search),
                         suffixIcon: scanCtrl.text.isNotEmpty
@@ -911,12 +1043,10 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                         if (selectedMaster != null) {
                           setModal(() { selectedMaster = null; searchResults = []; searched = false; });
                         }
-                        // Debounce: wait 400ms after user stops typing
-                        (_debounce as dynamic).cancel?.call();
-                        Future.delayed(const Duration(milliseconds: 400), () {
-                          if (scanCtrl.text == val) {
-                            doSearch(val, setModal);
-                          }
+                        // Debounce: cancel previous timer, fire after 400ms idle
+                        _debounce?.cancel();
+                        _debounce = Timer(const Duration(milliseconds: 400), () {
+                          doSearch(val, setModal);
                         });
                       },
                       onSubmitted: (val) => doSearch(val, setModal),
@@ -971,35 +1101,66 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                       Text('${searchResults.length} result${searchResults.length == 1 ? '' : 's'} found — tap to select',
                           style: const TextStyle(fontSize: 12, color: Color(0xFF718096))),
                       const SizedBox(height: 8),
-                      ...searchResults.map((master) => GestureDetector(
-                        onTap: () => setModal(() { selectedMaster = master; }),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: const Color(0xFFe2e8f0)),
-                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4)]),
-                          child: Row(children: [
-                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(master['name'] as String,
-                                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c))),
-                              const SizedBox(height: 2),
-                              Text('${master['num']}  •  ${master['group']}  •  ${master['uom']}',
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                            ])),
-                            const Icon(Icons.chevron_right, size: 18, color: Color(0xFFa0aec0)),
-                          ]),
-                        ),
-                      )),
+                      ...searchResults.map((master) {
+                        return FutureBuilder<QuerySnapshot>(
+                          future: _db.where('num', isEqualTo: master['num']).limit(1).get(),
+                          builder: (ctx, snap) {
+                            final inStock = snap.hasData && snap.data!.docs.isNotEmpty;
+                            return GestureDetector(
+                              onTap: () => setModal(() {
+                                selectedMaster = master;
+                                _dupCheckFuture = _db.where('num', isEqualTo: master['num']).limit(1).get();
+                              }),
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                    color: inStock ? const Color(0xFFFFFBEB) : Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: inStock ? const Color(0xFFFCD34D) : const Color(0xFFe2e8f0)),
+                                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4)]),
+                                child: Row(children: [
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Wrap(
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      spacing: 6,
+                                      children: [
+                                        Text(master['name'] as String,
+                                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c))),
+                                        Text(master['uom'] as String,
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                                        if (inStock)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                                color: const Color(0xFFFEF3C7),
+                                                borderRadius: BorderRadius.circular(20)),
+                                            child: const Text('⚠ Already in Stock',
+                                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF92400E))),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${(master['supplierCode'] as String).isNotEmpty ? master['supplierCode'] : master['num']}  •  ${master['group']}',
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
+                                    ),
+                                  ])),
+                                  const Icon(Icons.chevron_right, size: 18, color: Color(0xFFa0aec0)),
+                                ]),
+                              ),
+                            );
+                          },
+                        );
+                      }),
                     ],
                   ],
 
                   // ── Selected item + stock fields ──
                   if (!searching && selectedMaster != null)
                     FutureBuilder<QuerySnapshot>(
-                      future: _db.where('num', isEqualTo: selectedMaster!['num']).limit(1).get(),
+                      future: _dupCheckFuture,
                       builder: (ctx, dupSnap) {
                         if (dupSnap.connectionState == ConnectionState.waiting) {
                           return const Center(child: CircularProgressIndicator());
@@ -1026,7 +1187,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                             ),
                             const SizedBox(height: 10),
                             OutlinedButton(
-                              onPressed: () => setModal(() { selectedMaster = null; }),
+                              onPressed: () => setModal(() { selectedMaster = null; _dupCheckFuture = null; }),
                               child: const Text('← Back to results'),
                             ),
                           ]);
@@ -1045,12 +1206,12 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                                 const SizedBox(width: 6),
                                 const Expanded(child: Text('Item Selected', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.green, fontSize: 12))),
                                 GestureDetector(
-                                  onTap: () => setModal(() { selectedMaster = null; }),
+                                  onTap: () => setModal(() { selectedMaster = null; _dupCheckFuture = null; }),
                                   child: const Icon(Icons.close, size: 16, color: Color(0xFF718096)),
                                 ),
                               ]),
                               const SizedBox(height: 8),
-                              _infoRow('Item Number', selectedMaster!['num'] as String),
+                              _infoRow('Supplier Item Code', (selectedMaster!['supplierCode'] as String? ?? '').isNotEmpty ? selectedMaster!['supplierCode'] as String : selectedMaster!['num'] as String),
                               _infoRow('Item Name', selectedMaster!['name'] as String),
                               _infoRow('Group', selectedMaster!['group'] as String),
                               _infoRow('UOM', selectedMaster!['uom'] as String),
@@ -1079,7 +1240,17 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                           TextField(
                               controller: reorderCtrl,
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(labelText: 'Reorder Quantity *', border: OutlineInputBorder())),
+                              readOnly: true,
+                              decoration: InputDecoration(
+                                labelText: 'Reorder Quantity (auto)',
+                                border: const OutlineInputBorder(),
+                                filled: true,
+                                fillColor: const Color(0xFFF7F8FA),
+                                suffixIcon: Tooltip(
+                                  message: 'Auto-calculated: Max − Min',
+                                  child: Icon(Icons.info_outline, size: 16, color: Colors.grey.shade400),
+                                ),
+                              )),
                           const SizedBox(height: 20),
                           Row(children: [
                             Expanded(child: OutlinedButton(
@@ -1087,7 +1258,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                                 child: const Text('Cancel'))),
                             const SizedBox(width: 12),
                             Expanded(child: ElevatedButton(
-                              onPressed: () async {
+                              onPressed: saving ? null : () async {
                                 final stock = int.tryParse(stockCtrl.text) ?? 0;
                                 final min = int.tryParse(minCtrl.text) ?? 0;
                                 final max = int.tryParse(maxCtrl.text) ?? 0;
@@ -1102,11 +1273,13 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                                   'createdAt': FieldValue.serverTimestamp(),
                                   'updatedAt': FieldValue.serverTimestamp(),
                                 };
+                                setModal(() => saving = true);
                                 try {
                                   final existing = await _db
                                       .where('num', isEqualTo: selectedMaster!['num'])
                                       .limit(1).get();
                                   if (existing.docs.isNotEmpty) {
+                                    setModal(() => saving = false);
                                     if (context.mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                                         content: Text('Already in stock inventory.'),
@@ -1122,7 +1295,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                                       content: Row(children: const [
                                         Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
                                         SizedBox(width: 8),
-                                        Text('Stock item added successfully!'),
+                                        Text('Added successfully!'),
                                       ]),
                                       backgroundColor: Colors.green,
                                       behavior: SnackBarBehavior.floating,
@@ -1130,6 +1303,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                                     ));
                                   }
                                 } catch (e) {
+                                  setModal(() => saving = false);
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                         content: Text('Error: $e'), backgroundColor: Colors.red));
@@ -1137,21 +1311,29 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                                 }
                               },
                               style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
-                              child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                                Icon(Icons.save_outlined, size: 16),
-                                SizedBox(width: 6),
-                                Text('Save'),
-                              ]),
+                              child: saving
+                                  ? const SizedBox(
+                                      width: 18, height: 18,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Row(mainAxisSize: MainAxisSize.min, children: [
+                                      Icon(Icons.save_outlined, size: 16),
+                                      SizedBox(width: 6),
+                                      Text('Save'),
+                                    ]),
                             )),
                           ]),
                         ]);
                       },
                     ),
-                ]),
-              ),
-            ]),
-          ),
-        ),
+                  ]),         // closes Column.children (scrollable body)
+                ),            // closes SingleChildScrollView
+              ),              // closes Flexible
+                ],            // closes outer Column.children
+              ),              // closes Column
+            ),                // closes ConstrainedBox
+          );                  // closes Padding / return
+        },
       ),
     );
   }
@@ -1178,7 +1360,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                       Icon(Icons.check_circle_outline,
                           color: Colors.white, size: 18),
                       SizedBox(width: 8),
-                      Text('Stock item deleted successfully!')
+                      Text('Deleted successfully!')
                     ]),
                     backgroundColor: Colors.red,
                     behavior: SnackBarBehavior.floating,
