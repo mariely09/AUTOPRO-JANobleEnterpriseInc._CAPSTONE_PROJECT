@@ -718,15 +718,16 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
     final maxCtrl   = TextEditingController(text: '${item['max']}');
     final reorderCtrl = TextEditingController(text: '${item['reorder']}');
 
-    // Auto-calculate reorder = max - min
+    // Auto-calculate reorder = max - current stock
     void calcReorder() {
-      final min = int.tryParse(minCtrl.text) ?? 0;
+      final stock = int.tryParse(stockCtrl.text) ?? 0;
       final max = int.tryParse(maxCtrl.text) ?? 0;
-      final r = max > min ? max - min : 0;
+      final r = max > stock ? max - stock : 0;
       reorderCtrl.text = r > 0 ? '$r' : '';
     }
     minCtrl.addListener(calcReorder);
     maxCtrl.addListener(calcReorder);
+    stockCtrl.addListener(calcReorder);
 
     showModalBottomSheet(
       context: context,
@@ -831,7 +832,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                         filled: true,
                         fillColor: const Color(0xFFF7F8FA),
                         suffixIcon: Tooltip(
-                          message: 'Auto-calculated: Max − Min',
+                          message: 'Auto-calculated: Max − Current Stock',
                           child: Icon(Icons.info_outline, size: 16, color: Colors.grey.shade400),
                         ),
                       )),
@@ -935,15 +936,16 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
     final maxCtrl = TextEditingController();
     final reorderCtrl = TextEditingController();
 
-    // Auto-calculate reorder qty = max - min whenever either changes
+    // Auto-calculate reorder qty = max - current stock whenever either changes
     void _calcReorder() {
-      final min = int.tryParse(minCtrl.text) ?? 0;
+      final stock = int.tryParse(stockCtrl.text) ?? 0;
       final max = int.tryParse(maxCtrl.text) ?? 0;
-      final reorder = max > min ? max - min : 0;
+      final reorder = max > stock ? max - stock : 0;
       reorderCtrl.text = reorder > 0 ? '$reorder' : '';
     }
     minCtrl.addListener(_calcReorder);
     maxCtrl.addListener(_calcReorder);
+    stockCtrl.addListener(_calcReorder);
     Map<String, dynamic>? selectedMaster;
     List<Map<String, dynamic>> searchResults = [];
     bool searching = false;
@@ -1247,7 +1249,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                                 filled: true,
                                 fillColor: const Color(0xFFF7F8FA),
                                 suffixIcon: Tooltip(
-                                  message: 'Auto-calculated: Max − Min',
+                                  message: 'Auto-calculated: Max − Current Stock',
                                   child: Icon(Icons.info_outline, size: 16, color: Colors.grey.shade400),
                                 ),
                               )),
