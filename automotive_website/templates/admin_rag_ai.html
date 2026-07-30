@@ -273,14 +273,32 @@ window.ragAiSend = function(preset) {
       // Report is ready — show message with download button
       var answer = (data.answer || '').replace(/\n/g, '<br>');
       var rMonth = data.report_month || null;
-      var monthLabel = rMonth ? ' (' + rMonth + ')' : '';
-      var monthArg = rMonth ? '\',\'' + rMonth + '\'' : '\'';  // appended to onclick args
-      var btnHtml = '<div style="margin-top:8px;display:flex;gap:6px;">'
-        + '<button onclick="ragDownloadReport(\'' + data.report_type + '\',\'' + data.report_format + '\'' + (rMonth ? ',\'' + rMonth + '\'' : '') + ')" '
-        + 'style="background:#E8001C;color:white;border:none;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">📥 Download ' + (data.report_format||'pdf').toUpperCase() + monthLabel + '</button>';
+      var rStart = data.report_start_date || null;
+      var rEnd   = data.report_end_date   || null;
+
+      // Build a human-readable filter label for button text
+      var filterLabel = '';
+      if (rStart || rEnd) {
+        filterLabel = ' (' + (rStart || '—') + ' to ' + (rEnd || '—') + ')';
+      } else if (rMonth) {
+        filterLabel = ' (' + rMonth + ')';
+      }
+
+      // Build extra args string for ragDownloadReport call
+      // Signature: ragDownloadReport(type, format, month, startDate, endDate)
+      var extraArgs = '';
+      if (rStart || rEnd) {
+        extraArgs = ',null,\'' + (rStart || '') + '\',\'' + (rEnd || '') + '\'';
+      } else if (rMonth) {
+        extraArgs = ',\'' + rMonth + '\'';
+      }
+
+      var btnHtml = '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">'
+        + '<button onclick="ragDownloadReport(\'' + data.report_type + '\',\'' + data.report_format + '\'' + extraArgs + ')" '
+        + 'style="background:#E8001C;color:white;border:none;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">📥 Download ' + (data.report_format||'pdf').toUpperCase() + filterLabel + '</button>';
       // Offer the other format too
       var otherFmt = data.report_format === 'pdf' ? 'excel' : 'pdf';
-      btnHtml += '<button onclick="ragDownloadReport(\'' + data.report_type + '\',\'' + otherFmt + '\'' + (rMonth ? ',\'' + rMonth + '\'' : '') + ')" '
+      btnHtml += '<button onclick="ragDownloadReport(\'' + data.report_type + '\',\'' + otherFmt + '\'' + extraArgs + ')" '
         + 'style="background:#f7f8fa;color:#4a5568;border:1.5px solid #e2e8f0;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">📥 ' + otherFmt.toUpperCase() + '</button>';
       btnHtml += '</div>';
       _ragAppend('ai', answer + btnHtml);
@@ -315,13 +333,29 @@ window.ragAiClear = function() {
   _ragShowWelcome();
 };
 
-window.ragDownloadReport = function(reportType, format, month) {
-  var monthLabel = month ? ' (' + month + ')' : '';
-  _ragAppend('ai', '⏳ Generating ' + format.toUpperCase() + ' report' + monthLabel + '...');
+window.ragDownloadReport = function(reportType, format, month, startDate, endDate) {
+  // Build a human-readable label for the status message
+  var filterLabel = '';
+  if (startDate || endDate) {
+    filterLabel = ' (' + (startDate || '—') + ' to ' + (endDate || '—') + ')';
+  } else if (month) {
+    filterLabel = ' (' + month + ')';
+  }
+  _ragAppend('ai', '⏳ Generating ' + format.toUpperCase() + ' report' + filterLabel + '...');
+
+  // Build request body — date range takes priority over month
+  var body = { report_type: reportType, format: format };
+  if (startDate || endDate) {
+    if (startDate) body.start_date = startDate;
+    if (endDate)   body.end_date   = endDate;
+  } else if (month) {
+    body.month = month;
+  }
+
   fetch('/api/ai-report', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ report_type: reportType, format: format, month: month || null })
+    body: JSON.stringify(body)
   })
   .then(function(res) {
     if (!res.ok) throw new Error('Report generation failed');
@@ -329,8 +363,13 @@ window.ragDownloadReport = function(reportType, format, month) {
   })
   .then(function(blob) {
     var ext = format === 'pdf' ? '.pdf' : '.xlsx';
-    var safeMo = month ? '_' + month.replace(/\s+/g, '_') : '';
-    var filename = reportType + '_report' + safeMo + ext;
+    var safeSuffix = '';
+    if (startDate || endDate) {
+      safeSuffix = '_' + (startDate || '').replace(/\s+/g, '_') + '_to_' + (endDate || '').replace(/\s+/g, '_');
+    } else if (month) {
+      safeSuffix = '_' + month.replace(/\s+/g, '_');
+    }
+    var filename = reportType + '_report' + safeSuffix + ext;
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url; a.download = filename;

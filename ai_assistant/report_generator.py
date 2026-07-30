@@ -86,6 +86,62 @@ def _parse_month_year(raw: str):
         pass
     return None
 
+
+def _parse_date_to_dt(raw: str) -> datetime | None:
+    """
+    Parse any supported date string to a datetime object (time zeroed to midnight).
+    Supports:
+      - "March 10, 2026" / "Mar 10, 2026"
+      - "3/10/2026" / "03/10/2026"   (M/D/YYYY)
+      - "2026-03-10"                 (ISO)
+      - ISO datetime strings
+    Returns None if parsing fails.
+    """
+    if not raw:
+        return None
+    # "March 10, 2026" or "Mar 10, 2026"
+    m = _re.match(r"^([A-Za-z]+)\s+(\d+),?\s+(\d{4})", raw)
+    if m:
+        abbr = m.group(1)[:3].capitalize()
+        if abbr in _MONTHS_SHORT:
+            mo = _MONTHS_SHORT.index(abbr) + 1
+            try:
+                return datetime(int(m.group(3)), mo, int(m.group(2)))
+            except ValueError:
+                pass
+    # "3/10/2026"
+    m2 = _re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})", raw)
+    if m2:
+        try:
+            return datetime(int(m2.group(3)), int(m2.group(1)), int(m2.group(2)))
+        except ValueError:
+            pass
+    # "2026-03-10" or ISO datetime
+    try:
+        return datetime.fromisoformat(raw[:10])
+    except Exception:
+        pass
+    return None
+
+
+def _in_date_range(raw_date: str, start_dt: datetime | None,
+                   end_dt: datetime | None) -> bool:
+    """
+    Return True if raw_date falls within [start_dt, end_dt] inclusive.
+    If both bounds are None, always returns True (no filter applied).
+    If parsing raw_date fails, the row is excluded when any bound is set.
+    """
+    if start_dt is None and end_dt is None:
+        return True
+    row_dt = _parse_date_to_dt(raw_date)
+    if row_dt is None:
+        return False   # unparseable date — exclude from ranged report
+    if start_dt is not None and row_dt < start_dt:
+        return False
+    if end_dt is not None and row_dt > end_dt:
+        return False
+    return True
+
 # ── Brand constants (match print_layout_header.js) ────────────────────────────
 BRAND_NAME    = "JA Noble Enterprise Inc."
 BRAND_SUB     = "Caltex San Pedro"
@@ -142,8 +198,13 @@ def _fetch_inventory():
     return rows
 
 
-def _fetch_issuances(month: str | None = None):
-    """Fetch issuances, optionally filtered to a specific month name (e.g. 'March 2026')."""
+def _fetch_issuances(month: str | None = None,
+                     start_date: str | None = None,
+                     end_date: str | None = None):
+    """
+    Fetch issuances with optional filtering.
+    Priority: start_date/end_date range (if either is set) → month → all records.
+    """
     db = get_db()
     rows = []
     for doc in db.collection("issuances").stream():
@@ -163,27 +224,35 @@ def _fetch_issuances(month: str | None = None):
         })
     rows.sort(key=lambda r: r["date"], reverse=True)
 
+    # ── Date-range filter (takes priority over month) ─────────
+    if start_date or end_date:
+        start_dt = _parse_date_to_dt(start_date) if start_date else None
+        end_dt   = _parse_date_to_dt(end_date)   if end_date   else None
+        rows = [r for r in rows if _in_date_range(r["date"], start_dt, end_dt)]
+        return rows
+
     # ── Month filter ──────────────────────────────────────────
     if month:
-        # month may be "March 2026" or "Mar 2026" — normalise to (mo_idx, year)
-
         m = _re.match(r"([A-Za-z]+)\s+(\d{4})", month.strip())
         if m:
             abbr = m.group(1)[:3].capitalize()
             target_mo  = _MONTHS_SHORT.index(abbr) if abbr in _MONTHS_SHORT else -1
             target_yr  = int(m.group(2))
             if target_mo >= 0:
-                filtered = []
-                for r in rows:
-                    parsed = _parse_month_year(r["date"])
-                    if parsed and parsed[0] == target_mo and parsed[1] == target_yr:
-                        filtered.append(r)
-                rows = filtered
+                rows = [r for r in rows
+                        if (p := _parse_month_year(r["date"])) and
+                           p[0] == target_mo and p[1] == target_yr]
 
     return rows
 
 
-def _fetch_maintenance(month: str | None = None):
+def _fetch_maintenance(month: str | None = None,
+                       start_date: str | None = None,
+                       end_date: str | None = None):
+    """
+    Fetch maintenance jobs with optional filtering.
+    Priority: start_date/end_date range (if either is set) → month → all records.
+    """
     db = get_db()
     rows = []
     for doc in db.collection("maintenance").stream():
@@ -198,20 +267,24 @@ def _fetch_maintenance(month: str | None = None):
             "cost":    d.get("cost", ""),
         })
     rows.sort(key=lambda r: r["date"], reverse=True)
-    if month:
 
+    # ── Date-range filter (takes priority over month) ─────────
+    if start_date or end_date:
+        start_dt = _parse_date_to_dt(start_date) if start_date else None
+        end_dt   = _parse_date_to_dt(end_date)   if end_date   else None
+        return [r for r in rows if _in_date_range(r["date"], start_dt, end_dt)]
+
+    # ── Month filter ──────────────────────────────────────────
+    if month:
         m = _re.match(r"([A-Za-z]+)\s+(\d{4})", month.strip())
         if m:
             abbr      = m.group(1)[:3].capitalize()
             target_mo = _MONTHS_SHORT.index(abbr) if abbr in _MONTHS_SHORT else -1
             target_yr = int(m.group(2))
             if target_mo >= 0:
-                filtered = []
-                for r in rows:
-                    parsed = _parse_month_year(r["date"])
-                    if parsed and parsed[0] == target_mo and parsed[1] == target_yr:
-                        filtered.append(r)
-                rows = filtered
+                rows = [r for r in rows
+                        if (p := _parse_month_year(r["date"])) and
+                           p[0] == target_mo and p[1] == target_yr]
     return rows
 
 
@@ -233,7 +306,13 @@ def _fetch_vehicles():
     return rows
 
 
-def _fetch_bookings(month: str | None = None):
+def _fetch_bookings(month: str | None = None,
+                    start_date: str | None = None,
+                    end_date: str | None = None):
+    """
+    Fetch service bookings with optional filtering.
+    Priority: start_date/end_date range (if either is set) → month → all records.
+    """
     db = get_db()
     rows = []
     for doc in db.collection("service_bookings").stream():
@@ -249,20 +328,24 @@ def _fetch_bookings(month: str | None = None):
             "status":        d.get("status", ""),
         })
     rows.sort(key=lambda r: r["date"], reverse=True)
-    if month:
 
+    # ── Date-range filter (takes priority over month) ─────────
+    if start_date or end_date:
+        start_dt = _parse_date_to_dt(start_date) if start_date else None
+        end_dt   = _parse_date_to_dt(end_date)   if end_date   else None
+        return [r for r in rows if _in_date_range(r["date"], start_dt, end_dt)]
+
+    # ── Month filter ──────────────────────────────────────────
+    if month:
         m = _re.match(r"([A-Za-z]+)\s+(\d{4})", month.strip())
         if m:
             abbr      = m.group(1)[:3].capitalize()
             target_mo = _MONTHS_SHORT.index(abbr) if abbr in _MONTHS_SHORT else -1
             target_yr = int(m.group(2))
             if target_mo >= 0:
-                filtered = []
-                for r in rows:
-                    parsed = _parse_month_year(r["date"])
-                    if parsed and parsed[0] == target_mo and parsed[1] == target_yr:
-                        filtered.append(r)
-                rows = filtered
+                rows = [r for r in rows
+                        if (p := _parse_month_year(r["date"])) and
+                           p[0] == target_mo and p[1] == target_yr]
     return rows
 
 
@@ -340,7 +423,8 @@ REPORT_CONFIG = {
 def _rgb(t): return tuple(v / 255 for v in t)
 
 
-def generate_pdf(report_type: str, month: str | None = None) -> bytes:
+def generate_pdf(report_type: str, month: str | None = None,
+                 start_date: str | None = None, end_date: str | None = None) -> bytes:
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.units import mm
     from reportlab.lib import colors
@@ -355,8 +439,11 @@ def generate_pdf(report_type: str, month: str | None = None) -> bytes:
 
     cfg     = REPORT_CONFIG[report_type]
     fetcher = cfg["fetcher"]
-    _month_supported = {"issuance", "maintenance", "bookings"}
-    data    = fetcher(month=month) if report_type in _month_supported else fetcher()
+    _date_supported = {"issuance", "maintenance", "bookings"}
+    if report_type in _date_supported:
+        data = fetcher(month=month, start_date=start_date, end_date=end_date)
+    else:
+        data = fetcher()
     columns = cfg["columns"]
     mapper  = cfg["mapper"]
     widths  = [w * pt for w in cfg["col_widths_pdf"]]
@@ -406,12 +493,22 @@ def generate_pdf(report_type: str, month: str | None = None) -> bytes:
         Paragraph(BRAND_ADDRESS, addr_style),
     ]
 
+    # Build filter label for header (range takes priority over month)
+    if start_date or end_date:
+        _sd = start_date or "—"
+        _ed = end_date   or "—"
+        _filter_label = f"{_sd} to {_ed}"
+    elif month:
+        _filter_label = month
+    else:
+        _filter_label = None
+
     right_block = [
         Paragraph("OFFICIAL REPORT", label_style),
-        Paragraph(cfg["title"] + (f" — {month}" if month else ""), title_style),
+        Paragraph(cfg["title"] + (f" — {_filter_label}" if _filter_label else ""), title_style),
         Spacer(1, 2),
         Paragraph(f'Generated on <b>{date_str}</b> at {time_str}', meta_style),
-        Paragraph(f'{len(data)} record(s)' + (f' · {month}' if month else ''), meta_style),
+        Paragraph(f'{len(data)} record(s)' + (f' · {_filter_label}' if _filter_label else ''), meta_style),
     ]
 
     # Try to load logo
@@ -547,7 +644,8 @@ def generate_pdf(report_type: str, month: str | None = None) -> bytes:
 #  Excel generation  (openpyxl)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def generate_excel(report_type: str, month: str | None = None) -> bytes:
+def generate_excel(report_type: str, month: str | None = None,
+                   start_date: str | None = None, end_date: str | None = None) -> bytes:
     from openpyxl import Workbook
     from openpyxl.styles import (
         Font, PatternFill, Alignment, Border, Side, GradientFill,
@@ -556,8 +654,11 @@ def generate_excel(report_type: str, month: str | None = None) -> bytes:
 
     cfg     = REPORT_CONFIG[report_type]
     fetcher = cfg["fetcher"]
-    _month_supported = {"issuance", "maintenance", "bookings"}
-    data    = fetcher(month=month) if report_type in _month_supported else fetcher()
+    _date_supported = {"issuance", "maintenance", "bookings"}
+    if report_type in _date_supported:
+        data = fetcher(month=month, start_date=start_date, end_date=end_date)
+    else:
+        data = fetcher()
     columns = cfg["columns"]
     mapper  = cfg["mapper"]
     col_ws  = cfg["col_widths_xlsx"]
@@ -591,12 +692,22 @@ def generate_excel(report_type: str, month: str | None = None) -> bytes:
     r2.alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[2].height = 14
 
-    r3 = ws.cell(3, 1, cfg["title"].upper() + (f"  —  {month.upper()}" if month else ""))
+    # Build filter label for header
+    if start_date or end_date:
+        _sd = start_date or "—"
+        _ed = end_date   or "—"
+        _xl_filter = f"{_sd} to {_ed}"
+    elif month:
+        _xl_filter = month
+    else:
+        _xl_filter = None
+
+    r3 = ws.cell(3, 1, cfg["title"].upper() + (f"  —  {_xl_filter.upper()}" if _xl_filter else ""))
     r3.font      = Font(name="Calibri", bold=True, size=16, color="E8001C")
     r3.alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[3].height = 26
 
-    r4 = ws.cell(4, 1, f"Generated: {date_str}  ·  {len(data)} record(s)" + (f"  ·  {month}" if month else ""))
+    r4 = ws.cell(4, 1, f"Generated: {date_str}  ·  {len(data)} record(s)" + (f"  ·  {_xl_filter}" if _xl_filter else ""))
     r4.font      = Font(name="Calibri", size=9, color="718096")
     r4.alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[4].height = 14
@@ -726,14 +837,21 @@ def generate_excel(report_type: str, month: str | None = None) -> bytes:
 #  Public API
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_report(report_type: str, file_format: str, month: str | None = None) -> bytes:
+def build_report(report_type: str, file_format: str,
+                 month: str | None = None,
+                 start_date: str | None = None,
+                 end_date: str | None = None) -> bytes:
     """
     Generate a report file.
 
     Args:
         report_type: one of inventory | issuance | maintenance | vehicles | bookings
         file_format: pdf | excel | xlsx
-        month:       optional month filter string, e.g. "March 2026" (issuance only)
+        month:       optional month filter, e.g. "March 2026"
+                     (applies to issuance, maintenance, bookings only)
+        start_date:  optional range start, e.g. "2026-03-01" or "March 1, 2026"
+                     Takes priority over month when either start_date or end_date is set.
+        end_date:    optional range end, e.g. "2026-03-31" or "March 31, 2026"
 
     Returns:
         Raw bytes of the generated file.
@@ -743,8 +861,10 @@ def build_report(report_type: str, file_format: str, month: str | None = None) -
                          f"Use: {', '.join(REPORT_CONFIG.keys())}")
     fmt = file_format.lower().replace("xlsx", "excel")
     if fmt == "pdf":
-        return generate_pdf(report_type, month=month)
+        return generate_pdf(report_type, month=month,
+                            start_date=start_date, end_date=end_date)
     elif fmt in ("excel", "xlsx"):
-        return generate_excel(report_type, month=month)
+        return generate_excel(report_type, month=month,
+                              start_date=start_date, end_date=end_date)
     else:
         raise ValueError(f"Unknown format '{file_format}'. Use: pdf or excel")

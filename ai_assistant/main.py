@@ -166,14 +166,21 @@ def admin_chat(req: ChatRequest):
 # ── Admin report ──────────────────────────────────────────────────────────────
 
 @app.post("/admin/report")
-def admin_report(report_type: str, format: str = "pdf", month: str | None = None):
+def admin_report(report_type: str, format: str = "pdf",
+                 month: str | None = None,
+                 start_date: str | None = None,
+                 end_date: str | None = None):
     """
     Generate a PDF or Excel report directly from Firestore data.
 
     Query params:
         report_type: inventory | issuance | maintenance | vehicles | bookings
         format:      pdf | excel  (default: pdf)
-        month:       optional month filter, e.g. "March 2026" (issuance only)
+        month:       optional month filter, e.g. "March 2026"
+                     (issuance, maintenance, bookings only)
+        start_date:  optional range start, e.g. "2026-03-01" or "March 1, 2026"
+                     Takes priority over month when set.
+        end_date:    optional range end, e.g. "2026-03-31" or "March 31, 2026"
     """
     try:
         import io
@@ -189,9 +196,19 @@ def admin_report(report_type: str, format: str = "pdf", month: str | None = None
         if fmt not in ("pdf", "excel"):
             raise HTTPException(status_code=400, detail="format must be 'pdf' or 'excel'")
 
-        data  = build_report(report_type, fmt, month=month or None)
+        data  = build_report(report_type, fmt,
+                             month=month or None,
+                             start_date=start_date or None,
+                             end_date=end_date or None)
         title = REPORT_CONFIG[report_type]["title"].replace(" ", "_")
-        if month:
+
+        # Build filename suffix
+        if start_date or end_date:
+            _sd = (start_date or "").replace(" ", "_")
+            _ed = (end_date or "").replace(" ", "_")
+            suffix = f"_{_sd}_to_{_ed}" if _sd and _ed else f"_{_sd or _ed}"
+            title = f"{title}{suffix}"
+        elif month:
             safe_month = month.replace(" ", "_")
             title = f"{title}_{safe_month}"
 

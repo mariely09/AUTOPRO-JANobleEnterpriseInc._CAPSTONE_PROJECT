@@ -816,6 +816,71 @@ def ai_chat():
                 return _mo_names[idx].capitalize() + ' ' + m2.group(2)
             return None
 
+        def _extract_date_range(msg: str) -> tuple[str | None, str | None]:
+            """
+            Extract start_date and end_date from phrases like:
+              - "from March 1 to March 31 2026"
+              - "March 1-31, 2026"
+              - "from 2026-03-01 to 2026-03-31"
+              - "between January 1 and March 31 2026"
+            Returns (start_date, end_date) as ISO strings or None.
+            """
+            from datetime import datetime as _dt
+            _MO = ['january','february','march','april','may','june',
+                   'july','august','september','october','november','december']
+            _MO_ABR = [m[:3] for m in _MO]
+
+            def _mo_idx(name: str) -> int | None:
+                n = name.lower()
+                if n in _MO:     return _MO.index(n) + 1
+                if n in _MO_ABR: return _MO_ABR.index(n) + 1
+                return None
+
+            def _to_iso(mo_name: str, day: str, year: str) -> str | None:
+                mi = _mo_idx(mo_name)
+                if mi is None: return None
+                try:
+                    return _dt(int(year), mi, int(day)).strftime('%Y-%m-%d')
+                except ValueError:
+                    return None
+
+            # ISO range: "2026-03-01 to 2026-03-31" / "2026-03-01 and 2026-03-31"
+            m = _re.search(
+                r'(\d{4}-\d{2}-\d{2})\s+(?:to|and|-)\s+(\d{4}-\d{2}-\d{2})',
+                msg, _re.I)
+            if m:
+                return m.group(1), m.group(2)
+
+            _mo_pat = r'(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)'
+            # "from March 1, 2026 to March 31, 2026"
+            m2 = _re.search(
+                rf'(?:from|between)\s+({_mo_pat})\s+(\d{{1,2}})(?:st|nd|rd|th)?[,\s]+(\d{{4}})\s+(?:to|and|-)\s+({_mo_pat})\s+(\d{{1,2}})(?:st|nd|rd|th)?[,\s]+(\d{{4}})',
+                msg, _re.I)
+            if m2:
+                sd = _to_iso(m2.group(1), m2.group(2), m2.group(3))
+                ed = _to_iso(m2.group(4), m2.group(5), m2.group(6))
+                if sd and ed: return sd, ed
+
+            # "from March 1 to March 31, 2026" (shared year on end)
+            m3 = _re.search(
+                rf'(?:from|between)\s+({_mo_pat})\s+(\d{{1,2}})(?:st|nd|rd|th)?\s+(?:to|and|-)\s+({_mo_pat})\s+(\d{{1,2}})(?:st|nd|rd|th)?[,\s]+(\d{{4}})',
+                msg, _re.I)
+            if m3:
+                sd = _to_iso(m3.group(1), m3.group(2), m3.group(5))
+                ed = _to_iso(m3.group(3), m3.group(4), m3.group(5))
+                if sd and ed: return sd, ed
+
+            # "March 1-31, 2026" / "March 1 to 31, 2026"
+            m4 = _re.search(
+                rf'({_mo_pat})\s+(\d{{1,2}})(?:st|nd|rd|th)?\s*(?:-|to)\s*(\d{{1,2}})(?:st|nd|rd|th)?[,\s]+(\d{{4}})',
+                msg, _re.I)
+            if m4:
+                sd = _to_iso(m4.group(1), m4.group(2), m4.group(4))
+                ed = _to_iso(m4.group(1), m4.group(3), m4.group(4))
+                if sd and ed: return sd, ed
+
+            return None, None
+
         # ── Rate limit check BEFORE report intent ────────────────────────────
         if payload.get('rate_limited'):
             return jsonify({
@@ -833,15 +898,19 @@ def ai_chat():
                     detected_type = rtype
                     break
             detected_format  = 'excel' if any(w in _msg_lower for w in ('excel', 'xlsx', 'spreadsheet')) else 'pdf'
-            detected_month   = _extract_month(message)
+            # Date range takes priority over month — try range extraction first
+            detected_start, detected_end = _extract_date_range(message)
+            detected_month = None if (detected_start or detected_end) else _extract_month(message)
             return jsonify({
-                'success':       True,
-                'report_ready':  True,
-                'report_type':   detected_type,
-                'report_format': detected_format,
-                'report_month':  detected_month,   # None when no month specified
-                'session_id':    payload.get('session_id', ''),
-                'answer':        payload.get('reply', f'Your {detected_type} report is ready to download.'),
+                'success':            True,
+                'report_ready':       True,
+                'report_type':        detected_type,
+                'report_format':      detected_format,
+                'report_month':       detected_month,
+                'report_start_date':  detected_start,
+                'report_end_date':    detected_end,
+                'session_id':         payload.get('session_id', ''),
+                'answer':             payload.get('reply', f'Your {detected_type} report is ready to download.'),
             })
 
         return jsonify({
@@ -900,7 +969,9 @@ def ai_generate_report():
     Request body:
         report_type: "inventory" | "issuance" | "maintenance" | "vehicles" | "bookings"
         format:      "pdf" | "excel"  (default: "pdf")
-        month:       optional month filter, e.g. "March 2026" (issuance only)
+        month:       optional month filter, e.g. "March 2026"
+        start_date:  optional range start, e.g. "2026-03-01" (takes priority over month)
+        end_date:    optional range end, e.g. "2026-03-31"
     """
     from flask import send_file
     import io as _io
@@ -909,6 +980,8 @@ def ai_generate_report():
     report_type = data.get('report_type', '').strip().lower()
     file_format = data.get('format', 'pdf').strip().lower()
     month       = (data.get('month') or '').strip() or None
+    start_date  = (data.get('start_date') or '').strip() or None
+    end_date    = (data.get('end_date') or '').strip() or None
 
     valid_types = ('inventory', 'issuance', 'maintenance', 'vehicles', 'bookings')
     if report_type not in valid_types:
@@ -919,7 +992,12 @@ def ai_generate_report():
 
     try:
         params = {'report_type': report_type, 'format': file_format}
-        if month:
+        if start_date or end_date:
+            if start_date:
+                params['start_date'] = start_date
+            if end_date:
+                params['end_date'] = end_date
+        elif month:
             params['month'] = month
 
         resp = _requests_lib.post(
@@ -932,8 +1010,15 @@ def ai_generate_report():
         ext      = '.pdf' if file_format == 'pdf' else '.xlsx'
         mimetype = ('application/pdf' if file_format == 'pdf'
                     else 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        safe_month = f'_{month.replace(" ", "_")}' if month else ''
-        filename = f'{report_type}_report{safe_month}{ext}'
+        if start_date or end_date:
+            _sd = (start_date or '').replace(' ', '_')
+            _ed = (end_date or '').replace(' ', '_')
+            safe_suffix = f'_{_sd}_to_{_ed}' if _sd and _ed else f'_{_sd or _ed}'
+        elif month:
+            safe_suffix = f'_{month.replace(" ", "_")}'
+        else:
+            safe_suffix = ''
+        filename = f'{report_type}_report{safe_suffix}{ext}'
 
         response = send_file(
             _io.BytesIO(resp.content),
