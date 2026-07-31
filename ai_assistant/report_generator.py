@@ -647,8 +647,6 @@ def generate_pdf(report_type: str, month: str | None = None,
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
 
-    pt = 1.0   # 1 point == 1 reportlab unit
-
     cfg     = REPORT_CONFIG[report_type]
     fetcher = cfg["fetcher"]
     _date_supported = {"issuance", "maintenance", "bookings", "vehicles"}
@@ -659,92 +657,118 @@ def generate_pdf(report_type: str, month: str | None = None,
         data = fetcher(filters=filters)
     columns = cfg["columns"]
     mapper  = cfg["mapper"]
-    widths  = [w * pt for w in cfg["col_widths_pdf"]]
+
+    # ── Page setup — mirror website: @page { margin: 8mm } ───────────────────
+    # Use landscape for wide tables (>7 columns or sum of proportions warrants it)
+    _col_weights = cfg["col_widths_pdf"]   # relative weights only; actual widths computed below
+    _wide = len(columns) > 6 or sum(_col_weights) > 450
+    page_size = landscape(A4) if _wide else A4
+    MARGIN = 8 * mm
 
     buf = io.BytesIO()
-    # Use landscape A4 for wide tables
-    page_size = landscape(A4) if sum(cfg["col_widths_pdf"]) > 450 else A4
     doc = SimpleDocTemplate(
         buf, pagesize=page_size,
-        leftMargin=20*mm, rightMargin=20*mm,
-        topMargin=15*mm, bottomMargin=15*mm,
+        leftMargin=MARGIN, rightMargin=MARGIN,
+        topMargin=MARGIN,  bottomMargin=MARGIN,
     )
 
-    # ── Styles ────────────────────────────────────────────────
-    red_c   = colors.Color(*_rgb(RED))
-    dark_c  = colors.Color(*_rgb(DARK))
-    blue_c  = colors.Color(*_rgb(BLUE))
-    grey_c  = colors.Color(*_rgb(GREY))
-    alt_c   = colors.Color(*_rgb(ROW_ALT))
+    # ── Proportional column widths stretched to full usable width ─────────────
+    # The website CSS uses table-layout:fixed with no explicit widths — columns
+    # share the full container width proportionally. We do the same here.
+    usable_w = doc.width   # full width minus left+right margins
+    _weight_sum = sum(_col_weights)
+    widths = [usable_w * (w / _weight_sum) for w in _col_weights]
+
+    # ── Colours (exact match to print_layout_header.js) ──────────────────────
+    red_c   = colors.Color(*_rgb(RED))       # #E8001C
+    dark_c  = colors.Color(*_rgb(DARK))      # #1a202c  — thead bg, brand text
+    grey_c  = colors.Color(*_rgb(GREY))      # #718096
+    lgrey_c = colors.Color(0.63, 0.69, 0.77) # #a0aec0  — address, footer
+    alt_c   = colors.Color(*_rgb(ROW_ALT))   # #f8fafc  — even rows
     white_c = colors.white
+    body_c  = colors.Color(0.18, 0.2, 0.27)  # #2d3748  — cell text
 
+    # ── Text styles ───────────────────────────────────────────────────────────
     brand_style = ParagraphStyle("brand", fontName="Helvetica-Bold", fontSize=14,
-                                  textColor=dark_c, leading=16)
-    sub_style   = ParagraphStyle("sub",   fontName="Helvetica",      fontSize=7,
-                                  textColor=grey_c, leading=9)
-    addr_style  = ParagraphStyle("addr",  fontName="Helvetica",      fontSize=6.5,
-                                  textColor=colors.Color(0.63, 0.69, 0.77), leading=8)
-    label_style = ParagraphStyle("lbl",   fontName="Helvetica-Bold", fontSize=6.5,
-                                  textColor=grey_c, alignment=TA_RIGHT, leading=8)
+                                 textColor=dark_c, leading=17, spaceAfter=1)
+    sub_style   = ParagraphStyle("sub",   fontName="Helvetica",      fontSize=6,
+                                 textColor=grey_c, leading=8, spaceAfter=1,
+                                 letterSpacing=1.5)
+    addr_style  = ParagraphStyle("addr",  fontName="Helvetica",      fontSize=6,
+                                 textColor=lgrey_c, leading=8)
+    label_style = ParagraphStyle("lbl",   fontName="Helvetica-Bold", fontSize=6,
+                                 textColor=lgrey_c, alignment=TA_RIGHT, leading=8,
+                                 letterSpacing=1.5, spaceAfter=1)
     title_style = ParagraphStyle("title", fontName="Helvetica-Bold", fontSize=15,
-                                  textColor=dark_c, alignment=TA_RIGHT, leading=17)
-    meta_style  = ParagraphStyle("meta",  fontName="Helvetica",      fontSize=7.5,
-                                  textColor=grey_c, alignment=TA_RIGHT, leading=9)
+                                 textColor=dark_c, alignment=TA_RIGHT, leading=18,
+                                 spaceAfter=2)
+    meta_style  = ParagraphStyle("meta",  fontName="Helvetica",      fontSize=7,
+                                 textColor=grey_c, alignment=TA_RIGHT, leading=9)
     cell_style  = ParagraphStyle("cell",  fontName="Helvetica",      fontSize=8,
-                                  textColor=colors.Color(0.18, 0.2, 0.27), leading=10)
+                                 textColor=body_c, leading=10)
+    th_style    = ParagraphStyle("th",    fontName="Helvetica-Bold", fontSize=7,
+                                 textColor=colors.Color(1, 1, 1, 0.92),
+                                 leading=9, letterSpacing=0.3)
 
-    # ── Header ────────────────────────────────────────────────
+    # ── Header timestamp ──────────────────────────────────────────────────────
     now      = datetime.now()
-    date_str = now.strftime("%B %d, %Y").replace(" 0", " ")  # e.g. "March 10, 2026"
-    time_str = now.strftime("%I:%M %p")
+    date_str = now.strftime("%B %-d, %Y") if hasattr(now, "strftime") else now.strftime("%B %d, %Y").replace(" 0", " ")
+    try:
+        date_str = now.strftime("%B %-d, %Y")   # Linux/Mac: strip leading zero
+    except ValueError:
+        date_str = now.strftime("%B %d, %Y").replace(" 0", " ")   # Windows fallback
+    time_str = now.strftime("%I:%M %p").lstrip("0")
 
-    left_block = [
-        Paragraph(BRAND_NAME, brand_style),
-        Spacer(1, 2),
-        Paragraph(BRAND_SUB.upper(), sub_style),
-        Spacer(1, 1),
-        Paragraph(BRAND_ADDRESS, addr_style),
-    ]
-
-    # Build filter label for header (range takes priority over month)
+    # ── Filter label (shown in title and meta row) ────────────────────────────
     if start_date or end_date:
-        _sd = start_date or "—"
-        _ed = end_date   or "—"
-        _filter_label = f"{_sd} to {_ed}"
+        _filter_label = f"{start_date or '—'} to {end_date or '—'}"
     elif month:
         _filter_label = month
     else:
         _filter_label = None
 
-    right_block = [
-        Paragraph("OFFICIAL REPORT", label_style),
-        Paragraph(cfg["title"] + (f" — {_filter_label}" if _filter_label else ""), title_style),
-        Spacer(1, 2),
-        Paragraph(f'Generated on <b>{date_str}</b> at {time_str}', meta_style),
-        Paragraph(f'{len(data)} record(s)' + (f' · {_filter_label}' if _filter_label else ''), meta_style),
+    report_title = cfg["title"] + (f" — {_filter_label}" if _filter_label else "")
+
+    # ── Left block: logo + brand ──────────────────────────────────────────────
+    logo_img = ""
+    if os.path.exists(LOGO_PATH):
+        logo_img = Image(LOGO_PATH, width=38, height=38)
+
+    left_block = [
+        Paragraph(BRAND_NAME, brand_style),
+        Paragraph("CALTEX SAN PEDRO", sub_style),
+        Paragraph(BRAND_ADDRESS, addr_style),
     ]
 
-    # Try to load logo
-    logo_cell = ""
-    if os.path.exists(LOGO_PATH):
-        logo_cell = Image(LOGO_PATH, width=36, height=36)
+    # ── Right block: labels + title + meta ───────────────────────────────────
+    right_block = [
+        Paragraph("OFFICIAL REPORT", label_style),
+        Paragraph(report_title, title_style),
+        Paragraph(f'Generated on <b>{date_str}</b> at {time_str}', meta_style),
+        Paragraph(
+            f'{len(data)} record(s)' + (f' · {_filter_label}' if _filter_label else ''),
+            meta_style
+        ),
+    ]
 
-    header_data = [[logo_cell, left_block, right_block]]
-    usable_w = doc.width
-    header_table = Table(header_data, colWidths=[42, usable_w * 0.45, usable_w * 0.45])
-    header_table.setStyle(TableStyle([
-        ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING",(0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING",(0,0), (-1, -1), 0),
-        ("TOPPADDING",  (0, 0), (-1, -1), 0),
+    # ── Header table: [logo | brand block | right block] ─────────────────────
+    logo_w   = 44
+    right_w  = usable_w * 0.46
+    left_w   = usable_w - logo_w - right_w
+    header_tbl = Table(
+        [[logo_img, left_block, right_block]],
+        colWidths=[logo_w, left_w, right_w],
+    )
+    header_tbl.setStyle(TableStyle([
+        ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING",  (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING",   (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 0),
     ]))
 
-    # ── Data table ────────────────────────────────────────────
-    header_row = [Paragraph(f'<b>{c}</b>', ParagraphStyle(
-        "th", fontName="Helvetica-Bold", fontSize=7,
-        textColor=white_c, leading=9)) for c in columns]
-
+    # ── Data table ────────────────────────────────────────────────────────────
+    header_row = [Paragraph(c.upper(), th_style) for c in columns]
     table_data = [header_row]
     for row in data:
         mapped = mapper(row)
@@ -752,43 +776,45 @@ def generate_pdf(report_type: str, month: str | None = None,
             Paragraph(str(v) if v else "—", cell_style) for v in mapped
         ])
 
-    # Alternate row colours
     ts = [
-        ("BACKGROUND",  (0, 0), (-1, 0),  dark_c),
+        # thead: dark bg, white text
+        ("BACKGROUND",     (0, 0), (-1, 0),  dark_c),
+        # alternating row stripes: odd=white, even=#f8fafc
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [white_c, alt_c]),
-        ("GRID",        (0, 0), (-1, -1), 0.4, colors.Color(0.88, 0.91, 0.94)),
-        ("LINEBELOW",   (0, 0), (-1, 0),  1,   dark_c),
-        ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING",  (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING",(0,0), (-1, -1), 4),
-        ("LEFTPADDING", (0, 0), (-1, -1), 5),
-        ("RIGHTPADDING",(0, 0), (-1, -1), 5),
+        # subtle grid
+        ("GRID",           (0, 0), (-1, -1), 0.4,
+         colors.Color(0.88, 0.91, 0.94)),
+        ("LINEBELOW",      (0, 0), (-1, 0),  1, dark_c),
+        ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING",     (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING",  (0, 0), (-1, -1), 5),
+        ("LEFTPADDING",    (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING",   (0, 0), (-1, -1), 5),
     ]
 
-    # Status column colour coding
-    status_cols = {
-        "maintenance": 5,
-        "vehicles":    4,
-        "bookings":    6,
-    }
+    # Status column colour coding (matches website badge colours)
+    status_cols = {"maintenance": 5, "vehicles": 4, "bookings": 6}
     sc = status_cols.get(report_type)
     if sc is not None:
         for i, row in enumerate(data, start=1):
             s = (mapper(row)[sc] or "").lower()
-            if s in ("low", "overdue", "cancelled", "rejected"):
+            if s in ("low", "overdue", "cancelled", "rejected", "inactive"):
                 ts.append(("TEXTCOLOR", (sc, i), (sc, i), red_c))
                 ts.append(("FONTNAME",  (sc, i), (sc, i), "Helvetica-Bold"))
-            elif s in ("ok", "active", "completed", "approved"):
-                ts.append(("TEXTCOLOR", (sc, i), (sc, i), colors.Color(0.13, 0.55, 0.13)))
+            elif s in ("ok", "active", "completed", "approved", "confirmed"):
+                ts.append(("TEXTCOLOR", (sc, i), (sc, i),
+                            colors.Color(0.13, 0.55, 0.13)))
                 ts.append(("FONTNAME",  (sc, i), (sc, i), "Helvetica-Bold"))
-            elif s in ("pending", "in progress", "ongoing"):
-                ts.append(("TEXTCOLOR", (sc, i), (sc, i), colors.Color(0.55, 0.4, 0.02)))
+            elif s in ("pending", "in progress", "ongoing", "due soon",
+                       "maintenance"):
+                ts.append(("TEXTCOLOR", (sc, i), (sc, i),
+                            colors.Color(0.55, 0.4, 0.02)))
                 ts.append(("FONTNAME",  (sc, i), (sc, i), "Helvetica-Bold"))
 
     data_table = Table(table_data, colWidths=widths, repeatRows=1)
     data_table.setStyle(TableStyle(ts))
 
-    # ── Issuance totals row ───────────────────────────────────
+    # ── Issuance totals row ───────────────────────────────────────────────────
     totals_table = None
     if report_type == "issuance" and data:
         def _to_float(v):
@@ -801,52 +827,52 @@ def generate_pdf(report_type: str, month: str | None = None,
         total_subtotal = sum(_to_float(r["subtotal"]) for r in data)
 
         # Columns: Date Plate ItemNo ItemName Group UOM Qty UnitCost Subtotal
-        #  index:   0    1     2      3        4     5   6   7        8
-        ncols = len(columns)
-        label_span = ncols - 3   # spans Date→UOM (6 cols)
+        ncols      = len(columns)
+        label_span = ncols - 3   # spans all but Qty, UnitCost, Subtotal
 
-        bold_style = ParagraphStyle(
-            "tot_bold", fontName="Helvetica-Bold", fontSize=8,
-            textColor=colors.Color(*_rgb(DARK)), leading=10)
-        bold_right = ParagraphStyle(
-            "tot_right", fontName="Helvetica-Bold", fontSize=8,
-            textColor=colors.Color(*_rgb(DARK)), leading=10,
-            alignment=TA_RIGHT)
+        tot_bold = ParagraphStyle("tot_b", fontName="Helvetica-Bold", fontSize=8,
+                                  textColor=white_c, leading=10)
+        tot_bold_r = ParagraphStyle("tot_br", fontName="Helvetica-Bold", fontSize=8,
+                                    textColor=white_c, leading=10,
+                                    alignment=TA_RIGHT)
 
         tot_row = (
-            [Paragraph("<b>TOTAL</b>", bold_right)] * label_span
-            + [Paragraph(f"<b>{total_qty:g}</b>", bold_style)]
-            + [Paragraph("", bold_style)]   # Unit Cost — no sum
-            + [Paragraph(f"<b>₱{total_subtotal:,.2f}</b>", bold_style)]
+            [Paragraph("TOTAL", tot_bold_r)] * label_span
+            + [Paragraph(f"{total_qty:g}", tot_bold)]
+            + [Paragraph("", tot_bold)]
+            + [Paragraph(f"₱{total_subtotal:,.2f}", tot_bold)]
         )
-        # colWidths must match data_table widths exactly
         totals_table = Table([tot_row], colWidths=widths)
         totals_table.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1, 0), colors.Color(*_rgb(DARK))),
-            ("TEXTCOLOR",     (0, 0), (-1, 0), colors.white),
+            ("BACKGROUND",    (0, 0), (-1, 0), dark_c),
             ("SPAN",          (0, 0), (label_span - 1, 0)),
             ("ALIGN",         (0, 0), (label_span - 1, 0), "RIGHT"),
-            ("TOPPADDING",    (0, 0), (-1, 0), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
+            ("TOPPADDING",    (0, 0), (-1, 0), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
             ("LEFTPADDING",   (0, 0), (-1, 0), 5),
             ("RIGHTPADDING",  (0, 0), (-1, 0), 5),
         ]))
 
-    # ── Assemble ──────────────────────────────────────────────
+    # ── Assemble story (matches print_layout_header.js structure) ─────────────
+    footer_style = ParagraphStyle(
+        "foot", fontName="Helvetica", fontSize=7,
+        textColor=lgrey_c, alignment=TA_CENTER, leading=9,
+    )
     story = [
-        header_table,
-        HRFlowable(width="100%", thickness=2, color=red_c, spaceAfter=10),
+        header_tbl,
+        Spacer(1, 6),
+        HRFlowable(width="100%", thickness=2, color=red_c,
+                   spaceAfter=10, spaceBefore=0),
         data_table,
     ]
     if totals_table:
         story.append(totals_table)
     story += [
-        Spacer(1, 16),
-        Paragraph(
-            FOOTER_TEXT,
-            ParagraphStyle("foot", fontName="Helvetica", fontSize=7,
-                           textColor=grey_c, alignment=TA_CENTER)
-        ),
+        Spacer(1, 14),
+        HRFlowable(width="100%", thickness=0.5,
+                   color=colors.Color(0.88, 0.91, 0.94),
+                   spaceAfter=6, spaceBefore=0),
+        Paragraph(FOOTER_TEXT, footer_style),
     ]
 
     doc.build(story)
