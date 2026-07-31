@@ -286,22 +286,26 @@ window.ragAiSend = function(preset) {
         filterLabel = ' (' + rMonth + ')';
       }
 
-      // Serialise filters + dates so we can pass them to ragDownloadReport
-      var filtersJson = JSON.stringify(rFilters);
+      // ── Safe button approach: store params in a JS map, never inject into onclick ──
+      // Injecting JSON.stringify into an onclick attribute breaks on any string value
+      // containing quotes (e.g. owner names). Instead we assign a unique ID and look up.
+      var rId = 'rp_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+      window._ragReportParams = window._ragReportParams || {};
+      window._ragReportParams[rId] = {
+        reportType: data.report_type,
+        month:      rMonth,
+        startDate:  rStart,
+        endDate:    rEnd,
+        filters:    rFilters
+      };
 
       function _makeBtn(fmt, style) {
-        // style: 'primary' = red fill, 'secondary' = grey outline
         var btnStyle = style === 'primary'
           ? 'background:#E8001C;color:white;border:none;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;'
           : 'background:#f7f8fa;color:#4a5568;border:1.5px solid #e2e8f0;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;';
         var label = fmt.toUpperCase();
-        return '<button onclick="ragDownloadReport(\''
-          + data.report_type + '\',\'' + fmt + '\','
-          + JSON.stringify(rMonth) + ','
-          + JSON.stringify(rStart) + ','
-          + JSON.stringify(rEnd)   + ','
-          + filtersJson
-          + ')" style="' + btnStyle + '">📥 Download ' + label + filterLabel + '</button>';
+        // Safe: only safe identifiers (rId, fmt) go into the onclick string
+        return '<button onclick="ragDownloadReport(\'' + rId + '\',\'' + fmt + '\')" style="' + btnStyle + '">📥 Download ' + label + filterLabel + '</button>';
       }
 
       var btnHtml = '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">';
@@ -311,7 +315,6 @@ window.ragAiSend = function(preset) {
       } else if (rFmt === 'excel') {
         btnHtml += _makeBtn('excel', 'primary');
       } else {
-        // pdf (default)
         btnHtml += _makeBtn('pdf', 'primary');
       }
       btnHtml += '</div>';
@@ -347,7 +350,20 @@ window.ragAiClear = function() {
   _ragShowWelcome();
 };
 
-window.ragDownloadReport = function(reportType, format, month, startDate, endDate, filters) {
+window.ragDownloadReport = function(reportId, format) {
+  // Look up the stored report params for this button (avoids quoting bugs in onclick)
+  var params = (window._ragReportParams || {})[reportId];
+  if (!params) {
+    _ragAppend('ai', '❌ Report parameters not found. Please ask for the report again.');
+    return;
+  }
+
+  var reportType = params.reportType;
+  var month      = params.month      || null;
+  var startDate  = params.startDate  || null;
+  var endDate    = params.endDate    || null;
+  var filters    = params.filters    || {};
+
   // Build a human-readable label for the status message
   var filterLabel = '';
   if (startDate || endDate) {
@@ -366,7 +382,7 @@ window.ragDownloadReport = function(reportType, format, month, startDate, endDat
     body.month = month;
   }
   if (filters && typeof filters === 'object' && Object.keys(filters).length > 0) {
-    body.filters = filters;   // forward the filters dict extracted by the AI
+    body.filters = filters;
   }
 
   fetch('/api/ai-report', {
@@ -375,7 +391,13 @@ window.ragDownloadReport = function(reportType, format, month, startDate, endDat
     body: JSON.stringify(body)
   })
   .then(function(res) {
-    if (!res.ok) throw new Error('Report generation failed');
+    if (!res.ok) {
+      return res.json().then(function(err) {
+        throw new Error(err.error || 'Report generation failed');
+      }).catch(function() {
+        throw new Error('Report generation failed (status ' + res.status + ')');
+      });
+    }
     return res.blob();
   })
   .then(function(blob) {
@@ -396,7 +418,7 @@ window.ragDownloadReport = function(reportType, format, month, startDate, endDat
     _ragAppend('ai', '✅ <strong>' + filename + '</strong> downloaded successfully!');
   })
   .catch(function(err) {
-    _ragAppend('ai', '❌ Failed to generate report: ' + err.message);
+    _ragAppend('ai', '❌ ' + err.message);
   });
 };
 

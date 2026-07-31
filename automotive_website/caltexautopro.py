@@ -958,6 +958,16 @@ def ai_generate_report():
             json=filters if filters else None,   # body → filters dict
             timeout=90,
         )
+
+        # Surface 400 errors (no records / future date) as JSON so the
+        # frontend can show the real message instead of a generic failure.
+        if resp.status_code == 400:
+            try:
+                detail = resp.json().get('detail', 'Report generation failed.')
+            except Exception:
+                detail = 'Report generation failed.'
+            return jsonify({'success': False, 'error': detail}), 400
+
         resp.raise_for_status()
 
         ext      = '.pdf' if file_format == 'pdf' else '.xlsx'

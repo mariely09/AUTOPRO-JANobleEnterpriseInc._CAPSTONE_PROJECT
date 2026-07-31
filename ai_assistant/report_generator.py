@@ -1064,7 +1064,7 @@ def build_report(report_type: str, file_format: str,
         report_type: one of inventory | issuance | maintenance | vehicles | bookings
         file_format: pdf | excel | xlsx
         month:       optional month filter, e.g. "March 2026"
-                     (applies to issuance, maintenance, bookings only)
+                     (applies to issuance, maintenance, bookings, vehicles)
         start_date:  optional range start, e.g. "2026-03-01" or "March 1, 2026"
                      Takes priority over month when either start_date or end_date is set.
         end_date:    optional range end, e.g. "2026-03-31" or "March 31, 2026"
@@ -1074,6 +1074,10 @@ def build_report(report_type: str, file_format: str,
 
     Returns:
         Raw bytes of the generated file.
+
+    Raises:
+        ValueError: if report_type/format is invalid, or if a future date filter
+                    is used with no past records matching.
     """
     if report_type not in REPORT_CONFIG:
         raise ValueError(f"Unknown report type '{report_type}'. "
@@ -1083,6 +1087,60 @@ def build_report(report_type: str, file_format: str,
         valid_keys = set(REPORT_FILTERS.get(report_type, []))
         filters = {k: v for k, v in filters.items()
                    if k in valid_keys and v is not None and v != ""}
+
+    # ── Validate that date filters are not entirely in the future ─────────────
+    # If the user asks for "July 2099" or "start_date=2099-01-01" and there are
+    # zero records in that range, reject immediately rather than generating an
+    # empty report — this gives the AI a chance to tell the user why.
+    from datetime import datetime as _dt, date as _date
+    _today = _date.today()
+
+    def _check_future(date_str: str | None) -> bool:
+        """Return True if date_str resolves to a future date."""
+        if not date_str:
+            return False
+        dt = _parse_date_to_dt(date_str)
+        if dt is None:
+            return False
+        return dt.date() > _today
+
+    _is_future_filter = False
+    if start_date and _check_future(start_date):
+        _is_future_filter = True
+    if end_date and _check_future(end_date):
+        _is_future_filter = True
+    if month:
+        # Parse "July 2026" → check if that month/year is in the future
+        m = _re.match(r"([A-Za-z]+)\s+(\d{4})", month.strip())
+        if m:
+            abbr = m.group(1)[:3].capitalize()
+            if abbr in _MONTHS_SHORT:
+                mo_idx = _MONTHS_SHORT.index(abbr) + 1
+                yr = int(m.group(2))
+                # Consider the entire month future if year > today.year,
+                # or same year but month > today.month
+                if yr > _today.year or (yr == _today.year and mo_idx > _today.month):
+                    _is_future_filter = True
+
+    # ── Pre-flight record count — fail fast before generating the file ───────
+    cfg     = REPORT_CONFIG[report_type]
+    fetcher = cfg["fetcher"]
+    _date_supported = {"issuance", "maintenance", "bookings", "vehicles"}
+    if report_type in _date_supported:
+        preview = fetcher(month=month, start_date=start_date, end_date=end_date,
+                          filters=filters or None)
+    else:
+        preview = fetcher(filters=filters or None)
+
+    if len(preview) == 0:
+        if _is_future_filter:
+            raise ValueError(
+                "No records found — the requested date range is in the future. "
+                "Reports can only be generated for dates with existing historical data."
+            )
+        raise ValueError(
+            "No records were found matching the requested filters. Nothing to generate."
+        )
 
     fmt = file_format.lower().replace("xlsx", "excel")
     if fmt == "pdf":

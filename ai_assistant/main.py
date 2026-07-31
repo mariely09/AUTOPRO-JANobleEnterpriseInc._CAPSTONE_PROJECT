@@ -245,6 +245,9 @@ async def admin_report(request: Request,
 
     except HTTPException:
         raise
+    except ValueError as e:
+        # build_report raises ValueError for bad filters / no records / future dates
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
