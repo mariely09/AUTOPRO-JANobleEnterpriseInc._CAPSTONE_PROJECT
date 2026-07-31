@@ -87,6 +87,7 @@
 .rag-typing span:nth-child(2) { animation-delay:.15s; }
 .rag-typing span:nth-child(3) { animation-delay:.3s; }
 @keyframes ragBounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
+@keyframes ragSpin   { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 </style>
 
 <script>
@@ -301,13 +302,16 @@ window.ragAiSend = function(preset) {
 
       function _makeBtn(fmt, style) {
         var btnStyle = style === 'primary'
-          ? 'background:#E8001C;color:white;border:none;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;'
-          : 'background:#f7f8fa;color:#4a5568;border:1.5px solid #e2e8f0;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;';
+          ? 'background:#E8001C;color:white;border:none;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;'
+          : 'background:#f7f8fa;color:#4a5568;border:1.5px solid #e2e8f0;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;';
         var label = fmt.toUpperCase();
-        // Safe: only safe identifiers (rId, fmt) go into the onclick string
-        return '<button onclick="ragDownloadReport(\'' + rId + '\',\'' + fmt + '\')" style="' + btnStyle + '">📥 Download ' + label + filterLabel + '</button>';
+        var btnId = rId + '_' + fmt;
+        // Safe: only safe identifiers (rId, fmt, btnId) go into the onclick string
+        return '<button id="' + btnId + '" onclick="ragDownloadReport(\'' + rId + '\',\'' + fmt + '\')" style="' + btnStyle + '">📥 Download ' + label + filterLabel + '</button>';
       }
 
+      // Unique ID for the error slot so ragDownloadReport can update it in-place
+      var errId = rId + '_err';
       var btnHtml = '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">';
       if (rFmt === 'both') {
         btnHtml += _makeBtn('pdf',   'primary');
@@ -318,6 +322,7 @@ window.ragAiSend = function(preset) {
         btnHtml += _makeBtn('pdf', 'primary');
       }
       btnHtml += '</div>';
+      btnHtml += '<div id="' + errId + '" style="font-size:11px;margin-top:4px;"></div>';
       _ragAppend('ai', answer + btnHtml);
     } else if (data.answer) {
       // Format the answer nicely
@@ -351,10 +356,15 @@ window.ragAiClear = function() {
 };
 
 window.ragDownloadReport = function(reportId, format) {
-  // Look up the stored report params for this button (avoids quoting bugs in onclick)
+  // ── Guard: block concurrent downloads ────────────────────────────────────
+  if (window._ragDownloading) return;
+
+  // Look up the stored report params for this button
   var params = (window._ragReportParams || {})[reportId];
   if (!params) {
-    _ragAppend('ai', '❌ Report parameters not found. Please ask for the report again.');
+    // Params missing — show inline error in the error slot if it exists
+    var errSlot = document.getElementById(reportId + '_err');
+    if (errSlot) errSlot.innerHTML = '<span style="color:#E8001C;">❌ Session expired. Please ask for the report again.</span>';
     return;
   }
 
@@ -363,17 +373,30 @@ window.ragDownloadReport = function(reportId, format) {
   var startDate  = params.startDate  || null;
   var endDate    = params.endDate    || null;
   var filters    = params.filters    || {};
+  var errSlot    = document.getElementById(reportId + '_err');
+  var btn        = document.getElementById(reportId + '_' + format);
 
-  // Build a human-readable label for the status message
-  var filterLabel = '';
-  if (startDate || endDate) {
-    filterLabel = ' (' + (startDate || '—') + ' to ' + (endDate || '—') + ')';
-  } else if (month) {
-    filterLabel = ' (' + month + ')';
+  // ── Lock: disable all buttons for this report, show spinner on clicked one ─
+  window._ragDownloading = true;
+  ['pdf','excel'].forEach(function(f) {
+    var b = document.getElementById(reportId + '_' + f);
+    if (b) {
+      b.disabled = true;
+      b.style.opacity = '0.6';
+      b.style.cursor  = 'not-allowed';
+    }
+  });
+  if (btn) {
+    btn.style.opacity = '1';
+    btn.style.cursor  = 'wait';
+    btn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px;">'
+      + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:ragSpin 0.8s linear infinite;">'
+      + '<path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>'
+      + 'Generating…</span>';
   }
-  _ragAppend('ai', '⏳ Generating ' + format.toUpperCase() + ' report' + filterLabel + '...');
+  if (errSlot) errSlot.innerHTML = '';
 
-  // Build request body — date range takes priority over month
+  // ── Build request body ────────────────────────────────────────────────────
   var body = { report_type: reportType, format: format };
   if (startDate || endDate) {
     if (startDate) body.start_date = startDate;
@@ -392,8 +415,8 @@ window.ragDownloadReport = function(reportId, format) {
   })
   .then(function(res) {
     if (!res.ok) {
-      return res.json().then(function(err) {
-        throw new Error(err.error || 'Report generation failed');
+      return res.json().then(function(e) {
+        throw new Error(e.error || 'Report generation failed');
       }).catch(function() {
         throw new Error('Report generation failed (status ' + res.status + ')');
       });
@@ -401,24 +424,67 @@ window.ragDownloadReport = function(reportId, format) {
     return res.blob();
   })
   .then(function(blob) {
+    // ── Build filename ──────────────────────────────────────────────────────
     var ext = format === 'pdf' ? '.pdf' : '.xlsx';
     var safeSuffix = '';
     if (startDate || endDate) {
-      safeSuffix = '_' + (startDate || '').replace(/\s+/g, '_') + '_to_' + (endDate || '').replace(/\s+/g, '_');
+      safeSuffix = '_' + (startDate || '').replace(/\s+/g, '_')
+                 + '_to_' + (endDate || '').replace(/\s+/g, '_');
     } else if (month) {
       safeSuffix = '_' + month.replace(/\s+/g, '_');
     }
     var filename = reportType + '_report' + safeSuffix + ext;
+
+    // ── Trigger browser download ────────────────────────────────────────────
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url; a.download = filename;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    _ragAppend('ai', '✅ <strong>' + filename + '</strong> downloaded successfully!');
+
+    // ── Update button to "Downloaded ✓" permanently ────────────────────────
+    if (btn) {
+      btn.innerHTML = '✓ Downloaded';
+      btn.style.background = '#38a169';
+      btn.style.color      = 'white';
+      btn.style.border     = 'none';
+      btn.style.opacity    = '1';
+      btn.style.cursor     = 'default';
+    }
+    // Re-enable the other format button (if "both" was shown)
+    ['pdf','excel'].forEach(function(f) {
+      if (f === format) return;
+      var b = document.getElementById(reportId + '_' + f);
+      if (b) {
+        b.disabled = false;
+        b.style.opacity = '1';
+        b.style.cursor  = 'pointer';
+      }
+    });
   })
   .catch(function(err) {
-    _ragAppend('ai', '❌ ' + err.message);
+    // ── Restore buttons and show inline error ──────────────────────────────
+    ['pdf','excel'].forEach(function(f) {
+      var b = document.getElementById(reportId + '_' + f);
+      if (b) {
+        b.disabled = false;
+        b.style.opacity = '1';
+        b.style.cursor  = 'pointer';
+      }
+    });
+    if (btn) {
+      // Restore original label
+      var origLabel = format.toUpperCase();
+      var filterLabel = '';
+      if (startDate || endDate) filterLabel = ' (' + (startDate||'—') + ' to ' + (endDate||'—') + ')';
+      else if (month) filterLabel = ' (' + month + ')';
+      btn.innerHTML = '📥 Download ' + origLabel + filterLabel;
+    }
+    if (errSlot) errSlot.innerHTML = '<span style="color:#E8001C;font-size:11px;">❌ ' + err.message + '</span>';
+  })
+  .finally(function() {
+    window._ragDownloading = false;
   });
 };
 
