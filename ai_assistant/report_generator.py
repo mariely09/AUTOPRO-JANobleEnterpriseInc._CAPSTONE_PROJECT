@@ -166,7 +166,12 @@ LOGO_PATH = os.path.join(
 #  Firestore data fetchers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _fetch_inventory():
+def _fetch_inventory(filters: dict | None = None):
+    """
+    filters keys: group, item_name, status, reorder_only (bool),
+                  out_of_stock (bool), stock_between ([min, max])
+    """
+    f = filters or {}
     db = get_db()
     rows = []
     for doc in db.collection("stock_inventory").stream():
@@ -183,7 +188,8 @@ def _fetch_inventory():
                 status = "Over"
             else:
                 status = "OK"
-        rows.append({
+
+        row = {
             "num":    d.get("num", ""),
             "name":   d.get("name", "") or d.get("itemName", ""),
             "group":  d.get("group", "") or d.get("commodityGroup", ""),
@@ -193,35 +199,79 @@ def _fetch_inventory():
             "max":    max_lvl,
             "reorder":reorder,
             "status": status,
-        })
+        }
+
+        # ── Post-fetch filters ────────────────────────────────
+        if f.get("group") and row["group"].lower() != f["group"].lower():
+            continue
+        if f.get("item_name") and f["item_name"].lower() not in row["name"].lower():
+            continue
+        if f.get("status") and row["status"].lower() != f["status"].lower():
+            continue
+        if f.get("uom") and row["uom"].lower() != f["uom"].lower():
+            continue
+        if f.get("reorder_only") and int(stock) > int(reorder):
+            continue
+        if f.get("out_of_stock") and int(stock) > 0:
+            continue
+        if f.get("stock_between"):
+            lo, hi = f["stock_between"][0], f["stock_between"][1]
+            if not (lo <= int(stock) <= hi):
+                continue
+        if f.get("stock_less_than") is not None and int(stock) >= int(f["stock_less_than"]):
+            continue
+        if f.get("stock_greater_than") is not None and int(stock) <= int(f["stock_greater_than"]):
+            continue
+
+        rows.append(row)
+
     rows.sort(key=lambda r: r["name"])
     return rows
 
 
 def _fetch_issuances(month: str | None = None,
                      start_date: str | None = None,
-                     end_date: str | None = None):
+                     end_date: str | None = None,
+                     filters: dict | None = None):
     """
     Fetch issuances with optional filtering.
     Priority: start_date/end_date range (if either is set) → month → all records.
+    filters keys: plate, maintenance_id, item_name, group, item_type
     """
+    f = filters or {}
     db = get_db()
     rows = []
     for doc in db.collection("issuances").stream():
         d = doc.to_dict()
         raw_date = d.get("date", "")
-        rows.append({
-            "date":       raw_date,
-            "plate":      d.get("plate", ""),
-            "itemNum":    d.get("itemNum", ""),
-            "itemName":   d.get("itemName", ""),
-            "itemType":   d.get("itemType", ""),
-            "group":      d.get("commodityGroup", ""),
-            "uom":        d.get("uom", ""),
-            "qty":        d.get("qty", "") or d.get("quantity", ""),
-            "unitCost":   d.get("unitCost", "") or d.get("unit_cost", ""),
-            "subtotal":   d.get("subtotal", ""),
-        })
+        row = {
+            "date":          raw_date,
+            "plate":         d.get("plate", ""),
+            "maintenanceId": d.get("maintenanceId", ""),
+            "itemNum":       d.get("itemNum", ""),
+            "itemName":      d.get("itemName", ""),
+            "itemType":      d.get("itemType", ""),
+            "group":         d.get("commodityGroup", ""),
+            "uom":           d.get("uom", ""),
+            "qty":           d.get("qty", "") or d.get("quantity", ""),
+            "unitCost":      d.get("unitCost", "") or d.get("unit_cost", ""),
+            "subtotal":      d.get("subtotal", ""),
+        }
+
+        # ── Post-fetch filters ────────────────────────────────
+        if f.get("plate") and row["plate"].upper() != f["plate"].upper():
+            continue
+        if f.get("maintenance_id") and row["maintenanceId"] != f["maintenance_id"]:
+            continue
+        if f.get("item_name") and f["item_name"].lower() not in row["itemName"].lower():
+            continue
+        if f.get("group") and row["group"].lower() != f["group"].lower():
+            continue
+        if f.get("item_type") and row["itemType"].lower() != f["item_type"].lower():
+            continue
+
+        rows.append(row)
+
     rows.sort(key=lambda r: r["date"], reverse=True)
 
     # ── Date-range filter (takes priority over month) ─────────
@@ -248,24 +298,52 @@ def _fetch_issuances(month: str | None = None,
 
 def _fetch_maintenance(month: str | None = None,
                        start_date: str | None = None,
-                       end_date: str | None = None):
+                       end_date: str | None = None,
+                       filters: dict | None = None):
     """
     Fetch maintenance jobs with optional filtering.
     Priority: start_date/end_date range (if either is set) → month → all records.
+    filters keys: status, plate, mechanic, customer (matches vehicle owner via plate lookup)
     """
+    f = filters or {}
     db = get_db()
+
+    # Build owner→plate lookup only when customer filter is active
+    customer_plates: set[str] = set()
+    if f.get("customer"):
+        cname = f["customer"].lower()
+        for doc in db.collection("vehicles").stream():
+            d = doc.to_dict()
+            if (d.get("owner") or "").lower() == cname:
+                p = d.get("plate", "")
+                if p:
+                    customer_plates.add(p.upper())
+
     rows = []
     for doc in db.collection("maintenance").stream():
         d = doc.to_dict()
-        rows.append({
-            "id":      d.get("id", doc.id),
-            "plate":   d.get("plate", ""),
-            "desc":    d.get("desc", ""),
-            "mechanic":d.get("mechanic", ""),
-            "date":    d.get("date", ""),
-            "status":  d.get("status", ""),
-            "cost":    d.get("cost", ""),
-        })
+        row = {
+            "id":       d.get("id", doc.id),
+            "plate":    d.get("plate", ""),
+            "desc":     d.get("desc", ""),
+            "mechanic": d.get("mechanic", ""),
+            "date":     d.get("date", ""),
+            "status":   d.get("status", ""),
+            "cost":     d.get("cost", ""),
+        }
+
+        # ── Post-fetch filters ────────────────────────────────
+        if f.get("status") and row["status"].lower() != f["status"].lower():
+            continue
+        if f.get("plate") and row["plate"].upper() != f["plate"].upper():
+            continue
+        if f.get("mechanic") and f["mechanic"].lower() not in row["mechanic"].lower():
+            continue
+        if customer_plates and row["plate"].upper() not in customer_plates:
+            continue
+
+        rows.append(row)
+
     rows.sort(key=lambda r: r["date"], reverse=True)
 
     # ── Date-range filter (takes priority over month) ─────────
@@ -288,12 +366,14 @@ def _fetch_maintenance(month: str | None = None,
     return rows
 
 
-def _fetch_vehicles():
+def _fetch_vehicles(filters: dict | None = None):
+    """filters keys: status, owner, vehicle_type"""
+    f = filters or {}
     db = get_db()
     rows = []
     for doc in db.collection("vehicles").stream():
         d = doc.to_dict()
-        rows.append({
+        row = {
             "plate":       d.get("plate", ""),
             "desc":        d.get("desc", ""),
             "owner":       d.get("owner", ""),
@@ -301,32 +381,54 @@ def _fetch_vehicles():
             "status":      d.get("status", ""),
             "lastSvcDate": d.get("lastSvcDate", ""),
             "odo":         d.get("odo", ""),
-        })
+        }
+
+        if f.get("status") and row["status"].lower() != f["status"].lower():
+            continue
+        if f.get("owner") and f["owner"].lower() not in row["owner"].lower():
+            continue
+        if f.get("vehicle_type") and row["type"].lower() != f["vehicle_type"].lower():
+            continue
+
+        rows.append(row)
     rows.sort(key=lambda r: r["plate"])
     return rows
 
 
 def _fetch_bookings(month: str | None = None,
                     start_date: str | None = None,
-                    end_date: str | None = None):
+                    end_date: str | None = None,
+                    filters: dict | None = None):
     """
     Fetch service bookings with optional filtering.
     Priority: start_date/end_date range (if either is set) → month → all records.
+    filters keys: status, customer, service
     """
+    f = filters or {}
     db = get_db()
     rows = []
     for doc in db.collection("service_bookings").stream():
         d = doc.to_dict()
         svcs = d.get("services", [])
-        rows.append({
+        svc_str = ", ".join(svcs) if isinstance(svcs, list) else str(svcs)
+        row = {
             "date":          d.get("preferredDate", ""),
             "time":          d.get("preferredTime", ""),
             "customerName":  d.get("customerName", ""),
             "plate":         d.get("plate", ""),
             "vehicleDesc":   d.get("vehicleDesc", ""),
-            "services":      ", ".join(svcs) if isinstance(svcs, list) else str(svcs),
+            "services":      svc_str,
             "status":        d.get("status", ""),
-        })
+        }
+
+        if f.get("status") and row["status"].lower() != f["status"].lower():
+            continue
+        if f.get("customer") and f["customer"].lower() not in row["customerName"].lower():
+            continue
+        if f.get("service") and f["service"].lower() not in row["services"].lower():
+            continue
+
+        rows.append(row)
     rows.sort(key=lambda r: r["date"], reverse=True)
 
     # ── Date-range filter (takes priority over month) ─────────
@@ -417,14 +519,65 @@ REPORT_CONFIG = {
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  PDF generation  (reportlab)
+#  Report filter schema — single source of truth for the LLM prompt
+#  and for the /admin/report endpoint validation.
 # ─────────────────────────────────────────────────────────────────────────────
+
+REPORT_FILTERS: dict[str, list[str]] = {
+    "inventory": [
+        "group",             # commodity group e.g. "Lubricants"
+        "item_name",         # partial item name match
+        "status",            # "OK" | "Low" | "Over"
+        "uom",               # unit of measure
+        "reorder_only",      # bool — only items at or below reorder point
+        "out_of_stock",      # bool — only items with stock == 0
+        "stock_between",     # [min, max] inclusive range
+        "stock_less_than",   # integer threshold (exclusive)
+        "stock_greater_than",# integer threshold (exclusive)
+    ],
+    "issuance": [
+        "plate",             # exact vehicle plate
+        "maintenance_id",    # exact job ID e.g. "SVC-001"
+        "item_name",         # partial item name match
+        "group",             # commodity group
+        "item_type",         # "Material" | "Service"
+        "start_date",        # date range start  (ISO YYYY-MM-DD or full date)
+        "end_date",          # date range end    (ISO YYYY-MM-DD or full date)
+        "month",             # e.g. "July 2026"
+    ],
+    "maintenance": [
+        "status",            # "Completed" | "In Progress" | "Pending"
+        "plate",             # exact vehicle plate
+        "mechanic",          # partial mechanic name match
+        "customer",          # customer/owner name — resolves plates from vehicles
+        "start_date",
+        "end_date",
+        "month",
+    ],
+    "vehicles": [
+        "status",            # "Active" | "Maintenance" | "Inactive"
+        "owner",             # partial owner name match
+        "vehicle_type",      # exact type e.g. "Truck" | "Sedan"
+    ],
+    "bookings": [
+        "status",            # "Pending" | "Confirmed" | "Completed" | "Cancelled"
+        "customer",          # partial customer name match
+        "service",           # partial service name match (substring of services list)
+        "start_date",
+        "end_date",
+        "month",
+    ],
+}
+
+
+
 
 def _rgb(t): return tuple(v / 255 for v in t)
 
 
 def generate_pdf(report_type: str, month: str | None = None,
-                 start_date: str | None = None, end_date: str | None = None) -> bytes:
+                 start_date: str | None = None, end_date: str | None = None,
+                 filters: dict | None = None) -> bytes:
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.units import mm
     from reportlab.lib import colors
@@ -441,9 +594,10 @@ def generate_pdf(report_type: str, month: str | None = None,
     fetcher = cfg["fetcher"]
     _date_supported = {"issuance", "maintenance", "bookings"}
     if report_type in _date_supported:
-        data = fetcher(month=month, start_date=start_date, end_date=end_date)
+        data = fetcher(month=month, start_date=start_date, end_date=end_date,
+                       filters=filters)
     else:
-        data = fetcher()
+        data = fetcher(filters=filters)
     columns = cfg["columns"]
     mapper  = cfg["mapper"]
     widths  = [w * pt for w in cfg["col_widths_pdf"]]
@@ -645,7 +799,8 @@ def generate_pdf(report_type: str, month: str | None = None,
 # ─────────────────────────────────────────────────────────────────────────────
 
 def generate_excel(report_type: str, month: str | None = None,
-                   start_date: str | None = None, end_date: str | None = None) -> bytes:
+                   start_date: str | None = None, end_date: str | None = None,
+                   filters: dict | None = None) -> bytes:
     from openpyxl import Workbook
     from openpyxl.styles import (
         Font, PatternFill, Alignment, Border, Side, GradientFill,
@@ -656,9 +811,10 @@ def generate_excel(report_type: str, month: str | None = None,
     fetcher = cfg["fetcher"]
     _date_supported = {"issuance", "maintenance", "bookings"}
     if report_type in _date_supported:
-        data = fetcher(month=month, start_date=start_date, end_date=end_date)
+        data = fetcher(month=month, start_date=start_date, end_date=end_date,
+                       filters=filters)
     else:
-        data = fetcher()
+        data = fetcher(filters=filters)
     columns = cfg["columns"]
     mapper  = cfg["mapper"]
     col_ws  = cfg["col_widths_xlsx"]
@@ -840,7 +996,8 @@ def generate_excel(report_type: str, month: str | None = None,
 def build_report(report_type: str, file_format: str,
                  month: str | None = None,
                  start_date: str | None = None,
-                 end_date: str | None = None) -> bytes:
+                 end_date: str | None = None,
+                 filters: dict | None = None) -> bytes:
     """
     Generate a report file.
 
@@ -852,6 +1009,9 @@ def build_report(report_type: str, file_format: str,
         start_date:  optional range start, e.g. "2026-03-01" or "March 1, 2026"
                      Takes priority over month when either start_date or end_date is set.
         end_date:    optional range end, e.g. "2026-03-31" or "March 31, 2026"
+        filters:     optional dict of additional filters — see REPORT_FILTERS for valid
+                     keys per report type. Only keys listed in REPORT_FILTERS are applied;
+                     unknown keys are silently ignored.
 
     Returns:
         Raw bytes of the generated file.
@@ -859,12 +1019,20 @@ def build_report(report_type: str, file_format: str,
     if report_type not in REPORT_CONFIG:
         raise ValueError(f"Unknown report type '{report_type}'. "
                          f"Use: {', '.join(REPORT_CONFIG.keys())}")
+    # Strip unknown filter keys so callers can pass the full LLM extraction dict safely
+    if filters:
+        valid_keys = set(REPORT_FILTERS.get(report_type, []))
+        filters = {k: v for k, v in filters.items()
+                   if k in valid_keys and v is not None and v != ""}
+
     fmt = file_format.lower().replace("xlsx", "excel")
     if fmt == "pdf":
         return generate_pdf(report_type, month=month,
-                            start_date=start_date, end_date=end_date)
+                            start_date=start_date, end_date=end_date,
+                            filters=filters or None)
     elif fmt in ("excel", "xlsx"):
         return generate_excel(report_type, month=month,
-                              start_date=start_date, end_date=end_date)
+                              start_date=start_date, end_date=end_date,
+                              filters=filters or None)
     else:
         raise ValueError(f"Unknown format '{file_format}'. Use: pdf or excel")

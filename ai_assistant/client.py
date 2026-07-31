@@ -10,6 +10,103 @@ from verifier import verify_reply
 
 logger = logging.getLogger(__name__)
 
+
+def _build_report_prompt() -> str:
+    """
+    Build the REPORT GENERATION section of the Admin AI system prompt dynamically
+    from REPORT_FILTERS — the single source of truth in report_generator.py.
+
+    When a new report type or filter is added to REPORT_FILTERS, this prompt
+    updates automatically with no manual editing required.
+    """
+    from report_generator import REPORT_FILTERS, REPORT_CONFIG
+
+    today = __import__("datetime").date.today()
+
+    filter_blocks = []
+    for rtype, fkeys in REPORT_FILTERS.items():
+        title = REPORT_CONFIG[rtype]["title"]
+        keys_str = "\n".join(f"  - {k}" for k in fkeys)
+        filter_blocks.append(f"{title} ({rtype})\n{keys_str}")
+
+    all_types   = " | ".join(REPORT_FILTERS.keys())
+    filter_text = "\n\n".join(filter_blocks)
+
+    return f"""
+════════════════════════════════════════════════════
+  REPORT GENERATION INSTRUCTIONS
+════════════════════════════════════════════════════
+
+When the administrator asks to generate, download, or create a report,
+your ONLY job is to identify:
+  1. report_type — which report they want
+  2. format      — pdf or excel (default: pdf if not specified)
+  3. filters     — extracted from natural language (do NOT invent values)
+
+The report_generator.py module handles all Firestore queries, filter logic,
+and file generation. Never attempt to generate report content yourself.
+Never summarise Firestore data as a substitute for a report.
+
+────────────────────────────────────────────────────
+SUPPORTED REPORT TYPES:  {all_types}
+SUPPORTED FORMATS:       pdf | excel  (xlsx is also accepted)
+DEFAULT FORMAT:          pdf
+────────────────────────────────────────────────────
+
+AVAILABLE FILTERS PER REPORT TYPE:
+(Only use filters the user explicitly mentioned. Never invent filter values.)
+
+{filter_text}
+
+────────────────────────────────────────────────────
+DATE UNDERSTANDING  (today is {today})
+────────────────────────────────────────────────────
+Resolve natural language dates before including them in filters.
+
+  "today"              → start_date = end_date = {today}
+  "yesterday"          → start_date = end_date = (yesterday's date)
+  "this week"          → start_date = Monday of current week, end_date = today
+  "last week"          → start_date/end_date = Mon–Sun of last week
+  "this month"         → month = "{today.strftime('%B %Y')}"
+  "last month"         → month = (previous calendar month + year)
+  "this year"          → start_date = {today.year}-01-01, end_date = {today.year}-12-31
+  "last year"          → start_date = {today.year - 1}-01-01, end_date = {today.year - 1}-12-31
+  "July"               → month = "July {today.year}"  (assume current year)
+  "July 2026"          → month = "July 2026"
+  "March 10, 2026"     → start_date = 2026-03-10  (exact day)
+  "from March 1 to March 31"  → start_date = {today.year}-03-01, end_date = {today.year}-03-31
+  "from July 1 until July 15" → start_date = {today.year}-07-01, end_date = {today.year}-07-15
+
+Priority rule: if start_date or end_date is present, use them and leave month null.
+
+────────────────────────────────────────────────────
+MULTIPLE FILTERS
+────────────────────────────────────────────────────
+Extract ALL filters the user mentions. Examples:
+
+  "Generate inventory report of lubricants with low stock."
+    → report_type=inventory  filters: group=Lubricants, status=Low
+
+  "Generate completed maintenance report for July."
+    → report_type=maintenance  filters: status=Completed, month=July {today.year}
+
+  "Generate issuance report for ABC123 from July 1 to July 15 in Excel."
+    → report_type=issuance  format=excel  filters: plate=ABC123, start_date={today.year}-07-01, end_date={today.year}-07-15
+
+  "Generate report of active trucks."
+    → report_type=vehicles  filters: status=Active, vehicle_type=Truck
+
+────────────────────────────────────────────────────
+DO NOT HALLUCINATE
+────────────────────────────────────────────────────
+Never assume or invent: customer names, plates, groups, statuses, mechanics,
+dates, or any filter value the user did not explicitly provide.
+If no filters are mentioned, generate the complete unfiltered report.
+
+════════════════════════════════════════════════════
+"""
+
+
 ADMIN_SYSTEM_PROMPT = """You are the internal AI assistant for the Automotive Service and Inventory Management System (Caltex AutoPro — JA Noble Enterprise Inc., Caltex San Pedro, Laguna).
 
 STRICT SCOPE RESTRICTION — HIGHEST PRIORITY:
@@ -62,7 +159,8 @@ Keyword mappings:
 - "deliveries", "supplier deliveries" → get_deliveries
 - "vehicles", "fleet" → get_vehicles
 - "users", "customers", "staff", "how many users" → get_user_count
-"""
+
+""" + _build_report_prompt()
 
 _client = Groq(api_key=settings.GROQ_API_KEY)
 

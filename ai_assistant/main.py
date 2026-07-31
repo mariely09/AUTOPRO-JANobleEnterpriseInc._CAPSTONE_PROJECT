@@ -169,7 +169,8 @@ def admin_chat(req: ChatRequest):
 def admin_report(report_type: str, format: str = "pdf",
                  month: str | None = None,
                  start_date: str | None = None,
-                 end_date: str | None = None):
+                 end_date: str | None = None,
+                 filters: dict | None = None):
     """
     Generate a PDF or Excel report directly from Firestore data.
 
@@ -181,6 +182,12 @@ def admin_report(report_type: str, format: str = "pdf",
         start_date:  optional range start, e.g. "2026-03-01" or "March 1, 2026"
                      Takes priority over month when set.
         end_date:    optional range end, e.g. "2026-03-31" or "March 31, 2026"
+
+    JSON body (optional):
+        filters:     dict of additional filters, e.g.
+                     {"group": "Lubricants", "status": "Low"}
+                     Valid keys per report type are defined in REPORT_FILTERS.
+                     Unknown keys are silently ignored.
     """
     try:
         import io
@@ -199,7 +206,8 @@ def admin_report(report_type: str, format: str = "pdf",
         data  = build_report(report_type, fmt,
                              month=month or None,
                              start_date=start_date or None,
-                             end_date=end_date or None)
+                             end_date=end_date or None,
+                             filters=filters or None)
         title = REPORT_CONFIG[report_type]["title"].replace(" ", "_")
 
         # Build filename suffix
