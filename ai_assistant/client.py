@@ -34,22 +34,241 @@ def _build_report_prompt() -> str:
 
     return f"""
 ════════════════════════════════════════════════════
-  REPORT GENERATION INSTRUCTIONS
+  REPORT GENERATION BEHAVIOR
 ════════════════════════════════════════════════════
 
-When the administrator asks to generate, download, or create a report,
-your ONLY job is to identify:
+When the administrator requests a report, your ONLY job is to identify:
   1. report_type — which report they want
   2. format      — pdf or excel (default: pdf if not specified)
   3. filters     — extracted from natural language (do NOT invent values)
 
-The report_generator.py module handles all Firestore queries, filter logic,
-and file generation. Never attempt to generate report content yourself.
-Never summarise Firestore data as a substitute for a report.
+Do NOT explain your reasoning.
+Do NOT display your internal decision making.
+Do NOT show statements such as:
+  "I identified..."  "I will now generate..."  "Report Type..."  "Filters..."
+  "I will call the report generator..."  "I extracted..."
+
+The administrator should only see the final confirmation and the appropriate
+download button rendered by the frontend.
+
+────────────────────────────────────────────────────
+OUTPUT FORMAT RULES
+────────────────────────────────────────────────────
+If the user does NOT specify a format → default to PDF.
+If the user explicitly requests Excel / XLSX / Spreadsheet → Excel only.
+If the user requests BOTH PDF and Excel → both.
+
+Never specify a format the administrator did not request.
+
+Your reply MUST be one short sentence only. Examples:
+  Correct:   "Your inventory report is ready."
+  Incorrect: "I identified the report type as inventory and extracted the following filters..."
+
+────────────────────────────────────────────────────
+STRUCTURED REPORT PAYLOAD  ← REQUIRED FORMAT
+────────────────────────────────────────────────────
+After your one-sentence reply, you MUST output a JSON block on a new line
+in EXACTLY this format so the backend can extract it:
+
+```report_payload
+{{
+  "report_type": "<type>",
+  "format": "<pdf|excel|both>",
+  "filters": {{}}
+}}
+```
+
+Rules for the JSON block:
+- "report_type" must be one of: {all_types}
+- "format" must be exactly "pdf", "excel", or "both"
+- "filters" must contain ONLY keys the user explicitly mentioned (no invented values)
+- Date filters (start_date, end_date, month) go inside "filters" too
+- If no filters were mentioned, "filters" must be an empty object {{}}
+
+Examples:
+
+User: Generate inventory report.
+Reply: Your inventory report is ready.
+```report_payload
+{{"report_type":"inventory","format":"pdf","filters":{{}}}}
+```
+
+User: Generate inventory report in Excel.
+Reply: Your inventory report is ready.
+```report_payload
+{{"report_type":"inventory","format":"excel","filters":{{}}}}
+```
+
+User: Generate inventory report in PDF and Excel.
+Reply: Your inventory report is ready.
+```report_payload
+{{"report_type":"inventory","format":"both","filters":{{}}}}
+```
+
+User: Generate inventory report for Lubricants.
+Reply: Your inventory report is ready.
+```report_payload
+{{"report_type":"inventory","format":"pdf","filters":{{"group":"Lubricants"}}}}
+```
+
+User: Generate low stock inventory report in Excel.
+Reply: Your inventory report is ready.
+```report_payload
+{{"report_type":"inventory","format":"excel","filters":{{"status":"Low"}}}}
+```
+
+User: Generate inventory report for Lubricants with low stock.
+Reply: Your inventory report is ready.
+```report_payload
+{{"report_type":"inventory","format":"pdf","filters":{{"group":"Lubricants","status":"Low"}}}}
+```
+
+User: Generate completed maintenance report for July.
+Reply: Your maintenance report is ready.
+```report_payload
+{{"report_type":"maintenance","format":"pdf","filters":{{"status":"Completed","month":"July {today.year}"}}}}
+```
+
+User: Generate approved booking report in Excel.
+Reply: Your bookings report is ready.
+```report_payload
+{{"report_type":"bookings","format":"excel","filters":{{"status":"Approved"}}}}
+```
+
+User: Generate issuance report for plate ABC123 in PDF and Excel.
+Reply: Your issuance report is ready.
+```report_payload
+{{"report_type":"issuance","format":"both","filters":{{"plate":"ABC123"}}}}
+```
+
+User: Generate a vehicle report for the month of July.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"pdf","filters":{{"month":"July {today.year}"}}}}
+```
+
+User: Download the vehicle report.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"pdf","filters":{{}}}}
+```
+
+User: Export vehicle report as PDF.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"pdf","filters":{{}}}}
+```
+
+User: Export vehicle report as Excel.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"excel","filters":{{}}}}
+```
+
+User: Generate a vehicle report for Juan Dela Cruz.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"pdf","filters":{{"owner":"Juan Dela Cruz"}}}}
+```
+
+User: Generate a vehicle report for Maria Santos.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"pdf","filters":{{"owner":"Maria Santos"}}}}
+```
+
+User: Generate an active vehicle report.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"pdf","filters":{{"status":"Active"}}}}
+```
+
+User: Generate an inactive vehicle report.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"pdf","filters":{{"status":"Inactive"}}}}
+```
+
+User: Generate a vehicle report for vehicles due for maintenance.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"pdf","filters":{{"status":"Maintenance"}}}}
+```
+
+User: Generate a report for Trucks.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"pdf","filters":{{"vehicle_type":"Truck"}}}}
+```
+
+User: Generate a report for SUVs.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"pdf","filters":{{"vehicle_type":"SUV"}}}}
+```
+
+User: Generate a report for Sedans.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"pdf","filters":{{"vehicle_type":"Sedan"}}}}
+```
+
+User: Generate a report for Vans.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"pdf","filters":{{"vehicle_type":"Van"}}}}
+```
+
+User: Generate an active truck report.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"pdf","filters":{{"status":"Active","vehicle_type":"Truck"}}}}
+```
+
+User: Generate a PDF report of active sedans.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"pdf","filters":{{"status":"Active","vehicle_type":"Sedan"}}}}
+```
+
+User: Generate an Excel report for Juan Dela Cruz's vehicles.
+Reply: Your vehicle fleet report is ready.
+```report_payload
+{{"report_type":"vehicles","format":"excel","filters":{{"owner":"Juan Dela Cruz"}}}}
+```
+
+────────────────────────────────────────────────────
+REPORT FILTER RULES
+────────────────────────────────────────────────────
+Every filter the administrator mentions MUST be included.
+Never generate the complete report if filters were provided.
+Never assume or invent filter values not explicitly stated.
+If no records match the filters, the backend will inform the administrator.
+
+────────────────────────────────────────────────────
+VEHICLE STATUS KEYWORD MAPPINGS
+────────────────────────────────────────────────────
+When filtering vehicles by status, map natural language to exact values:
+
+  "active" / "in service" / "on track"    → status: "Active"
+  "inactive" / "decommissioned" / "retired" → status: "Inactive"
+  "under maintenance" / "in maintenance"
+    / "due for maintenance" / "for maintenance"
+    / "needs maintenance" / "being serviced"  → status: "Maintenance"
+  "overdue" / "pms overdue"               → status: "Overdue"
+  "due soon" / "pms due soon"             → status: "Due Soon"
+
+VEHICLE TYPE KEYWORD MAPPINGS
+────────────────────────────────────────────────────
+Map plural forms to singular (the backend handles both, but use singular):
+  "Trucks"  → vehicle_type: "Truck"
+  "SUVs"    → vehicle_type: "SUV"
+  "Sedans"  → vehicle_type: "Sedan"
+  "Vans"    → vehicle_type: "Van"
 
 ────────────────────────────────────────────────────
 SUPPORTED REPORT TYPES:  {all_types}
-SUPPORTED FORMATS:       pdf | excel  (xlsx is also accepted)
+SUPPORTED FORMATS:       pdf | excel | both  (xlsx is also accepted as excel)
 DEFAULT FORMAT:          pdf
 ────────────────────────────────────────────────────
 
@@ -78,30 +297,6 @@ Resolve natural language dates before including them in filters.
   "from July 1 until July 15" → start_date = {today.year}-07-01, end_date = {today.year}-07-15
 
 Priority rule: if start_date or end_date is present, use them and leave month null.
-
-────────────────────────────────────────────────────
-MULTIPLE FILTERS
-────────────────────────────────────────────────────
-Extract ALL filters the user mentions. Examples:
-
-  "Generate inventory report of lubricants with low stock."
-    → report_type=inventory  filters: group=Lubricants, status=Low
-
-  "Generate completed maintenance report for July."
-    → report_type=maintenance  filters: status=Completed, month=July {today.year}
-
-  "Generate issuance report for ABC123 from July 1 to July 15 in Excel."
-    → report_type=issuance  format=excel  filters: plate=ABC123, start_date={today.year}-07-01, end_date={today.year}-07-15
-
-  "Generate report of active trucks."
-    → report_type=vehicles  filters: status=Active, vehicle_type=Truck
-
-────────────────────────────────────────────────────
-DO NOT HALLUCINATE
-────────────────────────────────────────────────────
-Never assume or invent: customer names, plates, groups, statuses, mechanics,
-dates, or any filter value the user did not explicitly provide.
-If no filters are mentioned, generate the complete unfiltered report.
 
 ════════════════════════════════════════════════════
 """

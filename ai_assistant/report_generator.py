@@ -366,10 +366,47 @@ def _fetch_maintenance(month: str | None = None,
     return rows
 
 
-def _fetch_vehicles(filters: dict | None = None):
-    """filters keys: status, owner, vehicle_type"""
+def _fetch_vehicles(filters: dict | None = None,
+                    month: str | None = None,
+                    start_date: str | None = None,
+                    end_date: str | None = None):
+    """
+    filters keys: status, owner, vehicle_type, month, start_date, end_date
+    Date filters apply to lastSvcDate (last service date).
+    vehicle_type supports plural forms: Trucks→Truck, SUVs→SUV, Sedans→Sedan, Vans→Van
+    """
     f = filters or {}
     db = get_db()
+
+    # Resolve date range — month overridden by explicit start/end
+    _start_dt: datetime | None = None
+    _end_dt:   datetime | None = None
+    _target_mo: int | None = None
+    _target_yr: int | None = None
+
+    _eff_start = start_date or f.get("start_date")
+    _eff_end   = end_date   or f.get("end_date")
+    _eff_month = month      or f.get("month")
+
+    if _eff_start or _eff_end:
+        _start_dt = _parse_date_to_dt(_eff_start) if _eff_start else None
+        _end_dt   = _parse_date_to_dt(_eff_end)   if _eff_end   else None
+    elif _eff_month:
+        m = _re.match(r"([A-Za-z]+)\s+(\d{4})", _eff_month.strip())
+        if m:
+            abbr = m.group(1)[:3].capitalize()
+            if abbr in _MONTHS_SHORT:
+                _target_mo = _MONTHS_SHORT.index(abbr)
+                _target_yr = int(m.group(2))
+
+    # Normalise vehicle_type: strip trailing 's' to handle plurals gracefully
+    # e.g. "Trucks" → "Truck", "SUVs" → "SUV", "Sedans" → "Sedan", "Vans" → "Van"
+    _vtype_filter = (f.get("vehicle_type") or "").strip()
+    if _vtype_filter.lower().endswith("s") and len(_vtype_filter) > 2:
+        _vtype_singular = _vtype_filter[:-1]  # strip trailing 's'
+    else:
+        _vtype_singular = None
+
     rows = []
     for doc in db.collection("vehicles").stream():
         d = doc.to_dict()
@@ -383,14 +420,33 @@ def _fetch_vehicles(filters: dict | None = None):
             "odo":         d.get("odo", ""),
         }
 
+        # ── Status filter ────────────────────────────────────────────────────
         if f.get("status") and row["status"].lower() != f["status"].lower():
             continue
+
+        # ── Owner filter (partial, case-insensitive) ─────────────────────────
         if f.get("owner") and f["owner"].lower() not in row["owner"].lower():
             continue
-        if f.get("vehicle_type") and row["type"].lower() != f["vehicle_type"].lower():
-            continue
+
+        # ── Vehicle type filter (exact or singular match, case-insensitive) ──
+        if _vtype_filter:
+            row_type_lower = row["type"].lower()
+            if (row_type_lower != _vtype_filter.lower()
+                    and (_vtype_singular is None
+                         or row_type_lower != _vtype_singular.lower())):
+                continue
+
+        # ── Date filter on lastSvcDate ────────────────────────────────────────
+        if _start_dt is not None or _end_dt is not None:
+            if not _in_date_range(row["lastSvcDate"], _start_dt, _end_dt):
+                continue
+        elif _target_mo is not None:
+            parsed = _parse_month_year(row["lastSvcDate"])
+            if not parsed or parsed[0] != _target_mo or parsed[1] != _target_yr:
+                continue
 
         rows.append(row)
+
     rows.sort(key=lambda r: r["plate"])
     return rows
 
@@ -555,9 +611,12 @@ REPORT_FILTERS: dict[str, list[str]] = {
         "month",
     ],
     "vehicles": [
-        "status",            # "Active" | "Maintenance" | "Inactive"
+        "status",            # "Active" | "Maintenance" | "Inactive" | "Overdue" | "Due Soon"
         "owner",             # partial owner name match
-        "vehicle_type",      # exact type e.g. "Truck" | "Sedan"
+        "vehicle_type",      # vehicle type e.g. "Truck" | "SUV" | "Sedan" | "Van" (plurals OK)
+        "start_date",        # filter by lastSvcDate range start (ISO YYYY-MM-DD or full date)
+        "end_date",          # filter by lastSvcDate range end
+        "month",             # filter by lastSvcDate month e.g. "July 2026"
     ],
     "bookings": [
         "status",            # "Pending" | "Confirmed" | "Completed" | "Cancelled"
@@ -592,7 +651,7 @@ def generate_pdf(report_type: str, month: str | None = None,
 
     cfg     = REPORT_CONFIG[report_type]
     fetcher = cfg["fetcher"]
-    _date_supported = {"issuance", "maintenance", "bookings"}
+    _date_supported = {"issuance", "maintenance", "bookings", "vehicles"}
     if report_type in _date_supported:
         data = fetcher(month=month, start_date=start_date, end_date=end_date,
                        filters=filters)
@@ -809,7 +868,7 @@ def generate_excel(report_type: str, month: str | None = None,
 
     cfg     = REPORT_CONFIG[report_type]
     fetcher = cfg["fetcher"]
-    _date_supported = {"issuance", "maintenance", "bookings"}
+    _date_supported = {"issuance", "maintenance", "bookings", "vehicles"}
     if report_type in _date_supported:
         data = fetcher(month=month, start_date=start_date, end_date=end_date,
                        filters=filters)

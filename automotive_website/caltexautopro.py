@@ -804,131 +804,7 @@ def ai_chat():
         resp.raise_for_status()
         payload = resp.json()
 
-        # ── Report intent detection ───────────────────────────────────────────
-        import re as _re
-        _msg_lower = message.lower()
-        _report_keywords = _re.compile(
-            r'\b(generate|create|make|export|download|print)\b.*\b(report|pdf|excel|xlsx)\b'
-            r'|\b(pdf|excel|xlsx)\s+report\b'
-            r'|\breport\s+(pdf|excel|xlsx)\b',
-            _re.IGNORECASE
-        )
-        _type_map = {
-            'inventory':   'inventory',
-            'stock':       'inventory',
-            'issuance':    'issuance',
-            'issued':      'issuance',
-            'maintenance': 'maintenance',
-            'service':     'maintenance',
-            'repair':      'maintenance',
-            'vehicle':     'vehicles',
-            'fleet':       'vehicles',
-            'booking':     'bookings',
-            'appointment': 'bookings',
-        }
-
-        # ── Month extraction from message ────────────────────────────────────
-        def _extract_month(msg: str) -> str | None:
-            """Extract a month+year string like 'March 2026' from the user message."""
-            _mo_names = [
-                'january','february','march','april','may','june',
-                'july','august','september','october','november','december'
-            ]
-            _mo_abbrs = [m[:3] for m in _mo_names]
-            # "this month" or "current month"
-            if _re.search(r'\b(this month|current month)\b', msg, _re.I):
-                from datetime import datetime as _dt
-                now = _dt.now()
-                return _mo_names[now.month - 1].capitalize() + ' ' + str(now.year)
-            # "last month"
-            if _re.search(r'\blast month\b', msg, _re.I):
-                from datetime import datetime as _dt
-                now = _dt.now()
-                mo = now.month - 2  # 0-based for list
-                yr = now.year if now.month > 1 else now.year - 1
-                if mo < 0: mo = 11
-                return _mo_names[mo].capitalize() + ' ' + str(yr)
-            # Full name: "March 2026"
-            m = _re.search(
-                r'\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})\b',
-                msg, _re.I)
-            if m:
-                return m.group(1).capitalize() + ' ' + m.group(2)
-            # Abbreviation: "Mar 2026"
-            m2 = _re.search(
-                r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{4})\b',
-                msg, _re.I)
-            if m2:
-                idx = _mo_abbrs.index(m2.group(1).lower())
-                return _mo_names[idx].capitalize() + ' ' + m2.group(2)
-            return None
-
-        def _extract_date_range(msg: str) -> tuple[str | None, str | None]:
-            """
-            Extract start_date and end_date from phrases like:
-              - "from March 1 to March 31 2026"
-              - "March 1-31, 2026"
-              - "from 2026-03-01 to 2026-03-31"
-              - "between January 1 and March 31 2026"
-            Returns (start_date, end_date) as ISO strings or None.
-            """
-            from datetime import datetime as _dt
-            _MO = ['january','february','march','april','may','june',
-                   'july','august','september','october','november','december']
-            _MO_ABR = [m[:3] for m in _MO]
-
-            def _mo_idx(name: str) -> int | None:
-                n = name.lower()
-                if n in _MO:     return _MO.index(n) + 1
-                if n in _MO_ABR: return _MO_ABR.index(n) + 1
-                return None
-
-            def _to_iso(mo_name: str, day: str, year: str) -> str | None:
-                mi = _mo_idx(mo_name)
-                if mi is None: return None
-                try:
-                    return _dt(int(year), mi, int(day)).strftime('%Y-%m-%d')
-                except ValueError:
-                    return None
-
-            # ISO range: "2026-03-01 to 2026-03-31" / "2026-03-01 and 2026-03-31"
-            m = _re.search(
-                r'(\d{4}-\d{2}-\d{2})\s+(?:to|and|-)\s+(\d{4}-\d{2}-\d{2})',
-                msg, _re.I)
-            if m:
-                return m.group(1), m.group(2)
-
-            _mo_pat = r'(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)'
-            # "from March 1, 2026 to March 31, 2026"
-            m2 = _re.search(
-                rf'(?:from|between)\s+({_mo_pat})\s+(\d{{1,2}})(?:st|nd|rd|th)?[,\s]+(\d{{4}})\s+(?:to|and|-)\s+({_mo_pat})\s+(\d{{1,2}})(?:st|nd|rd|th)?[,\s]+(\d{{4}})',
-                msg, _re.I)
-            if m2:
-                sd = _to_iso(m2.group(1), m2.group(2), m2.group(3))
-                ed = _to_iso(m2.group(4), m2.group(5), m2.group(6))
-                if sd and ed: return sd, ed
-
-            # "from March 1 to March 31, 2026" (shared year on end)
-            m3 = _re.search(
-                rf'(?:from|between)\s+({_mo_pat})\s+(\d{{1,2}})(?:st|nd|rd|th)?\s+(?:to|and|-)\s+({_mo_pat})\s+(\d{{1,2}})(?:st|nd|rd|th)?[,\s]+(\d{{4}})',
-                msg, _re.I)
-            if m3:
-                sd = _to_iso(m3.group(1), m3.group(2), m3.group(5))
-                ed = _to_iso(m3.group(3), m3.group(4), m3.group(5))
-                if sd and ed: return sd, ed
-
-            # "March 1-31, 2026" / "March 1 to 31, 2026"
-            m4 = _re.search(
-                rf'({_mo_pat})\s+(\d{{1,2}})(?:st|nd|rd|th)?\s*(?:-|to)\s*(\d{{1,2}})(?:st|nd|rd|th)?[,\s]+(\d{{4}})',
-                msg, _re.I)
-            if m4:
-                sd = _to_iso(m4.group(1), m4.group(2), m4.group(4))
-                ed = _to_iso(m4.group(1), m4.group(3), m4.group(4))
-                if sd and ed: return sd, ed
-
-            return None, None
-
-        # ── Rate limit check BEFORE report intent ────────────────────────────
+        # ── Rate limit check ──────────────────────────────────────────────────
         if payload.get('rate_limited'):
             return jsonify({
                 'success':      True,
@@ -938,27 +814,55 @@ def ai_chat():
                 'session_id':   payload.get('session_id', ''),
             })
 
-        if _report_keywords.search(_msg_lower):
-            detected_type   = 'inventory'
-            for kw, rtype in _type_map.items():
-                if kw in _msg_lower:
-                    detected_type = rtype
-                    break
-            detected_format  = 'excel' if any(w in _msg_lower for w in ('excel', 'xlsx', 'spreadsheet')) else 'pdf'
-            # Date range takes priority over month — try range extraction first
-            detected_start, detected_end = _extract_date_range(message)
-            detected_month = None if (detected_start or detected_end) else _extract_month(message)
-            return jsonify({
-                'success':            True,
-                'report_ready':       True,
-                'report_type':        detected_type,
-                'report_format':      detected_format,
-                'report_month':       detected_month,
-                'report_start_date':  detected_start,
-                'report_end_date':    detected_end,
-                'session_id':         payload.get('session_id', ''),
-                'answer':             payload.get('reply', f'Your {detected_type} report is ready to download.'),
-            })
+        # ── Report payload extraction ─────────────────────────────────────────
+        # The AI embeds a ```report_payload ... ``` JSON block in its reply
+        # when it detects a report request. We parse it here so the frontend
+        # receives clean structured data — no fragile regex on the raw message.
+        import re as _re
+        import json as _json
+
+        ai_reply    = payload.get('reply', '')
+        rp_match    = _re.search(
+            r'```report_payload\s*\n(.*?)\n```',
+            ai_reply, _re.DOTALL
+        )
+
+        if rp_match:
+            try:
+                rp = _json.loads(rp_match.group(1).strip())
+            except (_json.JSONDecodeError, ValueError):
+                rp = {}
+
+            if rp.get('report_type'):
+                # Strip the JSON block from the visible reply
+                clean_reply = _re.sub(
+                    r'\n?```report_payload\s*\n.*?\n```',
+                    '', ai_reply, flags=_re.DOTALL
+                ).strip()
+
+                # Pull date filters out of the filters dict (they are query-param
+                # level, not body-level filters, but we normalise them here)
+                raw_filters  = rp.get('filters') or {}
+                report_month = raw_filters.pop('month',      None)
+                report_start = raw_filters.pop('start_date', None)
+                report_end   = raw_filters.pop('end_date',   None)
+
+                # Normalise format: "xlsx" → "excel"
+                raw_fmt = (rp.get('format') or 'pdf').lower().replace('xlsx', 'excel')
+
+                return jsonify({
+                    'success':           True,
+                    'report_ready':      True,
+                    'report_type':       rp['report_type'],
+                    'report_format':     raw_fmt,   # "pdf" | "excel" | "both"
+                    'report_month':      report_month,
+                    'report_start_date': report_start,
+                    'report_end_date':   report_end,
+                    'report_filters':    raw_filters,  # forwarded to report generator
+                    'session_id':        payload.get('session_id', ''),
+                    'answer':            clean_reply or f'Your {rp["report_type"]} report is ready.',
+                })
+        
 
         return jsonify({
             'success':      True,
@@ -1025,10 +929,11 @@ def ai_generate_report():
 
     data        = request.get_json(silent=True) or {}
     report_type = data.get('report_type', '').strip().lower()
-    file_format = data.get('format', 'pdf').strip().lower()
+    file_format = (data.get('format', 'pdf') or 'pdf').strip().lower().replace('xlsx', 'excel')
     month       = (data.get('month') or '').strip() or None
     start_date  = (data.get('start_date') or '').strip() or None
     end_date    = (data.get('end_date') or '').strip() or None
+    filters     = data.get('filters') or {}   # dict forwarded from ai_chat
 
     valid_types = ('inventory', 'issuance', 'maintenance', 'vehicles', 'bookings')
     if report_type not in valid_types:
@@ -1050,6 +955,7 @@ def ai_generate_report():
         resp = _requests_lib.post(
             f'{_AI_BACKEND_URL}/admin/report',
             params=params,
+            json=filters if filters else None,   # body → filters dict
             timeout=90,
         )
         resp.raise_for_status()

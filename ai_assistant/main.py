@@ -1,7 +1,7 @@
 import traceback
 import uuid
 import re as _re
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from schemas import ChatRequest, ChatResponse, CustomerChatRequest, SessionInfoResponse
@@ -166,11 +166,11 @@ def admin_chat(req: ChatRequest):
 # ── Admin report ──────────────────────────────────────────────────────────────
 
 @app.post("/admin/report")
-def admin_report(report_type: str, format: str = "pdf",
-                 month: str | None = None,
-                 start_date: str | None = None,
-                 end_date: str | None = None,
-                 filters: dict | None = None):
+async def admin_report(request: Request,
+                       report_type: str, format: str = "pdf",
+                       month: str | None = None,
+                       start_date: str | None = None,
+                       end_date: str | None = None):
     """
     Generate a PDF or Excel report directly from Firestore data.
 
@@ -184,14 +184,24 @@ def admin_report(report_type: str, format: str = "pdf",
         end_date:    optional range end, e.g. "2026-03-31" or "March 31, 2026"
 
     JSON body (optional):
-        filters:     dict of additional filters, e.g.
-                     {"group": "Lubricants", "status": "Low"}
-                     Valid keys per report type are defined in REPORT_FILTERS.
-                     Unknown keys are silently ignored.
+        A flat dict of additional filters, e.g.
+            {"group": "Lubricants", "status": "Low"}
+        Valid keys per report type are defined in REPORT_FILTERS.
+        Unknown keys are silently ignored.
     """
     try:
         import io
         from report_generator import build_report, REPORT_CONFIG
+
+        # Read optional JSON body as filters dict
+        filters: dict | None = None
+        try:
+            body = await request.json()
+            if isinstance(body, dict) and body:
+                filters = body
+        except Exception:
+            pass  # no body or not JSON — treat as no filters
+
 
         if report_type not in REPORT_CONFIG:
             raise HTTPException(
