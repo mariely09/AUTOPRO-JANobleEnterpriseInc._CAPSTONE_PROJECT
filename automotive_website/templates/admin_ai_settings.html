@@ -245,7 +245,7 @@
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
             <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
-          AI service is offline. Start it with <code>ai_assistant\start.bat</code> then refresh.
+          <span>AI service is offline — start it with <code style="background:#fff3;padding:1px 5px;border-radius:4px;">ai_assistant\start.bat</code> (port 8001), then click Refresh.</span>
         </div>
 
 
@@ -578,6 +578,22 @@ function showToast(msg, type = 'success') {
 function setOffline(offline) {
   const b = document.getElementById('aiOfflineBanner');
   b.classList.toggle('show', offline);
+
+  // Update the service status badge
+  const badge = document.getElementById('serviceStatusBadge');
+  if (badge) {
+    if (offline) {
+      badge.innerHTML = '<span class="badge badge-disabled"><span class="badge-dot" style="background:#e53e3e;"></span>Offline</span>';
+    }
+    // Online badge is set in renderStatus()
+  }
+
+  // Grey out the Add Key button when offline to signal it won't work
+  const addBtn = document.querySelector('button[onclick="openAddKeyModal()"]');
+  if (addBtn) {
+    addBtn.style.opacity = offline ? '0.5' : '1';
+    addBtn.title = offline ? 'Start the AI service first' : '';
+  }
 }
 
 // ── Load all data ────────────────────────────────────────────────────────────
@@ -821,6 +837,10 @@ async function saveKey() {
       body: JSON.stringify(body),
     });
     const d = await r.json();
+    if (r.status === 503) {
+      _showModalFeedback('⚠ AI service is offline. Start ai_assistant\\start.bat first.', 'error');
+      return;
+    }
     if (!r.ok || !d.success) throw new Error(d.error || d.detail || 'Save failed');
     showToast(isEdit ? 'API key updated.' : 'API key added.', 'success');
     closeKeyModal();
@@ -840,6 +860,10 @@ async function testModalKey() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ api_key: apiKey }),
     });
+    if (r.status === 503) {
+      _showModalFeedback('⚠ AI service is offline. Start ai_assistant\\start.bat first.', 'error');
+      return;
+    }
     const d = await r.json();
     if (d.valid) {
       _showModalFeedback('✓ ' + (d.message || 'Connection successful!'), 'success');

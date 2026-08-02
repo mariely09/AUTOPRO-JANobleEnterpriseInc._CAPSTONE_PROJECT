@@ -1128,10 +1128,19 @@ def admin_ai_settings():
 
 # ── AI Settings API proxy ─────────────────────────────────────────────────────
 # The Flask server proxies all /api/ai-settings/* requests to the FastAPI
-# ai_assistant service, injecting the AI_ADMIN_TOKEN header so the FastAPI
-# side can verify the request came from an authenticated admin session.
+# ai_assistant service.
+#
+# IMPORTANT: The ai_settings endpoints live on the LOCAL ai_assistant service
+# (port 8001) — NOT the remote Render deployment.  We always talk to localhost
+# for these management calls so they work whether the app is running locally or
+# on a server.  The standard _AI_BACKEND_URL may point at Render for chat, but
+# key management must only ever touch the locally-running instance.
 
 _AI_ADMIN_TOKEN = os.environ.get('AI_ADMIN_TOKEN', 'caltex-admin-ai-2026')
+
+# Local FastAPI URL — always localhost:8001 for AI settings management.
+# Override with AI_SETTINGS_URL env var if your setup uses a different port.
+_AI_SETTINGS_URL = os.environ.get('AI_SETTINGS_URL', 'http://localhost:8001').rstrip('/')
 
 
 def _ai_settings_headers():
@@ -1142,15 +1151,37 @@ def _ai_settings_headers():
     }
 
 
+def _ai_settings_get(path, **kwargs):
+    """GET helper that always uses the local AI service URL."""
+    return _requests_lib.get(f'{_AI_SETTINGS_URL}{path}',
+                              headers=_ai_settings_headers(), **kwargs)
+
+
+def _ai_settings_post(path, **kwargs):
+    return _requests_lib.post(f'{_AI_SETTINGS_URL}{path}',
+                               headers=_ai_settings_headers(), **kwargs)
+
+
+def _ai_settings_put(path, **kwargs):
+    return _requests_lib.put(f'{_AI_SETTINGS_URL}{path}',
+                              headers=_ai_settings_headers(), **kwargs)
+
+
+def _ai_settings_delete(path, **kwargs):
+    return _requests_lib.delete(f'{_AI_SETTINGS_URL}{path}',
+                                 headers=_ai_settings_headers(), **kwargs)
+
+
+def _offline_response():
+    return jsonify({'success': False,
+                    'error': 'AI service offline. Start it with ai_assistant\\start.bat'}), 503
+
+
 @app.route('/api/ai-settings/status', methods=['GET'])
 def ai_settings_status():
     """Get current AI service status and API key table."""
     try:
-        resp = _requests_lib.get(
-            f'{_AI_BACKEND_URL}/ai-settings/status',
-            headers=_ai_settings_headers(),
-            timeout=10,
-        )
+        resp = _ai_settings_get('/ai-settings/status', timeout=10)
         resp.raise_for_status()
         return jsonify(resp.json())
     except _requests_lib.exceptions.ConnectionError:
@@ -1163,13 +1194,11 @@ def ai_settings_status():
 def ai_settings_logs():
     """Get recent AI event log."""
     try:
-        resp = _requests_lib.get(
-            f'{_AI_BACKEND_URL}/ai-settings/logs',
-            headers=_ai_settings_headers(),
-            timeout=10,
-        )
+        resp = _ai_settings_get('/ai-settings/logs', timeout=10)
         resp.raise_for_status()
         return jsonify(resp.json())
+    except _requests_lib.exceptions.ConnectionError:
+        return _offline_response()
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1179,16 +1208,11 @@ def ai_settings_add_key():
     """Add a new Groq API key."""
     data = request.get_json(silent=True) or {}
     try:
-        resp = _requests_lib.post(
-            f'{_AI_BACKEND_URL}/ai-settings/keys',
-            json=data,
-            headers=_ai_settings_headers(),
-            timeout=15,
-        )
+        resp = _ai_settings_post('/ai-settings/keys', json=data, timeout=15)
         resp.raise_for_status()
         return jsonify(resp.json())
     except _requests_lib.exceptions.ConnectionError:
-        return jsonify({'success': False, 'error': 'AI service offline'}), 503
+        return _offline_response()
     except _requests_lib.exceptions.HTTPError as e:
         try:
             detail = e.response.json().get('detail', str(e))
@@ -1199,21 +1223,32 @@ def ai_settings_add_key():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# NOTE: /test must be registered BEFORE /<key_id> so Flask does not treat the
+# literal string "test" as a key_id value.
+@app.route('/api/ai-settings/keys/test', methods=['POST'])
+def ai_settings_test_key():
+    """Test a Groq API key connection without saving it."""
+    data = request.get_json(silent=True) or {}
+    try:
+        resp = _ai_settings_post('/ai-settings/keys/test', json=data, timeout=30)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except _requests_lib.exceptions.ConnectionError:
+        return _offline_response()
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/ai-settings/keys/<key_id>', methods=['PUT'])
 def ai_settings_update_key(key_id):
     """Update an existing API key."""
     data = request.get_json(silent=True) or {}
     try:
-        resp = _requests_lib.put(
-            f'{_AI_BACKEND_URL}/ai-settings/keys/{key_id}',
-            json=data,
-            headers=_ai_settings_headers(),
-            timeout=15,
-        )
+        resp = _ai_settings_put(f'/ai-settings/keys/{key_id}', json=data, timeout=15)
         resp.raise_for_status()
         return jsonify(resp.json())
     except _requests_lib.exceptions.ConnectionError:
-        return jsonify({'success': False, 'error': 'AI service offline'}), 503
+        return _offline_response()
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -1222,34 +1257,11 @@ def ai_settings_update_key(key_id):
 def ai_settings_delete_key(key_id):
     """Delete an API key."""
     try:
-        resp = _requests_lib.delete(
-            f'{_AI_BACKEND_URL}/ai-settings/keys/{key_id}',
-            headers=_ai_settings_headers(),
-            timeout=10,
-        )
+        resp = _ai_settings_delete(f'/ai-settings/keys/{key_id}', timeout=10)
         resp.raise_for_status()
         return jsonify(resp.json())
     except _requests_lib.exceptions.ConnectionError:
-        return jsonify({'success': False, 'error': 'AI service offline'}), 503
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/api/ai-settings/keys/test', methods=['POST'])
-def ai_settings_test_key():
-    """Test a Groq API key connection."""
-    data = request.get_json(silent=True) or {}
-    try:
-        resp = _requests_lib.post(
-            f'{_AI_BACKEND_URL}/ai-settings/keys/test',
-            json=data,
-            headers=_ai_settings_headers(),
-            timeout=30,
-        )
-        resp.raise_for_status()
-        return jsonify(resp.json())
-    except _requests_lib.exceptions.ConnectionError:
-        return jsonify({'success': False, 'error': 'AI service offline'}), 503
+        return _offline_response()
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -1259,16 +1271,11 @@ def ai_settings_rotation():
     """Update rotation settings."""
     data = request.get_json(silent=True) or {}
     try:
-        resp = _requests_lib.put(
-            f'{_AI_BACKEND_URL}/ai-settings/rotation',
-            json=data,
-            headers=_ai_settings_headers(),
-            timeout=10,
-        )
+        resp = _ai_settings_put('/ai-settings/rotation', json=data, timeout=10)
         resp.raise_for_status()
         return jsonify(resp.json())
     except _requests_lib.exceptions.ConnectionError:
-        return jsonify({'success': False, 'error': 'AI service offline'}), 503
+        return _offline_response()
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -1277,15 +1284,11 @@ def ai_settings_rotation():
 def ai_settings_reload():
     """Force-reload API keys from Firestore."""
     try:
-        resp = _requests_lib.post(
-            f'{_AI_BACKEND_URL}/ai-settings/reload',
-            headers=_ai_settings_headers(),
-            timeout=10,
-        )
+        resp = _ai_settings_post('/ai-settings/reload', timeout=10)
         resp.raise_for_status()
         return jsonify(resp.json())
     except _requests_lib.exceptions.ConnectionError:
-        return jsonify({'success': False, 'error': 'AI service offline'}), 503
+        return _offline_response()
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
