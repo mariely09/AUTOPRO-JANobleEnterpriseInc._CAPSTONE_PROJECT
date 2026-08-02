@@ -1,5 +1,13 @@
 """
 LLM client using Groq (fast cloud inference, OpenAI-compatible API).
+
+API key rotation is handled transparently by ApiKeyManager:
+  - On RateLimitError the manager puts the current key into cooldown and
+    returns the next available key.
+  - The chat() function retries up to MAX_RETRY_ATTEMPTS times across
+    different keys before giving up.
+  - If all keys are exhausted the original RateLimitError is re-raised so
+    main.py can return the standard friendly rate-limit message.
 """
 import json
 import logging
@@ -7,6 +15,7 @@ from groq import Groq, BadRequestError, RateLimitError
 from config import settings
 from firestore_tools import TOOL_SCHEMAS, TOOL_FUNCTIONS
 from verifier import verify_reply
+from api_key_manager import get_manager
 
 logger = logging.getLogger(__name__)
 
@@ -357,15 +366,62 @@ Keyword mappings:
 
 """ + _build_report_prompt()
 
-_client = Groq(api_key=settings.GROQ_API_KEY)
-
-
 def _call_groq(messages: list[dict], tools: list[dict] | None = None):
-    """Thin wrapper around the Groq API call."""
-    kwargs = {"model": settings.GROQ_MODEL, "messages": messages}
-    if tools:
-        kwargs["tools"] = tools
-    return _client.chat.completions.create(**kwargs)
+    """
+    Thin wrapper around the Groq API call.
+
+    Uses the ApiKeyManager to get the current active key.  On RateLimitError
+    it rotates to the next key and retries automatically (up to
+    manager._max_retries times total).  A RateLimitError is re-raised only
+    when all keys are exhausted so the caller can return the friendly message.
+    """
+    manager = get_manager()
+
+    def _do_call(api_key: str):
+        client = Groq(api_key=api_key)
+        kwargs = {"model": settings.GROQ_MODEL, "messages": messages}
+        if tools:
+            kwargs["tools"] = tools
+        return client.chat.completions.create(**kwargs)
+
+    # Try current key, then rotate on rate-limit up to max_retries times
+    max_attempts = max(1, manager._max_retries)
+    last_key_id = manager.get_current_key_id()
+    current_key = manager.get_current_key()
+
+    if not current_key:
+        # No keys at all — fall back to env var
+        current_key = settings.GROQ_API_KEY
+        if not current_key:
+            raise RateLimitError("No Groq API key configured.")
+
+    last_exc: Exception | None = None
+    for attempt in range(max_attempts):
+        try:
+            return _do_call(current_key)
+        except RateLimitError as exc:
+            last_exc = exc
+            logger.warning(
+                "_call_groq: RateLimitError on attempt %d/%d (key_id=%s)",
+                attempt + 1, max_attempts, last_key_id,
+            )
+            if not manager._rotation_enabled:
+                raise
+
+            next_key = manager.rotate_on_rate_limit(failed_key_id=last_key_id)
+            if next_key is None:
+                # All keys exhausted
+                raise RateLimitError(
+                    "All API keys are currently rate-limited. "
+                    "Please try again in a few minutes."
+                ) from exc
+            last_key_id = manager.get_current_key_id()
+            current_key = next_key
+
+    # Exhausted retries
+    if last_exc:
+        raise last_exc
+    raise RateLimitError("Groq API key rotation exhausted all retries.")
 
 
 def _strip_null_args(raw_args: str) -> dict:

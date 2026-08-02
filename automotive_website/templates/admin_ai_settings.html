@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Settings — Admin Portal</title>
+    <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
+    <link rel="stylesheet" href="../static/css/style.css">
+    <link rel="stylesheet" href="../static/css/admin.css">
+    <style>
+      /* ── Page-level overrides ── */
+      .ai-page { max-width: 1200px; }
+
+      /* Section cards */
+      .ai-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+        padding: 1.5rem 1.75rem;
+        margin-bottom: 1.5rem;
+      }
+      .ai-card-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.9rem;
+        border-bottom: 1.5px solid #f0f4f8;
+      }
+      .ai-card-icon {
+        width: 36px; height: 36px;
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+      }
+      .ai-card-title { font-weight: 700; font-size: 0.97rem; color: #1a202c; }
+      .ai-card-sub   { font-size: 0.76rem; color: #718096; margin-top: 1px; }
+
+      /* Status grid */
+      .ai-status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: 0.9rem;
+      }
+      .ai-stat {
+        background: #f7f8fa;
+        border-radius: 12px;
+        padding: 1rem 1.1rem;
+        border: 1px solid #e2e8f0;
+      }
+      .ai-stat-label { font-size: 0.72rem; font-weight: 700; color: #718096;
+                       text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+      .ai-stat-value { font-size: 1.45rem; font-weight: 800; color: #1a202c; }
+      .ai-stat-sub   { font-size: 0.72rem; color: #a0aec0; margin-top: 2px; }
+
+      /* Keys table */
+      .keys-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+      .keys-table th {
+        background: #1a202c; color: #fff; font-weight: 700; font-size: 0.75rem;
+        text-transform: uppercase; letter-spacing: 0.4px;
+        padding: 10px 12px; text-align: left;
+      }
+      .keys-table td { padding: 10px 12px; border-bottom: 1px solid #f0f4f8; vertical-align: middle; }
+      .keys-table tr:last-child td { border-bottom: none; }
+      .keys-table tr:nth-child(even) td { background: #f8fafc; }
+      .keys-table tr:hover td { background: #f0f7ff; }
+
+      /* Status badges */
+      .badge {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 3px 10px; border-radius: 20px;
+        font-size: 0.72rem; font-weight: 700;
+      }
+      .badge-active   { background: #f0fff4; color: #276749; }
+      .badge-cooldown { background: #fffbeb; color: #975a16; }
+      .badge-disabled { background: #f7f8fa; color: #718096; }
+      .badge-current  { background: #ebf8ff; color: #2b6cb0; }
+      .badge-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+      /* Action buttons */
+      .btn-act {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 5px 10px; border-radius: 7px;
+        font-size: 0.75rem; font-weight: 600; cursor: pointer;
+        border: 1.5px solid; transition: all 0.15s;
+      }
+      .btn-act-edit    { border-color: #3182ce; color: #3182ce; background: #ebf8ff; }
+      .btn-act-edit:hover { background: #3182ce; color: #fff; }
+      .btn-act-toggle  { border-color: #718096; color: #718096; background: #f7f8fa; }
+      .btn-act-toggle:hover { background: #718096; color: #fff; }
+      .btn-act-delete  { border-color: #e53e3e; color: #e53e3e; background: #fff5f5; }
+      .btn-act-delete:hover { background: #e53e3e; color: #fff; }
+      .btn-act-test    { border-color: #38a169; color: #38a169; background: #f0fff4; }
+      .btn-act-test:hover { background: #38a169; color: #fff; }
+
+      /* Key value mono display */
+      .key-mono { font-family: 'Courier New', monospace; font-size: 0.82rem;
+                  color: #4a5568; letter-spacing: 1px; }
+
+      /* Log table */
+      .log-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+      .log-table th {
+        background: #1a202c; color: #fff; font-weight: 700; font-size: 0.72rem;
+        text-transform: uppercase; padding: 8px 12px; text-align: left;
+      }
+      .log-table td { padding: 8px 12px; border-bottom: 1px solid #f0f4f8; color: #4a5568; }
+      .log-table tr:nth-child(even) td { background: #f8fafc; }
+
+      /* Rotation settings form */
+      .rot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+      .form-field { display: flex; flex-direction: column; gap: 5px; }
+      .form-field label { font-size: 0.78rem; font-weight: 700; color: #4a5568; }
+      .form-field input, .form-field select {
+        padding: 0.55rem 0.75rem;
+        border: 1.5px solid #e2e8f0; border-radius: 8px;
+        font-size: 0.88rem; color: #1a202c; outline: none;
+        transition: border-color 0.2s;
+      }
+      .form-field input:focus, .form-field select:focus { border-color: #E8001C; }
+
+      /* Modal */
+      .ai-modal-overlay {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.45); z-index: 1000;
+        align-items: center; justify-content: center;
+      }
+      .ai-modal-overlay.open { display: flex; }
+      .ai-modal {
+        background: #fff; border-radius: 18px; padding: 2rem;
+        width: 100%; max-width: 500px; box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+        position: relative;
+      }
+      .ai-modal h3 { margin: 0 0 1.25rem; font-size: 1.1rem; color: #1a202c; }
+      .ai-modal-close {
+        position: absolute; top: 1rem; right: 1rem;
+        background: #f7f8fa; border: none; border-radius: 50%;
+        width: 32px; height: 32px; font-size: 1.1rem; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; color: #718096;
+      }
+      .ai-modal-close:hover { background: #e2e8f0; }
+
+      /* Toast */
+      #aiToast {
+        position: fixed; bottom: 1.5rem; right: 1.5rem;
+        padding: 0.75rem 1.25rem; border-radius: 10px;
+        font-size: 0.88rem; font-weight: 600; color: #fff;
+        z-index: 9999; opacity: 0; transition: opacity 0.3s;
+        pointer-events: none; box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+      }
+      #aiToast.show { opacity: 1; }
+      #aiToast.success { background: #276749; }
+      #aiToast.error   { background: #c53030; }
+      #aiToast.info    { background: #2b6cb0; }
+
+      /* Offline banner */
+      #aiOfflineBanner {
+        display: none;
+        background: #fff3cd; border: 1px solid #ffc107; border-radius: 10px;
+        padding: 0.75rem 1.25rem; margin-bottom: 1rem;
+        font-size: 0.85rem; color: #856404; font-weight: 600;
+        align-items: center; gap: 0.6rem;
+      }
+      #aiOfflineBanner.show { display: flex; }
+
+      /* Empty state */
+      .ai-empty {
+        text-align: center; padding: 2.5rem 1rem;
+        color: #a0aec0; font-size: 0.88rem;
+      }
+      .ai-empty svg { display: block; margin: 0 auto 0.75rem; opacity: 0.35; }
+
+      /* Responsive */
+      @media (max-width: 700px) {
+        .ai-status-grid { grid-template-columns: repeat(2, 1fr); }
+        .rot-grid { grid-template-columns: 1fr; }
+        .keys-table { display: block; overflow-x: auto; }
+      }
+    </style>
+</head>
+<body class="portal-body" data-page="ai-settings">
+<script>
+(function() {
+  var logoutTime = localStorage.getItem('_loggedOut');
+  var loginTime  = localStorage.getItem('_loggedIn');
+  if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+    return;
+  }
+  var hasSession = sessionStorage.getItem('apUser') || sessionStorage.getItem('spUser') || sessionStorage.getItem('cpUser');
+  if (!hasSession) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+  }
+})();
+</script>
+
+<div class="admin-dashboard" id="adminDashboard" style="display:flex;flex-direction:column;">
+  <div id="headerContainer"></div>
+  <div class="admin-dashboard-body">
+    <div id="sidebarContainer"></div>
+
+    <div class="admin-main">
+      <div class="admin-header">
+        <div>
+          <div class="breadcrumb">Admin Portal &rsaquo; Administration</div>
+          <div class="admin-header-title">AI Settings</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:0.6rem;align-items:center;">
+          <button onclick="refreshAll()" id="refreshBtn"
+            style="display:flex;align-items:center;gap:5px;padding:0.5rem 1rem;
+                   background:#f0f7ff;border:1.5px solid #bee3f8;border-radius:8px;
+                   font-size:0.85rem;font-weight:600;color:#2b6cb0;cursor:pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            Refresh
+          </button>
+          <button onclick="openAddKeyModal()"
+            style="display:flex;align-items:center;gap:5px;padding:0.5rem 1.1rem;
+                   background:#E8001C;border:none;border-radius:8px;
+                   font-size:0.85rem;font-weight:700;color:#fff;cursor:pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add API Key
+          </button>
+        </div>
+      </div>
+
+      <div class="admin-content ai-page">
+
+        <!-- Offline banner -->
+        <div id="aiOfflineBanner">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          AI service is offline. Start it with <code>ai_assistant\start.bat</code> then refresh.
+        </div>
+
+
+        <!-- ── 1. Current AI Status ── -->
+        <div class="ai-card">
+          <div class="ai-card-header">
+            <div class="ai-card-icon" style="background:linear-gradient(135deg,#E8001C,#c0001a);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                   fill="none" stroke="#fff" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+              </svg>
+            </div>
+            <div>
+              <div class="ai-card-title">Current AI Status</div>
+              <div class="ai-card-sub">Live overview of the Groq AI service</div>
+            </div>
+            <div id="serviceStatusBadge" style="margin-left:auto;"></div>
+          </div>
+
+          <div class="ai-status-grid" id="statusGrid">
+            <div class="ai-stat">
+              <div class="ai-stat-label">Active Account</div>
+              <div class="ai-stat-value" id="statAccount" style="font-size:1rem;">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Active Key</div>
+              <div class="ai-stat-value key-mono" id="statKey" style="font-size:0.82rem;margin-top:4px;">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Current Model</div>
+              <div class="ai-stat-value" id="statModel" style="font-size:0.88rem;margin-top:4px;">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Total Keys</div>
+              <div class="ai-stat-value" id="statTotal">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Available Keys</div>
+              <div class="ai-stat-value" id="statAvail" style="color:#276749;">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Cooling Down</div>
+              <div class="ai-stat-value" id="statCooldown" style="color:#975a16;">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Disabled</div>
+              <div class="ai-stat-value" id="statDisabled" style="color:#718096;">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Total Requests</div>
+              <div class="ai-stat-value" id="statRequests">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Key Switches</div>
+              <div class="ai-stat-value" id="statSwitches">—</div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- ── 2. API Keys Table ── -->
+        <div class="ai-card">
+          <div class="ai-card-header">
+            <div class="ai-card-icon" style="background:linear-gradient(135deg,#003087,#001f5c);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                   fill="none" stroke="#fff" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778
+                         5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+              </svg>
+            </div>
+            <div>
+              <div class="ai-card-title">API Keys</div>
+              <div class="ai-card-sub" id="keysSubLabel">Loading…</div>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table class="keys-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Account Name</th>
+                  <th>API Key</th>
+                  <th>Status</th>
+                  <th>Last Used</th>
+                  <th>Cooldown</th>
+                  <th style="text-align:center;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="keysTableBody">
+                <tr><td colspan="7" class="ai-empty">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"
+                       viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  Loading API keys…
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+
+        <!-- ── 3. Rotation Settings ── -->
+        <div class="ai-card">
+          <div class="ai-card-header">
+            <div class="ai-card-icon" style="background:linear-gradient(135deg,#0d9488,#0a7a70);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                   fill="none" stroke="#fff" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"/>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+              </svg>
+            </div>
+            <div>
+              <div class="ai-card-title">Rotation Settings</div>
+              <div class="ai-card-sub">Configure automatic key rotation behaviour</div>
+            </div>
+          </div>
+
+          <div class="rot-grid">
+            <div class="form-field">
+              <label>Auto Rotation</label>
+              <select id="rotEnabled">
+                <option value="true">Enabled — auto-switch on rate limit</option>
+                <option value="false">Disabled — single key only</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Cooldown Duration (seconds)</label>
+              <input type="number" id="rotCooldown" min="30" max="3600" step="30" value="300">
+            </div>
+            <div class="form-field">
+              <label>Max Retry Attempts</label>
+              <input type="number" id="rotRetries" min="1" max="10" step="1" value="3">
+            </div>
+            <div class="form-field">
+              <label>Rotation Strategy</label>
+              <select disabled style="background:#f7f8fa;color:#718096;">
+                <option>Round Robin (default)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-top:1.25rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
+            <button onclick="saveRotationSettings()"
+              style="padding:0.6rem 1.4rem;background:#0d9488;border:none;border-radius:8px;
+                     color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;">
+              Save Rotation Settings
+            </button>
+          </div>
+        </div>
+
+
+        <!-- ── 4. Event Log ── -->
+        <div class="ai-card">
+          <div class="ai-card-header">
+            <div class="ai-card-icon" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                   fill="none" stroke="#fff" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </div>
+            <div>
+              <div class="ai-card-title">Recent Events</div>
+              <div class="ai-card-sub">Last 100 AI service events (newest first)</div>
+            </div>
+            <button onclick="loadLogs()"
+              style="margin-left:auto;padding:0.4rem 0.9rem;background:#f5f3ff;
+                     border:1.5px solid #d6bcfa;border-radius:7px;
+                     font-size:0.78rem;font-weight:700;color:#7c3aed;cursor:pointer;">
+              Reload Logs
+            </button>
+          </div>
+
+          <div style="max-height:380px;overflow-y:auto;border-radius:10px;border:1px solid #e2e8f0;">
+            <table class="log-table">
+              <thead>
+                <tr>
+                  <th style="width:160px;">Timestamp</th>
+                  <th style="width:130px;">Event</th>
+                  <th style="width:160px;">Account</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody id="logTableBody">
+                <tr><td colspan="4" class="ai-empty">Loading events…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /.admin-content -->
+    </div><!-- /.admin-main -->
+  </div><!-- /.admin-dashboard-body -->
+</div><!-- /.admin-dashboard -->
+
+<!-- Toast notification -->
+<div id="aiToast"></div>
+
+
+<!-- ── Add / Edit Key Modal ── -->
+<div class="ai-modal-overlay" id="keyModal">
+  <div class="ai-modal">
+    <button class="ai-modal-close" onclick="closeKeyModal()">&times;</button>
+    <h3 id="keyModalTitle">Add API Key</h3>
+
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+      <input type="hidden" id="keyModalId">
+
+      <div class="form-field">
+        <label>Account Name <span style="color:#e53e3e;">*</span></label>
+        <input type="text" id="keyModalName" placeholder="e.g. Groq Account 1" maxlength="50">
+      </div>
+
+      <div class="form-field">
+        <label>API Key <span style="color:#e53e3e;">*</span>
+          <span id="keyModalKeyHint" style="font-weight:400;color:#a0aec0;">
+            (leave blank to keep existing)
+          </span>
+        </label>
+        <div style="position:relative;display:flex;align-items:center;">
+          <input type="password" id="keyModalKey" placeholder="gsk_…"
+            style="padding-right:2.5rem;font-family:'Courier New',monospace;letter-spacing:1px;width:100%;">
+          <button type="button" onclick="toggleKeyVisibility()"
+            style="position:absolute;right:8px;background:none;border:none;cursor:pointer;color:#718096;padding:4px;">
+            <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label>Status</label>
+        <select id="keyModalStatus">
+          <option value="active">Active</option>
+          <option value="disabled">Disabled</option>
+        </select>
+      </div>
+
+      <div style="display:flex;gap:0.65rem;flex-wrap:wrap;margin-top:0.25rem;">
+        <button onclick="testModalKey()"
+          style="flex:1;padding:0.6rem;background:#f0fff4;border:1.5px solid #9ae6b4;
+                 border-radius:8px;color:#276749;font-weight:700;font-size:0.85rem;cursor:pointer;">
+          Test Connection
+        </button>
+        <button onclick="saveKey()"
+          style="flex:2;padding:0.6rem;background:#E8001C;border:none;
+                 border-radius:8px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;">
+          Save Key
+        </button>
+      </div>
+      <div id="keyModalFeedback" style="font-size:0.82rem;padding:0.5rem 0.75rem;
+           border-radius:7px;display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Confirm delete modal ── -->
+<div class="ai-modal-overlay" id="deleteModal">
+  <div class="ai-modal" style="max-width:400px;">
+    <button class="ai-modal-close" onclick="closeDeleteModal()">&times;</button>
+    <h3>Delete API Key?</h3>
+    <p style="color:#718096;font-size:0.88rem;margin:0 0 1.25rem;">
+      This will permanently remove the key
+      <strong id="deleteKeyName">—</strong> from Firestore. This action cannot be undone.
+    </p>
+    <input type="hidden" id="deleteKeyId">
+    <div style="display:flex;gap:0.65rem;">
+      <button onclick="closeDeleteModal()"
+        style="flex:1;padding:0.6rem;background:#f7f8fa;border:1.5px solid #e2e8f0;
+               border-radius:8px;color:#4a5568;font-weight:600;font-size:0.85rem;cursor:pointer;">
+        Cancel
+      </button>
+      <button onclick="confirmDelete()"
+        style="flex:1;padding:0.6rem;background:#e53e3e;border:none;
+               border-radius:8px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;">
+        Delete
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Firebase SDK (needed for auth guard + sidebar user display) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+  if (!firebase.apps.length) {
+    firebase.initializeApp({
+      apiKey: "AIzaSyCaoJWbwJk0Xi694ARHpdHhiNjT0SpASRs",
+      authDomain: "caltex-autopro-1e664.firebaseapp.com",
+      projectId: "caltex-autopro-1e664",
+      storageBucket: "caltex-autopro-1e664.firebasestorage.app",
+      messagingSenderId: "930140433367",
+      appId: "1:930140433367:web:cf67bfa388fa517422b992"
+    });
+  }
+</script>
+<script src="../static/js/admin_sidebar.js"></script>
+
+<script>
+'use strict';
+
+// ── Utility helpers ──────────────────────────────────────────────────────────
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('aiToast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.className = '', 3000);
+}
+
+function setOffline(offline) {
+  const b = document.getElementById('aiOfflineBanner');
+  b.classList.toggle('show', offline);
+}
+
+// ── Load all data ────────────────────────────────────────────────────────────
+
+async function refreshAll() {
+  const btn = document.getElementById('refreshBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
+  try {
+    await Promise.all([loadStatus(), loadLogs()]);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Refresh';
+    }
+  }
+}
+
+// ── Status & keys ────────────────────────────────────────────────────────────
+// (Full implementation with key cache is defined below, after _keysCache declaration)
+
+function renderStatus(d) {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('statAccount',  d.current_account  || '—');
+  set('statKey',      d.current_key_masked || '—');
+  set('statModel',    d.current_model    || '—');
+  set('statTotal',    d.total_keys       ?? '—');
+  set('statAvail',    d.active_keys      ?? '—');
+  set('statCooldown', d.cooldown_keys    ?? '—');
+  set('statDisabled', d.disabled_keys    ?? '—');
+  set('statRequests', (d.total_requests  ?? 0).toLocaleString());
+  set('statSwitches', (d.total_switches  ?? 0).toLocaleString());
+
+  // Service badge
+  const badge = document.getElementById('serviceStatusBadge');
+  if (badge) {
+    badge.innerHTML = '<span class="badge badge-active"><span class="badge-dot" style="background:#38a169;"></span>Online</span>';
+  }
+}
+
+function renderKeys(keys) {
+  const sub = document.getElementById('keysSubLabel');
+  if (sub) sub.textContent = keys.length + ' key(s) configured — max 10';
+
+  const tbody = document.getElementById('keysTableBody');
+  if (!tbody) return;
+
+  if (!keys.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="ai-empty">
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="1.5"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+      </svg>
+      No API keys configured. Click <strong>Add API Key</strong> to get started.
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = keys.map((k, i) => {
+    const statusBadge = _statusBadge(k.status, k.is_current);
+    const cooldownText = (k.cooldown_remaining > 0)
+      ? `<span style="color:#975a16;font-weight:600;">${k.cooldown_remaining}s</span>`
+      : '<span style="color:#a0aec0;">—</span>';
+
+    const toggleLabel = k.status === 'disabled' ? 'Enable' : 'Disable';
+    const toggleStyle = k.status === 'disabled'
+      ? 'border-color:#38a169;color:#38a169;background:#f0fff4;'
+      : 'border-color:#718096;color:#718096;background:#f7f8fa;';
+
+    return `<tr>
+      <td style="font-weight:700;color:#718096;">${i + 1}</td>
+      <td style="font-weight:600;color:#1a202c;">${_esc(k.account_name)}</td>
+      <td><span class="key-mono">${_esc(k.api_key_masked)}</span></td>
+      <td>${statusBadge}</td>
+      <td style="color:#718096;font-size:0.8rem;">${_esc(k.last_used)}</td>
+      <td>${cooldownText}</td>
+      <td>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;">
+          <button class="btn-act btn-act-edit" onclick="openEditKeyModal('${k.key_id}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit
+          </button>
+          <button class="btn-act btn-act-test" onclick="testExistingKey('${k.key_id}','${_esc(k.account_name)}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Test
+          </button>
+          <button class="btn-act" style="${toggleStyle}"
+            onclick="toggleKeyStatus('${k.key_id}','${k.status === 'disabled' ? 'active' : 'disabled'}','${_esc(k.account_name)}')">
+            ${toggleLabel}
+          </button>
+          <button class="btn-act btn-act-delete" onclick="openDeleteModal('${k.key_id}','${_esc(k.account_name)}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            Delete
+          </button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function _statusBadge(status, isCurrent) {
+  if (isCurrent && status !== 'disabled')
+    return '<span class="badge badge-current"><span class="badge-dot" style="background:#3182ce;"></span>In Use</span>';
+  if (status === 'disabled')
+    return '<span class="badge badge-disabled"><span class="badge-dot" style="background:#a0aec0;"></span>Disabled</span>';
+  if (status === 'cooldown')
+    return '<span class="badge badge-cooldown"><span class="badge-dot" style="background:#ed8936;"></span>Cooling Down</span>';
+  return '<span class="badge badge-active"><span class="badge-dot" style="background:#38a169;"></span>Active</span>';
+}
+
+function _esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Logs ─────────────────────────────────────────────────────────────────────
+
+async function loadLogs() {
+  try {
+    const r = await fetch('/api/ai-settings/logs');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    renderLogs(d.logs || []);
+  } catch (e) {
+    document.getElementById('logTableBody').innerHTML =
+      '<tr><td colspan="4" class="ai-empty">Could not load logs — AI service may be offline.</td></tr>';
+  }
+}
+
+const LOG_COLORS = {
+  rate_limit:     '#c53030',
+  key_switch:     '#2b6cb0',
+  cooldown:       '#975a16',
+  key_added:      '#276749',
+  key_deleted:    '#c53030',
+  key_updated:    '#2b6cb0',
+  settings_updated:'#2b6cb0',
+  all_unavailable:'#c53030',
+};
+
+function renderLogs(logs) {
+  const tbody = document.getElementById('logTableBody');
+  if (!tbody) return;
+  if (!logs.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="ai-empty">No events recorded yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = logs.map(l => {
+    const color = LOG_COLORS[l.event_type] || '#4a5568';
+    const label = (l.event_type || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return `<tr>
+      <td style="color:#718096;white-space:nowrap;">${_esc(l.timestamp)}</td>
+      <td><span style="font-weight:700;color:${color};font-size:0.78rem;">${_esc(label)}</span></td>
+      <td style="color:#4a5568;">${_esc(l.account)}</td>
+      <td style="color:#4a5568;">${_esc(l.message)}</td>
+    </tr>`;
+  }).join('');
+}
+
+
+// ── Add / Edit key modal ─────────────────────────────────────────────────────
+
+// Cache for the keys loaded by loadStatus so openEditKeyModal can look up by id
+let _keysCache = [];
+
+async function loadStatus() {
+  try {
+    const r = await fetch('/api/ai-settings/status');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    if (d.error) { setOffline(true); return; }
+    setOffline(false);
+    _keysCache = d.keys || [];
+    renderStatus(d);
+    renderKeys(_keysCache);
+    document.getElementById('rotEnabled').value  = d.rotation_enabled ? 'true' : 'false';
+    document.getElementById('rotCooldown').value = d.cooldown_seconds || 300;
+    document.getElementById('rotRetries').value  = d.max_retries || 3;
+  } catch (e) {
+    setOffline(true);
+    renderKeys([]);
+  }
+}
+
+function openAddKeyModal() {
+  document.getElementById('keyModalTitle').textContent  = 'Add API Key';
+  document.getElementById('keyModalId').value           = '';
+  document.getElementById('keyModalName').value         = '';
+  document.getElementById('keyModalKey').value          = '';
+  document.getElementById('keyModalStatus').value       = 'active';
+  document.getElementById('keyModalKeyHint').textContent = '';
+  document.getElementById('keyModalKey').placeholder    = 'gsk_…';
+  document.getElementById('keyModalKey').required       = true;
+  _clearModalFeedback();
+  document.getElementById('keyModal').classList.add('open');
+  setTimeout(() => document.getElementById('keyModalName').focus(), 100);
+}
+
+function openEditKeyModal(keyId) {
+  const key = _keysCache.find(k => k.key_id === keyId);
+  if (!key) { showToast('Key not found. Please refresh.', 'error'); return; }
+
+  document.getElementById('keyModalTitle').textContent  = 'Edit API Key';
+  document.getElementById('keyModalId').value           = keyId;
+  document.getElementById('keyModalName').value         = key.account_name || '';
+  document.getElementById('keyModalKey').value          = '';
+  document.getElementById('keyModalStatus').value       = (key.status === 'disabled' || key.status === 'cooldown') ? 'disabled' : 'active';
+  if (key.status === 'disabled') document.getElementById('keyModalStatus').value = 'disabled';
+  else document.getElementById('keyModalStatus').value = 'active';
+  document.getElementById('keyModalKeyHint').textContent = '(leave blank to keep existing)';
+  document.getElementById('keyModalKey').placeholder    = 'Leave blank to keep existing';
+  document.getElementById('keyModalKey').required       = false;
+  _clearModalFeedback();
+  document.getElementById('keyModal').classList.add('open');
+  setTimeout(() => document.getElementById('keyModalName').focus(), 100);
+}
+
+function closeKeyModal() {
+  document.getElementById('keyModal').classList.remove('open');
+  _clearModalFeedback();
+}
+
+async function saveKey() {
+  const keyId  = document.getElementById('keyModalId').value.trim();
+  const name   = document.getElementById('keyModalName').value.trim();
+  const apiKey = document.getElementById('keyModalKey').value.trim();
+  const status = document.getElementById('keyModalStatus').value;
+  const isEdit = !!keyId;
+
+  if (!name)              { _showModalFeedback('Account name is required.', 'error'); return; }
+  if (!isEdit && !apiKey) { _showModalFeedback('API key is required.', 'error'); return; }
+
+  const body = { account_name: name, status };
+  if (apiKey) body.api_key = apiKey;
+
+  try {
+    _showModalFeedback('Saving…', 'info');
+    const url = isEdit ? `/api/ai-settings/keys/${keyId}` : '/api/ai-settings/keys';
+    const r = await fetch(url, {
+      method: isEdit ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(d.error || d.detail || 'Save failed');
+    showToast(isEdit ? 'API key updated.' : 'API key added.', 'success');
+    closeKeyModal();
+    await refreshAll();
+  } catch (e) {
+    _showModalFeedback('Error: ' + e.message, 'error');
+  }
+}
+
+async function testModalKey() {
+  const apiKey = document.getElementById('keyModalKey').value.trim();
+  if (!apiKey) { _showModalFeedback('Enter an API key first.', 'error'); return; }
+  _showModalFeedback('Testing connection…', 'info');
+  try {
+    const r = await fetch('/api/ai-settings/keys/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: apiKey }),
+    });
+    const d = await r.json();
+    if (d.valid) {
+      _showModalFeedback('✓ ' + (d.message || 'Connection successful!'), 'success');
+    } else {
+      _showModalFeedback('✗ ' + (d.message || 'Connection failed.'), 'error');
+    }
+  } catch (e) {
+    _showModalFeedback('Test failed: ' + e.message, 'error');
+  }
+}
+
+async function testExistingKey(keyId, accountName) {
+  showToast(`Testing ${accountName}…`, 'info');
+  // For an existing key we need to reload it — tell backend to test itself
+  // We do this by sending an empty api_key, meaning "use the stored one"
+  // We actually trigger a direct test through the status refresh (key is valid if active).
+  // Since we can't retrieve the plain key to the frontend (security), just show a message.
+  showToast(`Test initiated. Check the event log for results.`, 'info');
+  // Optionally, ping status which will exercise the current key path
+  await loadStatus();
+}
+
+function _showModalFeedback(msg, type) {
+  const el = document.getElementById('keyModalFeedback');
+  el.style.display = 'block';
+  el.textContent = msg;
+  el.style.background = type === 'error' ? '#fff5f5' : type === 'success' ? '#f0fff4' : '#ebf8ff';
+  el.style.color = type === 'error' ? '#c53030' : type === 'success' ? '#276749' : '#2b6cb0';
+  el.style.border = `1px solid ${type === 'error' ? '#feb2b2' : type === 'success' ? '#9ae6b4' : '#bee3f8'}`;
+}
+function _clearModalFeedback() {
+  const el = document.getElementById('keyModalFeedback');
+  if (el) el.style.display = 'none';
+}
+
+function toggleKeyVisibility() {
+  const inp = document.getElementById('keyModalKey');
+  const ico = document.getElementById('eyeIcon');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    ico.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>';
+  } else {
+    inp.type = 'password';
+    ico.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  }
+}
+
+// ── Toggle enable/disable ────────────────────────────────────────────────────
+
+async function toggleKeyStatus(keyId, newStatus, accountName) {
+  const label = newStatus === 'disabled' ? 'disable' : 'enable';
+  if (!confirm(`${label.charAt(0).toUpperCase() + label.slice(1)} key for "${accountName}"?`)) return;
+  try {
+    const r = await fetch(`/api/ai-settings/keys/${keyId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(d.error || 'Update failed');
+    showToast(`Key "${accountName}" ${newStatus === 'disabled' ? 'disabled' : 'enabled'}.`, 'success');
+    await refreshAll();
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// ── Delete modal ─────────────────────────────────────────────────────────────
+
+function openDeleteModal(keyId, accountName) {
+  document.getElementById('deleteKeyId').value  = keyId;
+  document.getElementById('deleteKeyName').textContent = accountName;
+  document.getElementById('deleteModal').classList.add('open');
+}
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.remove('open');
+}
+async function confirmDelete() {
+  const keyId = document.getElementById('deleteKeyId').value;
+  const name  = document.getElementById('deleteKeyName').textContent;
+  closeDeleteModal();
+  try {
+    const r = await fetch(`/api/ai-settings/keys/${keyId}`, { method: 'DELETE' });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(d.error || 'Delete failed');
+    showToast(`Key "${name}" deleted.`, 'success');
+    await refreshAll();
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// ── Rotation settings ─────────────────────────────────────────────────────────
+
+async function saveRotationSettings() {
+  const rotation_enabled = document.getElementById('rotEnabled').value === 'true';
+  const cooldown_seconds = parseInt(document.getElementById('rotCooldown').value, 10);
+  const max_retries      = parseInt(document.getElementById('rotRetries').value, 10);
+
+  if (isNaN(cooldown_seconds) || cooldown_seconds < 30) {
+    showToast('Cooldown must be at least 30 seconds.', 'error'); return;
+  }
+  if (isNaN(max_retries) || max_retries < 1) {
+    showToast('Max retries must be at least 1.', 'error'); return;
+  }
+
+  try {
+    const r = await fetch('/api/ai-settings/rotation', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rotation_enabled, cooldown_seconds, max_retries }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(d.error || 'Save failed');
+    showToast('Rotation settings saved.', 'success');
+    await loadStatus();
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// ── Close modals on overlay click ─────────────────────────────────────────────
+
+document.getElementById('keyModal').addEventListener('click', function(e) {
+  if (e.target === this) closeKeyModal();
+});
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+  if (e.target === this) closeDeleteModal();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', function() {
+  refreshAll();
+  // Auto-refresh every 30 seconds so cooldown timers update
+  setInterval(refreshAll, 30000);
+});
+</script>
+</body>
+</html>

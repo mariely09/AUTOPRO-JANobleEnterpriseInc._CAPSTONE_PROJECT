@@ -484,19 +484,49 @@ Keyword mappings:
 
 def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                        history: list[dict]) -> dict:
-    """Core customer LLM loop with tool-calling."""
+    """Core customer LLM loop with tool-calling and automatic key rotation."""
     import json
-    from groq import Groq, BadRequestError
+    from groq import Groq, BadRequestError, RateLimitError
     from config import settings
     from customer_tools import CUSTOMER_TOOL_SCHEMAS, CUSTOMER_TOOL_FUNCTIONS
+    from api_key_manager import get_manager
 
-    client = Groq(api_key=settings.GROQ_API_KEY)
+    manager = get_manager()
 
-    def _call(msgs, tools=None):
-        kwargs = {"model": settings.GROQ_MODEL, "messages": msgs}
-        if tools:
-            kwargs["tools"] = tools
-        return client.chat.completions.create(**kwargs)
+    def _make_client() -> Groq:
+        key = manager.get_current_key() or settings.GROQ_API_KEY
+        return Groq(api_key=key)
+
+    def _call(msgs, tools=None, _attempt: int = 0):
+        """Call Groq with automatic rotation on rate-limit."""
+        max_attempts = max(1, manager._max_retries)
+        last_key_id  = manager.get_current_key_id()
+        current_key  = manager.get_current_key() or settings.GROQ_API_KEY
+        last_exc: Exception | None = None
+
+        for attempt in range(max_attempts):
+            try:
+                client = Groq(api_key=current_key)
+                kwargs = {"model": settings.GROQ_MODEL, "messages": msgs}
+                if tools:
+                    kwargs["tools"] = tools
+                return client.chat.completions.create(**kwargs)
+            except RateLimitError as exc:
+                last_exc = exc
+                if not manager._rotation_enabled:
+                    raise
+                next_key = manager.rotate_on_rate_limit(failed_key_id=last_key_id)
+                if next_key is None:
+                    raise RateLimitError(
+                        "All API keys are currently rate-limited. "
+                        "Please try again in a few minutes."
+                    ) from exc
+                last_key_id  = manager.get_current_key_id()
+                current_key  = next_key
+
+        if last_exc:
+            raise last_exc
+        raise RateLimitError("All Groq API key rotation retries exhausted.")
 
     def _strip_null(raw: str) -> dict:
         if not raw or not raw.strip():
@@ -651,3 +681,146 @@ def _merge_history(server: list[dict], client: list[dict] | None) -> list[dict]:
 
     # Cap at 30 messages (keep most recent)
     return base[-30:] if len(base) > 30 else base
+
+
+# ── AI Settings / API Key Management endpoints ───────────────────────────────
+# These endpoints are called by the Flask website acting as a proxy.
+# All write operations (add/update/delete) require an admin token passed in the
+# X-Admin-Token header.  The token is compared against AI_ADMIN_TOKEN env var.
+
+import os as _os
+from fastapi import Header as _Header
+from typing import Optional as _Optional
+
+_ADMIN_TOKEN = _os.getenv("AI_ADMIN_TOKEN", "caltex-admin-ai-2026")
+
+
+def _check_admin(x_admin_token: str = ""):
+    if x_admin_token != _ADMIN_TOKEN:
+        raise HTTPException(status_code=403, detail="Admin access required.")
+
+
+# ── Status ──────────────────────────────────────────────────────────────────
+
+@app.get("/ai-settings/status")
+def ai_settings_status():
+    """Return current AI service status and key table (masked)."""
+    from api_key_manager import get_manager
+    manager = get_manager()
+    return manager.get_status()
+
+
+# ── Event log ────────────────────────────────────────────────────────────────
+
+@app.get("/ai-settings/logs")
+def ai_settings_logs():
+    """Return recent AI events (newest first)."""
+    from api_key_manager import get_manager
+    return {"logs": get_manager().get_event_log()}
+
+
+# ── Key management ───────────────────────────────────────────────────────────
+
+@app.post("/ai-settings/keys")
+async def add_api_key(request: Request,
+                      x_admin_token: _Optional[str] = _Header(default="")):
+    """Add a new Groq API key."""
+    _check_admin(x_admin_token)
+    data = await request.json()
+    plain_key    = (data.get("api_key") or "").strip()
+    account_name = (data.get("account_name") or "").strip()
+    status       = data.get("status", "active")
+
+    if not plain_key:
+        raise HTTPException(status_code=400, detail="api_key is required.")
+    if not account_name:
+        raise HTTPException(status_code=400, detail="account_name is required.")
+
+    from api_key_manager import get_manager
+    try:
+        result = get_manager().add_key(plain_key, account_name, status)
+        return {"success": True, **result}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.put("/ai-settings/keys/{key_id}")
+async def update_api_key(key_id: str, request: Request,
+                         x_admin_token: _Optional[str] = _Header(default="")):
+    """Update an existing API key (account name, value, or status)."""
+    _check_admin(x_admin_token)
+    data = await request.json()
+    plain_key    = (data.get("api_key") or "").strip() or None
+    account_name = (data.get("account_name") or "").strip() or None
+    status       = data.get("status") or None
+
+    from api_key_manager import get_manager
+    result = get_manager().update_key(key_id, account_name=account_name,
+                                      plain_key=plain_key, status=status)
+    return {"success": True, **result}
+
+
+@app.delete("/ai-settings/keys/{key_id}")
+def delete_api_key(key_id: str,
+                   x_admin_token: _Optional[str] = _Header(default="")):
+    """Delete an API key."""
+    _check_admin(x_admin_token)
+    from api_key_manager import get_manager
+    result = get_manager().delete_key(key_id)
+    return {"success": True, **result}
+
+
+@app.post("/ai-settings/keys/test")
+async def test_api_key(request: Request,
+                       x_admin_token: _Optional[str] = _Header(default="")):
+    """Test a Groq API key connection without saving it."""
+    _check_admin(x_admin_token)
+    data = await request.json()
+    plain_key = (data.get("api_key") or "").strip()
+    if not plain_key:
+        raise HTTPException(status_code=400, detail="api_key is required.")
+    from api_key_manager import get_manager
+    result = get_manager().test_key(plain_key)
+    return {"success": True, **result}
+
+
+# ── Rotation settings ─────────────────────────────────────────────────────────
+
+@app.put("/ai-settings/rotation")
+async def update_rotation_settings(
+        request: Request,
+        x_admin_token: _Optional[str] = _Header(default="")):
+    """Update rotation configuration (enable/disable, cooldown, retries)."""
+    _check_admin(x_admin_token)
+    data = await request.json()
+
+    rotation_enabled = data.get("rotation_enabled")  # bool or None
+    cooldown_seconds = data.get("cooldown_seconds")   # int or None
+    max_retries      = data.get("max_retries")        # int or None
+
+    # Coerce types
+    if rotation_enabled is not None:
+        rotation_enabled = bool(rotation_enabled)
+    if cooldown_seconds is not None:
+        cooldown_seconds = int(cooldown_seconds)
+    if max_retries is not None:
+        max_retries = int(max_retries)
+
+    from api_key_manager import get_manager
+    result = get_manager().save_rotation_settings(
+        rotation_enabled=rotation_enabled,
+        cooldown_seconds=cooldown_seconds,
+        max_retries=max_retries,
+    )
+    return {"success": True, **result}
+
+
+# ── Reload keys from Firestore ────────────────────────────────────────────────
+
+@app.post("/ai-settings/reload")
+def reload_keys(x_admin_token: _Optional[str] = _Header(default="")):
+    """Force-reload all API keys from Firestore into memory."""
+    _check_admin(x_admin_token)
+    from api_key_manager import get_manager
+    get_manager().load_from_firestore()
+    return {"success": True, "message": "Keys reloaded from Firestore."}
