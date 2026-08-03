@@ -233,12 +233,6 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
               ),
               const SizedBox(height: 10),
               _fabAction(
-                label: 'Receive Item',
-                icon: Icons.download_outlined,
-                onTap: () { setState(() => _fabOpen = false); _showPickPendingModal(); },
-              ),
-              const SizedBox(height: 10),
-              _fabAction(
                 label: 'New Delivery Request',
                 icon: Icons.add_box_outlined,
                 onTap: () { setState(() => _fabOpen = false); _showNewDeliveryModal(); },

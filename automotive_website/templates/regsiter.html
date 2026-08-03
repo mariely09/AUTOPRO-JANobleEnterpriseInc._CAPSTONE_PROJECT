@@ -82,6 +82,17 @@
       .name-row { grid-template-columns: 1fr; }
     }
     #password, #confirmPassword { padding-right: 42px; }
+    /* Hide native browser password reveal button across all browsers */
+    #password::-ms-reveal,
+    #password::-ms-clear,
+    #confirmPassword::-ms-reveal,
+    #confirmPassword::-ms-clear { display: none !important; }
+    input[type="password"]::-webkit-textfield-decoration-container,
+    input[type="password"]::-webkit-credentials-auto-fill-button,
+    input[type="password"]::-webkit-password-auto-fill-button,
+    input[type="password"]::-webkit-strong-password-auto-fill-button { display: none !important; }
+    /* Force override on Edge Chromium */
+    input::-ms-reveal { display: none; width: 0; height: 0; }
   </style>
 </head>
 <body>

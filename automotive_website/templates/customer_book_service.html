@@ -288,15 +288,23 @@ firebase.auth().onAuthStateChanged(function(user){
 
 async function _loadBookingData(user) {
   var db = firebase.firestore();
-  // Get user name
+  // Get user name and company name
   var uDoc = await db.collection('users').doc(user.uid).get();
-  var userName = (uDoc.exists ? uDoc.data().name : '') || '';
+  var uData = uDoc.exists ? uDoc.data() : {};
+  var userName = (uData.name || '').toLowerCase().trim();
+  var companyName = (uData.companyName || '').toLowerCase().trim();
 
-  // Load vehicles
+  // Load vehicles — match if owner equals user name OR company name (case-insensitive)
   var vSnap = await db.collection('vehicles').get();
   _bsVehicles = vSnap.docs
     .map(function(d){ return Object.assign({id:d.id}, d.data()); })
-    .filter(function(v){ return (v.owner||'').toLowerCase() === userName.toLowerCase(); });
+    .filter(function(v){
+      var owner = (v.owner || '').toLowerCase().trim();
+      var ownerId = (v.ownerId || '').trim();
+      return (userName && owner === userName)
+          || (companyName && owner === companyName)
+          || (ownerId && ownerId === user.uid);
+    });
 
   // Load services from item_master
   var iSnap = await db.collection('item_master').get();

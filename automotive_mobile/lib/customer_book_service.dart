@@ -63,14 +63,20 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
 
     // Load user's vehicles
     final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    final userName = (userDoc.data()?['name'] as String? ?? '').toLowerCase();
-    final companyName = (userDoc.data()?['companyName'] as String? ?? '').toLowerCase();
+    final userName = (userDoc.data()?['name'] as String? ?? '').toLowerCase().trim();
+    final companyName = (userDoc.data()?['companyName'] as String? ?? '').toLowerCase().trim();
 
     final vehSnap = await FirebaseFirestore.instance.collection('vehicles').get();
     final myVehicles = vehSnap.docs
         .where((d) {
-          final owner = (d.data()['owner'] as String? ?? '').toLowerCase();
-          return owner == userName || (companyName.isNotEmpty && owner == companyName);
+          final data = d.data();
+          final owner = (data['owner'] as String? ?? '').toLowerCase().trim();
+          // Match if vehicle owner equals the user's name OR their company name
+          // Also match if ownerId field equals the current uid
+          final ownerId = (data['ownerId'] as String? ?? '').trim();
+          return (userName.isNotEmpty && owner == userName)
+              || (companyName.isNotEmpty && owner == companyName)
+              || (ownerId.isNotEmpty && ownerId == uid);
         })
         .map((d) => {'id': d.id, ...d.data()})
         .toList();

@@ -281,7 +281,6 @@
         <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
             <div style="flex:1;">
                 <div style="color:white;font-size:1rem;font-weight:700;">Edit Stock Item</div>
-                <div id="editInvItemLabel" style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.1rem;"></div>
             </div>
             <button onclick="closeModal('editInventoryModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
         </div>
@@ -559,6 +558,7 @@ window.printStockInventory = function() {
     if (hash.startsWith('#add=')) {
         var parts = decodeURIComponent(hash.substring(5)).split('|');
         if (parts.length >= 4) {
+            window._fromItemMaster = true; // flag so save redirects back
             setTimeout(function() {
                 var supplierCode = parts[4] || '';
                 _addFoundMaster = {
@@ -778,6 +778,10 @@ function stockSaveNewItem() {
         .then(function() {
             closeModal('addInventoryModal');
             showToast('Stock item added successfully!', 'success');
+            // If navigated from Item Master (URL originally had #add= hash), go back after a short delay
+            if (window._fromItemMaster) {
+                setTimeout(function() { window.location.href = 'admin_inventory_itemaster.html'; }, 1200);
+            }
         })
         .catch(function(err) {
             if (err !== 'already_exists') showToast('Error: ' + err.message, 'error');
@@ -866,7 +870,6 @@ function editInventoryItem(id) {
     var item = inv.find(function(i){ return i.id === id; });
     if (!item) return;
     _editingInvDocId = id;
-    document.getElementById('editInvItemLabel').textContent = (item.supplierCode||item.itemNum) + ' · ' + item.itemName;
     document.getElementById('editInvInfoBox').innerHTML =
         '<div style="display:grid;grid-template-columns:110px 1fr;gap:0.25rem 0;font-size:0.82rem;">'
         + '<span style="color:#718096;">Supplier Item Code</span><span style="font-weight:600;">' + (item.supplierCode||'—') + '</span>'

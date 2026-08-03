@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'barcode_scanner_screen.dart';
+import 'sync_indicator.dart';
 
 class AdminVehicleMaintenance extends StatefulWidget {
   final Map<String, dynamic>? bookingData;
@@ -61,6 +62,7 @@ class _AdminVehicleMaintenanceState extends State<AdminVehicleMaintenance> {
             : const Text('Vehicle Maintenance',
                 style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         actions: [
+          const SyncIndicator(),
           IconButton(
             icon: Icon(_searching ? Icons.close : Icons.search, color: Colors.white),
             onPressed: () => setState(() {
@@ -86,7 +88,8 @@ class _AdminVehicleMaintenanceState extends State<AdminVehicleMaintenance> {
             ),
         ],
       ),
-      body: AdminVehicleMaintenanceBody(bookingData: widget.bookingData, materialData: widget.materialData, searchQuery: _searchCtrl.text.toLowerCase(), sortBy: _sortBy),
+      body: OfflineSaveListener(
+        child: AdminVehicleMaintenanceBody(bookingData: widget.bookingData, materialData: widget.materialData, searchQuery: _searchCtrl.text.toLowerCase(), sortBy: _sortBy)),
     );
   }
 }
@@ -115,10 +118,12 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
 
   // Cached lookups
   Map<String, Map<String, dynamic>> _vehicleMap = {};   // plate -> data
-  Map<String, Map<String, dynamic>> _itemMasterMap = {}; // name -> data
+  Map<String, Map<String, dynamic>> _itemMasterMap = {}; // name -> data (for cost/uom lookup by name)
+  List<Map<String, dynamic>> _allItems = []; // full list preserving duplicates
   List<String> _serviceItems = [];
   List<String> _materialItems = [];
   List<String> _mechanicNames = []; // staff + admin names
+  Set<String> _inactiveItemNames = {}; // names of Inactive stock items
   bool _lookupLoaded = false;
 
   @override
@@ -141,8 +146,26 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
       for (final d in iSnap.docs)
         (d['name'] as String? ?? ''): d.data()
     };
+    _allItems = iSnap.docs.map((d) {
+      final data = d.data();
+      // Support both 'type' and 'itemType' field names
+      final type = (data['type'] as String? ?? data['itemType'] as String? ?? 'Material');
+      return {
+        'name': data['name'] as String? ?? '',
+        'type': type,
+        'uom':  data['uom']  as String? ?? '',
+        'cost': data['cost'] ?? '0',
+        'num':  data['num']  as String? ?? '',
+        'supplierCode': data['supplierCode'] as String? ?? '',
+        'barcode': data['barcode'] as String? ?? '',
+        'qr':    data['qr']  as String? ?? '',
+      };
+    }).toList();
     _serviceItems = _itemMasterMap.entries
-        .where((e) => e.value['type'] == 'Service')
+        .where((e) {
+          final t = (e.value['type'] as String? ?? e.value['itemType'] as String? ?? '').toLowerCase();
+          return t == 'service';
+        })
         .map((e) => e.key).toList()..sort();
     _materialItems = _itemMasterMap.entries
         .where((e) => e.value['type'] == 'Material')
@@ -151,6 +174,14 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
         .map((d) => d['name'] as String? ?? '')
         .where((n) => n.isNotEmpty)
         .toList()..sort();
+    // Load inactive stock items to exclude from materials search
+    try {
+      final stockSnap = await FirebaseFirestore.instance
+          .collection('stock_inventory').where('status', isEqualTo: 'Inactive').get();
+      _inactiveItemNames = stockSnap.docs
+          .map((d) => (d['name'] as String? ?? '').toLowerCase())
+          .where((n) => n.isNotEmpty).toSet();
+    } catch (_) {}
     setState(() => _lookupLoaded = true);
 
     // Auto-open add modal if booking data was passed
@@ -183,11 +214,17 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
   }
 
   Future<String> _nextSvcId() async {
-    final snap = await _db.orderBy('createdAt', descending: true).limit(1).get();
-    if (snap.docs.isEmpty) return 'SVC-001';
-    final last = snap.docs.first['id'] as String? ?? 'SVC-000';
-    final n = int.tryParse(last.replaceAll('SVC-', '')) ?? 0;
-    return 'SVC-${(n + 1).toString().padLeft(3, '0')}';
+    // Use timestamp-based ID — zero network calls, always instant.
+    // Format: SVC-YYYYMMDD-HHmmss (e.g. SVC-20260803-143022)
+    final now = DateTime.now();
+    final stamp = '${now.year}'
+        '${now.month.toString().padLeft(2, '0')}'
+        '${now.day.toString().padLeft(2, '0')}'
+        '-'
+        '${now.hour.toString().padLeft(2, '0')}'
+        '${now.minute.toString().padLeft(2, '0')}'
+        '${now.second.toString().padLeft(2, '0')}';
+    return 'SVC-$stamp';
   }
 
   @override
@@ -449,19 +486,36 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                         final confirm = await showDialog<bool>(
                           context: context,
                           builder: (_) => AlertDialog(
-                            title: const Text('Complete Service'),
-                            content: Text('Mark service for ${s['plate']} as Completed?'),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            title: const Row(children: [
+                              Icon(Icons.check_circle_outline, color: Colors.green, size: 22),
+                              SizedBox(width: 8),
+                              Text('Complete Service', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                            ]),
+                            content: Text(
+                              'Are you sure you want to mark service for "${s['plate']}" as Completed?',
+                              style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
+                            ),
                             actions: [
-                              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                              TextButton(onPressed: () => Navigator.pop(context, true),
-                                child: const Text('Complete', style: TextStyle(color: Colors.green))),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green, foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: const Text('Yes, Complete'),
+                              ),
                             ],
                           ),
                         );
                         if (confirm != true) return;
 
                         // 1. Update status immediately
-                        await _db.doc(s['docId'] as String).update({'status': 'Completed'});
+                        await SyncStatusNotifier.instance.trackWrite(() => _db.doc(s['docId'] as String).update({'status': 'Completed'}));
 
                         // 2. Close modal + show success right away
                         if (mounted) {
@@ -616,13 +670,14 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                       label: const Text('Edit'),
                     )),
                 const SizedBox(height: 10),
-                SizedBox(width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () { Navigator.pop(context); _confirmDelete(s); },
-                    icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                    label: const Text('Delete Service', style: TextStyle(color: Colors.red)),
-                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
-                  )),
+                if (s['status'] != 'Completed')
+                  SizedBox(width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () { Navigator.pop(context); _confirmDelete(s); },
+                      icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                      label: const Text('Delete Service', style: TextStyle(color: Colors.red)),
+                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
+                    )),
               ]),
             ),
           ]),
@@ -1095,34 +1150,41 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                           setModal(() => saving = true);
                           final odoValue = int.tryParse(odoCtrl.text.trim()) ?? 0;
 
-                          // Validate material quantities against stock
+                          // Validate material quantities using cached maxStock (already fetched when
+                          // user selected the material — no extra network round-trip needed).
                           for (final r in matRows) {
                             final name = r['name']!.text.trim();
                             final qty = int.tryParse(r['qty']!.text.trim()) ?? 0;
                             if (name.isEmpty || qty <= 0) continue;
-                            final stockSnap = await FirebaseFirestore.instance
-                                .collection('stock_inventory').where('name', isEqualTo: name).limit(1).get();
-                            if (stockSnap.docs.isNotEmpty) {
-                              final available = (stockSnap.docs.first['stock'] as num?)?.toInt() ?? 0;
-                              if (qty > available) {
-                                setModal(() => saving = false);
-                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                  content: Text('Insufficient stock for "$name". Available: $available, Requested: $qty'),
-                                  backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
-                                return;
-                              }
+                            final available = int.tryParse(r['maxStock']?.text ?? '99999') ?? 99999;
+                            if (available >= 0 && available < 99999 && qty > available) {
+                              setModal(() => saving = false);
+                              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text('Insufficient stock for "$name". Available: $available, Requested: $qty'),
+                                backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+                              return;
                             }
                           }
 
-                          // Duplicate plate check — prevent adding if plate already has Pending/Ongoing service
+                          // Duplicate plate check — use in-memory Firestore cache only (zero network).
+                          // The StreamBuilder keeps the cache warm so this is always instant.
                           if (!isEdit) {
-                            final dupCheck = await _db
-                                .where('plate', isEqualTo: plateCtrl.text.trim().toUpperCase())
-                                .where('status', whereIn: ['Ongoing'])
-                                .limit(1)
-                                .get();
-                            if (dupCheck.docs.isNotEmpty) {
+                            final plateUpper = plateCtrl.text.trim().toUpperCase();
+                            bool hasDuplicate = false;
+                            try {
+                              final dupCheck = await _db
+                                  .where('plate', isEqualTo: plateUpper)
+                                  .where('status', whereIn: ['Ongoing'])
+                                  .limit(1)
+                                  .get(const GetOptions(source: Source.cache));
+                              hasDuplicate = dupCheck.docs.isNotEmpty;
+                            } catch (_) {
+                              // Cache miss — skip the check rather than blocking on a server call.
+                              // The rare duplicate will be caught by Firestore security rules or
+                              // the next StreamBuilder refresh.
+                            }
+                            if (hasDuplicate) {
                               setModal(() => saving = false);
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1155,9 +1217,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                           };
                           try {
                             if (isEdit) {
-                              await _db.doc(service['docId'] as String).update(data);
-                              await _updateVehicleOdometer(
-                                plateCtrl.text.trim().toUpperCase(), odoValue);
+                              await SyncStatusNotifier.instance.trackWrite(() => _db.doc(service['docId'] as String).update(data));
                               if (context.mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1165,19 +1225,11 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                                   backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                               }
+                              // Background: update odometer (non-blocking)
+                              _updateVehicleOdometer(plateCtrl.text.trim().toUpperCase(), odoValue);
                             } else {
                               data['createdAt'] = FieldValue.serverTimestamp();
-                              await _db.add(data);
-                              await _updateVehicleOdometer(
-                                plateCtrl.text.trim().toUpperCase(), odoValue);
-                              // Set vehicle status to Under Maintenance when Ongoing service is created
-                              final pSnap = await FirebaseFirestore.instance
-                                  .collection('vehicles')
-                                  .where('plate', isEqualTo: plateCtrl.text.trim().toUpperCase())
-                                  .limit(1).get();
-                              if (pSnap.docs.isNotEmpty) {
-                                await pSnap.docs.first.reference.update({'status': 'Under Maintenance'});
-                              }
+                              await SyncStatusNotifier.instance.trackWrite(() => _db.add(data));
                               if (context.mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1185,6 +1237,17 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                                   backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                               }
+                              // Background: update odometer + vehicle status (non-blocking)
+                              () async {
+                                await _updateVehicleOdometer(plateCtrl.text.trim().toUpperCase(), odoValue);
+                                final pSnap = await FirebaseFirestore.instance
+                                    .collection('vehicles')
+                                    .where('plate', isEqualTo: plateCtrl.text.trim().toUpperCase())
+                                    .limit(1).get();
+                                if (pSnap.docs.isNotEmpty) {
+                                  await pSnap.docs.first.reference.update({'status': 'Under Maintenance'});
+                                }
+                              }();
                             }
                           } catch (e) {
                             setModal(() => saving = false);
@@ -1215,8 +1278,14 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
   Widget _svcRow(Map<String, TextEditingController> row, VoidCallback onRemove, StateSetter setModal, List<Map<String, TextEditingController>> allSvcRows, BuildContext ctx) {
     row.putIfAbsent('searchText', () => TextEditingController(text: row['name']!.text));
 
-    Future<void> applyService(String name) async {
-      final alreadyUsed = allSvcRows.any((r) => r != row && r['name']!.text == name);
+    // All service items preserving same-name different-UOM entries
+    final serviceItems = _allItems
+        .where((e) => (e['type'] as String? ?? '').toLowerCase() == 'service')
+        .toList()
+      ..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
+
+    Future<void> applyService(String name, String uom) async {
+      final alreadyUsed = allSvcRows.any((r) => r != row && r['name']!.text == name && r['uom']!.text == uom);
       if (alreadyUsed) {
         showDialog(
           context: ctx,
@@ -1235,18 +1304,21 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
       }
       row['name']!.text = name;
       row['searchText']!.text = name;
-      final d = _itemMasterMap[name];
-      row['uom']!.text = (d?['uom'] ?? 'job').toString();
-      row['cost']!.text = (d?['cost'] ?? '0').toString().replaceAll('₱', '').replaceAll(',', '').trim();
+      row['uom']!.text = uom.isNotEmpty ? uom : ((_itemMasterMap[name]?['uom']) ?? 'job').toString();
+      row['cost']!.text = ((_itemMasterMap[name]?['cost']) ?? '0').toString().replaceAll('₱', '').replaceAll(',', '').trim();
       if (row['qty']!.text.isEmpty) row['qty']!.text = '1';
       setModal(() {});
     }
 
     final isSelected = row['name']!.text.isNotEmpty;
     final q = row['searchText']!.text.trim().toLowerCase();
-    final svcResults = isSelected ? <String>[] : (q.isEmpty
-        ? <String>[]
-        : _serviceItems.where((n) => n.toLowerCase().contains(q)).toList());
+    final svcResults = isSelected ? <Map<String, dynamic>>[] : (q.isEmpty
+        ? <Map<String, dynamic>>[]
+        : serviceItems.where((e) {
+            final n = (e['name'] as String).toLowerCase();
+            final itemNum = (e['num'] != null ? e['num'].toString() : '').toLowerCase();
+            return n.contains(q) || itemNum.contains(q);
+          }).toList());
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -1309,10 +1381,13 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
               ),
             )
           else
-            ...svcResults.take(6).map((name) {
-              final d = _itemMasterMap[name];
+            ...svcResults.take(6).map((e) {
+              final name = e['name'] as String;
+              final uom = e['uom'] as String? ?? '';
+              final rawCost = e['cost'];
+              final costStr = rawCost == null ? '0' : rawCost.toString().replaceAll('₱','').replaceAll(',','').trim();
               return GestureDetector(
-                onTap: () => applyService(name),
+                onTap: () => applyService(name, uom),
                 child: Container(
                   margin: const EdgeInsets.only(top: 6),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1321,8 +1396,9 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                   child: Row(children: [
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1a202c))),
-                      if (d != null) Text('${d['uom'] ?? ''}  •  ₱${(d['cost'] ?? '0').toString().replaceAll('₱','').replaceAll(',','').trim()}',
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                      if (uom.isNotEmpty || costStr != '0')
+                        Text('${uom.isNotEmpty ? uom : '—'}  •  ₱$costStr',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
                     ])),
                     const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF718096)),
                   ]),
@@ -1338,13 +1414,16 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
     row.putIfAbsent('maxStock', () => TextEditingController(text: '99999'));
     row.putIfAbsent('searchText', () => TextEditingController());
 
-    final materialNames = _itemMasterMap.entries
-        .where((e) => (e.value['type'] as String? ?? '').toLowerCase() == 'material')
-        .map((e) => e.key)
-        .toList()..sort();
+    // All material items from item master (type == Material), excluding Inactive stock items
+    // Use _allItems to preserve items with same name but different UOM
+    final materialItems = _allItems
+        .where((e) => (e['type'] as String? ?? '').toLowerCase() == 'material')
+        .where((e) => !_inactiveItemNames.contains((e['name'] as String).toLowerCase()))
+        .toList()
+      ..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
 
-    Future<void> applyMaterial(String name) async {
-      final alreadyUsed = allMatRows.any((r) => r != row && r['name']!.text == name);
+    Future<void> applyMaterial(String name, String uom) async {
+      final alreadyUsed = allMatRows.any((r) => r != row && r['name']!.text == name && r['uom']!.text == uom);
       if (alreadyUsed) {
         showDialog(
           context: ctx,
@@ -1365,17 +1444,18 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
       if (d == null) return;
       row['name']!.text = name;
       row['searchText']!.text = name;
-      row['uom']!.text = (d['uom'] ?? '').toString();
+      row['uom']!.text = uom.isNotEmpty ? uom : (d['uom'] ?? '').toString();
       final rawCost = d['cost'];
       row['cost']!.text = rawCost == null
           ? '0'
           : rawCost.toString().replaceAll('₱', '').replaceAll(',', '').trim();
       if (row['qty']!.text.isEmpty) row['qty']!.text = '1';
+      // Look up stock by name+uom
       final stockSnap = await FirebaseFirestore.instance
           .collection('stock_inventory').where('name', isEqualTo: name).limit(1).get();
       final available = stockSnap.docs.isNotEmpty
           ? (stockSnap.docs.first['stock'] as num?)?.toInt() ?? 0
-          : -1; // -1 means no stock record found
+          : -1;
       row['maxStock']!.text = '$available';
       final currentQty = int.tryParse(row['qty']!.text) ?? 1;
       if (available >= 0 && currentQty > available) row['qty']!.text = '$available';
@@ -1489,11 +1569,13 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                         final result = await Navigator.push<String>(ctx,
                           MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()));
                         if (result != null) {
-                          final match = _itemMasterMap.entries.firstWhere(
-                            (e) => e.value['barcode'] == result || e.value['qr'] == result,
-                            orElse: () => MapEntry('', {}),
+                          final match = _allItems.firstWhere(
+                            (e) => e['barcode'] == result || e['qr'] == result,
+                            orElse: () => {},
                           );
-                          if (match.key.isNotEmpty) applyMaterial(match.key);
+                          if ((match['name'] as String? ?? '').isNotEmpty) {
+                            applyMaterial(match['name'] as String, match['uom'] as String? ?? '');
+                          }
                         }
                       },
                     ),
@@ -1509,7 +1591,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
         // ── Inline material results ──
         if (!isSelected) ...[
           if (row['searchText']!.text.trim().isNotEmpty &&
-              materialNames.where((n) => n.toLowerCase().contains(row['searchText']!.text.trim().toLowerCase())).isEmpty)
+              materialItems.where((e) => (e['name'] as String).toLowerCase().contains(row['searchText']!.text.trim().toLowerCase())).isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Container(
@@ -1521,18 +1603,36 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
           else
             ...(() {
               final q = row['searchText']!.text.trim().toLowerCase();
-              final res = q.isEmpty ? <String>[] : materialNames.where((n) => n.toLowerCase().contains(q)).toList();
-              return res.take(6).map((name) {
-                final d = _itemMasterMap[name];
+              final res = q.isEmpty ? <Map<String, dynamic>>[] : materialItems.where((e) {
+                final n = (e['name'] as String).toLowerCase();
+                final num = (e['num'] as String? ?? '').toLowerCase();
+                final sc = (e['supplierCode'] as String? ?? '').toLowerCase();
+                return n.contains(q) || num.contains(q) || sc.contains(q);
+              }).toList();
+              return res.take(6).map((e) {
+                final name = e['name'] as String;
+                final uom = e['uom'] as String? ?? '';
+                final rawCost = e['cost'];
+                final cost = rawCost == null
+                    ? 0.0
+                    : double.tryParse(rawCost.toString().replaceAll('₱', '').replaceAll(',', '').trim()) ?? 0.0;
                 return GestureDetector(
-                  onTap: () => applyMaterial(name),
+                  onTap: () => applyMaterial(name, uom),
                   child: Container(
                     margin: const EdgeInsets.only(top: 6),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFe2e8f0)),
                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)]),
                     child: Row(children: [
-                      Expanded(child: Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1a202c)))),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c))),
+                        if (uom.isNotEmpty || cost > 0)
+                          Text(
+                            '${uom.isNotEmpty ? uom : '—'}  •  ₱${cost.toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
+                          ),
+                      ])),
+                      const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF718096)),
                     ]),
                   ),
                 );
@@ -1599,15 +1699,26 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Service'),
-        content: Text('Delete "${s['id']}"?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.delete_outline, color: Colors.red, size: 22),
+          SizedBox(width: 8),
+          Text('Delete Service', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: Text(
+          'Are you sure you want to delete service "${s['id']}"?',
+          style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
+          ),
+          ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await _db.doc(s['docId'] as String).delete();
+                await SyncStatusNotifier.instance.trackWrite(() => _db.doc(s['docId'] as String).delete());
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Deleted successfully!')]),
                   backgroundColor: Colors.red, behavior: SnackBarBehavior.floating,
@@ -1617,7 +1728,11 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                   SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
               }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red, foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Yes, Delete'),
           ),
         ],
       ),

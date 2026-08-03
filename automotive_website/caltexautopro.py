@@ -1120,12 +1120,6 @@ def send_reschedule_email():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
-# ── Run ──────────────────────────────────────────────────────
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
-
-
-# ── Setup / Admin Tools ──────────────────────────────────────
 @app.route('/setup_notifications.html')
 def setup_notifications():
     """Setup page to create notifications collection in Firestore"""
@@ -1135,4 +1129,14 @@ def setup_notifications():
 def fix_item_numbers():
     """One-time utility to fix duplicate item numbers in item_master"""
     return render_template('fix_item_numbers.html')
+
+@app.route('/admin_archive.html')
+def admin_archive():
+    """Archive page for archived item master records"""
+    return render_template('admin_archive.html')
+
+
+# ── Run ──────────────────────────────────────────────────────
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5001)
 

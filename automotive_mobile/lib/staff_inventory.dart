@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'staff_receiving.dart';
+import 'sync_indicator.dart';
 
 class StaffInventory extends StatefulWidget {
   const StaffInventory({super.key});
@@ -71,6 +72,7 @@ class _StaffInventoryState extends State<StaffInventory> {
             : Text(_tab == 0 ? 'Stock Inventory' : 'Receiving Items',
                 style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         actions: [
+          const SyncIndicator(),
           IconButton(
             icon: Icon(_searching ? Icons.close : Icons.search, color: Colors.white),
             onPressed: () => setState(() {
@@ -119,7 +121,8 @@ class _StaffInventoryState extends State<StaffInventory> {
           ),
         ),
       ),
-      body: IndexedStack(
+      body: OfflineSaveListener(
+        child: IndexedStack(
         index: _tab,
         children: [
           _buildInventoryBody(),
@@ -127,7 +130,7 @@ class _StaffInventoryState extends State<StaffInventory> {
             searchQuery: _tab == 1 && _searching ? _searchQuery : '',
           ),
         ],
-      ),
+      )),
     );
   }
 
@@ -209,7 +212,9 @@ class _StaffInventoryState extends State<StaffInventory> {
               'uom': data['uom'] as String? ?? '',
               'stock': stock, 'min': min, 'max': max,
               'reorder': (data['reorder'] as num?)?.toInt() ?? 0,
-              'status': stock > min ? (stock > max ? 'Over' : 'OK') : 'Low',
+              'status': (data['status'] as String? ?? '') == 'Inactive'
+                  ? 'Inactive'
+                  : stock > min ? (stock > max ? 'Over' : 'OK') : 'Low',
             };
           }).toList()
             ..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
@@ -313,24 +318,29 @@ class _StaffInventoryState extends State<StaffInventory> {
     final stock = item['stock'] as int;
     final min = item['min'] as int;
     final max = item['max'] as int;
-    final isOut  = stock == 0;
-    final isLow  = !isOut && status == 'Low';
-    final isOver = !isOut && !isLow && status == 'Over';
+    final isInactive = status == 'Inactive';
+    final isOut  = !isInactive && stock == 0;
+    final isLow  = !isInactive && !isOut && status == 'Low';
+    final isOver = !isInactive && !isOut && !isLow && status == 'Over';
     final progress = max > 0 ? (stock / max).clamp(0.0, 1.0) : 0.0;
-    final barColor = isOut
-        ? Colors.red
-        : isLow
-            ? Colors.orange
-            : isOver
-                ? Colors.purple
-                : Colors.green;
-    final statusLabel = isOut
-        ? 'Out of Stock'
-        : isLow
-            ? 'Low Stock'
-            : isOver
-                ? 'Over Max'
-                : 'In Stock';
+    final barColor = isInactive
+        ? const Color(0xFF718096)
+        : isOut
+            ? Colors.red
+            : isLow
+                ? Colors.orange
+                : isOver
+                    ? Colors.purple
+                    : Colors.green;
+    final statusLabel = isInactive
+        ? 'Inactive'
+        : isOut
+            ? 'Out of Stock'
+            : isLow
+                ? 'Low Stock'
+                : isOver
+                    ? 'Over Max'
+                    : 'In Stock';
 
     return GestureDetector(
       onTap: () => _showStockDetails(item),
@@ -339,7 +349,8 @@ class _StaffInventoryState extends State<StaffInventory> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: isOut ? Border.all(color: Colors.red.shade200)
+          border: isInactive ? Border.all(color: Colors.grey.shade300)
+              : isOut ? Border.all(color: Colors.red.shade200)
               : isLow ? Border.all(color: Colors.orange.shade200)
               : isOver ? Border.all(color: Colors.purple.shade200) : null,
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
