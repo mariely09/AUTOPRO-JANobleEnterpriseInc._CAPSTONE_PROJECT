@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'admin_inventory_stock.dart';
 
 class AdminArchive extends StatelessWidget {
   const AdminArchive({super.key});
@@ -195,7 +196,7 @@ class _AdminArchiveBodyState extends State<AdminArchiveBody> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Restore Item'),
-        content: Text('Restore "${item['name']}" back to Item Master?'),
+        content: Text('Are you sure you want to restore "${item['name']}" back to Item Master?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(onPressed: () => Navigator.pop(context, true),
@@ -209,24 +210,29 @@ class _AdminArchiveBodyState extends State<AdminArchiveBody> {
           .collection('item_master')
           .doc(item['id'] as String)
           .update({'archived': false, 'archivedAt': null});
-      // Restore stock_inventory status from Inactive back to proper status
-      final num = item['num'] as String? ?? '';
-      if (num.isNotEmpty) {
-        final stockSnap = await FirebaseFirestore.instance
-            .collection('stock_inventory').where('num', isEqualTo: num).limit(1).get();
-        if (stockSnap.docs.isNotEmpty) {
-          final data = stockSnap.docs.first.data() as Map<String, dynamic>;
-          final stock = int.tryParse(data['stock']?.toString() ?? '0') ?? 0;
-          final minLevel = int.tryParse(data['min']?.toString() ?? '0') ?? 0;
-          final restoredStatus = stock > minLevel ? 'OK' : 'Low';
-          await stockSnap.docs.first.reference.update({'status': restoredStatus}).catchError((_) {});
-        }
-      }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('"${item['name']}" restored successfully!'),
+
+      if (!mounted) return;
+
+      // Show success toast
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('"${item['name']}" restored! Setting up stock levels...'),
         backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ));
+
+      // Navigate to Stock Inventory with pre-filled Add Stock modal
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AdminInventoryStock(
+            prefilledItemNum:      item['num']          as String? ?? '',
+            prefilledItemName:     item['name']         as String? ?? '',
+            prefilledGroup:        item['group']        as String? ?? '',
+            prefilledUom:          item['uom']          as String? ?? '',
+            prefilledSupplierCode: item['supplierCode'] as String? ?? '',
+          ),
+        ),
+      );
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
@@ -238,7 +244,7 @@ class _AdminArchiveBodyState extends State<AdminArchiveBody> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Permanently'),
-        content: Text('Permanently delete "${item['name']}"? This CANNOT be undone.'),
+        content: Text('Are you sure you want to permanently delete "${item['name']}"?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(onPressed: () => Navigator.pop(context, true),

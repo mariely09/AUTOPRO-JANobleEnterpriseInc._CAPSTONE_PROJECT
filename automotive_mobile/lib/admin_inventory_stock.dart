@@ -370,12 +370,10 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                 'min': min,
                 'max': max,
                 'reorder': (data['reorder'] as num?)?.toInt() ?? 0,
-                // Preserve 'Inactive' if stored (archived item), else compute from stock levels
-                'status': (data['status'] as String? ?? '') == 'Inactive'
-                    ? 'Inactive'
-                    : stock > min
-                        ? (stock > max ? 'Over' : 'OK')
-                        : 'Low',
+                // Preserve 'Over' if stock exceeds max, else compute from stock levels
+                'status': stock > min
+                    ? (stock > max ? 'Over' : 'OK')
+                    : 'Low',
               };
             }).toList();
 
@@ -514,29 +512,24 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
     final stock = item['stock'] as int;
     final min = item['min'] as int;
     final max = item['max'] as int;
-    final isInactive = status == 'Inactive';
-    final isOut  = !isInactive && stock == 0;
-    final isLow  = !isInactive && !isOut && status == 'Low';
-    final isOver = !isInactive && !isOut && !isLow && status == 'Over';
+    final isOut  = stock == 0;
+    final isLow  = !isOut && status == 'Low';
+    final isOver = !isOut && !isLow && status == 'Over';
     final progress = max > 0 ? (stock / max).clamp(0.0, 1.0) : 0.0;
-    final barColor = isInactive
-        ? const Color(0xFF718096)
-        : isOut
-            ? Colors.red
-            : isLow
-                ? Colors.orange
-                : isOver
-                    ? Colors.purple
-                    : Colors.green;
-    final statusLabel = isInactive
-        ? 'Inactive'
-        : isOut
-            ? 'Out of Stock'
-            : isLow
-                ? 'Low Stock'
-                : isOver
-                    ? 'Over Max'
-                    : 'In Stock';
+    final barColor = isOut
+        ? Colors.red
+        : isLow
+            ? Colors.orange
+            : isOver
+                ? Colors.purple
+                : Colors.green;
+    final statusLabel = isOut
+        ? 'Out of Stock'
+        : isLow
+            ? 'Low Stock'
+            : isOver
+                ? 'Over Max'
+                : 'In Stock';
 
     return GestureDetector(
       onTap: () => _showStockDetails(item),

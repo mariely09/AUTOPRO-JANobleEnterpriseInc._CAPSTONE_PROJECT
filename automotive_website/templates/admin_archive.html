@@ -135,39 +135,43 @@ function renderArchiveList() {
             + '<div><span style="display:inline-block;background:' + typeBg + ';color:' + typeColor + ';border:1.5px solid ' + typeColor + ';padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;">' + item.type + '</span></div>'
             + '<div>₱' + item.cost.toLocaleString('en-PH', {minimumFractionDigits:2}) + '</div>'
             + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;">'
-            +   '<button class="btn-small btn-secondary" onclick="restoreItem(\'' + item.id + '\',\'' + item.name.replace(/'/g,"\\'") + '\')" title="Restore" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg></button>'
-            +   '<button class="btn-small btn-danger" onclick="permanentlyDeleteItem(\'' + item.id + '\',\'' + item.name.replace(/'/g,"\\'") + '\')" title="Delete Permanently" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>'
+            +   '<button class="btn-small btn-secondary" onclick="restoreItem(\'' + item.id + '\',\'' + item.name.replace(/'/g,"\\'") + '\')" title="Restore" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;color:#38a169;border-color:#9ae6b4;background:#f0fff4;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg></button>'
+            +   '<button class="btn-small btn-danger" onclick="permanentlyDeleteItem(\'' + item.id + '\',\'' + item.name.replace(/'/g,"\\'") + '\')" title="Delete Permanently" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
             + '</div></div>';
     });
     list.innerHTML = rows.join('');
 }
 
 window.restoreItem = function(docId, name) {
-    if (!confirm('Restore "' + name + '" back to Item Master?')) return;
+    if (!confirm('Are you sure you want to restore "' + name + '" back to Item Master?')) return;
     db.collection('item_master').doc(docId).update({ archived: false, archivedAt: null })
         .then(function() {
-            // Restore stock_inventory status from Inactive back to proper status
+            // Get item details to redirect to stock inventory with pre-filled form
             db.collection('item_master').doc(docId).get().then(function(snap) {
-                if (!snap.exists) return;
-                var num = snap.data().num || '';
-                if (!num) return;
-                db.collection('stock_inventory').where('num', '==', num).limit(1).get().then(function(stSnap) {
-                    if (!stSnap.empty) {
-                        var data = stSnap.docs[0].data();
-                        var stock = data.stock || 0;
-                        var min = data.min || 0;
-                        var restoredStatus = stock > min ? 'OK' : (stock === 0 ? 'Low' : 'Low');
-                        stSnap.docs[0].ref.update({ status: restoredStatus }).catch(function(){});
-                    }
-                }).catch(function(){});
-            }).catch(function(){});
-            showToast('"' + name + '" restored successfully!', 'success');
+                if (!snap.exists) {
+                    showToast('"' + name + '" restored successfully!', 'success');
+                    return;
+                }
+                var data = snap.data();
+                var num          = data.num           || '';
+                var itemName     = data.name          || '';
+                var group        = data.group         || '';
+                var uom          = data.uom           || '';
+                var supplierCode = data.supplierCode  || '';
+                showToast('"' + name + '" restored! Redirecting to Stock Inventory...', 'success');
+                setTimeout(function() {
+                    window.location.href = 'admin_inventory_stock.html#add='
+                        + encodeURIComponent(num + '|' + itemName + '|' + group + '|' + uom + '|' + supplierCode);
+                }, 1000);
+            }).catch(function() {
+                showToast('"' + name + '" restored successfully!', 'success');
+            });
         })
         .catch(function(err) { showToast('Restore failed: ' + err.message, 'error'); });
 };
 
 window.permanentlyDeleteItem = function(docId, name) {
-    if (!confirm('Permanently delete "' + name + '"? This CANNOT be undone and will also remove it from Stock Inventory.')) return;
+    if (!confirm('Are you sure you want to permanently delete "' + name + '"?')) return;
     db.collection('item_master').doc(docId).get().then(function(snap) {
         if (!snap.exists) return;
         var num = snap.data().num || '';

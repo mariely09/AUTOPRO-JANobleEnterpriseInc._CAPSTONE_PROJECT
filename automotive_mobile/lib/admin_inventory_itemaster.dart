@@ -1158,13 +1158,13 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                   'archived': true,
                   'archivedAt': FieldValue.serverTimestamp(),
                 }));
-                // Set matching stock_inventory status to Inactive
+                // Delete matching stock_inventory doc
                 final num = item['num'] as String? ?? '';
                 if (num.isNotEmpty) {
                   final stockSnap = await FirebaseFirestore.instance
                       .collection('stock_inventory').where('num', isEqualTo: num).limit(1).get();
                   if (stockSnap.docs.isNotEmpty) {
-                    await stockSnap.docs.first.reference.update({'status': 'Inactive'}).catchError((_) {});
+                    await stockSnap.docs.first.reference.delete().catchError((_) {});
                   }
                 }
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(

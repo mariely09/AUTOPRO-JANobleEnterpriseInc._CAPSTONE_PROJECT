@@ -1978,7 +1978,7 @@ function deleteItemMaster(itemNum) {
     })
     .then(function() {
         db.collection('stock_inventory').where('num', '==', itemNum).limit(1).get().then(function(snap) {
-            if (!snap.empty) snap.docs[0].ref.update({ status: 'Inactive' }).catch(function(){});
+            if (!snap.empty) snap.docs[0].ref.delete().catch(function(){});
         }).catch(function(){});
         showToast('Item archived successfully!', 'success');
     })

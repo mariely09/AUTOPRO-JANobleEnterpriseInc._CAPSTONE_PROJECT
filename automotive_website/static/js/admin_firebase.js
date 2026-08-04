@@ -237,9 +237,7 @@
         maxLevel: parseInt(i.max) || 0,
         reorderQty: parseInt(i.reorder) || 0,
         // Compute status live — same logic as mobile app (stock==0 = Out, stock<=min = Low, stock>max = Over, else OK)
-        // Preserve 'Inactive' if set (archived item)
         status: (function() {
-          if ((i.status || '') === 'Inactive') return 'Inactive';
           var s = parseInt(i.stock) || 0;
           var mn = parseInt(i.min) || 0;
           var mx = parseInt(i.max) || 0;
