@@ -200,6 +200,7 @@ class ApiKeyManager:
 
                     # Rebuild the key list from Firestore
                     new_keys: list[_KeyState] = []
+                    _decrypt_errors: list[str] = []
                     for doc in docs:
                         d = doc.to_dict()
                         if not d.get("encrypted_key"):
@@ -207,7 +208,26 @@ class ApiKeyManager:
                         try:
                             plain_key = decrypt_key(d["encrypted_key"])
                         except Exception as exc:
-                            logger.error("Failed to decrypt key %s: %s", doc.id, exc)
+                            # Decryption failed — most likely the Fernet secret
+                            # (GROQ_KEY_ENCRYPTION_SECRET) differs between the worker
+                            # that saved the key and this worker.  Surface the error
+                            # as a disabled placeholder so the UI shows the key exists
+                            # rather than silently hiding it.
+                            account = d.get("account_name", doc.id)
+                            logger.error(
+                                "ApiKeyManager: DECRYPT ERROR for key '%s' (%s). "
+                                "Check that GROQ_KEY_ENCRYPTION_SECRET is the same on "
+                                "all Render workers. Error: %s",
+                                account, doc.id, exc,
+                            )
+                            _decrypt_errors.append(account)
+                            placeholder = _KeyState(
+                                key_id=doc.id,
+                                plain_key="",
+                                account_name=f"{account} ⚠ decrypt-error",
+                                status="disabled",
+                            )
+                            new_keys.append(placeholder)
                             continue
 
                         state = _KeyState(
@@ -251,9 +271,18 @@ class ApiKeyManager:
                 # Set _loaded AFTER releasing the lock — safe for other threads to read
                 self._loaded = True
 
+                if _decrypt_errors:
+                    logger.error(
+                        "ApiKeyManager: %d key(s) could not be decrypted: %s. "
+                        "Ensure GROQ_KEY_ENCRYPTION_SECRET is identical on all workers.",
+                        len(_decrypt_errors), _decrypt_errors,
+                    )
+
                 logger.info(
-                    "ApiKeyManager: loaded %d key(s). Rotation=%s, cooldown=%ds",
-                    len(self._keys), self._rotation_enabled, self._cooldown_seconds,
+                    "ApiKeyManager: loaded %d key(s) (%d decrypt error(s)). "
+                    "Rotation=%s, cooldown=%ds",
+                    len(self._keys), len(_decrypt_errors),
+                    self._rotation_enabled, self._cooldown_seconds,
                 )
 
             except Exception as exc:
@@ -501,6 +530,8 @@ class ApiKeyManager:
             cooldown_count = sum(1 for k in self._keys
                                  if k.status != "disabled" and k.in_cooldown)
             disabled_count = sum(1 for k in self._keys if k.status == "disabled")
+            decrypt_errors = sum(1 for k in self._keys
+                                 if "decrypt-error" in k.account_name)
 
             from config import settings
             return {
@@ -518,6 +549,7 @@ class ApiKeyManager:
                 "cooldown_seconds":   self._cooldown_seconds,
                 "max_retries":        self._max_retries,
                 "rotation_strategy":  "Round Robin",
+                "decrypt_errors":     decrypt_errors,
                 "keys":               keys_info,
             }
 
