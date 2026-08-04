@@ -180,11 +180,10 @@ class ApiKeyManager:
                     self._max_retries      = int(s.get("max_retries", MAX_RETRY_ATTEMPTS))
 
                 # ── Fetch Firestore key documents ─────────────────────────────
-                docs = list(
-                    db.collection("ai_api_keys")
-                      .order_by("sort_order")
-                      .stream()
-                )
+                # Sort in Python to avoid requiring a Firestore single-field index
+                # on sort_order (which may not exist and causes a silent failure).
+                docs = list(db.collection("ai_api_keys").stream())
+                docs.sort(key=lambda d: d.to_dict().get("sort_order", 0))
 
                 with self._lock:
                     # Build a map of existing runtime state keyed by key_id so we
@@ -527,13 +526,11 @@ class ApiKeyManager:
         try:
             from firestore_client import get_db
             db = get_db()
-            docs = (
-                db.collection("ai_event_log")
-                  .order_by("timestamp_epoch", direction="DESCENDING")
-                  .limit(LOG_MAX)
-                  .stream()
-            )
-            return [d.to_dict() for d in docs]
+            # Fetch all and sort in Python to avoid needing a Firestore index
+            docs = list(db.collection("ai_event_log").stream())
+            entries = [d.to_dict() for d in docs]
+            entries.sort(key=lambda e: e.get("timestamp_epoch", 0), reverse=True)
+            return entries[:LOG_MAX]
         except Exception as exc:
             logger.warning("get_event_log: Firestore unavailable, falling back to memory: %s", exc)
             with self._lock:
@@ -575,14 +572,12 @@ def _prune_event_log(db):
     Called in a background thread — errors are silently swallowed.
     """
     try:
-        docs = list(
-            db.collection("ai_event_log")
-              .order_by("timestamp_epoch", direction="DESCENDING")
-              .offset(LOG_MAX)
-              .limit(50)   # delete up to 50 old docs per prune pass
-              .stream()
-        )
-        for doc in docs:
+        docs = list(db.collection("ai_event_log").stream())
+        if len(docs) <= LOG_MAX:
+            return
+        # Sort newest-first and delete anything beyond the limit
+        docs.sort(key=lambda d: d.to_dict().get("timestamp_epoch", 0), reverse=True)
+        for doc in docs[LOG_MAX:]:
             doc.reference.delete()
     except Exception:
         pass
