@@ -10,7 +10,16 @@
     <link rel="stylesheet" href="../static/css/admin.css">
     <style>
       /* ── Page-level overrides ── */
-      .ai-page { max-width: 1200px; }
+      .ai-page {
+        max-width: 1200px;
+        /* Prevent any child from causing a horizontal scrollbar on the page */
+        min-width: 0;
+        overflow-x: hidden;
+      }
+
+      /* Ensure the main column doesn't overflow its grid cell */
+      .admin-main  { min-width: 0; overflow-x: hidden; }
+      .admin-content { min-width: 0; }
 
       /* Section cards */
       .ai-card {
@@ -57,6 +66,7 @@
 
       /* Keys table */
       .keys-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+      .keys-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
       .keys-table th {
         background: #1a202c; color: #fff; font-weight: 700; font-size: 0.75rem;
         text-transform: uppercase; letter-spacing: 0.4px;
@@ -101,6 +111,7 @@
 
       /* Log table */
       .log-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+      .log-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
       .log-table th {
         background: #1a202c; color: #fff; font-weight: 700; font-size: 0.72rem;
         text-transform: uppercase; padding: 8px 12px; text-align: left;
