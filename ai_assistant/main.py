@@ -68,7 +68,20 @@ def _rate_limit_reply(error_message: str) -> dict:
 
 def _is_rate_limit(exc: Exception) -> bool:
     cls_name = type(exc).__name__.lower()
-    return "ratelimit" in cls_name or "rate_limit" in cls_name or "429" in str(exc)
+    exc_str  = str(exc).lower()
+    return (
+        "ratelimit" in cls_name
+        or "rate_limit" in cls_name
+        or "429" in exc_str
+        # Groq TPM (tokens-per-minute) errors come back as HTTP 413 with
+        # type: "tokens" and code: "rate_limit_exceeded".  Rotation fires but
+        # can't help (org-level limit), so we surface the friendly message
+        # instead of letting it become a 500.
+        or "413" in exc_str
+        or ("token" in exc_str and "limit" in exc_str)
+        or "request too large" in exc_str
+        or "too large for model" in exc_str
+    )
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
