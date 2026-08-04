@@ -751,6 +751,30 @@ function renderStatus(d) {
   } else if (decryptBanner) {
     decryptBanner.remove();
   }
+
+  // Firestore load-error banner (quota exceeded, etc.)
+  let loadErrBanner = document.getElementById('loadErrorBanner');
+  if (d.load_error) {
+    if (!loadErrBanner) {
+      loadErrBanner = document.createElement('div');
+      loadErrBanner.id = 'loadErrorBanner';
+      loadErrBanner.style.cssText =
+        'background:#fff5f5;border:1px solid #fc8181;border-radius:8px;' +
+        'padding:10px 14px;margin-bottom:12px;font-size:0.85rem;color:#c53030;';
+      const card = document.querySelector('.ai-card');
+      if (card) card.parentNode.insertBefore(loadErrBanner, card);
+    }
+    const isQuota = d.load_error.toLowerCase().includes('quota');
+    loadErrBanner.innerHTML = isQuota
+      ? `🔴 <strong>Firestore daily read quota exceeded.</strong> ` +
+        `Your keys are saved but cannot be displayed until the quota resets (usually midnight Pacific Time). ` +
+        `The backend will automatically retry every 60 seconds. ` +
+        `Click <strong>Refresh</strong> to check again.`
+      : `🔴 <strong>Failed to load keys from Firestore:</strong> ${d.load_error} — ` +
+        `Click <strong>Refresh</strong> to retry.`;
+  } else if (loadErrBanner) {
+    loadErrBanner.remove();
+  }
 }
 
 function renderKeys(keys) {
