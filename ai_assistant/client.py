@@ -94,30 +94,12 @@ Rules for the JSON block:
 - Date filters (start_date, end_date, month) go inside "filters" too
 - If no filters were mentioned, "filters" must be an empty object {{}}
 
-Examples:
+Examples (apply same pattern for all other types/filters/formats):
 
 User: Generate inventory report.
 Reply: Your inventory report is ready.
 ```report_payload
 {{"report_type":"inventory","format":"pdf","filters":{{}}}}
-```
-
-User: Generate inventory report in Excel.
-Reply: Your inventory report is ready.
-```report_payload
-{{"report_type":"inventory","format":"excel","filters":{{}}}}
-```
-
-User: Generate inventory report in PDF and Excel.
-Reply: Your inventory report is ready.
-```report_payload
-{{"report_type":"inventory","format":"both","filters":{{}}}}
-```
-
-User: Generate inventory report for Lubricants.
-Reply: Your inventory report is ready.
-```report_payload
-{{"report_type":"inventory","format":"pdf","filters":{{"group":"Lubricants"}}}}
 ```
 
 User: Generate low stock inventory report in Excel.
@@ -126,10 +108,10 @@ Reply: Your inventory report is ready.
 {{"report_type":"inventory","format":"excel","filters":{{"status":"Low"}}}}
 ```
 
-User: Generate inventory report for Lubricants with low stock.
-Reply: Your inventory report is ready.
+User: Generate issuance report for June 2026 in PDF and Excel.
+Reply: Your issuance report is ready.
 ```report_payload
-{{"report_type":"inventory","format":"pdf","filters":{{"group":"Lubricants","status":"Low"}}}}
+{{"report_type":"issuance","format":"both","filters":{{"month":"June {today.year}"}}}}
 ```
 
 User: Generate completed maintenance report for July.
@@ -138,112 +120,16 @@ Reply: Your maintenance report is ready.
 {{"report_type":"maintenance","format":"pdf","filters":{{"status":"Completed","month":"July {today.year}"}}}}
 ```
 
-User: Generate approved booking report in Excel.
-Reply: Your bookings report is ready.
-```report_payload
-{{"report_type":"bookings","format":"excel","filters":{{"status":"Approved"}}}}
-```
-
-User: Generate issuance report for plate ABC123 in PDF and Excel.
-Reply: Your issuance report is ready.
-```report_payload
-{{"report_type":"issuance","format":"both","filters":{{"plate":"ABC123"}}}}
-```
-
-User: Generate a vehicle report for the month of July.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"month":"July {today.year}"}}}}
-```
-
-User: Download the vehicle report.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{}}}}
-```
-
-User: Export vehicle report as PDF.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{}}}}
-```
-
-User: Export vehicle report as Excel.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"excel","filters":{{}}}}
-```
-
-User: Generate a vehicle report for Juan Dela Cruz.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"owner":"Juan Dela Cruz"}}}}
-```
-
-User: Generate a vehicle report for Maria Santos.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"owner":"Maria Santos"}}}}
-```
-
-User: Generate an active vehicle report.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"status":"Active"}}}}
-```
-
-User: Generate an inactive vehicle report.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"status":"Inactive"}}}}
-```
-
-User: Generate a vehicle report for vehicles due for maintenance.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"status":"Maintenance"}}}}
-```
-
-User: Generate a report for Trucks.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"vehicle_type":"Truck"}}}}
-```
-
-User: Generate a report for SUVs.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"vehicle_type":"SUV"}}}}
-```
-
-User: Generate a report for Sedans.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"vehicle_type":"Sedan"}}}}
-```
-
-User: Generate a report for Vans.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"vehicle_type":"Van"}}}}
-```
-
-User: Generate an active truck report.
+User: Generate active truck report.
 Reply: Your vehicle fleet report is ready.
 ```report_payload
 {{"report_type":"vehicles","format":"pdf","filters":{{"status":"Active","vehicle_type":"Truck"}}}}
 ```
 
-User: Generate a PDF report of active sedans.
-Reply: Your vehicle fleet report is ready.
+User: Generate pending bookings report in Excel.
+Reply: Your bookings report is ready.
 ```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"status":"Active","vehicle_type":"Sedan"}}}}
-```
-
-User: Generate an Excel report for Juan Dela Cruz's vehicles.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"excel","filters":{{"owner":"Juan Dela Cruz"}}}}
+{{"report_type":"bookings","format":"excel","filters":{{"status":"Pending"}}}}
 ```
 
 ────────────────────────────────────────────────────
