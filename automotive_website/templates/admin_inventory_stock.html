@@ -633,7 +633,11 @@ function stockSearchMasterItem(query) {
     }
 
     var matches = master.filter(function(i) {
+        // Exclude Service items and AutoService group — they don't need stock levels
+        if ((i.itemType || '').toLowerCase() === 'service') return false;
+        if ((i.commodityGroup || '').toLowerCase() === 'autoservice') return false;
         return (i.itemName||'').toLowerCase().includes(q)
+            || (i.itemNum||'').toLowerCase().includes(q)
             || (i.commodityGroup||'').toLowerCase().includes(q)
             || (i.supplierCode||'').toLowerCase().includes(q)
             || (i.barcode||'').toLowerCase() === q
@@ -643,6 +647,24 @@ function stockSearchMasterItem(query) {
     if (matches.length === 0) {
         resultsEl.style.display = 'none';
         resultsEl.innerHTML = '';
+        // Check if the query matches a Service/AutoService item — give a helpful message
+        var isService = master.some(function(i) {
+            var matchesQuery = (i.itemName||'').toLowerCase().includes(q)
+                || (i.itemNum||'').toLowerCase().includes(q)
+                || (i.supplierCode||'').toLowerCase().includes(q);
+            return matchesQuery && ((i.itemType||'').toLowerCase() === 'service' || (i.commodityGroup||'').toLowerCase() === 'autoservice');
+        });
+        if (isService) {
+            notFoundEl.innerHTML = '⚠️ Service items and AutoService group items do not require stock tracking.';
+            notFoundEl.style.background = '#fffbeb';
+            notFoundEl.style.borderColor = '#fcd34d';
+            notFoundEl.style.color = '#92400e';
+        } else {
+            notFoundEl.innerHTML = 'No item found in Item Master.';
+            notFoundEl.style.background = '#fff5f5';
+            notFoundEl.style.borderColor = '#fed7d7';
+            notFoundEl.style.color = '#c53030';
+        }
         notFoundEl.style.display = 'block';
         return;
     }

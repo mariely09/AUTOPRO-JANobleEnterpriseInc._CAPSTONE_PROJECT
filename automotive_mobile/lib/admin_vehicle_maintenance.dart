@@ -242,6 +242,8 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
         final docs = snapshot.data?.docs ?? [];
         final services = docs.map((d) {
           final data = d.data() as Map<String, dynamic>;
+          // Skip archived records
+          if (data['archived'] == true) return null;
           return {
             'docId': d.id,
             'id': data['id'] as String? ?? d.id,
@@ -256,7 +258,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
             'matRows': data['matRows'],
             'issues': data['issues'],
           };
-        }).toList();
+        }).whereType<Map<String, dynamic>>().toList();
 
         final activeQuery = widget.searchQuery.isNotEmpty ? widget.searchQuery : _searchQuery;
         final filtered = activeQuery.isEmpty
@@ -673,10 +675,10 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                 if (s['status'] != 'Completed')
                   SizedBox(width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () { Navigator.pop(context); _confirmDelete(s); },
-                      icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                      label: const Text('Delete Service', style: TextStyle(color: Colors.red)),
-                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
+                      onPressed: () { Navigator.pop(context); _confirmArchive(s); },
+                      icon: const Icon(Icons.archive_outlined, size: 16, color: Colors.orange),
+                      label: const Text('Archive Service', style: TextStyle(color: Colors.orange)),
+                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.orange)),
                     )),
               ]),
             ),
@@ -1694,6 +1696,53 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
   }
 
   String _monthName(int m) => const ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1];
+
+  void _confirmArchive(Map<String, dynamic> s) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.archive_outlined, color: Colors.orange, size: 22),
+          SizedBox(width: 8),
+          Text('Archive Service', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: Text(
+          'Are you sure you want to archive service "${s['id']}"?',
+          style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await SyncStatusNotifier.instance.trackWrite(() => _db.doc(s['docId'] as String).update({
+                  'archived': true,
+                  'archivedAt': FieldValue.serverTimestamp(),
+                }));
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Row(children: const [Icon(Icons.archive_outlined, color: Colors.white, size: 18), SizedBox(width: 8), Text('Service archived successfully!')]),
+                  backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange, foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Yes, Archive'),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _confirmDelete(Map<String, dynamic> s) {
     showDialog(

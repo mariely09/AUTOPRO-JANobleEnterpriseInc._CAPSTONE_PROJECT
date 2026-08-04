@@ -275,12 +275,18 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
     final snap = await _masterDb.orderBy('name').get();
     return snap.docs
         .map((d) => _docToMaster(d))
-        .where((item) =>
-            (item['name'] as String).toLowerCase().contains(q) ||
-            (item['group'] as String).toLowerCase().contains(q) ||
-            (item['supplierCode'] as String).toLowerCase().contains(q) ||
-            _match(item['barcode'] as String, raw) ||
-            _match(item['qr']      as String, raw))
+        .where((item) {
+          // Exclude Service type and AutoService group — no stock tracking needed
+          final type  = (item['type']  as String? ?? '').toLowerCase();
+          final group = (item['group'] as String? ?? '').toLowerCase();
+          if (type == 'service' || group == 'autoservice') return false;
+          return (item['name'] as String).toLowerCase().contains(q) ||
+              (item['num'] as String).toLowerCase().contains(q) ||
+              (item['group'] as String).toLowerCase().contains(q) ||
+              (item['supplierCode'] as String).toLowerCase().contains(q) ||
+              _match(item['barcode'] as String, raw) ||
+              _match(item['qr']      as String, raw);
+        })
         .toList();
   }
 
@@ -940,6 +946,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
     List<Map<String, dynamic>> searchResults = [];
     bool searching = false;
     bool searched = false;
+    bool _isServiceSearchResult = false;
     Timer? _debounce;
     Future<QuerySnapshot>? _dupCheckFuture;
     bool saving = false;
@@ -966,7 +973,22 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
       }
       setModal(() { searching = true; searched = false; selectedMaster = null; searchResults = []; });
       final results = await _searchItemMaster(query);
-      setModal(() { searching = false; searched = true; searchResults = results; });
+      // Check if the empty result is because of a service/AutoService match
+      bool isServiceMatch = false;
+      if (results.isEmpty) {
+        final q2 = query.trim().toLowerCase();
+        final allDocs = await _masterDb.get();
+        isServiceMatch = allDocs.docs.any((d) {
+          final data = d.data() as Map<String, dynamic>;
+          final type  = (data['type']  as String? ?? '').toLowerCase();
+          final group = (data['group'] as String? ?? '').toLowerCase();
+          if (type != 'service' && group != 'autoservice') return false;
+          return (data['name']         as String? ?? '').toLowerCase().contains(q2) ||
+                 (data['num']          as String? ?? '').toLowerCase().contains(q2) ||
+                 (data['supplierCode'] as String? ?? '').toLowerCase().contains(q2);
+        });
+      }
+      setModal(() { searching = false; searched = true; searchResults = results; _isServiceSearchResult = isServiceMatch; });
     }
 
     showModalBottomSheet(
@@ -1025,7 +1047,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                                 icon: const Icon(Icons.clear, size: 18),
                                 onPressed: () {
                                   scanCtrl.clear();
-                                  setModal(() { selectedMaster = null; searchResults = []; searched = false; searching = false; });
+                                  setModal(() { selectedMaster = null; searchResults = []; searched = false; searching = false; _isServiceSearchResult = false; });
                                 },
                               )
                             : null,
@@ -1033,7 +1055,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                       onChanged: (val) {
                         // Reset selection
                         if (selectedMaster != null) {
-                          setModal(() { selectedMaster = null; searchResults = []; searched = false; });
+                          setModal(() { selectedMaster = null; searchResults = []; searched = false; _isServiceSearchResult = false; });
                         }
                         // Debounce: cancel previous timer, fire after 400ms idle
                         _debounce?.cancel();
@@ -1080,13 +1102,21 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                            color: Colors.red.shade50,
+                            color: _isServiceSearchResult ? const Color(0xFFFFFBEB) : Colors.red.shade50,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.red.shade200)),
-                        child: const Row(children: [
-                          Icon(Icons.error_outline, color: Colors.red, size: 16),
-                          SizedBox(width: 8),
-                          Text('No item found in Item Master.', style: TextStyle(color: Colors.red, fontSize: 12)),
+                            border: Border.all(color: _isServiceSearchResult ? const Color(0xFFFCD34D) : Colors.red.shade200)),
+                        child: Row(children: [
+                          Icon(_isServiceSearchResult ? Icons.info_outline : Icons.error_outline,
+                              color: _isServiceSearchResult ? const Color(0xFF92400E) : Colors.red, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(
+                            _isServiceSearchResult
+                                ? 'Service items and AutoService group items do not require stock tracking.'
+                                : 'No item found in Item Master.',
+                            style: TextStyle(
+                                color: _isServiceSearchResult ? const Color(0xFF92400E) : Colors.red,
+                                fontSize: 12),
+                          )),
                         ]),
                       )
                     else ...[
