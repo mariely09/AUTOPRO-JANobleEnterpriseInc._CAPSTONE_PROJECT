@@ -704,9 +704,13 @@ def _check_admin(x_admin_token: str = ""):
 
 @app.get("/ai-settings/status")
 def ai_settings_status():
-    """Return current AI service status and key table (masked)."""
+    """Return current AI service status and key table (masked).
+    Always reloads from Firestore so the response is never stale across
+    Render workers or after a cold start.
+    """
     from api_key_manager import get_manager
     manager = get_manager()
+    manager.load_from_firestore()   # always fresh — Firestore is the source of truth
     return manager.get_status()
 
 

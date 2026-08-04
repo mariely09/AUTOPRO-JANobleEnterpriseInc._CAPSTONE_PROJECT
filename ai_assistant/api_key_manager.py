@@ -523,20 +523,69 @@ class ApiKeyManager:
             }
 
     def get_event_log(self) -> list[dict]:
-        """Return the most recent events (newest first)."""
-        with self._lock:
-            return list(reversed(self._event_log))
+        """Return the most recent events — reads from Firestore so all workers agree."""
+        try:
+            from firestore_client import get_db
+            db = get_db()
+            docs = (
+                db.collection("ai_event_log")
+                  .order_by("timestamp_epoch", direction="DESCENDING")
+                  .limit(LOG_MAX)
+                  .stream()
+            )
+            return [d.to_dict() for d in docs]
+        except Exception as exc:
+            logger.warning("get_event_log: Firestore unavailable, falling back to memory: %s", exc)
+            with self._lock:
+                return list(reversed(self._event_log))
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _log_event(self, event_type: str, account: str, message: str):
-        """Append an event to the in-memory log. Must be called while _lock is held."""
-        self._event_log.append({
-            "timestamp":  datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "event_type": event_type,
-            "account":    account,
-            "message":    message,
-        })
+        """Append an event to the in-memory log AND persist to Firestore.
+        Must be called while self._lock is held.
+        Firestore write is fire-and-forget (errors are logged, not raised).
+        """
+        entry = {
+            "timestamp":       datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp_epoch": time.time(),   # used for server-side ordering
+            "event_type":      event_type,
+            "account":         account,
+            "message":         message,
+        }
+        self._event_log.append(entry)
+
+        # Persist to Firestore so all Render workers share the same log
+        def _write():
+            try:
+                from firestore_client import get_db
+                db = get_db()
+                db.collection("ai_event_log").document().set(entry)
+                # Keep only the last LOG_MAX documents — prune oldest in background
+                _prune_event_log(db)
+            except Exception as exc:
+                logger.warning("_log_event: could not persist to Firestore: %s", exc)
+
+        import threading as _threading
+        _threading.Thread(target=_write, daemon=True).start()
+
+
+def _prune_event_log(db):
+    """Delete event log documents beyond LOG_MAX (keep newest LOG_MAX).
+    Called in a background thread — errors are silently swallowed.
+    """
+    try:
+        docs = list(
+            db.collection("ai_event_log")
+              .order_by("timestamp_epoch", direction="DESCENDING")
+              .offset(LOG_MAX)
+              .limit(50)   # delete up to 50 old docs per prune pass
+              .stream()
+        )
+        for doc in docs:
+            doc.reference.delete()
+    except Exception:
+        pass
 
 
 # ── Singleton ─────────────────────────────────────────────────────────────────
