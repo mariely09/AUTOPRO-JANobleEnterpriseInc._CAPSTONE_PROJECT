@@ -840,6 +840,7 @@ var _ndIdx = 0;
 
 window.openNewDeliveryModal = function() {
   _ndFoundItem = null; _ndItems = []; _ndIdx = 0;
+  window._ndAllMatches = [];
   _currentEditDeliveryId = null;
   // Reset header to New Delivery mode
   var hdTitle = document.querySelector('#newDeliveryModal .modal-content > div:first-child div div:first-child');
@@ -901,6 +902,21 @@ window._ndLoadAllItems = function() {
     }).catch(function(){});
 
     masterPromise.then(function() {
+      // Collect item nums already in active (non-approved/rejected) deliveries
+      var activeDeliveryNums = {};
+      (_allDeliveries || []).forEach(function(d) {
+        var st = d.status || 'Pending';
+        if (st === 'Approved' || st === 'Rejected') return;
+        // Skip the delivery being edited
+        if (_currentEditDeliveryId && d.id === _currentEditDeliveryId) return;
+        (d.items || []).forEach(function(item) {
+          var itemSt = item.itemStatus || st;
+          if (itemSt !== 'Approved' && itemSt !== 'Rejected') {
+            activeDeliveryNums[item.itemNum || ''] = true;
+          }
+        });
+      });
+
       var matches = needReplenish.map(function(s) {
         return {
           num:           s.num  || '',
@@ -912,13 +928,19 @@ window._ndLoadAllItems = function() {
           _maxLevel:     parseInt(s.max)   || 0,
           _cost:         numToMaxCost[s.num || ''] || 0,
         };
+      }).filter(function(m) {
+        // Hide items already in an active delivery
+        return !activeDeliveryNums[m.num || ''];
       }).sort(function(a, b) {
         if (a._stock === 0 && b._stock !== 0) return -1;
         if (b._stock === 0 && a._stock !== 0) return  1;
         return (a.name||'').localeCompare(b.name||'');
       });
 
-      _ndRenderItemList(matches);
+      window._ndAllMatches = matches; // keep full list for re-filtering
+      _ndRenderItemList(matches.filter(function(m) {
+        return !_ndItems.find(function(i){ return i.itemNum === (m.num || m.itemNum || ''); });
+      }));
     });
   }).catch(function() {
     resultsEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#c53030;font-size:0.83rem;">Failed to load items.</div>';
@@ -1099,18 +1121,6 @@ window.ndSelectItem = function(idx) {
     showToast(name + ' is already added.', 'error'); return;
   }
 
-  // Dim and mark the selected card (mobile-style: stays visible with checkmark)
-  var card = document.getElementById('ndResult_' + idx);
-  if (card) {
-    card.style.opacity = '0.35';
-    card.style.background = '#f7f8fa';
-    card.style.cursor = 'default';
-    card.onclick = null;
-    // Swap chevron for green checkmark
-    var chevron = card.querySelector('svg');
-    if (chevron) chevron.outerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
-  }
-
   _ndIdx++;
   var rowIdx = _ndIdx;
   _ndItems.push({ itemNum:num, itemName:name, uom:uom, expectedQty:recQty, _idx:rowIdx, _cardIdx:idx, _cost: item._cost || 0, supplierCode: item.supplierCode || '' });
@@ -1123,6 +1133,11 @@ window.ndSelectItem = function(idx) {
   document.getElementById('ndAddedCount').textContent = _ndItems.length + ' item' + (_ndItems.length !== 1 ? 's' : '');
   document.getElementById('ndAddedItemsWrap').style.display = 'flex';
   _ndUpdateTotal();
+  // Re-render replenishment list to remove the added item
+  var remaining = (window._ndAllMatches || []).filter(function(m) {
+    return !_ndItems.find(function(i){ return i.itemNum === (m.num || m.itemNum || ''); });
+  });
+  _ndRenderItemList(remaining);
   showToast(name + ' added.', 'success');
 };
 
@@ -1173,28 +1188,19 @@ window.ndAddCurrentItem = function() {
 };
 
 window.ndRemoveItem = function(idx) {
-  var removed = _ndItems.find(function(i){ return i._idx === idx; });
   _ndItems = _ndItems.filter(function(i){ return i._idx !== idx; });
   var el = document.getElementById('ndAddedRow' + idx);
   if (el) el.remove();
-  // Restore the card in the results list (mobile-style)
-  if (removed && removed._cardIdx !== undefined) {
-    var card = document.getElementById('ndResult_' + removed._cardIdx);
-    if (card) {
-      card.style.opacity = '';
-      card.style.background = 'white';
-      card.style.cursor = 'pointer';
-      card.onclick = function() { ndSelectItem(removed._cardIdx); };
-      // Restore chevron
-      var check = card.querySelector('svg');
-      if (check) check.outerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>';
-    }
-  }
   var wrap = document.getElementById('ndAddedItemsWrap');
   var countEl = document.getElementById('ndAddedCount');
   if (_ndItems.length === 0) { wrap.style.display = 'none'; }
   else { countEl.textContent = _ndItems.length + ' item' + (_ndItems.length !== 1 ? 's' : ''); }
   _ndUpdateTotal();
+  // Re-render replenishment list to add the removed item back
+  var remaining = (window._ndAllMatches || []).filter(function(m) {
+    return !_ndItems.find(function(i){ return i.itemNum === (m.num || m.itemNum || ''); });
+  });
+  _ndRenderItemList(remaining);
 };
 
 window._ndUpdateTotal = function() {
@@ -1273,6 +1279,7 @@ window.editDelivery = function(id) {
 
   // Reset state
   _ndFoundItem = null; _ndItems = []; _ndIdx = 0;
+  window._ndAllMatches = [];
   _currentEditDeliveryId = id;
 
   // Swap header to Edit mode

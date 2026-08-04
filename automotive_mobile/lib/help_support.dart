@@ -22,47 +22,67 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       case HelpSupportRole.admin:
         return const [
           {
-            'q': 'How do I add a new vehicle?',
-            'a': 'Go to the Vehicles tab in the bottom navigation, then tap the red + button at the bottom right. Fill in the plate number, description, vehicle type, owner, odometer, last service date, and service frequency, then save.',
+            'q': 'What sections are available in the admin panel?',
+            'a': 'The admin panel has four main sections: Inventory Management (Item Master, Stock Inventory, Receiving Items, Inventory Transactions), Vehicle Maintenance (Vehicle List, Vehicle Maintenance, Service Bookings, Issuances), Decision Support System (Stock Replenishment, PMS Scheduling), and Administration (User Management, Domain Management, AI Settings, Archive).',
           },
           {
-            'q': 'How do I edit or delete a vehicle?',
-            'a': 'In the Vehicles tab, tap the three-dot menu on any vehicle card and select Edit or Delete. You can update all vehicle details including odometer and service schedule.',
+            'q': 'How do I manage the Item Master?',
+            'a': 'Go to Item Master under Inventory Management. You can add new items (materials or services), edit existing ones, set commodity group, UOM, cost, and supplier code, and archive items that are no longer in use.',
           },
           {
-            'q': 'How does vehicle status get computed?',
-            'a': 'Status is automatically calculated based on the last service date and service frequency. It will show Active, PMS Due Soon, Overdue, or Under Maintenance depending on how close or past the next due date is.',
+            'q': 'How does the Receiving Items workflow work?',
+            'a': 'Deliveries go through a 3-step process: (1) Pending — a delivery is created and items are received with actual quantities and condition noted. (2) Awaiting Double Check — admin reviews and verifies the received quantities. (3) Approved — stock is updated automatically. Admin can also approve or reject staff delivery requests marked "For Admin Review".',
           },
           {
-            'q': 'How do I use the QR/barcode scanner?',
-            'a': 'Tap the red scanner button at the center of the bottom navigation bar. Point the camera at an item barcode to view its stock details and perform Receive Stock or Add Stock actions.',
+            'q': 'How do I approve or reject a service booking?',
+            'a': 'Go to Service Bookings under Vehicle Maintenance. You will see all incoming customer booking requests. You can Approve, Reschedule, or Dismiss each request. Approved bookings become available to staff for scheduling.',
           },
           {
-            'q': 'How do I manage inventory?',
-            'a': 'Go to the Inventory tab. It has three sections: Item Master (manage items), Transactions (view stock movements), and Stock (current stock levels).',
+            'q': 'What is the Decision Support System (DSS)?',
+            'a': 'The DSS has two tools: Stock Replenishment shows items that are low or out of stock with reorder recommendations, and PMS Scheduling suggests vehicles that are due or overdue for preventive maintenance based on their service schedule.',
+          },
+          {
+            'q': 'How do I manage users?',
+            'a': 'Go to User Management under Administration. You can add new staff or customer accounts (credentials are auto-generated and emailed), edit user details and roles, and activate or deactivate accounts.',
           },
           {
             'q': 'How do I change my password?',
-            'a': 'Tap your profile avatar at the top right, then go to Change Password. Enter your current password, then your new password (minimum 6 characters), and confirm it.',
+            'a': 'Go to your Profile page and tap Change Password. Enter your current password, then your new password (minimum 6 characters), and confirm it to save.',
           },
         ];
       case HelpSupportRole.staff:
         return const [
           {
-            'q': 'How do I view vehicles due for service?',
-            'a': 'The dashboard shows stat cards for vehicles that are Overdue or Due Soon. You can also browse the Vehicles tab and filter by status to see which ones need attention.',
+            'q': 'What tabs are available in the app?',
+            'a': 'The app has four tabs: Dashboard (overview), Inventory (stock levels and receiving), Vehicle (maintenance records), and Profile. There is also a red scanner button at the center of the bottom bar for scanning barcodes and QR codes.',
           },
           {
-            'q': 'How do I update a vehicle\'s service record?',
-            'a': 'Tap on a vehicle card to open its details, then use the edit option to update the last service date, odometer, and service frequency. The status will be recalculated automatically.',
+            'q': 'How do I view and filter stock inventory?',
+            'a': 'Tap the Inventory tab. You will see stock cards with status chips: Total Items, Out of Stock, Low Stock, and In Stock. Tap a chip to filter. You can also sort by item number, name, or stock level, and filter by commodity group using the menu at the top right.',
+          },
+          {
+            'q': 'How do I submit a delivery request?',
+            'a': 'In the Inventory tab, tap the Receiving sub-tab. Tap the red FAB button and select "New Delivery Request". Choose items from the replenishment list (items that are low or out of stock), set the order quantities, and submit. Your request will be sent to admin for review.',
+          },
+          {
+            'q': 'How do I receive an item from a delivery?',
+            'a': 'In the Receiving tab, find a Pending item and tap it to open the details. Tap "Receive Item", enter the actual quantity received, select the condition (OK, Defective, or Shortage), add any remarks, and submit. The item will move to "Awaiting Double Check" for admin verification.',
           },
           {
             'q': 'How do I use the barcode scanner?',
-            'a': 'Tap the red scanner button at the center of the bottom navigation. Scan an item barcode to view its stock info and perform stock operations like Receive Stock or Add Stock.',
+            'a': 'Tap the red scanner button at the center of the bottom navigation bar. Point the camera at a barcode or QR code to find the matching item. If a pending delivery contains that item, you will be taken directly to the receive screen for it.',
           },
           {
-            'q': 'How do I change my profile photo?',
-            'a': 'Tap your profile avatar at the top right of the screen. On the Profile page, tap your avatar photo to open the gallery and select a new image.',
+            'q': 'How do I add a vehicle maintenance record?',
+            'a': 'Go to the Vehicle tab and tap the red + button. Select the vehicle by plate number, assign a mechanic, set the date and odometer reading. Then add the services rendered (from the service catalog) and the materials used. Save to create the record.',
+          },
+          {
+            'q': 'What happens when I mark a maintenance record as completed?',
+            'a': 'Marking a record as Completed automatically deducts the used materials from stock inventory, creates issuance records for each material, and logs stock-out transactions. Make sure all services and materials are entered correctly before completing.',
+          },
+          {
+            'q': 'How do I handle service bookings?',
+            'a': 'Go to the Vehicle tab and open Service Bookings. You can see all admin-approved bookings. On the scheduled date, the "Start Service" button becomes active — tap it to open a pre-filled maintenance form for that booking. You can also reschedule or cancel a booking from this screen.',
           },
           {
             'q': 'How do I change my password?',
@@ -76,24 +96,32 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       case HelpSupportRole.customer:
         return const [
           {
-            'q': 'How do I view my vehicles?',
-            'a': 'Your vehicles are shown on the My Vehicles tab (the car icon at the bottom left). Each card shows the plate number, description, odometer, last service date, and current status.',
+            'q': 'What tabs are available in the app?',
+            'a': 'The app has five tabs: Home (My Vehicles), My Bookings, Smart AI (the center robot button), PMS History, and Profile.',
           },
           {
-            'q': 'Why is my vehicle showing "Overdue"?',
-            'a': 'Your vehicle\'s next PMS due date has already passed based on the last service date and service frequency recorded in the system. Contact the service center to schedule a maintenance.',
+            'q': 'How do I view my vehicles?',
+            'a': 'Tap the Home tab to see all your registered vehicles. Each card shows the plate number, vehicle description, current odometer, last service date, and current status (Active, PMS Due Soon, or Overdue).',
+          },
+          {
+            'q': 'Why is my vehicle showing "Overdue" or "PMS Due Soon"?',
+            'a': 'This is calculated automatically based on the last service date and service frequency on record. "PMS Due Soon" means the next scheduled maintenance is approaching, and "Overdue" means it has already passed. Contact the service center to schedule a maintenance.',
+          },
+          {
+            'q': 'How do I book a service?',
+            'a': 'Tap the Bookings tab and then tap the + button. Select your vehicle, choose the services you need, and pick your preferred date and time. Your request will be sent to the admin for approval. You will receive a notification once it is approved, rescheduled, or cancelled.',
           },
           {
             'q': 'How do I view my service history?',
-            'a': 'Tap the PMS History tab (the history icon at the bottom right). Tap any vehicle card to see a full list of completed services including date, mechanic, services rendered, materials used, and total cost.',
+            'a': 'Tap the PMS History tab to see a list of your vehicles. Tap any vehicle to view its full maintenance history, including the service date, mechanic, services rendered, materials used, and total cost.',
           },
           {
-            'q': 'What is Smart Reports AI?',
-            'a': 'Smart Reports AI is the center button at the bottom of the screen (robot icon). You can ask it about your vehicles, check which ones are overdue or due soon, and get a summary of your service history.',
+            'q': 'What is Smart AI?',
+            'a': 'Smart AI is the center button at the bottom of the screen (robot icon). You can ask it questions about your vehicles — such as which ones are overdue, when the next service is due, or get a summary of your maintenance history. Just type your question in natural language.',
           },
           {
             'q': 'How do I change my profile photo?',
-            'a': 'Tap your profile avatar at the top right of the screen. On the Profile page, tap your avatar photo to open the gallery and select a new image.',
+            'a': 'Go to your Profile page and tap your avatar photo at the top. This will open your gallery so you can select a new image.',
           },
           {
             'q': 'I forgot my password. What should I do?',
@@ -222,16 +250,16 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 icon: Icons.email_outlined,
                 color: _blue,
                 label: 'Email Support',
-                value: 'support@janoblecaltex.com',
-                onTap: () => _launch('mailto:support@janoblecaltex.com'),
+                value: 'janobleenterprisesinc@gmail.com',
+                onTap: () => _launch('mailto:janobleenterprisesinc@gmail.com'),
               ),
               const Divider(height: 1, indent: 66),
               _contactTile(
                 icon: Icons.location_on_outlined,
                 color: _red,
                 label: 'Visit Us',
-                value: 'JA Noble Caltex, Philippines',
-                onTap: null,
+                value: '102 National Highway, Brgy. Landayan, San Pedro, Laguna',
+                onTap: () => _launch('https://www.google.com/maps/search/?api=1&query=102+National+Highway+Bgy+Landayan+4023+San+Pedro+Laguna+Philippines'),
                 isLast: true,
               ),
             ]),
@@ -249,11 +277,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
             ),
             child: Column(children: [
-              _hoursRow('Monday – Friday', '8:00 AM – 5:00 PM'),
-              const SizedBox(height: 8),
-              _hoursRow('Saturday', '8:00 AM – 12:00 PM'),
-              const SizedBox(height: 8),
-              _hoursRow('Sunday', 'Closed'),
+              _hoursRow('Monday – Sunday', '8:00 AM – 5:00 PM'),
             ]),
           ),
           const SizedBox(height: 24),

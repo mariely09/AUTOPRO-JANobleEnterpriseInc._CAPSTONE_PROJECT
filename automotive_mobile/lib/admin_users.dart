@@ -1012,8 +1012,8 @@ class _AdminUsersState extends State<AdminUsers> {
             ]),
             content: Text(
               isActive
-                ? 'Deactivate "${u['name']}"? They will no longer be able to log in.'
-                : 'Activate "${u['name']}"? They will be able to log in again.',
+                ? 'Are you sure you want to deactivate "${u['name']}"?'
+                : 'Are you sure you want to activate "${u['name']}"?',
             ),
             actions: [
               TextButton(

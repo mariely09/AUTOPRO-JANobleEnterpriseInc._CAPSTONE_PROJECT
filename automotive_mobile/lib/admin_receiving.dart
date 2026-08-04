@@ -1089,6 +1089,20 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                   }
                 } catch (_) {} // cost fetch failure is non-fatal
 
+                // Collect item nums already in active (non-approved/rejected) deliveries
+                final activeDeliveryNums = <String>{};
+                for (final d in _deliveries) {
+                  final st = d['status'] as String? ?? 'Pending';
+                  if (st == 'Approved' || st == 'Rejected') continue;
+                  if (isEdit && d['id'] == existing?['id']) continue;
+                  for (final item in (d['items'] as List? ?? [])) {
+                    final itemSt = (item as Map)['itemStatus'] as String? ?? st;
+                    if (itemSt != 'Approved' && itemSt != 'Rejected') {
+                      activeDeliveryNums.add(item['itemNum'] as String? ?? '');
+                    }
+                  }
+                }
+
                 final loaded = needReplenish.map((s) {
                   final n = s['num'] as String? ?? '';
                   return <String, dynamic>{
@@ -1101,7 +1115,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                     '_maxLevel': (s['max']   as num?)?.toInt() ?? 0,
                     '_cost':     numToCost[n] ?? 0.0,
                   };
-                }).toList()
+                }).where((m) => !activeDeliveryNums.contains(m['num'] as String? ?? '')).toList()
                   ..sort((a, b) {
                     if ((a['_stock'] as int) == 0 && (b['_stock'] as int) != 0) return -1;
                     if ((b['_stock'] as int) == 0 && (a['_stock'] as int) != 0) return 1;
@@ -1134,7 +1148,10 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
             });
           }
 
-          final visible = replenishItems;
+          final visible = replenishItems.where((item) {
+            final n = item['num'] as String? ?? '';
+            return !addedNums.contains(n);
+          }).toList();
 
           Widget statusBadge(int stock, int min) {
             if (stock == 0) return Container(

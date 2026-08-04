@@ -141,7 +141,7 @@ class _DomainDetailScreenState extends State<_DomainDetailScreen> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         title: Text('Delete from ${widget.label}'),
-        content: Text('Delete "${doc['name']}"?'),
+        content: Text('Are you sure you want to delete "${doc['name']}"?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancel')),
           TextButton(
@@ -158,7 +158,7 @@ class _DomainDetailScreenState extends State<_DomainDetailScreen> {
                   SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
               }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('Yes, Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

@@ -344,7 +344,7 @@ function dmSaveItem() {
 
 // ── Delete item ─────────────────────────────────────────────
 function dmDeleteItem(docId, name) {
-  if (!confirm('Delete "' + name + '"?')) return;
+  if (!confirm('Are you sure you want to delete "' + name + '"?')) return;
   firebase.firestore().collection('domains').doc(_dmCurrentKey).collection('items').doc(docId).delete()
     .then(function(){ showToast('Deleted successfully!', 'error'); })
     .catch(function(e){ showToast('Error: ' + e.message, 'error'); });

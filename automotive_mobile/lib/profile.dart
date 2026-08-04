@@ -461,7 +461,7 @@ class _UserProfileState extends State<UserProfile> {
               if (mounted) Navigator.pushAndRemoveUntil(context,
                 MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
             },
-            child: const Text('Logout', style: TextStyle(color: _red, fontWeight: FontWeight.w700)),
+            child: const Text('Yes', style: TextStyle(color: _red, fontWeight: FontWeight.w700)),
           ),
         ],
       ),

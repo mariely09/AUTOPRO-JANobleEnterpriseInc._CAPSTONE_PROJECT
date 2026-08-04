@@ -104,44 +104,58 @@ var _hsRole = window._hsRole || 'customer';
 
 var _faqsByRole = {
     admin: [
-        { q: 'How do I add a new vehicle?',
-          a: 'Go to the Vehicles section, then click the Add Vehicle button. Fill in the plate number, description, vehicle type, owner, odometer, last service date, and service frequency, then save.' },
-        { q: 'How do I edit or delete a vehicle?',
-          a: 'In the Vehicles list, click the action menu on any vehicle row and select Edit or Delete. You can update all vehicle details including odometer and service schedule.' },
-        { q: 'How does vehicle status get computed?',
-          a: 'Status is automatically calculated based on the last service date and service frequency. It will show Active, PMS Due Soon, Overdue, or Under Maintenance depending on how close or past the next due date is.' },
-        { q: 'How do I manage inventory?',
-          a: 'Go to the Inventory section. It has Item Master (manage items), Transactions (view stock movements), and Stock (current stock levels).' },
+        { q: 'What sections are available in the admin panel?',
+          a: 'The admin panel has four main sections: Inventory Management (Item Master, Stock Inventory, Receiving Items, Inventory Transactions), Vehicle Maintenance (Vehicle List, Vehicle Maintenance, Service Bookings, Issuances), Decision Support System (Stock Replenishment, PMS Scheduling), and Administration (User Management, Domain Management, AI Settings, Archive).' },
+        { q: 'How do I manage the Item Master?',
+          a: 'Go to Item Master under Inventory Management. You can add new items (materials or services), edit existing ones, set commodity group, UOM, cost, and supplier code, and archive items that are no longer in use.' },
+        { q: 'How does the Receiving Items workflow work?',
+          a: 'Deliveries go through a 3-step process: (1) Pending — a delivery is created and items are received with actual quantities and condition noted. (2) Awaiting Double Check — admin reviews and verifies the received quantities. (3) Approved — stock is updated automatically. Admin can also approve or reject staff delivery requests marked "For Admin Review".' },
+        { q: 'How do I approve or reject a service booking?',
+          a: 'Go to Service Bookings under Vehicle Maintenance. You will see all incoming customer booking requests. You can Approve, Reschedule, or Dismiss each request. Approved bookings become available to staff for scheduling.' },
+        { q: 'What is the Decision Support System (DSS)?',
+          a: 'The DSS has two tools: Stock Replenishment shows items that are low or out of stock with reorder recommendations, and PMS Scheduling suggests vehicles that are due or overdue for preventive maintenance based on their service schedule.' },
         { q: 'How do I manage users?',
-          a: 'Go to the Users section in the admin portal. You can view all registered users, update their roles, and manage their accounts from there.' },
+          a: 'Go to User Management under Administration. You can add new staff or customer accounts (credentials are auto-generated and emailed), edit user details and roles, and activate or deactivate accounts.' },
         { q: 'How do I change my password?',
-          a: 'Go to My Profile, then click Change Password. Enter your new password (minimum 6 characters) and confirm it.' },
+          a: 'Go to My Profile, then click Change Password. Enter your current password, then your new password (minimum 6 characters), and confirm it.' },
     ],
     staff: [
-        { q: 'How do I view vehicles due for service?',
-          a: 'The dashboard shows stat cards for vehicles that are Overdue or Due Soon. You can also browse the Vehicles section and filter by status to see which ones need attention.' },
-        { q: 'How do I update a vehicle\'s service record?',
-          a: 'Click on a vehicle row to open its details, then use the edit option to update the last service date, odometer, and service frequency. The status will be recalculated automatically.' },
-        { q: 'How do I view inventory stock?',
-          a: 'Go to the Inventory section. You can view current stock levels, receive stock, and browse item details from there.' },
-        { q: 'How do I change my profile photo?',
-          a: 'Go to My Profile and click your avatar to upload a new photo from your device.' },
+        { q: 'What tabs are available in the app?',
+          a: 'The app has four tabs: Dashboard (overview), Inventory (stock levels and receiving), Vehicle (maintenance records), and Profile. There is also a red scanner button at the center of the bottom bar for scanning barcodes and QR codes.' },
+        { q: 'How do I view and filter stock inventory?',
+          a: 'Tap the Inventory tab. You will see stock cards with status chips: Total Items, Out of Stock, Low Stock, and In Stock. Tap a chip to filter. You can also sort by item number, name, or stock level, and filter by commodity group using the menu at the top right.' },
+        { q: 'How do I submit a delivery request?',
+          a: 'In the Inventory tab, tap the Receiving sub-tab. Tap the red FAB button and select "New Delivery Request". Choose items from the replenishment list, set the order quantities, and submit. Your request will be sent to admin for review.' },
+        { q: 'How do I receive an item from a delivery?',
+          a: 'In the Receiving tab, find a Pending item and tap it. Tap "Receive Item", enter the actual quantity received, select the condition (OK, Defective, or Shortage), add any remarks, and submit. The item will move to "Awaiting Double Check" for admin verification.' },
+        { q: 'How do I use the barcode scanner?',
+          a: 'Tap the red scanner button at the center of the bottom navigation bar. Point the camera at a barcode or QR code to find the matching item. If a pending delivery contains that item, you will be taken directly to the receive screen for it.' },
+        { q: 'How do I add a vehicle maintenance record?',
+          a: 'Go to the Vehicle tab and tap the red + button. Select the vehicle by plate number, assign a mechanic, set the date and odometer reading. Then add the services rendered and the materials used. Save to create the record.' },
+        { q: 'What happens when I mark a maintenance record as completed?',
+          a: 'Marking a record as Completed automatically deducts the used materials from stock inventory, creates issuance records for each material, and logs stock-out transactions. Make sure all services and materials are entered correctly before completing.' },
+        { q: 'How do I handle service bookings?',
+          a: 'Go to the Vehicle tab and open Service Bookings. You can see all admin-approved bookings. On the scheduled date, the "Start Service" button becomes active — tap it to open a pre-filled maintenance form. You can also reschedule or cancel a booking from this screen.' },
         { q: 'How do I change my password?',
-          a: 'Go to My Profile, then click Change Password. Enter your new password (minimum 6 characters) and confirm it.' },
+          a: 'Go to My Profile, then click Change Password. Enter your current password, then your new password (minimum 6 characters), and confirm it.' },
         { q: 'I forgot my password. What should I do?',
           a: 'On the login page, click "Forgot Password". Enter your email address to receive a reset link.' },
     ],
     customer: [
+        { q: 'What tabs are available in the app?',
+          a: 'The app has five tabs: Home (My Vehicles), My Bookings, Smart AI (the center robot button), PMS History, and Profile.' },
         { q: 'How do I view my vehicles?',
-          a: 'Your vehicles are shown on your dashboard. Each card shows the plate number, description, odometer, last service date, and current status.' },
-        { q: 'Why is my vehicle showing "Overdue"?',
-          a: 'Your vehicle\'s next PMS due date has already passed based on the last service date and service frequency recorded in the system. Contact the service center to schedule a maintenance.' },
+          a: 'Tap the Home tab to see all your registered vehicles. Each card shows the plate number, vehicle description, current odometer, last service date, and current status (Active, PMS Due Soon, or Overdue).' },
+        { q: 'Why is my vehicle showing "Overdue" or "PMS Due Soon"?',
+          a: 'This is calculated automatically based on the last service date and service frequency on record. "PMS Due Soon" means the next scheduled maintenance is approaching, and "Overdue" means it has already passed. Contact the service center to schedule a maintenance.' },
+        { q: 'How do I book a service?',
+          a: 'Tap the Bookings tab and then tap the + button. Select your vehicle, choose the services you need, and pick your preferred date and time. Your request will be sent to the admin for approval. You will receive a notification once it is approved, rescheduled, or cancelled.' },
         { q: 'How do I view my service history?',
-          a: 'Go to PMS History from your dashboard. Click any vehicle to see a full list of completed services including date, mechanic, services rendered, materials used, and total cost.' },
-        { q: 'What is Smart Reports AI?',
-          a: 'Smart Reports AI lets you ask questions about your vehicles, check which ones are overdue or due soon, and get a summary of your service history using natural language.' },
+          a: 'Tap the PMS History tab to see a list of your vehicles. Tap any vehicle to view its full maintenance history, including the service date, mechanic, services rendered, materials used, and total cost.' },
+        { q: 'What is Smart AI?',
+          a: 'Smart AI is the center button at the bottom of the screen (robot icon). You can ask it questions about your vehicles — such as which ones are overdue, when the next service is due, or get a summary of your maintenance history. Just type your question in natural language.' },
         { q: 'How do I change my profile photo?',
-          a: 'Go to My Profile and click your avatar to upload a new photo from your device.' },
+          a: 'Go to My Profile and tap your avatar photo at the top. This will open your gallery so you can select a new image.' },
         { q: 'I forgot my password. What should I do?',
           a: 'On the login page, click "Forgot Password". Enter your email to receive a reset link.' },
     ],
@@ -220,20 +234,21 @@ function _buildHTML() {
         +         '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
         +       '</a>'
         +       '<div class="hs-contact-divider"></div>'
-        +       '<a class="hs-contact-tile" href="mailto:support@janoblecaltex.com">'
+        +       '<a class="hs-contact-tile" href="mailto:janobleenterprisesinc@gmail.com">'
         +         '<div class="hs-contact-icon" style="background:rgba(0,48,135,0.1);">'
         +           '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#003087" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>'
         +         '</div>'
-        +         '<div><div class="hs-contact-label">Email Support</div><div class="hs-contact-value">support@janoblecaltex.com</div></div>'
+        +         '<div><div class="hs-contact-label">Email Support</div><div class="hs-contact-value">janobleenterprisesinc@gmail.com</div></div>'
         +         '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
         +       '</a>'
         +       '<div class="hs-contact-divider"></div>'
-        +       '<div class="hs-contact-tile">'
+        +       '<a class="hs-contact-tile" href="https://www.google.com/maps/search/?api=1&query=102+National+Highway+Bgy+Landayan+4023+San+Pedro+Laguna+Philippines" target="_blank" rel="noopener">'
         +         '<div class="hs-contact-icon" style="background:rgba(232,0,28,0.1);">'
         +           '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
         +         '</div>'
-        +         '<div><div class="hs-contact-label">Visit Us</div><div class="hs-contact-value">JA Noble Caltex, Philippines</div></div>'
-        +       '</div>'
+        +         '<div><div class="hs-contact-label">Visit Us</div><div class="hs-contact-value">102 National Highway, Brgy. Landayan, San Pedro, Laguna</div></div>'
+        +         '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
+        +       '</a>'
         +     '</div>'
         +   '</div>'
 
@@ -241,9 +256,7 @@ function _buildHTML() {
         +   '<div>'
         +     '<div class="hs-section-label">Business Hours</div>'
         +     '<div class="hs-card">'
-        +       '<div class="hs-hours-row"><span class="hs-hours-day">Monday – Friday</span><span class="hs-hours-time">8:00 AM – 5:00 PM</span></div>'
-        +       '<div class="hs-hours-row"><span class="hs-hours-day">Saturday</span><span class="hs-hours-time">8:00 AM – 12:00 PM</span></div>'
-        +       '<div class="hs-hours-row"><span class="hs-hours-day">Sunday</span><span class="hs-hours-time closed">Closed</span></div>'
+        +       '<div class="hs-hours-row"><span class="hs-hours-day">Monday – Sunday</span><span class="hs-hours-time">8:00 AM – 5:00 PM</span></div>'
         +     '</div>'
         +   '</div>'
 

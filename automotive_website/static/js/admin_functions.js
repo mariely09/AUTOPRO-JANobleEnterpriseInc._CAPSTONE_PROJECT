@@ -612,8 +612,8 @@ function renderServicesList() {
             topActions += '<button class="btn-small btn-secondary" disabled title="Cannot edit completed service" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.4;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
         }
         topActions += (s.status||'').toLowerCase() !== 'completed'
-            ? '<button class="btn-small btn-danger" onclick="deleteService(\''+s.serviceId+'\',\''+((s.assetNum||s.plate||'').replace(/'/g,"\\'"))+'\')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
-            : '<button class="btn-small btn-danger" disabled title="Cannot delete completed service" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.4;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
+            ? '<button class="btn-small btn-secondary" onclick="archiveService(\''+s.serviceId+'\',\''+((s.assetNum||s.plate||'').replace(/'/g,"\\'"))+'\')" title="Archive" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;color:#d69e2e;border-color:#fcd34d;background:#fffbeb;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>'
+            : '<button class="btn-small btn-secondary" disabled title="Cannot archive completed service" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.4;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>';
 
         var plate = s.assetNum || s.plate || '';
         // Look up vehicle description from live vehicles data (stays in sync with edits)
@@ -736,6 +736,26 @@ function completeService(serviceId) {
     renderIssuancesList();
     renderInventoryTransactions();
     showToast('Service marked as completed successfully!', 'success');
+}
+
+function archiveService(serviceId, plate) {
+    var label = plate ? '"' + plate + '"' : 'this service';
+    if (!confirm('Are you sure you want to archive ' + label + '?')) return;
+
+    firebase.firestore().collection('maintenance').doc(serviceId).update({
+        archived: true,
+        archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    })
+    .then(function() {
+        window.serviceTransactions = (window.serviceTransactions || []).filter(function(s) {
+            return s.serviceId !== serviceId;
+        });
+        renderServicesList();
+        if (typeof showToast === 'function') showToast('Service archived successfully!', 'success');
+    })
+    .catch(function(err) {
+        if (typeof showToast === 'function') showToast('Archive failed: ' + err.message, 'error');
+    });
 }
 
 function deleteService(serviceId, plate) {
