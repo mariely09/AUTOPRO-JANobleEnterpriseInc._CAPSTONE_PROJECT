@@ -129,8 +129,12 @@
       .ai-modal-overlay.open { display: flex; }
       .ai-modal {
         background: #fff; border-radius: 18px; padding: 2rem;
-        width: 100%; max-width: 500px; box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+        width: calc(100% - 2rem); max-width: 500px;
+        box-shadow: 0 24px 64px rgba(0,0,0,0.18);
         position: relative;
+        box-sizing: border-box;
+        max-height: 90vh;
+        overflow-y: auto;
       }
       .ai-modal h3 { margin: 0 0 1.25rem; font-size: 1.1rem; color: #1a202c; }
       .ai-modal-close {
@@ -171,11 +175,96 @@
       }
       .ai-empty svg { display: block; margin: 0 auto 0.75rem; opacity: 0.35; }
 
-      /* Responsive */
+      /* ── Responsive ── */
+
+      /* Tablet (≤ 900px) */
+      @media (max-width: 900px) {
+        .ai-status-grid { grid-template-columns: repeat(3, 1fr); }
+        .rot-grid        { grid-template-columns: repeat(2, 1fr); }
+        .ai-card         { padding: 1.25rem 1.25rem; }
+      }
+
+      /* Large phone / small tablet (≤ 700px) */
       @media (max-width: 700px) {
-        .ai-status-grid { grid-template-columns: repeat(2, 1fr); }
-        .rot-grid { grid-template-columns: 1fr; }
-        .keys-table { display: block; overflow-x: auto; }
+        .ai-page         { max-width: 100%; }
+        .ai-card         { padding: 1rem; border-radius: 12px; }
+        .ai-card-title   { font-size: 0.92rem; }
+        .ai-card-sub     { font-size: 0.72rem; }
+
+        /* Status grid: 2 columns */
+        .ai-status-grid  { grid-template-columns: repeat(2, 1fr); gap: 0.65rem; }
+        .ai-stat         { padding: 0.75rem 0.85rem; }
+        .ai-stat-value   { font-size: 1.2rem !important; }
+
+        /* Rotation form: 1 column */
+        .rot-grid        { grid-template-columns: 1fr; gap: 0.75rem; }
+
+        /* Keys table — scroll horizontally */
+        .keys-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .keys-table      { min-width: 600px; }
+
+        /* Log table — scroll horizontally */
+        .log-table-wrap  { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .log-table       { min-width: 520px; }
+
+        /* Header action buttons */
+        .ai-header-actions {
+          flex-direction: row;
+          flex-wrap: wrap;
+          gap: 0.45rem;
+          width: 100%;
+          margin-top: 0.5rem;
+        }
+        .ai-header-actions button {
+          flex: 1 1 auto;
+          justify-content: center;
+          font-size: 0.8rem !important;
+          padding: 0.45rem 0.75rem !important;
+        }
+
+        /* Modal — full-width on small screens */
+        .ai-modal        { padding: 1.25rem; border-radius: 14px; margin: 0.75rem; }
+        .ai-modal h3     { font-size: 1rem; }
+      }
+
+      /* Phone (≤ 480px) */
+      @media (max-width: 480px) {
+        .ai-card         { padding: 0.85rem; border-radius: 10px; margin-bottom: 1rem; }
+        .ai-card-header  { gap: 0.5rem; margin-bottom: 1rem; padding-bottom: 0.75rem; }
+        .ai-card-icon    { width: 30px; height: 30px; border-radius: 8px; }
+        .ai-card-icon svg{ width: 14px; height: 14px; }
+        .ai-card-title   { font-size: 0.88rem; }
+
+        /* Status grid: 2 columns, compact */
+        .ai-status-grid  { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+        .ai-stat         { padding: 0.6rem 0.7rem; border-radius: 10px; }
+        .ai-stat-label   { font-size: 0.65rem; }
+        .ai-stat-value   { font-size: 1.1rem !important; }
+        .ai-stat-sub     { font-size: 0.65rem; }
+
+        /* Action buttons in table: icon-only style */
+        .btn-act         { padding: 4px 7px; font-size: 0.7rem; }
+
+        /* Badge compact */
+        .badge           { padding: 2px 7px; font-size: 0.68rem; }
+
+        /* Modal full-screen feel */
+        .ai-modal-overlay { align-items: flex-end; }
+        .ai-modal        {
+          border-radius: 18px 18px 0 0;
+          padding: 1.25rem 1rem;
+          margin: 0;
+          max-width: 100%;
+          width: 100%;
+        }
+      }
+
+      /* Very small phones (≤ 360px) */
+      @media (max-width: 360px) {
+        .ai-status-grid  { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+        .ai-stat-value   { font-size: 1rem !important; }
+        .ai-card         { padding: 0.7rem; }
+        .btn-act         { padding: 3px 6px; font-size: 0.65rem; gap: 2px; }
       }
     </style>
 </head>
@@ -208,7 +297,7 @@
           <div class="breadcrumb">Admin Portal &rsaquo; Administration</div>
           <div class="admin-header-title">AI Settings</div>
         </div>
-        <div style="margin-left:auto;display:flex;gap:0.6rem;align-items:center;">
+        <div class="ai-header-actions" style="margin-left:auto;display:flex;gap:0.6rem;align-items:center;">
           <button onclick="refreshAll()" id="refreshBtn"
             style="display:flex;align-items:center;gap:5px;padding:0.5rem 1rem;
                    background:#f0f7ff;border:1.5px solid #bee3f8;border-radius:8px;
@@ -324,7 +413,7 @@
             </div>
           </div>
 
-          <div style="overflow-x:auto;">
+          <div class="keys-table-wrap">
             <table class="keys-table">
               <thead>
                 <tr>
@@ -431,7 +520,7 @@
             </button>
           </div>
 
-          <div style="max-height:380px;overflow-y:auto;border-radius:10px;border:1px solid #e2e8f0;">
+          <div class="log-table-wrap" style="max-height:380px;overflow-y:auto;border-radius:10px;border:1px solid #e2e8f0;overflow-x:auto;">
             <table class="log-table">
               <thead>
                 <tr>
@@ -773,7 +862,8 @@ async function loadStatus() {
     document.getElementById('rotRetries').value  = d.max_retries || 3;
   } catch (e) {
     setOffline(true);
-    renderKeys([]);
+    // Don't wipe the table on a transient error — keep the last known keys visible
+    if (_keysCache.length === 0) renderKeys([]);
   }
 }
 
@@ -872,6 +962,9 @@ async function saveKey() {
     // Success — keep button disabled, close modal, refresh table
     showToast(isEdit ? 'API key updated.' : 'API key added.', 'success');
     closeKeyModal();
+    // Force a backend reload so all workers have the latest key list before we
+    // fetch status — without this, a different Render worker may return stale data.
+    try { await fetch('/api/ai-settings/reload', { method: 'POST' }); } catch (_) {}
     await refreshAll();
   } catch (e) {
     _showModalFeedback('Error: ' + e.message, 'error');
@@ -954,6 +1047,7 @@ async function toggleKeyStatus(keyId, newStatus, accountName) {
     const d = await r.json();
     if (!r.ok || !d.success) throw new Error(d.error || 'Update failed');
     showToast(`Key "${accountName}" ${newStatus === 'disabled' ? 'disabled' : 'enabled'}.`, 'success');
+    try { await fetch('/api/ai-settings/reload', { method: 'POST' }); } catch (_) {}
     await refreshAll();
   } catch (e) {
     showToast('Error: ' + e.message, 'error');
@@ -979,6 +1073,7 @@ async function confirmDelete() {
     const d = await r.json();
     if (!r.ok || !d.success) throw new Error(d.error || 'Delete failed');
     showToast(`Key "${name}" deleted.`, 'success');
+    try { await fetch('/api/ai-settings/reload', { method: 'POST' }); } catch (_) {}
     await refreshAll();
   } catch (e) {
     showToast('Error: ' + e.message, 'error');
