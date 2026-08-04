@@ -9,7 +9,10 @@ import 'firebase_options.dart';
 import 'login.dart';
 import 'welcome_screen.dart';
 import 'staff_dashboard.dart';
+import 'admin_dashboard.dart';
+import 'customer_dashboard.dart';
 import 'background_dss.dart';
+import 'sync_indicator.dart';
 
 // ── Workmanager task name ──
 const _kDSSTaskName   = 'dss_background_check';
@@ -122,6 +125,8 @@ void main() async {
   }
 
   runApp(const MyApp());
+  // Start the connectivity ping loop
+  SyncStatusNotifier.instance.init();
 }
 
 class MyApp extends StatelessWidget {
@@ -136,12 +141,125 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE8001C)),
         fontFamily: 'Roboto',
       ),
-      home: const WelcomeScreen(),
+      home: const _AuthGate(),
       routes: {
         '/welcome': (_) => const WelcomeScreen(),
         '/login': (_) => const LoginScreen(),
         '/staff': (_) => const StaffDashboard(),
       },
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Auth Gate — checks Firebase Auth state on app start.
+// • Logged in  → fetch role from Firestore → go directly to dashboard.
+// • Not logged in → show WelcomeScreen (normal login flow).
+// ═══════════════════════════════════════════════════════════════════════════
+class _AuthGate extends StatefulWidget {
+  const _AuthGate();
+
+  @override
+  State<_AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<_AuthGate> {
+  @override
+  void initState() {
+    super.initState();
+    // Wait for the first frame so Navigator context is fully ready before
+    // any pushReplacement call — avoids the black screen on cold start.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkAuth());
+  }
+
+  Future<void> _navigate(Widget screen) async {
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => screen,
+        // Instant transition — no fade/slide so it feels like a native splash.
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
+    );
+  }
+
+  Future<void> _checkAuth() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      // Not logged in — show welcome screen.
+      await _navigate(const WelcomeScreen());
+      return;
+    }
+
+    // Already authenticated — fetch role from Firestore (uses cache when offline).
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (!doc.exists) {
+        await FirebaseAuth.instance.signOut();
+        await _navigate(const WelcomeScreen());
+        return;
+      }
+
+      final data   = doc.data()!;
+      final role   = (data['role']   as String?) ?? '';
+      final status = ((data['status'] as String?) ?? 'active').toLowerCase();
+
+      // Block inactive/pending accounts from auto-login.
+      if (status == 'inactive' || status == 'pending') {
+        await FirebaseAuth.instance.signOut();
+        await _navigate(const WelcomeScreen());
+        return;
+      }
+
+      // Navigate directly to the correct dashboard — no login screen needed.
+      switch (role) {
+        case 'admin':
+          await _navigate(const AdminDashboard());
+          break;
+        case 'staff':
+          await _navigate(const StaffDashboard());
+          break;
+        case 'customer':
+          await _navigate(const CustomerDashboard());
+          break;
+        default:
+          await FirebaseAuth.instance.signOut();
+          await _navigate(const WelcomeScreen());
+      }
+    } catch (e) {
+      // Firestore unavailable (offline + no cache yet) — fall back to welcome.
+      debugPrint('⚠️ AuthGate error: $e');
+      await _navigate(const WelcomeScreen());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Splash that matches the WelcomeScreen gradient so the transition is seamless.
+    return const Scaffold(
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
+            stops: [0.0, 0.6, 1.0],
+          ),
+        ),
+        child: Center(
+          child: CircularProgressIndicator(
+            color: Colors.white,
+            strokeWidth: 2.5,
+          ),
+        ),
+      ),
     );
   }
 }

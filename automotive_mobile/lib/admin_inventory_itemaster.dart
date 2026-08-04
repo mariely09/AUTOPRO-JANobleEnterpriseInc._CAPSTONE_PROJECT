@@ -4,6 +4,7 @@ import 'package:barcode_widget/barcode_widget.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'barcode_scanner_screen.dart';
 import 'admin_inventory_stock.dart';
+import 'sync_indicator.dart';
 
 /// Standalone full-screen wrapper (for direct navigation if needed elsewhere).
 class AdminInventoryItemMaster extends StatefulWidget {
@@ -41,6 +42,7 @@ class _AdminInventoryItemMasterState extends State<AdminInventoryItemMaster> {
         title: const Text('Item Master',
             style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         actions: [
+          const SyncIndicator(),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -75,7 +77,8 @@ class _AdminInventoryItemMasterState extends State<AdminInventoryItemMaster> {
           ),
         ],
       ),
-      body: AdminInventoryItemMasterBody(key: _bodyKey, sortOrder: _sortOrder),
+      body: OfflineSaveListener(
+        child: AdminInventoryItemMasterBody(key: _bodyKey, sortOrder: _sortOrder)),
     );
   }
 }
@@ -198,6 +201,8 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
           final docs = snapshot.data?.docs ?? [];
           final items = docs.map((d) {
             final data = d.data() as Map<String, dynamic>;
+            // Skip archived items
+            if (data['archived'] == true) return null;
             return {
               'id': d.id,
               'num': (data['num'] ?? '—').toString(),
@@ -213,7 +218,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
               'barcode': (data['barcode'] ?? '').toString(),
               'qr': (data['qr'] ?? '').toString(),
             };
-          }).toList();
+          }).whereType<Map<String, String>>().toList();
 
           // Apply sort
           int numPart(String s) => int.tryParse(s.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
@@ -418,8 +423,8 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                 _detailRow('Cost', _fmtCost(item['cost'] ?? '')),
                 _detailRow('Type', item['type'] ?? '—'),
                 const SizedBox(height: 16),
-                // Barcode + QR buttons (Material only)
-                if (!isSvc) ...[
+                // Barcode + QR buttons (Material only, and only when supplierCode exists)
+                if (!isSvc && (item['supplierCode'] ?? '').trim().isNotEmpty) ...[
                   Row(children: [
                     Expanded(child: OutlinedButton.icon(
                       onPressed: () => _showOrGenerateBarcode(item),
@@ -446,9 +451,9 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                   const SizedBox(width: 10),
                   Expanded(child: OutlinedButton.icon(
                     onPressed: () { Navigator.pop(context); _confirmDelete(item); },
-                    icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                    label: const Text('Delete', style: TextStyle(color: Colors.red)),
-                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
+                    icon: const Icon(Icons.archive_outlined, size: 16, color: Colors.orange),
+                    label: const Text('Archive', style: TextStyle(color: Colors.orange)),
+                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.orange)),
                   )),
                 ]),
               ]),
@@ -643,10 +648,15 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     bool saving = false;
     bool nameDuplicate = false;
 
-    // All existing item names (lowercased) for live duplicate check
+    // All existing name+uom combinations (lowercased) for live duplicate check
+    // Same name with different UOM is allowed
     final existingNames = (await _db.get()).docs
-        .where((d) => isEdit ? d.id != item!['id'] : true) // exclude self in edit mode
-        .map((d) => (d['name'] as String? ?? '').toLowerCase().trim())
+        .where((d) => isEdit ? d.id != item!['id'] : true)
+        .map((d) {
+          final name = (d['name'] as String? ?? '').toLowerCase().trim();
+          final uom  = (d['uom']  as String? ?? '').toLowerCase().trim();
+          return '$name||$uom';
+        })
         .toSet();
 
     showModalBottomSheet(
@@ -703,13 +713,14 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                   // Item Number is auto-generated — not shown in modal
                   TextField(controller: nameCtrl,
                     onChanged: (v) {
-                      final isDup = existingNames.contains(v.trim().toLowerCase());
+                      final key = '${v.trim().toLowerCase()}||${(selectedUom ?? '').toLowerCase().trim()}';
+                      final isDup = existingNames.contains(key);
                       if (isDup != nameDuplicate) setModalState(() => nameDuplicate = isDup);
                     },
                     decoration: InputDecoration(
                       labelText: 'Item Name *',
                       border: const OutlineInputBorder(),
-                      errorText: nameDuplicate ? 'An item with this name already exists.' : null,
+                      errorText: nameDuplicate ? 'An item with this name and UOM already exists.' : null,
                       errorStyle: const TextStyle(fontSize: 11),
                     )),
                   const SizedBox(height: 10),
@@ -804,7 +815,12 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                           const SizedBox(height: 8),
                         ]),
                       );
-                      if (picked != null) setModalState(() => selectedUom = picked);
+                      if (picked != null) setModalState(() {
+                        selectedUom = picked;
+                        // Re-check duplicate with new UOM
+                        final key = '${nameCtrl.text.trim().toLowerCase()}||${picked.toLowerCase().trim()}';
+                        nameDuplicate = existingNames.contains(key);
+                      });
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
@@ -865,7 +881,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                         if (nameCtrl.text.trim().isEmpty) return;
                         if (nameDuplicate) {
                           ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                            content: Text('An item with this name already exists.'),
+                            content: Text('An item with this name and UOM already exists.'),
                             backgroundColor: Colors.orange,
                             behavior: SnackBarBehavior.floating,
                           ));
@@ -888,7 +904,9 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                         };
                         try {
                           if (isEdit) {
-                            await _db.doc(item!['id']).update(data);
+                            await SyncStatusNotifier.instance.trackWrite(() async {
+                              await _db.doc(item!['id']).update(data);
+                            });
                             // ── Sync matching stock_inventory record ──
                             try {
                               final oldNum = item['num'] as String? ?? '';
@@ -922,7 +940,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                             }
                           } else {
                             data['createdAt'] = FieldValue.serverTimestamp();
-                            await _db.add(data);
+                            await SyncStatusNotifier.instance.trackWrite(() => _db.add(data));
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
                               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1117,36 +1135,53 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Item'),
-        content: Text('Delete "${item['name']}"? This will also remove it from Stock Inventory.'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.archive_outlined, color: Colors.orange, size: 22),
+          SizedBox(width: 8),
+          Text('Archive Item', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: Text(
+          'Are you sure you want to archive "${item['name']}"?',
+          style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
+          ),
+          ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               try {
-                // Delete from item_master
-                await _db.doc(item['id']).delete();
-                // Also delete matching stock_inventory record
-                try {
+                await SyncStatusNotifier.instance.trackWrite(() => _db.doc(item['id']).update({
+                  'archived': true,
+                  'archivedAt': FieldValue.serverTimestamp(),
+                }));
+                // Set matching stock_inventory status to Inactive
+                final num = item['num'] as String? ?? '';
+                if (num.isNotEmpty) {
                   final stockSnap = await FirebaseFirestore.instance
-                      .collection('stock_inventory')
-                      .where('num', isEqualTo: item['num'])
-                      .limit(1).get();
+                      .collection('stock_inventory').where('num', isEqualTo: num).limit(1).get();
                   if (stockSnap.docs.isNotEmpty) {
-                    await stockSnap.docs.first.reference.delete();
+                    await stockSnap.docs.first.reference.update({'status': 'Inactive'}).catchError((_) {});
                   }
-                } catch (_) {} // non-fatal
+                }
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Row(children: const [Icon(Icons.check_circle_outline, color: Colors.white, size: 18), SizedBox(width: 8), Text('Deleted successfully!')]),
-                  backgroundColor: Colors.red, behavior: SnackBarBehavior.floating,
+                  content: Row(children: const [Icon(Icons.inventory_2_outlined, color: Colors.white, size: 18), SizedBox(width: 8), Text('Item archived successfully!')]),
+                  backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
               } catch (e) {
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
               }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Yes, Archive'),
           ),
         ],
       ),

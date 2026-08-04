@@ -127,6 +127,8 @@
     background: #fff !important;
     flex-shrink: 0 !important;
     display: block !important;
+    position: relative;
+    z-index: 301;
 }
 
 .admin-sidebar-footer .logout-btn {
@@ -810,17 +812,25 @@
     display: flex;
     flex-direction: column;
     transition: width 0.25s ease, min-width 0.25s ease, transform 0.25s ease;
-    overflow: hidden;
+    overflow: visible;
     z-index: 300;
     /* Override style.css: always visible */
     transform: translateX(0) !important;
     box-shadow: none !important;
+    /* Fixed below the 60px header, full remaining height */
+    position: fixed;
+    top: 60px;
+    left: 0;
+    height: calc(100vh - 60px);
+    background: #fff;
+    border-right: 1px solid #e2e8f0;
 }
 
 /* Ensure the nav scrolls and footer stays pinned at the bottom */
 .admin-sidebar .admin-nav {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     min-height: 0;
 }
 
@@ -906,22 +916,50 @@
     display: block;
 }
 
-/* Logout button: always full-width with text */
-.admin-sidebar .admin-sidebar-footer .logout-btn,
-.admin-sidebar.expanded .admin-sidebar-footer .logout-btn {
-    width: calc(100% - 24px) !important;
+/* Logout button: collapsed = icon+label stacked, expanded = row with full text */
+.admin-sidebar .admin-sidebar-footer .logout-btn {
+    width: 100% !important;
     height: auto !important;
-    padding: 10px 14px !important;
-    margin: 0 12px 12px !important;
-    border-radius: 10px !important;
-    font-size: 0.82rem !important;
-    gap: 8px !important;
+    padding: 10px 2px 8px !important;
+    margin: 6px 0 6px !important;
+    border-radius: 0 !important;
+    border: none !important;
+    background: none !important;
+    font-size: 7.5px !important;
+    gap: 3px !important;
     overflow: visible !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #718096 !important;
+    letter-spacing: -0.2px !important;
+    line-height: 1.2 !important;
+}
+.admin-sidebar .admin-sidebar-footer .logout-btn:hover {
+    background: #fff5f5 !important;
+    color: #E8001C !important;
 }
 .admin-sidebar .admin-sidebar-footer .logout-btn svg {
     flex-shrink: 0;
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
+}
+
+/* Expanded: row layout with full text */
+.admin-sidebar.expanded .admin-sidebar-footer .logout-btn {
+    width: calc(100% - 24px) !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+    font-size: 0.82rem !important;
+    gap: 8px !important;
+    padding: 10px 14px !important;
+    margin: 8px 12px 12px !important;
+    border-radius: 10px !important;
+    border: 1.5px solid #fed7d7 !important;
+    background: #fff5f5 !important;
+    color: #E8001C !important;
+    letter-spacing: 0 !important;
 }
 
 /* Sidebar toggle button */

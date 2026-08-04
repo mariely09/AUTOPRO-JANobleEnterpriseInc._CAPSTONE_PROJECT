@@ -98,7 +98,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           .update({'mustChangePassword': false});
 
       if (!mounted) return;
-      _toast('Password updated! Redirecting…', success: true);
+      _toast('Password updated successfully!', success: true);
 
       await Future.delayed(const Duration(milliseconds: 1200));
       if (!mounted) return;
@@ -301,7 +301,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 : const Row(mainAxisSize: MainAxisSize.min, children: [
                     Icon(Icons.lock_outline, size: 18),
                     SizedBox(width: 8),
-                    Text('Update Password',
+                    Text('Save',
                         style: TextStyle(fontSize: 15,
                             fontWeight: FontWeight.w700)),
                   ]),

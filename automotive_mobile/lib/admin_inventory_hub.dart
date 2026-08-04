@@ -3,6 +3,7 @@ import 'admin_inventory_itemaster.dart';
 import 'admin_inventory_stock.dart';
 import 'admin_receiving.dart';
 import 'admin_transactions.dart';
+import 'sync_indicator.dart';
 
 /// Full-screen Inventory hub — AppBar with 4 sub-tabs, no bottom nav.
 /// Mirrors the same pattern as AdminVehiclesList.
@@ -83,6 +84,7 @@ class _AdminInventoryHubState extends State<AdminInventoryHub> {
                     fontWeight: FontWeight.bold),
               ),
         actions: [
+          const SyncIndicator(),
           IconButton(
             icon: Icon(
                 _searching ? Icons.close : Icons.search,
@@ -196,7 +198,7 @@ class _AdminInventoryHubState extends State<AdminInventoryHub> {
           ),
         ),
       ),
-      body: _buildBody(),
+      body: OfflineSaveListener(child: _buildBody()),
     );
   }
 

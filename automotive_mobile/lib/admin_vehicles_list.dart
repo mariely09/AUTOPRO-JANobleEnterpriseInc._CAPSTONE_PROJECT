@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_vehicle_maintenance.dart';
 import 'admin_service_bookings.dart';
 import 'admin_issuances.dart';
+import 'sync_indicator.dart';
 
 /// Full-screen Vehicles hub — has its own AppBar + sub-tabs.
 /// No bottom nav bar visible. Launched via Navigator.push from the dashboard.
@@ -69,6 +70,7 @@ class _AdminVehiclesListState extends State<AdminVehiclesList> {
             : Text(_tabTitles[_tab],
                 style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         actions: [
+          const SyncIndicator(),
           IconButton(
             icon: Icon(_searching ? Icons.close : Icons.search, color: Colors.white),
             onPressed: () => setState(() {
@@ -143,7 +145,8 @@ class _AdminVehiclesListState extends State<AdminVehiclesList> {
           ),
         ),
       ),
-      body: IndexedStack(
+      body: OfflineSaveListener(
+        child: IndexedStack(
         index: _tab,
         children: [
           AdminVehiclesListBody(searchQuery: _tab == 0 && _searching ? _searchCtrl.text.toLowerCase() : '', sortBy: _vehicleSortBy),
@@ -151,7 +154,7 @@ class _AdminVehiclesListState extends State<AdminVehiclesList> {
           AdminServiceBookingsBody(searchQuery: _tab == 2 && _searching ? _searchCtrl.text.toLowerCase() : ''),
           AdminIssuancesBody(searchQuery: _tab == 3 && _searching ? _searchCtrl.text.toLowerCase() : ''),
         ],
-      ),
+      )),
     );
   }
 }
@@ -501,6 +504,7 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
     final lastSvcDateCtrl = TextEditingController(text: vehicle?['lastSvcDate'] ?? '');
     final svcFreqCtrl = TextEditingController(text: vehicle?['svcFreq'] ?? '');
     String? selectedType = (vehicle?['type']?.isNotEmpty == true && types.contains(vehicle!['type'])) ? vehicle['type'] : null;
+    bool saving = false;
 
     showModalBottomSheet(
       context: context, isScrollControlled: true,
@@ -604,8 +608,9 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                       child: const Text('Cancel'))),
                     const SizedBox(width: 12),
                     Expanded(child: ElevatedButton(
-                      onPressed: () async {
+                      onPressed: saving ? null : () async {
                         if (plateCtrl.text.trim().isEmpty) return;
+                        setModal(() => saving = true);
                         final data = <String, dynamic>{
                           'plate': plateCtrl.text.trim().toUpperCase(),
                           'desc': descCtrl.text.trim(),
@@ -620,7 +625,7 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                         };
                         try {
                           if (isEdit) {
-                            await _db.doc(vehicle!['id']).update(data);
+                            await SyncStatusNotifier.instance.trackWrite(() => _db.doc(vehicle!['id']).update(data));
                             if (sheetCtx.mounted) {
                               Navigator.pop(sheetCtx);
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -642,6 +647,7 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                                 .where('plate', isEqualTo: plateCtrl.text.trim().toUpperCase())
                                 .limit(1).get();
                             if (existing.docs.isNotEmpty) {
+                              setModal(() => saving = false);
                               if (sheetCtx.mounted) ScaffoldMessenger.of(sheetCtx).showSnackBar(
                                 const SnackBar(
                                   content: Text('A vehicle with this plate number already exists.'),
@@ -649,7 +655,7 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                               return;
                             }
                             data['createdAt'] = FieldValue.serverTimestamp();
-                            await _db.add(data);
+                            await SyncStatusNotifier.instance.trackWrite(() => _db.add(data));
                             if (sheetCtx.mounted) {
                               Navigator.pop(sheetCtx);
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -665,17 +671,21 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                                 ),
                               );
                             }
-                          }                        } catch (e) {
+                          }
+                        } catch (e) {
+                          setModal(() => saving = false);
                           if (sheetCtx.mounted) ScaffoldMessenger.of(sheetCtx).showSnackBar(
                             SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
                         }
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.save_outlined, size: 16),
-                        const SizedBox(width: 6),
-                        Text(isEdit ? 'Update' : 'Save'),
-                      ]),
+                      child: saving
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Row(mainAxisSize: MainAxisSize.min, children: [
+                              const Icon(Icons.save_outlined, size: 16),
+                              const SizedBox(width: 6),
+                              Text(isEdit ? 'Update' : 'Save'),
+                            ]),
                     )),
                   ]),
                 ]),
@@ -687,18 +697,30 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
     );
   }
 
-  void _confirmDelete(Map<String, String> v) {    showDialog(
+  void _confirmDelete(Map<String, String> v) {
+    showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Vehicle'),
-        content: Text('Delete "${v['plate']}"?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.delete_outline, color: Colors.red, size: 22),
+          SizedBox(width: 8),
+          Text('Delete Vehicle', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: Text(
+          'Are you sure you want to delete "${v['plate']}"?',
+          style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
+          ),
+          ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await _db.doc(v['id']).delete();
+                await SyncStatusNotifier.instance.trackWrite(() => _db.doc(v['id']).delete());
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Row(children: const [
@@ -716,7 +738,11 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                   SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
               }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red, foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Yes, Delete'),
           ),
         ],
       ),

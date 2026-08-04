@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import 'barcode_scanner_screen.dart';
+import 'sync_indicator.dart';
 
 /// Standalone full-screen wrapper for Stock Inventory.
 /// Can be navigated to directly (e.g. from dashboard stat card).
@@ -41,6 +42,7 @@ class _AdminInventoryStockState extends State<AdminInventoryStock> {
         title: const Text('Stock Inventory',
             style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         actions: [
+          const SyncIndicator(),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -73,7 +75,8 @@ class _AdminInventoryStockState extends State<AdminInventoryStock> {
           ),
         ],
       ),
-      body: AdminInventoryStockBody(
+      body: OfflineSaveListener(
+        child: AdminInventoryStockBody(
         key: _bodyKey,
         sortOrder: _sortOrder,
         prefilledItemNum:      widget.prefilledItemNum,
@@ -81,7 +84,7 @@ class _AdminInventoryStockState extends State<AdminInventoryStock> {
         prefilledGroup:        widget.prefilledGroup,
         prefilledUom:          widget.prefilledUom,
         prefilledSupplierCode: widget.prefilledSupplierCode,
-      ),
+      )),
     );
   }
 
@@ -367,9 +370,12 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                 'min': min,
                 'max': max,
                 'reorder': (data['reorder'] as num?)?.toInt() ?? 0,
-                'status': stock > min
-                    ? (stock > max ? 'Over' : 'OK')
-                    : 'Low',
+                // Preserve 'Inactive' if stored (archived item), else compute from stock levels
+                'status': (data['status'] as String? ?? '') == 'Inactive'
+                    ? 'Inactive'
+                    : stock > min
+                        ? (stock > max ? 'Over' : 'OK')
+                        : 'Low',
               };
             }).toList();
 
@@ -508,24 +514,29 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
     final stock = item['stock'] as int;
     final min = item['min'] as int;
     final max = item['max'] as int;
-    final isOut  = stock == 0;
-    final isLow  = !isOut && status == 'Low';
-    final isOver = !isOut && !isLow && status == 'Over';
+    final isInactive = status == 'Inactive';
+    final isOut  = !isInactive && stock == 0;
+    final isLow  = !isInactive && !isOut && status == 'Low';
+    final isOver = !isInactive && !isOut && !isLow && status == 'Over';
     final progress = max > 0 ? (stock / max).clamp(0.0, 1.0) : 0.0;
-    final barColor = isOut
-        ? Colors.red
-        : isLow
-            ? Colors.orange
-            : isOver
-                ? Colors.purple
-                : Colors.green;
-    final statusLabel = isOut
-        ? 'Out of Stock'
-        : isLow
-            ? 'Low Stock'
-            : isOver
-                ? 'Over Max'
-                : 'In Stock';
+    final barColor = isInactive
+        ? const Color(0xFF718096)
+        : isOut
+            ? Colors.red
+            : isLow
+                ? Colors.orange
+                : isOver
+                    ? Colors.purple
+                    : Colors.green;
+    final statusLabel = isInactive
+        ? 'Inactive'
+        : isOut
+            ? 'Out of Stock'
+            : isLow
+                ? 'Low Stock'
+                : isOver
+                    ? 'Over Max'
+                    : 'In Stock';
 
     return GestureDetector(
       onTap: () => _showStockDetails(item),
@@ -680,20 +691,6 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                     icon: const Icon(Icons.edit_outlined, size: 16),
                     label: const Text('Edit'),
                   )),
-                  const SizedBox(width: 12),
-                  Expanded(
-                      child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _confirmDelete(item);
-                    },
-                    icon: const Icon(Icons.delete_outline,
-                        size: 16, color: Colors.red),
-                    label: const Text('Delete',
-                        style: TextStyle(color: Colors.red)),
-                    style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.red)),
-                  )),
                 ]),
               ]),
             ),
@@ -718,15 +715,16 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
     final maxCtrl   = TextEditingController(text: '${item['max']}');
     final reorderCtrl = TextEditingController(text: '${item['reorder']}');
 
-    // Auto-calculate reorder = max - min
+    // Auto-calculate reorder = max - current stock
     void calcReorder() {
-      final min = int.tryParse(minCtrl.text) ?? 0;
+      final stock = int.tryParse(stockCtrl.text) ?? 0;
       final max = int.tryParse(maxCtrl.text) ?? 0;
-      final r = max > min ? max - min : 0;
+      final r = max > stock ? max - stock : 0;
       reorderCtrl.text = r > 0 ? '$r' : '';
     }
     minCtrl.addListener(calcReorder);
     maxCtrl.addListener(calcReorder);
+    stockCtrl.addListener(calcReorder);
 
     showModalBottomSheet(
       context: context,
@@ -831,7 +829,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                         filled: true,
                         fillColor: const Color(0xFFF7F8FA),
                         suffixIcon: Tooltip(
-                          message: 'Auto-calculated: Max − Min',
+                          message: 'Auto-calculated: Max − Current Stock',
                           child: Icon(Icons.info_outline, size: 16, color: Colors.grey.shade400),
                         ),
                       )),
@@ -855,7 +853,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                         final reorder =
                             int.tryParse(reorderCtrl.text) ?? 0;
                         try {
-                          await _db
+                          await SyncStatusNotifier.instance.trackWrite(() => _db
                               .doc(item['id'] as String)
                               .update({
                             'stock': stock,
@@ -866,7 +864,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                                 stock > min ? 'OK' : 'Low',
                             'updatedAt':
                                 FieldValue.serverTimestamp(),
-                          });
+                          }));
                           if (sheetCtx.mounted) {
                             Navigator.pop(sheetCtx);
                             ScaffoldMessenger.of(context)
@@ -935,15 +933,16 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
     final maxCtrl = TextEditingController();
     final reorderCtrl = TextEditingController();
 
-    // Auto-calculate reorder qty = max - min whenever either changes
+    // Auto-calculate reorder qty = max - current stock whenever either changes
     void _calcReorder() {
-      final min = int.tryParse(minCtrl.text) ?? 0;
+      final stock = int.tryParse(stockCtrl.text) ?? 0;
       final max = int.tryParse(maxCtrl.text) ?? 0;
-      final reorder = max > min ? max - min : 0;
+      final reorder = max > stock ? max - stock : 0;
       reorderCtrl.text = reorder > 0 ? '$reorder' : '';
     }
     minCtrl.addListener(_calcReorder);
     maxCtrl.addListener(_calcReorder);
+    stockCtrl.addListener(_calcReorder);
     Map<String, dynamic>? selectedMaster;
     List<Map<String, dynamic>> searchResults = [];
     bool searching = false;
@@ -1247,7 +1246,7 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                                 filled: true,
                                 fillColor: const Color(0xFFF7F8FA),
                                 suffixIcon: Tooltip(
-                                  message: 'Auto-calculated: Max − Min',
+                                  message: 'Auto-calculated: Max − Current Stock',
                                   child: Icon(Icons.info_outline, size: 16, color: Colors.grey.shade400),
                                 ),
                               )),
@@ -1288,9 +1287,15 @@ class AdminInventoryStockBodyState extends State<AdminInventoryStockBody>
                                     }
                                     return;
                                   }
-                                  await _db.add(data);
+                                  await SyncStatusNotifier.instance.trackWrite(() => _db.add(data));
                                   if (context.mounted) {
-                                    Navigator.pop(context);
+                                    // Pop modal + pop stock screen → back to item master
+                                    Navigator.pop(context); // close modal
+                                    // If this screen was pushed from item master (has prefilled item),
+                                    // also pop the stock screen itself to return to item master
+                                    if (widget.prefilledItemNum != null && widget.prefilledItemNum!.isNotEmpty) {
+                                      Navigator.pop(context);
+                                    }
                                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                       content: Row(children: const [
                                         Icon(Icons.check_circle_outline, color: Colors.white, size: 18),

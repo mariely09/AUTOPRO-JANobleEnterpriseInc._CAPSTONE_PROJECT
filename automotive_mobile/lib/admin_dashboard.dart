@@ -13,10 +13,12 @@ import 'admin_dss.dart';
 import 'notifications.dart';
 import 'admin_rag_ai.dart';
 import 'admin_domain_management.dart';
+import 'admin_archive.dart';
 import 'barcode_scanner_screen.dart';
 import 'admin_service_bookings.dart';
 import 'admin_issuances.dart';
 import 'admin_bottomnavbar.dart';
+import 'sync_indicator.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -1581,6 +1583,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
         'color': Colors.indigo,
         'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDomainManagement())),
       },
+      {
+        'icon': Icons.inventory_2_outlined,
+        'label': 'Archive',
+        'sub': 'View and restore archived items',
+        'color': Colors.blueGrey,
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminArchive())),
+      },
     ];
 
     return SingleChildScrollView(
@@ -1724,10 +1733,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 const SizedBox(height: 20),
                 SizedBox(width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      Navigator.pushAndRemoveUntil(context,
-                        MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        Navigator.pushAndRemoveUntil(context,
+                          MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+                      }
                     },
                     icon: const Icon(Icons.logout),
                     label: const Text('Logout'),
@@ -1770,8 +1782,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
         const SizedBox(height: 20),
         SizedBox(width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: () => Navigator.pushAndRemoveUntil(context,
-              MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+              }
+            },
             icon: const Icon(Icons.logout),
             label: const Text('Logout'),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700, foregroundColor: Colors.white,

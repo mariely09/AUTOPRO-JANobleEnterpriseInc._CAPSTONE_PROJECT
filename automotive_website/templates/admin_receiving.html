@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -104,6 +104,18 @@
                         <option value="">All Months</option>
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <!-- Print PO — shown only when there are Pending deliveries -->
+                <div id="printPOWrap" style="display:none;position:relative;">
+                    <button id="printPOBtn" onclick="togglePrintPOMenu()" style="display:flex;align-items:center;gap:6px;padding:0.55rem 1rem;background:#E8001C;border:none;border-radius:8px;color:white;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='#C41E3A'" onmouseout="this.style.background='#E8001C'">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                        Print PO
+                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div id="printPOMenu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:white;border:1.5px solid #e2e8f0;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.1);min-width:260px;z-index:999;overflow:hidden;" id="printPOMenu">
+                        <div style="padding:8px 12px;font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #f0f4f8;">Select Pending Delivery</div>
+                        <div id="printPOList" style="max-height:220px;overflow-y:auto;"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -323,11 +335,11 @@
     </div>
     <!-- Footer -->
     <div id="rvFooter" style="padding:1rem 1.75rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;flex-wrap:wrap;">
-      <button type="button" onclick="submitReview('Rejected')" style="flex:1;min-width:160px;padding:0.75rem;background:white;border:2px solid #E8001C;border-radius:10px;color:#E8001C;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;" onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'">
+      <button type="button" onclick="if(!confirm('Are you sure you want to reject this service?')) return; submitReview('Rejected')" style="flex:1;min-width:140px;padding:0.75rem;background:white;border:2px solid #E8001C;border-radius:10px;color:#E8001C;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;" onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
         Reject
       </button>
-      <button type="button" onclick="submitReview('Approved')" style="flex:1.5;min-width:160px;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;">
+      <button type="button" onclick="submitReview('Approved')" style="flex:1.5;min-width:140px;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         Approve &amp; Update Stock
       </button>
@@ -382,6 +394,26 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- ── PO Print Area (same-page print, hidden until printing) ── -->
+<div id="poPrintArea" style="display:none;"></div>
+
+<style>
+@media print {
+  body > *:not(#poPrintArea) { display: none !important; }
+  #poPrintArea {
+    display: block !important;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    font-family: Arial, sans-serif;
+    font-size: 10px;
+    color: #1a202c;
+    padding: 12mm 10mm;
+    box-sizing: border-box;
+  }
+}
+</style>
 
 <script src="../static/js/data.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -458,7 +490,44 @@ window._updateStats = function _updateStats() {
   s('statAwaiting', awaiting);
   s('statApproved', approved);
   s('statRejected', rejected);
+  // Update Print PO button visibility + list
+  _updatePrintPOMenu();
 }
+
+// ── Print PO header button ──
+window._updatePrintPOMenu = function() {
+  var pendingDeliveries = _allDeliveries.filter(function(d){ return d.status === 'Pending'; });
+  var wrap = document.getElementById('printPOWrap');
+  if (!wrap) return;
+  wrap.style.display = pendingDeliveries.length ? 'block' : 'none';
+  var list = document.getElementById('printPOList');
+  if (!list) return;
+  if (!pendingDeliveries.length) { list.innerHTML = ''; return; }
+  list.innerHTML = pendingDeliveries.map(function(d) {
+    var label = (d.supplier || '—') + (d.date ? ' · ' + _fmtDate(d.date) : '');
+    var itemCount = (d.items || []).length;
+    return '<div onclick="_currentDeliveryId=\'' + d.id + '\';generatePO();togglePrintPOMenu();" '
+      + 'style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #f0f4f8;display:flex;flex-direction:column;gap:2px;transition:background .1s;" '
+      + 'onmouseover="this.style.background=\'#f7fafc\'" onmouseout="this.style.background=\'white\'">'
+      + '<span style="font-size:12px;font-weight:700;color:#1a202c;">' + label + '</span>'
+      + '<span style="font-size:10px;color:#718096;">' + itemCount + ' item' + (itemCount!==1?'s':'') + '</span>'
+      + '</div>';
+  }).join('');
+};
+
+window.togglePrintPOMenu = function() {
+  var menu = document.getElementById('printPOMenu');
+  if (!menu) return;
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+};
+
+// Close Print PO dropdown on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#printPOWrap')) {
+    var menu = document.getElementById('printPOMenu');
+    if (menu) menu.style.display = 'none';
+  }
+});
 
 window._populateMonthFilter = function _populateMonthFilter() {
   var sel = document.getElementById('deliveryMonthFilter');
@@ -577,6 +646,8 @@ window._renderList = function _renderList() {
           ? '<button class="btn-small btn-secondary" onclick="editItemInDelivery(\'' + d.id + '\',' + idx + ')" title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
           : '<button class="btn-small btn-secondary" disabled title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
         var deleteBtn = '<button class="btn-small btn-danger" onclick="deleteItemFromDelivery(\'' + d.id + '\',' + idx + ')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
+        // Print PO button — only on the first item row of a Pending delivery
+        var printPOBtn = '';
         var cols = [viewBtn, editBtn, deleteBtn].filter(function(b){return b;});
         var rowActions = '<div style="display:grid;grid-template-columns:repeat(' + cols.length + ',1fr);gap:0.2rem;">' + cols.join('') + '</div>';
 
@@ -1297,8 +1368,8 @@ var _currentEditDeliveryId = null;
 // -- Delete Delivery --
 window.deleteDelivery = function(id) {
   var d = _allDeliveries.find(function(x){ return x.id === id; });
-  var label = d ? (d.supplier || 'this delivery') + ' (' + _fmtDate(d.date) + ')' : 'this delivery';
-  if (!confirm('Delete ' + label + '? This cannot be undone.')) return;
+  var label = d ? (d.supplier || 'this delivery') : 'this delivery';
+  if (!confirm('Are you sure you want to delete the delivery from "' + label + '"?')) return;
   db.collection('deliveries').doc(id).delete()
     .then(function(){ showToast('Delivery record deleted successfully!', 'error'); })
     .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
@@ -1327,7 +1398,7 @@ window.rejectAdminReview = function(id, itemIdx) {
   if (!d) return;
   var item = (d.items || [])[itemIdx];
   var itemName = item ? (item.itemName || 'this item') : 'this item';
-  if (!confirm('Reject "' + itemName + '" from this delivery request?')) return;
+  if (!confirm('Are you sure you want to reject "' + itemName + '"?')) return;
   var updatedItems = (d.items || []).slice();
   updatedItems.splice(itemIdx, 1);
   if (updatedItems.length === 0) {
@@ -1439,7 +1510,7 @@ window.deleteItemFromDelivery = function(deliveryId, itemIdx) {
   if (!d || !d.items) return;
   var item = d.items[itemIdx];
   if (!item) return;
-  if (!confirm('Remove "' + (item.itemName || 'this item') + '" from delivery?')) return;
+  if (!confirm('Are you sure you want to remove "' + (item.itemName || 'this item') + '" from the delivery?')) return;
   var updatedItems = d.items.slice();
   updatedItems.splice(itemIdx, 1);
   if (updatedItems.length === 0) {
@@ -1759,6 +1830,113 @@ window.submitReview = function(decision) {
     showToast('Error: '+err.message,'error');
     footerEl.innerHTML = originalFooter;
   });
+};
+
+// ── Generate Purchase Order (same-page print) ──
+window.generatePO = function() {
+  var d = _allDeliveries.find(function(x){ return x.id === _currentDeliveryId; });
+  if (!d) return;
+  if (d.status !== 'Pending') {
+    if (typeof showToast === 'function') showToast('Print PO is only available for Pending deliveries.', 'error');
+    return;
+  }
+
+  var now = new Date();
+  var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var dateStr = MO[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
+  var delivDateStr = _fmtDate(d.date);
+  var delivDay = '';
+  var delivDt = new Date(d.date);
+  if (!isNaN(delivDt)) delivDay = ' (' + days[delivDt.getDay()].slice(0,5) + ')';
+
+  var items = d.items || [];
+
+  // Build table rows — only actual items, no empty padding
+  var rows = items.map(function(item, i) {
+    var bg = i % 2 === 1 ? '#dce9f7' : '#ffffff';
+    var curStock = (item.stockAtReceive !== undefined && item.stockAtReceive !== null)
+      ? item.stockAtReceive
+      : (item._stock !== undefined && item._stock !== null ? item._stock : '—');
+    var supPrice = parseFloat(item._cost || item.supplierPrice || item.price || 0);
+    var orderQty = parseInt(item.expectedQty || item.orderQty || 0);
+    var totalAmt = supPrice * orderQty;
+    var supPriceStr = supPrice > 0 ? supPrice.toLocaleString('en-PH', {minimumFractionDigits:2}) : '0.00';
+    var totalAmtStr = totalAmt > 0 ? totalAmt.toLocaleString('en-PH', {minimumFractionDigits:2}) : '0.00';
+    return '<tr style="background:' + bg + ';">'
+      + '<td style="padding:3px 4px;border:1px solid #b0c4de;text-align:center;">' + (i+1) + '</td>'
+      + '<td style="padding:3px 4px;border:1px solid #b0c4de;font-weight:600;">' + (item.itemNum || '—') + '</td>'
+      + '<td style="padding:3px 4px;border:1px solid #b0c4de;">' + (item.supplierCode || item.supplierItemCode || '—') + '</td>'
+      + '<td style="padding:3px 4px;border:1px solid #b0c4de;">' + (item.oem || '—') + '</td>'
+      + '<td style="padding:3px 4px;border:1px solid #b0c4de;">' + (item.itemName || '—') + '</td>'
+      + '<td style="padding:3px 4px;border:1px solid #b0c4de;text-align:center;">' + curStock + '</td>'
+      + '<td style="padding:3px 4px;border:1px solid #b0c4de;text-align:center;font-weight:700;">' + (orderQty || '0') + '</td>'
+      + '<td style="padding:3px 4px;border:1px solid #b0c4de;text-align:right;">' + supPriceStr + '</td>'
+      + '<td style="padding:3px 4px;border:1px solid #b0c4de;text-align:right;font-weight:700;">' + totalAmtStr + '</td>'
+      + '<td style="padding:3px 4px;border:1px solid #b0c4de;">' + (item.status || item.condition || '') + '</td>'
+      + '</tr>';
+  }).join('');
+
+  var subtotalQty = items.reduce(function(s,i){ return s + parseInt(i.expectedQty||i.orderQty||0); }, 0);
+  var grandTotal  = items.reduce(function(s,i){
+    return s + (parseFloat(i._cost||i.supplierPrice||i.price||0) * parseInt(i.expectedQty||i.orderQty||0));
+  }, 0);
+  var grandTotalStr = grandTotal > 0 ? grandTotal.toLocaleString('en-PH', {minimumFractionDigits:2}) : '0.00';
+  var noteLines = items.filter(function(i){ return i.remark; })
+    .map(function(i){ return (i.itemNum||i.itemName||'') + ' — ' + i.remark; }).join('\n');
+  var preparedBy = d.receivedBy || d.checkedBy || '';
+  var opsHead    = d.checkedBy  || '';
+
+  var inner =
+    '<style>'
+    + '*{box-sizing:border-box;}'
+    + 'h1{font-size:13px;font-weight:900;text-align:center;margin:0 0 6px;}'
+    + 'table.mt{width:100%;border-collapse:collapse;margin-bottom:4px;}'
+    + 'table.mt td{padding:1px 0;font-size:10px;}'
+    + 'table.mt td:first-child{width:145px;font-weight:700;}'
+    + '.ul{display:inline-block;min-width:200px;border-bottom:1px solid #000;}'
+    + 'table.po{width:100%;border-collapse:collapse;margin-top:5px;font-size:9px;}'
+    + 'table.po th{background:#1a202c;color:#fff;padding:3px 4px;font-size:8px;font-weight:700;text-align:center;border:1px solid #b0c4de;white-space:nowrap;}'
+    + 'table.po td{border:1px solid #b0c4de;padding:3px 4px;font-size:9px;}'
+    + '.tr{background:#1a202c;color:#fff;}'
+    + '.tr td{font-weight:700;font-size:9px;border:1px solid #b0c4de;padding:3px 4px;}'
+    + '.nb{border:1px solid #b0c4de;padding:4px 7px;margin-top:5px;font-size:9px;min-height:18px;white-space:pre-wrap;}'
+    + '.sg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:10px;}'
+    + '.sl{border-bottom:1px solid #000;min-height:18px;font-size:10px;padding-bottom:2px;}'
+    + '.lb{font-size:8px;color:#718096;margin-top:1px;}'
+    + '</style>'
+    + '<h1>Internal Purchase Order Form</h1>'
+    + '<table class="mt"><tbody>'
+    + '<tr><td>Order Type (Normal/Rush)</td><td><span class="ul">' + (d.orderType||'Normal') + '</span></td></tr>'
+    + '<tr><td>Supplier:</td><td><span class="ul">' + (d.supplier||'—') + '</span></td></tr>'
+    + '<tr><td>Target Delivery Date:</td><td><span class="ul">' + delivDateStr + delivDay + '</span></td></tr>'
+    + '</tbody></table>'
+    + '<table class="po"><thead><tr>'
+    + '<th style="width:20px;">#</th>'
+    + '<th>Item Number</th><th>Supplier Item ID</th><th>OEM #</th><th>Description</th>'
+    + '<th style="width:38px;">Curba l</th><th style="width:48px;">Order Qty</th>'
+    + '<th style="width:68px;">Supplier Price</th><th style="width:72px;">Total Amount</th>'
+    + '<th>Status</th>'
+    + '</tr></thead><tbody>' + rows
+    + '<tr class="tr">'
+    + '<td colspan="5" style="text-align:right;">Subtotal:</td>'
+    + '<td style="text-align:center;background:#E8001C;">' + subtotalQty + '</td>'
+    + '<td colspan="2" style="text-align:right;">Total Amount</td>'
+    + '<td style="text-align:right;background:#E8001C;">' + grandTotalStr + '</td>'
+    + '<td></td></tr></tbody></table>'
+    + '<div style="margin-top:6px;font-size:9px;font-weight:700;">Notes</div>'
+    + '<div class="nb">' + (d.notes||noteLines||'').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>'
+    + '<div class="sg">'
+    + '<div><div class="sl">' + preparedBy + '</div><div class="lb">Prepared by Name &amp; Signature</div></div>'
+    + '<div><div class="sl">' + opsHead + '</div><div class="lb">Operations Head Name &amp; Signature</div></div>'
+    + '<div style="text-align:right;"><div class="sl">' + dateStr + '</div><div class="lb" style="text-align:right;">Date</div></div>'
+    + '</div>';
+
+  var area = document.getElementById('poPrintArea');
+  area.innerHTML = inner;
+  window.print();
+  // Clear after print dialog closes
+  setTimeout(function(){ area.innerHTML = ''; }, 1000);
 };
 </script>
 </body>

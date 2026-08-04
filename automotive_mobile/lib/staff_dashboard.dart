@@ -10,6 +10,7 @@ import 'notifications.dart';
 import 'barcode_scanner_screen.dart';
 import 'staff_bottomnavbar.dart';
 import 'staff_calendar_widget.dart';
+import 'sync_indicator.dart';
 
 class StaffDashboard extends StatefulWidget {
   const StaffDashboard({super.key});
@@ -2113,9 +2114,12 @@ class _LogoutPlaceholder extends StatelessWidget {
   const _LogoutPlaceholder();
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Navigator.pushAndRemoveUntil(context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await FirebaseAuth.instance.signOut();
+      if (context.mounted) {
+        Navigator.pushAndRemoveUntil(context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+      }
     });
     return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }

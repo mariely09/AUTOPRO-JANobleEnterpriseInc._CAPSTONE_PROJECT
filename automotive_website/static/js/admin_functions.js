@@ -13,6 +13,48 @@ function showToast(msg, type) {
     }, 3000);
 }
 
+// ── Styled confirmation modal ────────────────────────────────
+// Usage: showConfirmModal(title, bodyHtml, confirmLabel, confirmColor, onConfirm)
+function showConfirmModal(title, bodyHtml, confirmLabel, confirmColor, onConfirm) {
+    // Remove any existing confirm modal
+    var old = document.getElementById('_confirmModal');
+    if (old) old.remove();
+
+    var confirmBg = confirmColor || '#E31E24';
+    var modal = document.createElement('div');
+    modal.id = '_confirmModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    modal.innerHTML = [
+        '<div style="background:white;border-radius:16px;max-width:420px;width:100%;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.25);">',
+        // Header
+        '  <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #f0f4f8;display:flex;align-items:center;gap:0.75rem;">',
+        '    <div style="width:36px;height:36px;border-radius:10px;background:' + confirmBg + '1a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">',
+        '      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + confirmBg + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
+        '    </div>',
+        '    <span style="font-size:1rem;font-weight:700;color:#1a202c;">' + (title || 'Confirm') + '</span>',
+        '  </div>',
+        // Body
+        '  <div style="padding:1.25rem 1.5rem;font-size:0.9rem;color:#4a5568;line-height:1.6;">' + (bodyHtml || '') + '</div>',
+        // Footer
+        '  <div style="padding:1rem 1.5rem;border-top:1px solid #f0f4f8;display:flex;gap:0.65rem;justify-content:flex-end;">',
+        '    <button id="_confirmCancelBtn" style="padding:0.6rem 1.25rem;border:1.5px solid #e2e8f0;border-radius:8px;background:white;color:#4a5568;font-weight:600;font-size:0.875rem;cursor:pointer;">Cancel</button>',
+        '    <button id="_confirmOkBtn" style="padding:0.6rem 1.25rem;border:none;border-radius:8px;background:' + confirmBg + ';color:white;font-weight:700;font-size:0.875rem;cursor:pointer;">' + (confirmLabel || 'Confirm') + '</button>',
+        '  </div>',
+        '</div>'
+    ].join('');
+
+    document.body.appendChild(modal);
+
+    function close() { modal.remove(); }
+
+    modal.addEventListener('click', function(e) { if (e.target === modal) close(); });
+    document.getElementById('_confirmCancelBtn').addEventListener('click', close);
+    document.getElementById('_confirmOkBtn').addEventListener('click', function() {
+        close();
+        if (typeof onConfirm === 'function') onConfirm();
+    });
+}
+
 // ── Pagination utility ──────────────────────────────────────
 var _apPages = {};  // tableId -> currentPage
 
@@ -470,7 +512,14 @@ function deleteAsset(assetNum) {
     var assets = window.assets || [];
     var asset = assets.find(function(a){ return a.assetNum === assetNum; });
     if (!asset) return;
-    if (confirm('Delete ' + asset.assetNum + ' (' + asset.assetDescription + ')? This cannot be undone.')) {
+    var plate = asset.plateNumber || asset.plate || asset.assetNum;
+    if (!confirm('Are you sure you want to delete "' + plate + '"?')) return;
+    var docId = asset.id;
+    if (docId) {
+        firebase.firestore().collection('vehicles').doc(docId).delete()
+            .then(function() { showToast('Vehicle deleted successfully!', 'success'); })
+            .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
+    } else {
         window.assets = assets.filter(function(a){ return a.assetNum !== assetNum; });
         renderAssetsList();
     }
@@ -562,7 +611,9 @@ function renderServicesList() {
         } else {
             topActions += '<button class="btn-small btn-secondary" disabled title="Cannot edit completed service" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.4;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
         }
-        topActions += '<button class="btn-small btn-danger" onclick="deleteService(\''+s.serviceId+'\')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
+        topActions += (s.status||'').toLowerCase() !== 'completed'
+            ? '<button class="btn-small btn-danger" onclick="deleteService(\''+s.serviceId+'\',\''+((s.assetNum||s.plate||'').replace(/'/g,"\\'"))+'\')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
+            : '<button class="btn-small btn-danger" disabled title="Cannot delete completed service" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.4;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
 
         var plate = s.assetNum || s.plate || '';
         // Look up vehicle description from live vehicles data (stays in sync with edits)
@@ -687,8 +738,9 @@ function completeService(serviceId) {
     showToast('Service marked as completed successfully!', 'success');
 }
 
-function deleteService(serviceId) {
-    if (!confirm('Delete this service transaction?')) return;
+function deleteService(serviceId, plate) {
+    var label = plate ? '"' + plate + '"' : 'this service';
+    if (!confirm('Are you sure you want to delete ' + label + '?')) return;
 
     // Delete from Firestore
     firebase.firestore().collection('maintenance').doc(serviceId).delete()
@@ -718,7 +770,7 @@ function svcEditFromList(docId) {
 }
 function svcApproveFromList(docId) {
     var db = firebase.firestore();
-    if (!confirm('Approve this service and set status to Ongoing?')) return;
+    if (!confirm('Are you sure you want to approve this service and set status to Ongoing?')) return;
     db.collection('maintenance').doc(docId).update({ status: 'Ongoing' }).then(function() {
         db.collection('maintenance').doc(docId).get().then(function(doc) {
             if (doc.exists) {
@@ -732,7 +784,7 @@ function svcApproveFromList(docId) {
     }).catch(function(err) { showToast('Error: ' + err.message, 'error'); });
 }
 function svcCompleteFromList(docId) {
-    if (!confirm('Mark this service as Completed?')) return;
+    if (!confirm('Are you sure you want to mark this service as Completed?')) return;
     // Open the details modal which has the full complete logic
     viewServiceDetails(docId);
 }
@@ -1175,7 +1227,10 @@ function renderInventoryList() {
         var isOut = item.stock === 0;
         var isLow = !isOut && item.stock <= item.minLevel;
         var isOver = !isOut && !isLow && item.maxLevel > 0 && item.stock > item.maxLevel;
-        var statusBadge = isOut
+        var isInactive = (item.status || '').toLowerCase() === 'inactive';
+        var statusBadge = isInactive
+            ? '<span style="display:inline-block;background:rgba(113,128,150,0.07);color:#718096;border:1.5px solid #718096;padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">Inactive</span>'
+            : isOut
             ? '<span style="display:inline-block;background:rgba(229,62,62,0.07);color:#e53e3e;border:1.5px solid #e53e3e;padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">Out of Stock</span>'
             : isLow
             ? '<span style="display:inline-block;background:rgba(183,121,31,0.07);color:#b7791f;border:1.5px solid #b7791f;padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">Low Stock</span>'
@@ -1192,10 +1247,9 @@ function renderInventoryList() {
             + '<div style="text-align:center;">' + (item.maxLevel||0) + '</div>'
             + '<div style="text-align:center;">' + (item.reorderQty || item.reorderLevel || '—') + '</div>'
             + '<div style="text-align:center;">' + statusBadge + '</div>'
-            + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;">'
+            + '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.25rem;">'
             +   '<button class="btn-small btn-primary" onclick="viewInventoryItem(\''+item.id+'\')" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>'
             +   '<button class="btn-small btn-secondary" onclick="editInventoryItem(\''+item.id+'\')" title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
-            +   '<button class="btn-small btn-danger" onclick="deleteInventoryItem(\''+item.id+'\')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
             + '</div></div>';
     });
     apRenderPaged('inventoryList', rows, 10, 'renderInventoryList');
@@ -1692,9 +1746,11 @@ function renderItemMasterList() {
 
     var search = (document.getElementById('itemMasterSearch')||{}).value || '';
     var filtered = itemMaster;
+    // Exclude archived items from the main list
+    filtered = filtered.filter(function(i){ return !i.archived; });
     if (search.trim()) {
         var q = search.toLowerCase();
-        filtered = itemMaster.filter(function(i){ return (i.itemName||'').toLowerCase().includes(q) || (i.itemNum||'').toLowerCase().includes(q); });
+        filtered = filtered.filter(function(i){ return (i.itemName||'').toLowerCase().includes(q) || (i.itemNum||'').toLowerCase().includes(q); });
     }
 
     // Apply type filter from filter pills
@@ -1747,7 +1803,7 @@ function renderItemMasterList() {
             + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;">'
             +   '<button class="btn-small btn-primary" onclick="viewItemMasterDetails(\'' + item.itemNum + '\')" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>'
             +   '<button class="btn-small btn-secondary" onclick="editItemMaster(\'' + item.itemNum + '\')" title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
-            +   '<button class="btn-small btn-danger" onclick="deleteItemMaster(\'' + item.itemNum + '\')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
+            +   '<button class="btn-small btn-danger" onclick="deleteItemMaster(\'' + item.itemNum + '\')" title="Archive" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>'
             + '</div></div>';
     });
     apRenderPaged('itemMasterList', rows, 10, 'renderItemMasterList');
@@ -1909,25 +1965,24 @@ function editItemMaster(itemNum) {
 }
 
 function deleteItemMaster(itemNum) {
-    if (!confirm('Delete item ' + itemNum + '? This will also remove it from Stock Inventory if it exists.')) return;
     var fbItem = (window._fbItemMaster || []).find(function(i){ return i.num === itemNum; });
-    if (!fbItem || !fbItem._id) { alert('Item not found in database.'); return; }
+    if (!fbItem || !fbItem._id) { showToast('Item not found in database.', 'error'); return; }
+    var itemName = fbItem.name || itemNum;
+
+    if (!confirm('Are you sure you want to archive "' + itemName + '"?')) return;
+
     var db = firebase.firestore();
-    // 1. Delete from item_master
-    db.collection('item_master').doc(fbItem._id).delete()
-        .then(function() {
-            // 2. Find and delete matching entry in stock_inventory (by num field)
-            return db.collection('stock_inventory').where('num', '==', itemNum).limit(1).get();
-        })
-        .then(function(snap) {
-            if (!snap.empty) {
-                return snap.docs[0].ref.delete();
-            }
-        })
-        .then(function() {
-            showToast('Item deleted successfully!', 'error');
-        })
-        .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
+    db.collection('item_master').doc(fbItem._id).update({
+        archived: true,
+        archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    })
+    .then(function() {
+        db.collection('stock_inventory').where('num', '==', itemNum).limit(1).get().then(function(snap) {
+            if (!snap.empty) snap.docs[0].ref.update({ status: 'Inactive' }).catch(function(){});
+        }).catch(function(){});
+        showToast('Item archived successfully!', 'success');
+    })
+    .catch(function(err) { showToast('Archive failed: ' + err.message, 'error'); });
 }
 
 function viewItemMasterDetails(itemNum) {
@@ -1939,9 +1994,10 @@ function viewItemMasterDetails(itemNum) {
     // Store current item for generate functions
     window._imCurrentViewItem = item;
 
-    // Show/hide generate buttons — only for Material
+    // Show/hide generate buttons — only for Material AND only when supplierCode exists
     var genBtns = document.getElementById('imGenerateBtns');
-    if (genBtns) genBtns.style.display = isSvc ? 'none' : 'flex';
+    var hasSupplierCode = (item.supplierCode || '').trim().length > 0;
+    if (genBtns) genBtns.style.display = (isSvc || !hasSupplierCode) ? 'none' : 'flex';
 
     // Header always red
     var header = document.getElementById('imDetailHeader');
@@ -2105,13 +2161,16 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 var isDuplicate = (window.itemMaster || []).some(function(i){ return i.itemNum === itemNum; });
                 if (isDuplicate) { alert('Item Number already exists.'); return; }
-                // Check for duplicate item name (case-insensitive)
+                // Check for duplicate item name + UOM combination (case-insensitive)
                 var nameLower = (data.name || '').toLowerCase().trim();
+                var uomVal    = (data.uom || '').toLowerCase().trim();
                 var isDuplicateName = (window.itemMaster || []).some(function(i){
-                    return (i.itemName || '').toLowerCase().trim() === nameLower;
+                    var sameName = (i.itemName || '').toLowerCase().trim() === nameLower;
+                    var sameUom  = uomVal === '' || (i.uom || '').toLowerCase().trim() === uomVal;
+                    return sameName && sameUom;
                 });
                 if (isDuplicateName) {
-                    showToast('An item with this name already exists.', 'error');
+                    showToast('An item with this name and UOM already exists.', 'error');
                     return;
                 }
                 data.createdAt = firebase.firestore.FieldValue.serverTimestamp();

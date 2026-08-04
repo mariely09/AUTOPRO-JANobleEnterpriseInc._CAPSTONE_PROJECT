@@ -564,14 +564,36 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
   void _deleteItemFromDelivery(Map<String, dynamic> d, int itemIdx) async {
     final items = List<Map<String, dynamic>>.from((d['items'] as List).map((i) => Map<String, dynamic>.from(i as Map)));
     final item = items[itemIdx];
-    final confirmed = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
-      title: const Text('Delete Item'),
-      content: Text('Remove "${item['itemName']}" from delivery?'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-        TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
-      ],
-    ));
+    final itemName = item['itemName'] as String? ?? 'this item';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.delete_outline, color: Colors.red, size: 22),
+          SizedBox(width: 8),
+          Text('Delete Item', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: Text(
+          'Are you sure you want to remove "$itemName" from the delivery?',
+          style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red, foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Yes, Delete'),
+          ),
+        ],
+      ),
+    );
     if (confirmed != true) return;
     items.removeAt(itemIdx);
     if (items.isEmpty) {
@@ -1933,6 +1955,36 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                   Row(children: [
                     Expanded(child: OutlinedButton.icon(
                       onPressed: submittingReview ? null : () async {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            title: const Row(children: [
+                              Icon(Icons.cancel_outlined, color: Colors.red, size: 22),
+                              SizedBox(width: 8),
+                              Text('Reject Item', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                            ]),
+                            content: const Text(
+                              'Are you sure you want to reject this item?',
+                              style: TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red, foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: const Text('Yes, Reject'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed != true) return;
                         setReview(() => submittingReview = true);
                         await _submitReviewItem(delivery, rcvIdx, 'Rejected', checkedByCtrl.text, notesCtrl.text);
                         setReview(() => submittingReview = false);
@@ -2082,11 +2134,29 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
     final items = List<Map<String, dynamic>>.from((d['items'] as List).map((i) => Map<String, dynamic>.from(i as Map)));
     final item = items[itemIdx];
     final confirmed = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
-      title: const Text('Reject Item'),
-      content: Text('Reject "${item['itemName']}" from this delivery request?'),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Row(children: [
+        Icon(Icons.cancel_outlined, color: Colors.red, size: 22),
+        SizedBox(width: 8),
+        Text('Reject Item', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+      ]),
+      content: Text(
+        'Are you sure you want to reject "${item['itemName']}"?',
+        style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
+      ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-        TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Reject', style: TextStyle(color: Colors.red))),
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red, foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: const Text('Yes, Reject'),
+        ),
       ],
     ));
     if (confirmed != true) return;
@@ -2105,14 +2175,26 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
   }
 
   void _confirmDelete(Map<String, dynamic> d) {
+    final supplier = d['supplier'] as String? ?? 'this delivery';
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Delivery'),
-        content: Text('Delete delivery from "${d['supplier']}"?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.delete_outline, color: Colors.red, size: 22),
+          SizedBox(width: 8),
+          Text('Delete Delivery', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: Text(
+          'Are you sure you want to delete the delivery from "$supplier"?',
+          style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
+          ),
+          ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).delete();
@@ -2123,7 +2205,11 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
               }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red, foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Yes, Delete'),
           ),
         ],
       ),

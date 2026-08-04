@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archive</title>
+    <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
+    <link rel="stylesheet" href="../static/css/style.css">
+    <link rel="stylesheet" href="../static/css/admin.css">
+</head>
+<body class="portal-body" data-page="archive">
+<script>
+(function() {
+  var logoutTime = localStorage.getItem('_loggedOut');
+  var loginTime  = localStorage.getItem('_loggedIn');
+  if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html'); return;
+  }
+  var hasSession = sessionStorage.getItem('apUser') || sessionStorage.getItem('spUser') || sessionStorage.getItem('cpUser');
+  if (!hasSession) { document.documentElement.style.display = 'none'; window.location.replace('/login.html'); }
+})();
+</script>
+
+<div class="admin-dashboard" style="display:flex;flex-direction:column;">
+    <div id="headerContainer"></div>
+    <div class="admin-dashboard-body">
+    <div id="sidebarContainer"></div>
+    <div class="admin-main">
+        <div class="admin-header">
+            <div>
+                <div class="breadcrumb">Admin Portal › Archive</div>
+                <div class="admin-header-title">Archive</div>
+            </div>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:0.6rem;">
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" class="search-bar" placeholder="Search archived items..." id="archiveSearch" style="width:220px;padding-left:2rem;" oninput="renderArchiveList()">
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-content">
+            <div class="data-table" style="overflow-x:auto;">
+                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 120px;min-width:900px;">
+                    <div style="white-space:nowrap;">Item Number</div>
+                    <div style="white-space:nowrap;">Supplier Item Code</div>
+                    <div>Item Name</div>
+                    <div>UOM</div>
+                    <div style="white-space:nowrap;">Commodity Group</div>
+                    <div style="white-space:nowrap;">Item Type</div>
+                    <div>Cost</div>
+                    <div style="text-align:center;">Actions</div>
+                </div>
+                <div id="archiveList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived items...</div></div>
+            </div>
+        </div>
+    </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+  if (!firebase.apps.length) {
+    firebase.initializeApp({
+      apiKey: "AIzaSyCaoJWbwJk0Xi694ARHpdHhiNjT0SpASRs",
+      authDomain: "caltex-autopro-1e664.firebaseapp.com",
+      projectId: "caltex-autopro-1e664",
+      storageBucket: "caltex-autopro-1e664.firebasestorage.app",
+      messagingSenderId: "930140433367",
+      appId: "1:930140433367:web:cf67bfa388fa517422b992"
+    });
+  }
+</script>
+<script src="../static/js/admin_firebase.js"></script>
+<script src="../static/js/admin_functions.js?v=202607180001"></script>
+<script src="../static/js/admin.js"></script>
+<script src="../static/js/admin_sidebar.js"></script>
+<script>
+var db = firebase.firestore();
+var _archivedItems = [];
+
+// Load archived item_master docs
+db.collection('item_master').where('archived', '==', true).onSnapshot(function(snap) {
+    _archivedItems = snap.docs.map(function(d) {
+        var data = d.data();
+        return {
+            id: d.id,
+            num: data.num || '—',
+            supplierCode: data.supplierCode || '',
+            name: data.name || '—',
+            uom: data.uom || '',
+            group: data.group || '',
+            cost: parseFloat(String(data.cost || 0).replace(/[₱,]/g, '')) || 0,
+            type: data.type || 'Material',
+            archivedAt: data.archivedAt || null,
+        };
+    });
+    renderArchiveList();
+});
+
+function renderArchiveList() {
+    var list = document.getElementById('archiveList');
+    if (!list) return;
+    var q = ((document.getElementById('archiveSearch') || {}).value || '').toLowerCase().trim();
+    var items = _archivedItems;
+    if (q) {
+        items = items.filter(function(i) {
+            return (i.name || '').toLowerCase().includes(q) ||
+                   (i.num  || '').toLowerCase().includes(q) ||
+                   (i.supplierCode || '').toLowerCase().includes(q);
+        });
+    }
+    if (!items.length) {
+        list.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">No archived items found.</div>';
+        return;
+    }
+    var rows = items.map(function(item) {
+        var typeColor = item.type === 'Service' ? '#0033A0' : '#e53e3e';
+        var typeBg    = item.type === 'Service' ? 'rgba(0,51,160,0.07)' : 'rgba(229,62,62,0.07)';
+        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 120px;min-width:900px;align-items:center;opacity:0.85;">'
+            + '<div><strong>' + item.num + '</strong></div>'
+            + '<div style="font-size:11px;color:#718096;">' + (item.supplierCode || '—') + '</div>'
+            + '<div>' + item.name + '</div>'
+            + '<div>' + (item.uom || '—') + '</div>'
+            + '<div>' + (item.group || '—') + '</div>'
+            + '<div><span style="display:inline-block;background:' + typeBg + ';color:' + typeColor + ';border:1.5px solid ' + typeColor + ';padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;">' + item.type + '</span></div>'
+            + '<div>₱' + item.cost.toLocaleString('en-PH', {minimumFractionDigits:2}) + '</div>'
+            + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;">'
+            +   '<button class="btn-small btn-secondary" onclick="restoreItem(\'' + item.id + '\',\'' + item.name.replace(/'/g,"\\'") + '\')" title="Restore" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg></button>'
+            +   '<button class="btn-small btn-danger" onclick="permanentlyDeleteItem(\'' + item.id + '\',\'' + item.name.replace(/'/g,"\\'") + '\')" title="Delete Permanently" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>'
+            + '</div></div>';
+    });
+    list.innerHTML = rows.join('');
+}
+
+window.restoreItem = function(docId, name) {
+    if (!confirm('Restore "' + name + '" back to Item Master?')) return;
+    db.collection('item_master').doc(docId).update({ archived: false, archivedAt: null })
+        .then(function() {
+            // Restore stock_inventory status from Inactive back to proper status
+            db.collection('item_master').doc(docId).get().then(function(snap) {
+                if (!snap.exists) return;
+                var num = snap.data().num || '';
+                if (!num) return;
+                db.collection('stock_inventory').where('num', '==', num).limit(1).get().then(function(stSnap) {
+                    if (!stSnap.empty) {
+                        var data = stSnap.docs[0].data();
+                        var stock = data.stock || 0;
+                        var min = data.min || 0;
+                        var restoredStatus = stock > min ? 'OK' : (stock === 0 ? 'Low' : 'Low');
+                        stSnap.docs[0].ref.update({ status: restoredStatus }).catch(function(){});
+                    }
+                }).catch(function(){});
+            }).catch(function(){});
+            showToast('"' + name + '" restored successfully!', 'success');
+        })
+        .catch(function(err) { showToast('Restore failed: ' + err.message, 'error'); });
+};
+
+window.permanentlyDeleteItem = function(docId, name) {
+    if (!confirm('Permanently delete "' + name + '"? This CANNOT be undone and will also remove it from Stock Inventory.')) return;
+    db.collection('item_master').doc(docId).get().then(function(snap) {
+        if (!snap.exists) return;
+        var num = snap.data().num || '';
+        return db.collection('item_master').doc(docId).delete().then(function() {
+            if (num) {
+                db.collection('stock_inventory').where('num', '==', num).limit(1).get().then(function(s) {
+                    if (!s.empty) s.docs[0].ref.delete().catch(function(){});
+                }).catch(function(){});
+            }
+            showToast('"' + name + '" permanently deleted.', 'error');
+        });
+    }).catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
+};
+</script>
+</body>
+</html>

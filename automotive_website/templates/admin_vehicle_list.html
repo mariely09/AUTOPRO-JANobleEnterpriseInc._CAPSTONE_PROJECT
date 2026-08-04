@@ -520,10 +520,11 @@
     var assets = window.assets || [];
     var asset = assets.find(function(a){ return a.assetNum === assetNum || a.plateNumber === assetNum; });
     if (!asset) return;
-    if (!confirm('Delete "' + (asset.plateNumber || asset.plate) + '"? This cannot be undone.')) return;
+    var plate = asset.plateNumber || asset.plate || assetNum;
+    if (!confirm('Are you sure you want to delete "' + plate + '"?')) return;
     var docId = asset.id;
     firebase.firestore().collection('vehicles').doc(docId).delete()
-      .then(function() { showToast('Vehicle deleted successfully!', 'error'); })
+      .then(function() { showToast('Vehicle deleted successfully!', 'success'); })
       .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
   }
 

@@ -173,7 +173,7 @@
             <div class="fl-field">
                 <input type="text" name="itemName" required placeholder=" " oninput="imCheckDuplicateName(this)">
                 <label>Item Name *</label>
-                <div id="imNameError" style="display:none;font-size:0.72rem;color:#E31E24;margin-top:0.25rem;padding-left:0.25rem;">⚠ An item with this name already exists.</div>
+                <div id="imNameError" style="display:none;font-size:0.72rem;color:#E31E24;margin-top:0.25rem;padding-left:0.25rem;">⚠ An item with this name and UOM already exists.</div>
             </div>
             <div class="fl-field">
                 <input type="text" name="description" placeholder=" ">
@@ -300,8 +300,8 @@
             </div>
         </div>
         <div style="padding:1.5rem;background:#f8fafc;display:flex;flex-direction:column;align-items:center;gap:1rem;">
-            <div style="background:white;border-radius:14px;padding:1.25rem;border:1px solid #e2e8f0;width:100%;text-align:center;" id="imScanCodeImgWrap">
-                <svg id="imScanCodeBarcodeSvg" style="width:100%;display:none;"></svg>
+            <div style="background:white;border-radius:14px;padding:1.25rem;border:1px solid #e2e8f0;width:100%;text-align:center;overflow:hidden;box-sizing:border-box;" id="imScanCodeImgWrap">
+                <svg id="imScanCodeBarcodeSvg" style="width:100%;max-width:100%;display:none;"></svg>
                 <div id="imScanCodeQrDiv" style="display:flex;justify-content:center;"></div>
                 <div id="imScanCodeValue" style="display:none;font-family:monospace;font-size:0.78rem;color:#718096;margin-top:0.5rem;word-break:break-all;"></div>
             </div>
@@ -406,16 +406,19 @@
   window._imCommodityFilter = '';
 
   // ── Live duplicate name check on Item Name field ──
+  // Only blocks duplicate if BOTH name AND uom match an existing item
   window.imCheckDuplicateName = function(input) {
     var errEl = document.getElementById('imNameError');
     if (!errEl) return;
     var val = (input.value || '').trim().toLowerCase();
-    // In edit mode, skip check for the item's own name
     var editingNum = (document.getElementById('itemMasterItemNum') || {}).value || '';
+    var uomVal = (document.getElementById('itemMasterUOM') || {}).value || '';
     var items = window.itemMaster || [];
     var isDup = val.length > 0 && items.some(function(i) {
       if (editingNum && (i.itemNum || '') === editingNum) return false; // skip self
-      return (i.itemName || '').toLowerCase().trim() === val;
+      var sameName = (i.itemName || '').toLowerCase().trim() === val;
+      var sameUom  = uomVal === '' || (i.uom || '') === uomVal;
+      return sameName && sameUom;
     });
     errEl.style.display = isDup ? 'block' : 'none';
     input.style.borderColor = isDup ? '#E31E24' : '';
@@ -704,7 +707,10 @@
       svg.removeAttribute('width'); svg.removeAttribute('height'); svg.removeAttribute('viewBox');
       if (typeof JsBarcode !== 'undefined') {
         try {
-          JsBarcode(svg, value, { format: 'CODE128', width: 2.5, height: 80, displayValue: false, margin: 10, background: '#ffffff', lineColor: '#000000' });
+          JsBarcode(svg, value, { format: 'CODE128', width: 1.5, height: 80, displayValue: false, margin: 8, background: '#ffffff', lineColor: '#000000' });
+          // Override JsBarcode's fixed pixel width so the SVG scales to fit its container
+          svg.setAttribute('width', '100%');
+          svg.style.maxWidth = '100%';
           svg.style.display = 'block';
         } catch(e) { svg.style.display = 'none'; }
       }
