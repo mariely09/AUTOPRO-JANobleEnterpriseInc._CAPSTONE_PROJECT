@@ -784,8 +784,8 @@ def ai_chat():
             return jsonify({'success': False, 'offline': True,
                             'answer': 'The AI service is offline.'}), 503
         except _requests_lib.exceptions.Timeout:
-            return jsonify({'success': False, 'offline': True,
-                            'answer': 'The AI service timed out. Please try again.'}), 503
+            return jsonify({'success': False, 'offline': True, 'cold_start': True,
+                            'answer': 'The AI service is starting up (cold start). Please try again in a few seconds.'}), 503
         except Exception as e:
             return jsonify({'success': False, 'offline': True,
                             'answer': f'AI service error: {e}'}), 503
@@ -799,7 +799,7 @@ def ai_chat():
         resp = _requests_lib.post(
             f'{_AI_BACKEND_URL}/admin/chat',
             json={'message': message, 'session_id': session_id},
-            timeout=60,
+            timeout=90,
         )
         resp.raise_for_status()
         payload = resp.json()
@@ -876,13 +876,14 @@ def ai_chat():
         return jsonify({
             'success': False,
             'offline': True,
-            'answer': 'The AI service is offline. Start it with: ai_assistant\\start.bat',
+            'answer': 'The AI service is offline.',
         }), 503
     except _requests_lib.exceptions.Timeout:
         return jsonify({
             'success': False,
             'offline': True,
-            'answer': 'The AI service timed out. Please try again.',
+            'cold_start': True,
+            'answer': 'The AI service is starting up (cold start). Please try again in a few seconds.',
         }), 503
     except Exception as e:
         return jsonify({
@@ -1127,20 +1128,15 @@ def admin_ai_settings():
 
 
 # ── AI Settings API proxy ─────────────────────────────────────────────────────
-# The Flask server proxies all /api/ai-settings/* requests to the FastAPI
-# ai_assistant service.
-#
-# IMPORTANT: The ai_settings endpoints live on the LOCAL ai_assistant service
-# (port 8001) — NOT the remote Render deployment.  We always talk to localhost
-# for these management calls so they work whether the app is running locally or
-# on a server.  The standard _AI_BACKEND_URL may point at Render for chat, but
-# key management must only ever touch the locally-running instance.
+# Proxies /api/ai-settings/* to the same FastAPI backend used for chat.
+# Uses the same _AI_BACKEND_URL (Render deployment by default) so no local
+# service is needed.  Override with AI_SETTINGS_URL env var only if you want
+# to point settings management at a different host than chat.
 
 _AI_ADMIN_TOKEN = os.environ.get('AI_ADMIN_TOKEN', 'caltex-admin-ai-2026')
 
-# Local FastAPI URL — always localhost:8001 for AI settings management.
-# Override with AI_SETTINGS_URL env var if your setup uses a different port.
-_AI_SETTINGS_URL = os.environ.get('AI_SETTINGS_URL', 'http://localhost:8001').rstrip('/')
+# Use the same deployed backend URL as chat — no localhost required.
+_AI_SETTINGS_URL = os.environ.get('AI_SETTINGS_URL', _AI_BACKEND_URL).rstrip('/')
 
 
 def _ai_settings_headers():
@@ -1152,7 +1148,7 @@ def _ai_settings_headers():
 
 
 def _ai_settings_get(path, **kwargs):
-    """GET helper that always uses the local AI service URL."""
+    """GET to the AI settings backend."""
     return _requests_lib.get(f'{_AI_SETTINGS_URL}{path}',
                               headers=_ai_settings_headers(), **kwargs)
 

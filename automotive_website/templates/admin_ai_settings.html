@@ -245,7 +245,7 @@
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
             <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
-          <span>AI service is offline — start it with <code style="background:#fff3;padding:1px 5px;border-radius:4px;">ai_assistant\start.bat</code> (port 8001), then click Refresh.</span>
+          <span>AI service is offline — the backend at Render may be sleeping (cold start). Wait 30 seconds and click <strong>Refresh</strong>, or check your Render deployment.</span>
         </div>
 
 
@@ -592,7 +592,7 @@ function setOffline(offline) {
   const addBtn = document.querySelector('button[onclick="openAddKeyModal()"]');
   if (addBtn) {
     addBtn.style.opacity = offline ? '0.5' : '1';
-    addBtn.title = offline ? 'Start the AI service first' : '';
+    addBtn.title = offline ? 'AI service is offline — check Render deployment' : '';
   }
 }
 
@@ -813,6 +813,14 @@ function openEditKeyModal(keyId) {
 function closeKeyModal() {
   document.getElementById('keyModal').classList.remove('open');
   _clearModalFeedback();
+  // Always reset the save button so the next open starts clean
+  const saveBtn = document.querySelector('#keyModal button[onclick="saveKey()"]');
+  if (saveBtn) {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save Key';
+    saveBtn.style.opacity = '1';
+    saveBtn.style.cursor  = 'pointer';
+  }
 }
 
 async function saveKey() {
@@ -828,6 +836,24 @@ async function saveKey() {
   const body = { account_name: name, status };
   if (apiKey) body.api_key = apiKey;
 
+  // Disable the Save button immediately to prevent double-clicks / duplicate saves
+  const saveBtn = document.querySelector('#keyModal button[onclick="saveKey()"]');
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = isEdit ? 'Saving…' : 'Adding…';
+    saveBtn.style.opacity = '0.65';
+    saveBtn.style.cursor  = 'not-allowed';
+  }
+
+  const _resetSaveBtn = () => {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Key';
+      saveBtn.style.opacity = '1';
+      saveBtn.style.cursor  = 'pointer';
+    }
+  };
+
   try {
     _showModalFeedback('Saving…', 'info');
     const url = isEdit ? `/api/ai-settings/keys/${keyId}` : '/api/ai-settings/keys';
@@ -838,15 +864,18 @@ async function saveKey() {
     });
     const d = await r.json();
     if (r.status === 503) {
-      _showModalFeedback('⚠ AI service is offline. Start ai_assistant\\start.bat first.', 'error');
+      _showModalFeedback('⚠ AI service is offline. Check your Render deployment or wait for a cold start.', 'error');
+      _resetSaveBtn();
       return;
     }
     if (!r.ok || !d.success) throw new Error(d.error || d.detail || 'Save failed');
+    // Success — keep button disabled, close modal, refresh table
     showToast(isEdit ? 'API key updated.' : 'API key added.', 'success');
     closeKeyModal();
     await refreshAll();
   } catch (e) {
     _showModalFeedback('Error: ' + e.message, 'error');
+    _resetSaveBtn();   // re-enable so user can correct and retry
   }
 }
 
@@ -861,7 +890,7 @@ async function testModalKey() {
       body: JSON.stringify({ api_key: apiKey }),
     });
     if (r.status === 503) {
-      _showModalFeedback('⚠ AI service is offline. Start ai_assistant\\start.bat first.', 'error');
+      _showModalFeedback('⚠ AI service is offline. Check your Render deployment or wait for a cold start.', 'error');
       return;
     }
     const d = await r.json();
