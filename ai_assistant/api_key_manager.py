@@ -148,6 +148,8 @@ class ApiKeyManager:
         self._loaded: bool = False
         self._load_lock = threading.Lock()   # separate lock just for load serialisation
         self._settings_id: str = "rotation_settings"
+        self._last_load_error: str = ""      # non-empty when last load failed
+        self._last_load_attempt: float = 0.0 # epoch time of last load attempt
 
     # ── Loading ───────────────────────────────────────────────────────────────
 
@@ -270,6 +272,8 @@ class ApiKeyManager:
 
                 # Set _loaded AFTER releasing the lock — safe for other threads to read
                 self._loaded = True
+                self._last_load_error = ""
+                self._last_load_attempt = time.time()
 
                 if _decrypt_errors:
                     logger.error(
@@ -286,14 +290,44 @@ class ApiKeyManager:
                 )
 
             except Exception as exc:
-                logger.error("ApiKeyManager: failed to load from Firestore: %s", exc)
-                # Mark as loaded anyway so we don't infinitely retry on every request.
-                # Keys list will just be empty and we fall back to GROQ_API_KEY env var.
-                self._loaded = True
+                exc_str = str(exc)
+                # Quota / transient errors — do NOT mark as loaded so we retry
+                # on the next request (after a 60 s backoff to avoid hammering).
+                is_quota = (
+                    "quota exceeded" in exc_str.lower()
+                    or "resource_exhausted" in exc_str.lower()
+                    or "429" in exc_str
+                    or "unavailable" in exc_str.lower()
+                )
+                self._last_load_attempt = time.time()
+                if is_quota:
+                    logger.error(
+                        "ApiKeyManager: Firestore quota exceeded — will retry in 60 s. "
+                        "Keys currently in memory: %d. Error: %s",
+                        len(self._keys), exc_str,
+                    )
+                    self._last_load_error = f"Firestore quota exceeded: {exc_str[:120]}"
+                    # _loaded stays False (or keeps its previous value) so
+                    # _ensure_loaded will retry after the backoff window.
+                else:
+                    logger.error("ApiKeyManager: failed to load from Firestore: %s", exc_str)
+                    self._last_load_error = exc_str[:120]
+                    # Hard failure (bad credentials, network, etc.) — mark loaded
+                    # so we don't infinitely retry on every single request.
+                    # Fall back to GROQ_API_KEY env var.
+                    self._loaded = True
 
     def _ensure_loaded(self):
-        """Load keys on first use. Thread-safe via _load_lock inside load_from_firestore."""
+        """Load keys on first use. Thread-safe via _load_lock inside load_from_firestore.
+        On quota/transient errors, retries after a 60 s backoff instead of
+        permanently marking the manager as loaded with an empty key list.
+        """
         if not self._loaded:
+            self.load_from_firestore()
+            return
+        # If a previous load succeeded but a subsequent one failed with a quota
+        # error (_loaded was NOT reset), re-attempt after the backoff window.
+        if self._last_load_error and (time.time() - self._last_load_attempt) > 60:
             self.load_from_firestore()
 
     # ── Key access ────────────────────────────────────────────────────────────
@@ -550,6 +584,7 @@ class ApiKeyManager:
                 "max_retries":        self._max_retries,
                 "rotation_strategy":  "Round Robin",
                 "decrypt_errors":     decrypt_errors,
+                "load_error":         self._last_load_error,
                 "keys":               keys_info,
             }
 
