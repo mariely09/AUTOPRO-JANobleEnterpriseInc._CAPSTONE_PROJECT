@@ -27,48 +27,51 @@
          display:none;flex-direction:column;
          animation:ragAiSlideIn 0.28s cubic-bezier(.34,1.56,.64,1);">
 
-  <!-- Panel header — deep gradient with blur overlay -->
-  <div id="ragAiHeader" style="background:linear-gradient(135deg,#1a0a0a 0%,#b71c1c 45%,#E8001C 100%);padding:16px 14px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:relative;overflow:hidden;">
-    <!-- Subtle mesh pattern -->
-    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.08) 0%,transparent 60%);pointer-events:none;"></div>
+  <!-- Panel header -->
+  <div id="ragAiHeader" style="background:linear-gradient(135deg,#c62828 0%,#E8001C 60%,#ff5252 100%);padding:14px 12px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:relative;overflow:visible;">
+    <!-- Subtle shine overlay -->
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.1) 0%,transparent 65%);pointer-events:none;border-radius:22px 22px 0 0;"></div>
     <!-- Avatar -->
-    <div style="width:36px;height:36px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.25);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;backdrop-filter:blur(4px);">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
+    <div style="width:34px;height:34px;background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.3);border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
     </div>
     <!-- Title -->
     <div style="flex:1;min-width:0;">
-      <div style="color:#fff;font-size:13.5px;font-weight:700;letter-spacing:0.2px;">Admin AI Assistant</div>
+      <div style="color:#fff;font-size:13.5px;font-weight:700;">Admin AI Assistant</div>
       <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
-        <span id="ragAiDot" style="width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;box-shadow:0 0 6px rgba(74,222,128,0.7);"></span>
-        <span id="ragAiStatus" style="font-size:10.5px;color:rgba(255,255,255,0.75);">Online · RAG AI</span>
+        <span id="ragAiDot" style="width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;box-shadow:0 0 6px rgba(74,222,128,0.8);"></span>
+        <span id="ragAiStatus" style="font-size:10.5px;color:rgba(255,255,255,0.8);">Online · RAG AI</span>
       </div>
     </div>
     <!-- Clear icon button with tooltip -->
-    <div style="position:relative;" id="ragClearWrap">
+    <div style="position:relative;z-index:20;" id="ragClearWrap">
       <button onclick="ragAiClear()" id="ragClearBtn"
-        style="width:32px;height:32px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
+        title="Clear chat"
+        style="width:32px;height:32px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);
                color:white;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-               transition:all .18s;backdrop-filter:blur(4px);"
-        onmouseover="this.style.background='rgba(255,255,255,0.22)';document.getElementById('ragClearTip').style.opacity='1';document.getElementById('ragClearTip').style.transform='translateY(0)translateX(-50%)';"
-        onmouseout="this.style.background='rgba(255,255,255,0.12)';document.getElementById('ragClearTip').style.opacity='0';document.getElementById('ragClearTip').style.transform='translateY(4px)translateX(-50%)';">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+               transition:background .18s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.28)';document.getElementById('ragClearTip').style.opacity='1';document.getElementById('ragClearTip').style.visibility='visible';"
+        onmouseout="this.style.background='rgba(255,255,255,0.15)';document.getElementById('ragClearTip').style.opacity='0';document.getElementById('ragClearTip').style.visibility='hidden';">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
         </svg>
       </button>
-      <!-- Tooltip -->
-      <div id="ragClearTip" style="position:absolute;bottom:-30px;left:50%;transform:translateY(4px)translateX(-50%);
-           background:rgba(26,32,44,0.92);color:white;font-size:10.5px;font-weight:600;
+      <!-- Tooltip — above the button so it's never clipped -->
+      <div id="ragClearTip" style="position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);
+           background:rgba(30,30,30,0.88);color:#fff;font-size:10.5px;font-weight:600;
            padding:4px 9px;border-radius:6px;white-space:nowrap;pointer-events:none;
-           opacity:0;transition:all .18s ease;z-index:10;">Clear chat</div>
+           opacity:0;visibility:hidden;transition:opacity .18s ease;z-index:100;">Clear chat
+        <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:rgba(30,30,30,0.88);"></div>
+      </div>
     </div>
     <!-- Close button -->
     <button onclick="ragAiToggle()"
-      style="width:32px;height:32px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
-             color:white;border-radius:9px;cursor:pointer;font-size:17px;
+      style="width:32px;height:32px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);
+             color:white;border-radius:9px;cursor:pointer;font-size:18px;line-height:1;
              display:flex;align-items:center;justify-content:center;flex-shrink:0;
-             transition:all .18s;backdrop-filter:blur(4px);"
-      onmouseover="this.style.background='rgba(255,255,255,0.22)'"
-      onmouseout="this.style.background='rgba(255,255,255,0.12)'">×</button>
+             transition:background .18s;"
+      onmouseover="this.style.background='rgba(255,255,255,0.28)'"
+      onmouseout="this.style.background='rgba(255,255,255,0.15)'">×</button>
   </div>
 
   <!-- Messages area -->
@@ -79,18 +82,18 @@
 
   <!-- Input bar -->
   <div style="padding:10px 12px 12px;background:white;border-top:1px solid #edf0f5;flex-shrink:0;">
-    <div style="display:flex;gap:8px;align-items:flex-end;background:#f4f6f9;border:1.5px solid #edf0f5;border-radius:16px;padding:6px 6px 6px 14px;transition:border-color .2s,box-shadow .2s;" id="ragInputWrap">
+    <div style="display:flex;gap:8px;align-items:center;background:#f4f6f9;border:1.5px solid #edf0f5;border-radius:20px;padding:8px 8px 8px 14px;transition:border-color .2s,box-shadow .2s;" id="ragInputWrap">
       <textarea id="ragAiInput" placeholder="Ask about fleet, inventory, reports…"
-        rows="1" style="flex:1;border:none;background:transparent;font-size:12.5px;font-family:inherit;color:#1a202c;outline:none;resize:none;max-height:80px;overflow-y:auto;line-height:1.5;padding:4px 0;"
+        rows="1" style="flex:1;border:none;background:transparent;font-size:12.5px;font-family:inherit;color:#1a202c;outline:none;resize:none;max-height:80px;overflow-y:auto;line-height:1.5;padding:0;margin:0;display:block;align-self:center;"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();ragAiSend();}"
         oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'"
         onfocus="document.getElementById('ragInputWrap').style.borderColor='#E8001C';document.getElementById('ragInputWrap').style.boxShadow='0 0 0 3px rgba(232,0,28,0.08)';"
         onblur="document.getElementById('ragInputWrap').style.borderColor='#edf0f5';document.getElementById('ragInputWrap').style.boxShadow='none';"></textarea>
       <button onclick="ragAiSend()" id="ragSendBtn"
-        style="width:34px;height:34px;background:linear-gradient(135deg,#ff1744,#E8001C);border:none;border-radius:11px;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(232,0,28,0.35);transition:all .18s;"
-        onmouseover="this.style.transform='scale(1.06)';this.style.boxShadow='0 5px 14px rgba(232,0,28,0.45)'"
+        style="width:34px;height:34px;min-width:34px;background:linear-gradient(135deg,#E8001C,#c0001a);border:none;border-radius:50%;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(232,0,28,0.35);transition:all .18s;"
+        onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 5px 14px rgba(232,0,28,0.45)'"
         onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 3px 10px rgba(232,0,28,0.35)'">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
     </div>
     <div style="text-align:center;font-size:10px;color:#c0c8d4;margin-top:5px;">Enter to send &nbsp;·&nbsp; Shift+Enter for new line</div>
@@ -112,8 +115,8 @@
 
 /* ── Avatars ── */
 #ragAiChat .rag-av { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-#ragAiChat .rag-av.ai  { background:linear-gradient(135deg,#ff1744,#E8001C);color:white;box-shadow:0 2px 8px rgba(232,0,28,0.3); }
-#ragAiChat .rag-av.usr { background:linear-gradient(135deg,#1a202c,#2d3748);color:white;font-size:10px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+#ragAiChat .rag-av.ai  { background:linear-gradient(135deg,#E8001C,#c0001a);color:white;box-shadow:0 2px 8px rgba(232,0,28,0.3); }
+#ragAiChat .rag-av.usr { background:linear-gradient(135deg,#475569,#334155);color:white;font-size:10px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.15); }
 
 /* ── Bubbles ── */
 #ragAiChat .rag-bub { max-width:80%;padding:10px 14px;border-radius:16px;font-size:12.5px;line-height:1.65;word-break:break-word; }
@@ -124,11 +127,13 @@
   white-space:pre-wrap;
   border:1px solid rgba(226,232,240,0.6);
 }
+/* user class — matches what _ragAppend sets */
+#ragAiChat .rag-bub.user,
 #ragAiChat .rag-bub.usr {
-  background:linear-gradient(135deg,#1a202c 0%,#2d3748 100%);
+  background:linear-gradient(135deg,#E8001C 0%,#c0001a 100%);
   color:white;
   border-radius:16px 4px 16px 16px;
-  box-shadow:0 3px 12px rgba(0,0,0,0.2);
+  box-shadow:0 3px 12px rgba(232,0,28,0.25);
 }
 
 /* ── Tables inside AI bubble ── */
@@ -147,22 +152,23 @@
 .rag-suggest-pill {
   display:flex;align-items:center;gap:8px;width:100%;text-align:left;
   background:white;
-  border:1.5px solid #edf0f5;
+  border:1.5px solid #e8edf2;
   border-radius:12px;
-  padding:10px 14px;
+  padding:11px 14px;
   font-size:12px;font-weight:500;color:#4a5568;
   cursor:pointer;font-family:inherit;
   transition:all .18s ease;
-  box-shadow:0 1px 4px rgba(0,0,0,0.04);
+  box-shadow:0 1px 4px rgba(0,0,0,0.05);
+  pointer-events:auto;
 }
 .rag-suggest-pill::before {
-  content:'';width:6px;height:6px;border-radius:50%;
-  background:linear-gradient(135deg,#ff1744,#E8001C);
+  content:'';width:7px;height:7px;border-radius:50%;
+  background:#E8001C;
   flex-shrink:0;
 }
 .rag-suggest-pill:hover {
   border-color:#E8001C;color:#E8001C;
-  background:linear-gradient(135deg,#fff5f5,#fff);
+  background:#fff5f5;
   box-shadow:0 3px 12px rgba(232,0,28,0.12);
   transform:translateY(-1px);
 }
@@ -609,18 +615,27 @@ function _ragShowWelcome() {
   div.style.cssText = 'padding:8px 2px 4px;';
   div.innerHTML =
     '<div style="text-align:center;margin-bottom:18px;padding:0 4px;">' +
-      '<div style="width:58px;height:58px;background:linear-gradient(135deg,#fff0f0,#ffe4e4);border:2px solid rgba(232,0,28,0.12);border-radius:18px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;box-shadow:0 4px 16px rgba(232,0,28,0.1);">' +
-        '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#E8001C"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>' +
+      '<div style="width:56px;height:56px;background:linear-gradient(135deg,#fff0f0,#ffe4e4);border:2px solid rgba(232,0,28,0.12);border-radius:18px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;box-shadow:0 4px 16px rgba(232,0,28,0.1);">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="#E8001C"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>' +
       '</div>' +
-      '<div style="font-size:15px;font-weight:800;color:#1a202c;margin-bottom:5px;letter-spacing:-0.3px;">Hey, how can I help?</div>' +
-      '<div style="font-size:12px;color:#94a3b8;line-height:1.6;max-width:260px;margin:0 auto;">Ask me about fleet, inventory, maintenance costs, or generate reports.</div>' +
+      '<div style="font-size:15px;font-weight:800;color:#1a202c;margin-bottom:5px;letter-spacing:-0.2px;">Hey, how can I help?</div>' +
+      '<div style="font-size:11.5px;color:#94a3b8;line-height:1.6;max-width:240px;margin:0 auto;">Ask me about fleet, inventory, maintenance, or generate reports.</div>' +
     '</div>' +
-    '<div style="display:flex;flex-direction:column;gap:8px;">' +
+    '<div id="ragSuggestList" style="display:flex;flex-direction:column;gap:8px;">' +
     suggestions.map(function(s) {
-      return '<button class="rag-suggest-pill" onclick="ragAiSend('+JSON.stringify(s)+')">' + _ragEsc(s) + '</button>';
+      return '<button class="rag-suggest-pill" data-q="' + _ragEsc(s) + '">' + _ragEsc(s) + '</button>';
     }).join('') +
     '</div>';
   chat.appendChild(div);
+
+  // Attach click handlers after DOM insertion — avoids inline onclick quoting issues
+  var pills = div.querySelectorAll('.rag-suggest-pill');
+  pills.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var q = btn.getAttribute('data-q');
+      if (q) window.ragAiSend(q);
+    });
+  });
 }
 
 // ════════════════════════════════════════════════════════════
