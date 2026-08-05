@@ -969,6 +969,14 @@ def ai_generate_report():
                 detail = 'Report generation failed.'
             return jsonify({'success': False, 'error': detail}), 400
 
+        # Surface 503 (quota exceeded) and 500 (server error) with real detail
+        if resp.status_code in (500, 503):
+            try:
+                detail = resp.json().get('detail', 'Report generation failed.')
+            except Exception:
+                detail = f'Report generation failed (status {resp.status_code}).'
+            return jsonify({'success': False, 'error': detail}), resp.status_code
+
         resp.raise_for_status()
 
         ext      = '.pdf' if file_format == 'pdf' else '.xlsx'

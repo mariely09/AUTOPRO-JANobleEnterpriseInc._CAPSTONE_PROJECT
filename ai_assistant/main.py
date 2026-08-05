@@ -263,6 +263,16 @@ async def admin_report(request: Request,
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         traceback.print_exc()
+        err_str = str(e).lower()
+        # Firestore / gRPC quota exceeded (ResourceExhausted / 429)
+        if "quota exceeded" in err_str or "resource_exhausted" in err_str or "429" in err_str:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "The database is temporarily unavailable due to a quota limit "
+                    "(Firestore free-tier). Please wait a moment and try again."
+                ),
+            )
         raise HTTPException(status_code=500, detail=str(e))
 
 
