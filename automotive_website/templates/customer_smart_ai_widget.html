@@ -62,11 +62,11 @@
             border-radius: 16px;
             font-size: 13px;
             line-height: 1.6;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-            white-space: pre-wrap;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+            word-break: break-word;
         }
         .ai-bubble.user {
-            background: #E8001C;
+            background: linear-gradient(135deg, #E8001C, #c0001a);
             color: white;
             align-self: flex-end;
             border-radius: 16px 16px 4px 16px;
@@ -76,6 +76,7 @@
             color: #1a202c;
             align-self: flex-start;
             border-radius: 16px 16px 16px 4px;
+            white-space: pre-wrap;
         }
 
         .ai-typing {
@@ -163,15 +164,9 @@
         <div class="ai-welcome-title">Customer AI Assistant</div>
         <div class="ai-welcome-sub" id="aiWelcomeSub">Ask me anything about your vehicles — PMS status, maintenance history, and more.</div>
         <div class="ai-suggestions" id="aiSuggestions">
-            <button class="ai-suggest-pill" onclick="send('List all my registered vehicles')">List all my registered vehicles</button>
             <button class="ai-suggest-pill" onclick="send('Give me a fleet summary')">Give me a fleet summary</button>
-            <button class="ai-suggest-pill" onclick="send('Which of my vehicles are under maintenance?')">Which of my vehicles are under maintenance?</button>
-            <button class="ai-suggest-pill" onclick="send('Which vehicles have PMS overdue?')">Which vehicles have PMS overdue?</button>
-            <button class="ai-suggest-pill" onclick="send('Which vehicles have PMS due soon?')">Which vehicles have PMS due soon?</button>
-            <button class="ai-suggest-pill" onclick="send('Show my complete service history')">Show my complete service history</button>
             <button class="ai-suggest-pill" onclick="send('Show my upcoming and past bookings')">Show my upcoming and past bookings</button>
-            <button class="ai-suggest-pill" onclick="send('What services do you offer and what are the prices?')">What services do you offer and what are the prices?</button>
-            <button class="ai-suggest-pill" onclick="send('How much would a change oil and brake cleaning cost?')">How much would a change oil and brake cleaning cost?</button>
+            <button class="ai-suggest-pill" onclick="send('Show my complete service history')">Show my complete service history</button>
         </div>
     </div>
 </div>
