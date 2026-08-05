@@ -1,4 +1,4 @@
-<!-- ── Smart Reports AI Floating Widget ── -->
+﻿<!-- ── Smart Reports AI Floating Widget ── -->
 <!-- Include this file in admin pages that need the AI chatbot -->
 <!-- Requires: window.assets, window.inventory, window.serviceTransactions from admin_firebase.js -->
 
@@ -29,9 +29,11 @@
 
   <!-- Panel header -->
   <div style="background:linear-gradient(135deg,#E8001C,#c0001a);padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
-    <div style="width:34px;height:34px;background:rgba(255,255,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;">🤖</div>
+    <div style="width:34px;height:34px;background:rgba(255,255,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
+    </div>
     <div style="flex:1;">
-      <div style="color:#fff;font-size:13px;font-weight:700;">Smart Reports AI</div>
+      <div style="color:#fff;font-size:13px;font-weight:700;">Admin AI Assistant</div>
     </div>
     <button onclick="ragAiClear()" style="background:rgba(255,255,255,0.15);border:none;color:white;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;cursor:pointer;font-family:inherit;">Clear</button>
     <button onclick="ragAiToggle()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
@@ -40,17 +42,8 @@
   <!-- Messages area -->
   <div id="ragAiChat" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:#F7F8FA;"></div>
 
-  <!-- Quick chips -->
-  <div id="ragAiChips" style="display:flex;flex-wrap:wrap;gap:5px;padding:8px 12px;background:white;border-top:1px solid #f0f4f8;max-height:70px;overflow-y:auto;">
-    <button class="rag-chip" onclick="ragAiSend('Show fleet summary')">📊 Fleet</button>
-    <button class="rag-chip" onclick="ragAiSend('Which vehicles have PMS overdue?')">⚠️ Overdue</button>
-    <button class="rag-chip" onclick="ragAiSend('What items are low in stock?')">📦 Low stock</button>
-    <button class="rag-chip" onclick="ragAiSend('Total repair cost this month')">💰 Cost</button>
-    <button class="rag-chip" onclick="ragAiSend('How many services are pending?')">⏳ Pending</button>
-    <button class="rag-chip" onclick="ragAiSend('What are the fast moving inventory items?')">📈 Fast moving</button>
-    <button class="rag-chip" onclick="ragAiSend('Generate inventory report PDF')">📄 PDF Report</button>
-    <button class="rag-chip" onclick="ragAiSend('Generate issuance report excel')">📊 Excel Report</button>
-  </div>
+  <!-- Quick chips — hidden, suggestions shown in welcome bubble instead -->
+  <div id="ragAiChips" style="display:none;"></div>
 
   <!-- Input bar -->
   <div style="display:flex;gap:8px;align-items:flex-end;padding:10px 12px;background:white;border-top:1px solid #e2e8f0;flex-shrink:0;">
@@ -72,7 +65,7 @@
 .rag-chip:hover { background:#E8001C;color:white;border-color:#E8001C; }
 #ragAiChat .rag-row { display:flex;gap:8px;align-items:flex-end; }
 #ragAiChat .rag-row.user { flex-direction:row-reverse; }
-#ragAiChat .rag-av { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0; }
+#ragAiChat .rag-av { width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
 #ragAiChat .rag-av.ai { background:linear-gradient(135deg,#E8001C,#c0001a);color:white; }
 #ragAiChat .rag-av.usr { background:linear-gradient(135deg,#E8001C,#C41E3A);color:white;font-size:10px;font-weight:700; }
 #ragAiChat .rag-bub { max-width:80%;padding:10px 13px;border-radius:14px;font-size:12px;line-height:1.6; }
@@ -88,6 +81,17 @@
 .rag-typing span:nth-child(3) { animation-delay:.3s; }
 @keyframes ragBounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
 @keyframes ragSpin   { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+/* Welcome suggestion pills */
+.rag-suggest-pill {
+  display:block;width:100%;text-align:center;
+  background:white;border:1.2px solid #e2e8f0;border-radius:30px;
+  padding:9px 16px;font-size:12.5px;color:#9aa5b4;
+  cursor:pointer;font-family:inherit;transition:all .15s;
+  box-shadow:0 1px 4px rgba(0,0,0,0.03);
+}
+.rag-suggest-pill:hover { border-color:#E8001C;color:#E8001C;background:#fff5f5; }
+/* Rate-limit banner */
+.rag-rate-banner { background:#fff7ed;border-bottom:2px solid #fb923c;padding:10px 14px;font-size:11.5px;color:#9a3412;display:flex;align-items:flex-start;gap:8px;flex-shrink:0;line-height:1.55; }
 </style>
 
 <script>
@@ -121,7 +125,7 @@ function _ragSetRateLimited(limited, resetIn) {
           'padding:10px 14px;font-size:11.5px;color:#9a3412;display:flex;' +
           'align-items:flex-start;gap:8px;flex-shrink:0;line-height:1.55;';
         b.innerHTML =
-          '<span style="font-size:16px;line-height:1.2;">🚫</span>' +
+          '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#9a3412" style="flex-shrink:0;margin-top:1px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
           '<div><strong style="display:block;margin-bottom:2px;">AI unavailable — daily token limit reached</strong>' +
           'Groq free-tier quota is exhausted. Resets in <strong>' + (resetIn || 'some time') + '</strong>. ' +
           'Chat is disabled until then.</div>';
@@ -203,11 +207,15 @@ setTimeout(_ragShowWelcome, 1100);
 
 function _ragEsc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+var _AI_AVATAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>';
+
 function _ragAppend(role, html) {
   var chat = document.getElementById('ragAiChat');
   var row = document.createElement('div');
   row.className = 'rag-row' + (role==='user'?' user':'');
-  var av = role==='user' ? '<div class="rag-av usr">'+_ragInitials+'</div>' : '<div class="rag-av ai">🤖</div>';
+  var av = role==='user'
+    ? '<div class="rag-av usr">'+_ragInitials+'</div>'
+    : '<div class="rag-av ai">'+_AI_AVATAR_SVG+'</div>';
   var bub = '<div class="rag-bub '+role+'">'+html+'</div>';
   row.innerHTML = role==='user' ? bub+av : av+bub;
   chat.appendChild(row);
@@ -218,9 +226,11 @@ function _ragTyping() {
   var chat = document.getElementById('ragAiChat');
   var row = document.createElement('div');
   row.className='rag-row'; row.id='ragTyping';
-  row.innerHTML='<div class="rag-av ai">🤖</div><div class="rag-bub ai"><div class="rag-typing"><span></span><span></span><span></span></div></div>';
+  row.innerHTML='<div class="rag-av ai">'+_AI_AVATAR_SVG+'</div>'
+    +'<div class="rag-bub ai"><div class="rag-typing"><span></span><span></span><span></span></div></div>';
   chat.appendChild(row); chat.scrollTop=chat.scrollHeight;
 }
+
 function _ragRemoveTyping() { var el=document.getElementById('ragTyping'); if(el)el.remove(); }
 
 window.ragAiSend = function(preset) {
@@ -228,7 +238,10 @@ window.ragAiSend = function(preset) {
   var text = (preset||input.value).trim();
   if (!text) return;
   if (_ragRateLimited) { return; }  // blocked while rate-limited
-  if (!_ragReady) { _ragAppend('ai','⏳ <strong>Still loading data…</strong> Please wait.'); return; }
+  if (!_ragReady) { _ragAppend('ai','<strong>Still loading data…</strong> Please wait.'); return; }
+  // Hide welcome block on first real message
+  var wb = document.getElementById('ragWelcomeBlock');
+  if (wb) wb.remove();
   document.getElementById('ragAiChips').style.display='none';
   _ragAppend('user', _ragEsc(text));
   input.value=''; input.style.height='auto';
@@ -256,10 +269,12 @@ window.ragAiSend = function(preset) {
       var resetMsg = data.reset_in || 'some time';
       _ragAppend('ai',
         '<div style="background:#fff7ed;border:1.5px solid #fb923c;border-radius:10px;padding:10px 13px;color:#9a3412;">' +
-        '<div style="font-size:13px;font-weight:700;margin-bottom:5px;">🚫 AI Unavailable</div>' +
+        '<div style="font-size:13px;font-weight:700;margin-bottom:5px;display:flex;align-items:center;gap:6px;">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="#9a3412"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
+        'AI Unavailable</div>' +
         '<div style="font-size:11.5px;line-height:1.6;">' +
         'The AI service has reached its <strong>daily token limit</strong> (Groq free tier).<br>' +
-        '⏱️ Resets in <strong>' + resetMsg + '</strong>.<br>' +
+        'Resets in <strong>' + resetMsg + '</strong>.<br>' +
         'You cannot send new messages until the quota resets automatically.</div>' +
         '</div>');
       return;
@@ -270,13 +285,13 @@ window.ragAiSend = function(preset) {
         // Render cold start — backend is waking up, not truly offline
         _ragAppend('ai',
           '<div style="background:#ebf8ff;border:1px solid #bee3f8;border-radius:8px;padding:9px 12px;font-size:11.5px;color:#2b6cb0;">' +
-          '⏳ <strong>AI service is warming up</strong> (Render cold start).<br>' +
+          '&#x26A0; <strong>AI service is warming up</strong> (Render cold start).<br>' +
           'Please wait a few seconds and <strong>send your message again</strong>.' +
           '</div>'
         );
       } else {
         // Truly offline — fall back to local JS engine
-        _ragAppend('ai', '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:7px 11px;font-size:11px;color:#9a3412;margin-bottom:6px;">⚠️ <strong>AI backend offline</strong> — using local data mode.</div>');
+        _ragAppend('ai', '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:7px 11px;font-size:11px;color:#9a3412;margin-bottom:6px;"><strong>AI backend offline</strong> — using local data mode.</div>');
         var result = _ragProcess(text);
         _ragAppend('ai', result.html);
       }
@@ -317,7 +332,7 @@ window.ragAiSend = function(preset) {
         var label = fmt.toUpperCase();
         var btnId = rId + '_' + fmt;
         // Safe: only safe identifiers (rId, fmt, btnId) go into the onclick string
-        return '<button id="' + btnId + '" onclick="ragDownloadReport(\'' + rId + '\',\'' + fmt + '\')" style="' + btnStyle + '">📥 Download ' + label + filterLabel + '</button>';
+        return '<button id="' + btnId + '" onclick="ragDownloadReport(\'' + rId + '\',\'' + fmt + '\')" style="' + btnStyle + '">&#x2193; Download ' + label + filterLabel + '</button>';
       }
 
       // Unique ID for the error slot so ragDownloadReport can update it in-place
@@ -347,7 +362,7 @@ window.ragAiSend = function(preset) {
   .catch(function(err) {
     // Network error or Flask backend down — fall back to local JS query engine
     _ragRemoveTyping();
-    _ragAppend('ai', '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:7px 11px;font-size:11px;color:#9a3412;margin-bottom:6px;">⚠️ <strong>AI backend unreachable</strong> — using local data mode.</div>');
+    _ragAppend('ai', '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:7px 11px;font-size:11px;color:#9a3412;margin-bottom:6px;"><strong>AI backend unreachable</strong> — using local data mode.</div>');
     var result = _ragProcess(text);
     _ragAppend('ai', result.html);
   });
@@ -361,7 +376,7 @@ window.ragAiClear = function() {
   }
   _ragSetRateLimited(false);
   document.getElementById('ragAiChat').innerHTML='';
-  document.getElementById('ragAiChips').style.display='flex';
+  document.getElementById('ragAiChips').style.display='none';
   _ragShowWelcome();
 };
 
@@ -374,7 +389,7 @@ window.ragDownloadReport = function(reportId, format) {
   if (!params) {
     // Params missing — show inline error in the error slot if it exists
     var errSlot = document.getElementById(reportId + '_err');
-    if (errSlot) errSlot.innerHTML = '<span style="color:#E8001C;">❌ Session expired. Please ask for the report again.</span>';
+    if (errSlot) errSlot.innerHTML = '<span style="color:#E8001C;">Session expired. Please ask for the report again.</span>';
     return;
   }
 
@@ -455,7 +470,7 @@ window.ragDownloadReport = function(reportId, format) {
 
     // ── Update button to "Downloaded ✓" permanently ────────────────────────
     if (btn) {
-      btn.innerHTML = '✓ Downloaded';
+      btn.innerHTML = '&#x2713; Downloaded';
       btn.style.background = '#38a169';
       btn.style.color      = 'white';
       btn.style.border     = 'none';
@@ -489,9 +504,9 @@ window.ragDownloadReport = function(reportId, format) {
       var filterLabel = '';
       if (startDate || endDate) filterLabel = ' (' + (startDate||'—') + ' to ' + (endDate||'—') + ')';
       else if (month) filterLabel = ' (' + month + ')';
-      btn.innerHTML = '📥 Download ' + origLabel + filterLabel;
+      btn.innerHTML = '&#x2193; Download ' + origLabel + filterLabel;
     }
-    if (errSlot) errSlot.innerHTML = '<span style="color:#E8001C;font-size:11px;">❌ ' + err.message + '</span>';
+    if (errSlot) errSlot.innerHTML = '<span style="color:#E8001C;font-size:11px;">' + err.message + '</span>';
   })
   .finally(function() {
     window._ragDownloading = false;
@@ -501,13 +516,33 @@ window.ragDownloadReport = function(reportId, format) {
 function _ragShowWelcome() {
   var chat = document.getElementById('ragAiChat');
   if (!chat) return;
+  var suggestions = [
+    'Show me the fleet summary',
+    'Which vehicles have PMS overdue?',
+    'What items are low in stock?',
+    'What is the total repair cost this month?',
+    'How many services are currently pending?',
+    'List all registered vehicles',
+    'Show all service bookings',
+    'Generate inventory report as PDF',
+    'Generate issuance report as Excel',
+    'Generate maintenance report as PDF'
+  ];
   var div = document.createElement('div');
-  div.className='rag-row';
-  div.innerHTML='<div class="rag-av ai">🤖</div>'
-    +'<div class="rag-bub ai" style="max-width:85%;">'
-    +'<div style="font-size:13px;font-weight:700;color:#1a202c;margin-bottom:3px;">Hello! I\'m your Smart Reports AI 👋</div>'
-    +'<div style="font-size:11px;color:#718096;line-height:1.5;">Ask me about fleet, inventory, maintenance costs, and more.</div>'
-    +'</div>';
+  div.id = 'ragWelcomeBlock';
+  div.style.cssText = 'padding:16px 4px 8px;';
+  // Icon + title
+  div.innerHTML =
+    '<div style="text-align:center;margin-bottom:14px;">' +
+      '<div style="width:54px;height:54px;background:rgba(0,48,135,0.1);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px;">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#003087"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>' +
+      '</div>' +
+      '<div style="font-size:15px;font-weight:700;color:#1a202c;margin-bottom:4px;">Admin AI Assistant</div>' +
+      '<div style="font-size:11.5px;color:#718096;line-height:1.5;">Ask me about fleet, inventory, maintenance costs, or generate reports.</div>' +
+    '</div>' +
+    suggestions.map(function(s) {
+      return '<button class="rag-suggest-pill" style="margin-bottom:8px;" onclick="ragAiSend('+JSON.stringify(s)+')">'+_ragEsc(s)+'</button>';
+    }).join('');
   chat.appendChild(div);
 }
 
@@ -546,60 +581,60 @@ function _ragProcess(query) {
   // Fleet summary
   if(q.includes('fleet summary')||q.includes('summary')||q.includes('overview')){
     var tot=assets.length,ov=assets.filter(isOverdue).length,mt=assets.filter(isMaint).length,ds=assets.filter(isDueSoon).length,ac=assets.filter(isActive).length,ls=inventory.filter(isLowStock).length;
-    return ret('<strong>📊 Fleet Summary</strong><br>• Vehicles: <strong>'+tot+'</strong> (Active: '+ac+', Maintenance: '+mt+')<br>• PMS Overdue: <strong>'+ov+'</strong>, Due Soon: <strong>'+ds+'</strong><br>• Low Stock Items: <strong>'+ls+'</strong><br>• Services: <strong>'+services.length+'</strong>');
+    return ret('<strong>Fleet Summary</strong><br>• Vehicles: <strong>'+tot+'</strong> (Active: '+ac+', Maintenance: '+mt+')<br>• PMS Overdue: <strong>'+ov+'</strong>, Due Soon: <strong>'+ds+'</strong><br>• Low Stock Items: <strong>'+ls+'</strong><br>• Services: <strong>'+services.length+'</strong>');
   }
   // All vehicles
   if((q.includes('all')&&q.includes('vehicle'))||q.includes('show vehicle')||q.includes('list vehicle')){
-    if(!assets.length)return ret('🚗 No vehicles found.');
+    if(!assets.length)return ret('No vehicles found.');
     var rows=assets.slice(0,15).map(function(a){return [_ragEsc(a.plateNumber||'—'),_ragEsc(a.assetDescription||'—'),statusTag(a.status)];});
-    return ret('<strong>🚗 Vehicles ('+assets.length+')</strong>'+tbl(['Plate','Description','Status'],rows));
+    return ret('<strong>Vehicles ('+assets.length+')</strong>'+tbl(['Plate','Description','Status'],rows));
   }
   // Under maintenance
   if(q.includes('under maintenance')||(q.includes('maintenance')&&!q.includes('cost'))){
     var list=assets.filter(isMaint);
-    if(!list.length)return ret('✅ No vehicles under maintenance.');
+    if(!list.length)return ret('No vehicles under maintenance.');
     var rows=list.map(function(a){return [_ragEsc(a.plateNumber||'—'),_ragEsc(a.assetDescription||'—'),_ragEsc(a.owner||'—')];});
-    return ret('<strong>🔧 Under Maintenance ('+list.length+')</strong>'+tbl(['Plate','Description','Owner'],rows));
+    return ret('<strong>Under Maintenance ('+list.length+')</strong>'+tbl(['Plate','Description','Owner'],rows));
   }
   // PMS overdue
   if(q.includes('overdue')){
     var list=assets.filter(isOverdue);
-    if(!list.length)return ret('✅ No PMS overdue vehicles.');
+    if(!list.length)return ret('No PMS overdue vehicles.');
     var rows=list.map(function(a){return [_ragEsc(a.plateNumber||'—'),_ragEsc(a.assetDescription||'—'),_ragEsc(a.owner||'—')];});
-    return ret('<strong>⚠️ PMS Overdue ('+list.length+')</strong>'+tbl(['Plate','Description','Owner'],rows));
+    return ret('<strong>PMS Overdue ('+list.length+')</strong>'+tbl(['Plate','Description','Owner'],rows));
   }
   // Due soon
   if(q.includes('due this week')||q.includes('due soon')||(q.includes('pms')&&q.includes('due'))){
     var list=assets.filter(isDueSoon);
-    if(!list.length)return ret('✅ No PMS due soon.');
+    if(!list.length)return ret('No PMS due soon.');
     var rows=list.map(function(a){return [_ragEsc(a.plateNumber||'—'),_ragEsc(a.assetDescription||'—'),statusTag(a.status)];});
-    return ret('<strong>📅 PMS Due Soon ('+list.length+')</strong>'+tbl(['Plate','Description','Status'],rows));
+    return ret('<strong>PMS Due Soon ('+list.length+')</strong>'+tbl(['Plate','Description','Status'],rows));
   }
   // Low stock
   if(q.includes('low')&&q.includes('stock')){
     var list=inventory.filter(isLowStock);
-    if(!list.length)return ret('✅ All stock levels adequate.');
+    if(!list.length)return ret('All stock levels adequate.');
     var rows=list.map(function(i){return [_ragEsc(i.itemName||'—'),String(i.stock||0)+'/'+String(i.minLevel||0),_ragEsc(i.unit||'')];});
-    return ret('<strong>📦 Low Stock ('+list.length+')</strong>'+tbl(['Item','Stock/Min','Unit'],rows));
+    return ret('<strong>Low Stock ('+list.length+')</strong>'+tbl(['Item','Stock/Min','Unit'],rows));
   }
   // Inventory summary
   if(q.includes('inventory summary')||q.includes('inventory overview')){
     var tot=inventory.length,ls=inventory.filter(isLowStock).length,ok=tot-ls;
-    return ret('<strong>🗃️ Inventory</strong><br>• Total: <strong>'+tot+'</strong><br>• OK: <strong>'+ok+'</strong><br>• Low: <strong>'+ls+'</strong>');
+    return ret('<strong>Inventory</strong><br>• Total: <strong>'+tot+'</strong><br>• OK: <strong>'+ok+'</strong><br>• Low: <strong>'+ls+'</strong>');
   }
   // Materials / parts / stock list
   if(q.includes('material')||q.includes('parts')||q.includes('supplies')||q.includes('stock item')||(q.includes('list')&&q.includes('inventor'))||(q.includes('show')&&(q.includes('stock')||q.includes('inventor')))){
-    if(!inventory.length)return ret('📦 No inventory data loaded yet.');
+    if(!inventory.length)return ret('No inventory data loaded yet.');
     var rows=inventory.slice(0,20).map(function(i){return [_ragEsc(i.itemName||i.name||'—'),String(i.stock||0),_ragEsc(i.unit||i.uom||''),_ragEsc(i.group||'—')];});
     var note=inventory.length>20?'<div style="font-size:10px;color:#718096;margin-top:4px;">Showing 20 of '+inventory.length+' items. Start the AI backend for the full list.</div>':'';
-    return ret('<strong>📦 Materials / Stock ('+inventory.length+')</strong>'+tbl(['Item','Stock','Unit','Group'],rows)+note);
+    return ret('<strong>Materials / Stock ('+inventory.length+')</strong>'+tbl(['Item','Stock','Unit','Group'],rows)+note);
   }
   // Full inventory list
   if(q.includes('inventory')){
-    if(!inventory.length)return ret('📦 No inventory data loaded yet.');
+    if(!inventory.length)return ret('No inventory data loaded yet.');
     var tot=inventory.length,ls=inventory.filter(isLowStock).length,ok=tot-ls;
     var rows=inventory.slice(0,15).map(function(i){return [_ragEsc(i.itemName||i.name||'—'),String(i.stock||0),_ragEsc(i.unit||i.uom||'')];});
-    return ret('<strong>🗃️ Inventory ('+tot+')</strong><br>• OK: <strong>'+ok+'</strong> &nbsp;• Low: <strong>'+ls+'</strong>'+tbl(['Item','Stock','Unit'],rows));
+    return ret('<strong>Inventory ('+tot+')</strong><br>• OK: <strong>'+ok+'</strong> &nbsp;• Low: <strong>'+ls+'</strong>'+tbl(['Item','Stock','Unit'],rows));
   }
   // Cost
   if(q.includes('cost')||q.includes('expense')){
@@ -607,14 +642,14 @@ function _ragProcess(query) {
     var thisMonth=services.filter(function(s){var d=s.dateServiced||s.date||'';if(!d)return false;var dt=new Date(d);return !isNaN(dt)&&dt.getMonth()===now.getMonth()&&dt.getFullYear()===now.getFullYear();});
     var mCost=thisMonth.reduce(function(s,t){return s+(parseFloat(t.totalCost||t.cost||0)||0);},0);
     var aCost=services.reduce(function(s,t){return s+(parseFloat(t.totalCost||t.cost||0)||0);},0);
-    return ret('<strong>💰 Maintenance Cost</strong><br>• This month: <strong>'+fmtP(mCost)+'</strong> ('+thisMonth.length+' services)<br>• All time: <strong>'+fmtP(aCost)+'</strong>');
+    return ret('<strong>Maintenance Cost</strong><br>• This month: <strong>'+fmtP(mCost)+'</strong> ('+thisMonth.length+' services)<br>• All time: <strong>'+fmtP(aCost)+'</strong>');
   }
   // Pending
   if(q.includes('pending')){
     var list=services.filter(function(s){return (s.status||'').toLowerCase()==='pending';});
-    if(!list.length)return ret('✅ No pending services.');
+    if(!list.length)return ret('No pending services.');
     var rows=list.map(function(s){return [_ragEsc(s.plate||'—'),_ragEsc(s.mechanicName||s.mechanic||'—'),_ragEsc(s.dateServiced||s.date||'—')];});
-    return ret('<strong>⏳ Pending ('+list.length+')</strong>'+tbl(['Plate','Mechanic','Date'],rows));
+    return ret('<strong>Pending ('+list.length+')</strong>'+tbl(['Plate','Mechanic','Date'],rows));
   }
   // Fast moving
   if(q.includes('fast')||q.includes('most used')){
@@ -623,16 +658,19 @@ function _ragProcess(query) {
     var sorted=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];}).slice(0,8);
     if(!sorted.length)return ret('No issuance data found.');
     var rows=sorted.map(function(k){return [_ragEsc(k),String(counts[k])];});
-    return ret('<strong>📈 Fast Moving Items</strong>'+tbl(['Item','Total Issued'],rows));
+    return ret('<strong>Fast Moving Items</strong>'+tbl(['Item','Total Issued'],rows));
   }
   // Users
   if(q.includes('user')||q.includes('staff')){
     var adm=users.filter(function(u){return u.role==='admin';}).length,stf=users.filter(function(u){return u.role==='staff';}).length,cus=users.filter(function(u){return u.role==='customer';}).length;
-    return ret('<strong>👥 Users ('+users.length+')</strong><br>• Admin: '+adm+'<br>• Staff: '+stf+'<br>• Customer: '+cus);
+    return ret('<strong>Users ('+users.length+')</strong><br>• Admin: '+adm+'<br>• Staff: '+stf+'<br>• Customer: '+cus);
   }
   // Fallback
-  return ret('🤖 <strong>AI backend offline</strong> — running in local mode.<br><span style="font-size:11px;color:#718096;">Local mode supports: <em>fleet summary, overdue, due soon, low stock, inventory, materials, cost, pending, fast moving, users</em>.<br>For full natural language queries, start the AI backend (<code>start.bat</code>).</span>');
+  return ret('<strong>AI backend offline</strong> — running in local mode.<br><span style="font-size:11px;color:#718096;">Local mode supports: <em>fleet summary, overdue, due soon, low stock, inventory, materials, cost, pending, fast moving, users</em>.<br>For full natural language queries, start the AI backend (<code>start.bat</code>).</span>');
 }
 
 })();
 </script>
+
+
+
