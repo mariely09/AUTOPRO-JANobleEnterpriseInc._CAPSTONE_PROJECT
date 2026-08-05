@@ -124,7 +124,6 @@
   background:white;color:#1a202c;
   border-radius:4px 16px 16px 16px;
   box-shadow:0 2px 12px rgba(0,0,0,0.07);
-  white-space:pre-wrap;
   border:1px solid rgba(226,232,240,0.6);
 }
 /* user class — matches what _ragAppend sets */
@@ -296,6 +295,46 @@ setTimeout(_ragShowWelcome, 1100);
 
 function _ragEsc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+// Lightweight markdown renderer for AI responses
+function _ragMarkdown(text) {
+  if (!text) return '';
+  var s = text;
+
+  // Escape HTML first (we'll selectively re-insert tags)
+  s = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // Bold **text** or __text__
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/__(.+?)__/g, '<strong>$1</strong>');
+
+  // Italic *text* or _text_
+  s = s.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
+  s = s.replace(/_([^_\n]+?)_/g, '<em>$1</em>');
+
+  // Code `inline`
+  s = s.replace(/`([^`\n]+?)`/g, '<code style="background:#f1f5f9;padding:1px 5px;border-radius:4px;font-family:monospace;font-size:0.92em;">$1</code>');
+
+  // Headers ### ## #
+  s = s.replace(/^### (.+)$/gm, '<div style="font-weight:700;font-size:13px;margin:8px 0 3px;color:#1a202c;">$1</div>');
+  s = s.replace(/^## (.+)$/gm,  '<div style="font-weight:700;font-size:13.5px;margin:8px 0 3px;color:#1a202c;">$1</div>');
+  s = s.replace(/^# (.+)$/gm,   '<div style="font-weight:800;font-size:14px;margin:8px 0 4px;color:#1a202c;">$1</div>');
+
+  // Bullet lists: lines starting with - or * or •
+  s = s.replace(/^[\-\*•] (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;flex-shrink:0;margin-top:1px;">•</span><span>$1</span></div>');
+
+  // Numbered lists: lines starting with 1. 2. etc.
+  s = s.replace(/^(\d+)\. (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;font-weight:700;flex-shrink:0;min-width:16px;">$1.</span><span>$2</span></div>');
+
+  // Horizontal rule ---
+  s = s.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid #e2e8f0;margin:8px 0;">');
+
+  // Line breaks — double newline = paragraph gap, single = <br>
+  s = s.replace(/\n\n/g, '<div style="height:6px;"></div>');
+  s = s.replace(/\n/g, '<br>');
+
+  return s;
+}
+
 var _AI_AVATAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>';
 
 function _ragAppend(role, html) {
@@ -439,9 +478,8 @@ window.ragAiSend = function(preset) {
       btnHtml += '<div id="' + errId + '" style="font-size:11px;margin-top:4px;"></div>';
       _ragAppend('ai', answer + btnHtml);
     } else if (data.answer) {
-      // Format the answer nicely
-      var answer = data.answer.replace(/\n/g, '<br>').replace(/^- /gm, '• ');
-      _ragAppend('ai', answer);
+      // Render the AI answer with lightweight markdown formatting
+      _ragAppend('ai', _ragMarkdown(data.answer));
     } else {
       // AI returned success but no answer — use local fallback
       var result = _ragProcess(text);
