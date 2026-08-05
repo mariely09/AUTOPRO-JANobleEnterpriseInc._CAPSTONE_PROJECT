@@ -41,41 +41,66 @@ def classify_and_run(text: str) -> dict | None:
         return {"intent": "service_bookings", "result": get_service_bookings(status=status)}
 
     # ── Services catalog ──────────────────────────────────────────────────────
-    # NOTE: only matches plain "services" queries — bookings are handled above
-    if re.search(r"(list|show|what|display|get).*(service.offerings?|service.types?|service.catalog)"
-                 r"|(service.offerings?|service.types?|service.catalog)", t):
+    # Matches: "services we offer", "list of services", "what services do you have",
+    # "show services", "service list", "available services", "service offerings", etc.
+    # NOTE: runs AFTER booking check to avoid false match on "service bookings"
+    if re.search(
+        r"(list|show|what|display|get|available|all)[\w\s]*(services?)"
+        r"|(services?\s+(we\s+)?(offer|provide|have|list|available|catalog|types?|offerings?))"
+        r"|(service\.offerings?|service\.types?|service\.catalog|service\.list)"
+        r"|(what[\w\s]+services?\b)",
+        t,
+    ):
         return {"intent": "item_catalog_services", "result": get_item_catalog(item_type="Service")}
 
-    # ── Materials catalog ─────────────────────────────────────────────────────
-    if re.search(r"(list|show|display|get).*(all\s+)?(materials?|parts?|supplies?|items?|stock.items?|inventory)"
-                 r"|all.*(materials?|parts?|supplies?)", t):
+    # ── Materials / inventory ─────────────────────────────────────────────────
+    if re.search(
+        r"(list|show|display|get|what|all)[\w\s]*(materials?|parts?|supplies?|stock\s*items?|inventory)"
+        r"|(materials?|parts?|supplies?)\s+(we\s+)?(have|use|carry|stock|list|available)"
+        r"|(all\s+(materials?|parts?|supplies?|stock))"
+        r"|(stock\s+levels?|inventory\s+list|current\s+stock)",
+        t,
+    ):
         return {"intent": "stock_levels", "result": get_stock_levels()}
 
     # ── Full item catalog ─────────────────────────────────────────────────────
-    if re.search(r"(item.catalog|price.list|all.items|catalog)", t):
+    if re.search(r"(item[\s._-]?catalog|price[\s._-]?list|all[\s._-]?items|catalog)", t):
         return {"intent": "item_catalog_all", "result": get_item_catalog()}
 
     # ── Maintenance summary ───────────────────────────────────────────────────
-    if re.search(r"(maintenance|repair).*(summary|overview|total|count|how.many)"
-                 r"|(how.many.*(maintenance|repair|service).jobs?)"
-                 r"|(service).*(summary|overview|count|how.many)", t):
+    if re.search(
+        r"(maintenance|repair)[\w\s]*(summary|overview|total|count|how\s*many)"
+        r"|(how\s+many[\w\s]*(maintenance|repair|service)[\w\s]*jobs?)"
+        r"|(service[\w\s]*(summary|overview|count|how\s*many))"
+        r"|(maintenance\s+overview|maintenance\s+status|maintenance\s+report\s*overview)",
+        t,
+    ):
         return {"intent": "maintenance_summary", "result": get_maintenance_summary()}
 
-    # ── Maintenance jobs by status ────────────────────────────────────────────
-    if re.search(r"(completed|in.progress|pending).*(maintenance|repair|service|jobs?)"
-                 r"|(maintenance|repair|service|jobs?).*(completed|in.progress|pending)", t):
+    # ── Maintenance jobs (general + by status) ────────────────────────────────
+    if re.search(
+        r"(completed|in[\s-]?progress|pending|ongoing)[\w\s]*(maintenance|repair|service|jobs?)"
+        r"|(maintenance|repair|service|jobs?)[\w\s]*(completed|in[\s-]?progress|pending|ongoing)"
+        r"|(list|show|all|get)[\w\s]*(maintenance|repair)[\w\s]*(jobs?|records?|history)"
+        r"|(maintenance|repair)\s+(jobs?|records?|list|history)",
+        t,
+    ):
         status = None
         if "completed" in t:
             status = "Completed"
-        elif "in progress" in t or "in-progress" in t:
+        elif "in progress" in t or "in-progress" in t or "ongoing" in t:
             status = "In Progress"
         elif "pending" in t:
             status = "Pending"
         return {"intent": "maintenance_jobs", "result": get_maintenance_jobs(status=status)}
 
     # ── Deliveries ────────────────────────────────────────────────────────────
-    if re.search(r"(list|show|all|pending|approved).*(deliveries|delivery|deliveries?)"
-                 r"|(deliveries?|delivery).*(list|show|all|status)", t):
+    if re.search(
+        r"(list|show|all|pending|approved|get)[\w\s]*(deliveries|delivery)"
+        r"|(deliveries|delivery)[\w\s]*(list|show|all|status|pending|approved)"
+        r"|(supplier[\w\s]*deliveries|deliveries[\w\s]*supplier)",
+        t,
+    ):
         status = None
         if "pending" in t:
             status = "Pending"
@@ -84,8 +109,12 @@ def classify_and_run(text: str) -> dict | None:
         return {"intent": "deliveries", "result": get_deliveries(status=status)}
 
     # ── Vehicles ──────────────────────────────────────────────────────────────
-    if re.search(r"(list|show|all|registered).*(vehicles?|fleet|cars?|trucks?)"
-                 r"|(vehicles?|fleet).*(list|show|all|registered|count)", t):
+    if re.search(
+        r"(list|show|all|registered|get)[\w\s]*(vehicles?|fleet|cars?|trucks?|vans?|suvs?)"
+        r"|(vehicles?|fleet)[\w\s]*(list|show|all|registered|count|status)"
+        r"|(our\s+(vehicles?|fleet)|vehicle\s+list|fleet\s+list)",
+        t,
+    ):
         return {"intent": "vehicles", "result": get_vehicles()}
 
     # ── User / customer count ─────────────────────────────────────────────────

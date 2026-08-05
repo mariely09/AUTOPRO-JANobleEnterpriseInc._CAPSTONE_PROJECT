@@ -586,6 +586,7 @@ class ApiKeyManager:
                 "decrypt_errors":     decrypt_errors,
                 "load_error":         self._last_load_error,
                 "keys":               keys_info,
+                "default_key_masked": mask_key(settings.GROQ_API_KEY) if settings.GROQ_API_KEY else "—",
             }
 
     def get_event_log(self) -> list[dict]:
