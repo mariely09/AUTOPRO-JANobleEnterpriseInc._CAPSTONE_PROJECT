@@ -584,8 +584,9 @@
                         </div>
                     </div>
                     <div class="data-table">
-                        <div class="table-row" style="background: #f7fafc; font-weight: bold; border-bottom: 2px solid #e2e8f0; grid-template-columns: 120px 1fr 1fr 1.5fr 80px 80px 100px;">
-                            <div>Date</div><div>Item</div><div>Commodity Group</div><div>Description</div><div>Type</div><div>Qty</div><div>Performed By</div>
+                        <div class="table-row" style="background: #f7fafc; font-weight: bold; border-bottom: 2px solid #e2e8f0; grid-template-columns: 120px 1fr 1fr 80px 80px 100px;">
+                            <div>Date</div><div>Item</div><div>Commodity Group</div>
+                            <div>Type</div><div>Qty</div><div>Performed By</div>
                         </div>
                         <div id="txnList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading transactions...</div></div>
                     </div>
@@ -1472,13 +1473,9 @@
 
         var totalQty = 0;
         var rows = txns.map(function(t) {
-          var descWithAsset = t.description;
-          if (t.assetLine) {
-            descWithAsset += '<br><span style="font-size:7.5px;color:#718096;">' + t.assetLine + '</span>';
-          }
           var q = parseFloat(String(t.qty || 0).replace(/[^0-9.]/g,'')) || 0;
           totalQty += q;
-          return [_fmtPrintDate(t.date), '<strong>' + t.item + '</strong>', t.commodityGroup, descWithAsset, t.qty];
+          return [_fmtPrintDate(t.date), '<strong>' + t.item + '</strong>', t.commodityGroup, t.qty];
         });
 
         var FULL_MONTHS_PR = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -1499,7 +1496,7 @@
 
         _doPrint(printTitle,
           [{ label:'Total', value:txns.length, color:'#1a202c' }, { label:'Stock In', value:inCount, color:'#003087' }, { label:'Stock Out', value:outCount, color:'#E8001C' }],
-          ['Date', 'Item', 'Commodity Group', 'Description', 'Qty'],
+          ['Date', 'Item', 'Commodity Group', 'Qty'],
           rows,
           { values: [totalQty > 0 ? totalQty : '—'] },
           { dateRange: txnPrintDateRange }
@@ -2036,10 +2033,10 @@
         _downloadExcel(
           'Inventory_Transactions_' + stamp + '.xlsx',
           txnExportTitle,
-          ['Date','Item','Commodity Group','Description','Qty'],
-          txns.map(function(t){ return [_fmtTxnDateExport(t.date), t.item, t.cg, t.desc, t.qty]; }),
-          { values: [{ value: txnTotalQty > 0 ? txnTotalQty : '—', colIndex: 5 }] },
-          { descColIndex: 3, dateRange: txnExcelDateRange }
+          ['Date','Item','Commodity Group','Qty'],
+          txns.map(function(t){ return [_fmtTxnDateExport(t.date), t.item, t.cg, t.qty]; }),
+          { values: [{ value: txnTotalQty > 0 ? txnTotalQty : '—', colIndex: 4 }] },
+          { dateRange: txnExcelDateRange }
         );
       }
 

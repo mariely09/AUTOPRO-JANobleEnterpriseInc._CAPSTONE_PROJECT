@@ -221,7 +221,7 @@ window.restoreItem = function(docId, name) {
 };
 
 window.permanentlyDeleteItem = function(docId, name) {
-    if (!confirm('Are you sure you want to permanently delete "' + name + '"?')) return;
+    if (!confirm('This action cannot be undone. Are you sure you want to permanently delete "' + name + '"?')) return;
     db.collection('item_master').doc(docId).get().then(function(snap) {
         if (!snap.exists) return;
         var num = snap.data().num || '';
@@ -301,7 +301,7 @@ window.restoreMaintenanceRecord = function(docId, plate) {
 };
 
 window.permanentlyDeleteMaintenance = function(docId, plate) {
-    if (!confirm('Are you sure you want to permanently delete the service record for "' + plate + '"?')) return;
+    if (!confirm('This action cannot be undone. Are you sure you want to permanently delete the service record for "' + plate + '"?')) return;
     db.collection('maintenance').doc(docId).delete()
         .then(function() { showToast('Service record permanently deleted.', 'error'); })
         .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });

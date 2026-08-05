@@ -291,7 +291,7 @@ class _ItemMasterCard extends StatelessWidget {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Permanently'),
-        content: Text('Are you sure you want to permanently delete "${item['name']}"?'),
+        content: Text('This action cannot be undone. Are you sure you want to permanently delete "${item['name']}"?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(onPressed: () => Navigator.pop(context, true),
@@ -487,7 +487,7 @@ class _MaintenanceArchiveCard extends StatelessWidget {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Permanently'),
-        content: Text('Are you sure you want to permanently delete the service record for "$plate"?'),
+        content: Text('This action cannot be undone. Are you sure you want to permanently delete the service record for "$plate"?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(onPressed: () => Navigator.pop(context, true),
