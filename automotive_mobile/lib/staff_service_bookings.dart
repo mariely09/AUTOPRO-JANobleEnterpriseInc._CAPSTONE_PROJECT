@@ -278,7 +278,7 @@ class _StaffServiceBookingsBodyState extends State<StaffServiceBookingsBody> {
           Text('Start Service', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         ]),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Begin service for vehicle $plate?',
+          Text('Are you sure you want to start the service for $plate?',
               style: const TextStyle(fontSize: 14, color: Color(0xFF1a202c))),
           const SizedBox(height: 6),
           const Text('This will mark the booking as In Progress and open the maintenance form.',
@@ -326,7 +326,7 @@ class _StaffServiceBookingsBodyState extends State<StaffServiceBookingsBody> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cancel Booking'),
-        content: Text('Cancel service booking for $plate?'),
+        content: Text('Are you sure you want to cancel this booking for $plate?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('No')),
           TextButton(
@@ -762,7 +762,6 @@ class _StaffRescheduleSheetState extends State<_StaffRescheduleSheet> {
               Wrap(spacing: 12, runSpacing: 4, children: [
                 _legend(const Color(0xFF38a169), 'Available'),
                 _legend(const Color(0xFFd97706), 'Full'),
-                _legend(const Color(0xFFe2e8f0), 'Closed'),
                 _legend(_blue, 'Current'),
               ]),
               const SizedBox(height: 16),
@@ -831,12 +830,11 @@ class _StaffRescheduleSheetState extends State<_StaffRescheduleSheet> {
       final dt  = DateTime(_year, _month, d);
       final key = '$_year-${_month.toString().padLeft(2,'0')}-${d.toString().padLeft(2,'0')}';
       final isPast      = dt.isBefore(today);
-      final isSunday    = dt.weekday == 7;
       final isCurrent   = key == widget.currentDate;
       final isSelected  = key == _selectedDate;
       final bookings    = _bookedDates[key] ?? [];
       final isFull      = bookings.length >= _allTimeSlots.length;
-      final isDisabled  = isPast || isSunday || isFull;
+      final isDisabled  = isPast || isFull;
 
       Color bg; Color textColor; BoxBorder? border;
       if (isSelected) {
@@ -844,7 +842,7 @@ class _StaffRescheduleSheetState extends State<_StaffRescheduleSheet> {
       } else if (isCurrent && !isPast) {
         bg = const Color(0xFFEBF8FF); textColor = _blue;
         border = Border.all(color: _blue, width: 2);
-      } else if (isPast || isSunday) {
+      } else if (isPast) {
         bg = const Color(0xFFF1F5F9); textColor = const Color(0xFFcbd5e0);
       } else if (isFull) {
         bg = const Color(0xFFFEF3C7); textColor = const Color(0xFF92400E);

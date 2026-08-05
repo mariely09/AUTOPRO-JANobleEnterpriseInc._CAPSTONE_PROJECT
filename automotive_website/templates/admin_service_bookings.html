@@ -165,7 +165,6 @@
         <div style="display:flex;gap:12px;margin-top:10px;padding-top:8px;border-top:1px solid #f0f4f8;justify-content:center;flex-wrap:wrap;">
           <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#38a169;border-radius:50%;display:inline-block;"></span>Available</span>
           <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#d97706;border-radius:50%;border:1.5px solid #d97706;display:inline-block;"></span>Full</span>
-          <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#e2e8f0;border-radius:50%;display:inline-block;"></span>Closed</span>
           <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#003087;border-radius:50%;display:inline-block;"></span>Current</span>
         </div>
       </div>
@@ -188,8 +187,6 @@
 #rsCalGrid .rs-day.current { background:#ebf8ff;color:#003087;border:2px solid #003087;font-weight:800; }
 #rsCalGrid .rs-day.past { background:#f1f5f9;color:#cbd5e0;cursor:not-allowed; }
 #rsCalGrid .rs-day.past:hover { transform:none; }
-#rsCalGrid .rs-day.sunday { background:#fef2f2;color:#fca5a5;cursor:not-allowed; }
-#rsCalGrid .rs-day.sunday:hover { transform:none; }
 #rsCalGrid .rs-day.full { background:#fef3c7;color:#92400e;cursor:not-allowed; }
 #rsCalGrid .rs-day.full:hover { transform:none; }
 #rsCalGrid .rs-day.empty { background:transparent;cursor:default; }
@@ -371,7 +368,7 @@
   };
 
   window.dismissBooking = function(docId) {
-    if (!confirm('Cancel this booking? This cannot be undone.')) return;
+    if (!confirm('Are you sure you want to cancel this booking?')) return;
     db.collection('service_bookings').doc(docId).get().then(function(doc) {
       var data = doc.exists ? doc.data() : {};
       var customerId = data.customerId || '';
@@ -396,50 +393,21 @@
   };
 
   window.startServiceFromBooking = function(bookingId, plate, servicesEncoded, preferredDate, customerName) {
-    // Show confirmation dialog before starting
-    var modal = document.createElement('div');
-    modal.id = '_startSvcModal';
-    modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;';
-    modal.innerHTML = ''
-      + '<div style="background:white;border-radius:16px;width:360px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,0.25);overflow:hidden;">'
-      +   '<div style="background:#38a169;padding:16px 20px;display:flex;align-items:center;gap:10px;">'
-      +     '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
-      +     '<div style="color:white;font-size:15px;font-weight:700;">Start Service</div>'
-      +   '</div>'
-      +   '<div style="padding:20px;">'
-      +     '<p style="font-size:14px;color:#1a202c;margin:0 0 6px 0;">Begin service for vehicle <strong>' + plate + '</strong>?</p>'
-      +     '<p style="font-size:12px;color:#718096;margin:0 0 20px 0;">This will mark the booking as In Progress and open the maintenance form.</p>'
-      +     '<div style="display:flex;gap:10px;">'
-      +       '<button onclick="document.body.removeChild(document.getElementById(\'_startSvcModal\'))" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:white;font-size:13px;font-weight:600;cursor:pointer;color:#718096;">Cancel</button>'
-      +       '<button id="_startSvcConfirmBtn" style="flex:1;padding:11px;border:none;border-radius:10px;background:#38a169;font-size:13px;font-weight:700;cursor:pointer;color:white;">Yes, Start</button>'
-      +     '</div>'
-      +   '</div>'
-      + '</div>';
-    document.body.appendChild(modal);
-
-    // Close on backdrop click
-    modal.addEventListener('click', function(e) {
-      if (e.target === modal) document.body.removeChild(modal);
-    });
-
-    document.getElementById('_startSvcConfirmBtn').onclick = function() {
-      document.body.removeChild(modal);
-      // Update booking status to "In Progress" before navigating
-      db.collection('service_bookings').doc(bookingId).update({ status: 'In Progress' })
-        .then(function() {
-          var services = [];
-          try { services = JSON.parse(decodeURIComponent(servicesEncoded)); } catch(e) {}
-          var params = {
-            bookingId: bookingId,
-            plate: plate,
-            services: services,
-            date: preferredDate,
-            customer: customerName
-          };
-          window.location.href = 'admin_vehicle_maintenance.html#startService=' + encodeURIComponent(JSON.stringify(params));
-        })
-        .catch(function(err) { showToast('Error: ' + err.message, 'error'); });
-    };
+    if (!confirm('Are you sure you want to start the service for "' + plate + '"?')) return;
+    db.collection('service_bookings').doc(bookingId).update({ status: 'In Progress' })
+      .then(function() {
+        var services = [];
+        try { services = JSON.parse(decodeURIComponent(servicesEncoded)); } catch(e) {}
+        var params = {
+          bookingId: bookingId,
+          plate: plate,
+          services: services,
+          date: preferredDate,
+          customer: customerName
+        };
+        window.location.href = 'admin_vehicle_maintenance.html#startService=' + encodeURIComponent(JSON.stringify(params));
+      })
+      .catch(function(err) { showToast('Error: ' + err.message, 'error'); });
   };
 
   window.rescheduleBooking = function(docId, plate, currentDate, customerId, customerName) {
@@ -503,7 +471,6 @@
       var dd = String(dt.getDate()).padStart(2, '0');
       var dateStr = yyyy + '-' + mm + '-' + dd;
       var isPast = dt < today;
-      var isSun = dt.getDay() === 0;
       var isSel = dateStr === window._rsSelectedDate;
       var isCurrent = dateStr === window._rsCurrentDate;
       var bookings = bookedDates[dateStr] || 0;
@@ -511,9 +478,9 @@
       var cls = 'rs-day';
       if (isSel) cls += ' selected';
       else if (isCurrent && !isPast) cls += ' current';
-      else if (isPast || isSun) cls += ' past';
+      else if (isPast) cls += ' past';
       else if (isFull) cls += ' full';
-      var clickable = !isPast && !isSun && !isFull;
+      var clickable = !isPast && !isFull;
       var click = clickable ? ' onclick="rsPickDate(\'' + dateStr + '\')"' : '';
       var slotText = (!isPast && !isSun && !isFull && bookings > 0) ? ' title="' + bookings + '/' + _rsMaxPerDay + ' booked"' : '';
       cells += '<button class="' + cls + '"' + click + slotText + '>' + d + '</button>';

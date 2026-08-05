@@ -174,7 +174,7 @@
 
     // Maintenance / Services
     db.collection('maintenance').orderBy('createdAt', 'desc').onSnapshot(snap => {
-      window._fbServices = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+      window._fbServices = snap.docs.map(d => ({ _id: d.id, ...d.data() })).filter(s => !s.archived);
       // Map to admin_functions.js expected format
       window.serviceTransactions = window._fbServices.map(s => ({
         serviceId: s._id,

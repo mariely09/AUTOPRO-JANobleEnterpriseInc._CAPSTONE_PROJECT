@@ -249,6 +249,8 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
           final docs = snapshot.data?.docs ?? [];
           final services = docs.map((d) {
             final data = d.data() as Map<String, dynamic>;
+            // Skip archived records
+            if (data['archived'] == true) return null;
             return {
               'docId': d.id,
               'id': data['id'] as String? ?? d.id,
@@ -263,7 +265,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
               'matRows': data['matRows'],
               'issues': data['issues'],
             };
-          }).toList();
+          }).whereType<Map<String, dynamic>>().toList();
 
           final activeQuery = widget.searchQuery.isNotEmpty ? widget.searchQuery : _searchQuery;
           final filtered = activeQuery.isEmpty
@@ -278,10 +280,22 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
               : filtered.where((s) => s['status'] == _statusFilter).toList();
 
           // ── Sort ──
+          // Parse "Jan 5, 2026" style dates to milliseconds for correct ordering
+          int dateMs(String d) {
+            try {
+              const months = {'Jan':1,'Feb':2,'Mar':3,'Apr':4,'May':5,'Jun':6,'Jul':7,'Aug':8,'Sep':9,'Oct':10,'Nov':11,'Dec':12};
+              final parts = d.replaceAll(',', '').split(' ');
+              if (parts.length < 3) return 0;
+              final m = months[parts[0]] ?? 0;
+              final day = int.tryParse(parts[1]) ?? 0;
+              final yr  = int.tryParse(parts[2]) ?? 0;
+              return DateTime(yr, m, day).millisecondsSinceEpoch;
+            } catch (_) { return 0; }
+          }
           final sorted = List<Map<String, dynamic>>.from(afterStatusFilter);
           sorted.sort((a, b) {
             switch (widget.sortBy) {
-              case 'date-asc':  return (a['date'] as String).compareTo(b['date'] as String);
+              case 'date-asc':  return dateMs(a['date'] as String).compareTo(dateMs(b['date'] as String));
               case 'plate-asc': return (a['plate'] as String).compareTo(b['plate'] as String);
               case 'plate-desc':return (b['plate'] as String).compareTo(a['plate'] as String);
               case 'mechanic-asc': return (a['mechanic'] as String).compareTo(b['mechanic'] as String);
@@ -293,7 +307,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                 final ca2 = double.tryParse((a['cost'] as String).replaceAll(RegExp(r'[₱,]'),'')) ?? 0;
                 final cb2 = double.tryParse((b['cost'] as String).replaceAll(RegExp(r'[₱,]'),'')) ?? 0;
                 return cb2.compareTo(ca2);
-              default: return (b['date'] as String).compareTo(a['date'] as String); // date-desc
+              default: return dateMs(b['date'] as String).compareTo(dateMs(a['date'] as String)); // date-desc newest first
             }
           });
 
@@ -373,10 +387,10 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(plate, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            Text(displayDesc,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF4a5568))),
-            Text('${s['mechanic']} - ${s['date']}', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+            Text(s['date'] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            Text(plate, style: const TextStyle(fontSize: 12, color: Color(0xFF4a5568))),
+            Text(displayDesc, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+            Text(s['mechanic'] as String, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(_formatCost(s['cost'] as String), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),

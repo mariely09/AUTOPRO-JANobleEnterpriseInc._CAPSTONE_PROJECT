@@ -544,7 +544,7 @@ function renderServicesList() {
     }
 
     var search = (document.getElementById('serviceSearch') || {}).value || '';
-    var filtered = serviceTransactions;
+    var filtered = serviceTransactions.filter(function(s){ return !s.archived; });
     if (search.trim()) {
         var q = search.toLowerCase();
         filtered = serviceTransactions.filter(function(s){
@@ -612,8 +612,8 @@ function renderServicesList() {
             topActions += '<button class="btn-small btn-secondary" disabled title="Cannot edit completed service" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.4;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
         }
         topActions += (s.status||'').toLowerCase() !== 'completed'
-            ? '<button class="btn-small btn-secondary" onclick="archiveService(\''+s.serviceId+'\',\''+((s.assetNum||s.plate||'').replace(/'/g,"\\'"))+'\')" title="Archive" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;color:#d69e2e;border-color:#fcd34d;background:#fffbeb;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>'
-            : '<button class="btn-small btn-secondary" disabled title="Cannot archive completed service" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.4;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>';
+            ? '<button class="btn-small btn-danger" onclick="archiveService(\''+s.serviceId+'\',\''+((s.assetNum||s.plate||'').replace(/'/g,"\\'"))+'\')" title="Archive" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>'
+            : '<button class="btn-small btn-danger" disabled title="Cannot archive completed service" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.4;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>';
 
         var plate = s.assetNum || s.plate || '';
         // Look up vehicle description from live vehicles data (stays in sync with edits)
@@ -1739,11 +1739,10 @@ function renderInventoryTransactions(filter) {
         var typeColor = isIn ? '#003087' : '#E8001C';
         var typeBg    = isIn ? '#ebf8ff' : '#fed7d7';
         var dateStr = _fmtTxnDate(t.date);
-        return '<div class="table-row" style="grid-template-columns:120px 1fr 1fr 1.5fr 80px 80px 100px;">'
+        return '<div class="table-row" style="grid-template-columns:120px 1fr 1fr 80px 80px 100px;">'
             + '<div>' + dateStr + '</div>'
             + '<div><strong>' + t.item + '</strong>' + (t.uom ? '<span style="font-size:0.75rem;color:#718096;margin-left:4px;">(' + t.uom + ')</span>' : '') + '</div>'
             + '<div>' + (t.commodityGroup || '—') + '</div>'
-            + '<div>' + t.description + (t.assetLine ? '<div style="font-size:0.75rem;color:#718096;margin-top:2px;">' + t.assetLine + '</div>' : '') + '</div>'
             + '<div><span style="background:' + typeBg + ';color:' + typeColor + ';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">' + t.type + '</span></div>'
             + '<div>' + t.qty + '</div>'
             + '<div>' + t.by + '</div>'
