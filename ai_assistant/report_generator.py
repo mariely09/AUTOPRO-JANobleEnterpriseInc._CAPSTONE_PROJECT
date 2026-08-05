@@ -712,11 +712,8 @@ def generate_pdf(report_type: str, month: str | None = None,
 
     # ── Header timestamp ──────────────────────────────────────────────────────
     now      = datetime.now()
-    date_str = now.strftime("%B %-d, %Y") if hasattr(now, "strftime") else now.strftime("%B %d, %Y").replace(" 0", " ")
-    try:
-        date_str = now.strftime("%B %-d, %Y")   # Linux/Mac: strip leading zero
-    except ValueError:
-        date_str = now.strftime("%B %d, %Y").replace(" 0", " ")   # Windows fallback
+    # %-d is Linux/Mac only; use %d and strip the leading zero for cross-platform compat
+    date_str = now.strftime("%B %d, %Y").replace(" 0", " ").strip()
     time_str = now.strftime("%I:%M %p").lstrip("0")
 
     # ── Filter label (shown in title and meta row) ────────────────────────────
