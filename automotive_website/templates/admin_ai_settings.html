@@ -12,14 +12,16 @@
       /* ── Page-level overrides ── */
       .ai-page {
         max-width: 1200px;
+        width: 100%;
+        box-sizing: border-box;
         /* Prevent any child from causing a horizontal scrollbar on the page */
         min-width: 0;
         overflow-x: hidden;
       }
 
       /* Ensure the main column doesn't overflow its grid cell */
-      .admin-main  { min-width: 0; overflow-x: hidden; }
-      .admin-content { min-width: 0; }
+      .admin-main  { min-width: 0; overflow-x: hidden; width: 100%; box-sizing: border-box; }
+      .admin-content { min-width: 0; width: 100%; box-sizing: border-box; }
 
       /* Section cards */
       .ai-card {
@@ -83,11 +85,26 @@
         padding: 3px 10px; border-radius: 20px;
         font-size: 0.72rem; font-weight: 700;
       }
-      .badge-active   { background: #f0fff4; color: #276749; }
-      .badge-cooldown { background: #fffbeb; color: #975a16; }
-      .badge-disabled { background: #f7f8fa; color: #718096; }
-      .badge-current  { background: #ebf8ff; color: #2b6cb0; }
+      .badge-active      { background: #f0fff4; color: #276749; }
+      .badge-cooldown    { background: #fff5f5; color: #c53030; }
+      .badge-disabled    { background: #f7f8fa; color: #718096; }
+      .badge-current     { background: #ebf8ff; color: #2b6cb0; }
+      .badge-default-key { background: #faf5ff; color: #6b21a8; }
       .badge-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+      /* Countdown chip shown in cooldown cells */
+      .countdown-chip {
+        display: inline-flex; align-items: center; gap: 4px;
+        background: #fff5f5; border: 1px solid #feb2b2;
+        border-radius: 6px; padding: 2px 7px;
+        font-size: 0.75rem; font-weight: 700; color: #c53030;
+        font-family: 'Courier New', monospace;
+      }
+      .countdown-chip svg { flex-shrink: 0; }
+
+      /* Default/system row highlight */
+      .default-key-row td { background: #faf5ff !important; }
+      .default-key-row:hover td { background: #f3e8ff !important; }
 
       /* Action buttons */
       .btn-act {
@@ -433,7 +450,7 @@
                   <th>API Key</th>
                   <th>Status</th>
                   <th>Last Used</th>
-                  <th>Cooldown</th>
+                  <th>Reset Countdown</th>
                   <th style="text-align:center;">Actions</th>
                 </tr>
               </thead>
@@ -777,7 +794,55 @@ function renderStatus(d) {
   }
 }
 
+// ── Countdown timer management ────────────────────────────────────────────────
+// Tracks active countdown intervals so we can clear them on re-render.
+let _countdownIntervals = [];
+
+function _clearCountdowns() {
+  _countdownIntervals.forEach(id => clearInterval(id));
+  _countdownIntervals = [];
+}
+
+function _startCountdown(keyId, initialSeconds) {
+  let remaining = initialSeconds;
+  const update = () => {
+    remaining--;
+    if (remaining <= 0) {
+      // Cooldown expired — refresh from server
+      clearInterval(intervalId);
+      _countdownIntervals = _countdownIntervals.filter(i => i !== intervalId);
+      loadStatus();
+      return;
+    }
+    // Update the countdown chip
+    const chip = document.getElementById('cd-chip-' + keyId);
+    if (chip) chip.textContent = _formatCountdown(remaining);
+    // Also update the status badge text
+    const badge = document.getElementById('cd-badge-' + keyId);
+    if (badge) {
+      badge.innerHTML = _tokenLimitBadgeHtml(remaining);
+    }
+  };
+  const intervalId = setInterval(update, 1000);
+  _countdownIntervals.push(intervalId);
+}
+
+function _formatCountdown(secs) {
+  if (secs <= 0) return '0s';
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return m > 0 ? `${m}m ${s.toString().padStart(2,'0')}s` : `${s}s`;
+}
+
+function _tokenLimitBadgeHtml(remaining) {
+  // Returns the inner HTML for the status badge span when token limit is reached
+  return `<span class="badge-dot" style="background:#c53030;"></span>Token Limit Reached`;
+}
+
 function renderKeys(keys) {
+  // Clear any running countdowns from a previous render
+  _clearCountdowns();
+
   const sub = document.getElementById('keysSubLabel');
   if (sub) sub.textContent = keys.length + ' key(s) configured — max 10';
 
@@ -785,7 +850,7 @@ function renderKeys(keys) {
   if (!tbody) return;
 
   if (!keys.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="ai-empty">
+    tbody.innerHTML = `<tr><td colspan="8" class="ai-empty">
       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
            fill="none" stroke="currentColor" stroke-width="1.5"
            stroke-linecap="round" stroke-linejoin="round">
@@ -796,11 +861,47 @@ function renderKeys(keys) {
     return;
   }
 
-  tbody.innerHTML = keys.map((k, i) => {
-    const statusBadge = _statusBadge(k.status, k.is_current);
-    const cooldownText = (k.cooldown_remaining > 0)
-      ? `<span style="color:#975a16;font-weight:600;">${k.cooldown_remaining}s</span>`
-      : '<span style="color:#a0aec0;">—</span>';
+  // Build the default/system key row (always first, protected, cannot be deleted)
+  const defaultRow = `<tr class="default-key-row">
+    <td style="font-weight:700;color:#6b21a8;">★</td>
+    <td style="font-weight:700;color:#6b21a8;">
+      Default (System)
+      <div style="font-size:0.7rem;font-weight:500;color:#a78bfa;margin-top:2px;">Main backend key · .env</div>
+    </td>
+    <td><span class="key-mono" style="color:#6b21a8;" id="defaultKeyMasked">••••••••••••••••••••</span></td>
+    <td>
+      <span class="badge badge-default-key" id="defaultKeyStatusBadge">
+        <span class="badge-dot" style="background:#9333ea;"></span>Default Key
+      </span>
+    </td>
+    <td style="color:#718096;font-size:0.8rem;">System startup</td>
+    <td id="defaultKeyCooldown"><span style="color:#a0aec0;">—</span></td>
+    <td>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:0.72rem;color:#a78bfa;font-style:italic;">Protected — cannot be deleted</span>
+      </div>
+    </td>
+  </tr>`;
+
+  const keyRows = keys.map((k, i) => {
+    const isInCooldown = k.status === 'cooldown' || k.cooldown_remaining > 0;
+    const statusBadge  = _statusBadge(k.status, k.is_current, k.key_id, k.cooldown_remaining);
+
+    let cooldownCell;
+    if (isInCooldown && k.cooldown_remaining > 0) {
+      const formatted = _formatCountdown(k.cooldown_remaining);
+      cooldownCell = `<span class="countdown-chip" id="cd-chip-${k.key_id}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        ${formatted}
+      </span>`;
+    } else {
+      cooldownCell = '<span style="color:#a0aec0;">—</span>';
+    }
 
     const toggleLabel = k.status === 'disabled' ? 'Enable' : 'Disable';
     const toggleStyle = k.status === 'disabled'
@@ -811,9 +912,9 @@ function renderKeys(keys) {
       <td style="font-weight:700;color:#718096;">${i + 1}</td>
       <td style="font-weight:600;color:#1a202c;">${_esc(k.account_name)}</td>
       <td><span class="key-mono">${_esc(k.api_key_masked)}</span></td>
-      <td>${statusBadge}</td>
+      <td id="cd-badge-${k.key_id}">${statusBadge}</td>
       <td style="color:#718096;font-size:0.8rem;">${_esc(k.last_used)}</td>
-      <td>${cooldownText}</td>
+      <td>${cooldownCell}</td>
       <td>
         <div style="display:flex;gap:5px;flex-wrap:wrap;">
           <button class="btn-act btn-act-edit" onclick="openEditKeyModal('${k.key_id}')">
@@ -836,15 +937,30 @@ function renderKeys(keys) {
       </td>
     </tr>`;
   }).join('');
+
+  tbody.innerHTML = defaultRow + keyRows;
+
+  // Kick off live countdowns for any keys in cooldown
+  keys.forEach(k => {
+    if ((k.status === 'cooldown' || k.cooldown_remaining > 0) && k.cooldown_remaining > 0) {
+      _startCountdown(k.key_id, k.cooldown_remaining);
+    }
+  });
 }
 
-function _statusBadge(status, isCurrent) {
-  if (isCurrent && status !== 'disabled')
+function _statusBadge(status, isCurrent, keyId, cooldownRemaining) {
+  if (isCurrent && status !== 'disabled' && status !== 'cooldown') {
     return '<span class="badge badge-current"><span class="badge-dot" style="background:#3182ce;"></span>In Use</span>';
-  if (status === 'disabled')
+  }
+  if (status === 'disabled') {
     return '<span class="badge badge-disabled"><span class="badge-dot" style="background:#a0aec0;"></span>Disabled</span>';
-  if (status === 'cooldown')
-    return '<span class="badge badge-cooldown"><span class="badge-dot" style="background:#ed8936;"></span>Cooling Down</span>';
+  }
+  if (status === 'cooldown' || (cooldownRemaining && cooldownRemaining > 0)) {
+    // Token limit reached — show warning badge with countdown hint
+    return `<span class="badge badge-cooldown">
+      <span class="badge-dot" style="background:#c53030;"></span>Token Limit Reached
+    </span>`;
+  }
   return '<span class="badge badge-active"><span class="badge-dot" style="background:#38a169;"></span>Active</span>';
 }
 
@@ -898,6 +1014,69 @@ function renderLogs(logs) {
 }
 
 
+// ── API key similarity check ──────────────────────────────────────────────────
+// Returns true if `newKey` is too similar to any key already in the cache.
+// Uses normalized Levenshtein distance — rejects if similarity >= 80%.
+function _isTooSimilarToExisting(newKey) {
+  if (!newKey || !_keysCache.length) return { similar: false };
+  const nk = newKey.toLowerCase();
+
+  for (const existing of _keysCache) {
+    // We only have the masked key on the frontend, so compare the visible
+    // suffix (last 4 chars) + full prefix characters available.
+    // For a proper check we compare the raw input against the masked display,
+    // but since we can't recover the full stored key (security), we instead
+    // look for two signals:
+    //   1. The last 4 chars of the new key match the last 4 chars of a stored masked key.
+    //   2. The new key has ≥ 80% character-level similarity to other new-key inputs
+    //      in the current session (checked via in-memory plain-text only at add time).
+    const maskedSuffix = (existing.api_key_masked || '').slice(-4).toLowerCase();
+    const newSuffix    = nk.slice(-4);
+    if (maskedSuffix && maskedSuffix === newSuffix) {
+      return { similar: true, account: existing.account_name, reason: 'same key suffix (last 4 characters)' };
+    }
+  }
+
+  // Cross-check against other plain-text keys entered this session
+  if (window._sessionKeys && window._sessionKeys.length) {
+    for (const prev of window._sessionKeys) {
+      const sim = _levenshteinSimilarity(nk, prev.key.toLowerCase());
+      if (sim >= 0.80) {
+        return { similar: true, account: prev.name, reason: `${Math.round(sim * 100)}% similar to a recently added key` };
+      }
+    }
+  }
+  return { similar: false };
+}
+
+// Normalized Levenshtein similarity (0 = completely different, 1 = identical)
+function _levenshteinSimilarity(a, b) {
+  if (a === b) return 1;
+  if (!a.length || !b.length) return 0;
+  const maxLen = Math.max(a.length, b.length);
+  // Cap at 200 chars to keep it fast
+  const sa = a.slice(0, 200), sb = b.slice(0, 200);
+  const dist = _levenshteinDistance(sa, sb);
+  return 1 - dist / Math.max(sa.length, sb.length, 1);
+}
+
+function _levenshteinDistance(a, b) {
+  const m = a.length, n = b.length;
+  // Use two-row DP for O(n) space
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  let curr = new Array(n + 1).fill(0);
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      curr[j] = a[i - 1] === b[j - 1]
+        ? prev[j - 1]
+        : 1 + Math.min(prev[j - 1], prev[j], curr[j - 1]);
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n];
+}
+
 // ── Add / Edit key modal ─────────────────────────────────────────────────────
 
 // Cache for the keys loaded by loadStatus so openEditKeyModal can look up by id
@@ -916,6 +1095,12 @@ async function loadStatus() {
     document.getElementById('rotEnabled').value  = d.rotation_enabled ? 'true' : 'false';
     document.getElementById('rotCooldown').value = d.cooldown_seconds || 300;
     document.getElementById('rotRetries').value  = d.max_retries || 3;
+
+    // Populate the default (system) key masked value if provided by backend
+    const defaultCell = document.getElementById('defaultKeyMasked');
+    if (defaultCell && d.default_key_masked) {
+      defaultCell.textContent = d.default_key_masked;
+    }
   } catch (e) {
     setOffline(true);
     // Don't wipe the table on a transient error — keep the last known keys visible
@@ -979,6 +1164,18 @@ async function saveKey() {
   if (!name)              { _showModalFeedback('Account name is required.', 'error'); return; }
   if (!isEdit && !apiKey) { _showModalFeedback('API key is required.', 'error'); return; }
 
+  // Similarity check — only on add (or when a new key value is provided on edit)
+  if (apiKey) {
+    const sim = _isTooSimilarToExisting(apiKey);
+    if (sim.similar) {
+      _showModalFeedback(
+        `This key is too similar to an existing one (${sim.reason}${sim.account ? ' — ' + sim.account : ''}). Please enter a different key.`,
+        'error'
+      );
+      return;
+    }
+  }
+
   const body = { account_name: name, status };
   if (apiKey) body.api_key = apiKey;
 
@@ -1015,6 +1212,11 @@ async function saveKey() {
       return;
     }
     if (!r.ok || !d.success) throw new Error(d.error || d.detail || 'Save failed');
+    // Track the key in the session store for cross-entry similarity checks
+    if (!isEdit && apiKey) {
+      window._sessionKeys = window._sessionKeys || [];
+      window._sessionKeys.push({ key: apiKey, name });
+    }
     // Success — keep button disabled, close modal, refresh table
     showToast(isEdit ? 'API key updated.' : 'API key added.', 'success');
     closeKeyModal();
@@ -1128,16 +1330,24 @@ async function confirmDelete() {
   const keyId = document.getElementById('deleteKeyId').value;
   const name  = document.getElementById('deleteKeyName').textContent;
   closeDeleteModal();
+
+  // Optimistically remove the key from the local cache and re-render immediately
+  // so the UI feels instant — no waiting for the server round-trip.
+  _keysCache = _keysCache.filter(k => k.key_id !== keyId);
+  renderKeys(_keysCache);
+  showToast(`Key "${name}" deleted.`, 'success');
+
   try {
     const r = await fetch(`/api/ai-settings/keys/${keyId}`, { method: 'DELETE' });
     const d = await r.json();
     if (!r.ok || !d.success) throw new Error(d.error || 'Delete failed');
-    showToast(`Key "${name}" deleted.`, 'success');
-    try { await fetch('/api/ai-settings/reload', { method: 'POST' }); } catch (_) {}
-    await new Promise(r => setTimeout(r, 1500));
-    await refreshAll();
+    // Background reload to sync state (fire-and-forget, no await delay)
+    fetch('/api/ai-settings/reload', { method: 'POST' }).catch(() => {});
+    // Refresh in background after a short pause — doesn't block the user
+    setTimeout(() => refreshAll(), 800);
   } catch (e) {
-    showToast('Error: ' + e.message, 'error');
+    showToast('Delete failed: ' + e.message + ' — refreshing…', 'error');
+    await refreshAll(); // re-sync on failure
   }
 }
 
