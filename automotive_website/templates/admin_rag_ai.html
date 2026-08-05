@@ -6,13 +6,12 @@
 <button id="ragAiToggleBtn" onclick="ragAiToggle()"
   title="Smart Reports AI"
   style="position:fixed;bottom:2rem;right:2rem;z-index:1200;
-         width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;
-         background:linear-gradient(135deg,#E8001C,#c0001a);
-         box-shadow:0 4px 18px rgba(232,0,28,0.4);
+         width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;
+         background:linear-gradient(135deg,#ff1744,#E8001C,#b71c1c);
+         box-shadow:0 4px 20px rgba(232,0,28,0.45),0 0 0 0 rgba(232,0,28,0.3);
          display:flex;align-items:center;justify-content:center;
-         transition:transform 0.2s,box-shadow 0.2s;"
-  onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='0 6px 24px rgba(232,0,28,0.5)'"
-  onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 18px rgba(232,0,28,0.4)'">
+         transition:all 0.25s ease;
+         animation:ragFabPulse 2.8s ease-in-out infinite;">
   <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="white" stroke="none">
     <path d="M20 6h-1V3c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v14l4-4h9c.55 0 1-.45 1-1V6h2v9H7v2c0 .55.45 1 1 1h10l4 4V7c0-.55-.45-1-1-1z"/>
   </svg>
@@ -20,77 +19,161 @@
 
 <!-- Floating AI chat panel -->
 <div id="ragAiPanel"
-  style="display:none;position:fixed;bottom:6rem;right:2rem;z-index:1201;
-         width:380px;height:560px;max-height:calc(100vh - 8rem);background:#fff;border-radius:18px;
-         box-shadow:0 8px 40px rgba(0,0,0,0.18);
-         border:1px solid #e2e8f0;overflow:hidden;
+  style="display:none;position:fixed;bottom:6.2rem;right:2rem;z-index:1201;
+         width:390px;height:580px;max-height:calc(100vh - 8rem);
+         background:#fff;border-radius:22px;
+         box-shadow:0 20px 60px rgba(0,0,0,0.18),0 4px 16px rgba(232,0,28,0.08);
+         border:1px solid rgba(226,232,240,0.8);overflow:hidden;
          display:none;flex-direction:column;
-         animation:ragAiSlideIn 0.22s ease;">
+         animation:ragAiSlideIn 0.28s cubic-bezier(.34,1.56,.64,1);">
 
-  <!-- Panel header -->
-  <div style="background:linear-gradient(135deg,#E8001C,#c0001a);padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
-    <div style="width:34px;height:34px;background:rgba(255,255,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+  <!-- Panel header — deep gradient with blur overlay -->
+  <div id="ragAiHeader" style="background:linear-gradient(135deg,#1a0a0a 0%,#b71c1c 45%,#E8001C 100%);padding:16px 14px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:relative;overflow:hidden;">
+    <!-- Subtle mesh pattern -->
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.08) 0%,transparent 60%);pointer-events:none;"></div>
+    <!-- Avatar -->
+    <div style="width:36px;height:36px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.25);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;backdrop-filter:blur(4px);">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
     </div>
-    <div style="flex:1;">
-      <div style="color:#fff;font-size:13px;font-weight:700;">Admin AI Assistant</div>
+    <!-- Title -->
+    <div style="flex:1;min-width:0;">
+      <div style="color:#fff;font-size:13.5px;font-weight:700;letter-spacing:0.2px;">Admin AI Assistant</div>
+      <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
+        <span id="ragAiDot" style="width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;box-shadow:0 0 6px rgba(74,222,128,0.7);"></span>
+        <span id="ragAiStatus" style="font-size:10.5px;color:rgba(255,255,255,0.75);">Online · RAG AI</span>
+      </div>
     </div>
-    <button onclick="ragAiClear()" style="background:rgba(255,255,255,0.15);border:none;color:white;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;cursor:pointer;font-family:inherit;">Clear</button>
-    <button onclick="ragAiToggle()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
+    <!-- Clear icon button with tooltip -->
+    <div style="position:relative;" id="ragClearWrap">
+      <button onclick="ragAiClear()" id="ragClearBtn"
+        style="width:32px;height:32px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
+               color:white;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+               transition:all .18s;backdrop-filter:blur(4px);"
+        onmouseover="this.style.background='rgba(255,255,255,0.22)';document.getElementById('ragClearTip').style.opacity='1';document.getElementById('ragClearTip').style.transform='translateY(0)translateX(-50%)';"
+        onmouseout="this.style.background='rgba(255,255,255,0.12)';document.getElementById('ragClearTip').style.opacity='0';document.getElementById('ragClearTip').style.transform='translateY(4px)translateX(-50%)';">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+        </svg>
+      </button>
+      <!-- Tooltip -->
+      <div id="ragClearTip" style="position:absolute;bottom:-30px;left:50%;transform:translateY(4px)translateX(-50%);
+           background:rgba(26,32,44,0.92);color:white;font-size:10.5px;font-weight:600;
+           padding:4px 9px;border-radius:6px;white-space:nowrap;pointer-events:none;
+           opacity:0;transition:all .18s ease;z-index:10;">Clear chat</div>
+    </div>
+    <!-- Close button -->
+    <button onclick="ragAiToggle()"
+      style="width:32px;height:32px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
+             color:white;border-radius:9px;cursor:pointer;font-size:17px;
+             display:flex;align-items:center;justify-content:center;flex-shrink:0;
+             transition:all .18s;backdrop-filter:blur(4px);"
+      onmouseover="this.style.background='rgba(255,255,255,0.22)'"
+      onmouseout="this.style.background='rgba(255,255,255,0.12)'">×</button>
   </div>
 
   <!-- Messages area -->
-  <div id="ragAiChat" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:#F7F8FA;"></div>
+  <div id="ragAiChat" style="flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px;background:linear-gradient(180deg,#f8f9fb 0%,#f2f4f7 100%);scroll-behavior:smooth;"></div>
 
-  <!-- Quick chips — hidden, suggestions shown in welcome bubble instead -->
+  <!-- Quick chips — hidden -->
   <div id="ragAiChips" style="display:none;"></div>
 
   <!-- Input bar -->
-  <div style="display:flex;gap:8px;align-items:flex-end;padding:10px 12px;background:white;border-top:1px solid #e2e8f0;flex-shrink:0;">
-    <textarea id="ragAiInput" placeholder="Ask about fleet, inventory, maintenance..."
-      rows="1" style="flex:1;border:1.5px solid #e2e8f0;border-radius:20px;padding:8px 14px;font-size:12px;font-family:inherit;color:#1a202c;background:#F7F8FA;outline:none;resize:none;max-height:80px;overflow-y:auto;line-height:1.4;"
-      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();ragAiSend();}"
-      oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'"
-      onfocus="this.style.borderColor='#E8001C';this.style.background='white'"
-      onblur="this.style.borderColor='#e2e8f0';this.style.background='#F7F8FA'"></textarea>
-    <button onclick="ragAiSend()" style="width:36px;height:36px;background:linear-gradient(135deg,#E8001C,#c0001a);border:none;border-radius:50%;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(232,0,28,0.3);">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-    </button>
+  <div style="padding:10px 12px 12px;background:white;border-top:1px solid #edf0f5;flex-shrink:0;">
+    <div style="display:flex;gap:8px;align-items:flex-end;background:#f4f6f9;border:1.5px solid #edf0f5;border-radius:16px;padding:6px 6px 6px 14px;transition:border-color .2s,box-shadow .2s;" id="ragInputWrap">
+      <textarea id="ragAiInput" placeholder="Ask about fleet, inventory, reports…"
+        rows="1" style="flex:1;border:none;background:transparent;font-size:12.5px;font-family:inherit;color:#1a202c;outline:none;resize:none;max-height:80px;overflow-y:auto;line-height:1.5;padding:4px 0;"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();ragAiSend();}"
+        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'"
+        onfocus="document.getElementById('ragInputWrap').style.borderColor='#E8001C';document.getElementById('ragInputWrap').style.boxShadow='0 0 0 3px rgba(232,0,28,0.08)';"
+        onblur="document.getElementById('ragInputWrap').style.borderColor='#edf0f5';document.getElementById('ragInputWrap').style.boxShadow='none';"></textarea>
+      <button onclick="ragAiSend()" id="ragSendBtn"
+        style="width:34px;height:34px;background:linear-gradient(135deg,#ff1744,#E8001C);border:none;border-radius:11px;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(232,0,28,0.35);transition:all .18s;"
+        onmouseover="this.style.transform='scale(1.06)';this.style.boxShadow='0 5px 14px rgba(232,0,28,0.45)'"
+        onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 3px 10px rgba(232,0,28,0.35)'">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+    <div style="text-align:center;font-size:10px;color:#c0c8d4;margin-top:5px;">Enter to send &nbsp;·&nbsp; Shift+Enter for new line</div>
   </div>
 </div>
 
 <style>
-@keyframes ragAiSlideIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+@keyframes ragAiSlideIn { from{opacity:0;transform:translateY(16px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+@keyframes ragFabPulse  { 0%,100%{box-shadow:0 4px 20px rgba(232,0,28,0.45),0 0 0 0 rgba(232,0,28,0.25)} 50%{box-shadow:0 4px 20px rgba(232,0,28,0.45),0 0 0 8px rgba(232,0,28,0)} }
+@keyframes ragBounce    { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
+@keyframes ragSpin      { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
 .rag-chip { padding:4px 10px;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:16px;font-size:11px;font-weight:500;color:#4a5568;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:inherit; }
 .rag-chip:hover { background:#E8001C;color:white;border-color:#E8001C; }
-#ragAiChat .rag-row { display:flex;gap:8px;align-items:flex-end; }
+
+/* ── Message rows ── */
+#ragAiChat .rag-row { display:flex;gap:9px;align-items:flex-end; }
 #ragAiChat .rag-row.user { flex-direction:row-reverse; }
-#ragAiChat .rag-av { width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-#ragAiChat .rag-av.ai { background:linear-gradient(135deg,#E8001C,#c0001a);color:white; }
-#ragAiChat .rag-av.usr { background:linear-gradient(135deg,#E8001C,#C41E3A);color:white;font-size:10px;font-weight:700; }
-#ragAiChat .rag-bub { max-width:80%;padding:10px 13px;border-radius:14px;font-size:12px;line-height:1.6;word-break:break-word; }
-#ragAiChat .rag-bub.ai { background:white;color:#1a202c;border-radius:4px 14px 14px 14px;box-shadow:0 1px 6px rgba(0,0,0,0.06);white-space:pre-wrap; }
-#ragAiChat .rag-bub.usr { background:linear-gradient(135deg,#E8001C,#C41E3A);color:white;border-radius:14px 4px 14px 14px;box-shadow:0 2px 6px rgba(232,0,28,0.25); }
-#ragAiChat .rag-bub table { width:100%;border-collapse:collapse;margin-top:6px;font-size:11px; }
-#ragAiChat .rag-bub table th { background:#f7f8fa;padding:4px 6px;text-align:left;font-weight:700;color:#4a5568;border-bottom:1.5px solid #e2e8f0;font-size:10px; }
-#ragAiChat .rag-bub table td { padding:4px 6px;border-bottom:1px solid #f0f4f8;color:#1a202c; }
-#ragAiChat .rag-bub .sr-tag { display:inline-block;padding:1px 6px;border-radius:12px;font-size:10px;font-weight:700;margin:1px 1px; }
-.rag-typing { display:flex;gap:4px;align-items:center;padding:8px 12px; }
-.rag-typing span { width:6px;height:6px;background:#a0aec0;border-radius:50%;animation:ragBounce .9s ease-in-out infinite; }
+
+/* ── Avatars ── */
+#ragAiChat .rag-av { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+#ragAiChat .rag-av.ai  { background:linear-gradient(135deg,#ff1744,#E8001C);color:white;box-shadow:0 2px 8px rgba(232,0,28,0.3); }
+#ragAiChat .rag-av.usr { background:linear-gradient(135deg,#1a202c,#2d3748);color:white;font-size:10px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+
+/* ── Bubbles ── */
+#ragAiChat .rag-bub { max-width:80%;padding:10px 14px;border-radius:16px;font-size:12.5px;line-height:1.65;word-break:break-word; }
+#ragAiChat .rag-bub.ai {
+  background:white;color:#1a202c;
+  border-radius:4px 16px 16px 16px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.07);
+  white-space:pre-wrap;
+  border:1px solid rgba(226,232,240,0.6);
+}
+#ragAiChat .rag-bub.usr {
+  background:linear-gradient(135deg,#1a202c 0%,#2d3748 100%);
+  color:white;
+  border-radius:16px 4px 16px 16px;
+  box-shadow:0 3px 12px rgba(0,0,0,0.2);
+}
+
+/* ── Tables inside AI bubble ── */
+#ragAiChat .rag-bub table { width:100%;border-collapse:collapse;margin-top:8px;font-size:11px; }
+#ragAiChat .rag-bub table th { background:#f7f8fa;padding:5px 8px;text-align:left;font-weight:700;color:#4a5568;border-bottom:1.5px solid #e2e8f0;font-size:10.5px; }
+#ragAiChat .rag-bub table td { padding:5px 8px;border-bottom:1px solid #f0f4f8;color:#1a202c; }
+#ragAiChat .rag-bub .sr-tag { display:inline-block;padding:1px 6px;border-radius:12px;font-size:10px;font-weight:700;margin:1px; }
+
+/* ── Typing indicator ── */
+.rag-typing { display:flex;gap:5px;align-items:center;padding:10px 14px; }
+.rag-typing span { width:7px;height:7px;background:#cbd5e0;border-radius:50%;animation:ragBounce .9s ease-in-out infinite; }
 .rag-typing span:nth-child(2) { animation-delay:.15s; }
 .rag-typing span:nth-child(3) { animation-delay:.3s; }
-@keyframes ragBounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
-@keyframes ragSpin   { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-/* Welcome suggestion pills */
+
+/* ── Welcome suggestion pills ── */
 .rag-suggest-pill {
-  display:block;width:100%;text-align:center;
-  background:white;border:1.2px solid #e2e8f0;border-radius:30px;
-  padding:9px 16px;font-size:12.5px;color:#9aa5b4;
-  cursor:pointer;font-family:inherit;transition:all .15s;
-  box-shadow:0 1px 4px rgba(0,0,0,0.03);
+  display:flex;align-items:center;gap:8px;width:100%;text-align:left;
+  background:white;
+  border:1.5px solid #edf0f5;
+  border-radius:12px;
+  padding:10px 14px;
+  font-size:12px;font-weight:500;color:#4a5568;
+  cursor:pointer;font-family:inherit;
+  transition:all .18s ease;
+  box-shadow:0 1px 4px rgba(0,0,0,0.04);
 }
-.rag-suggest-pill:hover { border-color:#E8001C;color:#E8001C;background:#fff5f5; }
-/* Rate-limit banner */
+.rag-suggest-pill::before {
+  content:'';width:6px;height:6px;border-radius:50%;
+  background:linear-gradient(135deg,#ff1744,#E8001C);
+  flex-shrink:0;
+}
+.rag-suggest-pill:hover {
+  border-color:#E8001C;color:#E8001C;
+  background:linear-gradient(135deg,#fff5f5,#fff);
+  box-shadow:0 3px 12px rgba(232,0,28,0.12);
+  transform:translateY(-1px);
+}
+
+/* ── Scrollbar ── */
+#ragAiChat::-webkit-scrollbar { width:4px; }
+#ragAiChat::-webkit-scrollbar-track { background:transparent; }
+#ragAiChat::-webkit-scrollbar-thumb { background:#d1d5db;border-radius:4px; }
+#ragAiChat::-webkit-scrollbar-thumb:hover { background:#9ca3af; }
+
+/* ── Rate-limit banner ── */
 .rag-rate-banner { background:#fff7ed;border-bottom:2px solid #fb923c;padding:10px 14px;font-size:11.5px;color:#9a3412;display:flex;align-items:flex-start;gap:8px;flex-shrink:0;line-height:1.55; }
 </style>
 
@@ -523,19 +606,20 @@ function _ragShowWelcome() {
   ];
   var div = document.createElement('div');
   div.id = 'ragWelcomeBlock';
-  div.style.cssText = 'padding:16px 4px 8px;';
-  // Icon + title
+  div.style.cssText = 'padding:8px 2px 4px;';
   div.innerHTML =
-    '<div style="text-align:center;margin-bottom:14px;">' +
-      '<div style="width:54px;height:54px;background:rgba(0,48,135,0.1);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px;">' +
-        '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#003087"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>' +
+    '<div style="text-align:center;margin-bottom:18px;padding:0 4px;">' +
+      '<div style="width:58px;height:58px;background:linear-gradient(135deg,#fff0f0,#ffe4e4);border:2px solid rgba(232,0,28,0.12);border-radius:18px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;box-shadow:0 4px 16px rgba(232,0,28,0.1);">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#E8001C"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>' +
       '</div>' +
-      '<div style="font-size:15px;font-weight:700;color:#1a202c;margin-bottom:4px;">Admin AI Assistant</div>' +
-      '<div style="font-size:11.5px;color:#718096;line-height:1.5;">Ask me about fleet, inventory, maintenance costs, or generate reports.</div>' +
+      '<div style="font-size:15px;font-weight:800;color:#1a202c;margin-bottom:5px;letter-spacing:-0.3px;">Hey, how can I help?</div>' +
+      '<div style="font-size:12px;color:#94a3b8;line-height:1.6;max-width:260px;margin:0 auto;">Ask me about fleet, inventory, maintenance costs, or generate reports.</div>' +
     '</div>' +
+    '<div style="display:flex;flex-direction:column;gap:8px;">' +
     suggestions.map(function(s) {
-      return '<button class="rag-suggest-pill" style="margin-bottom:8px;" onclick="ragAiSend('+JSON.stringify(s)+')">'+_ragEsc(s)+'</button>';
-    }).join('');
+      return '<button class="rag-suggest-pill" onclick="ragAiSend('+JSON.stringify(s)+')">' + _ragEsc(s) + '</button>';
+    }).join('') +
+    '</div>';
   chat.appendChild(div);
 }
 
