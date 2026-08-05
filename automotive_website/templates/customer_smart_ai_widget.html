@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -138,6 +138,16 @@
         }
         .ai-send:hover { transform: scale(1.08); }
         .ai-hint { text-align:center; font-size:11px; color:#cbd5e0; padding:4px 0 2px; background:white; flex-shrink:0; }
+        /* Suggestion pills inside welcome */
+        .ai-suggestions { display:flex; flex-direction:column; gap:10px; padding:18px 0 4px; }
+        .ai-suggest-pill { display:block;width:100%;text-align:center;background:white;border:1.2px solid #e2e8f0;border-radius:30px;padding:10px 18px;font-size:13px;color:#9aa5b4;cursor:pointer;font-family:inherit;transition:all .15s;box-shadow:0 1px 4px rgba(0,0,0,0.03); }
+        .ai-suggest-pill:hover { border-color:#E8001C;color:#E8001C;background:#fff5f5; }
+        /* Row layout for bubbles with avatars */
+        .ai-row { display:flex;gap:8px;align-items:flex-end; }
+        .ai-row.user { flex-direction:row-reverse; }
+        .ai-av { width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+        .ai-av.bot { background:linear-gradient(135deg,#E8001C,#c0001a); }
+        .ai-av.usr { background:linear-gradient(135deg,#E8001C,#C41E3A);font-size:10px;font-weight:700;color:white; }
     </style>
 </head>
 <body data-page="smart-ai">
@@ -148,24 +158,26 @@
 <div class="ai-messages" id="aiMessages">
     <div class="ai-welcome" id="aiWelcome">
         <div class="ai-welcome-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="1"/><circle cx="12" cy="16" r="1"/><path d="M9 12h6M8 6h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><path d="M6 10h-.5a1.5 1.5 0 0 0 0 3H6M18 10h.5a1.5 1.5 0 0 1 0 3H18"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="#003087"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
         </div>
-        <div class="ai-welcome-title">Smart Reports AI</div>
+        <div class="ai-welcome-title">Customer AI Assistant</div>
         <div class="ai-welcome-sub" id="aiWelcomeSub">Ask me anything about your vehicles — PMS status, maintenance history, and more.</div>
+        <div class="ai-suggestions" id="aiSuggestions">
+            <button class="ai-suggest-pill" onclick="send('List all my registered vehicles')">List all my registered vehicles</button>
+            <button class="ai-suggest-pill" onclick="send('Give me a fleet summary')">Give me a fleet summary</button>
+            <button class="ai-suggest-pill" onclick="send('Which of my vehicles are under maintenance?')">Which of my vehicles are under maintenance?</button>
+            <button class="ai-suggest-pill" onclick="send('Which vehicles have PMS overdue?')">Which vehicles have PMS overdue?</button>
+            <button class="ai-suggest-pill" onclick="send('Which vehicles have PMS due soon?')">Which vehicles have PMS due soon?</button>
+            <button class="ai-suggest-pill" onclick="send('Show my complete service history')">Show my complete service history</button>
+            <button class="ai-suggest-pill" onclick="send('Show my upcoming and past bookings')">Show my upcoming and past bookings</button>
+            <button class="ai-suggest-pill" onclick="send('What services do you offer and what are the prices?')">What services do you offer and what are the prices?</button>
+            <button class="ai-suggest-pill" onclick="send('How much would a change oil and brake cleaning cost?')">How much would a change oil and brake cleaning cost?</button>
+        </div>
     </div>
 </div>
 
-<div class="ai-chips" id="aiChips">
-    <button class="ai-chip" onclick="send('List all my vehicles')">🚗 My fleet</button>
-    <button class="ai-chip" onclick="send('Give me a fleet summary')">📊 Summary</button>
-    <button class="ai-chip" onclick="send('Which vehicles are under maintenance?')">🔧 Maintenance</button>
-    <button class="ai-chip" onclick="send('Which vehicles have PMS overdue?')">⚠️ Overdue</button>
-    <button class="ai-chip" onclick="send('Which vehicles have PMS due soon?')">📅 Due soon</button>
-    <button class="ai-chip" onclick="send('Show my service history')">📋 History</button>
-    <button class="ai-chip" onclick="send('Show my bookings')">🗓️ Bookings</button>
-    <button class="ai-chip" onclick="send('What services do you offer and their prices?')">💰 Service prices</button>
-    <button class="ai-chip" onclick="send('How much is a change oil?')">🔍 Change oil cost</button>
-</div>
+<!-- Hidden legacy chips container — no longer shown -->
+<div id="aiChips" style="display:none;"></div>
 
 <div class="ai-input-bar">
     <textarea class="ai-input" id="aiInput" placeholder="Ask about your vehicles..." rows="1"
@@ -196,7 +208,7 @@
   const cpUser = JSON.parse(stored || '{}');
   const db = firebase.firestore();
 
-  let _myVehicles = [], _myMaintenance = [], _dataLoaded = false;
+  let _myVehicles = [], _customerInitials = '?', _myMaintenance = [], _dataLoaded = false;
   const messages = [];
   let _chatHistory = [];    // rolling client-side history (legacy fallback)
   let _sessionId   = null;  // server-side session key returned by the backend
@@ -219,13 +231,12 @@
           'font-size:12.5px;color:#9a3412;flex-shrink:0;display:flex;' +
           'align-items:flex-start;gap:10px;line-height:1.55;';
         b.innerHTML =
-          '<span style="font-size:18px;line-height:1;">🚫</span>' +
+          '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#9a3412" style="flex-shrink:0;margin-top:2px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
           '<div><strong style="display:block;font-size:13px;margin-bottom:2px;">' +
-          'AI service unavailable — daily token limit reached</strong>' +
-          'The Groq API has used up its free-tier quota for today. ' +
-          'The AI chat will automatically become available again in ' +
+          'AI unavailable — daily token limit reached</strong>' +
+          'Groq free-tier quota exhausted. Resets in ' +
           '<strong>' + (resetIn || 'some time') + '</strong>. ' +
-          'You cannot send new messages until the limit resets.</div>';
+          'Chat is disabled until then.</div>';
         const inputBar = document.querySelector('.ai-input-bar');
         if (inputBar) inputBar.parentNode.insertBefore(b, inputBar);
       }
@@ -253,6 +264,14 @@
       .map(d => ({ id: d.id, ...d.data() }))
       .filter(v => (v.owner || '').toLowerCase() === userName.toLowerCase());
 
+    // Set initials for user avatar
+    if (userName) {
+      const parts = userName.trim().split(' ').filter(Boolean);
+      _customerInitials = parts.length >= 2
+        ? (parts[0][0] + parts[1][0]).toUpperCase()
+        : parts[0][0].toUpperCase();
+    }
+
     document.getElementById('aiWelcomeSub').textContent =
       _myVehicles.length
         ? `Ask me anything about your ${_myVehicles.length} vehicle${_myVehicles.length !== 1 ? 's' : ''} — PMS status, maintenance history, and more.`
@@ -278,19 +297,19 @@
       const list = _myVehicles.filter(v => (v.status || '').toLowerCase().includes('maintenance'));
       return list.length
         ? 'Under maintenance:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n')
-        : 'None of your vehicles are currently under maintenance. ✅';
+        : 'None of your vehicles are currently under maintenance.';
     }
     if (ql.includes('overdue') || ql.includes('past due')) {
       const list = _myVehicles.filter(v => v.status === 'Overdue');
       return list.length
         ? 'PMS Overdue:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n') + '\n\nPlease schedule a service soon!'
-        : 'No vehicles are overdue for PMS. ✅';
+        : 'No vehicles are overdue for PMS.';
     }
     if (ql.includes('due soon') || ql.includes('upcoming')) {
       const list = _myVehicles.filter(v => v.status === 'PMS Due Soon');
       return list.length
         ? 'PMS Due Soon:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n')
-        : 'No vehicles have PMS due soon. ✅';
+        : 'No vehicles have PMS due soon.';
     }
     if (ql.includes('history') || ql.includes('service record') || ql.includes('completed')) {
       const done = _myMaintenance.filter(m => (m.status || '').toLowerCase() === 'completed');
@@ -308,53 +327,67 @@
       const maint  = _myVehicles.filter(v => (v.status || '').includes('Maintenance')).length;
       const over   = _myVehicles.filter(v => v.status === 'Overdue').length;
       const soon   = _myVehicles.filter(v => v.status === 'PMS Due Soon').length;
-      return `Fleet Summary:\n✅ Active: ${active}\n🔧 Under Maintenance: ${maint}\n⚠️ PMS Overdue: ${over}\n📅 Due Soon: ${soon}\n🚗 Total: ${_myVehicles.length}`;
+      return `Fleet Summary:\nActive: ${active}\nUnder Maintenance: ${maint}\nPMS Overdue: ${over}\nDue Soon: ${soon}\nTotal: ${_myVehicles.length}`;
     }
     if (ql.includes('vehicle') || ql.includes('fleet') || ql.includes('list') || ql.includes('all my')) {
       const lines = _myVehicles.map(v => {
-        const e = v.status === 'Active' ? '✅' : v.status === 'Under Maintenance' ? '🔧' : v.status === 'Overdue' ? '⚠️' : v.status === 'PMS Due Soon' ? '📅' : '•';
-        return `${e} ${v.plate} — ${v.desc} (${v.status || 'Active'})`;
+        return `• ${v.plate} — ${v.desc} (${v.status || 'Active'})`;
       }).join('\n');
       return `Your fleet (${_myVehicles.length} vehicle${_myVehicles.length !== 1 ? 's' : ''}):\n${lines}`;
     }
     return 'I can help you with:\n• Vehicle status & fleet summary\n• PMS overdue or due soon\n• Vehicles under maintenance\n• Service history & total cost\n\nTry asking: "Which vehicles are overdue?"';
   }
 
-  function addBubble(text, role) {
-    const el = document.createElement('div');
-    el.className = `ai-bubble ${role}`;
-    el.textContent = text;
-    document.getElementById('aiMessages').appendChild(el);
-    el.scrollIntoView({ behavior: 'smooth' });
-    return el;
+  const _BOT_AVATAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>';
+
+  function _addBubble(text, role) {
+    const msgs = document.getElementById('aiMessages');
+    const row = document.createElement('div');
+    row.className = 'ai-row' + (role === 'user' ? ' user' : '');
+    const av = role === 'user'
+      ? `<div class="ai-av usr">${_customerInitials}</div>`
+      : `<div class="ai-av bot">${_BOT_AVATAR_SVG}</div>`;
+    const bub = document.createElement('div');
+    bub.className = `ai-bubble ${role === 'user' ? 'user' : 'bot'}`;
+    bub.textContent = text;
+    if (role === 'user') { row.appendChild(bub); row.insertAdjacentHTML('beforeend', av); }
+    else { row.insertAdjacentHTML('beforeend', av); row.appendChild(bub); }
+    msgs.appendChild(row);
+    row.scrollIntoView({ behavior: 'smooth' });
+    return bub;
   }
 
+  // Keep addBubble alias for backward compat in clearChat
+  function addBubble(text, role) { return _addBubble(text, role); }
+
   function addTyping() {
-    const el = document.createElement('div');
-    el.className = 'ai-typing';
-    el.innerHTML = '<span></span><span></span><span></span>';
-    document.getElementById('aiMessages').appendChild(el);
-    el.scrollIntoView({ behavior: 'smooth' });
-    return el;
+    const msgs = document.getElementById('aiMessages');
+    const row = document.createElement('div');
+    row.className = 'ai-row';
+    row.id = '_aiTyping';
+    row.innerHTML = `<div class="ai-av bot">${_BOT_AVATAR_SVG}</div>`
+      + '<div class="ai-typing"><span></span><span></span><span></span></div>';
+    msgs.appendChild(row);
+    row.scrollIntoView({ behavior: 'smooth' });
+    return row;
   }
 
   window.send = async function (preset) {
     const input = document.getElementById('aiInput');
     const text = (preset || input.value).trim();
     if (!text) return;
-    if (_rateLimited) return;  // blocked while rate-limited
+    if (_rateLimited) return;
 
-    // Hide welcome + chips on first message
+    // Hide welcome + suggestions on first message
     document.getElementById('aiWelcome').style.display = 'none';
-    document.getElementById('aiChips').style.display = 'none';
     document.getElementById('clearBtn').style.display = 'block';
 
-    addBubble(text, 'user');
+    _addBubble(text, 'user');
     input.value = '';
     input.style.height = 'auto';
 
     if (!_dataLoaded) {
-      addBubble('Loading your fleet data, please try again in a moment.', 'bot');
+      _addBubble('Loading your fleet data, please try again in a moment.', 'bot');
       return;
     }
 
@@ -378,32 +411,38 @@
       typing.remove();
       if (data.offline || !data.success) {
         // Backend offline — fall back to local processing
-        addBubble(processQuery(text), 'bot');
+        _addBubble(processQuery(text), 'bot');
       } else if (data.rate_limited) {
         // Groq daily token limit reached — show notice and lock input
         _setRateLimited(true, data.reset_in || 'some time');
-        const el = document.createElement('div');
-        el.className = 'ai-bubble bot';
-        el.style.cssText = 'background:#fff7ed;border:1.5px solid #fb923c;color:#9a3412;max-width:90%;';
-        el.innerHTML =
-          '<div style="font-size:14px;font-weight:700;margin-bottom:6px;">🚫 AI Unavailable</div>' +
-          '<div style="font-size:12.5px;line-height:1.6;">' +
-          'The AI service has reached its <strong>daily token limit</strong> (Groq free tier).<br><br>' +
-          '⏱️ The limit resets in <strong>' + (data.reset_in || 'some time') + '</strong>.<br><br>' +
-          'You will not be able to send messages until the quota resets automatically. ' +
-          'Please check back later.</div>';
-        document.getElementById('aiMessages').appendChild(el);
-        el.scrollIntoView({ behavior: 'smooth' });
+        const msgs2 = document.getElementById('aiMessages');
+        const rlRow = document.createElement('div');
+        rlRow.className = 'ai-row';
+        rlRow.innerHTML = `<div class="ai-av bot">${_BOT_AVATAR_SVG}</div>`;
+        const rlBub = document.createElement('div');
+        rlBub.className = 'ai-bubble bot';
+        rlBub.style.cssText = 'background:#fff7ed;border:1.5px solid #fb923c;color:#9a3412;max-width:90%;';
+        rlBub.innerHTML =
+          '<div style="font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;">' +
+          '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="#9a3412"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
+          'AI Unavailable</div>' +
+          '<div style="font-size:12px;line-height:1.6;">' +
+          'The AI service has reached its <strong>daily token limit</strong> (Groq free tier).<br>' +
+          'Resets in <strong>' + (data.reset_in || 'some time') + '</strong>.<br>' +
+          'You cannot send messages until the quota resets automatically.</div>';
+        rlRow.appendChild(rlBub);
+        msgs2.appendChild(rlRow);
+        rlRow.scrollIntoView({ behavior: 'smooth' });
       } else if (data.answer) {
         // Store session_id for continuity across turns
         if (data.session_id) { _sessionId = data.session_id; }
-        addBubble(data.answer, 'bot');
+        _addBubble(data.answer, 'bot');
       } else {
-        addBubble(processQuery(text), 'bot');
+        _addBubble(processQuery(text), 'bot');
       }
     } catch (err) {
       typing.remove();
-      addBubble(processQuery(text), 'bot');
+      _addBubble(processQuery(text), 'bot');
     }
   };
 
@@ -416,9 +455,9 @@
     _setRateLimited(false);
     const msgs = document.getElementById('aiMessages');
     msgs.innerHTML = '';
-    document.getElementById('aiWelcome').style.display = 'block';
-    document.getElementById('aiChips').style.display = 'flex';
-    document.getElementById('clearBtn').style.display = 'none';
+    document.getElementById('aiWelcome').style.display = '';
+    const sug = document.getElementById('aiSuggestions'); if(sug) sug.style.display = 'flex';
+    const cb2 = document.getElementById('clearBtn'); if(cb2) cb2.style.display = 'none';
     msgs.appendChild(document.getElementById('aiWelcome'));
     _chatHistory = [];
   };
@@ -440,3 +479,5 @@
 </script>
 </body>
 </html>
+
+

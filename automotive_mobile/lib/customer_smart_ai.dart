@@ -12,15 +12,35 @@ const _kCustAiBaseUrl = String.fromEnvironment(
   defaultValue: 'https://caltex-autopro-capstone-project.onrender.com',
 );
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Static chat store — survives page navigation (cleared on logout/refresh/delete)
+// ─────────────────────────────────────────────────────────────────────────────
+class CustomerChatStore {
+  static final List<_ChatMsg> messages = [];
+  static String? sessionId;
+  static bool rateLimited = false;
+  static String resetIn = '';
+
+  static void clear() {
+    messages.clear();
+    sessionId = null;
+    rateLimited = false;
+    resetIn = '';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 class CustomerSmartAI extends StatefulWidget {
   const CustomerSmartAI({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   State<CustomerSmartAI> createState() => _CustomerSmartAIState();
 }
 
 class _CustomerSmartAIState extends State<CustomerSmartAI> {
-  // ── Brand colours (matches website exactly) ───────────────────────────────
+  // ── Brand colours ─────────────────────────────────────────────────────────
   static const _red  = Color(0xFFE8001C);
   static const _blue = Color(0xFF003087);
   static const _bg   = Color(0xFFF7F8FA);
@@ -28,8 +48,10 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   final _inputCtrl  = TextEditingController();
   final _scrollCtrl = ScrollController();
 
-  final List<_ChatMsg> _messages = [];
-  String? _sessionId;
+  // Messages and session live in the static store — widget rebuild-safe
+  List<_ChatMsg> get _messages => CustomerChatStore.messages;
+  String? get _sessionId => CustomerChatStore.sessionId;
+  set _sessionId(String? v) => CustomerChatStore.sessionId = v;
 
   String _customerUid   = '';
   String _customerName  = '';
@@ -39,8 +61,10 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   bool _dataLoaded    = false;
   bool _loading       = false;
   bool _backendOnline = true;
-  bool _rateLimited   = false;
-  String _resetIn     = '';
+  bool get _rateLimited => CustomerChatStore.rateLimited;
+  set _rateLimited(bool v) => CustomerChatStore.rateLimited = v;
+  String get _resetIn => CustomerChatStore.resetIn;
+  set _resetIn(String v) => CustomerChatStore.resetIn = v;
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Init
@@ -50,6 +74,30 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     super.initState();
     _loadIdentity();
     _checkBackend(silent: true);
+    _checkAiStatus();
+  }
+
+  /// Checks the backend AI key status on startup.
+  /// If at least one key is active (not rate-limited), clears any stale
+  /// _rateLimited flag left over from a previous session.
+  Future<void> _checkAiStatus() async {
+    try {
+      final r = await http
+          .get(Uri.parse('$_kCustAiBaseUrl/ai-settings/status'))
+          .timeout(const Duration(seconds: 15));
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body) as Map<String, dynamic>;
+        final activeKeys = (data['active_keys'] as num?)?.toInt() ?? 0;
+        if (activeKeys > 0 && mounted) {
+          setState(() {
+            _rateLimited = false;
+            _resetIn = '';
+          });
+        }
+      }
+    } catch (_) {
+      // Silently ignore — status check is best-effort
+    }
   }
 
   @override
@@ -170,7 +218,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               _resetIn = resetIn;
               _messages.add(_ChatMsg(
                 role: 'ai',
-                text: '🚫 AI Unavailable\n\nThe AI service has reached its daily token limit (Groq free tier).\n\n⏱️ The limit resets in $resetIn.\n\nYou cannot send new messages until the quota resets automatically.',
+                text: 'AI Unavailable\n\nThe AI service has reached its daily token limit (Groq free tier).\n\nThe limit resets in $resetIn.\n\nYou cannot send new messages until the quota resets automatically.',
                 isRateLimit: true,
               ));
             });
@@ -189,7 +237,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         if (mounted) {
           setState(() {
             _loading = false;
-            _messages.add(_ChatMsg(role: 'ai', text: '⚠️ AI service error (${resp.statusCode}): $err'));
+            _messages.add(_ChatMsg(role: 'ai', text: 'AI service error (${resp.statusCode}): $err'));
           });
         }
       }
@@ -198,7 +246,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         setState(() {
           _loading = false;
           _messages.add(_ChatMsg(role: 'ai',
-              text: '🔌 Cannot reach the AI service.\n\nPlease check your internet connection.\n\nError: $e'));
+              text: 'Cannot reach the AI service.\n\nPlease check your internet connection.\n\nError: $e'));
         });
       }
     } on Exception catch (e) {
@@ -207,8 +255,8 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           _loading = false;
           _messages.add(_ChatMsg(role: 'ai',
               text: e.toString().contains('Timeout') || e.toString().contains('timed out')
-                  ? '⏱️ Request timed out. Please check your connection and try again.'
-                  : '⚠️ Unexpected error: $e'));
+                  ? 'Request timed out. Please check your connection and try again.'
+                  : 'Unexpected error: $e'));
         });
       }
     }
@@ -259,12 +307,9 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                 if (_sessionId != null) {
                   http.delete(Uri.parse('$_kCustAiBaseUrl/session/$_sessionId'))
                       .catchError((_) => http.Response('', 200));
-                  _sessionId = null;
                 }
                 setState(() {
-                  _messages.clear();
-                  _rateLimited = false;
-                  _resetIn = '';
+                  CustomerChatStore.clear();
                 });
               },
             ),
@@ -302,24 +347,35 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               border: Border(bottom: BorderSide(color: Color(0xFFFB923C), width: 2)),
             ),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('🚫', style: TextStyle(fontSize: 18)),
+              const Icon(Icons.block, size: 18, color: Color(0xFF9A3412)),
               const SizedBox(width: 10),
               Expanded(child: RichText(
                 text: TextSpan(
                   style: const TextStyle(fontSize: 12, color: Color(0xFF9A3412), height: 1.5),
                   children: [
                     const TextSpan(
-                      text: 'AI service unavailable — daily token limit reached\n',
+                      text: 'AI unavailable — daily token limit reached\n',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                     ),
-                    const TextSpan(text: 'The Groq free-tier quota is exhausted. Resets in '),
+                    const TextSpan(text: 'Groq free-tier quota is exhausted. Resets in '),
                     TextSpan(
                         text: _resetIn,
                         style: const TextStyle(fontWeight: FontWeight.bold)),
-                    const TextSpan(text: '. You cannot send messages until then.'),
+                    const TextSpan(text: '. Chat is disabled until then.'),
                   ],
                 ),
               )),
+              GestureDetector(
+                onTap: _checkAiStatus,
+                child: const Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: Text('Retry',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF9A3412))),
+                ),
+              ),
             ]),
           ),
 
@@ -396,7 +452,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  Welcome screen  (matches website layout)
+  //  Welcome screen
   // ─────────────────────────────────────────────────────────────────────────
   Widget _buildWelcome() {
     final first = _customerName.isNotEmpty ? _customerName.split(' ').first : '';
@@ -407,58 +463,61 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               'vehicle${_vehicleCount != 1 ? 's' : ''}. Ask me anything about them.'
             : 'Hi $first! No vehicles are registered under your account yet.';
 
-    final chips = [
-      ('🚗 My fleet',       'List all my vehicles'),
-      ('📊 Summary',        'Give me a fleet summary'),
-      ('🔧 Maintenance',    'Which vehicles are under maintenance?'),
-      ('⚠️ Overdue',       'Which vehicles have PMS overdue?'),
-      ('📅 Due soon',       'Which vehicles have PMS due soon?'),
-      ('📋 History',        'Show my service history'),
-      ('🗓️ Bookings',      'Show my bookings'),
-      ('💰 Service prices', 'What services do you offer and their prices?'),
-      ('🔍 Cost estimate',  'How much would a change oil and brake cleaning cost?'),
+    final suggestions = [
+      'List all my registered vehicles',
+      'Give me a fleet summary',
+      'Which of my vehicles are under maintenance?',
+      'Which vehicles have PMS overdue?',
+      'Which vehicles have PMS due soon?',
+      'Show my complete service history',
+      'Show my upcoming and past bookings',
+      'What services do you offer and what are the prices?',
+      'How much would a change oil and brake cleaning cost?',
     ];
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(children: [
-        const SizedBox(height: 12),
-        // ── Welcome icon — matches website #003087 blue ──
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
         Container(
-          width: 64, height: 64,
+          width: 60, height: 60,
           decoration: BoxDecoration(
               color: _blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20)),
-          child: const Icon(Icons.smart_toy_outlined, color: _blue, size: 32),
+              borderRadius: BorderRadius.circular(18)),
+          child: const Icon(Icons.directions_car_rounded, color: _blue, size: 30),
         ),
         const SizedBox(height: 14),
-        const Text('Vehicle Assistant',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1a202c))),
+        const Text(
+          'Customer AI Assistant',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1a202c)),
+        ),
         const SizedBox(height: 6),
-        Text(sub,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF718096), height: 1.5)),
+        Text(
+          sub,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 13, color: Color(0xFF718096), height: 1.5),
+        ),
         const SizedBox(height: 24),
-        // ── Chips in a Wrap — matches website flex-wrap ──
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: chips.map((c) => GestureDetector(
-            onTap: () => _send(c.$2),
+        ...suggestions.map((s) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: GestureDetector(
+            onTap: () => _send(s),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFe2e8f0), width: 1.5),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4)],
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: const Color(0xFFe2e8f0), width: 1.2),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)],
               ),
-              child: Text(c.$1,
-                  style: const TextStyle(
-                      fontSize: 12, color: Color(0xFF4a5568), fontWeight: FontWeight.w500)),
+              child: Text(
+                s,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF9AA5B4)),
+                textAlign: TextAlign.center,
+              ),
             ),
-          )).toList(),
-        ),
+          ),
+        )),
       ]),
     );
   }
@@ -544,7 +603,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                     borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(2), topRight: Radius.circular(13))),
                   child: const Row(children: [
-                    Text('🚫', style: TextStyle(fontSize: 13)),
+                    Icon(Icons.block, color: Colors.white, size: 14),
                     SizedBox(width: 8),
                     Text('AI Service Unavailable',
                         style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
@@ -557,7 +616,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                     children: [
                       const TextSpan(text: 'Daily token limit reached.\n\n',
                           style: TextStyle(fontWeight: FontWeight.bold)),
-                      const TextSpan(text: '⏱️ Resets in '),
+                      const TextSpan(text: 'Resets in '),
                       TextSpan(
                           text: _resetIn.isNotEmpty ? _resetIn : 'some time',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -602,21 +661,22 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)],
   );
 
-  // ── AI avatar — gradient red circle with robot emoji (matches website .rag-av.ai) ──
+  // ── AI avatar — icon-based, matches admin style ──
   Widget _aiAvatar() => Container(
-    width: 28, height: 28,
+    width: 30, height: 30,
     decoration: const BoxDecoration(
       gradient: LinearGradient(
           colors: [Color(0xFFE8001C), Color(0xFFC0001A)],
           begin: Alignment.topLeft, end: Alignment.bottomRight),
       shape: BoxShape.circle,
     ),
-    child: const Center(child: Text('🤖', style: TextStyle(fontSize: 13))),
+    child: const Center(
+      child: Icon(Icons.directions_car_rounded, color: Colors.white, size: 16)),
   );
 
-  // ── User avatar — gradient red with initials (matches website .rag-av.usr) ──
+  // ── User avatar — gradient red with initials ──
   Widget _userAvatar() => Container(
-    width: 28, height: 28,
+    width: 30, height: 30,
     decoration: const BoxDecoration(
       gradient: LinearGradient(
           colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],

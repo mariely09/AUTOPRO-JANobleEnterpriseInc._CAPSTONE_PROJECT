@@ -113,11 +113,29 @@ String? _extractMonthFromMessage(String message) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Static chat store — survives page navigation (cleared on logout/refresh/delete)
+// ─────────────────────────────────────────────────────────────────────────────
+class AdminChatStore {
+  static final List<_ChatMessage> messages = [];
+  static String? sessionId;
+  static bool rateLimited = false;
+  static String resetIn = '';
+
+  static void clear() {
+    messages.clear();
+    sessionId = null;
+    rateLimited = false;
+    resetIn = '';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class AdminSmartReports extends StatefulWidget {
   const AdminSmartReports({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   State<AdminSmartReports> createState() => _AdminSmartReportsState();
 }
 
@@ -128,21 +146,50 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   final _inputCtrl  = TextEditingController();
   final _scrollCtrl = ScrollController();
 
-  final List<_ChatMessage> _messages = [];
+  // Messages and session live in the static store — widget rebuild-safe
+  List<_ChatMessage> get _messages => AdminChatStore.messages;
+  String? get _sessionId => AdminChatStore.sessionId;
+  set _sessionId(String? v) => AdminChatStore.sessionId = v;
+
   final List<Map<String, String>> _history = []; // legacy — kept for fallback only
-  String? _sessionId;  // server-side memory key
   String _initials = 'AD';  // admin initials shown on user bubble
 
   bool _loading       = false;
-  bool _rateLimited   = false;
-  String _resetIn     = '';
+  bool get _rateLimited => AdminChatStore.rateLimited;
+  set _rateLimited(bool v) => AdminChatStore.rateLimited = v;
+  String get _resetIn => AdminChatStore.resetIn;
+  set _resetIn(String v) => AdminChatStore.resetIn = v;
   bool _backendOnline = true;
 
   @override
   void initState() {
     super.initState();
     _checkBackend(silent: true);
+    _checkAiStatus();
     _loadInitials();
+  }
+
+  /// Checks the backend AI key status on startup.
+  /// If at least one key is active (not rate-limited), clears any stale
+  /// _rateLimited flag left over from a previous session.
+  Future<void> _checkAiStatus() async {
+    try {
+      final r = await http
+          .get(Uri.parse('$_kAiBaseUrl/ai-settings/status'))
+          .timeout(const Duration(seconds: 15));
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body) as Map<String, dynamic>;
+        final activeKeys = (data['active_keys'] as num?)?.toInt() ?? 0;
+        if (activeKeys > 0 && mounted) {
+          setState(() {
+            _rateLimited = false;
+            _resetIn = '';
+          });
+        }
+      }
+    } catch (_) {
+      // Silently ignore — status check is best-effort
+    }
   }
 
   Future<void> _loadInitials() async {
@@ -270,9 +317,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             _resetIn = resetIn;
             _messages.add(_ChatMessage(
               role: 'ai',
-              text: '🚫 AI Unavailable\n\n'
+              text: 'AI Unavailable\n\n'
                   'The AI service has reached its daily token limit (Groq free tier).\n\n'
-                  '⏱️ The limit resets in $resetIn.\n\n'
+                  'The limit resets in $resetIn.\n\n'
                   'You cannot send new messages until the quota resets automatically.',
               isRateLimit: true,
             ));
@@ -289,7 +336,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           _loading = false;
           _messages.add(_ChatMessage(
             role: 'ai',
-            text: '⚠️ AI service error (${resp.statusCode}): ${_parseError(resp.body)}',
+            text: 'AI service error (${resp.statusCode}): ${_parseError(resp.body)}',
           ));
         });
       }
@@ -298,7 +345,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         _loading = false;
         _messages.add(_ChatMessage(
           role: 'ai',
-          text: '🔌 Cannot reach the AI service.\n\n'
+          text: 'Cannot reach the AI service.\n\n'
               'Please check your internet connection and try again.\n\n'
               'Error: $e',
         ));
@@ -311,15 +358,13 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           _loading = false;
           _messages.add(_ChatMessage(
             role: 'ai',
-            text: '⏱️ Request timed out.\n\n'
-                'The AI service did not respond in time. Please check your '
-                'connection and try again.',
+            text: 'Request timed out.\n\nThe AI service did not respond in time. Please check your connection and try again.',
           ));
         });
       } else {
         setState(() {
           _loading = false;
-          _messages.add(_ChatMessage(role: 'ai', text: '⚠️ Unexpected error: $e'));
+          _messages.add(_ChatMessage(role: 'ai', text: 'Unexpected error: $e'));
         });
       }
     }
@@ -384,7 +429,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                   borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: 16),
-            const Text('📄 Download Report',
+            const Text('Download Report',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
                     color: Color(0xFF1a202c))),
             const SizedBox(height: 6),
@@ -446,7 +491,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             Row(children: [
               Expanded(
                 child: _reportFormatBtn(
-                  label: '📄 PDF',
+                  icon: Icons.picture_as_pdf_outlined,
+                  label: 'PDF',
                   subtitle: 'Branded report',
                   selected: format == 'pdf',
                   onTap: () {
@@ -458,7 +504,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
               const SizedBox(width: 12),
               Expanded(
                 child: _reportFormatBtn(
-                  label: '📊 Excel',
+                  icon: Icons.table_chart_outlined,
+                  label: 'Excel',
                   subtitle: 'Spreadsheet',
                   selected: format == 'excel',
                   onTap: () {
@@ -475,6 +522,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   }
 
   Widget _reportFormatBtn({
+    required IconData icon,
     required String label,
     required String subtitle,
     required bool selected,
@@ -492,12 +540,14 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
               width: selected ? 1.5 : 1),
         ),
         child: Column(children: [
+          Icon(icon, size: 22, color: selected ? _red : const Color(0xFF4a5568)),
+          const SizedBox(height: 6),
           Text(label,
               style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: selected ? _red : const Color(0xFF1a202c))),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(subtitle,
               style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
         ]),
@@ -515,7 +565,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     setState(() {
       _messages.add(_ChatMessage(
           role: 'ai',
-          text: '⏳ Generating $typeName$monthLabel ($fmtLabel)…'));
+          text: 'Generating $typeName$monthLabel ($fmtLabel)…'));
       _loading = true;
     });
     _scrollToBottom();
@@ -549,7 +599,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           _messages.removeLast(); // remove the "Generating…" message
           _messages.add(_ChatMessage(
             role: 'ai',
-            text: '✅ $typeName$monthLabel downloaded successfully!',
+            text: '$typeName$monthLabel downloaded successfully.',
             reportFile: file,
             reportFormat: format,
             reportLabel: typeName,
@@ -569,7 +619,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         _messages.removeLast();
         _messages.add(_ChatMessage(
           role: 'ai',
-          text: '❌ Failed to generate $typeName$monthLabel: $e',
+          text: 'Failed to generate $typeName$monthLabel: $e',
         ));
       });
       _scrollToBottom();
@@ -610,13 +660,10 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 if (_sessionId != null) {
                   http.delete(Uri.parse('$_kAiBaseUrl/session/$_sessionId'))
                       .catchError((_) => http.Response('', 200));
-                  _sessionId = null;
                 }
                 setState(() {
-                  _messages.clear();
+                  AdminChatStore.clear();
                   _history.clear();
-                  _rateLimited = false;
-                  _resetIn = '';
                 });
               },
             ),
@@ -662,14 +709,14 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
               ),
             ),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('🚫', style: TextStyle(fontSize: 18)),
+              const Icon(Icons.block, size: 18, color: Color(0xFF9A3412)),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'AI service unavailable — daily token limit reached',
+                      'AI unavailable — daily token limit reached',
                       style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.bold,
@@ -681,17 +728,27 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                         style: const TextStyle(
                             fontSize: 12, color: Color(0xFF9A3412), height: 1.5),
                         children: [
-                          const TextSpan(text: 'The Groq API free-tier quota is exhausted. '),
+                          const TextSpan(text: 'Groq free-tier quota is exhausted. Resets in '),
                           TextSpan(
-                            text: 'Resets in $_resetIn. ',
+                            text: _resetIn,
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          const TextSpan(
-                              text: 'You cannot send messages until the limit resets automatically.'),
+                          const TextSpan(text: '. Chat is disabled until then.'),
                         ],
                       ),
                     ),
                   ],
+                ),
+              ),
+              GestureDetector(
+                onTap: _checkAiStatus,
+                child: const Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: Text('Retry',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF9A3412))),
                 ),
               ),
             ]),
@@ -765,65 +822,62 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   // ── Welcome screen ─────────────────────────────────────────────────────────
 
   Widget _buildWelcome() {
-    final chips = [
-      ('📊 Fleet summary',    'Show fleet summary'),
-      ('⚠️ PMS overdue',     'Which vehicles have PMS overdue?'),
-      ('📦 Low stock',        'What items are low in stock?'),
-      ('💰 Repair cost',      'Total repair cost this month'),
-      ('⏳ Pending services', 'How many services are pending?'),
-      ('🚗 All vehicles',     'List all vehicles'),
-      ('📋 Bookings',         'Show all service bookings'),
-      ('📄 Inventory PDF',    'Generate inventory report PDF'),
-      ('📊 Issuance Excel',   'Generate issuance report excel'),
-      ('📄 Maintenance PDF',  'Generate maintenance report PDF'),
-      ('📊 Vehicle Excel',    'Generate vehicle fleet report excel'),
+    final suggestions = [
+      'Show me the fleet summary',
+      'Which vehicles have PMS overdue?',
+      'What items are low in stock?',
+      'What is the total repair cost this month?',
+      'How many services are currently pending?',
+      'List all registered vehicles',
+      'Show all service bookings',
+      'Generate inventory report as PDF',
+      'Generate issuance report as Excel',
+      'Generate maintenance report as PDF',
     ];
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(children: [
-        const SizedBox(height: 12),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
         Container(
-          width: 64, height: 64,
+          width: 60, height: 60,
           decoration: BoxDecoration(
               color: _blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20)),
-          child: const Icon(Icons.smart_toy_outlined, color: _blue, size: 32),
+              borderRadius: BorderRadius.circular(18)),
+          child: const Icon(Icons.support_agent_rounded, color: _blue, size: 30),
         ),
         const SizedBox(height: 14),
-        const Text('Smart Reports AI',
-            style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold,
-                color: Color(0xFF1a202c))),
+        const Text(
+          'Admin AI Assistant',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1a202c)),
+        ),
         const SizedBox(height: 6),
         const Text(
-          'Ask me anything about the fleet, inventory, maintenance costs, '
-          'or generate branded PDF/Excel reports.',
+          'Ask me anything about fleet, inventory, maintenance costs, or generate PDF/Excel reports.',
           style: TextStyle(fontSize: 13, color: Color(0xFF718096), height: 1.5),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 24),
-        Wrap(
-          spacing: 8, runSpacing: 8,
-          children: chips.map((c) => GestureDetector(
-            onTap: () => _sendQuery(c.$2),
+        ...suggestions.map((s) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: GestureDetector(
+            onTap: () => _sendQuery(s),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFe2e8f0)),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4)
-                ],
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: const Color(0xFFe2e8f0), width: 1.2),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)],
               ),
-              child: Text(c.$1,
-                  style: const TextStyle(
-                      fontSize: 12, color: Color(0xFF4a5568),
-                      fontWeight: FontWeight.w500)),
+              child: Text(
+                s,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF9AA5B4)),
+                textAlign: TextAlign.center,
+              ),
             ),
-          )).toList(),
-        ),
+          ),
+        )),
       ]),
     );
   }
@@ -926,7 +980,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                       topRight: Radius.circular(13)),
                   ),
                   child: const Row(children: [
-                    Text('🚫', style: TextStyle(fontSize: 13)),
+                    Icon(Icons.block, color: Colors.white, size: 14),
                     SizedBox(width: 8),
                     Text('AI Service Unavailable',
                         style: TextStyle(color: Colors.white,
@@ -942,7 +996,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                       const TextSpan(
                           text: 'Daily token limit reached.\n\n',
                           style: TextStyle(fontWeight: FontWeight.bold)),
-                      const TextSpan(text: '⏱️ Resets in '),
+                      const TextSpan(text: 'Resets in '),
                       TextSpan(
                         text: _resetIn.isNotEmpty ? _resetIn : 'some time',
                         style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -982,11 +1036,11 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 if (msg.reportFile != null) ...[
                   const SizedBox(height: 10),
                   Row(children: [
-                    _actionBtn('📂 Open', const Color(0xFFE8001C), () async {
+                    _actionBtn(Icons.folder_open_outlined, 'Open', const Color(0xFFE8001C), () async {
                       await OpenFile.open(msg.reportFile!.path);
                     }),
                     const SizedBox(width: 8),
-                    _actionBtn('📤 Share', const Color(0xFF003087), () async {
+                    _actionBtn(Icons.share_outlined, 'Share', const Color(0xFF003087), () async {
                       await Printing.sharePdf(
                         bytes: await msg.reportFile!.readAsBytes(),
                         filename: msg.reportFile!.path.split('/').last,
@@ -1001,7 +1055,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                       children: [
                     for (final entry in _kReportTypes.entries)
                       _tinyChip(
-                        '📄 ${entry.value.replaceAll(' Report', '')} PDF',
+                        '${entry.value.replaceAll(' Report', '')} PDF',
                         () => _downloadReport(entry.key, 'pdf', month: null),
                       ),
                   ]),
@@ -1017,17 +1071,17 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   // ── Avatar helpers ─────────────────────────────────────────────────────────
 
   Widget _aiAvatar() => Container(
-    width: 28, height: 28,
+    width: 30, height: 30,
     decoration: const BoxDecoration(
       gradient: LinearGradient(
         colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
         begin: Alignment.topLeft, end: Alignment.bottomRight),
       shape: BoxShape.circle),
     child: const Center(
-      child: Text('🤖', style: TextStyle(fontSize: 12))));
+      child: Icon(Icons.support_agent_rounded, color: Colors.white, size: 16)));
 
   Widget _userAvatar() => Container(
-    width: 28, height: 28,
+    width: 30, height: 30,
     decoration: const BoxDecoration(
       gradient: LinearGradient(
         colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
@@ -1051,19 +1105,23 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     boxShadow: [BoxShadow(
       color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)]);
 
-  Widget _actionBtn(String label, Color color, VoidCallback onTap) {
+  Widget _actionBtn(IconData icon, String label, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Text(label,
-            style: const TextStyle(
-                fontSize: 11, fontWeight: FontWeight.bold,
-                color: Colors.white)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, color: Colors.white, size: 13),
+          const SizedBox(width: 5),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.bold,
+                  color: Colors.white)),
+        ]),
       ),
     );
   }
