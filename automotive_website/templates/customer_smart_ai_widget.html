@@ -306,6 +306,7 @@
   const db = firebase.firestore();
 
   let _myVehicles = [], _customerInitials = '?', _myMaintenance = [], _dataLoaded = false;
+  let _resolvedCustomerName = cpUser.name || '';  // updated by loadData() after Firestore lookup
   const messages = [];
   let _chatHistory = [];
   let _sessionId   = null;
@@ -503,11 +504,14 @@
         const snap = await db.collection('users').where('email', '==', cpUser.email).limit(1).get();
         if (!snap.empty) userName = snap.docs[0].data().name || '';
       }
+      // ── Store the resolved name for use in API calls ──────────────────
+      if (userName) _resolvedCustomerName = userName;
+
       const vSnap = await db.collection('vehicles').get();
       _myVehicles = vSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-        .filter(v => (v.owner || '').toLowerCase() === userName.toLowerCase());
-      if (userName) {
-        const parts = userName.trim().split(' ').filter(Boolean);
+        .filter(v => (v.owner || '').toLowerCase() === (_resolvedCustomerName || '').toLowerCase());
+      if (_resolvedCustomerName) {
+        const parts = _resolvedCustomerName.trim().split(' ').filter(Boolean);
         _customerInitials = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : parts[0][0].toUpperCase();
       }
       document.getElementById('aiWelcomeSub').textContent = _myVehicles.length
@@ -734,7 +738,7 @@
           message:       text,
           user_type:     'customer',
           customer_uid:  user ? user.uid : (cpUser.uid || ''),
-          customer_name: cpUser.name || '',
+          customer_name: _resolvedCustomerName || cpUser.name || '',
           session_id:    _sessionId
         }),
       });

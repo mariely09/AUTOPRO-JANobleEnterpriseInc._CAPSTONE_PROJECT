@@ -754,10 +754,27 @@ def ai_chat():
 
     # ── Customer chat ─────────────────────────────────────────────────────────
     if user_type == 'customer':
-        if not customer_uid or not customer_name:
+        if not customer_uid:
             return jsonify({
                 'success': False, 'offline': True,
                 'answer': 'Customer identity missing. Please log in again.',
+            }), 400
+
+        # ── Resolve customer_name from Firestore if not provided ─────────────
+        if not customer_name:
+            try:
+                from firestore_client import get_db as _get_db
+                _udb = _get_db()
+                _udoc = _udb.collection('users').doc(customer_uid).get()
+                if _udoc.exists:
+                    customer_name = (_udoc.to_dict().get('name') or '').strip()
+            except Exception:
+                pass
+
+        if not customer_name:
+            return jsonify({
+                'success': False, 'offline': True,
+                'answer': 'Could not resolve your account name. Please refresh and try again.',
             }), 400
         try:
             resp = _requests_lib.post(
