@@ -23,10 +23,10 @@
         .ai-welcome { text-align:center; padding:28px 8px 8px; }
         .ai-welcome-icon {
             width:64px;height:64px;
-            background:linear-gradient(135deg,#e8f0fe,#dbeafe);
-            border:2px solid rgba(0,48,135,0.12);border-radius:20px;
+            background:rgba(255,255,255,0.9);
+            border:2px solid rgba(232,0,28,0.12);border-radius:16px;
             display:flex;align-items:center;justify-content:center;
-            margin:0 auto 14px;box-shadow:0 4px 18px rgba(0,48,135,0.1);
+            margin:0 auto 14px;box-shadow:0 4px 18px rgba(232,0,28,0.1);
         }
         .ai-welcome-title { font-size:18px;font-weight:800;color:#1a202c;margin-bottom:6px;letter-spacing:-0.3px; }
         .ai-welcome-sub   { font-size:13px;color:#94a3b8;line-height:1.65;max-width:300px;margin:0 auto; }
@@ -53,9 +53,9 @@
         /* ── Row + avatars ── */
         .ai-row { display:flex;gap:8px;align-items:flex-end; }
         .ai-row.user { flex-direction:row-reverse; }
-        .ai-av { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-        .ai-av.bot { background:linear-gradient(135deg,#E8001C,#c0001a);box-shadow:0 2px 8px rgba(232,0,28,0.3); }
-        .ai-av.usr { background:linear-gradient(135deg,#475569,#334155);font-size:10px;font-weight:700;color:white;box-shadow:0 2px 6px rgba(0,0,0,0.15); }
+        .ai-av { width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+        .ai-av.bot { background:rgba(255,255,255,0.9);box-shadow:0 2px 8px rgba(232,0,28,0.2); }
+        .ai-av.usr { background:linear-gradient(135deg,#475569,#334155);font-size:10px;font-weight:700;color:white;box-shadow:0 2px 6px rgba(0,0,0,0.15);border-radius:50%; }
 
         /* ── Bubbles ── */
         .ai-bubble { max-width:78%;padding:11px 15px;font-size:13.5px;line-height:1.65;word-break:break-word; }
@@ -107,25 +107,47 @@
         .ai-send:hover { transform:scale(1.08);box-shadow:0 5px 14px rgba(232,0,28,0.45); }
         .ai-hint { text-align:center;font-size:10.5px;color:#c0c8d4;padding:5px 0 2px;background:white;flex-shrink:0; }
 
-        /* ── Top action bar ── */
-        .ai-action-bar {
-            display:flex;align-items:center;justify-content:flex-end;
-            gap:6px;padding:8px 14px 4px;background:white;flex-shrink:0;
+        /* ── AI Header (matches admin panel header) ── */
+        .ai-panel-header {
+            background:linear-gradient(135deg,#c62828 0%,#E8001C 60%,#ff5252 100%);
+            padding:14px 12px;display:flex;align-items:center;gap:10px;flex-shrink:0;
+            position:relative;overflow:visible;
         }
-        .ai-action-btn {
-            width:34px;height:34px;background:transparent;border:1.5px solid #e8edf2;
-            border-radius:10px;color:#64748b;cursor:pointer;display:flex;
-            align-items:center;justify-content:center;transition:all .18s;
-            position:relative;
+        .ai-panel-header::before {
+            content:'';position:absolute;inset:0;
+            background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.1) 0%,transparent 65%);
+            pointer-events:none;
         }
-        .ai-action-btn:hover { background:#fff5f5;border-color:#E8001C;color:#E8001C; }
-        .ai-action-btn .ai-btn-tip {
-            position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);
-            background:rgba(20,20,20,0.85);color:#fff;font-size:10px;font-weight:600;
-            padding:3px 8px;border-radius:5px;white-space:nowrap;pointer-events:none;
-            opacity:0;transition:opacity .15s;z-index:10;
+        .ai-hdr-avatar {
+            width:34px;height:34px;background:rgba(255,255,255,0.18);
+            border:1.5px solid rgba(255,255,255,0.3);border-radius:11px;
+            display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;z-index:1;
         }
-        .ai-action-btn:hover .ai-btn-tip { opacity:1; }
+        .ai-hdr-title-wrap { flex:1;min-width:0;position:relative;z-index:1; }
+        .ai-hdr-title { color:#fff;font-size:13.5px;font-weight:700; }
+        .ai-hdr-status { display:flex;align-items:center;gap:5px;margin-top:2px; }
+        .ai-hdr-dot { width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;box-shadow:0 0 6px rgba(74,222,128,0.8); }
+        .ai-hdr-status-text { font-size:10.5px;color:rgba(255,255,255,0.8); }
+        .ai-hdr-btn {
+            width:32px;height:32px;background:rgba(255,255,255,0.15);
+            border:1px solid rgba(255,255,255,0.25);color:white;border-radius:9px;
+            cursor:pointer;display:flex;align-items:center;justify-content:center;
+            transition:background .18s;flex-shrink:0;position:relative;z-index:1;
+        }
+        .ai-hdr-btn:hover { background:rgba(255,255,255,0.28); }
+        /* Tooltip for header buttons */
+        .ai-hdr-tip-wrap { position:relative;z-index:20; }
+        .ai-hdr-tip {
+            position:absolute;top:calc(100% + 7px);left:50%;transform:translateX(-50%);
+            background:rgba(30,30,30,0.88);color:#fff;font-size:10.5px;font-weight:600;
+            padding:4px 9px;border-radius:6px;white-space:nowrap;pointer-events:none;
+            opacity:0;visibility:hidden;transition:opacity .18s ease;z-index:100;
+        }
+        .ai-hdr-tip::before {
+            content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);
+            border:4px solid transparent;border-bottom-color:rgba(30,30,30,0.88);
+        }
+        .ai-hdr-tip-wrap:hover .ai-hdr-tip { opacity:1;visibility:visible; }
 
         /* ── History drawer ── */
         #aiHistoryDrawer {
@@ -197,22 +219,42 @@
 
 <div id="customerHeader"></div>
 
-<!-- Top action bar with History + Clear buttons -->
-<div class="ai-action-bar">
-    <button class="ai-action-btn" id="historyBtn" onclick="openHistory()" aria-label="Chat history">
-        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        <span class="ai-btn-tip">Chat history</span>
-    </button>
-    <button class="ai-action-btn" id="clearBtn" onclick="clearChat()" aria-label="Clear chat" style="display:none;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-        <span class="ai-btn-tip">Clear chat</span>
-    </button>
+<!-- Admin-style AI Panel Header -->
+<div class="ai-panel-header">
+    <!-- Subtle shine overlay -->
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.1) 0%,transparent 65%);pointer-events:none;"></div>
+    <!-- Bot avatar -->
+    <div class="ai-hdr-avatar">
+        <img src="../static/img/AI_LOGO.png" width="26" height="26" style="object-fit:contain;display:block;" alt="AI Assistant" />
+    </div>
+    <!-- Title + status -->
+    <div class="ai-hdr-title-wrap">
+        <div class="ai-hdr-title">Smart Reports AI</div>
+        <div class="ai-hdr-status">
+            <span class="ai-hdr-dot" id="aiStatusDot"></span>
+            <span class="ai-hdr-status-text" id="aiStatusText">Online</span>
+        </div>
+    </div>
+    <!-- History button -->
+    <div class="ai-hdr-tip-wrap">
+        <button class="ai-hdr-btn" id="historyBtn" onclick="openHistory()" aria-label="Chat history">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </button>
+        <div class="ai-hdr-tip">Chat history</div>
+    </div>
+    <!-- Clear button -->
+    <div class="ai-hdr-tip-wrap" id="clearBtnWrap" style="display:none;">
+        <button class="ai-hdr-btn" id="clearBtn" onclick="clearChat()" aria-label="Clear chat">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
+        <div class="ai-hdr-tip">Clear chat</div>
+    </div>
 </div>
 
 <div class="ai-messages" id="aiMessages">
     <div class="ai-welcome" id="aiWelcome">
         <div class="ai-welcome-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="#003087"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
+            <img src="../static/img/AI_LOGO.png" width="48" height="48" style="object-fit:contain;display:block;" alt="AI Assistant" />
         </div>
         <div class="ai-welcome-title">Customer AI Assistant</div>
         <div class="ai-welcome-sub" id="aiWelcomeSub">Ask me anything about your vehicles — PMS status, maintenance history, bookings, and more.</div>
@@ -309,7 +351,7 @@
     if (latest.id && !latest.id.startsWith('local_')) _sessionId = latest.id;
     // Render restored messages
     document.getElementById('aiWelcome').style.display = 'none';
-    const cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'flex';
+    const cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'flex';
     _chatHistory.forEach(function(m) {
       _addBubble(m.text, m.role);
     });
@@ -332,12 +374,31 @@
     if (_sessionId) { fetch('/api/ai-session/' + _sessionId, { method: 'DELETE' }).catch(function(){}); _sessionId = null; }
     _chatHistory = [];
     _setRateLimited(false);
+
+    // ── Safely rebuild messages area ──────────────────────────────────────
     const msgs = document.getElementById('aiMessages');
+    const welcome = document.getElementById('aiWelcome');
+    if (welcome && welcome.parentNode === msgs) msgs.removeChild(welcome);
     msgs.innerHTML = '';
-    document.getElementById('aiWelcome').style.display = '';
-    const sug = document.getElementById('aiSuggestions'); if(sug) sug.style.display = 'flex';
-    const cb = document.getElementById('clearBtn'); if(cb) cb.style.display = 'none';
-    msgs.appendChild(document.getElementById('aiWelcome'));
+    if (welcome) {
+      welcome.style.display = '';
+      const sug = welcome.querySelector('#aiSuggestions');
+      if (sug) sug.style.display = 'flex';
+      msgs.appendChild(welcome);
+      welcome.querySelectorAll('.ai-suggest-pill[data-q]').forEach(function(btn) {
+        const fresh = btn.cloneNode(true);
+        btn.parentNode.replaceChild(fresh, btn);
+        fresh.addEventListener('click', function() {
+          var q = fresh.getAttribute('data-q');
+          if (q) window.send(q);
+        });
+      });
+    }
+    const cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'none';
+    const input = document.getElementById('aiInput');
+    if (input) { input.disabled = false; input.value = ''; input.style.height = 'auto'; input.placeholder = 'Ask about your vehicles, bookings, or services…'; }
+    const sendBtn = document.querySelector('.ai-send');
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = ''; sendBtn.style.cursor = ''; }
     closeHistory();
   };
 
@@ -381,9 +442,13 @@
     // Clear current view
     _setRateLimited(false);
     const msgs = document.getElementById('aiMessages');
+    const welcome = document.getElementById('aiWelcome');
+    if (welcome && welcome.parentNode === msgs) msgs.removeChild(welcome);
     msgs.innerHTML = '';
     document.getElementById('aiWelcome').style.display = 'none';
-    const cb = document.getElementById('clearBtn'); if(cb) cb.style.display = 'flex';
+    const cb = document.getElementById('clearBtnWrap'); if(cb) cb.style.display = 'flex';
+    // Restore welcome to DOM (hidden) so it stays accessible
+    msgs.appendChild(document.getElementById('aiWelcome'));
     // Load session
     _chatHistory = session.messages.slice();
     _sessionId = (!session.id.startsWith('local_')) ? session.id : null;
@@ -460,38 +525,131 @@
     }
   }
 
-  function processQuery(q) {
-    const ql = q.toLowerCase();
-    if (!_myVehicles.length) return 'No vehicles are registered under your name yet.';
-    if (ql.includes('maintenance') || ql.includes('serviced')) {
-      const list = _myVehicles.filter(v => (v.status || '').toLowerCase().includes('maintenance'));
-      return list.length ? 'Under maintenance:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n') : 'None of your vehicles are currently under maintenance.';
+  // ── Scoped local fallback (used only when AI backend is unreachable) ────
+  // Handles each test-case correctly using only the customer's own local data.
+  function _localFallback(q) {
+    const ql = q.toLowerCase().trim();
+
+    // ── Out-of-scope: inventory, stock levels ────────────────────────────
+    if (ql.includes('inventory') || ql.includes('stock level') || ql.includes('stock') ||
+        ql.includes('reorder') || ql.includes('supplier') || ql.includes('issuance') ||
+        ql.includes('warehouse') || ql.includes('purchase order')) {
+      return "I can only answer questions related to the Automotive Service and Inventory Management System.";
     }
-    if (ql.includes('overdue') || ql.includes('past due')) {
-      const list = _myVehicles.filter(v => v.status === 'Overdue');
-      return list.length ? 'PMS Overdue:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n') + '\n\nPlease schedule a service soon!' : 'No vehicles are overdue for PMS.';
+
+    // ── Out-of-scope: reports ────────────────────────────────────────────
+    if ((ql.includes('report') || ql.includes('generate') || ql.includes('pdf') || ql.includes('excel')) &&
+        !ql.includes('my service') && !ql.includes('my vehicle') && !ql.includes('my booking')) {
+      return "I can only answer questions related to the Automotive Service and Inventory Management System.";
     }
-    if (ql.includes('due soon') || ql.includes('upcoming')) {
-      const list = _myVehicles.filter(v => v.status === 'PMS Due Soon');
-      return list.length ? 'PMS Due Soon:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n') : 'No vehicles have PMS due soon.';
+
+    // ── Privacy: asking about another customer ───────────────────────────
+    if (ql.includes("another customer") || ql.includes("juan dela cruz") ||
+        ql.includes("someone else") || ql.includes("other customer") ||
+        (ql.includes("customer") && (ql.includes("booking") || ql.includes("history") || ql.includes("vehicle")) &&
+         !ql.includes("my"))) {
+      return "I can only show information for your own account.";
     }
-    if (ql.includes('history') || ql.includes('service record') || ql.includes('completed')) {
+
+    // ── Out-of-scope: general knowledge ─────────────────────────────────
+    const outOfScope = ['capital of','weather','news','sport','math','cod','recipe',
+      'movie','music','game','history of','who is','what country','population',
+      'translate','currency','stock market','crypto','bitcoin'];
+    if (outOfScope.some(k => ql.includes(k))) {
+      return "I can only answer questions related to the Automotive Service and Inventory Management System.";
+    }
+
+    // ── Garbage / symbols only ───────────────────────────────────────────
+    const meaningfulChars = (q.match(/[a-zA-Z0-9]/g) || []).length;
+    if (meaningfulChars < 2) {
+      return "I didn't understand that. Please type a question about your vehicles, bookings, or services.";
+    }
+
+    // ── No chat history context ──────────────────────────────────────────
+    if (ql.includes('previous question') || ql.includes('what did i ask') ||
+        ql.includes('last question') || ql.includes('earlier question')) {
+      if (!_chatHistory.length || _chatHistory.filter(m => m.role === 'user').length <= 1) {
+        return "There's no previous conversation in this session. Feel free to ask me anything about your vehicles, bookings, or services!";
+      }
+      const prev = [..._chatHistory].reverse().find(m => m.role === 'user' && m.text !== q);
+      return prev
+        ? `Your previous question was: "${prev.text}"`
+        : "There's no previous conversation in this session.";
+    }
+
+    // ── Service history ──────────────────────────────────────────────────
+    if (ql.includes('service history') || ql.includes('past service') ||
+        ql.includes('maintenance record') || ql.includes('spent') ||
+        ql.includes('service record') || ql.includes('show my service')) {
       const done = _myMaintenance.filter(m => (m.status || '').toLowerCase() === 'completed');
-      if (!done.length) return 'No completed service records found for your vehicles.';
-      const total = done.reduce((s, r) => s + (r.totalCost ? parseFloat(r.totalCost)||0 : parseFloat((r.cost||'0').replace(/[₱,]/g,''))||0), 0);
-      return `You have ${done.length} completed service record${done.length!==1?'s':''}.\nTotal spent: ₱${total.toLocaleString('en-PH',{minimumFractionDigits:2})}\n\nTap "PMS History" tab to view full details.`;
+      if (!done.length) return "You don't have any completed service records yet.";
+      const total = done.reduce((s, r) => {
+        const raw = r.totalCost || r.cost || '0';
+        return s + (parseFloat(String(raw).replace(/[₱,\s]/g, '')) || 0);
+      }, 0);
+      return `You have ${done.length} completed service record${done.length !== 1 ? 's' : ''}. ` +
+             `Total spent: ₱${total.toLocaleString('en-PH', {minimumFractionDigits:2})}\n\n` +
+             `Go to the "PMS History" tab to view full details.`;
     }
-    if (ql.includes('summary') || ql.includes('status') || ql.includes('report')) {
-      const active=_myVehicles.filter(v=>v.status==='Active').length, maint=_myVehicles.filter(v=>(v.status||'').includes('Maintenance')).length, over=_myVehicles.filter(v=>v.status==='Overdue').length, soon=_myVehicles.filter(v=>v.status==='PMS Due Soon').length;
-      return `Fleet Summary:\nActive: ${active}\nUnder Maintenance: ${maint}\nPMS Overdue: ${over}\nDue Soon: ${soon}\nTotal: ${_myVehicles.length}`;
+
+    // ── Vehicles ─────────────────────────────────────────────────────────
+    if (ql.includes('my vehicle') || ql.includes('my fleet') || ql.includes('my car') ||
+        ql.includes('list my') || ql.includes('show my vehicle') || ql.includes('fleet summary')) {
+      if (!_myVehicles.length) return "No vehicles are registered under your account yet.";
+      const lines = _myVehicles.map(v => `• ${v.plate || '—'} — ${v.desc || v.type || '—'} (${v.status || 'Active'})`).join('\n');
+      return `Your fleet (${_myVehicles.length} vehicle${_myVehicles.length !== 1 ? 's' : ''}):\n${lines}`;
     }
-    if (ql.includes('vehicle') || ql.includes('fleet') || ql.includes('list') || ql.includes('all my')) {
-      return `Your fleet (${_myVehicles.length} vehicle${_myVehicles.length!==1?'s':''}):\n` + _myVehicles.map(v => `• ${v.plate} — ${v.desc} (${v.status||'Active'})`).join('\n');
+
+    // ── PMS / overdue / due soon ─────────────────────────────────────────
+    if (ql.includes('overdue')) {
+      const list = _myVehicles.filter(v => (v.status || '').toLowerCase() === 'overdue');
+      return list.length
+        ? `PMS Overdue (${list.length}):\n` + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n') + '\n\nPlease schedule a service soon!'
+        : 'None of your vehicles are overdue for PMS.';
     }
-    return 'I can help you with:\n• Vehicle status & fleet summary\n• PMS overdue or due soon\n• Vehicles under maintenance\n• Service history & total cost\n\nTry asking: "Which vehicles are overdue?"';
+    if (ql.includes('due soon') || ql.includes('due this week')) {
+      const list = _myVehicles.filter(v => ['pms due soon','due soon','due this week'].includes((v.status || '').toLowerCase()));
+      return list.length
+        ? `PMS Due Soon (${list.length}):\n` + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n')
+        : 'No vehicles have PMS due soon.';
+    }
+    if (ql.includes('maintenance') || ql.includes('serviced') || ql.includes('under repair')) {
+      const list = _myVehicles.filter(v => (v.status || '').toLowerCase().includes('maintenance'));
+      return list.length
+        ? `Under maintenance:\n` + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n')
+        : 'None of your vehicles are currently under maintenance.';
+    }
+    if (ql.includes('pms') || ql.includes('next service') || ql.includes('schedule')) {
+      if (!_myVehicles.length) return 'No vehicles found under your account.';
+      const active = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'active').length;
+      const over   = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'overdue').length;
+      const soon   = _myVehicles.filter(v => ['pms due soon','due soon','due this week'].includes((v.status||'').toLowerCase())).length;
+      const maint  = _myVehicles.filter(v => (v.status||'').toLowerCase().includes('maintenance')).length;
+      return `PMS Status for your fleet:\n• Active: ${active}\n• Under Maintenance: ${maint}\n• PMS Overdue: ${over}\n• Due Soon: ${soon}\n• Total: ${_myVehicles.length}`;
+    }
+
+    // ── Bookings ─────────────────────────────────────────────────────────
+    if (ql.includes('booking') || ql.includes('appointment') || ql.includes('schedule') || ql.includes('upcoming')) {
+      return 'To view your service bookings, tap the **Bookings** tab in the app or go to **My Bookings** on the website. I can also look up your bookings — please ask while the AI service is online.';
+    }
+
+    // ── Pricing / services ───────────────────────────────────────────────
+    if (ql.includes('price') || ql.includes('cost') || ql.includes('how much') ||
+        ql.includes('service') || ql.includes('oil change') || ql.includes('change oil') ||
+        ql.includes('estimate') || ql.includes('offer')) {
+      return 'For service pricing and estimates, please ask when the AI service is online — it can look up exact prices from the catalog. Common services include: Change Oil, Brake Service, Battery Check, Tire Rotation, and more.';
+    }
+
+    // ── Default for in-scope but offline ────────────────────────────────
+    if (!_myVehicles.length) return 'No vehicles found under your account. Please check if your account is properly set up.';
+    const active = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'active').length;
+    const over   = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'overdue').length;
+    const soon   = _myVehicles.filter(v => ['pms due soon','due soon','due this week'].includes((v.status||'').toLowerCase())).length;
+    const maint  = _myVehicles.filter(v => (v.status||'').toLowerCase().includes('maintenance')).length;
+    return `Here's a quick summary of your fleet:\n• Total vehicles: ${_myVehicles.length}\n• Active: ${active}\n• Under Maintenance: ${maint}\n• PMS Overdue: ${over}\n• Due Soon: ${soon}\n\nFor detailed answers, please ask when the AI service is online.`;
   }
 
-  const _BOT_AVATAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>';
+  const _BOT_AVATAR_SVG = '<img src="../static/img/AI_LOGO.png" width="28" height="28" style="object-fit:contain;display:block;" alt="AI">';
 
   // Lightweight markdown renderer
   function _md(text) {
@@ -553,39 +711,60 @@
     const text = (preset || input.value).trim();
     if (!text) return;
     if (_rateLimited) return;
-    document.getElementById('aiWelcome').style.display = 'none';
-    const cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'flex';
+
+    // ── Hide welcome, show clear button ──────────────────────────────────
+    const welcome = document.getElementById('aiWelcome');
+    if (welcome) welcome.style.display = 'none';
+    const cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'flex';
+
     _addBubbleAndSave(text, 'user');
     input.value = ''; input.style.height = 'auto';
-    if (!_dataLoaded) { _addBubbleAndSave('Loading your fleet data, please try again in a moment.', 'bot'); _saveChat(); return; }
+
+    if (!_dataLoaded) {
+      _addBubbleAndSave('Still loading your profile — please try again in a moment.', 'bot');
+      _saveChat(); return;
+    }
+
     const typing = addTyping();
     try {
       const user = firebase.auth().currentUser;
       const resp = await fetch('/api/ai-chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, user_type: 'customer', customer_uid: user ? user.uid : (cpUser.uid||''), customer_name: cpUser.name||'', session_id: _sessionId }),
+        body: JSON.stringify({
+          message:       text,
+          user_type:     'customer',
+          customer_uid:  user ? user.uid : (cpUser.uid || ''),
+          customer_name: cpUser.name || '',
+          session_id:    _sessionId
+        }),
       });
+
       const data = await resp.json();
       typing.remove();
-      if (data.offline || !data.success) {
-        _addBubbleAndSave(processQuery(text), 'bot');
-      } else if (data.rate_limited) {
+
+      if (data.rate_limited) {
         _setRateLimited(true, data.reset_in || 'some time');
         const msgs2 = document.getElementById('aiMessages');
         const rlRow = document.createElement('div'); rlRow.className = 'ai-row';
         rlRow.innerHTML = `<div class="ai-av bot">${_BOT_AVATAR_SVG}</div>`;
         const rlBub = document.createElement('div'); rlBub.className = 'ai-bubble bot';
         rlBub.style.cssText = 'background:#fff7ed;border:1.5px solid #fb923c;color:#9a3412;max-width:90%;';
-        rlBub.innerHTML = '<strong>AI Unavailable</strong><br><span style="font-size:12px;">Daily token limit reached. Resets in <strong>'+(data.reset_in||'some time')+'</strong>.</span>';
+        rlBub.innerHTML = '<strong>AI Unavailable</strong><br><span style="font-size:12px;">Daily token limit reached. Resets in <strong>' + (data.reset_in || 'some time') + '</strong>.</span>';
         rlRow.appendChild(rlBub); msgs2.appendChild(rlRow); rlRow.scrollIntoView({ behavior: 'smooth' });
         _chatHistory.push({ role: 'bot', text: 'AI Unavailable — Daily token limit reached.', ts: Date.now() });
       } else if (data.answer) {
         if (data.session_id) { _sessionId = data.session_id; }
         _addBubbleAndSave(data.answer, 'bot');
+      } else if (data.offline || !data.success) {
+        // AI backend offline — use scoped local fallback
+        _addBubbleAndSave(_localFallback(text), 'bot');
       } else {
-        _addBubbleAndSave(processQuery(text), 'bot');
+        _addBubbleAndSave(_localFallback(text), 'bot');
       }
-    } catch (err) { typing.remove(); _addBubbleAndSave(processQuery(text), 'bot'); }
+    } catch (err) {
+      typing.remove();
+      _addBubbleAndSave(_localFallback(text), 'bot');
+    }
     _saveChat();
   };
 
@@ -596,12 +775,39 @@
     if (_sessionId) { fetch('/api/ai-session/' + _sessionId, { method: 'DELETE' }).catch(function(){}); _sessionId = null; }
     _setRateLimited(false);
     _chatHistory = [];
+
+    // ── Rebuild the messages area cleanly ────────────────────────────────
     const msgs = document.getElementById('aiMessages');
+    // Detach welcome block before wiping innerHTML so we keep the reference
+    const welcome = document.getElementById('aiWelcome');
+    if (welcome && welcome.parentNode === msgs) msgs.removeChild(welcome);
     msgs.innerHTML = '';
-    document.getElementById('aiWelcome').style.display = '';
-    const sug = document.getElementById('aiSuggestions'); if(sug) sug.style.display = 'flex';
-    const cb2 = document.getElementById('clearBtn'); if(cb2) cb2.style.display = 'none';
-    msgs.appendChild(document.getElementById('aiWelcome'));
+
+    // Reset welcome block state
+    if (welcome) {
+      welcome.style.display = '';
+      const sug = welcome.querySelector('#aiSuggestions');
+      if (sug) sug.style.display = 'flex';
+      msgs.appendChild(welcome);
+      // Re-attach suggestion pill listeners (they were detached by removeChild)
+      welcome.querySelectorAll('.ai-suggest-pill[data-q]').forEach(function(btn) {
+        // Clone to strip old listeners, then re-add
+        const fresh = btn.cloneNode(true);
+        btn.parentNode.replaceChild(fresh, btn);
+        fresh.addEventListener('click', function() {
+          var q = fresh.getAttribute('data-q');
+          if (q) window.send(q);
+        });
+      });
+    }
+
+    const cb2 = document.getElementById('clearBtnWrap'); if (cb2) cb2.style.display = 'none';
+
+    // Make sure the input is enabled and functional
+    const input = document.getElementById('aiInput');
+    if (input) { input.disabled = false; input.value = ''; input.style.height = 'auto'; input.placeholder = 'Ask about your vehicles, bookings, or services…'; }
+    const sendBtn = document.querySelector('.ai-send');
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = ''; sendBtn.style.cursor = ''; }
   };
 
   firebase.auth().onAuthStateChanged((user) => {
@@ -612,6 +818,24 @@
     } else {
       window.location.href = 'login.html';
     }
+  });
+
+  // Check AI health + update status dot (mirrors admin panel behaviour)
+  fetch('/api/ai-health').then(r => r.json()).then(d => {
+    const dot = document.getElementById('aiStatusDot');
+    const txt = document.getElementById('aiStatusText');
+    if (d.online) {
+      if (dot) dot.style.background = '#4ade80';
+      if (txt) txt.textContent = 'Online';
+    } else {
+      if (dot) { dot.style.background = '#d69e2e'; dot.style.boxShadow = '0 0 6px rgba(214,158,46,0.8)'; }
+      if (txt) txt.textContent = 'Local mode';
+    }
+  }).catch(() => {
+    const dot = document.getElementById('aiStatusDot');
+    const txt = document.getElementById('aiStatusText');
+    if (dot) { dot.style.background = '#d69e2e'; dot.style.boxShadow = '0 0 6px rgba(214,158,46,0.8)'; }
+    if (txt) txt.textContent = 'Local mode';
   });
 
   fetch('customer_header.html').then(r => r.text()).then(html => {

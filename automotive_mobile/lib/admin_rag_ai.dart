@@ -839,11 +839,19 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
         Container(
-          width: 60, height: 60,
+          width: 64, height: 64,
           decoration: BoxDecoration(
-              color: _blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(18)),
-          child: const Icon(Icons.support_agent_rounded, color: _blue, size: 30),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [BoxShadow(color: const Color(0xFFE8001C).withValues(alpha: 0.12), blurRadius: 16)]),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Image.asset(
+              'assets/img/AI_LOGO.png',
+              width: 64, height: 64,
+              fit: BoxFit.contain,
+            ),
+          ),
         ),
         const SizedBox(height: 14),
         const Text(
@@ -1071,14 +1079,20 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   // ── Avatar helpers ─────────────────────────────────────────────────────────
 
   Widget _aiAvatar() => Container(
-    width: 30, height: 30,
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
-        begin: Alignment.topLeft, end: Alignment.bottomRight),
-      shape: BoxShape.circle),
-    child: const Center(
-      child: Icon(Icons.support_agent_rounded, color: Colors.white, size: 16)));
+    width: 32, height: 32,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(10),
+      boxShadow: [BoxShadow(color: const Color(0xFFE8001C).withValues(alpha: 0.2), blurRadius: 6)],
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.asset(
+        'assets/img/AI_LOGO.png',
+        width: 32, height: 32,
+        fit: BoxFit.contain,
+      ),
+    ));
 
   Widget _userAvatar() => Container(
     width: 30, height: 30,

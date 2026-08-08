@@ -479,11 +479,19 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
         Container(
-          width: 60, height: 60,
+          width: 64, height: 64,
           decoration: BoxDecoration(
-              color: _blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(18)),
-          child: const Icon(Icons.support_agent_rounded, color: _blue, size: 30),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [BoxShadow(color: const Color(0xFFE8001C).withValues(alpha: 0.12), blurRadius: 16)]),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Image.asset(
+              'assets/img/AI_LOGO.png',
+              width: 64, height: 64,
+              fit: BoxFit.contain,
+            ),
+          ),
         ),
         const SizedBox(height: 14),
         const Text(
@@ -661,17 +669,22 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)],
   );
 
-  // ── AI avatar — icon-based, matches admin style ──
+  // ── AI avatar — uses AI_LOGO image ──
   Widget _aiAvatar() => Container(
-    width: 30, height: 30,
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-          colors: [Color(0xFFE8001C), Color(0xFFC0001A)],
-          begin: Alignment.topLeft, end: Alignment.bottomRight),
-      shape: BoxShape.circle,
+    width: 32, height: 32,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(10),
+      boxShadow: [BoxShadow(color: const Color(0xFFE8001C).withValues(alpha: 0.2), blurRadius: 6)],
     ),
-    child: const Center(
-      child: Icon(Icons.support_agent_rounded, color: Colors.white, size: 16)),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.asset(
+        'assets/img/AI_LOGO.png',
+        width: 32, height: 32,
+        fit: BoxFit.contain,
+      ),
+    ),
   );
 
   // ── User avatar — gradient red with initials ──
