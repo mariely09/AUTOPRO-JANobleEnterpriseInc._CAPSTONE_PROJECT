@@ -6,7 +6,7 @@ API key rotation is handled transparently by ApiKeyManager:
     returns the next available key.
   - The chat() function retries up to MAX_RETRY_ATTEMPTS times across
     different keys before giving up.
-  - If all keys are exhausted the original RateLimitError is re-raised so
+  - If all keys are exhausted an AllKeysRateLimitedError is raised so
     main.py can return the standard friendly rate-limit message.
 """
 import json
@@ -16,6 +16,13 @@ from config import settings
 from firestore_tools import TOOL_SCHEMAS, TOOL_FUNCTIONS
 from verifier import verify_reply
 from api_key_manager import get_manager
+
+logger = logging.getLogger(__name__)
+
+
+class AllKeysRateLimitedError(Exception):
+    """Raised when every configured Groq API key is rate-limited or in cooldown."""
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -285,8 +292,13 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None):
             kwargs["tools"] = tools
         return client.chat.completions.create(**kwargs)
 
-    # Try current key, then rotate on rate-limit up to max_retries times
-    max_attempts = max(1, manager._max_retries)
+    # Try current key, then rotate on rate-limit up to max_retries times.
+    # We count the total number of distinct keys tried, not just loop iterations,
+    # so with 2 keys and max_retries=3 we'll still try both keys.
+    manager._ensure_loaded()
+    total_keys = max(1, len(manager._keys))
+    max_attempts = max(manager._max_retries, total_keys)
+
     last_key_id = manager.get_current_key_id()
     current_key = manager.get_current_key()
 
@@ -294,10 +306,23 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None):
         # No keys at all — fall back to env var
         current_key = settings.GROQ_API_KEY
         if not current_key:
-            raise RateLimitError("No Groq API key configured.")
+            raise AllKeysRateLimitedError("No Groq API key configured.")
 
     last_exc: Exception | None = None
+    tried_key_ids: set = set()
+
     for attempt in range(max_attempts):
+        # Avoid retrying the exact same key twice
+        if last_key_id in tried_key_ids:
+            # Already tried this key — force a rotation to get a fresh one
+            next_key = manager.rotate_on_rate_limit(failed_key_id=last_key_id)
+            if next_key is None:
+                break
+            last_key_id = manager.get_current_key_id()
+            current_key = next_key
+
+        tried_key_ids.add(last_key_id)
+
         try:
             return _do_call(current_key)
         except RateLimitError as exc:
@@ -312,7 +337,7 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None):
             next_key = manager.rotate_on_rate_limit(failed_key_id=last_key_id)
             if next_key is None:
                 # All keys exhausted
-                raise RateLimitError(
+                raise AllKeysRateLimitedError(
                     "All API keys are currently rate-limited. "
                     "Please try again in a few minutes."
                 ) from exc
@@ -321,8 +346,11 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None):
 
     # Exhausted retries
     if last_exc:
-        raise last_exc
-    raise RateLimitError("Groq API key rotation exhausted all retries.")
+        raise AllKeysRateLimitedError(
+            "All API keys are currently rate-limited. "
+            "Please try again in a few minutes."
+        ) from last_exc
+    raise AllKeysRateLimitedError("Groq API key rotation exhausted all retries.")
 
 
 def _strip_null_args(raw_args: str) -> dict:
@@ -358,7 +386,7 @@ def chat(user_message: str, history: list[dict] | None = None, _retry: bool = Fa
     for _ in range(5):
         try:
             response = _call_groq(messages, tools=TOOL_SCHEMAS)
-        except RateLimitError:
+        except (RateLimitError, AllKeysRateLimitedError):
             # Re-raise so main.py can return the structured rate-limit response
             raise
         except BadRequestError as e:
@@ -378,7 +406,7 @@ def chat(user_message: str, history: list[dict] | None = None, _retry: bool = Fa
                         "verified": True,
                         "unsupported_numbers": [],
                     }
-                except RateLimitError:
+                except (RateLimitError, AllKeysRateLimitedError):
                     raise
                 except Exception as fallback_err:
                     logger.error("Fallback call also failed: %s", fallback_err)
