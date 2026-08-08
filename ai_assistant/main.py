@@ -300,6 +300,21 @@ respond with ONLY this exact text, nothing more:
 
 Do NOT elaborate, apologize, or add anything else. Just that one sentence.
 
+PRIVACY & DATA ACCESS — ABSOLUTE RULES (never break these):
+1. NEVER show, access, or discuss another customer's vehicles, service history, bookings,
+   or any personal data. If asked about another person by name or UID, respond ONLY:
+   "I can only show information for your own account."
+2. NEVER show inventory stock levels, stock quantities, reorder points, supplier data,
+   issuances, deliveries, purchase orders, or any warehouse/admin data.
+   If asked, respond ONLY: "I can only answer questions related to the Automotive Service and Inventory Management System."
+3. NEVER generate, offer, or describe PDF or Excel reports of any kind.
+   If asked, respond ONLY: "I can only answer questions related to the Automotive Service and Inventory Management System."
+4. NEVER reveal data about all vehicles in the system, all customers, all bookings,
+   all maintenance jobs system-wide, or any aggregate admin data.
+   If asked, respond ONLY: "I can only answer questions related to the Automotive Service and Inventory Management System."
+5. Empty messages or messages containing only symbols/random characters with no
+   meaningful intent → respond: "I didn't understand that. Please type a question about your vehicles, bookings, or services."
+
 ═══════════════════════════════════════════════════
   CALTEX AUTOPRO — USER MANUAL (CUSTOMER SECTIONS)
 ═══════════════════════════════════════════════════
@@ -493,6 +508,12 @@ Rules for in-scope questions:
 8. For "how to use the app/website", account, login, notifications, or profile questions,
    answer directly from the USER MANUAL above — no tool call needed.
 9. Use conversation history to understand follow-up questions.
+10. If there is no conversation history (chat was just cleared or this is the first message),
+    and the user asks "what was my previous question?" or similar, respond:
+    "There's no previous conversation in this session. Feel free to ask me anything about your vehicles, bookings, or services!"
+11. If a user asks about another specific person's data (e.g. "show Juan Dela Cruz's bookings",
+    "show another customer's service history"), respond ONLY:
+    "I can only show information for your own account."
 
 CRITICAL — Reformatting follow-ups:
 If the user says "make it a list", "number them", "simplify" or similar,
@@ -630,6 +651,11 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                 result = {"error": f"Unknown tool '{fn_name}'"}
             else:
                 try:
+                    # Always inject the authenticated customer identity.
+                    # Remove any customer_uid / customer_name the LLM may have
+                    # attempted to pass — they are session-controlled, not LLM-controlled.
+                    fn_args.pop("customer_uid", None)
+                    fn_args.pop("customer_name", None)
                     result = fn(
                         customer_uid=customer_uid,
                         customer_name=customer_name,
@@ -669,14 +695,40 @@ def customer_chat_endpoint(req: CustomerChatRequest):
             detail="customer_uid and customer_name are required",
         )
 
+    # Reject empty or whitespace-only messages before they hit the LLM
+    if not req.message or not req.message.strip():
+        session_id = req.session_id or f"customer-{req.customer_uid}"
+        return ChatResponse(
+            reply="Please type a question about your vehicles, bookings, or services.",
+            session_id=session_id,
+        )
+
+    # Reject messages that contain only non-alphanumeric symbols / garbage characters
+    import unicodedata as _ucd
+    _stripped = req.message.strip()
+    _meaningful_chars = sum(
+        1 for c in _stripped
+        if _ucd.category(c).startswith(('L', 'N'))  # letters or digits
+    )
+    if len(_stripped) > 0 and _meaningful_chars == 0:
+        session_id = req.session_id or f"customer-{req.customer_uid}"
+        return ChatResponse(
+            reply="I didn't understand that. Please type a question about your vehicles, bookings, or services.",
+            session_id=session_id,
+        )
+
     # Use customer_uid as the natural session key so each customer
     # automatically has their own persistent memory across devices/sessions.
     session_id = req.session_id or f"customer-{req.customer_uid}"
 
     try:
-        server_history   = get_history(session_id)
+        server_history    = get_history(session_id)
         effective_history = _merge_history(server_history, req.history)
 
+        # NOTE: Do NOT call classify_and_run() here — that fast-path is admin-only
+        # and exposes inventory/fleet/booking data for all customers.
+        # Customer queries always go through _run_customer_chat() which enforces
+        # the CUSTOMER_SYSTEM_PROMPT scope restrictions and per-customer filtering.
         result = _run_customer_chat(
             message=req.message,
             customer_uid=req.customer_uid,

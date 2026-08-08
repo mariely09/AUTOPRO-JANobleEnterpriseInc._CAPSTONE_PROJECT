@@ -56,12 +56,30 @@
           <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
         </svg>
       </button>
-      <!-- Tooltip — above the button so it's never clipped -->
-      <div id="ragClearTip" style="position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);
+      <!-- Tooltip — below the button so it's never clipped by the panel -->
+      <div id="ragClearTip" style="position:absolute;top:calc(100% + 7px);left:50%;transform:translateX(-50%);
            background:rgba(30,30,30,0.88);color:#fff;font-size:10.5px;font-weight:600;
            padding:4px 9px;border-radius:6px;white-space:nowrap;pointer-events:none;
            opacity:0;visibility:hidden;transition:opacity .18s ease;z-index:100;">Clear chat
-        <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:rgba(30,30,30,0.88);"></div>
+        <div style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-bottom-color:rgba(30,30,30,0.88);"></div>
+      </div>
+    </div>
+    <!-- History icon button -->
+    <div style="position:relative;z-index:20;">
+      <button onclick="ragOpenHistory()" id="ragHistoryBtn"
+        title="Chat history"
+        style="width:32px;height:32px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);
+               color:white;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+               transition:background .18s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.28)';document.getElementById('ragHistTip').style.opacity='1';document.getElementById('ragHistTip').style.visibility='visible';"
+        onmouseout="this.style.background='rgba(255,255,255,0.15)';document.getElementById('ragHistTip').style.opacity='0';document.getElementById('ragHistTip').style.visibility='hidden';">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </button>
+      <div id="ragHistTip" style="position:absolute;top:calc(100% + 7px);left:50%;transform:translateX(-50%);
+           background:rgba(30,30,30,0.88);color:#fff;font-size:10.5px;font-weight:600;
+           padding:4px 9px;border-radius:6px;white-space:nowrap;pointer-events:none;
+           opacity:0;visibility:hidden;transition:opacity .18s ease;z-index:100;">Chat history
+        <div style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-bottom-color:rgba(30,30,30,0.88);"></div>
       </div>
     </div>
     <!-- Close button -->
@@ -105,6 +123,50 @@
 @keyframes ragFabPulse  { 0%,100%{box-shadow:0 4px 20px rgba(232,0,28,0.45),0 0 0 0 rgba(232,0,28,0.25)} 50%{box-shadow:0 4px 20px rgba(232,0,28,0.45),0 0 0 8px rgba(232,0,28,0)} }
 @keyframes ragBounce    { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
 @keyframes ragSpin      { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+/* ── History drawer ── */
+#ragHistDrawer {
+  position:fixed;top:0;right:-340px;width:320px;height:100%;z-index:1300;
+  background:white;box-shadow:-4px 0 24px rgba(0,0,0,0.15);
+  transition:right .28s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+#ragHistDrawer.open { right:0; }
+#ragHistOverlay {
+  position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:1299;
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+#ragHistOverlay.show { opacity:1;pointer-events:auto; }
+.rh-hdr {
+  background:linear-gradient(135deg,#c62828,#E8001C);
+  padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;
+}
+.rh-title { flex:1;color:#fff;font-size:14px;font-weight:700; }
+.rh-close {
+  width:28px;height:28px;background:rgba(255,255,255,0.18);border:none;
+  color:white;border-radius:8px;cursor:pointer;font-size:18px;line-height:1;
+  display:flex;align-items:center;justify-content:center;transition:background .15s;
+}
+.rh-close:hover { background:rgba(255,255,255,0.3); }
+.rh-del-all {
+  margin:12px 14px 0;padding:9px 14px;background:#fff5f5;border:1.5px solid #fca5a5;
+  border-radius:10px;color:#dc2626;font-size:12px;font-weight:600;cursor:pointer;
+  font-family:inherit;display:flex;align-items:center;gap:8px;transition:all .18s;width:calc(100% - 28px);
+}
+.rh-del-all:hover { background:#fee2e2;border-color:#E8001C; }
+.rh-body { flex:1;overflow-y:auto;padding:12px 14px; }
+.rh-body::-webkit-scrollbar { width:3px; }
+.rh-body::-webkit-scrollbar-thumb { background:#e2e8f0;border-radius:3px; }
+.rh-day { font-size:10.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin:10px 0 6px; }
+.rh-item {
+  background:#f8f9fb;border:1.5px solid #e8edf2;border-radius:11px;
+  padding:10px 12px;margin-bottom:7px;cursor:pointer;transition:all .15s;
+}
+.rh-item:hover { background:#fff5f5;border-color:#E8001C; }
+.rh-item.active { background:#fff0f0;border-color:#E8001C; }
+.rh-preview { font-size:12px;color:#1a202c;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px; }
+.rh-time { font-size:10.5px;color:#94a3b8;margin-top:3px; }
+.rh-empty { text-align:center;padding:40px 20px;color:#94a3b8;font-size:13px; }
 
 .rag-chip { padding:4px 10px;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:16px;font-size:11px;font-weight:500;color:#4a5568;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:inherit; }
 .rag-chip:hover { background:#E8001C;color:white;border-color:#E8001C; }
@@ -182,6 +244,21 @@
 .rag-rate-banner { background:#fff7ed;border-bottom:2px solid #fb923c;padding:10px 14px;font-size:11.5px;color:#9a3412;display:flex;align-items:flex-start;gap:8px;flex-shrink:0;line-height:1.55; }
 </style>
 
+<!-- History overlay + drawer -->
+<div id="ragHistOverlay" onclick="ragCloseHistory()"></div>
+<div id="ragHistDrawer">
+  <div class="rh-hdr">
+    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="white"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+    <div class="rh-title">Chat History</div>
+    <button class="rh-close" onclick="ragCloseHistory()">×</button>
+  </div>
+  <button class="rh-del-all" onclick="ragDeleteAllChats()">
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    Delete All Chats
+  </button>
+  <div class="rh-body" id="ragHistList"></div>
+</div>
+
 <script>
 // ════════════════════════════════════════════════════════════
 //  Smart Reports AI — Floating Widget
@@ -191,6 +268,105 @@ var _ragInitials = 'AD';
 var _ragReady = false;
 var _ragSessionId = null;  // server-side session key — sent back on each request
 var _ragRateLimited = false;
+var _ragCurrentUid = null;
+var _ragChatHistory = [];   // in-memory copy of current session messages
+
+// ── localStorage persistence ──────────────────────────────────────────────
+function _ragStorageKey(uid) { return 'rag_chat_' + uid; }
+
+function _ragSaveChat() {
+  if (!_ragCurrentUid) return;
+  try {
+    var existing = _ragLoadAllSessions(_ragCurrentUid);
+    var sid = _ragSessionId || ('local_' + Date.now());
+    var idx = -1;
+    for (var i=0; i<existing.length; i++) { if (existing[i].id === sid) { idx = i; break; } }
+    var session = { id: sid, ts: Date.now(), messages: _ragChatHistory.slice() };
+    if (idx >= 0) existing[idx] = session; else existing.unshift(session);
+    if (existing.length > 50) existing = existing.slice(0, 50);
+    localStorage.setItem(_ragStorageKey(_ragCurrentUid), JSON.stringify(existing));
+  } catch(e) {}
+}
+
+function _ragLoadAllSessions(uid) {
+  try { var r = localStorage.getItem(_ragStorageKey(uid)); return r ? JSON.parse(r) : []; }
+  catch(e) { return []; }
+}
+
+function _ragRestoreSession(uid) {
+  var sessions = _ragLoadAllSessions(uid);
+  if (!sessions.length) return;
+  var latest = sessions[0];
+  if (!latest.messages || !latest.messages.length) return;
+  _ragChatHistory = latest.messages.slice();
+  if (latest.id && latest.id.indexOf('local_') !== 0) _ragSessionId = latest.id;
+  // Render restored messages
+  var wb = document.getElementById('ragWelcomeBlock'); if (wb) wb.remove();
+  document.getElementById('ragAiChips').style.display = 'none';
+  _ragChatHistory.forEach(function(m) { _ragAppend(m.role, m.role === 'user' ? _ragEsc(m.text) : _ragMarkdown(m.text)); });
+}
+
+// ── History drawer ────────────────────────────────────────────────────────
+window.ragOpenHistory = function() {
+  _ragRenderHistory();
+  document.getElementById('ragHistDrawer').classList.add('open');
+  document.getElementById('ragHistOverlay').classList.add('show');
+};
+window.ragCloseHistory = function() {
+  document.getElementById('ragHistDrawer').classList.remove('open');
+  document.getElementById('ragHistOverlay').classList.remove('show');
+};
+window.ragDeleteAllChats = function() {
+  if (!confirm('Delete all chat history? This cannot be undone.')) return;
+  if (_ragCurrentUid) localStorage.removeItem(_ragStorageKey(_ragCurrentUid));
+  if (_ragSessionId) { fetch('/api/ai-session/' + _ragSessionId, { method: 'DELETE' }).catch(function(){}); _ragSessionId = null; }
+  _ragChatHistory = [];
+  _ragSetRateLimited(false);
+  document.getElementById('ragAiChat').innerHTML = '';
+  document.getElementById('ragAiChips').style.display = 'none';
+  _ragShowWelcome();
+  ragCloseHistory();
+};
+window.ragLoadSession = function(sid) {
+  var sessions = _ragCurrentUid ? _ragLoadAllSessions(_ragCurrentUid) : [];
+  var session = null;
+  for (var i=0; i<sessions.length; i++) { if (sessions[i].id === sid) { session = sessions[i]; break; } }
+  if (!session || !session.messages || !session.messages.length) return;
+  _ragSetRateLimited(false);
+  document.getElementById('ragAiChat').innerHTML = '';
+  document.getElementById('ragAiChips').style.display = 'none';
+  var wb = document.getElementById('ragWelcomeBlock'); if (wb) wb.remove();
+  _ragChatHistory = session.messages.slice();
+  _ragSessionId = (session.id && session.id.indexOf('local_') !== 0) ? session.id : null;
+  _ragChatHistory.forEach(function(m) { _ragAppend(m.role, m.role === 'user' ? _ragEsc(m.text) : _ragMarkdown(m.text)); });
+  ragCloseHistory();
+};
+
+function _ragEscH(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').slice(0,80); }
+
+function _ragRenderHistory() {
+  var list = document.getElementById('ragHistList');
+  if (!list) return;
+  var sessions = _ragCurrentUid ? _ragLoadAllSessions(_ragCurrentUid) : [];
+  sessions = sessions.filter(function(s){ return s.messages && s.messages.length > 0; });
+  if (!sessions.length) { list.innerHTML = '<div class="rh-empty">No chat history yet.<br>Start a conversation!</div>'; return; }
+  var html = '';
+  var today = new Date(); var todayStr = today.toDateString();
+  var yesterday = new Date(today); yesterday.setDate(today.getDate()-1); var yestStr = yesterday.toDateString();
+  var lastLabel = '';
+  sessions.forEach(function(s) {
+    var d = new Date(s.ts);
+    var label = d.toDateString() === todayStr ? 'Today' : d.toDateString() === yestStr ? 'Yesterday' : d.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
+    if (label !== lastLabel) { html += '<div class="rh-day">'+label+'</div>'; lastLabel = label; }
+    var firstMsg = null;
+    for (var i=0; i<s.messages.length; i++) { if (s.messages[i].role === 'user') { firstMsg = s.messages[i]; break; } }
+    var preview = firstMsg ? firstMsg.text : '(empty)';
+    var time = d.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});
+    var isActive = s.id === (_ragSessionId || '');
+    html += '<div class="rh-item'+(isActive?' active':'')+'" onclick="ragLoadSession(\''+s.id+'\')"><div class="rh-preview">'+_ragEscH(preview)+'</div><div class="rh-time">'+time+' &nbsp;·&nbsp; '+s.messages.length+' message'+(s.messages.length!==1?'s':'')+'</div></div>';
+  });
+  list.innerHTML = html;
+}
 
 // ── Rate-limit helpers ────────────────────────────────────────────────────
 function _ragSetRateLimited(limited, resetIn) {
@@ -252,12 +428,15 @@ window.ragAiToggle = function() {
 if (typeof firebase !== 'undefined') {
   firebase.auth().onAuthStateChanged(function(user) {
     if (!user) return;
+    _ragCurrentUid = user.uid;
     firebase.firestore().collection('users').doc(user.uid).get().then(function(doc) {
       if (!doc.exists) return;
       var name = doc.data().name || '';
       var parts = name.trim().split(' ').filter(Boolean);
       _ragInitials = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : (parts[0]?parts[0][0].toUpperCase():'AD');
     });
+    // Restore last session after a short delay (let DOM finish)
+    setTimeout(function() { _ragRestoreSession(user.uid); }, 300);
   });
 }
 
@@ -366,11 +545,12 @@ window.ragAiSend = function(preset) {
   var text = (preset||input.value).trim();
   if (!text) return;
   if (_ragRateLimited) { return; }  // blocked while rate-limited
-  if (!_ragReady) { _ragAppend('ai','<strong>Still loading data…</strong> Please wait.'); return; }
-  // Hide welcome block on first real message
+  // Hide welcome block and suggestion pills on any message attempt
   var wb = document.getElementById('ragWelcomeBlock');
   if (wb) wb.remove();
   document.getElementById('ragAiChips').style.display='none';
+  if (!_ragReady) { _ragAppend('ai','<strong>Still loading data…</strong> Please wait.'); return; }
+  _ragChatHistory.push({ role: 'user', text: text, ts: Date.now() });
   _ragAppend('user', _ragEsc(text));
   input.value=''; input.style.height='auto';
   _ragTyping();
@@ -395,8 +575,7 @@ window.ragAiSend = function(preset) {
     if (data.rate_limited) {
       _ragSetRateLimited(true, data.reset_in || 'some time');
       var resetMsg = data.reset_in || 'some time';
-      _ragAppend('ai',
-        '<div style="background:#fff7ed;border:1.5px solid #fb923c;border-radius:10px;padding:10px 13px;color:#9a3412;">' +
+      var rlHtml = '<div style="background:#fff7ed;border:1.5px solid #fb923c;border-radius:10px;padding:10px 13px;color:#9a3412;">' +
         '<div style="font-size:13px;font-weight:700;margin-bottom:5px;display:flex;align-items:center;gap:6px;">' +
         '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="#9a3412"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
         'AI Unavailable</div>' +
@@ -404,104 +583,85 @@ window.ragAiSend = function(preset) {
         'The AI service has reached its <strong>daily token limit</strong> (Groq free tier).<br>' +
         'Resets in <strong>' + resetMsg + '</strong>.<br>' +
         'You cannot send new messages until the quota resets automatically.</div>' +
-        '</div>');
+        '</div>';
+      _ragChatHistory.push({ role: 'ai', text: 'AI Unavailable — daily token limit reached.', ts: Date.now() });
+      _ragAppend('ai', rlHtml);
+      _ragSaveChat();
       return;
     }
 
     if (data.offline || !data.success) {
       if (data.cold_start) {
-        // Render cold start — backend is waking up, not truly offline
-        _ragAppend('ai',
-          '<div style="background:#ebf8ff;border:1px solid #bee3f8;border-radius:8px;padding:9px 12px;font-size:11.5px;color:#2b6cb0;">' +
+        var csHtml = '<div style="background:#ebf8ff;border:1px solid #bee3f8;border-radius:8px;padding:9px 12px;font-size:11.5px;color:#2b6cb0;">' +
           '&#x26A0; <strong>AI service is warming up</strong> (Render cold start).<br>' +
           'Please wait a few seconds and <strong>send your message again</strong>.' +
-          '</div>'
-        );
+          '</div>';
+        _ragChatHistory.push({ role: 'ai', text: 'AI service is warming up (cold start). Please try again.', ts: Date.now() });
+        _ragAppend('ai', csHtml);
       } else {
-        // Truly offline — fall back to local JS engine
         _ragAppend('ai', '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:7px 11px;font-size:11px;color:#9a3412;margin-bottom:6px;"><strong>AI backend offline</strong> — using local data mode.</div>');
         var result = _ragProcess(text);
+        _ragChatHistory.push({ role: 'ai', text: '[local] ' + text, ts: Date.now() });
         _ragAppend('ai', result.html);
       }
     } else if (data.report_ready) {
-      // Report is ready — show message with ONLY the requested download button(s)
       var answer = (data.answer || '').replace(/\n/g, '<br>');
       var rMonth   = data.report_month       || null;
       var rStart   = data.report_start_date  || null;
       var rEnd     = data.report_end_date    || null;
       var rFilters = data.report_filters     || {};
       var rFmt     = (data.report_format     || 'pdf').toLowerCase();
-
-      // Build a human-readable filter label for the button text
       var filterLabel = '';
-      if (rStart || rEnd) {
-        filterLabel = ' (' + (rStart || '—') + ' to ' + (rEnd || '—') + ')';
-      } else if (rMonth) {
-        filterLabel = ' (' + rMonth + ')';
-      }
-
-      // ── Safe button approach: store params in a JS map, never inject into onclick ──
-      // Injecting JSON.stringify into an onclick attribute breaks on any string value
-      // containing quotes (e.g. owner names). Instead we assign a unique ID and look up.
+      if (rStart || rEnd) filterLabel = ' (' + (rStart || '—') + ' to ' + (rEnd || '—') + ')';
+      else if (rMonth) filterLabel = ' (' + rMonth + ')';
       var rId = 'rp_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
       window._ragReportParams = window._ragReportParams || {};
-      window._ragReportParams[rId] = {
-        reportType: data.report_type,
-        month:      rMonth,
-        startDate:  rStart,
-        endDate:    rEnd,
-        filters:    rFilters
-      };
-
+      window._ragReportParams[rId] = { reportType: data.report_type, month: rMonth, startDate: rStart, endDate: rEnd, filters: rFilters };
       function _makeBtn(fmt, style) {
         var btnStyle = style === 'primary'
           ? 'background:#E8001C;color:white;border:none;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;'
           : 'background:#f7f8fa;color:#4a5568;border:1.5px solid #e2e8f0;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;';
-        var label = fmt.toUpperCase();
         var btnId = rId + '_' + fmt;
-        // Safe: only safe identifiers (rId, fmt, btnId) go into the onclick string
-        return '<button id="' + btnId + '" onclick="ragDownloadReport(\'' + rId + '\',\'' + fmt + '\')" style="' + btnStyle + '">&#x2193; Download ' + label + filterLabel + '</button>';
+        return '<button id="' + btnId + '" onclick="ragDownloadReport(\'' + rId + '\',\'' + fmt + '\')" style="' + btnStyle + '">&#x2193; Download ' + fmt.toUpperCase() + filterLabel + '</button>';
       }
-
-      // Unique ID for the error slot so ragDownloadReport can update it in-place
       var errId = rId + '_err';
       var btnHtml = '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">';
-      if (rFmt === 'both') {
-        btnHtml += _makeBtn('pdf',   'primary');
-        btnHtml += _makeBtn('excel', 'secondary');
-      } else if (rFmt === 'excel') {
-        btnHtml += _makeBtn('excel', 'primary');
-      } else {
-        btnHtml += _makeBtn('pdf', 'primary');
-      }
-      btnHtml += '</div>';
-      btnHtml += '<div id="' + errId + '" style="font-size:11px;margin-top:4px;"></div>';
+      if (rFmt === 'both') { btnHtml += _makeBtn('pdf','primary') + _makeBtn('excel','secondary'); }
+      else if (rFmt === 'excel') { btnHtml += _makeBtn('excel','primary'); }
+      else { btnHtml += _makeBtn('pdf','primary'); }
+      btnHtml += '</div><div id="' + errId + '" style="font-size:11px;margin-top:4px;"></div>';
+      _ragChatHistory.push({ role: 'ai', text: data.answer || ('Report ready: ' + data.report_type), ts: Date.now() });
       _ragAppend('ai', answer + btnHtml);
     } else if (data.answer) {
-      // Render the AI answer with lightweight markdown formatting
+      _ragChatHistory.push({ role: 'ai', text: data.answer, ts: Date.now() });
       _ragAppend('ai', _ragMarkdown(data.answer));
     } else {
-      // AI returned success but no answer — use local fallback
       var result = _ragProcess(text);
+      _ragChatHistory.push({ role: 'ai', text: '[local] ' + text, ts: Date.now() });
       _ragAppend('ai', result.html);
     }
+    _ragSaveChat();
   })
   .catch(function(err) {
-    // Network error or Flask backend down — fall back to local JS query engine
     _ragRemoveTyping();
     _ragAppend('ai', '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:7px 11px;font-size:11px;color:#9a3412;margin-bottom:6px;"><strong>AI backend unreachable</strong> — using local data mode.</div>');
     var result = _ragProcess(text);
+    _ragChatHistory.push({ role: 'ai', text: '[local] ' + text, ts: Date.now() });
     _ragAppend('ai', result.html);
+    _ragSaveChat();
   });
 };
 
 window.ragAiClear = function() {
+  // Save current session before starting fresh
+  if (_ragChatHistory.length) _ragSaveChat();
   // Clear server-side session memory
   if (_ragSessionId) {
     fetch('/api/ai-session/' + _ragSessionId, { method: 'DELETE' }).catch(function(){});
     _ragSessionId = null;
   }
   _ragSetRateLimited(false);
+  _ragChatHistory = [];
   document.getElementById('ragAiChat').innerHTML='';
   document.getElementById('ragAiChips').style.display='none';
   _ragShowWelcome();
@@ -643,6 +803,8 @@ window.ragDownloadReport = function(reportId, format) {
 function _ragShowWelcome() {
   var chat = document.getElementById('ragAiChat');
   if (!chat) return;
+  // Don't show welcome if a conversation is already loaded
+  if (_ragChatHistory.length > 0) return;
   var suggestions = [
     'Show me the fleet summary',
     'Generate issuance report as Excel',

@@ -850,6 +850,69 @@ def ai_chat():
                 # Normalise format: "xlsx" → "excel"
                 raw_fmt = (rp.get('format') or 'pdf').lower().replace('xlsx', 'excel')
 
+                # ── Future-date guard ─────────────────────────────────────────
+                # Validate date filters before setting report_ready so the
+                # frontend never shows a download button for future / empty ranges.
+                from datetime import date as _date_cls
+                import re as _re2
+
+                _MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun',
+                                 'Jul','Aug','Sep','Oct','Nov','Dec']
+
+                def _parse_date_simple(s):
+                    """Return a date object or None — tolerates many formats."""
+                    if not s:
+                        return None
+                    for fmt in ('%Y-%m-%d', '%B %d, %Y', '%b %d, %Y',
+                                '%d %B %Y', '%d %b %Y', '%m/%d/%Y', '%d/%m/%Y'):
+                        try:
+                            from datetime import datetime as _dt2
+                            return _dt2.strptime(s.strip(), fmt).date()
+                        except ValueError:
+                            pass
+                    return None
+
+                def _is_future(date_str):
+                    d = _parse_date_simple(date_str)
+                    return d is not None and d > _date_cls.today()
+
+                def _month_is_future(month_str):
+                    if not month_str:
+                        return False
+                    m = _re2.match(r'([A-Za-z]+)\s+(\d{4})', month_str.strip())
+                    if not m:
+                        return False
+                    abbr = m.group(1)[:3].capitalize()
+                    if abbr not in _MONTHS_SHORT:
+                        return False
+                    mo_idx = _MONTHS_SHORT.index(abbr) + 1
+                    yr = int(m.group(2))
+                    today = _date_cls.today()
+                    return yr > today.year or (yr == today.year and mo_idx > today.month)
+
+                _future = (
+                    _is_future(report_start)
+                    or _is_future(report_end)
+                    or _month_is_future(report_month)
+                )
+
+                if _future:
+                    # Tell the user clearly — no download button
+                    _label = report_month or (
+                        f"{report_start} to {report_end}"
+                        if report_start or report_end
+                        else "the requested period"
+                    )
+                    _no_data_msg = (
+                        f"No records found for **{_label}** — that date range is in the future. "
+                        f"Reports can only be generated for dates with existing historical data."
+                    )
+                    return jsonify({
+                        'success':    True,
+                        'answer':     _no_data_msg,
+                        'session_id': payload.get('session_id', ''),
+                    })
+
                 return jsonify({
                     'success':           True,
                     'report_ready':      True,

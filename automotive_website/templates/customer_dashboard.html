@@ -107,6 +107,21 @@
 <div id="cuToast"></div>
 
 <!-- ── Smart AI Floating Widget ─────────────────────────── -->
+<!-- History overlay + drawer (z-index above widget panel) -->
+<div id="aiHistOverlay" onclick="aiCloseHistory()" style="position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:9100;opacity:0;pointer-events:none;transition:opacity .25s;"></div>
+<div id="aiHistDrawer" style="position:fixed;top:0;right:-340px;width:320px;height:100%;z-index:9101;background:white;box-shadow:-4px 0 24px rgba(0,0,0,0.15);transition:right .28s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#c62828,#E8001C);padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="white"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+        <div style="flex:1;color:#fff;font-size:14px;font-weight:700;">Chat History</div>
+        <button onclick="aiCloseHistory()" style="width:28px;height:28px;background:rgba(255,255,255,0.18);border:none;color:white;border-radius:8px;cursor:pointer;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;">×</button>
+    </div>
+    <button onclick="aiDeleteAllChats()" style="margin:12px 14px 0;padding:9px 14px;background:#fff5f5;border:1.5px solid #fca5a5;border-radius:10px;color:#dc2626;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:8px;transition:all .18s;width:calc(100% - 28px);" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fff5f5'">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        Delete All Chats
+    </button>
+    <div id="aiHistList" style="flex:1;overflow-y:auto;padding:12px 14px;"></div>
+</div>
+
 <div id="aiWidget" style="display:none;position:fixed;bottom:24px;right:24px;z-index:9000;display:flex;flex-direction:column;align-items:flex-end;gap:12px;">
 
     <!-- Chat panel — hidden by default, opens on FAB click -->
@@ -123,7 +138,13 @@
                     <span style="width:6px;height:6px;background:#4ade80;border-radius:50%;display:inline-block;"></span>Online
                 </div>
             </div>
-            <button id="aiClearBtn" onclick="aiClear()" style="display:none;background:rgba(255,255,255,0.15);border:none;color:white;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;cursor:pointer;font-family:inherit;">Clear</button>
+            <!-- History button -->
+            <button onclick="aiOpenHistory()" title="Chat history" style="width:30px;height:30px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .18s;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </button>
+            <button id="aiClearBtn" onclick="aiClear()" title="Clear chat" style="display:none;width:30px;height:30px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:8px;cursor:pointer;display:none;align-items:center;justify-content:center;flex-shrink:0;transition:background .18s;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            </button>
             <button onclick="closeSmartAI()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
         </div>
 
@@ -208,6 +229,92 @@
 // ── Smart AI Widget ──────────────────────────────────────────
 var _aiVehicles = [], _aiMaintenance = [], _aiLoaded = false;
 var _aiPanelOpen = false;
+var _aiChatHistory = [];
+var _aiCurrentUid = null;
+
+// ── localStorage persistence ──────────────────────────────────
+function _aiStorKey(uid) { return 'ai_widget_chat_' + uid; }
+function _aiLoadSessions(uid) {
+    try { var r = localStorage.getItem(_aiStorKey(uid)); return r ? JSON.parse(r) : []; } catch(e) { return []; }
+}
+function _aiSaveChat() {
+    if (!_aiCurrentUid) return;
+    try {
+        var sessions = _aiLoadSessions(_aiCurrentUid);
+        var sid = 'w_' + (_aiCurrentUid);
+        var idx = -1; for (var i=0;i<sessions.length;i++){if(sessions[i].id===sid){idx=i;break;}}
+        var s = { id: sid, ts: Date.now(), messages: _aiChatHistory.slice() };
+        if (idx>=0) sessions[idx]=s; else sessions.unshift(s);
+        if (sessions.length>50) sessions=sessions.slice(0,50);
+        localStorage.setItem(_aiStorKey(_aiCurrentUid), JSON.stringify(sessions));
+    } catch(e){}
+}
+function _aiRestoreSession(uid) {
+    var sessions = _aiLoadSessions(uid);
+    if (!sessions.length) return;
+    var latest = sessions[0];
+    if (!latest.messages || !latest.messages.length) return;
+    _aiChatHistory = latest.messages.slice();
+    document.getElementById('aiWelcome').style.display = 'none';
+    document.getElementById('aiChips').style.display = 'none';
+    document.getElementById('aiClearBtn').style.display = 'flex';
+    _aiChatHistory.forEach(function(m) { _aiAddBubble(m.text, m.role === 'user' ? 'ai-bubble-user' : 'ai-bubble-bot'); });
+}
+
+// ── History drawer ────────────────────────────────────────────
+window.aiOpenHistory = function() {
+    _aiRenderHistory();
+    document.getElementById('aiHistDrawer').style.right = '0';
+    document.getElementById('aiHistOverlay').style.opacity = '1';
+    document.getElementById('aiHistOverlay').style.pointerEvents = 'auto';
+};
+window.aiCloseHistory = function() {
+    document.getElementById('aiHistDrawer').style.right = '-340px';
+    document.getElementById('aiHistOverlay').style.opacity = '0';
+    document.getElementById('aiHistOverlay').style.pointerEvents = 'none';
+};
+window.aiDeleteAllChats = function() {
+    if (!confirm('Delete all chat history? This cannot be undone.')) return;
+    if (_aiCurrentUid) localStorage.removeItem(_aiStorKey(_aiCurrentUid));
+    _aiChatHistory = [];
+    var msgs = document.getElementById('aiMessages');
+    msgs.innerHTML = '';
+    var welcome = document.getElementById('aiWelcome'); welcome.style.display = 'block'; msgs.appendChild(welcome);
+    document.getElementById('aiChips').style.display = 'flex';
+    document.getElementById('aiClearBtn').style.display = 'none';
+    aiCloseHistory();
+};
+function _aiEscH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').slice(0,80); }
+function _aiRenderHistory() {
+    var list = document.getElementById('aiHistList'); if(!list) return;
+    var sessions = _aiCurrentUid ? _aiLoadSessions(_aiCurrentUid) : [];
+    sessions = sessions.filter(function(s){ return s.messages && s.messages.length>0; });
+    if (!sessions.length) { list.innerHTML='<div style="text-align:center;padding:40px 20px;color:#94a3b8;font-size:13px;">No chat history yet.</div>'; return; }
+    var html='',today=new Date(),todayStr=today.toDateString(),yest=new Date(today);
+    yest.setDate(today.getDate()-1); var yestStr=yest.toDateString(),lastLabel='';
+    sessions.forEach(function(s){
+        var d=new Date(s.ts),label=d.toDateString()===todayStr?'Today':d.toDateString()===yestStr?'Yesterday':d.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
+        if(label!==lastLabel){html+='<div style="font-size:10.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin:10px 0 6px;">'+label+'</div>';lastLabel=label;}
+        var first=null; for(var i=0;i<s.messages.length;i++){if(s.messages[i].role==='user'){first=s.messages[i];break;}}
+        var preview=first?first.text:'(empty)',time=d.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});
+        html+='<div style="background:#f8f9fb;border:1.5px solid #e8edf2;border-radius:11px;padding:10px 12px;margin-bottom:7px;cursor:pointer;transition:all .15s;" onclick="aiLoadSession(\''+s.id+'\')" onmouseover="this.style.background=\'#fff5f5\';this.style.borderColor=\'#E8001C\'" onmouseout="this.style.background=\'#f8f9fb\';this.style.borderColor=\'#e8edf2\'">'
+             +'<div style="font-size:12px;color:#1a202c;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;">'+_aiEscH(preview)+'</div>'
+             +'<div style="font-size:10.5px;color:#94a3b8;margin-top:3px;">'+time+' &nbsp;·&nbsp; '+s.messages.length+' message'+(s.messages.length!==1?'s':'')+'</div></div>';
+    });
+    list.innerHTML=html;
+}
+window.aiLoadSession = function(sid) {
+    var sessions = _aiCurrentUid ? _aiLoadSessions(_aiCurrentUid) : [];
+    var session=null; for(var i=0;i<sessions.length;i++){if(sessions[i].id===sid){session=sessions[i];break;}}
+    if(!session||!session.messages||!session.messages.length) return;
+    var msgs=document.getElementById('aiMessages'); msgs.innerHTML='';
+    document.getElementById('aiWelcome').style.display='none';
+    document.getElementById('aiChips').style.display='none';
+    document.getElementById('aiClearBtn').style.display='flex';
+    _aiChatHistory=session.messages.slice();
+    _aiChatHistory.forEach(function(m){ _aiAddBubble(m.text, m.role==='user'?'ai-bubble-user':'ai-bubble-bot'); });
+    aiCloseHistory();
+};
 
 window.openSmartAI = function() {
     document.getElementById('aiPanel').style.display = 'flex';
@@ -230,90 +337,61 @@ window.closeSmartAI = function() {
 function _updateFabIcon() {
     var svg = document.getElementById('aiFabIcon');
     if (_aiPanelOpen) {
-        svg.setAttribute('fill', 'white');
-        svg.setAttribute('stroke', 'none');
-        svg.removeAttribute('stroke-width');
+        svg.setAttribute('fill', 'white'); svg.setAttribute('stroke', 'none'); svg.removeAttribute('stroke-width');
         svg.innerHTML = '<path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>';
     } else {
-        svg.setAttribute('fill', 'white');
-        svg.setAttribute('stroke', 'none');
-        svg.removeAttribute('stroke-width');
+        svg.setAttribute('fill', 'white'); svg.setAttribute('stroke', 'none'); svg.removeAttribute('stroke-width');
         svg.innerHTML = '<path d="M20 6h-1V3c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v14l4-4h9c.55 0 1-.45 1-1V6h2v9H7v2c0 .55.45 1 1 1h10l4 4V7c0-.55-.45-1-1-1z"/>';
     }
 }
 
 async function _aiLoadData() {
     try {
-        var user = firebase.auth().currentUser;
-        if (!user) return;
+        var user = firebase.auth().currentUser; if (!user) return;
         var stored = sessionStorage.getItem('cpUser');
         var cpUser = stored ? JSON.parse(stored) : {};
         var userName = cpUser.name || '';
-        if (!userName) {
-            var uDoc = await firebase.firestore().collection('users').doc(user.uid).get();
-            if (uDoc.exists) userName = uDoc.data().name || '';
-        }
+        if (!userName) { var uDoc = await firebase.firestore().collection('users').doc(user.uid).get(); if (uDoc.exists) userName = uDoc.data().name || ''; }
         var vSnap = await firebase.firestore().collection('vehicles').get();
-        _aiVehicles = vSnap.docs
-            .map(function(d) { return Object.assign({id: d.id}, d.data()); })
-            .filter(function(v) { return (v.owner || '').toLowerCase() === userName.toLowerCase(); });
-
-        document.getElementById('aiWelcomeSub').textContent = _aiVehicles.length
-            ? 'Ask me anything about your ' + _aiVehicles.length + ' vehicle' + (_aiVehicles.length !== 1 ? 's' : '') + ' — PMS status, maintenance history, and more.'
-            : 'No vehicles found under your account.';
-
+        _aiVehicles = vSnap.docs.map(function(d){return Object.assign({id:d.id},d.data());}).filter(function(v){return (v.owner||'').toLowerCase()===userName.toLowerCase();});
+        document.getElementById('aiWelcomeSub').textContent = _aiVehicles.length ? 'Ask me anything about your '+_aiVehicles.length+' vehicle'+(_aiVehicles.length!==1?'s':'')+' — PMS status, maintenance history, and more.' : 'No vehicles found under your account.';
         if (_aiVehicles.length) {
-            var plates = _aiVehicles.map(function(v) { return v.plate; }).filter(Boolean).slice(0, 10);
-            var mSnap = await firebase.firestore().collection('maintenance').where('plate', 'in', plates).get();
-            _aiMaintenance = mSnap.docs.map(function(d) { return Object.assign({id: d.id}, d.data()); });
+            var plates = _aiVehicles.map(function(v){return v.plate;}).filter(Boolean).slice(0,10);
+            var mSnap = await firebase.firestore().collection('maintenance').where('plate','in',plates).get();
+            _aiMaintenance = mSnap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
         }
         _aiLoaded = true;
-    } catch(e) {
-        console.error('Smart AI load error:', e);
-    }
+    } catch(e) { console.error('Smart AI load error:', e); }
 }
 
 function _aiProcess(q) {
     var ql = q.toLowerCase();
     if (!_aiVehicles.length) return 'No vehicles are registered under your name yet.';
     if (ql.includes('maintenance') || ql.includes('serviced')) {
-        var list = _aiVehicles.filter(function(v) { return (v.status || '').toLowerCase().includes('maintenance'); });
-        return list.length ? 'Under maintenance:\n' + list.map(function(v) { return '• ' + v.plate + ' — ' + v.desc; }).join('\n')
-            : 'None of your vehicles are currently under maintenance. ✅';
+        var list = _aiVehicles.filter(function(v){return (v.status||'').toLowerCase().includes('maintenance');});
+        return list.length ? 'Under maintenance:\n' + list.map(function(v){return '• '+v.plate+' — '+v.desc;}).join('\n') : 'None of your vehicles are currently under maintenance. ✅';
     }
     if (ql.includes('overdue') || ql.includes('past due')) {
-        var list = _aiVehicles.filter(function(v) { return v.status === 'Overdue'; });
-        return list.length ? 'PMS Overdue:\n' + list.map(function(v) { return '• ' + v.plate + ' — ' + v.desc; }).join('\n') + '\n\nPlease schedule a service soon!'
-            : 'No vehicles are overdue for PMS. ✅';
+        var list = _aiVehicles.filter(function(v){return v.status==='Overdue';});
+        return list.length ? 'PMS Overdue:\n' + list.map(function(v){return '• '+v.plate+' — '+v.desc;}).join('\n') + '\n\nPlease schedule a service soon!' : 'No vehicles are overdue for PMS. ✅';
     }
     if (ql.includes('due soon') || ql.includes('due this week') || ql.includes('upcoming')) {
-        var list = _aiVehicles.filter(function(v) { return v.status === 'Due Soon' || v.status === 'Due This Week'; });
-        return list.length ? 'PMS Due Soon / This Week:\n' + list.map(function(v) { return '• ' + v.plate + ' — ' + v.desc + ' (' + v.status + ')'; }).join('\n')
-            : 'No vehicles have PMS due soon. ✅';
+        var list = _aiVehicles.filter(function(v){return v.status==='Due Soon'||v.status==='Due This Week';});
+        return list.length ? 'PMS Due Soon / This Week:\n' + list.map(function(v){return '• '+v.plate+' — '+v.desc+' ('+v.status+')';}).join('\n') : 'No vehicles have PMS due soon. ✅';
     }
     if (ql.includes('history') || ql.includes('service record') || ql.includes('completed')) {
-        var done = _aiMaintenance.filter(function(m) { return (m.status || '').toLowerCase() === 'completed'; });
+        var done = _aiMaintenance.filter(function(m){return (m.status||'').toLowerCase()==='completed';});
         if (!done.length) return 'No completed service records found for your vehicles.';
-        var total = done.reduce(function(s, r) {
-            var c = r.totalCost ? parseFloat(r.totalCost) || 0 : parseFloat((r.cost || '0').replace(/[₱,]/g, '')) || 0;
-            return s + c;
-        }, 0);
-        return 'You have ' + done.length + ' completed service record' + (done.length !== 1 ? 's' : '') + '.\nTotal spent: ₱' + total.toLocaleString('en-PH', {minimumFractionDigits:2}) + '\n\nGo to "PMS History" tab to view full details.';
+        var total = done.reduce(function(s,r){var c=r.totalCost?parseFloat(r.totalCost)||0:parseFloat((r.cost||'0').replace(/[₱,]/g,''))||0;return s+c;},0);
+        return 'You have '+done.length+' completed service record'+(done.length!==1?'s':'')+'.\nTotal spent: ₱'+total.toLocaleString('en-PH',{minimumFractionDigits:2})+'\n\nGo to "PMS History" tab to view full details.';
     }
     if (ql.includes('summary') || ql.includes('status') || ql.includes('report')) {
-        var active = _aiVehicles.filter(function(v) { return v.status === 'On Track' || v.status === 'Scheduled'; }).length;
-        var maint  = _aiVehicles.filter(function(v) { return (v.status || '').includes('Maintenance'); }).length;
-        var over   = _aiVehicles.filter(function(v) { return v.status === 'Overdue'; }).length;
-        var week   = _aiVehicles.filter(function(v) { return v.status === 'Due This Week'; }).length;
-        var soon   = _aiVehicles.filter(function(v) { return v.status === 'Due Soon'; }).length;
-        return 'Fleet Summary:\n✅ Active: ' + active + '\n🔧 Under Maintenance: ' + maint + '\n⚠️ PMS Overdue: ' + over + '\n📅 Due This Week: ' + week + '\n🕐 Due Soon: ' + soon + '\n🚗 Total: ' + _aiVehicles.length;
+        var active=_aiVehicles.filter(function(v){return v.status==='On Track'||v.status==='Scheduled';}).length,maint=_aiVehicles.filter(function(v){return (v.status||'').includes('Maintenance');}).length,over=_aiVehicles.filter(function(v){return v.status==='Overdue';}).length,week=_aiVehicles.filter(function(v){return v.status==='Due This Week';}).length,soon=_aiVehicles.filter(function(v){return v.status==='Due Soon';}).length;
+        return 'Fleet Summary:\n✅ Active: '+active+'\n🔧 Under Maintenance: '+maint+'\n⚠️ PMS Overdue: '+over+'\n📅 Due This Week: '+week+'\n🕐 Due Soon: '+soon+'\n🚗 Total: '+_aiVehicles.length;
     }
     if (ql.includes('vehicle') || ql.includes('fleet') || ql.includes('list') || ql.includes('all my')) {
-        var lines = _aiVehicles.map(function(v) {
-            var e = (v.status === 'On Track' || v.status === 'Scheduled') ? '✅' : v.status === 'Under Maintenance' ? '🔧' : v.status === 'Overdue' ? '⚠️' : v.status === 'Due This Week' ? '📅' : v.status === 'Due Soon' ? '🕐' : '•';
-            return e + ' ' + v.plate + ' — ' + v.desc + ' (' + (v.status || 'Active') + ')';
-        }).join('\n');
-        return 'Your fleet (' + _aiVehicles.length + ' vehicle' + (_aiVehicles.length !== 1 ? 's' : '') + '):\n' + lines;
+        var lines = _aiVehicles.map(function(v){var e=(v.status==='On Track'||v.status==='Scheduled')?'✅':v.status==='Under Maintenance'?'🔧':v.status==='Overdue'?'⚠️':v.status==='Due This Week'?'📅':v.status==='Due Soon'?'🕐':'•';return e+' '+v.plate+' — '+v.desc+' ('+(v.status||'Active')+')';}).join('\n');
+        return 'Your fleet ('+_aiVehicles.length+' vehicle'+(_aiVehicles.length!==1?'s':'')+'): \n'+lines;
     }
     return 'I can help you with:\n• Vehicle status & fleet summary\n• PMS overdue or due soon\n• Vehicles under maintenance\n• Service history & total cost\n\nTry asking: "Which vehicles are overdue?"';
 }
@@ -321,10 +399,8 @@ function _aiProcess(q) {
 function _aiAddBubble(text, cls) {
     var msgs = document.getElementById('aiMessages');
     var el = document.createElement('div');
-    el.className = cls;
-    el.textContent = text;
-    msgs.appendChild(el);
-    el.scrollIntoView({behavior:'smooth'});
+    el.className = cls; el.textContent = text;
+    msgs.appendChild(el); el.scrollIntoView({behavior:'smooth'});
     return el;
 }
 
@@ -333,8 +409,7 @@ function _aiAddTyping() {
     var el = document.createElement('div');
     el.className = 'ai-typing-dots';
     el.innerHTML = '<span></span><span></span><span></span>';
-    msgs.appendChild(el);
-    el.scrollIntoView({behavior:'smooth'});
+    msgs.appendChild(el); el.scrollIntoView({behavior:'smooth'});
     return el;
 }
 
@@ -342,39 +417,46 @@ window.aiSend = function(preset) {
     var input = document.getElementById('aiInput');
     var text = (preset || input.value).trim();
     if (!text) return;
-
     document.getElementById('aiWelcome').style.display = 'none';
     document.getElementById('aiChips').style.display = 'none';
-    document.getElementById('aiClearBtn').style.display = 'block';
-
+    document.getElementById('aiClearBtn').style.display = 'flex';
+    _aiChatHistory.push({ role: 'user', text: text, ts: Date.now() });
     _aiAddBubble(text, 'ai-bubble-user');
-    input.value = '';
-    input.style.height = 'auto';
-
+    input.value = ''; input.style.height = 'auto';
     if (!_aiLoaded) {
-        _aiAddBubble('Loading your fleet data, please try again in a moment.', 'ai-bubble-bot');
-        return;
+        var reply = 'Loading your fleet data, please try again in a moment.';
+        _aiChatHistory.push({ role: 'bot', text: reply, ts: Date.now() });
+        _aiAddBubble(reply, 'ai-bubble-bot');
+        _aiSaveChat(); return;
     }
     var typing = _aiAddTyping();
     setTimeout(function() {
         typing.remove();
-        _aiAddBubble(_aiProcess(text), 'ai-bubble-bot');
+        var reply = _aiProcess(text);
+        _aiChatHistory.push({ role: 'bot', text: reply, ts: Date.now() });
+        _aiAddBubble(reply, 'ai-bubble-bot');
+        _aiSaveChat();
     }, 500);
 };
 
 window.aiClear = function() {
+    // Save current before clearing (starts new session next time)
+    if (_aiChatHistory.length) _aiSaveChat();
+    _aiChatHistory = [];
     var msgs = document.getElementById('aiMessages');
     msgs.innerHTML = '';
-    var welcome = document.getElementById('aiWelcome');
-    welcome.style.display = 'block';
-    msgs.appendChild(welcome);
+    var welcome = document.getElementById('aiWelcome'); welcome.style.display = 'block'; msgs.appendChild(welcome);
     document.getElementById('aiChips').style.display = 'flex';
     document.getElementById('aiClearBtn').style.display = 'none';
 };
 
-// Show the FAB once auth is ready
+// Show the FAB once auth is ready; restore session
 firebase.auth().onAuthStateChanged(function(user) {
-    if (user) document.getElementById('aiWidget').style.display = 'flex';
+    if (user) {
+        _aiCurrentUid = user.uid;
+        document.getElementById('aiWidget').style.display = 'flex';
+        _aiRestoreSession(user.uid);
+    }
 });
 </script>
 

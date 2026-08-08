@@ -285,7 +285,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
-          'Vehicle Assistant',
+          'Customer AI Assistant',
           style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -417,7 +417,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                   decoration: InputDecoration(
                     hintText: _rateLimited
                         ? 'AI unavailable — daily limit reached'
-                        : 'Ask about your vehicles…',
+                        : 'Ask about your vehicles, bookings, or services…',
                     hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
                     filled: true,
                     fillColor: _bg,
@@ -483,7 +483,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           decoration: BoxDecoration(
               color: _blue.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(18)),
-          child: const Icon(Icons.directions_car_rounded, color: _blue, size: 30),
+          child: const Icon(Icons.support_agent_rounded, color: _blue, size: 30),
         ),
         const SizedBox(height: 14),
         const Text(
@@ -671,7 +671,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
       shape: BoxShape.circle,
     ),
     child: const Center(
-      child: Icon(Icons.directions_car_rounded, color: Colors.white, size: 16)),
+      child: Icon(Icons.support_agent_rounded, color: Colors.white, size: 16)),
   );
 
   // ── User avatar — gradient red with initials ──

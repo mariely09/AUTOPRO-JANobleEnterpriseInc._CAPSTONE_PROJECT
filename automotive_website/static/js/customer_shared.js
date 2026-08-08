@@ -45,6 +45,18 @@
     window.cuAvatarLogout = function () {
         if (!confirm('Are you sure you want to logout?')) return;
         localStorage.setItem('_loggedOut', Date.now().toString());
+        // Clear AI chat history for this user
+        try {
+            var stored = sessionStorage.getItem('cpUser');
+            if (stored) {
+                var cpUser = JSON.parse(stored);
+                if (cpUser && cpUser.uid) {
+                    localStorage.removeItem('ai_chat_' + cpUser.uid);
+                    localStorage.removeItem('ai_widget_chat_' + cpUser.uid);
+                    localStorage.removeItem('rag_chat_' + cpUser.uid);
+                }
+            }
+        } catch(e) {}
         sessionStorage.removeItem('cpUser');
         sessionStorage.removeItem('spUser');
         if (typeof firebase !== 'undefined' && firebase.auth) {

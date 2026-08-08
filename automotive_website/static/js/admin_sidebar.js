@@ -270,6 +270,18 @@ window.toggleAvatarMenu = function(id) {
 window.adminAvatarLogout = function() {
     if (!confirm('Are you sure you want to logout?')) return;
     localStorage.setItem('_loggedOut', Date.now().toString());
+    // Clear AI chat history for this user
+    try {
+        var stored = sessionStorage.getItem('apUser') || sessionStorage.getItem('spUser') || sessionStorage.getItem('cpUser');
+        if (stored) {
+            var u = JSON.parse(stored);
+            if (u && u.uid) {
+                localStorage.removeItem('rag_chat_' + u.uid);
+                localStorage.removeItem('ai_chat_' + u.uid);
+                localStorage.removeItem('ai_widget_chat_' + u.uid);
+            }
+        }
+    } catch(e) {}
     sessionStorage.removeItem('apUser');
     sessionStorage.removeItem('spUser');
     sessionStorage.removeItem('cpUser');

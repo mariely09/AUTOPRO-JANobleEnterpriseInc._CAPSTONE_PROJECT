@@ -10,6 +10,10 @@ Rules enforced here (never trust the LLM alone):
 
 All functions receive `customer_uid` and `customer_name` so Firestore
 filtering happens server-side, not post-fetch.
+
+PRIVACY GUARD: `customer_name` and `customer_uid` are injected by the backend
+from the authenticated Firebase session — the LLM cannot override these values
+through its function arguments. Any argument named differently is ignored.
 """
 import re
 from datetime import datetime
@@ -17,7 +21,17 @@ from firestore_client import get_db
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Privacy helpers ───────────────────────────────────────────────────────────
+
+def _privacy_error() -> dict:
+    """Standard response when a tool detects an out-of-scope data access attempt."""
+    return {
+        "error": "ACCESS_DENIED",
+        "message": "I can only show information for your own account.",
+    }
+
+
+# ── Currency helpers ──────────────────────────────────────────────────────────
 
 def _strip_currency(value) -> float:
     if isinstance(value, (int, float)):
@@ -38,8 +52,11 @@ def _fmt_cost(value) -> str:
 
 # ── Customer tools ────────────────────────────────────────────────────────────
 
-def get_my_vehicles(customer_name: str, **_) -> dict:
+def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
     """Return all vehicles owned by this customer with their current PMS status."""
+    if not customer_name or not customer_uid:
+        return _privacy_error()
+
     db = get_db()
     vehicles = []
     for doc in db.collection("vehicles").where(
@@ -55,7 +72,6 @@ def get_my_vehicles(customer_name: str, **_) -> dict:
             "odo":         d.get("odo", ""),
         })
 
-    # Status summary
     from collections import Counter
     status_counts = Counter(v["status"] for v in vehicles)
     return {
@@ -66,11 +82,15 @@ def get_my_vehicles(customer_name: str, **_) -> dict:
     }
 
 
-def get_my_service_history(customer_name: str, plate: str | None = None, **_) -> dict:
+def get_my_service_history(customer_uid: str, customer_name: str,
+                           plate: str | None = None, **_) -> dict:
     """
     Return completed maintenance jobs for this customer's vehicles.
     Optionally filter by a specific plate number.
     """
+    if not customer_name or not customer_uid:
+        return _privacy_error()
+
     db = get_db()
 
     # Get this customer's plates first
@@ -82,15 +102,17 @@ def get_my_service_history(customer_name: str, plate: str | None = None, **_) ->
             plate_list.append(p)
 
     if not plate_list:
-        return {"owner": customer_name, "total_jobs": 0, "total_cost": 0.0, "jobs": []}
+        return {"owner": customer_name, "total_jobs": 0, "total_cost": "₱0.00", "jobs": []}
 
     # Filter to specific plate if requested
     if plate:
         plate_list = [p for p in plate_list if p.upper() == plate.upper()]
         if not plate_list:
-            return {"owner": customer_name, "plate": plate,
-                    "total_jobs": 0, "total_cost": 0.0, "jobs": [],
-                    "note": f"No vehicle with plate {plate} found under your account."}
+            return {
+                "owner": customer_name, "plate": plate,
+                "total_jobs": 0, "total_cost": "₱0.00", "jobs": [],
+                "note": f"No vehicle with plate {plate} found under your account.",
+            }
 
     # Firestore 'in' max 10 — chunk if needed
     jobs = []
@@ -100,19 +122,19 @@ def get_my_service_history(customer_name: str, plate: str | None = None, **_) ->
                 filter=FieldFilter("plate", "in", chunk)).stream():
             d = doc.to_dict()
             # Only show completed jobs to the customer
-            if (d.get("status") or "").lower() not in ("completed",):
+            if (d.get("status") or "").lower() != "completed":
                 continue
             cost = _strip_currency(d.get("cost", 0))
             jobs.append({
-                "id":       d.get("id", doc.id),
-                "plate":    d.get("plate", ""),
-                "desc":     d.get("desc", ""),
-                "date":     d.get("date", ""),
-                "mechanic": d.get("mechanic", ""),
-                "status":   d.get("status", ""),
-                "cost":     _fmt_cost(d.get("cost", 0)),
-                "cost_raw": cost,
-                "services": [r.get("name", "") for r in (d.get("svcRows") or [])],
+                "id":        d.get("id", doc.id),
+                "plate":     d.get("plate", ""),
+                "desc":      d.get("desc", ""),
+                "date":      d.get("date", ""),
+                "mechanic":  d.get("mechanic", ""),
+                "status":    d.get("status", ""),
+                "cost":      _fmt_cost(d.get("cost", 0)),
+                "cost_raw":  cost,
+                "services":  [r.get("name", "") for r in (d.get("svcRows") or [])],
                 "materials": [r.get("name", "") for r in (d.get("matRows") or [])],
             })
 
@@ -128,8 +150,11 @@ def get_my_service_history(customer_name: str, plate: str | None = None, **_) ->
     }
 
 
-def get_my_pms_status(customer_name: str, **_) -> dict:
+def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
     """Return PMS schedule status for each of this customer's vehicles."""
+    if not customer_name or not customer_uid:
+        return _privacy_error()
+
     db = get_db()
     now = datetime.now()
     vehicles = []
@@ -142,18 +167,18 @@ def get_my_pms_status(customer_name: str, **_) -> dict:
         svc_freq   = d.get("svcFreq", "")
         status     = d.get("status", "Active")
 
-        next_pms = ""
+        next_pms   = ""
         days_until = None
         try:
             if last_svc and svc_freq:
-                months = int(svc_freq)
+                months  = int(svc_freq)
                 last_dt = datetime.fromisoformat(last_svc)
                 next_dt = datetime(
                     last_dt.year + (last_dt.month + months - 1) // 12,
                     (last_dt.month + months - 1) % 12 + 1,
                     last_dt.day,
                 )
-                next_pms = next_dt.strftime("%b %d, %Y")
+                next_pms   = next_dt.strftime("%b %d, %Y")
                 days_until = (next_dt - now).days
         except Exception:
             pass
@@ -191,10 +216,13 @@ def get_my_pms_status(customer_name: str, **_) -> dict:
 
 def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
     """Return this customer's service bookings (all statuses)."""
+    if not customer_name or not customer_uid:
+        return _privacy_error()
+
     db = get_db()
     bookings = []
 
-    # Try by customerId (UID) first, then fallback to customerName
+    # Primary filter: by customerId (Firebase UID)
     for doc in db.collection("service_bookings").where(
             filter=FieldFilter("customerId", "==", customer_uid)).stream():
         d = doc.to_dict()
@@ -208,6 +236,7 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
             "status":   d.get("status", ""),
         })
 
+    # Fallback: by customerName (for older bookings that may not have customerId)
     if not bookings:
         for doc in db.collection("service_bookings").where(
                 filter=FieldFilter("customerName", "==", customer_name)).stream():
@@ -235,10 +264,11 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
     }
 
 
-def get_service_prices(service_name: str | None = None, **_) -> dict:
+def get_service_prices(customer_uid: str, customer_name: str,
+                       service_name: str | None = None, **_) -> dict:
     """
     Return the list of services and their prices from the item catalog.
-    Customers can ask about pricing — this is public information.
+    This is public pricing information — any authenticated customer can view it.
     Optionally filter by service name keyword.
     """
     db = get_db()
@@ -259,16 +289,17 @@ def get_service_prices(service_name: str | None = None, **_) -> dict:
 
     services.sort(key=lambda s: s["name"])
     return {
-        "filter":        service_name or "all services",
-        "total_services": len(services),
-        "services":      services,
+        "filter":          service_name or "all services",
+        "total_services":  len(services),
+        "services":        services,
     }
 
 
-def estimate_service_cost(service_names: list[str], **_) -> dict:
+def estimate_service_cost(customer_uid: str, customer_name: str,
+                          service_names: list[str], **_) -> dict:
     """
     Estimate the total cost for one or more services by name.
-    Useful when a customer asks 'how much would a change oil + brake service cost?'
+    Used when a customer asks 'how much would a change oil + brake cleaning cost?'
     """
     db = get_db()
     matched   = []
@@ -287,8 +318,7 @@ def estimate_service_cost(service_names: list[str], **_) -> dict:
         }
 
     for svc in service_names:
-        key = svc.lower().strip()
-        # Exact match first, then partial
+        key  = svc.lower().strip()
         item = catalog.get(key)
         if not item:
             for k, v in catalog.items():
@@ -306,17 +336,22 @@ def estimate_service_cost(service_names: list[str], **_) -> dict:
             unmatched.append(svc)
 
     return {
-        "requested":      service_names,
-        "matched":        matched,
-        "unmatched":      unmatched,
+        "requested":       service_names,
+        "matched":         matched,
+        "unmatched":       unmatched,
         "estimated_total": _fmt_cost(total),
-        "note": ("Some services were not found in the catalog. "
-                 "Please ask for the full service list to see available options."
-                 if unmatched else ""),
+        "note": (
+            "Some services were not found in the catalog. "
+            "Please ask for the full service list to see available options."
+            if unmatched else ""
+        ),
     }
 
 
 # ── Tool schemas (OpenAI / Groq format) ──────────────────────────────────────
+# NOTE: customer_uid and customer_name are NOT listed as parameters here —
+# they are injected server-side from the authenticated session so the LLM
+# cannot attempt to pass a different customer's identity.
 
 CUSTOMER_TOOL_SCHEMAS = [
     {
@@ -326,9 +361,15 @@ CUSTOMER_TOOL_SCHEMAS = [
             "description": (
                 "Return all vehicles registered under the logged-in customer's name, "
                 "including their current PMS status (Active, Overdue, Due Soon, Under Maintenance). "
-                "Use for 'my fleet', 'my vehicles', 'list my cars', 'fleet summary'."
+                "Use for: 'my fleet', 'my vehicles', 'list my cars', 'fleet summary', "
+                "'how many vehicles do I have', 'show my vehicles'."
             ),
-            "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False},
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": False,
+            },
         },
     },
     {
@@ -338,8 +379,9 @@ CUSTOMER_TOOL_SCHEMAS = [
             "description": (
                 "Return the completed maintenance/service history for the customer's vehicles. "
                 "Shows job date, services performed, cost per job, and total spent. "
-                "Use for 'service history', 'past services', 'how much have I spent', 'maintenance records'. "
-                "Optionally filter by plate number."
+                "Use for: 'service history', 'past services', 'how much have I spent', "
+                "'maintenance records', 'show my service history'. "
+                "Optionally filter by a specific plate number."
             ),
             "parameters": {
                 "type": "object",
@@ -359,11 +401,18 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "get_my_pms_status",
             "description": (
-                "Return the Preventive Maintenance Schedule (PMS) status for each of the customer's vehicles: "
-                "last service date, next PMS due date, days until due (negative = overdue). "
-                "Use for 'when is my next PMS', 'which cars are overdue', 'PMS schedule', 'maintenance due'."
+                "Return the Preventive Maintenance Schedule (PMS) status for each of the "
+                "customer's vehicles: last service date, next PMS due date, days until due "
+                "(negative = overdue). "
+                "Use for: 'when is my next PMS', 'which cars are overdue', "
+                "'PMS schedule', 'maintenance due', 'due soon'."
             ),
-            "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False},
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": False,
+            },
         },
     },
     {
@@ -371,10 +420,17 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "get_my_bookings",
             "description": (
-                "Return the customer's service booking appointments — pending, confirmed, or completed. "
-                "Use for 'my bookings', 'my appointments', 'upcoming service', 'did I book a service'."
+                "Return the customer's own service booking appointments — pending, "
+                "confirmed, or completed. "
+                "Use for: 'my bookings', 'my appointments', 'upcoming service', "
+                "'did I book a service', 'show my bookings'."
             ),
-            "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False},
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": False,
+            },
         },
     },
     {
@@ -382,17 +438,20 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "get_service_prices",
             "description": (
-                "Return the list of available services and their prices. "
-                "This is public pricing information any customer can ask about. "
-                "Use for 'how much is a change oil', 'list of services', 'service prices', 'what services do you offer'. "
-                "Optionally filter by a service name keyword."
+                "Return the list of available services and their prices from the shop catalog. "
+                "Public information — any customer can ask about pricing. "
+                "Use for: 'how much is a change oil', 'list of services', 'service prices', "
+                "'what services do you offer', 'Oil Change price', 'how much is [service name]'."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "Keyword to filter by service name. Omit to list all services.",
+                        "description": (
+                            "Keyword to filter services by name. "
+                            "E.g. 'oil change', 'brake'. Omit to list all services."
+                        ),
                     },
                 },
                 "required": [],
@@ -405,10 +464,11 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "estimate_service_cost",
             "description": (
-                "Estimate the total cost for one or more services by name. "
-                "Use when the customer asks something like "
-                "'how much would a change oil and brake cleaning cost?' or "
-                "'estimate cost for change ATF and change coolant'."
+                "Estimate the total cost for one or more named services. "
+                "Use when the customer asks: "
+                "'how much would a change oil and brake cleaning cost?', "
+                "'estimate the cost for change ATF and change coolant', "
+                "'if I get X and Y, how much total?'."
             ),
             "parameters": {
                 "type": "object",
@@ -416,7 +476,7 @@ CUSTOMER_TOOL_SCHEMAS = [
                     "service_names": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "List of service names to estimate cost for.",
+                        "description": "List of service names to estimate the combined cost for.",
                     },
                 },
                 "required": ["service_names"],
@@ -427,10 +487,10 @@ CUSTOMER_TOOL_SCHEMAS = [
 ]
 
 CUSTOMER_TOOL_FUNCTIONS = {
-    "get_my_vehicles":       get_my_vehicles,
-    "get_my_service_history":get_my_service_history,
-    "get_my_pms_status":     get_my_pms_status,
-    "get_my_bookings":       get_my_bookings,
-    "get_service_prices":    get_service_prices,
-    "estimate_service_cost": estimate_service_cost,
+    "get_my_vehicles":        get_my_vehicles,
+    "get_my_service_history": get_my_service_history,
+    "get_my_pms_status":      get_my_pms_status,
+    "get_my_bookings":        get_my_bookings,
+    "get_service_prices":     get_service_prices,
+    "estimate_service_cost":  estimate_service_cost,
 }

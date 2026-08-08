@@ -875,13 +875,27 @@
     letter-spacing: 0;
 }
 
-/* Main content offset for the fixed sidebar */
+/* Main content offset for the fixed sidebar and fixed topbar */
 .admin-dashboard-body {
-    padding-left: 80px;
+    padding-left: 0;
     transition: padding-left 0.25s ease;
 }
 .sidebar-expanded .admin-dashboard-body {
-    padding-left: 256px;
+    padding-left: 0;
+}
+
+/* Push main content clear of the fixed sidebar */
+.admin-main {
+    margin-left: 80px;
+    flex: 1;
+    min-width: 0;
+    transition: margin-left 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+}
+.sidebar-expanded .admin-main {
+    margin-left: 256px;
 }
 
 /* Section labels: hidden by default */
@@ -1119,8 +1133,6 @@
         height: auto !important;
         min-height: calc(100vh - 60px);
         overflow: visible !important;
-        /* Sidebar is position:fixed at this breakpoint — kill the padding offset
-           that would otherwise create an invisible blank column on the right */
         padding-left: 0 !important;
     }
     .sidebar-expanded .admin-dashboard-body {
@@ -1129,6 +1141,7 @@
 
     /* ─ Main content area scrolls naturally ─ */
     .admin-main {
+        margin-left: 0 !important;
         flex: 1 !important;
         width: 100% !important;
         min-width: 0 !important;
