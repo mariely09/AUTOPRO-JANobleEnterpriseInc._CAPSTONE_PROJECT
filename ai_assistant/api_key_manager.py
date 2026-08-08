@@ -148,6 +148,8 @@ class ApiKeyManager:
         self._loaded: bool = False
         self._load_lock = threading.Lock()   # separate lock just for load serialisation
         self._settings_id: str = "rotation_settings"
+        self._last_load_error: str = ""      # non-empty when last load failed
+        self._last_load_attempt: float = 0.0 # epoch time of last load attempt
 
     # ── Loading ───────────────────────────────────────────────────────────────
 
@@ -180,11 +182,10 @@ class ApiKeyManager:
                     self._max_retries      = int(s.get("max_retries", MAX_RETRY_ATTEMPTS))
 
                 # ── Fetch Firestore key documents ─────────────────────────────
-                docs = list(
-                    db.collection("ai_api_keys")
-                      .order_by("sort_order")
-                      .stream()
-                )
+                # Sort in Python to avoid requiring a Firestore single-field index
+                # on sort_order (which may not exist and causes a silent failure).
+                docs = list(db.collection("ai_api_keys").stream())
+                docs.sort(key=lambda d: d.to_dict().get("sort_order", 0))
 
                 with self._lock:
                     # Build a map of existing runtime state keyed by key_id so we
@@ -201,6 +202,7 @@ class ApiKeyManager:
 
                     # Rebuild the key list from Firestore
                     new_keys: list[_KeyState] = []
+                    _decrypt_errors: list[str] = []
                     for doc in docs:
                         d = doc.to_dict()
                         if not d.get("encrypted_key"):
@@ -208,7 +210,26 @@ class ApiKeyManager:
                         try:
                             plain_key = decrypt_key(d["encrypted_key"])
                         except Exception as exc:
-                            logger.error("Failed to decrypt key %s: %s", doc.id, exc)
+                            # Decryption failed — most likely the Fernet secret
+                            # (GROQ_KEY_ENCRYPTION_SECRET) differs between the worker
+                            # that saved the key and this worker.  Surface the error
+                            # as a disabled placeholder so the UI shows the key exists
+                            # rather than silently hiding it.
+                            account = d.get("account_name", doc.id)
+                            logger.error(
+                                "ApiKeyManager: DECRYPT ERROR for key '%s' (%s). "
+                                "Check that GROQ_KEY_ENCRYPTION_SECRET is the same on "
+                                "all Render workers. Error: %s",
+                                account, doc.id, exc,
+                            )
+                            _decrypt_errors.append(account)
+                            placeholder = _KeyState(
+                                key_id=doc.id,
+                                plain_key="",
+                                account_name=f"{account} ⚠ decrypt-error",
+                                status="disabled",
+                            )
+                            new_keys.append(placeholder)
                             continue
 
                         state = _KeyState(
@@ -251,21 +272,62 @@ class ApiKeyManager:
 
                 # Set _loaded AFTER releasing the lock — safe for other threads to read
                 self._loaded = True
+                self._last_load_error = ""
+                self._last_load_attempt = time.time()
+
+                if _decrypt_errors:
+                    logger.error(
+                        "ApiKeyManager: %d key(s) could not be decrypted: %s. "
+                        "Ensure GROQ_KEY_ENCRYPTION_SECRET is identical on all workers.",
+                        len(_decrypt_errors), _decrypt_errors,
+                    )
 
                 logger.info(
-                    "ApiKeyManager: loaded %d key(s). Rotation=%s, cooldown=%ds",
-                    len(self._keys), self._rotation_enabled, self._cooldown_seconds,
+                    "ApiKeyManager: loaded %d key(s) (%d decrypt error(s)). "
+                    "Rotation=%s, cooldown=%ds",
+                    len(self._keys), len(_decrypt_errors),
+                    self._rotation_enabled, self._cooldown_seconds,
                 )
 
             except Exception as exc:
-                logger.error("ApiKeyManager: failed to load from Firestore: %s", exc)
-                # Mark as loaded anyway so we don't infinitely retry on every request.
-                # Keys list will just be empty and we fall back to GROQ_API_KEY env var.
-                self._loaded = True
+                exc_str = str(exc)
+                # Quota / transient errors — do NOT mark as loaded so we retry
+                # on the next request (after a 60 s backoff to avoid hammering).
+                is_quota = (
+                    "quota exceeded" in exc_str.lower()
+                    or "resource_exhausted" in exc_str.lower()
+                    or "429" in exc_str
+                    or "unavailable" in exc_str.lower()
+                )
+                self._last_load_attempt = time.time()
+                if is_quota:
+                    logger.error(
+                        "ApiKeyManager: Firestore quota exceeded — will retry in 60 s. "
+                        "Keys currently in memory: %d. Error: %s",
+                        len(self._keys), exc_str,
+                    )
+                    self._last_load_error = f"Firestore quota exceeded: {exc_str[:120]}"
+                    # _loaded stays False (or keeps its previous value) so
+                    # _ensure_loaded will retry after the backoff window.
+                else:
+                    logger.error("ApiKeyManager: failed to load from Firestore: %s", exc_str)
+                    self._last_load_error = exc_str[:120]
+                    # Hard failure (bad credentials, network, etc.) — mark loaded
+                    # so we don't infinitely retry on every single request.
+                    # Fall back to GROQ_API_KEY env var.
+                    self._loaded = True
 
     def _ensure_loaded(self):
-        """Load keys on first use. Thread-safe via _load_lock inside load_from_firestore."""
+        """Load keys on first use. Thread-safe via _load_lock inside load_from_firestore.
+        On quota/transient errors, retries after a 60 s backoff instead of
+        permanently marking the manager as loaded with an empty key list.
+        """
         if not self._loaded:
+            self.load_from_firestore()
+            return
+        # If a previous load succeeded but a subsequent one failed with a quota
+        # error (_loaded was NOT reset), re-attempt after the backoff window.
+        if self._last_load_error and (time.time() - self._last_load_attempt) > 60:
             self.load_from_firestore()
 
     # ── Key access ────────────────────────────────────────────────────────────
@@ -502,6 +564,8 @@ class ApiKeyManager:
             cooldown_count = sum(1 for k in self._keys
                                  if k.status != "disabled" and k.in_cooldown)
             disabled_count = sum(1 for k in self._keys if k.status == "disabled")
+            decrypt_errors = sum(1 for k in self._keys
+                                 if "decrypt-error" in k.account_name)
 
             from config import settings
             return {
@@ -519,24 +583,72 @@ class ApiKeyManager:
                 "cooldown_seconds":   self._cooldown_seconds,
                 "max_retries":        self._max_retries,
                 "rotation_strategy":  "Round Robin",
+                "decrypt_errors":     decrypt_errors,
+                "load_error":         self._last_load_error,
                 "keys":               keys_info,
+                "default_key_masked": mask_key(settings.GROQ_API_KEY) if settings.GROQ_API_KEY else "—",
             }
 
     def get_event_log(self) -> list[dict]:
-        """Return the most recent events (newest first)."""
-        with self._lock:
-            return list(reversed(self._event_log))
+        """Return the most recent events — reads from Firestore so all workers agree."""
+        try:
+            from firestore_client import get_db
+            db = get_db()
+            # Fetch all and sort in Python to avoid needing a Firestore index
+            docs = list(db.collection("ai_event_log").stream())
+            entries = [d.to_dict() for d in docs]
+            entries.sort(key=lambda e: e.get("timestamp_epoch", 0), reverse=True)
+            return entries[:LOG_MAX]
+        except Exception as exc:
+            logger.warning("get_event_log: Firestore unavailable, falling back to memory: %s", exc)
+            with self._lock:
+                return list(reversed(self._event_log))
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _log_event(self, event_type: str, account: str, message: str):
-        """Append an event to the in-memory log. Must be called while _lock is held."""
-        self._event_log.append({
-            "timestamp":  datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "event_type": event_type,
-            "account":    account,
-            "message":    message,
-        })
+        """Append an event to the in-memory log AND persist to Firestore.
+        Must be called while self._lock is held.
+        Firestore write is fire-and-forget (errors are logged, not raised).
+        """
+        entry = {
+            "timestamp":       datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp_epoch": time.time(),   # used for server-side ordering
+            "event_type":      event_type,
+            "account":         account,
+            "message":         message,
+        }
+        self._event_log.append(entry)
+
+        # Persist to Firestore so all Render workers share the same log
+        def _write():
+            try:
+                from firestore_client import get_db
+                db = get_db()
+                db.collection("ai_event_log").document().set(entry)
+                # Keep only the last LOG_MAX documents — prune oldest in background
+                _prune_event_log(db)
+            except Exception as exc:
+                logger.warning("_log_event: could not persist to Firestore: %s", exc)
+
+        import threading as _threading
+        _threading.Thread(target=_write, daemon=True).start()
+
+
+def _prune_event_log(db):
+    """Delete event log documents beyond LOG_MAX (keep newest LOG_MAX).
+    Called in a background thread — errors are silently swallowed.
+    """
+    try:
+        docs = list(db.collection("ai_event_log").stream())
+        if len(docs) <= LOG_MAX:
+            return
+        # Sort newest-first and delete anything beyond the limit
+        docs.sort(key=lambda d: d.to_dict().get("timestamp_epoch", 0), reverse=True)
+        for doc in docs[LOG_MAX:]:
+            doc.reference.delete()
+    except Exception:
+        pass
 
 
 # ── Singleton ─────────────────────────────────────────────────────────────────

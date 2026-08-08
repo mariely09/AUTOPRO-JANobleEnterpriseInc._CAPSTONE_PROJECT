@@ -236,12 +236,20 @@ class TestApiKeyManager(unittest.TestCase):
 
     # ── Test 10: event log captures rotation events ───────────────────────────
     def test_event_log_captures_rotation(self):
+        """
+        The in-memory _event_log is the authoritative source for unit tests.
+        get_event_log() tries Firestore first, which may return stale/cross-test
+        data in a test environment.  We validate the in-memory deque directly,
+        which is what get_event_log() falls back to when Firestore is unavailable.
+        """
         m = _make_manager_with_keys("Account A", "Account B")
 
         m.rotate_on_rate_limit(failed_key_id="id1")
 
-        logs = m.get_event_log()
-        event_types = [e["event_type"] for e in logs]
+        # Read the in-memory event log directly — avoids cross-test Firestore pollution
+        with m._lock:
+            in_memory_log = list(m._event_log)
+        event_types = [e["event_type"] for e in in_memory_log]
 
         self.assertIn("rate_limit", event_types,
                       "rate_limit event should be logged")

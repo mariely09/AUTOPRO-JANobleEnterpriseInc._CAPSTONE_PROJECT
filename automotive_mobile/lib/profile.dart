@@ -10,6 +10,8 @@ import 'change_password.dart';
 import 'notifs_manageAlerts.dart';
 import 'help_support.dart';
 import 'privacy_policy.dart';
+import 'admin_rag_ai.dart';
+import 'customer_smart_ai.dart';
 import 'terms_conditions.dart';
 import 'onesignal_debug.dart';
 
@@ -453,6 +455,8 @@ class _UserProfileState extends State<UserProfile> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
             onPressed: () async {
+              AdminChatStore.clear();
+              CustomerChatStore.clear();
               await FirebaseAuth.instance.signOut();
               if (mounted) Navigator.pushAndRemoveUntil(context,
                 MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);

@@ -6,7 +6,7 @@ API key rotation is handled transparently by ApiKeyManager:
     returns the next available key.
   - The chat() function retries up to MAX_RETRY_ATTEMPTS times across
     different keys before giving up.
-  - If all keys are exhausted the original RateLimitError is re-raised so
+  - If all keys are exhausted an AllKeysRateLimitedError is raised so
     main.py can return the standard friendly rate-limit message.
 """
 import json
@@ -16,6 +16,13 @@ from config import settings
 from firestore_tools import TOOL_SCHEMAS, TOOL_FUNCTIONS
 from verifier import verify_reply
 from api_key_manager import get_manager
+
+logger = logging.getLogger(__name__)
+
+
+class AllKeysRateLimitedError(Exception):
+    """Raised when every configured Groq API key is rate-limited or in cooldown."""
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -94,30 +101,12 @@ Rules for the JSON block:
 - Date filters (start_date, end_date, month) go inside "filters" too
 - If no filters were mentioned, "filters" must be an empty object {{}}
 
-Examples:
+Examples (apply same pattern for all other types/filters/formats):
 
 User: Generate inventory report.
 Reply: Your inventory report is ready.
 ```report_payload
 {{"report_type":"inventory","format":"pdf","filters":{{}}}}
-```
-
-User: Generate inventory report in Excel.
-Reply: Your inventory report is ready.
-```report_payload
-{{"report_type":"inventory","format":"excel","filters":{{}}}}
-```
-
-User: Generate inventory report in PDF and Excel.
-Reply: Your inventory report is ready.
-```report_payload
-{{"report_type":"inventory","format":"both","filters":{{}}}}
-```
-
-User: Generate inventory report for Lubricants.
-Reply: Your inventory report is ready.
-```report_payload
-{{"report_type":"inventory","format":"pdf","filters":{{"group":"Lubricants"}}}}
 ```
 
 User: Generate low stock inventory report in Excel.
@@ -126,10 +115,10 @@ Reply: Your inventory report is ready.
 {{"report_type":"inventory","format":"excel","filters":{{"status":"Low"}}}}
 ```
 
-User: Generate inventory report for Lubricants with low stock.
-Reply: Your inventory report is ready.
+User: Generate issuance report for June 2026 in PDF and Excel.
+Reply: Your issuance report is ready.
 ```report_payload
-{{"report_type":"inventory","format":"pdf","filters":{{"group":"Lubricants","status":"Low"}}}}
+{{"report_type":"issuance","format":"both","filters":{{"month":"June {today.year}"}}}}
 ```
 
 User: Generate completed maintenance report for July.
@@ -138,112 +127,16 @@ Reply: Your maintenance report is ready.
 {{"report_type":"maintenance","format":"pdf","filters":{{"status":"Completed","month":"July {today.year}"}}}}
 ```
 
-User: Generate approved booking report in Excel.
-Reply: Your bookings report is ready.
-```report_payload
-{{"report_type":"bookings","format":"excel","filters":{{"status":"Approved"}}}}
-```
-
-User: Generate issuance report for plate ABC123 in PDF and Excel.
-Reply: Your issuance report is ready.
-```report_payload
-{{"report_type":"issuance","format":"both","filters":{{"plate":"ABC123"}}}}
-```
-
-User: Generate a vehicle report for the month of July.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"month":"July {today.year}"}}}}
-```
-
-User: Download the vehicle report.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{}}}}
-```
-
-User: Export vehicle report as PDF.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{}}}}
-```
-
-User: Export vehicle report as Excel.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"excel","filters":{{}}}}
-```
-
-User: Generate a vehicle report for Juan Dela Cruz.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"owner":"Juan Dela Cruz"}}}}
-```
-
-User: Generate a vehicle report for Maria Santos.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"owner":"Maria Santos"}}}}
-```
-
-User: Generate an active vehicle report.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"status":"Active"}}}}
-```
-
-User: Generate an inactive vehicle report.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"status":"Inactive"}}}}
-```
-
-User: Generate a vehicle report for vehicles due for maintenance.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"status":"Maintenance"}}}}
-```
-
-User: Generate a report for Trucks.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"vehicle_type":"Truck"}}}}
-```
-
-User: Generate a report for SUVs.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"vehicle_type":"SUV"}}}}
-```
-
-User: Generate a report for Sedans.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"vehicle_type":"Sedan"}}}}
-```
-
-User: Generate a report for Vans.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"vehicle_type":"Van"}}}}
-```
-
-User: Generate an active truck report.
+User: Generate active truck report.
 Reply: Your vehicle fleet report is ready.
 ```report_payload
 {{"report_type":"vehicles","format":"pdf","filters":{{"status":"Active","vehicle_type":"Truck"}}}}
 ```
 
-User: Generate a PDF report of active sedans.
-Reply: Your vehicle fleet report is ready.
+User: Generate pending bookings report in Excel.
+Reply: Your bookings report is ready.
 ```report_payload
-{{"report_type":"vehicles","format":"pdf","filters":{{"status":"Active","vehicle_type":"Sedan"}}}}
-```
-
-User: Generate an Excel report for Juan Dela Cruz's vehicles.
-Reply: Your vehicle fleet report is ready.
-```report_payload
-{{"report_type":"vehicles","format":"excel","filters":{{"owner":"Juan Dela Cruz"}}}}
+{{"report_type":"bookings","format":"excel","filters":{{"status":"Pending"}}}}
 ```
 
 ────────────────────────────────────────────────────
@@ -316,10 +209,19 @@ ADMIN_SYSTEM_PROMPT = """You are the internal AI assistant for the Automotive Se
 STRICT SCOPE RESTRICTION — HIGHEST PRIORITY:
 You ONLY answer questions that are directly related to this system's data:
 inventory, stock levels, maintenance jobs, service bookings, vehicles/fleet,
-issuances, deliveries, users/staff, and reports.
+issuances, deliveries, users/staff, reports, revenue/earnings, costs, sales
+summaries, service income, financial summaries from bookings and maintenance,
+and system usage questions.
+
+This also includes questions asked in Filipino (Tagalog) about the same topics.
+Examples of valid Filipino queries:
+  "magkano ang total na kinita" → total revenue/earnings from services
+  "ilang sasakyan" → how many vehicles
+  "anong mga serbisyo" → what services
+  "mga booking ngayong buwan" → bookings this month
 
 If a user asks ANYTHING outside this scope — including but not limited to:
-general knowledge, sports, current events, news, history, science, coding,
+general knowledge, sports, current events, unrelated news, history, science, coding,
 math, recipes, weather, entertainment, or any other non-system topic —
 you MUST respond with ONLY this exact text, nothing else:
 "I can only answer questions related to the Automotive Service and Inventory Management System."
@@ -331,8 +233,8 @@ Just return that one sentence and nothing more.
 
 The data you have access to:
 - Stock/Inventory: physical parts and supplies with current stock levels (use get_stock_levels, get_low_stock_items)
-- Item Catalog: master list of all Materials and Services offered (use get_item_catalog)
-- Maintenance Jobs: service/repair records per vehicle (use get_maintenance_jobs, get_maintenance_summary)
+- Item Catalog: master list of all Materials and Services offered with prices (use get_item_catalog)
+- Maintenance Jobs: service/repair records per vehicle including costs (use get_maintenance_jobs, get_maintenance_summary)
 - Service Bookings: customer appointment bookings (use get_service_bookings)
 - Deliveries: supplier delivery records (use get_deliveries)
 - Vehicles: registered fleet vehicles (use get_vehicles)
@@ -348,21 +250,27 @@ Rules for in-scope questions:
 7. Be concise. Lead with the direct answer, then supporting detail.
 8. When calling tools, NEVER include parameters you don't have a value for — omit them entirely.
 9. Use conversation history to understand follow-up questions.
+10. Revenue, earnings, income, sales, and total cost questions are IN-SCOPE — answer them using maintenance job or booking data.
+11. If the user writes in Filipino (Tagalog), respond in Filipino or English (whichever is clearer).
 
 CRITICAL — Reformatting follow-ups:
 If the user says "make it a list", "number them", "show as bullets", "simplify" or similar,
 DO NOT call any tools. Simply reformat your PREVIOUS answer in the requested style.
 
-Keyword mappings:
+Keyword mappings (English and Filipino):
 - "materials", "parts", "supplies", "stock items", "inventory" → get_stock_levels
-- "services", "service list", "what services" → get_item_catalog with item_type='Service'
+- "services", "service list", "what services", "serbisyo" → get_item_catalog with item_type='Service'
 - "all items", "catalog", "price list" → get_item_catalog
 - "low stock", "reorder", "running low" → get_low_stock_items
-- "maintenance", "repair jobs", "service records" → get_maintenance_jobs or get_maintenance_summary
-- "bookings", "appointments" → get_service_bookings
-- "deliveries", "supplier deliveries" → get_deliveries
-- "vehicles", "fleet" → get_vehicles
-- "users", "customers", "staff", "how many users" → get_user_count
+- "maintenance", "repair jobs", "service records", "trabaho", "ayos" → get_maintenance_jobs or get_maintenance_summary
+- "bookings", "appointments", "booking", "mga appointment" → get_service_bookings
+- "deliveries", "supplier deliveries", "delivery" → get_deliveries
+- "vehicles", "fleet", "sasakyan", "mga sasakyan" → get_vehicles
+- "users", "customers", "staff", "how many users", "mga user" → get_user_count
+- "sales", "revenue", "earnings", "income", "total sum", "total cost", "total na kinita",
+  "magkano", "kita", "bayad", "total na kita" → get_maintenance_jobs (for cost data) or get_service_bookings
+- "summary of sales", "sales this month", "income this month", "kita ngayong buwan",
+  "total services", "how much earned" → get_maintenance_summary or get_maintenance_jobs
 
 """ + _build_report_prompt()
 
@@ -384,8 +292,13 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None):
             kwargs["tools"] = tools
         return client.chat.completions.create(**kwargs)
 
-    # Try current key, then rotate on rate-limit up to max_retries times
-    max_attempts = max(1, manager._max_retries)
+    # Try current key, then rotate on rate-limit up to max_retries times.
+    # We count the total number of distinct keys tried, not just loop iterations,
+    # so with 2 keys and max_retries=3 we'll still try both keys.
+    manager._ensure_loaded()
+    total_keys = max(1, len(manager._keys))
+    max_attempts = max(manager._max_retries, total_keys)
+
     last_key_id = manager.get_current_key_id()
     current_key = manager.get_current_key()
 
@@ -393,10 +306,23 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None):
         # No keys at all — fall back to env var
         current_key = settings.GROQ_API_KEY
         if not current_key:
-            raise RateLimitError("No Groq API key configured.")
+            raise AllKeysRateLimitedError("No Groq API key configured.")
 
     last_exc: Exception | None = None
+    tried_key_ids: set = set()
+
     for attempt in range(max_attempts):
+        # Avoid retrying the exact same key twice
+        if last_key_id in tried_key_ids:
+            # Already tried this key — force a rotation to get a fresh one
+            next_key = manager.rotate_on_rate_limit(failed_key_id=last_key_id)
+            if next_key is None:
+                break
+            last_key_id = manager.get_current_key_id()
+            current_key = next_key
+
+        tried_key_ids.add(last_key_id)
+
         try:
             return _do_call(current_key)
         except RateLimitError as exc:
@@ -411,7 +337,7 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None):
             next_key = manager.rotate_on_rate_limit(failed_key_id=last_key_id)
             if next_key is None:
                 # All keys exhausted
-                raise RateLimitError(
+                raise AllKeysRateLimitedError(
                     "All API keys are currently rate-limited. "
                     "Please try again in a few minutes."
                 ) from exc
@@ -420,8 +346,11 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None):
 
     # Exhausted retries
     if last_exc:
-        raise last_exc
-    raise RateLimitError("Groq API key rotation exhausted all retries.")
+        raise AllKeysRateLimitedError(
+            "All API keys are currently rate-limited. "
+            "Please try again in a few minutes."
+        ) from last_exc
+    raise AllKeysRateLimitedError("Groq API key rotation exhausted all retries.")
 
 
 def _strip_null_args(raw_args: str) -> dict:
@@ -457,7 +386,7 @@ def chat(user_message: str, history: list[dict] | None = None, _retry: bool = Fa
     for _ in range(5):
         try:
             response = _call_groq(messages, tools=TOOL_SCHEMAS)
-        except RateLimitError:
+        except (RateLimitError, AllKeysRateLimitedError):
             # Re-raise so main.py can return the structured rate-limit response
             raise
         except BadRequestError as e:
@@ -477,7 +406,7 @@ def chat(user_message: str, history: list[dict] | None = None, _retry: bool = Fa
                         "verified": True,
                         "unsupported_numbers": [],
                     }
-                except RateLimitError:
+                except (RateLimitError, AllKeysRateLimitedError):
                     raise
                 except Exception as fallback_err:
                     logger.error("Fallback call also failed: %s", fallback_err)

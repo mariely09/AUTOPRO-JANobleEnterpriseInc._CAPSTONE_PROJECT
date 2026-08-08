@@ -13,6 +13,7 @@ import 'admin_dss.dart';
 import 'notifications.dart';
 import 'admin_rag_ai.dart';
 import 'admin_domain_management.dart';
+import 'customer_smart_ai.dart';
 import 'admin_archive.dart';
 import 'barcode_scanner_screen.dart';
 import 'admin_service_bookings.dart';
@@ -1734,6 +1735,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 SizedBox(width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () async {
+                      AdminChatStore.clear();
+                      CustomerChatStore.clear();
                       await FirebaseAuth.instance.signOut();
                       if (context.mounted) {
                         Navigator.pop(context);
@@ -1783,6 +1786,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         SizedBox(width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: () async {
+              AdminChatStore.clear();
+              CustomerChatStore.clear();
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
                 Navigator.pushAndRemoveUntil(context,

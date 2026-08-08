@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from schemas import ChatRequest, ChatResponse, CustomerChatRequest, SessionInfoResponse
-from client import chat as llm_chat
+from client import chat as llm_chat, AllKeysRateLimitedError as _AllKeysRateLimitedError
 from intent_classifier import classify_and_run
 from session_store import (
     get_history, append_turn, clear_session, session_info, active_session_count
@@ -67,8 +67,26 @@ def _rate_limit_reply(error_message: str) -> dict:
 
 
 def _is_rate_limit(exc: Exception) -> bool:
+    from client import AllKeysRateLimitedError
+    if isinstance(exc, AllKeysRateLimitedError):
+        return True
     cls_name = type(exc).__name__.lower()
-    return "ratelimit" in cls_name or "rate_limit" in cls_name or "429" in str(exc)
+    exc_str  = str(exc).lower()
+    return (
+        "ratelimit" in cls_name
+        or "rate_limit" in cls_name
+        or "allkeysratelimited" in cls_name
+        or "429" in exc_str
+        or "all api keys" in exc_str
+        # Groq TPM (tokens-per-minute) errors come back as HTTP 413 with
+        # type: "tokens" and code: "rate_limit_exceeded".  Rotation fires but
+        # can't help (org-level limit), so we surface the friendly message
+        # instead of letting it become a 500.
+        or "413" in exc_str
+        or ("token" in exc_str and "limit" in exc_str)
+        or "request too large" in exc_str
+        or "too large for model" in exc_str
+    )
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
@@ -250,6 +268,16 @@ async def admin_report(request: Request,
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         traceback.print_exc()
+        err_str = str(e).lower()
+        # Firestore / gRPC quota exceeded (ResourceExhausted / 429)
+        if "quota exceeded" in err_str or "resource_exhausted" in err_str or "429" in err_str:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "The database is temporarily unavailable due to a quota limit "
+                    "(Firestore free-tier). Please wait a moment and try again."
+                ),
+            )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -499,12 +527,28 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
 
     def _call(msgs, tools=None, _attempt: int = 0):
         """Call Groq with automatic rotation on rate-limit."""
-        max_attempts = max(1, manager._max_retries)
-        last_key_id  = manager.get_current_key_id()
-        current_key  = manager.get_current_key() or settings.GROQ_API_KEY
+        from client import AllKeysRateLimitedError
+
+        manager._ensure_loaded()
+        total_keys = max(1, len(manager._keys))
+        max_attempts = max(manager._max_retries, total_keys)
+
+        last_key_id = manager.get_current_key_id()
+        current_key = manager.get_current_key() or settings.GROQ_API_KEY
         last_exc: Exception | None = None
+        tried_key_ids: set = set()
 
         for attempt in range(max_attempts):
+            # Avoid retrying the same key twice
+            if last_key_id in tried_key_ids:
+                next_key = manager.rotate_on_rate_limit(failed_key_id=last_key_id)
+                if next_key is None:
+                    break
+                last_key_id = manager.get_current_key_id()
+                current_key = next_key
+
+            tried_key_ids.add(last_key_id)
+
             try:
                 client = Groq(api_key=current_key)
                 kwargs = {"model": settings.GROQ_MODEL, "messages": msgs}
@@ -517,16 +561,19 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                     raise
                 next_key = manager.rotate_on_rate_limit(failed_key_id=last_key_id)
                 if next_key is None:
-                    raise RateLimitError(
+                    raise AllKeysRateLimitedError(
                         "All API keys are currently rate-limited. "
                         "Please try again in a few minutes."
                     ) from exc
-                last_key_id  = manager.get_current_key_id()
-                current_key  = next_key
+                last_key_id = manager.get_current_key_id()
+                current_key = next_key
 
         if last_exc:
-            raise last_exc
-        raise RateLimitError("All Groq API key rotation retries exhausted.")
+            raise AllKeysRateLimitedError(
+                "All API keys are currently rate-limited. "
+                "Please try again in a few minutes."
+            ) from last_exc
+        raise AllKeysRateLimitedError("All Groq API key rotation retries exhausted.")
 
     def _strip_null(raw: str) -> dict:
         if not raw or not raw.strip():
@@ -564,7 +611,6 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                     "reply": "I couldn't retrieve that information. Please try rephrasing.",
                     "tool_calls": tool_log,
                 }
-
         msg  = response.choices[0].message
         asst: dict = {"role": "assistant", "content": msg.content or ""}
         if msg.tool_calls:
@@ -704,9 +750,13 @@ def _check_admin(x_admin_token: str = ""):
 
 @app.get("/ai-settings/status")
 def ai_settings_status():
-    """Return current AI service status and key table (masked)."""
+    """Return current AI service status and key table (masked).
+    Always reloads from Firestore so the response is never stale across
+    Render workers or after a cold start.
+    """
     from api_key_manager import get_manager
     manager = get_manager()
+    manager.load_from_firestore()   # always fresh — Firestore is the source of truth
     return manager.get_status()
 
 

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -7,173 +7,137 @@
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
     <link rel="stylesheet" href="../static/css/customer_dashboard.css">
     <style>
-        body { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+        body { display:flex; flex-direction:column; height:100vh; overflow:hidden; background:#f0f2f5; }
 
+        /* ── Messages area ── */
         .ai-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            background: #F7F8FA;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+            flex: 1; overflow-y: auto; padding: 20px 16px;
+            background: linear-gradient(180deg,#f8f9fb 0%,#f0f2f5 100%);
+            display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth;
         }
+        .ai-messages::-webkit-scrollbar { width:4px; }
+        .ai-messages::-webkit-scrollbar-track { background:transparent; }
+        .ai-messages::-webkit-scrollbar-thumb { background:#d1d5db;border-radius:4px; }
 
-        .ai-welcome {
-            text-align: center;
-            padding: 24px 16px 8px;
-        }
+        /* ── Welcome block ── */
+        .ai-welcome { text-align:center; padding:28px 8px 8px; }
         .ai-welcome-icon {
-            width: 64px; height: 64px;
-            background: rgba(0,48,135,0.1);
-            border-radius: 20px;
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 14px;
-            color: #003087;
+            width:68px;height:68px;
+            background:linear-gradient(135deg,#fff0f0,#ffe4e4);
+            border:2px solid rgba(232,0,28,0.12);border-radius:22px;
+            display:flex;align-items:center;justify-content:center;
+            margin:0 auto 14px;box-shadow:0 4px 18px rgba(232,0,28,0.1);
         }
-        .ai-welcome-title { font-size: 18px; font-weight: 700; color: #1a202c; margin-bottom: 6px; }
-        .ai-welcome-sub { font-size: 13px; color: #718096; line-height: 1.6; }
+        .ai-welcome-title { font-size:18px;font-weight:800;color:#1a202c;margin-bottom:6px;letter-spacing:-0.3px; }
+        .ai-welcome-sub   { font-size:13px;color:#94a3b8;line-height:1.65;max-width:280px;margin:0 auto; }
 
-        .ai-chips {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            padding: 0 20px 12px;
-            background: #F7F8FA;
+        /* ── Suggestion pills ── */
+        .ai-suggestions { display:flex;flex-direction:column;gap:9px;padding:20px 0 4px; }
+        .ai-suggest-pill {
+            display:flex;align-items:center;gap:10px;
+            width:100%;text-align:left;
+            background:white;border:1.5px solid #e8edf2;border-radius:13px;
+            padding:11px 16px;font-size:13px;font-weight:500;color:#4a5568;
+            cursor:pointer;font-family:inherit;transition:all .18s ease;
+            box-shadow:0 1px 6px rgba(0,0,0,0.05);pointer-events:auto;
         }
-        .ai-chip {
-            background: white;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 20px;
-            padding: 7px 14px;
-            font-size: 12px;
-            font-weight: 500;
-            color: #4a5568;
-            cursor: pointer;
-            font-family: inherit;
-            transition: all .15s;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        .ai-suggest-pill::before {
+            content:'';width:7px;height:7px;border-radius:50%;
+            background:#E8001C;flex-shrink:0;
         }
-        .ai-chip:hover { background: #1a202c; color: white; border-color: #1a202c; }
+        .ai-suggest-pill:hover {
+            border-color:#E8001C;color:#E8001C;background:#fff5f5;
+            box-shadow:0 4px 14px rgba(232,0,28,0.13);transform:translateY(-1px);
+        }
 
-        .ai-bubble {
-            max-width: 78%;
-            padding: 10px 14px;
-            border-radius: 16px;
-            font-size: 13px;
-            line-height: 1.6;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-            white-space: pre-wrap;
-        }
+        /* ── Row + avatars ── */
+        .ai-row { display:flex;gap:8px;align-items:flex-end; }
+        .ai-row.user { flex-direction:row-reverse; }
+        .ai-av { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+        .ai-av.bot { background:linear-gradient(135deg,#E8001C,#c0001a);box-shadow:0 2px 8px rgba(232,0,28,0.3); }
+        .ai-av.usr { background:linear-gradient(135deg,#475569,#334155);font-size:10px;font-weight:700;color:white;box-shadow:0 2px 6px rgba(0,0,0,0.15); }
+
+        /* ── Bubbles ── */
+        .ai-bubble { max-width:78%;padding:11px 15px;font-size:13.5px;line-height:1.65;word-break:break-word; }
         .ai-bubble.user {
-            background: #E8001C;
-            color: white;
-            align-self: flex-end;
-            border-radius: 16px 16px 4px 16px;
+            background:linear-gradient(135deg,#E8001C 0%,#c0001a 100%);
+            color:white;align-self:flex-end;
+            border-radius:16px 4px 16px 16px;
+            box-shadow:0 3px 12px rgba(232,0,28,0.25);
         }
         .ai-bubble.bot {
-            background: white;
-            color: #1a202c;
-            align-self: flex-start;
-            border-radius: 16px 16px 16px 4px;
+            background:white;color:#1a202c;align-self:flex-start;
+            border-radius:4px 16px 16px 16px;
+            box-shadow:0 2px 12px rgba(0,0,0,0.07);
+            border:1px solid rgba(226,232,240,0.6);
         }
 
+        /* ── Typing indicator ── */
         .ai-typing {
-            background: white;
-            border-radius: 16px 16px 16px 4px;
-            padding: 12px 16px;
-            align-self: flex-start;
-            display: flex; gap: 5px; align-items: center;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            background:white;border-radius:4px 16px 16px 16px;padding:13px 16px;
+            align-self:flex-start;display:flex;gap:5px;align-items:center;
+            box-shadow:0 2px 10px rgba(0,0,0,0.06);
         }
-        .ai-typing span {
-            width: 7px; height: 7px;
-            background: #a0aec0;
-            border-radius: 50%;
-            animation: bounce .9s ease-in-out infinite;
-        }
-        .ai-typing span:nth-child(2) { animation-delay: .15s; }
-        .ai-typing span:nth-child(3) { animation-delay: .3s; }
-        @keyframes bounce {
-            0%, 80%, 100% { transform: translateY(0); }
-            40% { transform: translateY(-6px); }
-        }
+        .ai-typing span { width:7px;height:7px;background:#cbd5e0;border-radius:50%;animation:bounce .9s ease-in-out infinite; }
+        .ai-typing span:nth-child(2) { animation-delay:.15s; }
+        .ai-typing span:nth-child(3) { animation-delay:.3s; }
+        @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
 
-        .ai-input-bar {
-            background: white;
-            border-top: 1px solid #e2e8f0;
-            padding: 12px 16px 16px;
-            display: flex;
-            gap: 10px;
-            align-items: flex-end;
-            flex-shrink: 0;
+        /* ── Input bar ── */
+        .ai-input-bar { background:white;border-top:1px solid #edf0f5;padding:10px 14px 14px;flex-shrink:0; }
+        .ai-input-wrap {
+            display:flex;gap:8px;align-items:center;
+            background:#f4f6f9;border:1.5px solid #edf0f5;
+            border-radius:20px;padding:8px 8px 8px 16px;
+            transition:border-color .2s,box-shadow .2s;
         }
+        .ai-input-wrap:focus-within { border-color:#E8001C;box-shadow:0 0 0 3px rgba(232,0,28,0.08); }
         .ai-input {
-            flex: 1;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 24px;
-            padding: 10px 16px;
-            font-size: 13px;
-            font-family: inherit;
-            color: #1a202c;
-            background: #F7F8FA;
-            outline: none;
-            resize: none;
-            max-height: 100px;
-            overflow-y: auto;
-            transition: border-color .2s;
+            flex:1;border:none;background:transparent;padding:0;
+            font-size:13.5px;font-family:inherit;color:#1a202c;
+            outline:none;resize:none;max-height:100px;overflow-y:auto;line-height:1.5;
         }
-        .ai-input:focus { border-color: #E8001C; background: white; }
         .ai-send {
-            width: 44px; height: 44px;
-            background: #E8001C;
-            border: none;
-            border-radius: 50%;
-            color: white;
-            cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0;
-            box-shadow: 0 3px 10px rgba(232,0,28,0.35);
-            transition: transform .2s;
+            width:34px;height:34px;min-width:34px;
+            background:linear-gradient(135deg,#E8001C,#c0001a);
+            border:none;border-radius:50%;color:white;cursor:pointer;
+            display:flex;align-items:center;justify-content:center;flex-shrink:0;
+            box-shadow:0 3px 10px rgba(232,0,28,0.35);transition:all .18s;
         }
-        .ai-send:hover { transform: scale(1.08); }
-        .ai-hint { text-align:center; font-size:11px; color:#cbd5e0; padding:4px 0 2px; background:white; flex-shrink:0; }
+        .ai-send:hover { transform:scale(1.08);box-shadow:0 5px 14px rgba(232,0,28,0.45); }
+        .ai-hint { text-align:center;font-size:10.5px;color:#c0c8d4;padding:5px 0 2px;background:white;flex-shrink:0; }
     </style>
 </head>
 <body data-page="smart-ai">
 
-<!-- Header and Tab Bar (loaded dynamically from customer_header.html) -->
 <div id="customerHeader"></div>
 
 <div class="ai-messages" id="aiMessages">
     <div class="ai-welcome" id="aiWelcome">
         <div class="ai-welcome-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="1"/><circle cx="12" cy="16" r="1"/><path d="M9 12h6M8 6h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><path d="M6 10h-.5a1.5 1.5 0 0 0 0 3H6M18 10h.5a1.5 1.5 0 0 1 0 3H18"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="#E8001C"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
         </div>
-        <div class="ai-welcome-title">Smart Reports AI</div>
+        <div class="ai-welcome-title">Hey, how can I help?</div>
         <div class="ai-welcome-sub" id="aiWelcomeSub">Ask me anything about your vehicles — PMS status, maintenance history, and more.</div>
+        <div class="ai-suggestions" id="aiSuggestions">
+            <button class="ai-suggest-pill" data-q="Give me a fleet summary">Give me a fleet summary</button>
+            <button class="ai-suggest-pill" data-q="Show my upcoming and past bookings">Show my upcoming and past bookings</button>
+            <button class="ai-suggest-pill" data-q="Show my complete service history">Show my complete service history</button>
+        </div>
     </div>
 </div>
 
-<div class="ai-chips" id="aiChips">
-    <button class="ai-chip" onclick="send('List all my vehicles')">🚗 My fleet</button>
-    <button class="ai-chip" onclick="send('Give me a fleet summary')">📊 Summary</button>
-    <button class="ai-chip" onclick="send('Which vehicles are under maintenance?')">🔧 Maintenance</button>
-    <button class="ai-chip" onclick="send('Which vehicles have PMS overdue?')">⚠️ Overdue</button>
-    <button class="ai-chip" onclick="send('Which vehicles have PMS due soon?')">📅 Due soon</button>
-    <button class="ai-chip" onclick="send('Show my service history')">📋 History</button>
-    <button class="ai-chip" onclick="send('Show my bookings')">🗓️ Bookings</button>
-    <button class="ai-chip" onclick="send('What services do you offer and their prices?')">💰 Service prices</button>
-    <button class="ai-chip" onclick="send('How much is a change oil?')">🔍 Change oil cost</button>
-</div>
+<div id="aiChips" style="display:none;"></div>
 
 <div class="ai-input-bar">
-    <textarea class="ai-input" id="aiInput" placeholder="Ask about your vehicles..." rows="1"
-        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send();}"
-        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
-    <button class="ai-send" onclick="send()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(45deg);"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-    </button>
+    <div class="ai-input-wrap">
+        <textarea class="ai-input" id="aiInput" placeholder="Ask about your vehicles…" rows="1"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send();}"
+            oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
+        <button class="ai-send" onclick="send()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+    </div>
 </div>
 <div class="ai-hint">Enter to send &nbsp;·&nbsp; Shift+Enter for new line</div>
 
@@ -196,13 +160,20 @@
   const cpUser = JSON.parse(stored || '{}');
   const db = firebase.firestore();
 
-  let _myVehicles = [], _myMaintenance = [], _dataLoaded = false;
+  let _myVehicles = [], _customerInitials = '?', _myMaintenance = [], _dataLoaded = false;
   const messages = [];
-  let _chatHistory = [];    // rolling client-side history (legacy fallback)
-  let _sessionId   = null;  // server-side session key returned by the backend
+  let _chatHistory = [];
+  let _sessionId   = null;
   let _rateLimited = false;
 
-  // ── Rate-limit UI helper ──────────────────────────────────────────────────
+  // Wire up suggestion pills using data-q attribute (no inline onclick quoting issues)
+  document.querySelectorAll('.ai-suggest-pill[data-q]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var q = btn.getAttribute('data-q');
+      if (q) window.send(q);
+    });
+  });
+
   function _setRateLimited(limited, resetIn) {
     _rateLimited = limited;
     const input   = document.getElementById('aiInput');
@@ -216,16 +187,11 @@
         b.id = 'aiRateBanner';
         b.style.cssText =
           'background:#fff7ed;border-top:2px solid #fb923c;padding:12px 18px;' +
-          'font-size:12.5px;color:#9a3412;flex-shrink:0;display:flex;' +
-          'align-items:flex-start;gap:10px;line-height:1.55;';
+          'font-size:12.5px;color:#9a3412;flex-shrink:0;display:flex;align-items:flex-start;gap:10px;line-height:1.55;';
         b.innerHTML =
-          '<span style="font-size:18px;line-height:1;">🚫</span>' +
-          '<div><strong style="display:block;font-size:13px;margin-bottom:2px;">' +
-          'AI service unavailable — daily token limit reached</strong>' +
-          'The Groq API has used up its free-tier quota for today. ' +
-          'The AI chat will automatically become available again in ' +
-          '<strong>' + (resetIn || 'some time') + '</strong>. ' +
-          'You cannot send new messages until the limit resets.</div>';
+          '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#9a3412" style="flex-shrink:0;margin-top:2px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
+          '<div><strong style="display:block;font-size:13px;margin-bottom:2px;">AI unavailable — daily token limit reached</strong>' +
+          'Groq free-tier quota exhausted. Resets in <strong>' + (resetIn || 'some time') + '</strong>. Chat is disabled until then.</div>';
         const inputBar = document.querySelector('.ai-input-bar');
         if (inputBar) inputBar.parentNode.insertBefore(b, inputBar);
       }
@@ -247,192 +213,169 @@
         const snap = await db.collection('users').where('email', '==', cpUser.email).limit(1).get();
         if (!snap.empty) userName = snap.docs[0].data().name || '';
       }
-
-    const vSnap = await db.collection('vehicles').get();
-    _myVehicles = vSnap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .filter(v => (v.owner || '').toLowerCase() === userName.toLowerCase());
-
-    document.getElementById('aiWelcomeSub').textContent =
-      _myVehicles.length
+      const vSnap = await db.collection('vehicles').get();
+      _myVehicles = vSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .filter(v => (v.owner || '').toLowerCase() === userName.toLowerCase());
+      if (userName) {
+        const parts = userName.trim().split(' ').filter(Boolean);
+        _customerInitials = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : parts[0][0].toUpperCase();
+      }
+      document.getElementById('aiWelcomeSub').textContent = _myVehicles.length
         ? `Ask me anything about your ${_myVehicles.length} vehicle${_myVehicles.length !== 1 ? 's' : ''} — PMS status, maintenance history, and more.`
         : 'No vehicles found under your account.';
-
-    if (_myVehicles.length) {
-      const plates = _myVehicles.map(v => v.plate).filter(Boolean).slice(0, 10);
-      const mSnap = await db.collection('maintenance').where('plate', 'in', plates).get();
-      _myMaintenance = mSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (_myVehicles.length) {
+        const plates = _myVehicles.map(v => v.plate).filter(Boolean).slice(0, 10);
+        const mSnap = await db.collection('maintenance').where('plate', 'in', plates).get();
+        _myMaintenance = mSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      }
+      _dataLoaded = true;
+    } catch(e) {
+      console.error('Smart AI load error:', e);
+      document.getElementById('aiWelcomeSub').textContent = 'Error loading data. Please refresh.';
     }
-    _dataLoaded = true;
-  } catch(e) {
-    console.error('Smart AI load error:', e);
-    document.getElementById('aiWelcomeSub').textContent = 'Error loading data. Please refresh.';
-  }
   }
 
   function processQuery(q) {
     const ql = q.toLowerCase();
     if (!_myVehicles.length) return 'No vehicles are registered under your name yet.';
-
     if (ql.includes('maintenance') || ql.includes('serviced')) {
       const list = _myVehicles.filter(v => (v.status || '').toLowerCase().includes('maintenance'));
-      return list.length
-        ? 'Under maintenance:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n')
-        : 'None of your vehicles are currently under maintenance. ✅';
+      return list.length ? 'Under maintenance:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n') : 'None of your vehicles are currently under maintenance.';
     }
     if (ql.includes('overdue') || ql.includes('past due')) {
       const list = _myVehicles.filter(v => v.status === 'Overdue');
-      return list.length
-        ? 'PMS Overdue:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n') + '\n\nPlease schedule a service soon!'
-        : 'No vehicles are overdue for PMS. ✅';
+      return list.length ? 'PMS Overdue:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n') + '\n\nPlease schedule a service soon!' : 'No vehicles are overdue for PMS.';
     }
     if (ql.includes('due soon') || ql.includes('upcoming')) {
       const list = _myVehicles.filter(v => v.status === 'PMS Due Soon');
-      return list.length
-        ? 'PMS Due Soon:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n')
-        : 'No vehicles have PMS due soon. ✅';
+      return list.length ? 'PMS Due Soon:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n') : 'No vehicles have PMS due soon.';
     }
     if (ql.includes('history') || ql.includes('service record') || ql.includes('completed')) {
       const done = _myMaintenance.filter(m => (m.status || '').toLowerCase() === 'completed');
       if (!done.length) return 'No completed service records found for your vehicles.';
-      const total = done.reduce((s, r) => {
-        const c = r.totalCost
-          ? parseFloat(r.totalCost) || 0
-          : parseFloat((r.cost || '0').replace(/[₱,]/g, '')) || 0;
-        return s + c;
-      }, 0);
-      return `You have ${done.length} completed service record${done.length !== 1 ? 's' : ''}.\nTotal spent: ₱${total.toLocaleString('en-PH', {minimumFractionDigits:2})}\n\nTap "PMS History" tab to view full details.`;
+      const total = done.reduce((s, r) => s + (r.totalCost ? parseFloat(r.totalCost)||0 : parseFloat((r.cost||'0').replace(/[₱,]/g,''))||0), 0);
+      return `You have ${done.length} completed service record${done.length!==1?'s':''}.\nTotal spent: ₱${total.toLocaleString('en-PH',{minimumFractionDigits:2})}\n\nTap "PMS History" tab to view full details.`;
     }
     if (ql.includes('summary') || ql.includes('status') || ql.includes('report')) {
-      const active = _myVehicles.filter(v => v.status === 'Active').length;
-      const maint  = _myVehicles.filter(v => (v.status || '').includes('Maintenance')).length;
-      const over   = _myVehicles.filter(v => v.status === 'Overdue').length;
-      const soon   = _myVehicles.filter(v => v.status === 'PMS Due Soon').length;
-      return `Fleet Summary:\n✅ Active: ${active}\n🔧 Under Maintenance: ${maint}\n⚠️ PMS Overdue: ${over}\n📅 Due Soon: ${soon}\n🚗 Total: ${_myVehicles.length}`;
+      const active=_myVehicles.filter(v=>v.status==='Active').length, maint=_myVehicles.filter(v=>(v.status||'').includes('Maintenance')).length, over=_myVehicles.filter(v=>v.status==='Overdue').length, soon=_myVehicles.filter(v=>v.status==='PMS Due Soon').length;
+      return `Fleet Summary:\nActive: ${active}\nUnder Maintenance: ${maint}\nPMS Overdue: ${over}\nDue Soon: ${soon}\nTotal: ${_myVehicles.length}`;
     }
     if (ql.includes('vehicle') || ql.includes('fleet') || ql.includes('list') || ql.includes('all my')) {
-      const lines = _myVehicles.map(v => {
-        const e = v.status === 'Active' ? '✅' : v.status === 'Under Maintenance' ? '🔧' : v.status === 'Overdue' ? '⚠️' : v.status === 'PMS Due Soon' ? '📅' : '•';
-        return `${e} ${v.plate} — ${v.desc} (${v.status || 'Active'})`;
-      }).join('\n');
-      return `Your fleet (${_myVehicles.length} vehicle${_myVehicles.length !== 1 ? 's' : ''}):\n${lines}`;
+      return `Your fleet (${_myVehicles.length} vehicle${_myVehicles.length!==1?'s':''}):\n` + _myVehicles.map(v => `• ${v.plate} — ${v.desc} (${v.status||'Active'})`).join('\n');
     }
     return 'I can help you with:\n• Vehicle status & fleet summary\n• PMS overdue or due soon\n• Vehicles under maintenance\n• Service history & total cost\n\nTry asking: "Which vehicles are overdue?"';
   }
 
-  function addBubble(text, role) {
-    const el = document.createElement('div');
-    el.className = `ai-bubble ${role}`;
-    el.textContent = text;
-    document.getElementById('aiMessages').appendChild(el);
-    el.scrollIntoView({ behavior: 'smooth' });
-    return el;
+  const _BOT_AVATAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>';
+
+  // Lightweight markdown renderer
+  function _md(text) {
+    if (!text) return '';
+    var s = text;
+    s = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/__(.+?)__/g, '<strong>$1</strong>');
+    s = s.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
+    s = s.replace(/`([^`\n]+?)`/g, '<code style="background:#f1f5f9;padding:1px 5px;border-radius:4px;font-family:monospace;font-size:0.92em;">$1</code>');
+    s = s.replace(/^### (.+)$/gm, '<div style="font-weight:700;font-size:13.5px;margin:8px 0 3px;color:#1a202c;">$1</div>');
+    s = s.replace(/^## (.+)$/gm,  '<div style="font-weight:700;font-size:14px;margin:8px 0 3px;color:#1a202c;">$1</div>');
+    s = s.replace(/^[\-\*•] (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;flex-shrink:0;">•</span><span>$1</span></div>');
+    s = s.replace(/^(\d+)\. (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;font-weight:700;flex-shrink:0;min-width:16px;">$1.</span><span>$2</span></div>');
+    s = s.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid #e2e8f0;margin:8px 0;">');
+    s = s.replace(/\n\n/g, '<div style="height:6px;"></div>');
+    s = s.replace(/\n/g, '<br>');
+    return s;
   }
 
+  function _addBubble(text, role) {
+    const msgs = document.getElementById('aiMessages');
+    const row = document.createElement('div');
+    row.className = 'ai-row' + (role === 'user' ? ' user' : '');
+    const av = role === 'user'
+      ? `<div class="ai-av usr">${_customerInitials}</div>`
+      : `<div class="ai-av bot">${_BOT_AVATAR_SVG}</div>`;
+    const bub = document.createElement('div');
+    bub.className = `ai-bubble ${role === 'user' ? 'user' : 'bot'}`;
+    if (role === 'user') {
+      bub.textContent = text; // user text is plain — escape it
+    } else {
+      bub.innerHTML = _md(text); // AI response gets markdown rendering
+    }
+    if (role === 'user') { row.appendChild(bub); row.insertAdjacentHTML('beforeend', av); }
+    else { row.insertAdjacentHTML('beforeend', av); row.appendChild(bub); }
+    msgs.appendChild(row);
+    row.scrollIntoView({ behavior: 'smooth' });
+    return bub;
+  }
+  function addBubble(text, role) { return _addBubble(text, role); }
+
   function addTyping() {
-    const el = document.createElement('div');
-    el.className = 'ai-typing';
-    el.innerHTML = '<span></span><span></span><span></span>';
-    document.getElementById('aiMessages').appendChild(el);
-    el.scrollIntoView({ behavior: 'smooth' });
-    return el;
+    const msgs = document.getElementById('aiMessages');
+    const row = document.createElement('div');
+    row.className = 'ai-row'; row.id = '_aiTyping';
+    row.innerHTML = `<div class="ai-av bot">${_BOT_AVATAR_SVG}</div><div class="ai-typing"><span></span><span></span><span></span></div>`;
+    msgs.appendChild(row); row.scrollIntoView({ behavior: 'smooth' });
+    return row;
   }
 
   window.send = async function (preset) {
     const input = document.getElementById('aiInput');
     const text = (preset || input.value).trim();
     if (!text) return;
-    if (_rateLimited) return;  // blocked while rate-limited
-
-    // Hide welcome + chips on first message
+    if (_rateLimited) return;
     document.getElementById('aiWelcome').style.display = 'none';
-    document.getElementById('aiChips').style.display = 'none';
-    document.getElementById('clearBtn').style.display = 'block';
-
-    addBubble(text, 'user');
-    input.value = '';
-    input.style.height = 'auto';
-
-    if (!_dataLoaded) {
-      addBubble('Loading your fleet data, please try again in a moment.', 'bot');
-      return;
-    }
-
+    const cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'block';
+    _addBubble(text, 'user');
+    input.value = ''; input.style.height = 'auto';
+    if (!_dataLoaded) { _addBubble('Loading your fleet data, please try again in a moment.', 'bot'); return; }
     const typing = addTyping();
-
-    // Call the AI backend (customer/chat), fall back to local if offline
     try {
       const user = firebase.auth().currentUser;
       const resp = await fetch('/api/ai-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message:       text,
-          user_type:     'customer',
-          customer_uid:  user ? user.uid : (cpUser.uid || ''),
-          customer_name: cpUser.name || '',
-          session_id:    _sessionId,
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, user_type: 'customer', customer_uid: user ? user.uid : (cpUser.uid||''), customer_name: cpUser.name||'', session_id: _sessionId }),
       });
       const data = await resp.json();
       typing.remove();
       if (data.offline || !data.success) {
-        // Backend offline — fall back to local processing
-        addBubble(processQuery(text), 'bot');
+        _addBubble(processQuery(text), 'bot');
       } else if (data.rate_limited) {
-        // Groq daily token limit reached — show notice and lock input
         _setRateLimited(true, data.reset_in || 'some time');
-        const el = document.createElement('div');
-        el.className = 'ai-bubble bot';
-        el.style.cssText = 'background:#fff7ed;border:1.5px solid #fb923c;color:#9a3412;max-width:90%;';
-        el.innerHTML =
-          '<div style="font-size:14px;font-weight:700;margin-bottom:6px;">🚫 AI Unavailable</div>' +
-          '<div style="font-size:12.5px;line-height:1.6;">' +
-          'The AI service has reached its <strong>daily token limit</strong> (Groq free tier).<br><br>' +
-          '⏱️ The limit resets in <strong>' + (data.reset_in || 'some time') + '</strong>.<br><br>' +
-          'You will not be able to send messages until the quota resets automatically. ' +
-          'Please check back later.</div>';
-        document.getElementById('aiMessages').appendChild(el);
-        el.scrollIntoView({ behavior: 'smooth' });
+        const msgs2 = document.getElementById('aiMessages');
+        const rlRow = document.createElement('div'); rlRow.className = 'ai-row';
+        rlRow.innerHTML = `<div class="ai-av bot">${_BOT_AVATAR_SVG}</div>`;
+        const rlBub = document.createElement('div'); rlBub.className = 'ai-bubble bot';
+        rlBub.style.cssText = 'background:#fff7ed;border:1.5px solid #fb923c;color:#9a3412;max-width:90%;';
+        rlBub.innerHTML = '<strong>AI Unavailable</strong><br><span style="font-size:12px;">Daily token limit reached. Resets in <strong>'+(data.reset_in||'some time')+'</strong>.</span>';
+        rlRow.appendChild(rlBub); msgs2.appendChild(rlRow); rlRow.scrollIntoView({ behavior: 'smooth' });
       } else if (data.answer) {
-        // Store session_id for continuity across turns
         if (data.session_id) { _sessionId = data.session_id; }
-        addBubble(data.answer, 'bot');
+        _addBubble(data.answer, 'bot');
       } else {
-        addBubble(processQuery(text), 'bot');
+        _addBubble(processQuery(text), 'bot');
       }
-    } catch (err) {
-      typing.remove();
-      addBubble(processQuery(text), 'bot');
-    }
+    } catch (err) { typing.remove(); _addBubble(processQuery(text), 'bot'); }
   };
 
   window.clearChat = function () {
-    // Clear server-side session memory
-    if (_sessionId) {
-      fetch('/api/ai-session/' + _sessionId, { method: 'DELETE' }).catch(function(){});
-      _sessionId = null;
-    }
+    if (_sessionId) { fetch('/api/ai-session/' + _sessionId, { method: 'DELETE' }).catch(function(){}); _sessionId = null; }
     _setRateLimited(false);
     const msgs = document.getElementById('aiMessages');
     msgs.innerHTML = '';
-    document.getElementById('aiWelcome').style.display = 'block';
-    document.getElementById('aiChips').style.display = 'flex';
-    document.getElementById('clearBtn').style.display = 'none';
+    document.getElementById('aiWelcome').style.display = '';
+    const sug = document.getElementById('aiSuggestions'); if(sug) sug.style.display = 'flex';
+    const cb2 = document.getElementById('clearBtn'); if(cb2) cb2.style.display = 'none';
     msgs.appendChild(document.getElementById('aiWelcome'));
     _chatHistory = [];
   };
 
-  // Wait for Firebase Auth before loading data
   firebase.auth().onAuthStateChanged((user) => {
     if (user) loadData(user);
     else window.location.href = 'login.html';
   });
 
-  // Load shared header and tab bar
   fetch('customer_header.html').then(r => r.text()).then(html => {
     document.getElementById('customerHeader').innerHTML = html;
-    // Set active tab
     document.querySelectorAll('.cu-tab[data-page]').forEach(tab => {
       tab.classList.toggle('active', tab.getAttribute('data-page') === 'smart-ai');
     });
