@@ -59,18 +59,39 @@ def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
 
     db = get_db()
     vehicles = []
+    seen_ids = set()
+
+    # ── Primary: query by ownerId (Firebase UID) — most reliable ─────────
+    for doc in db.collection("vehicles").where(
+            filter=FieldFilter("ownerId", "==", customer_uid)).stream():
+        if doc.id not in seen_ids:
+            seen_ids.add(doc.id)
+            d = doc.to_dict()
+            vehicles.append({
+                "plate":       d.get("plate", ""),
+                "desc":        d.get("desc", "") or d.get("assetDescription", ""),
+                "type":        d.get("type", ""),
+                "status":      d.get("status", "Active"),
+                "lastSvcDate": d.get("lastSvcDate", "") or d.get("lastServiceDate", ""),
+                "svcFreq":     d.get("svcFreq", "") or str(d.get("serviceFrequency", "")),
+                "odo":         d.get("odo", ""),
+            })
+
+    # ── Fallback: query by owner name (for older docs without ownerId) ────
     for doc in db.collection("vehicles").where(
             filter=FieldFilter("owner", "==", customer_name)).stream():
-        d = doc.to_dict()
-        vehicles.append({
-            "plate":       d.get("plate", ""),
-            "desc":        d.get("desc", ""),
-            "type":        d.get("type", ""),
-            "status":      d.get("status", "Active"),
-            "lastSvcDate": d.get("lastSvcDate", ""),
-            "svcFreq":     d.get("svcFreq", ""),
-            "odo":         d.get("odo", ""),
-        })
+        if doc.id not in seen_ids:
+            seen_ids.add(doc.id)
+            d = doc.to_dict()
+            vehicles.append({
+                "plate":       d.get("plate", ""),
+                "desc":        d.get("desc", "") or d.get("assetDescription", ""),
+                "type":        d.get("type", ""),
+                "status":      d.get("status", "Active"),
+                "lastSvcDate": d.get("lastSvcDate", "") or d.get("lastServiceDate", ""),
+                "svcFreq":     d.get("svcFreq", "") or str(d.get("serviceFrequency", "")),
+                "odo":         d.get("odo", ""),
+            })
 
     from collections import Counter
     status_counts = Counter(v["status"] for v in vehicles)
@@ -93,13 +114,19 @@ def get_my_service_history(customer_uid: str, customer_name: str,
 
     db = get_db()
 
-    # Get this customer's plates first
-    plate_list = []
+    # ── Get this customer's plates (by UID first, then by name) ──────────
+    plate_set = set()
+    for doc in db.collection("vehicles").where(
+            filter=FieldFilter("ownerId", "==", customer_uid)).stream():
+        p = doc.to_dict().get("plate", "")
+        if p:
+            plate_set.add(p)
     for doc in db.collection("vehicles").where(
             filter=FieldFilter("owner", "==", customer_name)).stream():
         p = doc.to_dict().get("plate", "")
         if p:
-            plate_list.append(p)
+            plate_set.add(p)
+    plate_list = list(plate_set)
 
     if not plate_list:
         return {"owner": customer_name, "total_jobs": 0, "total_cost": "₱0.00", "jobs": []}
@@ -158,13 +185,16 @@ def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
     db = get_db()
     now = datetime.now()
     vehicles = []
+    seen_ids = set()
 
-    for doc in db.collection("vehicles").where(
-            filter=FieldFilter("owner", "==", customer_name)).stream():
+    def _process_doc(doc):
+        if doc.id in seen_ids:
+            return
+        seen_ids.add(doc.id)
         d = doc.to_dict()
         plate      = d.get("plate", "")
-        last_svc   = d.get("lastSvcDate", "")
-        svc_freq   = d.get("svcFreq", "")
+        last_svc   = d.get("lastSvcDate", "") or d.get("lastServiceDate", "")
+        svc_freq   = d.get("svcFreq", "") or str(d.get("serviceFrequency", ""))
         status     = d.get("status", "Active")
 
         next_pms   = ""
@@ -194,13 +224,23 @@ def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
 
         vehicles.append({
             "plate":       plate,
-            "desc":        d.get("desc", ""),
+            "desc":        d.get("desc", "") or d.get("assetDescription", ""),
             "status":      status,
             "lastSvcDate": last_svc,
             "nextPMS":     next_pms,
             "daysUntil":   days_until,
             "urgency":     urgency,
         })
+
+    # ── Primary: query by ownerId ─────────────────────────────────────────
+    for doc in db.collection("vehicles").where(
+            filter=FieldFilter("ownerId", "==", customer_uid)).stream():
+        _process_doc(doc)
+
+    # ── Fallback: query by owner name ─────────────────────────────────────
+    for doc in db.collection("vehicles").where(
+            filter=FieldFilter("owner", "==", customer_name)).stream():
+        _process_doc(doc)
 
     overdue  = [v for v in vehicles if v["urgency"] == "Overdue"]
     due_soon = [v for v in vehicles if v["urgency"] in ("Due This Week", "Due Soon")]
