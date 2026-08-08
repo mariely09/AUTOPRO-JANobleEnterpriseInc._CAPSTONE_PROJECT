@@ -107,7 +107,7 @@
 <div id="cuToast"></div>
 
 <!-- ── Smart AI Floating Widget ─────────────────────────── -->
-<!-- History overlay + drawer (z-index above widget panel) -->
+<!-- History overlay + drawer -->
 <div id="aiHistOverlay" onclick="aiCloseHistory()" style="position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:9100;opacity:0;pointer-events:none;transition:opacity .25s;"></div>
 <div id="aiHistDrawer" style="position:fixed;top:0;right:-340px;width:320px;height:100%;z-index:9101;background:white;box-shadow:-4px 0 24px rgba(0,0,0,0.15);transition:right .28s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden;">
     <div style="background:linear-gradient(135deg,#c62828,#E8001C);padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
@@ -123,116 +123,95 @@
 </div>
 
 <div id="aiWidget" style="display:none;position:fixed;bottom:24px;right:24px;z-index:9000;display:flex;flex-direction:column;align-items:flex-end;gap:12px;">
-
-    <!-- Chat panel — hidden by default, opens on FAB click -->
-    <div id="aiPanel" style="display:none;width:360px;max-width:calc(100vw - 32px);height:520px;max-height:calc(100vh - 120px);background:#fff;border-radius:20px;box-shadow:0 12px 40px rgba(0,0,0,0.18),0 2px 8px rgba(0,0,0,0.08);border:1px solid #e2e8f0;flex-direction:column;overflow:hidden;animation:aiPanelIn .22s cubic-bezier(0.4,0,0.2,1);">
-
+    <!-- Chat panel -->
+    <div id="aiPanel" style="display:none;width:360px;max-width:calc(100vw - 32px);height:540px;max-height:calc(100vh - 120px);background:#fff;border-radius:20px;box-shadow:0 12px 40px rgba(0,0,0,0.18),0 2px 8px rgba(0,0,0,0.08);border:1px solid #e2e8f0;flex-direction:column;overflow:hidden;animation:aiPanelIn .22s cubic-bezier(0.4,0,0.2,1);">
         <!-- Panel header -->
-        <div style="background:#E8001C;padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
-            <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="1"/><circle cx="12" cy="16" r="1"/><path d="M9 12h6M8 6h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><path d="M6 10h-.5a1.5 1.5 0 0 0 0 3H6M18 10h.5a1.5 1.5 0 0 1 0 3H18"/></svg>
+        <div style="background:linear-gradient(135deg,#c62828 0%,#E8001C 60%,#ff5252 100%);padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:relative;">
+            <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.1) 0%,transparent 65%);pointer-events:none;border-radius:20px 20px 0 0;"></div>
+            <div style="width:34px;height:34px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;z-index:1;">
+                <img src="../static/img/AI_LOGO.png" width="26" height="26" style="object-fit:contain;display:block;" alt="AI">
             </div>
-            <div style="flex:1;">
-                <div style="color:#fff;font-size:13px;font-weight:700;">Smart Reports AI</div>
-                <div style="color:rgba(255,255,255,0.75);font-size:11px;display:flex;align-items:center;gap:4px;">
-                    <span style="width:6px;height:6px;background:#4ade80;border-radius:50%;display:inline-block;"></span>Online
+            <div style="flex:1;min-width:0;z-index:1;">
+                <div style="color:#fff;font-size:13.5px;font-weight:700;">Customer AI Assistant</div>
+                <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
+                    <span id="aiStatusDot" style="width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;box-shadow:0 0 6px rgba(74,222,128,0.8);"></span>
+                    <span id="aiStatusTxt" style="font-size:10.5px;color:rgba(255,255,255,0.8);">Online</span>
                 </div>
             </div>
-            <!-- History button -->
-            <button onclick="aiOpenHistory()" title="Chat history" style="width:30px;height:30px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .18s;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+            <button onclick="aiOpenHistory()" title="Chat history" style="width:30px;height:30px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .18s;z-index:1;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </button>
-            <button id="aiClearBtn" onclick="aiClear()" title="Clear chat" style="display:none;width:30px;height:30px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:8px;cursor:pointer;display:none;align-items:center;justify-content:center;flex-shrink:0;transition:background .18s;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+            <button id="aiClearBtn" onclick="aiClear()" title="Clear chat" style="display:none;width:30px;height:30px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:8px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;transition:background .18s;z-index:1;" onmouseover="this.style.background='rgba(255,255,255,0.28)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             </button>
-            <button onclick="closeSmartAI()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
+            <button onclick="closeSmartAI()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;z-index:1;">×</button>
         </div>
-
         <!-- Messages -->
         <div id="aiMessages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:#F7F8FA;">
             <div id="aiWelcome" style="text-align:center;padding:16px 8px 8px;">
-                <div style="width:52px;height:52px;background:rgba(0,48,135,0.08);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:#003087;">
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="1"/><circle cx="12" cy="16" r="1"/><path d="M9 12h6M8 6h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><path d="M6 10h-.5a1.5 1.5 0 0 0 0 3H6M18 10h.5a1.5 1.5 0 0 1 0 3H18"/></svg>
+                <div style="width:56px;height:56px;background:rgba(255,255,255,0.9);border:2px solid rgba(232,0,28,0.12);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;box-shadow:0 4px 16px rgba(232,0,28,0.1);">
+                    <img src="../static/img/AI_LOGO.png" width="40" height="40" style="object-fit:contain;display:block;" alt="AI">
                 </div>
-                <div style="font-size:14px;font-weight:700;color:#1a202c;margin-bottom:4px;">Smart Reports AI</div>
+                <div style="font-size:14px;font-weight:700;color:#1a202c;margin-bottom:4px;">Customer AI Assistant</div>
                 <div id="aiWelcomeSub" style="font-size:12px;color:#718096;line-height:1.6;">Ask me anything about your vehicles — PMS status, maintenance history, and more.</div>
             </div>
         </div>
-
         <!-- Quick chips -->
         <div id="aiChips" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;background:#F7F8FA;border-top:1px solid #f0f4f8;flex-shrink:0;">
-            <button onclick="aiSend('List all my vehicles')" style="background:white;border:1.5px solid #e2e8f0;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:500;color:#4a5568;cursor:pointer;font-family:inherit;transition:all .15s;" onmouseover="this.style.background='#1a202c';this.style.color='white'" onmouseout="this.style.background='white';this.style.color='#4a5568'">🚗 My fleet</button>
-            <button onclick="aiSend('Give me a fleet summary')" style="background:white;border:1.5px solid #e2e8f0;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:500;color:#4a5568;cursor:pointer;font-family:inherit;transition:all .15s;" onmouseover="this.style.background='#1a202c';this.style.color='white'" onmouseout="this.style.background='white';this.style.color='#4a5568'">📊 Summary</button>
-            <button onclick="aiSend('Which vehicles are under maintenance?')" style="background:white;border:1.5px solid #e2e8f0;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:500;color:#4a5568;cursor:pointer;font-family:inherit;transition:all .15s;" onmouseover="this.style.background='#1a202c';this.style.color='white'" onmouseout="this.style.background='white';this.style.color='#4a5568'">🔧 Maintenance</button>
-            <button onclick="aiSend('Which vehicles have PMS overdue?')" style="background:white;border:1.5px solid #e2e8f0;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:500;color:#4a5568;cursor:pointer;font-family:inherit;transition:all .15s;" onmouseover="this.style.background='#1a202c';this.style.color='white'" onmouseout="this.style.background='white';this.style.color='#4a5568'">⚠️ Overdue</button>
-            <button onclick="aiSend('Show my service history')" style="background:white;border:1.5px solid #e2e8f0;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:500;color:#4a5568;cursor:pointer;font-family:inherit;transition:all .15s;" onmouseover="this.style.background='#1a202c';this.style.color='white'" onmouseout="this.style.background='white';this.style.color='#4a5568'">📋 History</button>
+            <button class="ai-chip" onclick="aiSend('List all my vehicles')">🚗 My fleet</button>
+            <button class="ai-chip" onclick="aiSend('Give me a fleet summary')">📊 Summary</button>
+            <button class="ai-chip" onclick="aiSend('Which vehicles are under maintenance?')">🔧 Maintenance</button>
+            <button class="ai-chip" onclick="aiSend('Which vehicles have PMS overdue?')">⚠️ Overdue</button>
+            <button class="ai-chip" onclick="aiSend('Show my service history')">📋 History</button>
+            <button class="ai-chip" onclick="aiSend('How much is an Oil Change service?')">💰 Pricing</button>
         </div>
-
         <!-- Input -->
         <div style="background:white;border-top:1px solid #e2e8f0;padding:10px 12px;display:flex;gap:8px;align-items:flex-end;flex-shrink:0;">
-            <textarea id="aiInput" placeholder="Ask about your vehicles..." rows="1"
+            <textarea id="aiInput" placeholder="Ask about your vehicles, bookings, or services…" rows="1"
                 style="flex:1;border:1.5px solid #e2e8f0;border-radius:20px;padding:9px 14px;font-size:13px;font-family:inherit;color:#1a202c;background:#F7F8FA;outline:none;resize:none;max-height:80px;overflow-y:auto;transition:border-color .2s;line-height:1.4;"
                 onfocus="this.style.borderColor='#E8001C';this.style.background='white'"
                 onblur="this.style.borderColor='#e2e8f0';this.style.background='#F7F8FA'"
                 oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'"
                 onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();aiSend();}"></textarea>
-            <button onclick="aiSend()" style="width:38px;height:38px;background:#E8001C;border:none;border-radius:50%;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(232,0,28,0.3);transition:transform .2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+            <button id="aiSendBtn" onclick="aiSend()" style="width:38px;height:38px;background:#E8001C;border:none;border-radius:50%;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(232,0,28,0.3);transition:transform .2s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
         </div>
     </div>
-
     <!-- FAB toggle button -->
-    <button id="aiFab" onclick="toggleSmartAI()" style="width:56px;height:56px;background:linear-gradient(135deg,#E8001C,#c0001a);border:none;border-radius:50%;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(232,0,28,0.4);transition:transform .2s,box-shadow .2s;" onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='0 6px 24px rgba(232,0,28,0.5)'" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 18px rgba(232,0,28,0.4)'">
-        <svg id="aiFabIcon" xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="white" stroke="none">
-            <path d="M20 6h-1V3c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v14l4-4h9c.55 0 1-.45 1-1V6h2v9H7v2c0 .55.45 1 1 1h10l4 4V7c0-.55-.45-1-1-1z"/>
-        </svg>
+    <button id="aiFab" onclick="toggleSmartAI()" style="width:56px;height:56px;background:linear-gradient(135deg,#E8001C,#c0001a);border:none;border-radius:50%;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(232,0,28,0.4);transition:transform .2s,box-shadow .2s;animation:aiFabPulse 2.8s ease-in-out infinite;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+        <img id="aiFabImg" src="../static/img/AI_LOGO.png" width="34" height="34" style="object-fit:contain;display:block;" alt="AI">
     </button>
 </div>
 
 <style>
-@keyframes aiPanelIn {
-    from { opacity:0; transform:translateY(16px) scale(0.97); }
-    to   { opacity:1; transform:translateY(0) scale(1); }
-}
-.ai-bubble-user {
-    max-width:80%; padding:9px 13px; border-radius:16px 16px 4px 16px;
-    background:#E8001C; color:white; font-size:12px; line-height:1.6;
-    align-self:flex-end; white-space:pre-wrap;
-    box-shadow:0 2px 6px rgba(232,0,28,0.2);
-}
-.ai-bubble-bot {
-    max-width:80%; padding:9px 13px; border-radius:16px 16px 16px 4px;
-    background:white; color:#1a202c; font-size:12px; line-height:1.6;
-    align-self:flex-start; white-space:pre-wrap;
-    box-shadow:0 2px 6px rgba(0,0,0,0.06);
-}
-.ai-typing-dots {
-    background:white; border-radius:16px 16px 16px 4px;
-    padding:10px 14px; align-self:flex-start;
-    display:flex; gap:4px; align-items:center;
-    box-shadow:0 2px 6px rgba(0,0,0,0.06);
-}
-.ai-typing-dots span {
-    width:6px; height:6px; background:#a0aec0; border-radius:50%;
-    animation:aiBounce .9s ease-in-out infinite;
-}
-.ai-typing-dots span:nth-child(2) { animation-delay:.15s; }
-.ai-typing-dots span:nth-child(3) { animation-delay:.3s; }
-@keyframes aiBounce {
-    0%,80%,100% { transform:translateY(0); }
-    40% { transform:translateY(-5px); }
-}
+@keyframes aiPanelIn { from{opacity:0;transform:translateY(16px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+@keyframes aiFabPulse { 0%,100%{box-shadow:0 4px 18px rgba(232,0,28,0.4),0 0 0 0 rgba(232,0,28,0.25)} 50%{box-shadow:0 4px 18px rgba(232,0,28,0.4),0 0 0 8px rgba(232,0,28,0)} }
+@keyframes aiBounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
+.ai-bubble-user { max-width:80%;padding:9px 13px;border-radius:16px 4px 16px 16px;background:linear-gradient(135deg,#E8001C,#c0001a);color:white;font-size:12.5px;line-height:1.65;align-self:flex-end;white-space:pre-wrap;box-shadow:0 2px 8px rgba(232,0,28,0.25); }
+.ai-bubble-bot  { max-width:82%;padding:9px 13px;border-radius:4px 16px 16px 16px;background:white;color:#1a202c;font-size:12.5px;line-height:1.65;align-self:flex-start;white-space:pre-wrap;box-shadow:0 2px 8px rgba(0,0,0,0.07);border:1px solid rgba(226,232,240,0.6); }
+.ai-row { display:flex;gap:8px;align-items:flex-end; }
+.ai-row.user { flex-direction:row-reverse; }
+.ai-av-bot { width:28px;height:28px;border-radius:9px;background:white;box-shadow:0 2px 6px rgba(232,0,28,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+.ai-av-usr { width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#475569,#334155);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;font-weight:700;color:white; }
+.ai-typing-dots { background:white;border-radius:4px 16px 16px 16px;padding:10px 14px;align-self:flex-start;display:flex;gap:4px;align-items:center;box-shadow:0 2px 6px rgba(0,0,0,0.06); }
+.ai-typing-dots span { width:6px;height:6px;background:#a0aec0;border-radius:50%;animation:aiBounce .9s ease-in-out infinite; }
+.ai-typing-dots span:nth-child(2){animation-delay:.15s} .ai-typing-dots span:nth-child(3){animation-delay:.3s}
+.ai-chip { background:white;border:1.5px solid #e2e8f0;border-radius:20px;padding:5px 11px;font-size:11px;font-weight:500;color:#4a5568;cursor:pointer;font-family:inherit;transition:all .15s; }
+.ai-chip:hover { background:#E8001C;color:white;border-color:#E8001C; }
 </style>
 
 <script>
-// ── Smart AI Widget ──────────────────────────────────────────
+// ── Smart AI Widget — fully fixed version ─────────────────────────────────
 var _aiVehicles = [], _aiMaintenance = [], _aiLoaded = false;
 var _aiPanelOpen = false;
 var _aiChatHistory = [];
 var _aiCurrentUid = null;
+var _aiResolvedName = '';   // resolved from Firestore (not just sessionStorage)
+var _aiSessionId = null;    // server-side session key
+var _aiRateLimited = false;
 
-// ── localStorage persistence ──────────────────────────────────
+// ── localStorage persistence ──────────────────────────────────────────────
 function _aiStorKey(uid) { return 'ai_widget_chat_' + uid; }
 function _aiLoadSessions(uid) {
     try { var r = localStorage.getItem(_aiStorKey(uid)); return r ? JSON.parse(r) : []; } catch(e) { return []; }
@@ -241,7 +220,7 @@ function _aiSaveChat() {
     if (!_aiCurrentUid) return;
     try {
         var sessions = _aiLoadSessions(_aiCurrentUid);
-        var sid = 'w_' + (_aiCurrentUid);
+        var sid = _aiSessionId || ('w_' + _aiCurrentUid);
         var idx = -1; for (var i=0;i<sessions.length;i++){if(sessions[i].id===sid){idx=i;break;}}
         var s = { id: sid, ts: Date.now(), messages: _aiChatHistory.slice() };
         if (idx>=0) sessions[idx]=s; else sessions.unshift(s);
@@ -255,13 +234,15 @@ function _aiRestoreSession(uid) {
     var latest = sessions[0];
     if (!latest.messages || !latest.messages.length) return;
     _aiChatHistory = latest.messages.slice();
-    document.getElementById('aiWelcome').style.display = 'none';
+    if (latest.id && latest.id.indexOf('w_')!==0) _aiSessionId = latest.id;
+    var welcome = document.getElementById('aiWelcome');
+    if (welcome) welcome.style.display = 'none';
     document.getElementById('aiChips').style.display = 'none';
-    document.getElementById('aiClearBtn').style.display = 'flex';
-    _aiChatHistory.forEach(function(m) { _aiAddBubble(m.text, m.role === 'user' ? 'ai-bubble-user' : 'ai-bubble-bot'); });
+    var cb = document.getElementById('aiClearBtn'); if(cb){ cb.style.display='flex'; }
+    _aiChatHistory.forEach(function(m){ _aiAddBubble(m.text, m.role==='user'); });
 }
 
-// ── History drawer ────────────────────────────────────────────
+// ── History drawer ────────────────────────────────────────────────────────
 window.aiOpenHistory = function() {
     _aiRenderHistory();
     document.getElementById('aiHistDrawer').style.right = '0';
@@ -276,12 +257,9 @@ window.aiCloseHistory = function() {
 window.aiDeleteAllChats = function() {
     if (!confirm('Delete all chat history? This cannot be undone.')) return;
     if (_aiCurrentUid) localStorage.removeItem(_aiStorKey(_aiCurrentUid));
+    if (_aiSessionId) { fetch('/api/ai-session/'+_aiSessionId,{method:'DELETE'}).catch(function(){}); _aiSessionId=null; }
     _aiChatHistory = [];
-    var msgs = document.getElementById('aiMessages');
-    msgs.innerHTML = '';
-    var welcome = document.getElementById('aiWelcome'); welcome.style.display = 'block'; msgs.appendChild(welcome);
-    document.getElementById('aiChips').style.display = 'flex';
-    document.getElementById('aiClearBtn').style.display = 'none';
+    _aiRebuildWelcome();
     aiCloseHistory();
 };
 function _aiEscH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').slice(0,80); }
@@ -289,7 +267,7 @@ function _aiRenderHistory() {
     var list = document.getElementById('aiHistList'); if(!list) return;
     var sessions = _aiCurrentUid ? _aiLoadSessions(_aiCurrentUid) : [];
     sessions = sessions.filter(function(s){ return s.messages && s.messages.length>0; });
-    if (!sessions.length) { list.innerHTML='<div style="text-align:center;padding:40px 20px;color:#94a3b8;font-size:13px;">No chat history yet.</div>'; return; }
+    if (!sessions.length) { list.innerHTML='<div style="text-align:center;padding:40px 20px;color:#94a3b8;font-size:13px;">No chat history yet.<br>Start a conversation!</div>'; return; }
     var html='',today=new Date(),todayStr=today.toDateString(),yest=new Date(today);
     yest.setDate(today.getDate()-1); var yestStr=yest.toDateString(),lastLabel='';
     sessions.forEach(function(s){
@@ -297,7 +275,7 @@ function _aiRenderHistory() {
         if(label!==lastLabel){html+='<div style="font-size:10.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin:10px 0 6px;">'+label+'</div>';lastLabel=label;}
         var first=null; for(var i=0;i<s.messages.length;i++){if(s.messages[i].role==='user'){first=s.messages[i];break;}}
         var preview=first?first.text:'(empty)',time=d.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});
-        html+='<div style="background:#f8f9fb;border:1.5px solid #e8edf2;border-radius:11px;padding:10px 12px;margin-bottom:7px;cursor:pointer;transition:all .15s;" onclick="aiLoadSession(\''+s.id+'\')" onmouseover="this.style.background=\'#fff5f5\';this.style.borderColor=\'#E8001C\'" onmouseout="this.style.background=\'#f8f9fb\';this.style.borderColor=\'#e8edf2\'">'
+        html+='<div style="background:#f8f9fb;border:1.5px solid #e8edf2;border-radius:11px;padding:10px 12px;margin-bottom:7px;cursor:pointer;" onclick="aiLoadSession(\''+s.id+'\')" onmouseover="this.style.background=\'#fff5f5\';this.style.borderColor=\'#E8001C\'" onmouseout="this.style.background=\'#f8f9fb\';this.style.borderColor=\'#e8edf2\'">'
              +'<div style="font-size:12px;color:#1a202c;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;">'+_aiEscH(preview)+'</div>'
              +'<div style="font-size:10.5px;color:#94a3b8;margin-top:3px;">'+time+' &nbsp;·&nbsp; '+s.messages.length+' message'+(s.messages.length!==1?'s':'')+'</div></div>';
     });
@@ -307,158 +285,290 @@ window.aiLoadSession = function(sid) {
     var sessions = _aiCurrentUid ? _aiLoadSessions(_aiCurrentUid) : [];
     var session=null; for(var i=0;i<sessions.length;i++){if(sessions[i].id===sid){session=sessions[i];break;}}
     if(!session||!session.messages||!session.messages.length) return;
-    var msgs=document.getElementById('aiMessages'); msgs.innerHTML='';
-    document.getElementById('aiWelcome').style.display='none';
+    var msgs=document.getElementById('aiMessages');
+    var welcome=document.getElementById('aiWelcome');
+    if(welcome&&welcome.parentNode===msgs) msgs.removeChild(welcome);
+    msgs.innerHTML='';
+    if(welcome){ welcome.style.display='none'; msgs.appendChild(welcome); }
     document.getElementById('aiChips').style.display='none';
-    document.getElementById('aiClearBtn').style.display='flex';
+    var cb=document.getElementById('aiClearBtn'); if(cb) cb.style.display='flex';
     _aiChatHistory=session.messages.slice();
-    _aiChatHistory.forEach(function(m){ _aiAddBubble(m.text, m.role==='user'?'ai-bubble-user':'ai-bubble-bot'); });
+    _aiSessionId=(session.id&&session.id.indexOf('w_')!==0)?session.id:null;
+    _aiChatHistory.forEach(function(m){ _aiAddBubble(m.text, m.role==='user'); });
     aiCloseHistory();
 };
 
+// ── Panel open/close ──────────────────────────────────────────────────────
 window.openSmartAI = function() {
-    document.getElementById('aiPanel').style.display = 'flex';
+    var panel = document.getElementById('aiPanel');
+    panel.style.display = 'flex';
     _aiPanelOpen = true;
-    _updateFabIcon();
+    _updateFabIcon(true);
     if (!_aiLoaded) _aiLoadData();
-    setTimeout(function() { document.getElementById('aiInput').focus(); }, 100);
+    setTimeout(function(){ document.getElementById('aiInput').focus(); }, 100);
 };
-
-window.toggleSmartAI = function() {
-    if (_aiPanelOpen) closeSmartAI(); else openSmartAI();
-};
-
+window.toggleSmartAI = function() { if(_aiPanelOpen) closeSmartAI(); else openSmartAI(); };
 window.closeSmartAI = function() {
     document.getElementById('aiPanel').style.display = 'none';
     _aiPanelOpen = false;
-    _updateFabIcon();
+    _updateFabIcon(false);
 };
-
-function _updateFabIcon() {
-    var svg = document.getElementById('aiFabIcon');
-    if (_aiPanelOpen) {
-        svg.setAttribute('fill', 'white'); svg.setAttribute('stroke', 'none'); svg.removeAttribute('stroke-width');
-        svg.innerHTML = '<path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>';
+function _updateFabIcon(open) {
+    var fab = document.getElementById('aiFab');
+    if (!fab) return;
+    if (open) {
+        fab.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
     } else {
-        svg.setAttribute('fill', 'white'); svg.setAttribute('stroke', 'none'); svg.removeAttribute('stroke-width');
-        svg.innerHTML = '<path d="M20 6h-1V3c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v14l4-4h9c.55 0 1-.45 1-1V6h2v9H7v2c0 .55.45 1 1 1h10l4 4V7c0-.55-.45-1-1-1z"/>';
+        fab.innerHTML = '<img id="aiFabImg" src="../static/img/AI_LOGO.png" width="34" height="34" style="object-fit:contain;display:block;" alt="AI">';
     }
 }
 
+// ── Rebuild welcome (used by clear + delete) ──────────────────────────────
+function _aiRebuildWelcome() {
+    var msgs = document.getElementById('aiMessages');
+    var welcome = document.getElementById('aiWelcome');
+    if (welcome && welcome.parentNode === msgs) msgs.removeChild(welcome);
+    msgs.innerHTML = '';
+    if (welcome) {
+        welcome.style.display = '';
+        msgs.appendChild(welcome);
+    }
+    document.getElementById('aiChips').style.display = 'flex';
+    var cb = document.getElementById('aiClearBtn'); if(cb){ cb.style.display='none'; }
+    var input = document.getElementById('aiInput');
+    if(input){ input.disabled=false; input.value=''; input.style.height='auto'; input.placeholder='Ask about your vehicles, bookings, or services…'; }
+    var sendBtn = document.getElementById('aiSendBtn');
+    if(sendBtn){ sendBtn.disabled=false; sendBtn.style.opacity=''; sendBtn.style.cursor=''; }
+}
+
+// ── Load customer data (ownerId first, fallback owner name) ───────────────
 async function _aiLoadData() {
     try {
-        var user = firebase.auth().currentUser; if (!user) return;
+        var user = firebase.auth().currentUser; if(!user) return;
         var stored = sessionStorage.getItem('cpUser');
         var cpUser = stored ? JSON.parse(stored) : {};
         var userName = cpUser.name || '';
-        if (!userName) { var uDoc = await firebase.firestore().collection('users').doc(user.uid).get(); if (uDoc.exists) userName = uDoc.data().name || ''; }
-        var vSnap = await firebase.firestore().collection('vehicles').get();
-        _aiVehicles = vSnap.docs.map(function(d){return Object.assign({id:d.id},d.data());}).filter(function(v){return (v.owner||'').toLowerCase()===userName.toLowerCase();});
-        document.getElementById('aiWelcomeSub').textContent = _aiVehicles.length ? 'Ask me anything about your '+_aiVehicles.length+' vehicle'+(_aiVehicles.length!==1?'s':'')+' — PMS status, maintenance history, and more.' : 'No vehicles found under your account.';
+        if (!userName) {
+            var uDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+            if (uDoc.exists) userName = uDoc.data().name || '';
+        }
+        if (userName) _aiResolvedName = userName;
+
+        // Query by ownerId (primary) + owner name (fallback), deduplicate
+        var seenIds = {};
+        var vSnap1 = await firebase.firestore().collection('vehicles').where('ownerId','==',user.uid).get();
+        vSnap1.docs.forEach(function(d){ seenIds[d.id]=true; _aiVehicles.push(Object.assign({id:d.id},d.data())); });
+        if (userName) {
+            var vSnap2 = await firebase.firestore().collection('vehicles').where('owner','==',userName).get();
+            vSnap2.docs.forEach(function(d){ if(!seenIds[d.id]){ seenIds[d.id]=true; _aiVehicles.push(Object.assign({id:d.id},d.data())); }});
+        }
+
+        var subEl = document.getElementById('aiWelcomeSub');
+        if (subEl) subEl.textContent = _aiVehicles.length
+            ? 'Ask me anything about your '+_aiVehicles.length+' vehicle'+(_aiVehicles.length!==1?'s':'')+' — PMS, history, bookings, and more.'
+            : 'No vehicles found under your account.';
+
         if (_aiVehicles.length) {
-            var plates = _aiVehicles.map(function(v){return v.plate;}).filter(Boolean).slice(0,10);
-            var mSnap = await firebase.firestore().collection('maintenance').where('plate','in',plates).get();
-            _aiMaintenance = mSnap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+            var plates = _aiVehicles.map(function(v){return v.plate||v.plateNumber||'';}).filter(Boolean).slice(0,10);
+            if (plates.length) {
+                var mSnap = await firebase.firestore().collection('maintenance').where('plate','in',plates).get();
+                _aiMaintenance = mSnap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+            }
         }
         _aiLoaded = true;
-    } catch(e) { console.error('Smart AI load error:', e); }
+    } catch(e) { console.error('AI load error:',e); }
 }
 
-function _aiProcess(q) {
-    var ql = q.toLowerCase();
-    if (!_aiVehicles.length) return 'No vehicles are registered under your name yet.';
-    if (ql.includes('maintenance') || ql.includes('serviced')) {
-        var list = _aiVehicles.filter(function(v){return (v.status||'').toLowerCase().includes('maintenance');});
-        return list.length ? 'Under maintenance:\n' + list.map(function(v){return '• '+v.plate+' — '+v.desc;}).join('\n') : 'None of your vehicles are currently under maintenance. ✅';
-    }
-    if (ql.includes('overdue') || ql.includes('past due')) {
-        var list = _aiVehicles.filter(function(v){return v.status==='Overdue';});
-        return list.length ? 'PMS Overdue:\n' + list.map(function(v){return '• '+v.plate+' — '+v.desc;}).join('\n') + '\n\nPlease schedule a service soon!' : 'No vehicles are overdue for PMS. ✅';
-    }
-    if (ql.includes('due soon') || ql.includes('due this week') || ql.includes('upcoming')) {
-        var list = _aiVehicles.filter(function(v){return v.status==='Due Soon'||v.status==='Due This Week';});
-        return list.length ? 'PMS Due Soon / This Week:\n' + list.map(function(v){return '• '+v.plate+' — '+v.desc+' ('+v.status+')';}).join('\n') : 'No vehicles have PMS due soon. ✅';
-    }
-    if (ql.includes('history') || ql.includes('service record') || ql.includes('completed')) {
-        var done = _aiMaintenance.filter(function(m){return (m.status||'').toLowerCase()==='completed';});
-        if (!done.length) return 'No completed service records found for your vehicles.';
-        var total = done.reduce(function(s,r){var c=r.totalCost?parseFloat(r.totalCost)||0:parseFloat((r.cost||'0').replace(/[₱,]/g,''))||0;return s+c;},0);
-        return 'You have '+done.length+' completed service record'+(done.length!==1?'s':'')+'.\nTotal spent: ₱'+total.toLocaleString('en-PH',{minimumFractionDigits:2})+'\n\nGo to "PMS History" tab to view full details.';
-    }
-    if (ql.includes('summary') || ql.includes('status') || ql.includes('report')) {
-        var active=_aiVehicles.filter(function(v){return v.status==='On Track'||v.status==='Scheduled';}).length,maint=_aiVehicles.filter(function(v){return (v.status||'').includes('Maintenance');}).length,over=_aiVehicles.filter(function(v){return v.status==='Overdue';}).length,week=_aiVehicles.filter(function(v){return v.status==='Due This Week';}).length,soon=_aiVehicles.filter(function(v){return v.status==='Due Soon';}).length;
-        return 'Fleet Summary:\n✅ Active: '+active+'\n🔧 Under Maintenance: '+maint+'\n⚠️ PMS Overdue: '+over+'\n📅 Due This Week: '+week+'\n🕐 Due Soon: '+soon+'\n🚗 Total: '+_aiVehicles.length;
-    }
-    if (ql.includes('vehicle') || ql.includes('fleet') || ql.includes('list') || ql.includes('all my')) {
-        var lines = _aiVehicles.map(function(v){var e=(v.status==='On Track'||v.status==='Scheduled')?'✅':v.status==='Under Maintenance'?'🔧':v.status==='Overdue'?'⚠️':v.status==='Due This Week'?'📅':v.status==='Due Soon'?'🕐':'•';return e+' '+v.plate+' — '+v.desc+' ('+(v.status||'Active')+')';}).join('\n');
-        return 'Your fleet ('+_aiVehicles.length+' vehicle'+(_aiVehicles.length!==1?'s':'')+'): \n'+lines;
-    }
-    return 'I can help you with:\n• Vehicle status & fleet summary\n• PMS overdue or due soon\n• Vehicles under maintenance\n• Service history & total cost\n\nTry asking: "Which vehicles are overdue?"';
-}
-
-function _aiAddBubble(text, cls) {
+// ── Add chat bubble ───────────────────────────────────────────────────────
+function _aiAddBubble(text, isUser) {
     var msgs = document.getElementById('aiMessages');
-    var el = document.createElement('div');
-    el.className = cls; el.textContent = text;
-    msgs.appendChild(el); el.scrollIntoView({behavior:'smooth'});
-    return el;
+    var row = document.createElement('div');
+    row.className = 'ai-row' + (isUser ? ' user' : '');
+    var av = document.createElement('div');
+    if (isUser) {
+        av.className = 'ai-av-usr';
+        var initials = _aiResolvedName ? _aiResolvedName.trim().split(' ').filter(Boolean).map(function(p){return p[0];}).slice(0,2).join('').toUpperCase() : '?';
+        av.textContent = initials;
+    } else {
+        av.className = 'ai-av-bot';
+        av.innerHTML = '<img src="../static/img/AI_LOGO.png" width="22" height="22" style="object-fit:contain;display:block;" alt="AI">';
+    }
+    var bub = document.createElement('div');
+    bub.className = isUser ? 'ai-bubble-user' : 'ai-bubble-bot';
+    bub.textContent = text;
+    if (isUser) { row.appendChild(bub); row.appendChild(av); }
+    else { row.appendChild(av); row.appendChild(bub); }
+    msgs.appendChild(row);
+    row.scrollIntoView({behavior:'smooth'});
+    return bub;
 }
 
 function _aiAddTyping() {
     var msgs = document.getElementById('aiMessages');
-    var el = document.createElement('div');
-    el.className = 'ai-typing-dots';
-    el.innerHTML = '<span></span><span></span><span></span>';
-    msgs.appendChild(el); el.scrollIntoView({behavior:'smooth'});
-    return el;
+    var row = document.createElement('div');
+    row.className = 'ai-row'; row.id = '_aiTypingRow';
+    var av = document.createElement('div');
+    av.className = 'ai-av-bot';
+    av.innerHTML = '<img src="../static/img/AI_LOGO.png" width="22" height="22" style="object-fit:contain;display:block;" alt="AI">';
+    var dots = document.createElement('div');
+    dots.className = 'ai-typing-dots';
+    dots.innerHTML = '<span></span><span></span><span></span>';
+    row.appendChild(av); row.appendChild(dots);
+    msgs.appendChild(row); row.scrollIntoView({behavior:'smooth'});
+    return row;
 }
 
-window.aiSend = function(preset) {
+// ── Scoped local fallback (AI backend unreachable) ────────────────────────
+function _aiFallback(q) {
+    var ql = q.toLowerCase().trim();
+    // Out-of-scope: inventory
+    if (ql.indexOf('inventory')!==-1||ql.indexOf('stock level')!==-1||ql.indexOf('issuance')!==-1||ql.indexOf('warehouse')!==-1||ql.indexOf('purchase order')!==-1)
+        return "I can only answer questions related to the Automotive Service and Inventory Management System.";
+    // Out-of-scope: reports
+    if ((ql.indexOf('report')!==-1||ql.indexOf('generate')!==-1||ql.indexOf(' pdf')!==-1||ql.indexOf('excel')!==-1)&&ql.indexOf('my service')===-1&&ql.indexOf('my vehicle')===-1)
+        return "I can only answer questions related to the Automotive Service and Inventory Management System.";
+    // Privacy: another customer
+    if (ql.indexOf('another customer')!==-1||ql.indexOf('juan dela cruz')!==-1||ql.indexOf('other customer')!==-1||ql.indexOf('bookings of customer')!==-1)
+        return "I can only show information for your own account.";
+    // Out-of-scope: general knowledge
+    var oos=['capital of','weather','news','sport','coding','math','recipe','movie','music','game','history of','who is','what country','population','translate','bitcoin','crypto'];
+    for(var i=0;i<oos.length;i++){ if(ql.indexOf(oos[i])!==-1) return "I can only answer questions related to the Automotive Service and Inventory Management System."; }
+    // Garbage
+    var meaningful = (q.match(/[a-zA-Z0-9]/g)||[]).length;
+    if (meaningful<2) return "I didn't understand that. Please type a question about your vehicles, bookings, or services.";
+    // Previous question after clear
+    if (ql.indexOf('previous question')!==-1||ql.indexOf('last question')!==-1||ql.indexOf('what did i ask')!==-1) {
+        var prevMsgs = _aiChatHistory.filter(function(m){return m.role==='user'&&m.text!==q;});
+        if (!prevMsgs.length) return "There's no previous conversation in this session. Feel free to ask me anything about your vehicles, bookings, or services!";
+        return 'Your previous question was: "'+prevMsgs[prevMsgs.length-1].text+'"';
+    }
+    if (!_aiVehicles.length) return 'No vehicles are registered under your account yet.';
+    // Service history
+    if (ql.indexOf('service history')!==-1||ql.indexOf('past service')!==-1||ql.indexOf('show my service')!==-1||ql.indexOf('spent')!==-1||ql.indexOf('maintenance record')!==-1) {
+        var done=_aiMaintenance.filter(function(m){return (m.status||'').toLowerCase()==='completed';});
+        if (!done.length) return "You don't have any completed service records yet.";
+        var total=done.reduce(function(s,r){var raw=r.cost||'0';return s+(parseFloat(String(raw).replace(/[₱,\s]/g,''))||0);},0);
+        return 'You have '+done.length+' completed service record'+(done.length!==1?'s':'')+'.\nTotal spent: ₱'+total.toLocaleString('en-PH',{minimumFractionDigits:2})+'\n\nGo to the "PMS History" tab to view full details.';
+    }
+    // Vehicles
+    if (ql.indexOf('my vehicle')!==-1||ql.indexOf('my fleet')!==-1||ql.indexOf('my car')!==-1||ql.indexOf('list my')!==-1||ql.indexOf('show my vehicle')!==-1) {
+        var lines=_aiVehicles.map(function(v){var e=(v.status==='On Track'||v.status==='Active')?'✅':v.status&&v.status.toLowerCase().indexOf('maintenance')!==-1?'🔧':v.status==='Overdue'?'⚠️':'•'; return e+' '+(v.plate||v.plateNumber||'—')+' — '+(v.desc||v.assetDescription||'—')+' ('+(v.status||'Active')+')';}).join('\n');
+        return 'Your fleet ('+_aiVehicles.length+' vehicle'+(_aiVehicles.length!==1?'s':'')+'): \n'+lines;
+    }
+    // PMS overdue
+    if (ql.indexOf('overdue')!==-1) {
+        var list=_aiVehicles.filter(function(v){return (v.status||'').toLowerCase()==='overdue';});
+        return list.length?'PMS Overdue ('+list.length+'):\n'+list.map(function(v){return '• '+(v.plate||'—')+' — '+(v.desc||'—');}).join('\n')+'\n\nPlease schedule a service soon!':'None of your vehicles are overdue for PMS. ✅';
+    }
+    // Pricing
+    if (ql.indexOf('how much')!==-1||ql.indexOf('price')!==-1||ql.indexOf('cost of')!==-1||ql.indexOf('oil change')!==-1||ql.indexOf('change oil')!==-1)
+        return 'For service pricing, please ask when the AI service is online — it can look up exact prices from the catalog.';
+    // Fleet summary fallback
+    var active=_aiVehicles.filter(function(v){return (v.status==='Active'||v.status==='On Track');}).length;
+    var maint=_aiVehicles.filter(function(v){return v.status&&v.status.toLowerCase().indexOf('maintenance')!==-1;}).length;
+    var over=_aiVehicles.filter(function(v){return (v.status||'').toLowerCase()==='overdue';}).length;
+    return 'Fleet Summary:\n✅ Active: '+active+'\n🔧 Under Maintenance: '+maint+'\n⚠️ PMS Overdue: '+over+'\n🚗 Total: '+_aiVehicles.length;
+}
+
+// ── Send ──────────────────────────────────────────────────────────────────
+window.aiSend = async function(preset) {
     var input = document.getElementById('aiInput');
     var text = (preset || input.value).trim();
-    if (!text) return;
-    document.getElementById('aiWelcome').style.display = 'none';
+    if (!text || _aiRateLimited) return;
+
+    var welcome = document.getElementById('aiWelcome');
+    if (welcome) welcome.style.display = 'none';
     document.getElementById('aiChips').style.display = 'none';
-    document.getElementById('aiClearBtn').style.display = 'flex';
-    _aiChatHistory.push({ role: 'user', text: text, ts: Date.now() });
-    _aiAddBubble(text, 'ai-bubble-user');
-    input.value = ''; input.style.height = 'auto';
+    var cb = document.getElementById('aiClearBtn'); if(cb) cb.style.display='flex';
+
+    _aiChatHistory.push({role:'user',text:text,ts:Date.now()});
+    _aiAddBubble(text, true);
+    input.value=''; input.style.height='auto';
+
     if (!_aiLoaded) {
-        var reply = 'Loading your fleet data, please try again in a moment.';
-        _aiChatHistory.push({ role: 'bot', text: reply, ts: Date.now() });
-        _aiAddBubble(reply, 'ai-bubble-bot');
-        _aiSaveChat(); return;
+        var msg='Still loading your profile — please try again in a moment.';
+        _aiChatHistory.push({role:'bot',text:msg,ts:Date.now()});
+        _aiAddBubble(msg, false); _aiSaveChat(); return;
     }
+
     var typing = _aiAddTyping();
-    setTimeout(function() {
+    try {
+        var user = firebase.auth().currentUser;
+        var resp = await fetch('/api/ai-chat', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                message:       text,
+                user_type:     'customer',
+                customer_uid:  user ? user.uid : '',
+                customer_name: _aiResolvedName,
+                session_id:    _aiSessionId
+            })
+        });
+        var data = await resp.json();
         typing.remove();
-        var reply = _aiProcess(text);
-        _aiChatHistory.push({ role: 'bot', text: reply, ts: Date.now() });
-        _aiAddBubble(reply, 'ai-bubble-bot');
-        _aiSaveChat();
-    }, 500);
+
+        if (data.rate_limited) {
+            _aiRateLimited = true;
+            var rlMsg = 'AI Unavailable — Daily token limit reached. Resets in '+(data.reset_in||'some time')+'.';
+            _aiChatHistory.push({role:'bot',text:rlMsg,ts:Date.now()});
+            _aiAddBubble(rlMsg, false);
+            var inp=document.getElementById('aiInput'); if(inp){inp.disabled=true;inp.placeholder='AI unavailable — daily limit reached';}
+            var sb=document.getElementById('aiSendBtn'); if(sb){sb.disabled=true;sb.style.opacity='0.45';}
+        } else if (data.answer) {
+            if (data.session_id) _aiSessionId = data.session_id;
+            _aiChatHistory.push({role:'bot',text:data.answer,ts:Date.now()});
+            _aiAddBubble(data.answer, false);
+        } else if (data.offline || !data.success) {
+            var fbReply = _aiFallback(text);
+            _aiChatHistory.push({role:'bot',text:fbReply,ts:Date.now()});
+            _aiAddBubble(fbReply, false);
+        } else {
+            var fbReply2 = _aiFallback(text);
+            _aiChatHistory.push({role:'bot',text:fbReply2,ts:Date.now()});
+            _aiAddBubble(fbReply2, false);
+        }
+    } catch(e) {
+        typing.remove();
+        var errReply = _aiFallback(text);
+        _aiChatHistory.push({role:'bot',text:errReply,ts:Date.now()});
+        _aiAddBubble(errReply, false);
+    }
+    _aiSaveChat();
 };
 
+// ── Clear chat ────────────────────────────────────────────────────────────
 window.aiClear = function() {
-    // Save current before clearing (starts new session next time)
     if (_aiChatHistory.length) _aiSaveChat();
+    if (_aiSessionId) { fetch('/api/ai-session/'+_aiSessionId,{method:'DELETE'}).catch(function(){}); _aiSessionId=null; }
+    _aiRateLimited = false;
     _aiChatHistory = [];
-    var msgs = document.getElementById('aiMessages');
-    msgs.innerHTML = '';
-    var welcome = document.getElementById('aiWelcome'); welcome.style.display = 'block'; msgs.appendChild(welcome);
-    document.getElementById('aiChips').style.display = 'flex';
-    document.getElementById('aiClearBtn').style.display = 'none';
+    _aiRebuildWelcome();
 };
 
+// ── Check AI health ───────────────────────────────────────────────────────
+function _aiCheckHealth() {
+    fetch('/api/ai-health').then(function(r){return r.json();}).then(function(d){
+        var dot=document.getElementById('aiStatusDot'), txt=document.getElementById('aiStatusTxt');
+        if(d.online){ if(dot) dot.style.background='#4ade80'; if(txt) txt.textContent='Online'; }
+        else { if(dot){dot.style.background='#d69e2e';dot.style.boxShadow='0 0 6px rgba(214,158,46,0.8)';} if(txt) txt.textContent='Local mode'; }
+    }).catch(function(){
+        var dot=document.getElementById('aiStatusDot'),txt=document.getElementById('aiStatusTxt');
+        if(dot){dot.style.background='#d69e2e';dot.style.boxShadow='0 0 6px rgba(214,158,46,0.8)';} if(txt) txt.textContent='Local mode';
+    });
+}
+
+// ── Init on auth state ────────────────────────────────────────────────────
 // Show the FAB once auth is ready; restore session
 firebase.auth().onAuthStateChanged(function(user) {
     if (user) {
         _aiCurrentUid = user.uid;
         document.getElementById('aiWidget').style.display = 'flex';
         _aiRestoreSession(user.uid);
+        _aiCheckHealth();
     }
 });
 </script>
+
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
