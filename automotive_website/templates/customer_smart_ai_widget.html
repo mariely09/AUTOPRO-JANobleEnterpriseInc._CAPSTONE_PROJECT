@@ -278,8 +278,8 @@
     <div class="ai-input-wrap">
         <textarea class="ai-input" id="aiInput" placeholder="Ask about your vehicles, bookings, or services…" rows="1"
             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send();}"
-            oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
-        <button class="ai-send" onclick="send()">
+            oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';_updateSendBtn();"></textarea>
+        <button class="ai-send" id="aiSendBtn" onclick="send()" disabled style="opacity:0.45;cursor:not-allowed;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
     </div>
@@ -312,6 +312,27 @@
   let _rateLimited = false;
   let _currentUid  = null;
   let _isSending   = false;   // guard: prevents double-send
+
+  // ── Send button enable/disable based on input content ───────────────────────
+  function _updateSendBtn() {
+    var input   = document.getElementById('aiInput');
+    var sendBtn = document.getElementById('aiSendBtn');
+    if (!input || !sendBtn) return;
+    var hasText = input.value.trim().length > 0;
+    if (_rateLimited || _isSending) {
+      sendBtn.disabled = true;
+      sendBtn.style.opacity = '0.45';
+      sendBtn.style.cursor  = 'not-allowed';
+    } else if (hasText) {
+      sendBtn.disabled = false;
+      sendBtn.style.opacity = '';
+      sendBtn.style.cursor  = '';
+    } else {
+      sendBtn.disabled = true;
+      sendBtn.style.opacity = '0.45';
+      sendBtn.style.cursor  = 'not-allowed';
+    }
+  }
 
   // ── localStorage persistence helpers ─────────────────────────────────────
   // Key for the ACTIVE (current) session — restored on every page load.
@@ -491,7 +512,7 @@
       // Remove any stale disabled attribute left by rate-limit
       input.removeAttribute('disabled');
     }
-    var sendBtn = document.querySelector('.ai-send');
+    var sendBtn = document.getElementById('aiSendBtn') || document.querySelector('.ai-send');
     if (sendBtn) {
       sendBtn.disabled     = false;
       sendBtn.style.opacity = '';
@@ -499,9 +520,8 @@
       sendBtn.removeAttribute('disabled');
     }
     _isSending = false;
+    _updateSendBtn();
   }
-
-  // Wire up suggestion pills on first load
   document.querySelectorAll('.ai-suggest-pill[data-q]').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var q = btn.getAttribute('data-q');
@@ -512,7 +532,7 @@
   function _setRateLimited(limited, resetIn) {
     _rateLimited = limited;
     const input   = document.getElementById('aiInput');
-    const sendBtn = document.querySelector('.ai-send');
+    const sendBtn = document.getElementById('aiSendBtn') || document.querySelector('.ai-send');
     const banner  = document.getElementById('aiRateBanner');
     if (limited) {
       if (input)   { input.disabled = true; input.placeholder = 'AI unavailable — daily limit reached'; }
@@ -532,8 +552,8 @@
       }
     } else {
       if (input)   { input.disabled = false; input.placeholder = 'Ask about your vehicles, bookings, or services…'; }
-      if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = ''; sendBtn.style.cursor = ''; }
       if (banner)  banner.remove();
+      _updateSendBtn();
     }
   }
 
@@ -845,6 +865,7 @@
     }
     _saveChat();
     _isSending = false;
+    _updateSendBtn();
   };
 
   window.clearChat = function () {
