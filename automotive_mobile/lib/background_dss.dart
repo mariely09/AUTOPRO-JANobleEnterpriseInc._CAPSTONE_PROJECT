@@ -372,7 +372,7 @@ Future<({List<String> push, List<String> email})> _filterByPref(
   List<String> uids,
   String prefKey,
 ) async {
-  if (uids.isEmpty) return (push: [], email: []);
+  if (uids.isEmpty) return (push: <String>[], email: <String>[]);
   final pushList  = <String>[];
   final emailList = <String>[];
   for (final uid in uids) {
@@ -417,7 +417,7 @@ Future<void> _sendAlert({
     'type':       type,
     'targetRole': targetRole,
     'targetUid':  targetUid,
-    'readBy':     [],
+    'readBy':     <String, bool>{},  // map — keyed by uid, value true when read
     'createdAt':  FieldValue.serverTimestamp(),
   });
 

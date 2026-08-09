@@ -345,3 +345,67 @@
     };
 
 })();
+
+// ── Global email notification helper ─────────────────────────────────────────
+// Call this alongside any db.collection('notifications').add({...}) call.
+// It looks up each affected user's email + emailEnabled pref, then sends
+// via the Flask /api/send-alert-email endpoint.
+//
+// Usage:
+//   sendAlertEmail({ title, message, type, targetUid: uid });          // personal
+//   sendAlertEmail({ title, message, type, targetRole: 'admin' });     // role-wide
+//
+window.sendAlertEmail = function(opts) {
+  var title      = opts.title   || 'AutoPro Notification';
+  var message    = opts.message || '';
+  var type       = opts.type    || 'info';
+  var targetUid  = opts.targetUid  || '';
+  var targetRole = opts.targetRole || '';
+  if (!message) return;
+
+  var db = (typeof firebase !== 'undefined') ? firebase.firestore() : null;
+  if (!db) return;
+
+  function _doSend(uid) {
+    // Check emailEnabled pref first
+    db.collection('users').doc(uid)
+      .collection('settings').doc('alerts')
+      .get()
+      .then(function(prefDoc) {
+        var emailEnabled = prefDoc.exists ? (prefDoc.data().emailEnabled !== false) : true;
+        if (!emailEnabled) return;
+
+        db.collection('users').doc(uid).get().then(function(userDoc) {
+          if (!userDoc.exists) return;
+          var email = userDoc.data().email || '';
+          var name  = userDoc.data().name  || '';
+          if (!email) return;
+
+          fetch('/api/send-alert-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to_email: email,
+              to_name:  name,
+              title:    title,
+              message:  message,
+              type:     type,
+            }),
+          }).then(function(res) {
+            console.log('📧 Alert email sent to', email, '→', res.status);
+          }).catch(function(err) {
+            console.warn('⚠️ Alert email failed (non-fatal):', err);
+          });
+        }).catch(function() {});
+      }).catch(function() {});
+  }
+
+  if (targetUid) {
+    _doSend(targetUid);
+  } else if (targetRole) {
+    db.collection('users').where('role', '==', targetRole).get()
+      .then(function(snap) {
+        snap.docs.forEach(function(doc) { _doSend(doc.id); });
+      }).catch(function() {});
+  }
+};

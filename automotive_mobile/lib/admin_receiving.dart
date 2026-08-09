@@ -121,7 +121,15 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
 
     final filtered = _filter == 'all'
         ? searched
-        : searched.where((d) => (d['status'] as String? ?? 'Pending') == _filter).toList();
+        : searched.where((d) {
+            final deliveryStatus = d['status'] as String? ?? 'Pending';
+            final items = (d['items'] as List? ?? []);
+            if (items.isEmpty) return deliveryStatus == _filter;
+            return items.any((item) {
+              final st = (item as Map)['itemStatus'] as String? ?? deliveryStatus;
+              return st == _filter;
+            });
+          }).toList();
 
     return Stack(children: [
       // ── Main list area ──
@@ -136,7 +144,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
               const SizedBox(width: 6),
               _chip('Review',   '$forReview', _red, Icons.rate_review_outlined,    'For Admin Review'),
               const SizedBox(width: 6),
-              _chip('Awaiting', '$awaiting',  _amber,  Icons.hourglass_empty_outlined, 'Awaiting Double Check'),
+              _chip('Awaiting\nReview', '$awaiting',  _amber,  Icons.hourglass_empty_outlined, 'Awaiting Double Check'),
               const SizedBox(width: 6),
               _chip('Approved', '$approved',  _green,  Icons.check_circle_outline,     'Approved'),
               const SizedBox(width: 6),
@@ -155,6 +163,12 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                   final items = (d['items'] as List? ?? []);
                   for (int idx = 0; idx < items.length; idx++) {
                     final item = Map<String, dynamic>.from(items[idx] as Map);
+                    // Skip items that don't match the active per-item filter
+                    if (_filter != 'all') {
+                      final deliveryStatus = d['status'] as String? ?? 'Pending';
+                      final itemSt = (item['itemStatus'] as String?) ?? deliveryStatus;
+                      if (itemSt != _filter) continue;
+                    }
                     flatItems.add({...item, '_delivery': d, '_itemIdx': idx});
                   }
                   if (items.isEmpty) flatItems.add({'_delivery': d, '_itemIdx': -1});
@@ -252,7 +266,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-            child: Text(itemSt, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color)),
+            child: Text(itemSt == 'Awaiting Double Check' ? 'Awaiting Review' : itemSt, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color)),
           ),
         ]),
         const SizedBox(height: 6),
@@ -602,7 +616,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
       await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({'items': items});
     }
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(items.isEmpty ? 'Delivery record deleted successfully!' : 'Item removed successfully!'),
+      content: Text(items.isEmpty ? 'Purchase order deleted successfully!' : 'Item removed successfully!'),
       backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
   }
 
@@ -1188,7 +1202,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                     borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
                 child: Row(children: [
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(isEdit ? 'Edit Delivery' : 'New Delivery',
+                    Text(isEdit ? 'Edit Delivery' : 'Purchase Order (PO)',
                         style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                     const Text('Record incoming stock delivery',
                         style: TextStyle(color: Colors.white70, fontSize: 11)),
@@ -1532,7 +1546,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(isEdit ? 'Delivery record updated!' : 'Delivery record created!'),
+                            content: Text(isEdit ? 'Purchase order updated!' : 'Purchase order created!'),
                             backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                         }
@@ -1547,10 +1561,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                     child: saving
                       ? const SizedBox(width: 18, height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.save_outlined, size: 16), const SizedBox(width: 6),
-                          Text(isEdit ? 'Update' : 'Save Delivery'),
-                        ]),
+                      : Text(isEdit ? 'Update' : 'Save'),
                   )),
                 ]),
               )),
@@ -1666,7 +1677,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                     ]),
                   )),
                   const SizedBox(height: 20),
-                  SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                  SizedBox(width: double.infinity, child: ElevatedButton(
                     onPressed: submitting ? null : () async {
                       if (receivedByCtrl.text.trim().isEmpty) return;
                       setModal(() => submitting = true);
@@ -1708,10 +1719,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                           SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red));
                       }
                     },
-                    icon: submitting
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.check_circle_outline, size: 16),
-                    label: Text(submitting ? 'Submitting...' : 'Submit for Double Check'),
+                    child: submitting
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Submit'),
                     style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
                   )),
                 ]),
@@ -2135,9 +2145,38 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
     }
   }
 
-  // ── Approve Admin Review (per-item) ──
   void _approveAdminReviewItem(Map<String, dynamic> d, int itemIdx) async {
     final items = List<Map<String, dynamic>>.from((d['items'] as List).map((i) => Map<String, dynamic>.from(i as Map)));
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.check_circle_outline, color: Color(0xFF38a169), size: 22),
+          SizedBox(width: 8),
+          Text('Approve Item', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: const Text(
+          'Are you sure you want to approve this item? It will be set to Pending for receiving.',
+          style: TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF38a169), foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Yes, Approve'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     items[itemIdx] = {...items[itemIdx], 'itemStatus': 'Pending'};
     final allPending = items.every((i) => (i['itemStatus'] ?? 'Pending') == 'Pending' || i['itemStatus'] == null);
     final deliveryStatus = allPending ? 'Pending' : d['status'];
@@ -2181,7 +2220,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
     if (items.isEmpty) {
       await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).delete();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Request rejected. Delivery record deleted.'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
+        content: Text('Request rejected. Purchase order deleted.'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
     } else {
       final allPending = items.every((i) => (i['itemStatus'] ?? 'Pending') == 'Pending' || i['itemStatus'] == null);
       final deliveryStatus = allPending ? 'Pending' : d['status'];
@@ -2217,7 +2256,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
               await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).delete();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: const Text('Delivery record deleted successfully.'), backgroundColor: Colors.red,
+                  SnackBar(content: const Text('Purchase order deleted successfully.'), backgroundColor: Colors.red,
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
               }

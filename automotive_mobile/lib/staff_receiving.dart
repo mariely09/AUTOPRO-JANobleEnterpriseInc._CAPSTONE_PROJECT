@@ -163,7 +163,15 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
 
     final filtered = _filter == 'all'
         ? searched
-        : searched.where((d) => (d['status'] as String? ?? 'Pending') == _filter).toList();
+        : searched.where((d) {
+            final deliveryStatus = d['status'] as String? ?? 'Pending';
+            final items = (d['items'] as List? ?? []);
+            if (items.isEmpty) return deliveryStatus == _filter;
+            return items.any((item) {
+              final st = (item as Map)['itemStatus'] as String? ?? deliveryStatus;
+              return st == _filter;
+            });
+          }).toList();
 
     return Stack(children: [
       Column(children: [
@@ -172,7 +180,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
           child: Row(children: [
             _chip('Pending',  '$pending',  const Color(0xFF718096), Icons.inventory_outlined,      'Pending'),
             const SizedBox(width: 6),
-            _chip('Awaiting', '$awaiting', _amber,  Icons.hourglass_empty_outlined, 'Awaiting Double Check'),
+            _chip('Awaiting\nReview', '$awaiting', _amber,  Icons.hourglass_empty_outlined, 'Awaiting Double Check'),
             const SizedBox(width: 6),
             _chip('Approved', '$approved', _green,  Icons.check_circle_outline,     'Approved'),
             const SizedBox(width: 6),
@@ -188,6 +196,12 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                   final items = (d['items'] as List? ?? []);
                   for (int idx = 0; idx < items.length; idx++) {
                     final item = Map<String, dynamic>.from(items[idx] as Map);
+                    // Skip items that don't match the active per-item filter
+                    if (_filter != 'all') {
+                      final deliveryStatus = d['status'] as String? ?? 'Pending';
+                      final itemSt = (item['itemStatus'] as String?) ?? deliveryStatus;
+                      if (itemSt != _filter) continue;
+                    }
                     flatItems.add({...item, '_delivery': d, '_itemIdx': idx});
                   }
                   if (items.isEmpty) flatItems.add({'_delivery': d, '_itemIdx': -1});
@@ -233,7 +247,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
               ),
               const SizedBox(height: 10),
               _fabAction(
-                label: 'New Delivery Request',
+                label: 'New Purchase Order (PO)',
                 icon: Icons.add_box_outlined,
                 onTap: () { setState(() => _fabOpen = false); _showNewDeliveryModal(); },
               ),
@@ -343,7 +357,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-            child: Text(itemSt, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color)),
+            child: Text(itemSt == 'Awaiting Double Check' ? 'Awaiting Review' : itemSt, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color)),
           ),
         ]),
         const SizedBox(height: 6),
@@ -536,7 +550,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                     child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                       Icon(Icons.hourglass_empty_outlined, size: 16, color: _amber),
                       const SizedBox(width: 6),
-                      Text('Awaiting Double Check', style: TextStyle(fontSize: 14, color: _amber, fontWeight: FontWeight.w700)),
+                      Text('Awaiting Review', style: TextStyle(fontSize: 14, color: _amber, fontWeight: FontWeight.w700)),
                     ]),
                   ),
                 ] else if (itemSt == 'Approved') ...[
@@ -739,7 +753,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                 decoration: const BoxDecoration(color: _red, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
                 child: Row(children: [
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(isEdit ? 'Edit Delivery Request' : 'New Delivery Request',
+                    Text(isEdit ? 'Edit Delivery Request' : 'Purchase Order (PO)',
                         style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                     Text(isEdit ? 'Update items for admin review' : 'Submit for admin approval',
                         style: const TextStyle(color: Colors.white70, fontSize: 11)),
@@ -1050,11 +1064,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                     style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)),
                     child: saving
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(isEdit ? Icons.save_outlined : Icons.send_outlined, size: 16),
-                          const SizedBox(width: 6),
-                          Text(isEdit ? 'Update Request' : 'Submit Request'),
-                        ]),
+                      : Text(isEdit ? 'Update Request' : 'Save'),
                   )),
                 ]),
               )),
@@ -1368,7 +1378,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                     child: const Row(children: [
                       Icon(Icons.hourglass_empty_outlined, size: 16, color: Color(0xFFd69e2e)),
                       SizedBox(width: 8),
-                      Expanded(child: Text('Submitted for admin double check. Awaiting approval.',
+                      Expanded(child: Text('Submitted for review. Awaiting approval.',
                         style: TextStyle(fontSize: 12, color: Color(0xFFd69e2e), fontWeight: FontWeight.w500))),
                     ])),
                 ],
@@ -1491,7 +1501,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                     ]),
                   )),
                   const SizedBox(height: 20),
-                  SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                  SizedBox(width: double.infinity, child: ElevatedButton(
                     onPressed: submitting ? null : () async {
                       if (receivedByCtrl.text.trim().isEmpty) return;
                       setModal(() => submitting = true);
@@ -1532,10 +1542,9 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                           SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red));
                       }
                     },
-                    icon: submitting
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.check_circle_outline, size: 16),
-                    label: Text(submitting ? 'Submitting...' : 'Submit for Double Check'),
+                    child: submitting
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Submit'),
                     style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white))),
                 ]),
               ),

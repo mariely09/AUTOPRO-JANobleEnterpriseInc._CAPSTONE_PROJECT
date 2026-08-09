@@ -42,6 +42,16 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
       if (mounted) setState(() => _now = DateTime.now());
     });
     _loadInitials();
+    // Run PMS status refresh once on load — uses a one-shot .get(), not the stream
+    Future.delayed(const Duration(seconds: 2), _runOnceStatusRefresh);
+  }
+
+  Future<void> _runOnceStatusRefresh() async {
+    if (!mounted || _statusRefreshDone) return;
+    try {
+      final snap = await FirebaseFirestore.instance.collection('vehicles').get();
+      await _refreshVehicleStatuses(snap.docs, _userName);
+    } catch (_) {}
   }
 
   @override
@@ -179,23 +189,17 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
         final allDocs = snapshot.data?.docs ?? [];
         final userName = _userName;
 
-        // Auto-update statuses based on next PMS due date
-        if (snapshot.hasData) {
-          _refreshVehicleStatuses(snapshot.data!.docs, userName);
-        }
-
         final vehicles = allDocs
             .where((d) {
               final data = d.data() as Map<String, dynamic>;
               final owner = (data['owner'] as String? ?? '').toLowerCase();
               final uname = userName.toLowerCase();
               final cname = _companyName.toLowerCase();
-              // Match if owner equals the customer's name OR their company name
               return owner == uname || (cname.isNotEmpty && owner == cname);
             })
             .map((d) {
               final data = d.data() as Map<String, dynamic>;
-              return {
+              return <String, String>{
                 'id': d.id,
                 'plate': data['plate'] as String? ?? '',
                 'desc': data['desc'] as String? ?? '',
@@ -238,6 +242,8 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                   ],
                 ),
                 const SizedBox(height: 20),
+                // ── My Vehicles label ──
+                const Text('My Vehicles', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
                 const SizedBox(height: 12),
                 if (vehicles.isEmpty)
                   const Center(child: Padding(
@@ -770,20 +776,34 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     return 'On Track';
   }
 
+  bool _refreshing = false;
+  bool _statusRefreshDone = false; // only run once per session
+
   Future<void> _refreshVehicleStatuses(List<QueryDocumentSnapshot> docs, String userName) async {
-    for (final doc in docs) {
-      final data = doc.data() as Map<String, dynamic>;
-      final owner = data['owner'] as String? ?? '';
-      if (owner.toLowerCase() != userName.toLowerCase()) continue;
-      final currentStatus = data['status'] as String? ?? '';
-      if (currentStatus == 'Under Maintenance') continue; // don't override active maintenance
-      final computed = _computeStatus(
-        data['lastSvcDate'] as String? ?? '',
-        data['svcFreq'] as String? ?? '',
-      );
-      if (computed != currentStatus) {
-        await doc.reference.update({'status': computed});
+    if (_refreshing || _statusRefreshDone) return;
+    _refreshing = true;
+    try {
+      for (final doc in docs) {
+        final raw = doc.data();
+        if (raw is! Map<String, dynamic>) continue; // skip malformed docs
+        final data = raw;
+        final owner = data['owner'] as String? ?? '';
+        if (owner.toLowerCase() != userName.toLowerCase()) continue;
+        final currentStatus = data['status'] as String? ?? '';
+        if (currentStatus == 'Under Maintenance') continue;
+        final computed = _computeStatus(
+          data['lastSvcDate'] as String? ?? '',
+          data['svcFreq'] as String? ?? '',
+        );
+        if (computed != currentStatus) {
+          await doc.reference.update({'status': computed});
+        }
       }
+      _statusRefreshDone = true; // mark done so it doesn't run again this session
+    } catch (_) {
+      // ignore errors — statuses will sync on next app open
+    } finally {
+      _refreshing = false;
     }
   }
 
