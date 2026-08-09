@@ -1133,6 +1133,8 @@
         height: auto !important;
         min-height: calc(100vh - 60px);
         overflow: visible !important;
+        /* Sidebar is position:fixed at this breakpoint — kill the padding offset
+           that would otherwise create an invisible blank column on the right */
         padding-left: 0 !important;
     }
     .sidebar-expanded .admin-dashboard-body {

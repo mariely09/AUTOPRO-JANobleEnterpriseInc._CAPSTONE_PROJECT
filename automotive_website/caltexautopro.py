@@ -1102,6 +1102,123 @@ def terms_conditions():
     return render_template('terms_condiion.html')
 
 
+@app.route('/api/send-alert-email', methods=['POST'])
+def send_alert_email():
+    """
+    Send an alert/notification email to a user.
+    Called by the Flutter background_dss task when emailEnabled = true.
+
+    Request body:
+        to_email  : str  – recipient email address
+        to_name   : str  – recipient display name (optional)
+        title     : str  – notification title  (e.g. "PMS Overdue")
+        message   : str  – notification body
+        type      : str  – "warning" | "info" | "success"
+    """
+    data       = request.get_json(silent=True) or {}
+    to_email   = data.get('to_email', '').strip()
+    to_name    = data.get('to_name',  '').strip() or 'AutoPro User'
+    title      = data.get('title',    'AutoPro Notification').strip()
+    message    = data.get('message',  '').strip()
+    notif_type = data.get('type',     'info').strip()
+
+    if not to_email or not message:
+        return jsonify({'ok': False, 'error': 'Missing to_email or message'}), 400
+
+    colour_map = {'warning': '#E8001C', 'success': '#38a169', 'info': '#003087'}
+    icon_map   = {'warning': '⚠️',      'success': '✅',       'info': 'ℹ️'}
+    accent = colour_map.get(notif_type, '#003087')
+    icon   = icon_map.get(notif_type, 'ℹ️')
+    subject = f'{icon} {title}'
+
+    html_body = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;padding:40px 0;">
+  <tr><td align="center">
+    <table width="520" cellpadding="0" cellspacing="0"
+           style="background:#fff;border-radius:16px;overflow:hidden;
+                  box-shadow:0 4px 24px rgba(0,0,0,.10);">
+      <tr>
+        <td style="background:#E8001C;padding:30px 40px 0;text-align:center;">
+          <div style="font-size:13px;font-weight:700;letter-spacing:4px;
+                      color:rgba(255,255,255,.8);margin-bottom:6px;">CALTEX</div>
+          <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:2px;">AutoPro</div>
+          <div style="background:#fff;border-radius:24px 24px 0 0;height:22px;margin-top:20px;"></div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 40px 40px;">
+          <div style="text-align:center;margin-bottom:18px;">
+            <span style="display:inline-block;background:{accent}18;
+                         border:1.5px solid {accent}40;border-radius:24px;
+                         padding:6px 18px;font-size:12px;font-weight:700;
+                         color:{accent};letter-spacing:0.5px;">
+              {icon}&nbsp; {title}
+            </span>
+          </div>
+          <p style="margin:0 0 20px;text-align:center;font-size:13px;
+                    color:#718096;line-height:1.6;">
+            Hi <strong>{to_name}</strong>,<br/>
+            You have a new notification from the AutoPro system.
+          </p>
+          <div style="background:#f7f8fa;border-left:4px solid {accent};
+                      border-radius:0 10px 10px 0;padding:16px 20px;margin-bottom:26px;">
+            <p style="margin:0;font-size:14px;font-weight:600;
+                      color:#1a202c;line-height:1.6;">{message}</p>
+          </div>
+          <p style="margin:0 0 6px;font-size:12px;color:#a0aec0;
+                    text-align:center;line-height:1.6;">
+            You are receiving this because you have <strong>Email Notifications</strong>
+            enabled in your AutoPro alert settings.<br/>
+            To manage preferences: AutoPro app → Notifications → Manage Alerts.
+          </p>
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;"/>
+          <p style="margin:0;font-size:12px;color:#a0aec0;text-align:center;line-height:1.6;">
+            Need help? Contact us at
+            <a href="mailto:janobleenterprisesinc@gmail.com"
+               style="color:#E8001C;">janobleenterprisesinc@gmail.com</a>
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f7f8fa;padding:18px 40px;text-align:center;
+                   border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:11px;color:#a0aec0;line-height:1.6;">
+            &copy; 2025 AutoPro &middot; JA Noble Enterprise Inc<br/>
+            102 National Highway, Brgy. Landayan, San Pedro, Laguna<br/>
+            This is an automated message &mdash; please do not reply.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>"""
+
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From']    = SMTP_FROM
+        msg['To']      = to_email
+        msg.attach(MIMEText(html_body, 'html'))
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.sendmail(SMTP_USER, to_email, msg.as_string())
+        print(f'✅ Alert email delivered → {to_email} [{title}]')
+        return jsonify({'ok': True})
+    except smtplib.SMTPAuthenticationError:
+        print(f'❌ SMTP auth failed → {to_email}')
+        return jsonify({'ok': False, 'error': 'SMTP auth failed'}), 500
+    except Exception as e:
+        print(f'❌ Alert email error → {to_email}: {e}')
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/api/send-reschedule-email', methods=['POST'])
 def send_reschedule_email():
     """Send email notification when a booking is rescheduled by admin."""

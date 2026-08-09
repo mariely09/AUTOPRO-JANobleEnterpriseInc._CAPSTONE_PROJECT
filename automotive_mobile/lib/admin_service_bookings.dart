@@ -85,12 +85,13 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
           return {...data, 'docId': d.id};
         }).where((d) {
           final status = d['status'] as String? ?? '';
-          return status == 'Approved';
+          return status == 'Approved' || status == 'Cancelled';
         }).toList();
 
         // Compute counts
         final approved = allBookings.where((d) => d['status'] == 'Approved' && !_isRescheduled(d)).length;
         final rescheduled = allBookings.where((d) => d['status'] == 'Approved' && _isRescheduled(d)).length;
+        final cancelled = allBookings.where((d) => d['status'] == 'Cancelled').length;
         final total = allBookings.length;
 
         // Apply filter
@@ -98,7 +99,9 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
             ? allBookings
             : _filter == 'Rescheduled'
                 ? allBookings.where((d) => d['status'] == 'Approved' && _isRescheduled(d)).toList()
-                : allBookings.where((d) => d['status'] == 'Approved' && !_isRescheduled(d)).toList();
+                : _filter == 'Cancelled'
+                    ? allBookings.where((d) => d['status'] == 'Cancelled').toList()
+                    : allBookings.where((d) => d['status'] == 'Approved' && !_isRescheduled(d)).toList();
 
         // Apply search — use external searchQuery prop if provided, else internal
         final activeQuery = widget.searchQuery.isNotEmpty ? widget.searchQuery : _searchQuery;
@@ -124,6 +127,8 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
               _statChip('Approved', '$approved', const Color(0xFF38a169), Icons.check_circle_outline, 'Approved'),
               const SizedBox(width: 6),
               _statChip('Resched', '$rescheduled', _blue, Icons.history, 'Rescheduled'),
+              const SizedBox(width: 6),
+              _statChip('Cancelled', '$cancelled', const Color(0xFFE8001C), Icons.cancel_outlined, 'Cancelled'),
             ]),
           ),
           Expanded(
@@ -171,7 +176,7 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
       statusColor = const Color(0xFF38a169);
       statusLabel = 'Approved';
     } else {
-      statusColor = const Color(0xFF718096);
+      statusColor = const Color(0xFFE8001C);
       statusLabel = 'Cancelled';
     }
 
@@ -329,8 +334,12 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
               final data = doc.data() ?? {};
               final customerId = data['customerId'] as String? ?? '';
               final date = data['preferredDate'] as String? ?? '';
-              // Delete the booking
-              await db.collection('service_bookings').doc(docId).delete();
+              // Mark as Cancelled (keep in database for records)
+              await db.collection('service_bookings').doc(docId).update({
+                'status': 'Cancelled',
+                'cancelledAt': FieldValue.serverTimestamp(),
+                'cancelledBy': 'admin',
+              });
               // Notify customer
               if (customerId.isNotEmpty) {
                 await db.collection('notifications').add({
@@ -732,7 +741,7 @@ class _BookingDetailsSheet extends StatelessWidget {
       statusColor = _green;
       statusLabel = 'Approved';
     } else {
-      statusColor = const Color(0xFF718096);
+      statusColor = _red;
       statusLabel = 'Cancelled';
     }
 

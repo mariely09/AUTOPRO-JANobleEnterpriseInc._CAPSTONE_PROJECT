@@ -5,6 +5,7 @@
 ///
 /// Called by workmanager every ~15 minutes even when the app is closed/killed.
 /// Respects each user's alert preferences from users/{uid}/settings/alerts.
+/// Respects inAppEnabled / emailEnabled channel preferences.
 
 import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
@@ -18,6 +19,10 @@ import 'firebase_options.dart';
 const _kOneSignalAppId  = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
 const _kOneSignalApiKey =
     'os_v7_app_yt4cvr2f1hkhvh5ldu4k637i51snjeyuythen3fd61ae1yhnprpy6kbxvn9kjd1pqdhygsqmlrouas4kfuydft32nkgj5flbra3oo5q';
+
+// ── Flask server base URL (email relay) ───────────────────────────────────
+// Override with FLASK_BASE_URL env if needed; default matches local dev + prod.
+const _kFlaskBaseUrl = 'https://caltex-autopro.onrender.com'; // or http://localhost:5001
 
 @pragma('vm:entry-point')
 void backgroundDSSCallback() {}
@@ -86,7 +91,6 @@ Future<bool> runBackgroundDSSCheck() async {
       final uom     = data['uom'] as String? ?? '';
 
       final records       = consumptionMap[itemNum] ?? [];
-      final totalConsumed = records.fold<double>(0.0, (s, r) => s + (r['qty'] as num).toDouble());
 
       DateTime? earliest;
       for (final r in records) {
@@ -94,9 +98,6 @@ Future<bool> runBackgroundDSSCheck() async {
         if (d2 != null && (earliest == null || d2.isBefore(earliest!))) earliest = d2;
       }
 
-      final daySpan      = earliest != null
-          ? (now.difference(earliest!).inMilliseconds / 86400000).ceil().clamp(1, 999999)
-          : 30;
       final deficit      = (max - stock).clamp(0, 999999);
       final recommendQty = deficit > reorder ? deficit : reorder;
 
@@ -137,13 +138,21 @@ Future<bool> runBackgroundDSSCheck() async {
       final nextMidnight = DateTime(nextDate.year, nextDate.month, nextDate.day);
       final daysUntil    = nextMidnight.difference(todayMidnight).inDays;
 
-      // Admin PMS alerts — respect pmsOverdue / pmsDueSoon prefs
+      // ── Admin PMS alerts ──
       if (daysUntil < 0) {
         final targets = await _filterByPref(db, adminIds, 'pmsOverdue');
         await _sendAlert(
           db: db, targets: targets,
           title: '🚨 PMS Overdue',
           message: '$plate is ${(-daysUntil)} day(s) overdue for maintenance.',
+          type: 'warning', targetRole: 'admin',
+        );
+      } else if (daysUntil == 0) {
+        final targets = await _filterByPref(db, adminIds, 'pmsDueToday');
+        await _sendAlert(
+          db: db, targets: targets,
+          title: '🔔 PMS Due Today',
+          message: '$plate is due for maintenance today.',
           type: 'warning', targetRole: 'admin',
         );
       } else if (daysUntil <= 7) {
@@ -164,18 +173,23 @@ Future<bool> runBackgroundDSSCheck() async {
         );
       }
 
-      // Customer PMS alerts — respect their own prefs
+      // ── Customer PMS alerts ──
       final ownerId = data['ownerId'] as String? ?? data['customerId'] as String?;
       if (ownerId != null && ownerId.isNotEmpty) {
-        final ownerDoc = await db.collection('users').doc(ownerId).get();
-        if (!ownerDoc.exists) continue;
-
         if (daysUntil < 0) {
           final targets = await _filterByPref(db, [ownerId], 'pmsOverdue');
           await _sendAlert(
             db: db, targets: targets,
             title: '🚨 Your PMS is Overdue',
             message: 'Your $plate is ${(-daysUntil)} day(s) overdue for maintenance.',
+            type: 'warning', targetRole: '', targetUid: ownerId,
+          );
+        } else if (daysUntil == 0) {
+          final targets = await _filterByPref(db, [ownerId], 'pmsDueToday');
+          await _sendAlert(
+            db: db, targets: targets,
+            title: '🔔 Your PMS is Due Today',
+            message: 'Your $plate is due for maintenance today.',
             type: 'warning', targetRole: '', targetUid: ownerId,
           );
         } else if (daysUntil <= 7) {
@@ -198,6 +212,9 @@ Future<bool> runBackgroundDSSCheck() async {
       }
     }
 
+    // ── BOOKING ALERTS ──
+    await _runBookingAlerts(db, adminIds, now);
+
     debugPrint('✅ Background DSS check complete');
     return true;
   } catch (e) {
@@ -206,76 +223,256 @@ Future<bool> runBackgroundDSSCheck() async {
   }
 }
 
+/// Checks service_bookings for events that need push notifications:
+///  - New bookings  → notify admin & staff
+///  - Cancellations → notify admin & staff
+///  - Confirmation  → notify customer
+///  - Reminder (1 day before) → notify customer
+///  - Status change → notify customer
+Future<void> _runBookingAlerts(
+  FirebaseFirestore db,
+  List<String> adminIds,
+  DateTime now,
+) async {
+  final todayMidnight   = DateTime(now.year, now.month, now.day);
+  final tomorrowMidnight = todayMidnight.add(const Duration(days: 1));
+  final tomorrowStr     =
+      '${tomorrowMidnight.year}-${tomorrowMidnight.month.toString().padLeft(2, '0')}-${tomorrowMidnight.day.toString().padLeft(2, '0')}';
+
+  // Already-notified log key — per-day dedup
+  final dayKey =
+      '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+  // Get staff UIDs for booking notifications
+  final staffSnap = await db.collection('users').where('role', isEqualTo: 'staff').get();
+  final staffIds  = staffSnap.docs.map((d) => d.id).toList();
+  final staffAndAdminIds = {...staffIds, ...adminIds}.toList();
+
+  final bookingsSnap = await db.collection('service_bookings').get();
+
+  for (final bDoc in bookingsSnap.docs) {
+    final data   = bDoc.data();
+    final bId    = bDoc.id;
+    final plate  = data['plate'] as String? ?? '';
+    final status = (data['status'] as String? ?? '').toLowerCase();
+    final prefDate = data['preferredDate'] as String? ?? '';
+    final customerId = data['customerId'] as String? ?? data['userId'] as String? ?? '';
+
+    // ── New booking request (Pending) → admin & staff ──
+    if (status == 'pending') {
+      final logKey = 'booking_new_${bId}_$dayKey';
+      final alreadySent = await _alreadyLogged(db, logKey);
+      if (!alreadySent) {
+        final targets = await _filterByPref(db, staffAndAdminIds, 'newBookingRequest');
+        await _sendAlert(
+          db: db, targets: targets,
+          title: '📋 New Booking Request',
+          message: 'New service booking for $plate is awaiting confirmation.',
+          type: 'info', targetRole: 'admin',
+        );
+        await _logSent(db, logKey);
+      }
+    }
+
+    // ── Booking cancelled → admin & staff ──
+    if (status == 'cancelled') {
+      final logKey = 'booking_cancel_${bId}_$dayKey';
+      final alreadySent = await _alreadyLogged(db, logKey);
+      if (!alreadySent) {
+        final targets = await _filterByPref(db, staffAndAdminIds, 'bookingCancellation');
+        await _sendAlert(
+          db: db, targets: targets,
+          title: '❌ Booking Cancelled',
+          message: 'Service booking for $plate has been cancelled.',
+          type: 'warning', targetRole: 'admin',
+        );
+        await _logSent(db, logKey);
+      }
+    }
+
+    if (customerId.isEmpty) continue;
+
+    // ── Booking confirmed → customer ──
+    if (status == 'confirmed' || status == 'approved') {
+      final logKey = 'booking_confirmed_${bId}';
+      final alreadySent = await _alreadyLogged(db, logKey);
+      if (!alreadySent) {
+        final targets = await _filterByPref(db, [customerId], 'bookingConfirmed');
+        await _sendAlert(
+          db: db, targets: targets,
+          title: '✅ Booking Confirmed',
+          message: 'Your service booking for $plate has been confirmed.',
+          type: 'success', targetRole: '', targetUid: customerId,
+        );
+        await _logSent(db, logKey);
+      }
+    }
+
+    // ── Booking reminder (1 day before) → customer ──
+    if (prefDate.isNotEmpty && prefDate.startsWith(tomorrowStr)) {
+      final logKey = 'booking_reminder_${bId}_$dayKey';
+      final alreadySent = await _alreadyLogged(db, logKey);
+      if (!alreadySent) {
+        final targets = await _filterByPref(db, [customerId], 'bookingReminder');
+        await _sendAlert(
+          db: db, targets: targets,
+          title: '🔔 Booking Reminder',
+          message: 'Your service for $plate is scheduled for tomorrow.',
+          type: 'info', targetRole: '', targetUid: customerId,
+        );
+        await _logSent(db, logKey);
+      }
+    }
+
+    // ── Booking status change → customer (any status update except pending) ──
+    if (status != 'pending' && status != 'cancelled') {
+      final logKey = 'booking_status_${bId}_$status';
+      final alreadySent = await _alreadyLogged(db, logKey);
+      if (!alreadySent) {
+        final displayStatus = status[0].toUpperCase() + status.substring(1);
+        final targets = await _filterByPref(db, [customerId], 'bookingStatusChange');
+        await _sendAlert(
+          db: db, targets: targets,
+          title: '🔄 Booking Status Updated',
+          message: 'Your booking for $plate is now: $displayStatus.',
+          type: 'info', targetRole: '', targetUid: customerId,
+        );
+        await _logSent(db, logKey);
+      }
+    }
+  }
+}
+
+// ── Deduplication helpers ────────────────────────────────────────────────────
+
+Future<bool> _alreadyLogged(FirebaseFirestore db, String key) async {
+  try {
+    final doc = await db.collection('dss_alert_log').doc(key).get();
+    return doc.exists;
+  } catch (_) {
+    return false;
+  }
+}
+
+Future<void> _logSent(FirebaseFirestore db, String key) async {
+  try {
+    await db.collection('dss_alert_log').doc(key)
+        .set({'sentAt': FieldValue.serverTimestamp()});
+  } catch (_) {}
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/// Filters UIDs to only those who have [prefKey] enabled in their alert prefs.
+/// Filters UIDs into two lists:
+///  - pushTargets : users with inAppEnabled = true AND the specific alert pref
+///  - emailTargets: users with emailEnabled = true AND the specific alert pref
 /// Defaults to true (included) if the pref doc doesn't exist.
-Future<List<String>> _filterByPref(
+Future<({List<String> push, List<String> email})> _filterByPref(
   FirebaseFirestore db,
   List<String> uids,
   String prefKey,
 ) async {
-  if (uids.isEmpty) return [];
-  final enabled = <String>[];
+  if (uids.isEmpty) return (push: <String>[], email: <String>[]);
+  final pushList  = <String>[];
+  final emailList = <String>[];
   for (final uid in uids) {
     try {
       final doc = await db
           .collection('users').doc(uid)
           .collection('settings').doc('alerts')
           .get();
-      final val = doc.data()?[prefKey] as bool? ?? true;
-      if (val) enabled.add(uid);
+      final prefs        = doc.data() ?? {};
+      final alertEnabled = prefs[prefKey]        as bool? ?? true;
+      final inApp        = prefs['inAppEnabled']  as bool? ?? true;
+      final email        = prefs['emailEnabled']  as bool? ?? true;
+      if (alertEnabled && inApp)  pushList.add(uid);
+      if (alertEnabled && email)  emailList.add(uid);
     } catch (_) {
-      enabled.add(uid); // include on error — don't silently drop
+      // include on error — don't silently drop
+      pushList.add(uid);
+      emailList.add(uid);
     }
   }
-  return enabled;
+  return (push: pushList, email: emailList);
 }
 
-/// Writes to Firestore (in-app display) and pushes via OneSignal.
-/// Only pushes to [targets] — already filtered by pref.
+/// Writes to Firestore (in-app display) AND pushes via OneSignal.
+/// Only targets users who passed _filterByPref (inAppEnabled + alert pref).
 Future<void> _sendAlert({
   required FirebaseFirestore db,
-  required List<String> targets,   // pref-filtered Firebase UIDs
+  required ({List<String> push, List<String> email}) targets,
   required String title,
   required String message,
   required String type,
   String targetRole = '',
   String targetUid  = '',
 }) async {
-  // Always write to Firestore so in-app list shows it
+  final allUids = {...targets.push, ...targets.email};
+  if (allUids.isEmpty) return;
+
+  // ── 1. Write to Firestore (in-app notification list) ──
   await db.collection('notifications').add({
     'title':      title,
     'message':    message,
     'type':       type,
     'targetRole': targetRole,
     'targetUid':  targetUid,
+    'readBy':     <String, bool>{},  // map — keyed by uid, value true when read
     'createdAt':  FieldValue.serverTimestamp(),
   });
 
-  if (targets.isEmpty) return;
-
-  try {
-    final res = await http.post(
-      Uri.parse('https://api.onesignal.com/notifications'),
-      headers: {
-        'Authorization': 'Basic $_kOneSignalApiKey',
-        'Content-Type': 'application/json; charset=utf-8',
-      },
-      body: jsonEncode({
-        'app_id': _kOneSignalAppId,
-        'include_aliases': {
-          'external_id': targets,
+  // ── 2. Push notification via OneSignal ──
+  if (targets.push.isNotEmpty) {
+    try {
+      final res = await http.post(
+        Uri.parse('https://api.onesignal.com/notifications'),
+        headers: {
+          'Authorization': 'Basic $_kOneSignalApiKey',
+          'Content-Type': 'application/json; charset=utf-8',
         },
-        'target_channel': 'push',
-        'headings': {'en': title},
-        'contents': {'en': message},
-        'data': {'type': type},
-      }),
-    );
-    debugPrint('📤 OneSignal BG → ${res.statusCode}: ${res.body}');
-  } catch (e) {
-    debugPrint('❌ OneSignal BG send error: $e');
+        body: jsonEncode({
+          'app_id': _kOneSignalAppId,
+          'include_aliases': {'external_id': targets.push},
+          'target_channel': 'push',
+          'headings': {'en': title},
+          'contents': {'en': message},
+          'data':     {'type': type},
+          'android_channel_id': 'autopro_alerts',
+          'ios_sound': 'default',
+        }),
+      );
+      debugPrint('📤 OneSignal push → ${res.statusCode}: ${res.body}');
+    } catch (e) {
+      debugPrint('❌ OneSignal push error: $e');
+    }
+  }
+
+  // ── 3. Email notification via Flask SMTP relay ──
+  if (targets.email.isNotEmpty) {
+    for (final uid in targets.email) {
+      try {
+        // Look up user's email address from Firestore
+        final userDoc = await db.collection('users').doc(uid).get();
+        final userEmail = userDoc.data()?['email'] as String? ?? '';
+        final userName  = userDoc.data()?['name']  as String? ?? '';
+        if (userEmail.isEmpty) continue;
+
+        final emailRes = await http.post(
+          Uri.parse('$_kFlaskBaseUrl/api/send-alert-email'),
+          headers: {'Content-Type': 'application/json; charset=utf-8'},
+          body: jsonEncode({
+            'to_email': userEmail,
+            'to_name':  userName,
+            'title':    title,
+            'message':  message,
+            'type':     type,
+          }),
+        );
+        debugPrint('📧 Alert email → $userEmail: ${emailRes.statusCode}');
+      } catch (e) {
+        debugPrint('❌ Alert email error for $uid: $e');
+      }
+    }
   }
 }
 

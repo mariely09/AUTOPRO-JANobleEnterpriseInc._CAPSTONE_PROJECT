@@ -13,8 +13,6 @@
             display: grid;
             grid-template-columns: 320px 1fr;
             gap: 24px;
-            max-width: 1200px;
-            margin: 0 auto;
             padding: 24px 32px;
         }
         
@@ -323,6 +321,10 @@
       }      // ── LEFT SIDEBAR ──
       const sidebarHtml = `
         <div class="phd-sidebar">
+          <a href="customer_pms_history.html" style="display:inline-flex;align-items:center;gap:0.4rem;font-size:0.82rem;font-weight:700;color:#718096;text-decoration:none;margin-bottom:1.25rem;transition:color .2s;" onmouseover="this.style.color='#E8001C'" onmouseout="this.style.color='#718096'">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Back to PMS History
+          </a>
           <div class="phd-vehicle-card">
             <div class="phd-vehicle-plate">${plate}</div>
             <div class="phd-vehicle-desc">${desc || '—'}</div>
@@ -357,10 +359,6 @@
               </div>
               ` : ''}
             </div>
-            <a href="customer_pms_history.html" class="phd-back-btn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-              Back to PMS History
-            </a>
           </div>
         </div>
       `;
@@ -374,7 +372,6 @@
           <div class="phd-records-header">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
             <span class="phd-records-title">Service Records</span>
-            <span class="phd-records-count">${records.length} record${records.length !== 1 ? 's' : ''}</span>
           </div>
         ` + records.map((r, idx) => {
           const costDisplay = r.cost || '—';

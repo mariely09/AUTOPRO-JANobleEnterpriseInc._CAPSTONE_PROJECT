@@ -13,18 +13,35 @@ class ManageAlertsScreen extends StatefulWidget {
 }
 
 class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
-  static const _red = Color(0xFFE8001C);
+  static const _red   = Color(0xFFE8001C);
+  static const _blue  = Color(0xFF003087);
 
   bool _loading = true;
   bool _saving  = false;
 
-  // Alert preferences
-  bool _pmsOverdue    = true;
-  bool _pmsDueSoon    = true;
+  // ── Notification channels ──────────────────────────────────
+  bool _inAppEnabled = true;
+  bool _emailEnabled = true;
+
+  // ── Vehicle alert preferences ──────────────────────────────
+  bool _pmsOverdue     = true;
+  bool _pmsDueToday    = true;
   bool _pmsDueThisWeek = true;
+  bool _pmsDueSoon     = true;
+
+  // ── Service alert preferences (staff & admin) ──────────────
   bool _serviceUpdate = true;
-  bool _lowStock      = true;
   bool _newAssignment = true;
+
+  // ── Inventory alert preferences (admin) ───────────────────
+  bool _lowStock = true;
+
+  // ── Booking alert preferences ──────────────────────────────
+  bool _bookingConfirmed    = true;  // customer
+  bool _bookingReminder     = true;  // customer
+  bool _bookingStatusChange = true;  // customer
+  bool _newBookingRequest   = true;  // staff & admin
+  bool _bookingCancellation = true;  // staff & admin
 
   @override
   void initState() {
@@ -42,12 +59,25 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
     if (!mounted) return;
     final data = doc.data() ?? {};
     setState(() {
+      // Channels
+      _inAppEnabled = data['inAppEnabled'] as bool? ?? true;
+      _emailEnabled = data['emailEnabled'] as bool? ?? true;
+      // Vehicle
       _pmsOverdue     = data['pmsOverdue']     as bool? ?? true;
-      _pmsDueSoon     = data['pmsDueSoon']     as bool? ?? true;
+      _pmsDueToday    = data['pmsDueToday']    as bool? ?? true;
       _pmsDueThisWeek = data['pmsDueThisWeek'] as bool? ?? true;
+      _pmsDueSoon     = data['pmsDueSoon']     as bool? ?? true;
+      // Service
       _serviceUpdate  = data['serviceUpdate']  as bool? ?? true;
-      _lowStock       = data['lowStock']       as bool? ?? true;
       _newAssignment  = data['newAssignment']  as bool? ?? true;
+      // Inventory
+      _lowStock       = data['lowStock']       as bool? ?? true;
+      // Booking
+      _bookingConfirmed    = data['bookingConfirmed']    as bool? ?? true;
+      _bookingReminder     = data['bookingReminder']     as bool? ?? true;
+      _bookingStatusChange = data['bookingStatusChange'] as bool? ?? true;
+      _newBookingRequest   = data['newBookingRequest']   as bool? ?? true;
+      _bookingCancellation = data['bookingCancellation'] as bool? ?? true;
       _loading = false;
     });
   }
@@ -57,24 +87,38 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
     if (uid == null) return;
     setState(() => _saving = true);
     try {
+      final isStaffOrAdmin = widget.role == ManageAlertsRole.staff || widget.role == ManageAlertsRole.admin;
+      final isAdmin        = widget.role == ManageAlertsRole.admin;
+      final isCustomer     = widget.role == ManageAlertsRole.customer;
+
       final payload = <String, dynamic>{
+        // Channels — all roles
+        'inAppEnabled': _inAppEnabled,
+        'emailEnabled': _emailEnabled,
+        // Vehicle — all roles
         'pmsOverdue':     _pmsOverdue,
-        'pmsDueSoon':     _pmsDueSoon,
+        'pmsDueToday':    _pmsDueToday,
         'pmsDueThisWeek': _pmsDueThisWeek,
-        'updatedAt':      FieldValue.serverTimestamp(),
+        'pmsDueSoon':     _pmsDueSoon,
+        // Service — staff & admin
+        if (isStaffOrAdmin) 'serviceUpdate': _serviceUpdate,
+        if (isStaffOrAdmin) 'newAssignment': _newAssignment,
+        // Inventory — admin only
+        if (isAdmin) 'lowStock': _lowStock,
+        // Booking — customer
+        if (isCustomer) 'bookingConfirmed':    _bookingConfirmed,
+        if (isCustomer) 'bookingReminder':     _bookingReminder,
+        if (isCustomer) 'bookingStatusChange': _bookingStatusChange,
+        // Booking — staff & admin
+        if (isStaffOrAdmin) 'newBookingRequest':   _newBookingRequest,
+        if (isStaffOrAdmin) 'bookingCancellation': _bookingCancellation,
+        'updatedAt': FieldValue.serverTimestamp(),
       };
-      if (widget.role == ManageAlertsRole.staff || widget.role == ManageAlertsRole.admin) {
-        payload['serviceUpdate'] = _serviceUpdate;
-        payload['newAssignment'] = _newAssignment;
-      }
-      if (widget.role == ManageAlertsRole.admin) {
-        payload['lowStock'] = _lowStock;
-      }
 
       await FirebaseFirestore.instance
           .collection('users').doc(uid)
           .collection('settings').doc('alerts')
-          .set(payload);
+          .set(payload, SetOptions(merge: true));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -99,7 +143,8 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
   @override
   Widget build(BuildContext context) {
     final isStaffOrAdmin = widget.role == ManageAlertsRole.staff || widget.role == ManageAlertsRole.admin;
-    final isAdmin = widget.role == ManageAlertsRole.admin;
+    final isAdmin        = widget.role == ManageAlertsRole.admin;
+    final isCustomer     = widget.role == ManageAlertsRole.customer;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
@@ -126,7 +171,36 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-                // ── Vehicle Alerts (all roles) ──
+                // ── Notification Channels (all roles) ─────────────────
+                _sectionLabel('NOTIFICATION CHANNELS'),
+                const SizedBox(height: 4),
+                Text(
+                  'Choose how you want to receive notifications.',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
+                ),
+                const SizedBox(height: 8),
+                _alertCard([
+                  _channelTile(
+                    icon: Icons.notifications_active_outlined,
+                    color: _red,
+                    title: 'In-App Notifications',
+                    sub: 'Show alerts inside the app in real time',
+                    value: _inAppEnabled,
+                    onChanged: (v) => setState(() => _inAppEnabled = v),
+                  ),
+                  _channelTile(
+                    icon: Icons.email_outlined,
+                    color: _blue,
+                    title: 'Email Notifications',
+                    sub: 'Send alerts to your registered email address',
+                    value: _emailEnabled,
+                    onChanged: (v) => setState(() => _emailEnabled = v),
+                    isLast: true,
+                  ),
+                ]),
+
+                // ── Vehicle Alerts (all roles) ─────────────────────────
+                const SizedBox(height: 20),
                 _sectionLabel('VEHICLE ALERTS'),
                 const SizedBox(height: 8),
                 _alertCard([
@@ -134,9 +208,17 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                     icon: Icons.error_outline,
                     color: Colors.red,
                     title: 'PMS Overdue',
-                    sub: 'Notify when a vehicle is overdue for maintenance (< 0 days)',
+                    sub: 'Notify when a vehicle is overdue for maintenance',
                     value: _pmsOverdue,
                     onChanged: (v) => setState(() => _pmsOverdue = v),
+                  ),
+                  _alertTile(
+                    icon: Icons.today_outlined,
+                    color: _red,
+                    title: 'PMS Due Today',
+                    sub: 'Notify when a vehicle\'s PMS is due today',
+                    value: _pmsDueToday,
+                    onChanged: (v) => setState(() => _pmsDueToday = v),
                   ),
                   _alertTile(
                     icon: Icons.calendar_today_outlined,
@@ -157,7 +239,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                   ),
                 ]),
 
-                // ── Service Alerts (staff & admin only) ──
+                // ── Service Alerts (staff & admin) ─────────────────────
                 if (isStaffOrAdmin) ...[
                   const SizedBox(height: 16),
                   _sectionLabel('SERVICE ALERTS'),
@@ -173,7 +255,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                     ),
                     _alertTile(
                       icon: Icons.assignment_outlined,
-                      color: const Color(0xFF003087),
+                      color: _blue,
                       title: 'New Assignment',
                       sub: 'Notify when a service is assigned to you',
                       value: _newAssignment,
@@ -183,7 +265,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                   ]),
                 ],
 
-                // ── Inventory Alerts (admin only) ──
+                // ── Inventory Alerts (admin only) ──────────────────────
                 if (isAdmin) ...[
                   const SizedBox(height: 16),
                   _sectionLabel('INVENTORY ALERTS'),
@@ -200,6 +282,59 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                     ),
                   ]),
                 ],
+
+                // ── Booking Alerts ─────────────────────────────────────
+                const SizedBox(height: 16),
+                _sectionLabel('BOOKING ALERTS'),
+                const SizedBox(height: 8),
+                if (isCustomer)
+                  _alertCard([
+                    _alertTile(
+                      icon: Icons.check_circle_outline,
+                      color: Colors.green,
+                      title: 'Booking Confirmed',
+                      sub: 'Notify when your service booking is confirmed',
+                      value: _bookingConfirmed,
+                      onChanged: (v) => setState(() => _bookingConfirmed = v),
+                    ),
+                    _alertTile(
+                      icon: Icons.notifications_outlined,
+                      color: Colors.amber.shade700,
+                      title: 'Booking Reminder',
+                      sub: 'Remind you a day before your scheduled service',
+                      value: _bookingReminder,
+                      onChanged: (v) => setState(() => _bookingReminder = v),
+                    ),
+                    _alertTile(
+                      icon: Icons.update_outlined,
+                      color: _blue,
+                      title: 'Booking Status Change',
+                      sub: 'Notify on any update to your booking status',
+                      value: _bookingStatusChange,
+                      onChanged: (v) => setState(() => _bookingStatusChange = v),
+                      isLast: true,
+                    ),
+                  ]),
+                if (isStaffOrAdmin)
+                  _alertCard([
+                    _alertTile(
+                      icon: Icons.event_available_outlined,
+                      color: _blue,
+                      title: 'New Booking Request',
+                      sub: 'Notify when a new service booking is submitted',
+                      value: _newBookingRequest,
+                      onChanged: (v) => setState(() => _newBookingRequest = v),
+                    ),
+                    _alertTile(
+                      icon: Icons.event_busy_outlined,
+                      color: Colors.red,
+                      title: 'Booking Cancellation',
+                      sub: 'Notify when a customer cancels their booking',
+                      value: _bookingCancellation,
+                      onChanged: (v) => setState(() => _bookingCancellation = v),
+                      isLast: true,
+                    ),
+                  ]),
 
                 const SizedBox(height: 24),
                 SizedBox(
@@ -220,11 +355,13 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                   ),
                 ),
+                const SizedBox(height: 8),
               ]),
             ),
     );
   }
 
+  // ── Section label ────────────────────────────────────────────
   Widget _sectionLabel(String label) => Align(
     alignment: Alignment.centerLeft,
     child: Text(label, style: const TextStyle(
@@ -232,6 +369,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
       color: Color(0xFF718096), letterSpacing: 0.8)),
   );
 
+  // ── Card wrapper ─────────────────────────────────────────────
   Widget _alertCard(List<Widget> tiles) => Container(
     decoration: BoxDecoration(
       color: Colors.white,
@@ -241,6 +379,41 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
     child: Column(children: tiles),
   );
 
+  // ── Channel tile (larger icon area, descriptive sub) ─────────
+  Widget _channelTile({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String sub,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    bool isLast = false,
+  }) {
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(children: [
+          Container(
+            width: 42, height: 42,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, size: 20, color: color),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+            const SizedBox(height: 1),
+            Text(sub, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+          ])),
+          Switch.adaptive(value: value, onChanged: onChanged, activeColor: color),
+        ]),
+      ),
+      if (!isLast) const Divider(height: 1, indent: 72),
+    ]);
+  }
+
+  // ── Alert preference tile ────────────────────────────────────
   Widget _alertTile({
     required IconData icon,
     required Color color,
@@ -266,11 +439,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
             Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1a202c))),
             Text(sub, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
           ])),
-          Switch.adaptive(
-            value: value,
-            onChanged: onChanged,
-            activeColor: _red,
-          ),
+          Switch.adaptive(value: value, onChanged: onChanged, activeColor: _red),
         ]),
       ),
       if (!isLast) const Divider(height: 1, indent: 66),

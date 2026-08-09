@@ -18,7 +18,7 @@
       }
 
       /* Ensure the main column doesn't overflow its grid cell */
-      .admin-main  { min-width: 0; overflow-x: hidden; box-sizing: border-box; }
+      .admin-main  { min-width: 0; overflow-x: hidden; width: 100%; box-sizing: border-box; }
       .admin-content { min-width: 0; width: 100%; box-sizing: border-box; }
 
       /* Section cards */
@@ -212,65 +212,40 @@
 
       /* Large phone / small tablet (≤ 700px) */
       @media (max-width: 700px) {
-        /* Admin header: stack title and buttons */
-        .admin-header {
-          flex-wrap: wrap !important;
-          gap: 0.6rem !important;
-          padding: 0.75rem 1rem !important;
-          align-items: flex-start !important;
-        }
-        .admin-header > div:first-child { width: 100%; }
-        .admin-header-title { font-size: 1.1rem !important; }
-
-        .ai-header-actions {
-          flex-direction: row;
-          flex-wrap: wrap;
-          gap: 0.45rem;
-          width: 100%;
-          margin-left: 0 !important;
-        }
-        .ai-header-actions button {
-          flex: 1 1 auto;
-          justify-content: center;
-          font-size: 0.8rem !important;
-          padding: 0.5rem 0.75rem !important;
-        }
-
         .ai-page         { max-width: 100%; }
-        .admin-content   { padding: 0.75rem !important; }
         .ai-card         { padding: 1rem; border-radius: 12px; }
         .ai-card-title   { font-size: 0.92rem; }
         .ai-card-sub     { font-size: 0.72rem; }
 
-        /* Service status badge: move to its own line */
-        #serviceStatusBadge { margin-left: 0 !important; margin-top: 0.25rem; }
-        .ai-card-header  { flex-wrap: wrap; }
-
-        /* Status grid: 3 columns on tablets, 2 on small phones */
-        .ai-status-grid  { grid-template-columns: repeat(3, 1fr); gap: 0.65rem; }
+        /* Status grid: 2 columns */
+        .ai-status-grid  { grid-template-columns: repeat(2, 1fr); gap: 0.65rem; }
         .ai-stat         { padding: 0.75rem 0.85rem; }
-        .ai-stat-value   { font-size: 1.15rem !important; }
+        .ai-stat-value   { font-size: 1.2rem !important; }
 
-        /* Rotation form: 2 columns → 1 on phones */
-        .rot-grid        { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
-
-        /* Rotation save button: full width */
-        .rot-grid ~ div  { margin-top: 1rem !important; }
-        .rot-grid ~ div button { width: 100%; justify-content: center; }
+        /* Rotation form: 1 column */
+        .rot-grid        { grid-template-columns: 1fr; gap: 0.75rem; }
 
         /* Keys table — scroll horizontally */
         .keys-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .keys-table      { min-width: 620px; }
+        .keys-table      { min-width: 600px; }
 
         /* Log table — scroll horizontally */
         .log-table-wrap  { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .log-table       { min-width: 520px; }
 
-        /* Event log header: stack reload button */
-        .ai-card-header button[onclick="loadLogs()"] {
-          margin-left: 0 !important;
+        /* Header action buttons */
+        .ai-header-actions {
+          flex-direction: row;
+          flex-wrap: wrap;
+          gap: 0.45rem;
           width: 100%;
           margin-top: 0.5rem;
+        }
+        .ai-header-actions button {
+          flex: 1 1 auto;
+          justify-content: center;
+          font-size: 0.8rem !important;
+          padding: 0.45rem 0.75rem !important;
         }
 
         /* Modal — full-width on small screens */
@@ -278,87 +253,44 @@
         .ai-modal h3     { font-size: 1rem; }
       }
 
-      /* Phone (≤ 520px) */
-      @media (max-width: 520px) {
-        .ai-status-grid  { grid-template-columns: repeat(2, 1fr); gap: 0.55rem; }
-        .rot-grid        { grid-template-columns: 1fr; gap: 0.65rem; }
-        .admin-content   { padding: 0.6rem !important; }
-      }
-
       /* Phone (≤ 480px) */
       @media (max-width: 480px) {
-        .ai-card         { padding: 0.85rem; border-radius: 10px; margin-bottom: 0.85rem; }
-        .ai-card-header  { gap: 0.5rem; margin-bottom: 0.9rem; padding-bottom: 0.7rem; }
+        .ai-card         { padding: 0.85rem; border-radius: 10px; margin-bottom: 1rem; }
+        .ai-card-header  { gap: 0.5rem; margin-bottom: 1rem; padding-bottom: 0.75rem; }
         .ai-card-icon    { width: 30px; height: 30px; border-radius: 8px; }
         .ai-card-icon svg{ width: 14px; height: 14px; }
         .ai-card-title   { font-size: 0.88rem; }
-        .ai-card-sub     { font-size: 0.7rem; }
 
         /* Status grid: 2 columns, compact */
         .ai-status-grid  { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
         .ai-stat         { padding: 0.6rem 0.7rem; border-radius: 10px; }
         .ai-stat-label   { font-size: 0.65rem; }
-        .ai-stat-value   { font-size: 1rem !important; }
-        .ai-stat-sub     { font-size: 0.63rem; }
+        .ai-stat-value   { font-size: 1.1rem !important; }
+        .ai-stat-sub     { font-size: 0.65rem; }
 
-        /* Active Account & Key stat: allow text to wrap/truncate */
-        #statAccount, #statKey, #statModel {
-          word-break: break-all;
-          font-size: 0.75rem !important;
-          line-height: 1.4;
-        }
-
-        /* Action buttons: tighter but still readable */
-        .btn-act         { padding: 4px 7px; font-size: 0.7rem; gap: 3px; }
-        .btn-act svg     { width: 10px; height: 10px; }
-
-        /* Hide label text on Edit/Test/Delete on very small screens, keep icon */
-        .btn-act-label-hide { display: none; }
+        /* Action buttons in table: icon-only style */
+        .btn-act         { padding: 4px 7px; font-size: 0.7rem; }
 
         /* Badge compact */
-        .badge           { padding: 2px 7px; font-size: 0.67rem; }
-        .badge-dot       { width: 6px; height: 6px; }
-
-        /* Countdown chip */
-        .countdown-chip  { font-size: 0.7rem; padding: 2px 5px; }
-
-        /* Offline banner */
-        #aiOfflineBanner { font-size: 0.78rem; padding: 0.6rem 0.85rem; }
-
-        /* Rotation form labels */
-        .form-field label { font-size: 0.75rem; }
-        .form-field input,
-        .form-field select { font-size: 0.83rem; padding: 0.48rem 0.65rem; }
+        .badge           { padding: 2px 7px; font-size: 0.68rem; }
 
         /* Modal full-screen feel */
         .ai-modal-overlay { align-items: flex-end; }
         .ai-modal        {
           border-radius: 18px 18px 0 0;
-          padding: 1.2rem 1rem 1.5rem;
+          padding: 1.25rem 1rem;
           margin: 0;
           max-width: 100%;
           width: 100%;
-        }
-        .ai-modal h3     { font-size: 0.97rem; }
-
-        /* Toast: full-width on mobile */
-        #aiToast {
-          left: 1rem;
-          right: 1rem;
-          bottom: 1rem;
-          text-align: center;
         }
       }
 
       /* Very small phones (≤ 360px) */
       @media (max-width: 360px) {
-        .ai-card         { padding: 0.7rem; }
         .ai-status-grid  { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
-        .ai-stat-value   { font-size: 0.95rem !important; }
-        .ai-stat-label   { font-size: 0.6rem; }
-        .btn-act         { padding: 3px 5px; font-size: 0.65rem; gap: 2px; }
-        .admin-header-title { font-size: 1rem !important; }
-        .breadcrumb      { font-size: 0.72rem !important; }
+        .ai-stat-value   { font-size: 1rem !important; }
+        .ai-card         { padding: 0.7rem; }
+        .btn-act         { padding: 3px 6px; font-size: 0.65rem; gap: 2px; }
       }
     </style>
 </head>
@@ -969,16 +901,10 @@ function renderKeys(keys) {
       cooldownCell = '<span style="color:#a0aec0;">—</span>';
     }
 
-    const isDisabled   = k.status === 'disabled';
-    const toggleLabel  = isDisabled ? 'Enable' : 'Disable';
-    const toggleStyle  = isDisabled
+    const toggleLabel = k.status === 'disabled' ? 'Enable' : 'Disable';
+    const toggleStyle = k.status === 'disabled'
       ? 'border-color:#38a169;color:#38a169;background:#f0fff4;'
       : 'border-color:#718096;color:#718096;background:#f7f8fa;';
-    const toggleIcon   = isDisabled
-      /* Enable icon — checkmark circle */
-      ? `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`
-      /* Disable icon — slash circle */
-      : `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`;
 
     return `<tr>
       <td style="font-weight:700;color:#718096;">${i + 1}</td>
@@ -998,8 +924,7 @@ function renderKeys(keys) {
             Test
           </button>
           <button class="btn-act" style="${toggleStyle}"
-            onclick="toggleKeyStatus('${k.key_id}','${isDisabled ? 'active' : 'disabled'}','${_esc(k.account_name)}')">
-            ${toggleIcon}
+            onclick="toggleKeyStatus('${k.key_id}','${k.status === 'disabled' ? 'active' : 'disabled'}','${_esc(k.account_name)}')">
             ${toggleLabel}
           </button>
           <button class="btn-act btn-act-delete" onclick="openDeleteModal('${k.key_id}','${_esc(k.account_name)}')">
@@ -1290,38 +1215,16 @@ async function saveKey() {
       window._sessionKeys = window._sessionKeys || [];
       window._sessionKeys.push({ key: apiKey, name });
     }
-
-    // ── Optimistic update: patch _keysCache immediately so the table
-    //    reflects the change right away — no waiting for a server round-trip.
-    if (isEdit) {
-      const idx = _keysCache.findIndex(k => k.key_id === keyId);
-      if (idx !== -1) {
-        _keysCache[idx] = Object.assign({}, _keysCache[idx], {
-          account_name: name,
-          status: status === 'active' ? (_keysCache[idx].status === 'cooldown' ? 'cooldown' : 'active') : 'disabled',
-        });
-      }
-    } else {
-      // New key — add a placeholder row; real data arrives on background refresh
-      const newEntry = d.key || {};
-      _keysCache.push({
-        key_id:          newEntry.key_id || ('new-' + Date.now()),
-        account_name:    name,
-        api_key_masked:  apiKey ? ('•'.repeat(Math.max(0, apiKey.length - 4)) + apiKey.slice(-4)) : '••••••••••••',
-        status:          status,
-        is_current:      false,
-        last_used:       'Never',
-        cooldown_remaining: 0,
-      });
-    }
-    renderKeys(_keysCache);
-
+    // Success — keep button disabled, close modal, refresh table
     showToast(isEdit ? 'API key updated.' : 'API key added.', 'success');
     closeKeyModal();
-
-    // Background sync — fire-and-forget; no blocking delay
-    fetch('/api/ai-settings/reload', { method: 'POST' }).catch(() => {});
-    setTimeout(() => refreshAll(), 800);
+    // Force a backend reload so all workers have the latest key list before we
+    // fetch status. Wait 1.5 s after reload so a cold Render worker has time to
+    // warm up — without this delay the subsequent status fetch may hit a worker
+    // that hasn't processed the reload signal yet and still shows 0 keys.
+    try { await fetch('/api/ai-settings/reload', { method: 'POST' }); } catch (_) {}
+    await new Promise(r => setTimeout(r, 1500));
+    await refreshAll();
   } catch (e) {
     _showModalFeedback('Error: ' + e.message, 'error');
     _resetSaveBtn();   // re-enable so user can correct and retry
@@ -1394,15 +1297,6 @@ function toggleKeyVisibility() {
 async function toggleKeyStatus(keyId, newStatus, accountName) {
   const label = newStatus === 'disabled' ? 'disable' : 'enable';
   if (!confirm(`${label.charAt(0).toUpperCase() + label.slice(1)} key for "${accountName}"?`)) return;
-
-  // ── Optimistic update: flip status in the cache and re-render immediately ──
-  const idx = _keysCache.findIndex(k => k.key_id === keyId);
-  if (idx !== -1) {
-    _keysCache[idx] = Object.assign({}, _keysCache[idx], { status: newStatus });
-    renderKeys(_keysCache);
-  }
-  showToast(`Key "${accountName}" ${newStatus === 'disabled' ? 'disabled' : 'enabled'}.`, 'success');
-
   try {
     const r = await fetch(`/api/ai-settings/keys/${keyId}`, {
       method: 'PUT',
@@ -1411,12 +1305,12 @@ async function toggleKeyStatus(keyId, newStatus, accountName) {
     });
     const d = await r.json();
     if (!r.ok || !d.success) throw new Error(d.error || 'Update failed');
-    // Background sync — no blocking delay
-    fetch('/api/ai-settings/reload', { method: 'POST' }).catch(() => {});
-    setTimeout(() => refreshAll(), 800);
+    showToast(`Key "${accountName}" ${newStatus === 'disabled' ? 'disabled' : 'enabled'}.`, 'success');
+    try { await fetch('/api/ai-settings/reload', { method: 'POST' }); } catch (_) {}
+    await new Promise(r => setTimeout(r, 1500));
+    await refreshAll();
   } catch (e) {
-    showToast('Error: ' + e.message + ' — refreshing…', 'error');
-    await refreshAll(); // re-sync on failure
+    showToast('Error: ' + e.message, 'error');
   }
 }
 

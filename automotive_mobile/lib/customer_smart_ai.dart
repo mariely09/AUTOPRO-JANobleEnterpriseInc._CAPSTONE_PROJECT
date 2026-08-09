@@ -295,7 +295,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
-          'Customer AI Assistant',
+          'Vehicle Assistant',
           style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -427,7 +427,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                   decoration: InputDecoration(
                     hintText: _rateLimited
                         ? 'AI unavailable — daily limit reached'
-                        : 'Ask about your vehicles, bookings, or services…',
+                        : 'Ask about your vehicles…',
                     hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
                     filled: true,
                     fillColor: _bg,
@@ -489,19 +489,11 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
         Container(
-          width: 64, height: 64,
+          width: 60, height: 60,
           decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [BoxShadow(color: const Color(0xFFE8001C).withValues(alpha: 0.12), blurRadius: 16)]),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Image.asset(
-              'assets/img/AI_LOGO.png',
-              width: 64, height: 64,
-              fit: BoxFit.contain,
-            ),
-          ),
+              color: _blue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(18)),
+          child: const Icon(Icons.directions_car_rounded, color: _blue, size: 30),
         ),
         const SizedBox(height: 14),
         const Text(
@@ -679,22 +671,17 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)],
   );
 
-  // ── AI avatar — uses AI_LOGO image ──
+  // ── AI avatar — icon-based, matches admin style ──
   Widget _aiAvatar() => Container(
-    width: 32, height: 32,
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(10),
-      boxShadow: [BoxShadow(color: const Color(0xFFE8001C).withValues(alpha: 0.2), blurRadius: 6)],
+    width: 30, height: 30,
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+          colors: [Color(0xFFE8001C), Color(0xFFC0001A)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight),
+      shape: BoxShape.circle,
     ),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: Image.asset(
-        'assets/img/AI_LOGO.png',
-        width: 32, height: 32,
-        fit: BoxFit.contain,
-      ),
-    ),
+    child: const Center(
+      child: Icon(Icons.directions_car_rounded, color: Colors.white, size: 16)),
   );
 
   // ── User avatar — gradient red with initials ──

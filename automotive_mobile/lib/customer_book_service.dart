@@ -418,64 +418,74 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                 if (_selectedVehicleIds.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   _sectionTitle('Select Services'),
-                  const SizedBox(height: 4),
-                  const Text('Choose services for each vehicle below.',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF718096))),
                   const SizedBox(height: 12),
                   ..._selectedVehicleIds.map((vId) {
                     final vehicle = _vehicles.firstWhere((v) => v['id'] == vId, orElse: () => <String, dynamic>{});
                     final plate = vehicle['plate'] as String? ?? '—';
                     final desc = vehicle['desc'] as String? ?? '';
                     final selectedSvcs = _vehicleServices[vId] ?? {};
+                    final selectedNames = _services
+                        .where((s) => selectedSvcs.contains(s['id']))
+                        .map((s) => s['name'] as String? ?? '')
+                        .where((n) => n.isNotEmpty)
+                        .toList();
+
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFe2e8f0)),
+                        border: Border.all(
+                          color: selectedSvcs.isNotEmpty ? _red.withOpacity(0.3) : const Color(0xFFe2e8f0)),
                         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
                       ),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        // Vehicle header
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFFF5F5),
-                            borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-                            border: Border(bottom: BorderSide(color: Color(0xFFFED7D7))),
-                          ),
-                          child: Row(children: [
-                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(plate, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
-                              if (desc.isNotEmpty)
-                                Text(desc, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                            ])),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: selectedSvcs.isNotEmpty ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                selectedSvcs.isNotEmpty ? '${selectedSvcs.length} service${selectedSvcs.length > 1 ? 's' : ''}' : 'None selected',
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
-                                  color: selectedSvcs.isNotEmpty ? Colors.green : Colors.orange),
-                              ),
+                      child: Row(children: [
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(plate, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+                          if (desc.isNotEmpty)
+                            Text(desc, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                          if (selectedNames.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 4, runSpacing: 4,
+                              children: selectedNames.map((n) => Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF5F5),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: _red.withOpacity(0.3)),
+                                ),
+                                child: Text(n, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _red)),
+                              )).toList(),
                             ),
-                          ]),
-                        ),
-                        // Service list
-                        Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Column(children: [
-                            if (_services.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.all(12),
-                                child: Text('No services available.', style: TextStyle(fontSize: 12, color: Color(0xFF718096))),
-                              )
-                            else
-                              ..._services.map((s) => _perVehicleServiceTile(vId, s)),
-                          ]),
+                          ],
+                        ])),
+                        const SizedBox(width: 10),
+                        GestureDetector(
+                          onTap: () => _showServiceModal(vId, plate),
+                          child: selectedSvcs.isNotEmpty
+                              ? Container(
+                                  width: 36, height: 36,
+                                  decoration: BoxDecoration(
+                                    color: _red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.edit_outlined, size: 17, color: Colors.white),
+                                )
+                              : Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF003087),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                                    Icon(Icons.add, size: 14, color: Colors.white),
+                                    SizedBox(width: 4),
+                                    Text('Select Services',
+                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+                                  ]),
+                                ),
                         ),
                       ]),
                     );
@@ -599,6 +609,272 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                 const SizedBox(height: 16),
               ]),
             ),
+    );
+  }
+
+  void _showServiceModal(String vehicleId, String plate) {
+    final localSelected = Set<String>.from(_vehicleServices[vehicleId] ?? {});
+    final searchCtrl = TextEditingController();
+    String searchQuery = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final filtered = searchQuery.isEmpty
+              ? _services
+              : _services
+                  .where((s) => (s['name'] as String? ?? '')
+                      .toLowerCase()
+                      .contains(searchQuery))
+                  .toList();
+
+          // Keyboard height — shrinks modal up so nothing overflows
+          final keyboardH = MediaQuery.of(ctx).viewInsets.bottom;
+          final screenH   = MediaQuery.of(ctx).size.height;
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: keyboardH),
+            child: SizedBox(
+              // Cap total modal height so it never overflows
+              height: screenH * 0.82,
+              child: Column(children: [
+                // ── Header ──
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                  decoration: const BoxDecoration(
+                      color: _red,
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(24))),
+                  child: Row(children: [
+                    Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          const Text('Select Services',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold)),
+                          Text(plate,
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 12)),
+                        ])),
+                    GestureDetector(
+                        onTap: () => Navigator.pop(ctx),
+                        child: const Icon(Icons.close, color: Colors.white)),
+                  ]),
+                ),
+                // ── Search bar ──
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: TextField(
+                    controller: searchCtrl,
+                    onChanged: (v) =>
+                        setSheet(() => searchQuery = v.trim().toLowerCase()),
+                    decoration: InputDecoration(
+                      hintText: 'Search services...',
+                      hintStyle: const TextStyle(
+                          fontSize: 13, color: Color(0xFFa0aec0)),
+                      prefixIcon: const Icon(Icons.search,
+                          size: 18, color: Color(0xFF718096)),
+                      suffixIcon: searchQuery.isNotEmpty
+                          ? GestureDetector(
+                              onTap: () {
+                                searchCtrl.clear();
+                                setSheet(() => searchQuery = '');
+                              },
+                              child: const Icon(Icons.close,
+                                  size: 16, color: Color(0xFF718096)))
+                          : null,
+                      filled: true,
+                      fillColor: const Color(0xFFF7F8FA),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFe2e8f0))),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide:
+                              const BorderSide(color: _red, width: 1.5)),
+                    ),
+                  ),
+                ),
+                // ── Count label ──
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                            filtered.isEmpty
+                                ? 'No results'
+                                : '${filtered.length} service${filtered.length != 1 ? 's' : ''}',
+                            style: const TextStyle(
+                                fontSize: 11, color: Color(0xFF718096))),
+                        if (localSelected.isNotEmpty)
+                          Text('${localSelected.length} selected',
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: _red)),
+                      ]),
+                ),
+                // ── Service list — Expanded fills remaining space ──
+                Expanded(
+                  child: filtered.isEmpty
+                      ? Center(
+                          child: Text(
+                            searchQuery.isNotEmpty
+                                ? 'No services match "$searchQuery"'
+                                : 'No services available.',
+                            style: const TextStyle(
+                                color: Color(0xFF718096), fontSize: 13),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      : ListView.separated(
+                          padding:
+                              const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (_, i) {
+                            final s = filtered[i];
+                            final id = s['id'] as String;
+                            final isSelected = localSelected.contains(id);
+                            final name = (s['name'] ?? '').toString();
+                            final rawCost = (s['cost'] ?? '')
+                                .toString()
+                                .replaceAll('₱', '')
+                                .replaceAll(',', '')
+                                .trim();
+                            final costDisplay =
+                                rawCost.isNotEmpty ? '₱$rawCost' : '';
+                            final uom = (s['uom'] ?? '').toString();
+
+                            return GestureDetector(
+                              onTap: () => setSheet(() {
+                                if (isSelected)
+                                  localSelected.remove(id);
+                                else
+                                  localSelected.add(id);
+                              }),
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFFFFF5F5)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: isSelected
+                                          ? _red
+                                          : const Color(0xFFe2e8f0),
+                                      width: isSelected ? 1.5 : 1),
+                                  boxShadow: [
+                                    BoxShadow(
+                                        color:
+                                            Colors.black.withOpacity(0.03),
+                                        blurRadius: 6)
+                                  ],
+                                ),
+                                child: Row(children: [
+                                  Container(
+                                    width: 22,
+                                    height: 22,
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? _red
+                                          : Colors.transparent,
+                                      borderRadius:
+                                          BorderRadius.circular(6),
+                                      border: Border.all(
+                                          color: isSelected
+                                              ? _red
+                                              : const Color(0xFFcbd5e0),
+                                          width: 1.5),
+                                    ),
+                                    child: isSelected
+                                        ? const Icon(Icons.check,
+                                            size: 14, color: Colors.white)
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                      child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                        Text(name,
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13,
+                                                color: isSelected
+                                                    ? _red
+                                                    : const Color(
+                                                        0xFF1a202c))),
+                                        if (costDisplay.isNotEmpty)
+                                          Text('$costDisplay / $uom',
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color:
+                                                      Color(0xFF718096))),
+                                      ])),
+                                  if (isSelected)
+                                    const Icon(Icons.check_circle,
+                                        size: 18, color: _red),
+                                ]),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                // ── Done button ──
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(
+                            () => _vehicleServices[vehicleId] = localSelected);
+                        Navigator.pop(ctx);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _red,
+                        foregroundColor: Colors.white,
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(
+                          localSelected.isEmpty
+                              ? 'Done'
+                              : 'Confirm ${localSelected.length} Service${localSelected.length > 1 ? 's' : ''}',
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          );
+        },
+      ),
     );
   }
 

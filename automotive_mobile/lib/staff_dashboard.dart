@@ -653,9 +653,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
                       TextField(
                         controller: qtyCtrlrs[0], keyboardType: TextInputType.number,
                         onChanged: (_) => setModal(() {}),
-                        decoration: InputDecoration(
-                          labelText: 'Actual Qty *', border: const OutlineInputBorder(), isDense: true,
-                          suffixText: rcvItem['uom'] as String? ?? '')),
+                        decoration: const InputDecoration(
+                          labelText: 'Actual Qty *', border: OutlineInputBorder(), isDense: true)),
                       const SizedBox(height: 10),
                       const Text('Condition', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4a5568))),
                       const SizedBox(height: 6),

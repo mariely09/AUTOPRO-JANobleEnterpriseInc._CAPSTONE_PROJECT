@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -10,8 +10,16 @@
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
     <link rel="stylesheet" href="../static/css/customer_dashboard.css">
     <style>
-        .mb-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:16px; align-items:start; }
-        @media (max-width:480px) { .mb-grid { grid-template-columns:1fr; } }
+        .mb-stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+        @media(max-width:600px){ .mb-stat-grid { grid-template-columns:repeat(2,1fr); } }
+        .mb-stat-card { background:white; border-radius:12px; border:1.5px solid transparent; padding:12px 10px; text-align:center; cursor:pointer; transition:all .15s; box-shadow:0 2px 8px rgba(0,0,0,0.04); }
+        .mb-stat-card:hover { transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,0.08); }
+        .mb-stat-card.active { border-color:var(--sc,#003087); background:rgba(0,48,135,0.04); }
+        .mb-stat-icon-wrap { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; margin:0 auto 6px; }
+        .mb-stat-num { font-size:18px; font-weight:800; }
+        .mb-stat-lbl { font-size:9px; color:#718096; text-transform:uppercase; letter-spacing:.4px; }
+        .mb-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px; align-items:start; }
+        @media (max-width:700px) { .mb-grid { grid-template-columns:1fr; } }
 
         .mb-page { padding:20px; }
         .mb-header { margin-bottom:28px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
@@ -30,7 +38,7 @@
         .mb-badge.approved    { background:rgba(56,161,105,0.1);  color:#38a169; }
         .mb-badge.pending     { background:rgba(237,137,54,0.1);   color:#c05621; }
         .mb-badge.rescheduled { background:rgba(0,48,135,0.1);     color:#003087; }
-        .mb-badge.cancelled   { background:rgba(113,128,150,0.1);  color:#718096; }
+        .mb-badge.cancelled   { background:rgba(232,0,28,0.1);   color:#E8001C; }
         .mb-badge.completed   { background:rgba(0,48,135,0.08);    color:#003087; }
         .mb-card-body { padding:12px 16px; flex:1; }
 
@@ -88,6 +96,36 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Book Service
       </a>
+    </div>
+    <div id="mbStats" class="mb-stat-grid" style="display:none;">
+      <div class="mb-stat-card" id="mbStat_all" onclick="mbSetFilter('all')" style="--sc:#003087;">
+        <div class="mb-stat-icon-wrap" style="background:rgba(0,48,135,0.1);color:#003087;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div class="mb-stat-num" id="mbCntAll" style="color:#003087;">0</div>
+        <div class="mb-stat-lbl">Total</div>
+      </div>
+      <div class="mb-stat-card" id="mbStat_approved" onclick="mbSetFilter('approved')" style="--sc:#38a169;">
+        <div class="mb-stat-icon-wrap" style="background:rgba(56,161,105,0.1);color:#38a169;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="mb-stat-num" id="mbCntApproved" style="color:#38a169;">0</div>
+        <div class="mb-stat-lbl">Approved</div>
+      </div>
+      <div class="mb-stat-card" id="mbStat_rescheduled" onclick="mbSetFilter('rescheduled')" style="--sc:#003087;">
+        <div class="mb-stat-icon-wrap" style="background:rgba(0,48,135,0.1);color:#003087;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </div>
+        <div class="mb-stat-num" id="mbCntRescheduled" style="color:#003087;">0</div>
+        <div class="mb-stat-lbl">Rescheduled</div>
+      </div>
+      <div class="mb-stat-card" id="mbStat_cancelled" onclick="mbSetFilter('cancelled')" style="--sc:#E8001C;">
+        <div class="mb-stat-icon-wrap" style="background:rgba(232,0,28,0.1);color:#E8001C;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        </div>
+        <div class="mb-stat-num" id="mbCntCancelled" style="color:#E8001C;">0</div>
+        <div class="mb-stat-lbl">Cancelled</div>
+      </div>
     </div>
     <div id="mbList" class="mb-grid">
       <div style="grid-column:1/-1;text-align:center;padding:40px;color:#718096;font-size:13px;">Loading bookings...</div>
@@ -157,6 +195,90 @@ function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;
 
 // ── Booking store ─────────────────────────────────────────────
 var _bookings = {};
+var _allDocs  = [];
+var _mbFilter = 'all';
+
+window.mbSetFilter = function(filter) {
+  _mbFilter = filter;
+  // Update active card style
+  ['all','approved','rescheduled','cancelled'].forEach(function(f) {
+    var card = document.getElementById('mbStat_' + f);
+    if (card) card.classList.toggle('active', f === filter);
+  });
+  _mbRender();
+};
+
+function _mbRender() {
+  var list = document.getElementById('mbList');
+
+  var filtered = _allDocs.filter(function(doc) {
+    var d = doc.data();
+    var status = (d.status || '').toLowerCase();
+    var isRescheduled = d.previousDate && d.previousDate !== d.preferredDate;
+    switch (_mbFilter) {
+      case 'approved':    return status === 'approved' && !isRescheduled;
+      case 'rescheduled': return status === 'approved' && isRescheduled;
+      case 'cancelled':   return status === 'cancelled';
+      default:            return true; // 'all'
+    }
+  });
+
+  if (filtered.length === 0) {
+    var emptyMsg = _mbFilter === 'all'
+      ? 'No bookings yet.'
+      : 'No ' + _mbFilter + ' bookings.';
+    list.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:80px 20px;">'
+      + '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'
+      + '<p style="font-size:14px;color:#718096;margin:12px 0;">' + emptyMsg + '</p>'
+      + (_mbFilter === 'all' ? '<a href="customer_book_service.html" style="color:#E8001C;font-weight:600;text-decoration:none;">Book a Service →</a>' : '')
+      + '</div>';
+    return;
+  }
+
+  var html = '';
+  filtered.forEach(function(doc) {
+    var d   = doc.data();
+    var id  = doc.id;
+    _bookings[id] = d;
+
+    var status        = (d.status || 'Approved').toLowerCase();
+    var isRescheduled = d.previousDate && d.previousDate !== d.preferredDate;
+    var badgeClass, badgeLabel;
+
+    if (isRescheduled && status === 'approved') {
+      badgeClass = 'rescheduled'; badgeLabel = 'Rescheduled';
+    } else if (status === 'approved') {
+      badgeClass = 'approved';    badgeLabel = 'Approved';
+    } else if (status === 'completed') {
+      badgeClass = 'completed';   badgeLabel = 'Completed';
+    } else if (status === 'pending') {
+      badgeClass = 'pending';     badgeLabel = 'Pending';
+    } else {
+      badgeClass = 'cancelled';   badgeLabel = 'Cancelled';
+    }
+
+    var services = (d.services || []).join(', ') || '—';
+
+    html += '<div class="mb-card" onclick="mbOpenModal(\'' + id + '\')">'
+      + '<div class="mb-card-header">'
+      +   '<div style="flex:1;min-width:0;">'
+      +     '<div class="mb-plate">' + _esc(d.plate || '—') + '</div>'
+      +     '<div class="mb-desc">' + _esc(d.vehicleDesc || '—') + '</div>'
+      +   '</div>'
+      +   '<span class="mb-badge ' + badgeClass + '">' + _esc(badgeLabel) + '</span>'
+      + '</div>'
+      + '<div class="mb-card-body">'
+      +   '<div class="cu-vehicle-meta-row">'
+      +     '<div class="cu-vehicle-meta-item"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>' + _formatDate(d.preferredDate) + '</span></div>'
+      +     '<div class="cu-vehicle-meta-item"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>' + _esc(d.preferredTime || '—') + '</span></div>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="cu-vehicle-card-footer"><span>View details</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>'
+      + '</div>';
+  });
+
+  list.innerHTML = html;
+}
 
 // ── Modal ─────────────────────────────────────────────────────
 window.mbOpenModal = function(docId) {
@@ -253,9 +375,8 @@ firebase.auth().onAuthStateChanged(function(user) {
     .collection('service_bookings')
     .where('customerId', '==', user.uid)
     .onSnapshot(function(snap) {
-      var list = document.getElementById('mbList');
-
-      var docs = snap.docs.filter(function(doc) {
+      // Keep all (including cancelled) — filter client-side
+      _allDocs = snap.docs.filter(function(doc) {
         var st = (doc.data().status || '').toLowerCase();
         return st !== 'in progress' && st !== 'completed';
       }).sort(function(a,b) {
@@ -264,59 +385,31 @@ firebase.auth().onAuthStateChanged(function(user) {
         return bt - at;
       });
 
-      if (docs.length === 0) {
-        list.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:80px 20px;">'
-          + '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'
-          + '<p style="font-size:14px;color:#718096;margin:12px 0;">No bookings yet.</p>'
-          + '<a href="customer_book_service.html" style="color:#E8001C;font-weight:600;text-decoration:none;">Book a Service →</a>'
-          + '</div>';
-        return;
-      }
+      // Rebuild _bookings cache
+      _allDocs.forEach(function(doc) { _bookings[doc.id] = doc.data(); });
 
-      var html = '';
-      docs.forEach(function(doc) {
-        var d   = doc.data();
-        var id  = doc.id;
-        _bookings[id] = d;
-
-        var status        = (d.status || 'Approved').toLowerCase();
-        var isRescheduled = d.previousDate && d.previousDate !== d.preferredDate;
-        var canCancel     = status === 'pending' || status === 'approved';
-        var badgeClass, badgeLabel;
-
-        if (isRescheduled && status === 'approved') {
-          badgeClass = 'rescheduled'; badgeLabel = 'Rescheduled';
-        } else if (status === 'approved') {
-          badgeClass = 'approved';    badgeLabel = 'Approved';
-        } else if (status === 'completed') {
-          badgeClass = 'completed';   badgeLabel = 'Completed';
-        } else if (status === 'pending') {
-          badgeClass = 'pending';     badgeLabel = 'Pending';
-        } else {
-          badgeClass = 'cancelled';   badgeLabel = 'Cancelled';
-        }
-
-        var services = (d.services || []).join(', ') || '—';
-
-        html += '<div class="mb-card" onclick="mbOpenModal(\'' + id + '\')">'
-          + '<div class="mb-card-header">'
-          +   '<div style="flex:1;min-width:0;">'
-          +     '<div class="mb-plate">' + _esc(d.plate || '—') + '</div>'
-          +     '<div class="mb-desc">' + _esc(d.vehicleDesc || '—') + '</div>'
-          +   '</div>'
-          +   '<span class="mb-badge ' + badgeClass + '">' + _esc(badgeLabel) + '</span>'
-          + '</div>'
-          + '<div class="mb-card-body">'
-          +   '<div class="cu-vehicle-meta-row">'
-          +     '<div class="cu-vehicle-meta-item"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>' + _formatDate(d.preferredDate) + '</span></div>'
-          +     '<div class="cu-vehicle-meta-item"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>' + _esc(d.preferredTime || '—') + '</span></div>'
-          +   '</div>'
-          + '</div>'
-          + '<div class="cu-vehicle-card-footer"><span>View details</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>'
-          + '</div>';
+      // Update stat counts
+      var cntApproved = 0, cntResched = 0, cntCancelled = 0;
+      _allDocs.forEach(function(doc) {
+        var d = doc.data();
+        var status = (d.status || '').toLowerCase();
+        var isResched = d.previousDate && d.previousDate !== d.preferredDate;
+        if (status === 'cancelled') cntCancelled++;
+        else if (status === 'approved' && isResched) cntResched++;
+        else if (status === 'approved') cntApproved++;
       });
+      var cntAll = _allDocs.length;
+      function _s(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
+      _s('mbCntAll', cntAll);
+      _s('mbCntApproved', cntApproved);
+      _s('mbCntRescheduled', cntResched);
+      _s('mbCntCancelled', cntCancelled);
 
-      list.innerHTML = html;
+      // Show stats grid once data loads
+      var statsEl = document.getElementById('mbStats');
+      if (statsEl) statsEl.style.display = cntAll > 0 ? 'grid' : 'none';
+
+      _mbRender();
     }, function(err) {
       document.getElementById('mbList').innerHTML =
         '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#e53e3e;font-size:13px;">Error: ' + err.message + '</div>';
@@ -325,31 +418,65 @@ firebase.auth().onAuthStateChanged(function(user) {
 
 // ── Cancel booking ────────────────────────────────────────────
 window.mbCancelBooking = function(docId, plate) {
-  if (!confirm('Cancel your booking for ' + plate + '?\nThis cannot be undone.')) return;
-  var user = firebase.auth().currentUser;
-  if (!user) return;
-  var db = firebase.firestore();
-  db.collection('service_bookings').doc(docId).delete()
-    .then(function() {
-      var d = _bookings[docId] || {};
-      db.collection('notifications').add({
-        title: '❌ Booking Cancelled by Customer',
-        message: (d.customerName || 'Customer') + ' cancelled their booking for ' + plate + ' on ' + _formatDate(d.preferredDate || '') + '.',
-        type: 'warning',
-        targetRole: 'admin', targetUid: '',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
-      });
-      delete _bookings[docId];
-      var t = document.getElementById('cuToast');
-      if (t) {
-        t.textContent = 'Booking cancelled.';
-        t.className = 'cu-toast show';
-        clearTimeout(t._timer);
-        t._timer = setTimeout(function(){ t.className = 'cu-toast'; }, 3000);
-      }
-      mbCloseModal();
+  // Custom confirm dialog with "Yes" / "No" buttons
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML = '<div style="background:white;border-radius:16px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;">'
+    + '<div style="padding:20px 24px 16px;">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
+    + '<div style="width:36px;height:36px;background:rgba(232,0,28,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+    + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+    + '</div>'
+    + '<div style="font-size:15px;font-weight:700;color:#1a202c;">Cancel Booking</div>'
+    + '</div>'
+    + '<p style="margin:0;font-size:13px;color:#4a5568;line-height:1.6;">Are you sure you want to cancel this booking for <strong>' + _esc(plate) + '</strong>?</p>'
+    + '</div>'
+    + '<div style="padding:12px 24px 20px;display:flex;gap:10px;">'
+    + '<button id="mbConfirmNo" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:white;font-size:13px;font-weight:600;color:#718096;cursor:pointer;font-family:inherit;">No</button>'
+    + '<button id="mbConfirmYes" style="flex:1;padding:11px;border:none;border-radius:10px;background:#E8001C;font-size:13px;font-weight:700;color:white;cursor:pointer;font-family:inherit;">Yes, Cancel</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(overlay);
+
+  function _close() { document.body.removeChild(overlay); }
+
+  overlay.querySelector('#mbConfirmNo').addEventListener('click', _close);
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) _close(); });
+
+  overlay.querySelector('#mbConfirmYes').addEventListener('click', function() {
+    _close();
+    var user = firebase.auth().currentUser;
+    if (!user) return;
+    var db = firebase.firestore();
+    db.collection('service_bookings').doc(docId).update({
+      status: 'Cancelled',
+      cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
+      cancelledBy: 'customer',
     })
-    .catch(function(err) { alert('Error: ' + err.message); });
+      .then(function() {
+        var d = _bookings[docId] || {};
+        var cancelMsg = (d.customerName || 'Customer') + ' cancelled their booking for ' + plate + ' on ' + _formatDate(d.preferredDate || '') + '.';
+        db.collection('notifications').add({
+          title: '❌ Booking Cancelled by Customer',
+          message: cancelMsg,
+          type: 'warning',
+          targetRole: 'admin', targetUid: '',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
+        });
+        if (typeof sendAlertEmail === 'function') {
+          sendAlertEmail({ title: '❌ Booking Cancelled by Customer', message: cancelMsg, type: 'warning', targetRole: 'admin' });
+        }
+        var t = document.getElementById('cuToast');
+        if (t) {
+          t.textContent = 'Booking cancelled successfully.';
+          t.className = 'cu-toast show';
+          clearTimeout(t._timer);
+          t._timer = setTimeout(function(){ t.className = 'cu-toast'; }, 3000);
+        }
+        mbCloseModal();
+      })
+      .catch(function(err) { alert('Error: ' + err.message); });
+  });
 };
 </script>
 

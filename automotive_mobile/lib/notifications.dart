@@ -55,8 +55,16 @@ class NotifBadge extends StatelessWidget {
 
             final unread = merged.values.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
-              final readBy = data['readBy'] as Map<String, dynamic>? ?? {};
-              return readBy[uid] != true;
+              // readBy can be stored as Map<String,dynamic> OR as List (legacy/empty)
+              // Handle both safely
+              final rawReadBy = data['readBy'];
+              bool isRead = false;
+              if (rawReadBy is Map) {
+                isRead = rawReadBy[uid] == true;
+              } else if (rawReadBy is List) {
+                isRead = rawReadBy.contains(uid);
+              }
+              return !isRead;
             }).length;
 
             return GestureDetector(
@@ -236,19 +244,52 @@ class _AppNotificationsState extends State<AppNotifications> {
       'isRead': false,              // convenience flag for quick queries
     });
 
-    // 2. Send email notification to affected users via Flask backend
+    // 2. Send email notification via Flask backend (deployed URL)
     try {
-      await http.post(
-        Uri.parse('http://localhost:5001/api/send-notification-email'),
-        headers: {'Content-Type': 'application/json; charset=utf-8'},
-        body: jsonEncode({
-          'title':      title,
-          'message':    message,
-          'type':       type,
-          'targetRole': targetRole,
-          'targetUid':  targetUid,
-        }),
-      );
+      // Build recipient list from targetRole or targetUid
+      final List<String> emailUids = [];
+      if (targetUid.isNotEmpty) {
+        emailUids.add(targetUid);
+      } else if (targetRole.isNotEmpty) {
+        final snap = await FirebaseFirestore.instance
+            .collection('users')
+            .where('role', isEqualTo: targetRole)
+            .get();
+        emailUids.addAll(snap.docs.map((d) => d.id));
+      }
+
+      for (final uid in emailUids) {
+        // Check emailEnabled pref before sending
+        try {
+          final prefDoc = await FirebaseFirestore.instance
+              .collection('users').doc(uid)
+              .collection('settings').doc('alerts')
+              .get();
+          final emailEnabled = (prefDoc.data()?['emailEnabled'] as bool?) ?? true;
+          if (!emailEnabled) continue;
+
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users').doc(uid).get();
+          final userEmail = userDoc.data()?['email'] as String? ?? '';
+          final userName  = userDoc.data()?['name']  as String? ?? '';
+          if (userEmail.isEmpty) continue;
+
+          await http.post(
+            Uri.parse('https://caltex-autopro.onrender.com/api/send-alert-email'),
+            headers: {'Content-Type': 'application/json; charset=utf-8'},
+            body: jsonEncode({
+              'to_email': userEmail,
+              'to_name':  userName,
+              'title':    title,
+              'message':  message,
+              'type':     type,
+            }),
+          );
+          debugPrint('📧 Email sent to $userEmail');
+        } catch (e) {
+          debugPrint('⚠️ Email to $uid failed (non-fatal): $e');
+        }
+      }
     } catch (e) {
       debugPrint('⚠️ Notification email send failed (non-fatal): $e');
     }
@@ -601,8 +642,14 @@ class _AppNotificationsState extends State<AppNotifications> {
   bool _isUnread(Map<String, dynamic> data) {
     final uid = _uid;
     if (uid == null) return false;
-    final readBy = data['readBy'] as Map<String, dynamic>? ?? {};
-    return readBy[uid] != true;
+    final rawReadBy = data['readBy'];
+    bool isRead = false;
+    if (rawReadBy is Map) {
+      isRead = rawReadBy[uid] == true;
+    } else if (rawReadBy is List) {
+      isRead = rawReadBy.contains(uid);
+    }
+    return !isRead;
   }
 
   Color _typeColor(String type) {

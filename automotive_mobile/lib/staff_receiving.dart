@@ -163,7 +163,15 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
 
     final filtered = _filter == 'all'
         ? searched
-        : searched.where((d) => (d['status'] as String? ?? 'Pending') == _filter).toList();
+        : searched.where((d) {
+            final deliveryStatus = d['status'] as String? ?? 'Pending';
+            final items = (d['items'] as List? ?? []);
+            if (items.isEmpty) return deliveryStatus == _filter;
+            return items.any((item) {
+              final st = (item as Map)['itemStatus'] as String? ?? deliveryStatus;
+              return st == _filter;
+            });
+          }).toList();
 
     return Stack(children: [
       Column(children: [
@@ -172,7 +180,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
           child: Row(children: [
             _chip('Pending',  '$pending',  const Color(0xFF718096), Icons.inventory_outlined,      'Pending'),
             const SizedBox(width: 6),
-            _chip('Awaiting', '$awaiting', _amber,  Icons.hourglass_empty_outlined, 'Awaiting Double Check'),
+            _chip('Awaiting\nReview', '$awaiting', _amber,  Icons.hourglass_empty_outlined, 'Awaiting Double Check'),
             const SizedBox(width: 6),
             _chip('Approved', '$approved', _green,  Icons.check_circle_outline,     'Approved'),
             const SizedBox(width: 6),
@@ -188,6 +196,12 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                   final items = (d['items'] as List? ?? []);
                   for (int idx = 0; idx < items.length; idx++) {
                     final item = Map<String, dynamic>.from(items[idx] as Map);
+                    // Skip items that don't match the active per-item filter
+                    if (_filter != 'all') {
+                      final deliveryStatus = d['status'] as String? ?? 'Pending';
+                      final itemSt = (item['itemStatus'] as String?) ?? deliveryStatus;
+                      if (itemSt != _filter) continue;
+                    }
                     flatItems.add({...item, '_delivery': d, '_itemIdx': idx});
                   }
                   if (items.isEmpty) flatItems.add({'_delivery': d, '_itemIdx': -1});
@@ -227,13 +241,32 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
           children: [
             if (_fabOpen) ...[
               _fabAction(
+                label: 'Edit Purchase Order',
+                icon: Icons.edit_outlined,
+                onTap: () {
+                  setState(() => _fabOpen = false);
+                  final editablePOs = _deliveries.where((d) {
+                    final st = d['status'] as String? ?? '';
+                    return st == 'For Admin Review' || st == 'Pending';
+                  }).toList();
+                  if (editablePOs.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('No purchase orders to edit.'),
+                      backgroundColor: Color(0xFF718096), behavior: SnackBarBehavior.floating));
+                  } else {
+                    _showEditPOPicker(editablePOs);
+                  }
+                },
+              ),
+              const SizedBox(height: 10),
+              _fabAction(
                 label: 'Scan Item',
                 icon: Icons.qr_code_scanner,
                 onTap: _scanAndFind,
               ),
               const SizedBox(height: 10),
               _fabAction(
-                label: 'New Delivery Request',
+                label: 'New Purchase Order (PO)',
                 icon: Icons.add_box_outlined,
                 onTap: () { setState(() => _fabOpen = false); _showNewDeliveryModal(); },
               ),
@@ -343,7 +376,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-            child: Text(itemSt, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color)),
+            child: Text(itemSt == 'Awaiting Double Check' ? 'Awaiting Review' : itemSt, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color)),
           ),
         ]),
         const SizedBox(height: 6),
@@ -536,7 +569,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                     child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                       Icon(Icons.hourglass_empty_outlined, size: 16, color: _amber),
                       const SizedBox(width: 6),
-                      Text('Awaiting Double Check', style: TextStyle(fontSize: 14, color: _amber, fontWeight: FontWeight.w700)),
+                      Text('Awaiting Review', style: TextStyle(fontSize: 14, color: _amber, fontWeight: FontWeight.w700)),
                     ]),
                   ),
                 ] else if (itemSt == 'Approved') ...[
@@ -739,7 +772,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                 decoration: const BoxDecoration(color: _red, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
                 child: Row(children: [
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(isEdit ? 'Edit Delivery Request' : 'New Delivery Request',
+                    Text(isEdit ? 'Edit Purchase Order (PO)' : 'Purchase Order (PO)',
                         style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                     Text(isEdit ? 'Update items for admin review' : 'Submit for admin approval',
                         style: const TextStyle(color: Colors.white70, fontSize: 11)),
@@ -1050,17 +1083,101 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                     style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)),
                     child: saving
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(isEdit ? Icons.save_outlined : Icons.send_outlined, size: 16),
-                          const SizedBox(width: 6),
-                          Text(isEdit ? 'Update Request' : 'Submit Request'),
-                        ]),
+                      : Text(isEdit ? 'Update Request' : 'Save'),
                   )),
                 ]),
               )),
             ]),
           );
         },
+      ),
+    );
+  }
+
+  // ── Edit PO Picker ──────────────────────────────────────────
+  void _showEditPOPicker(List<Map<String, dynamic>> editablePOs) {
+    showModalBottomSheet(
+      context: context, isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => DraggableScrollableSheet(
+        expand: false, initialChildSize: 0.5, maxChildSize: 0.85,
+        builder: (_, ctrl) => Column(children: [
+          // Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            decoration: const BoxDecoration(
+              color: Color(0xFF003087),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Row(children: [
+              const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Edit Purchase Order', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                Text('Select a PO to edit', style: TextStyle(color: Colors.white70, fontSize: 11)),
+              ])),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: const Icon(Icons.close, color: Colors.white)),
+            ]),
+          ),
+          // List
+          Expanded(
+            child: ListView.separated(
+              controller: ctrl,
+              padding: const EdgeInsets.all(16),
+              itemCount: editablePOs.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (_, i) {
+                final d = editablePOs[i];
+                final items = (d['items'] as List? ?? []);
+                final createdAt = d['createdAt'];
+                final st = d['status'] as String? ?? 'Pending';
+                String dateStr = '—';
+                if (createdAt is Timestamp) {
+                  final dt = createdAt.toDate();
+                  dateStr = '${_months[dt.month - 1]} ${dt.day}, ${dt.year}';
+                }
+                final statusColor = st == 'Pending' ? const Color(0xFF718096) : _red;
+                final statusLabel = st == 'For Admin Review' ? 'For Review' : st;
+                return GestureDetector(
+                  onTap: () { Navigator.pop(context); _showNewDeliveryModal(existing: d); },
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white, borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFe2e8f0)),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
+                    child: Row(children: [
+                      Container(
+                        width: 38, height: 38,
+                        decoration: BoxDecoration(color: const Color(0xFFEBF4FF), borderRadius: BorderRadius.circular(10)),
+                        child: const Icon(Icons.description_outlined, size: 18, color: Color(0xFF003087)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('${items.length} item${items.length != 1 ? 's' : ''}',
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c))),
+                        const SizedBox(height: 2),
+                        Text(dateStr, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                      ])),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: statusColor.withValues(alpha: 0.3))),
+                        child: Text(statusLabel, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: statusColor)),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.chevron_right, size: 18, color: Color(0xFFa0aec0)),
+                    ]),
+                  ),
+                );
+              },
+            ),
+          ),
+        ]),
       ),
     );
   }
@@ -1368,7 +1485,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                     child: const Row(children: [
                       Icon(Icons.hourglass_empty_outlined, size: 16, color: Color(0xFFd69e2e)),
                       SizedBox(width: 8),
-                      Expanded(child: Text('Submitted for admin double check. Awaiting approval.',
+                      Expanded(child: Text('Submitted for review. Awaiting approval.',
                         style: TextStyle(fontSize: 12, color: Color(0xFFd69e2e), fontWeight: FontWeight.w500))),
                     ])),
                 ],
@@ -1491,7 +1608,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                     ]),
                   )),
                   const SizedBox(height: 20),
-                  SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                  SizedBox(width: double.infinity, child: ElevatedButton(
                     onPressed: submitting ? null : () async {
                       if (receivedByCtrl.text.trim().isEmpty) return;
                       setModal(() => submitting = true);
@@ -1532,10 +1649,9 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                           SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red));
                       }
                     },
-                    icon: submitting
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.check_circle_outline, size: 16),
-                    label: Text(submitting ? 'Submitting...' : 'Submit for Double Check'),
+                    child: submitting
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Submit'),
                     style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white))),
                 ]),
               ),
@@ -1572,8 +1688,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
           controller: qtyCtrl, keyboardType: TextInputType.number,
           onChanged: (_) => onQtyChange(),
           decoration: InputDecoration(
-            labelText: 'Actual Qty *', border: const OutlineInputBorder(), isDense: true,
-            suffixText: item['uom'] as String? ?? '')),
+            labelText: 'Actual Qty *', border: const OutlineInputBorder(), isDense: true)),
         const SizedBox(height: 10),
         const Text('Condition', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4a5568))),
         const SizedBox(height: 6),

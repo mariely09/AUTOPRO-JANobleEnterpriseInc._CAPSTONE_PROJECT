@@ -12,7 +12,10 @@ class CustomerMyBookings extends StatefulWidget {
 }
 
 class _CustomerMyBookingsState extends State<CustomerMyBookings> {
-  static const _red = Color(0xFFE8001C);
+  static const _red  = Color(0xFFE8001C);
+  static const _blue = Color(0xFF003087);
+
+  String _statusFilter = 'all'; // 'all', 'Pending', 'Approved', 'Rescheduled', 'Cancelled'
 
   static const _months = [
     'January','February','March','April','May','June',
@@ -36,6 +39,34 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
     return '${_months[d.month - 1]} ${d.day}, ${d.year}';
   }
 
+  // ── Stat chip ─────────────────────────────────────────────────
+  Widget _statChip(String label, String value, Color color, IconData icon, String filter) {
+    final isActive = _statusFilter == filter;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _statusFilter = _statusFilter == filter ? 'all' : filter),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          decoration: BoxDecoration(
+            color: isActive ? color.withValues(alpha: 0.08) : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isActive ? color : Colors.transparent, width: 1.5),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
+          child: Column(children: [
+            Container(
+              width: 30, height: 30,
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+              child: Icon(icon, color: color, size: 15),
+            ),
+            const SizedBox(height: 5),
+            Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+            Text(label, style: const TextStyle(fontSize: 9, color: Color(0xFF718096))),
+          ]),
+        ),
+      ),
+    );
+  }
+
   // ── Status helpers (mirrors website) ──────────────────────────
   _StatusStyle _statusStyle(Map<String, dynamic> data) {
     final status = (data['status'] as String? ?? 'Pending').toLowerCase();
@@ -56,8 +87,8 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
             const Color(0xFFEBF4FF), Icons.task_alt_outlined);
       case 'cancelled':
       case 'rejected':
-        return _StatusStyle('Cancelled', const Color(0xFF718096),
-            const Color(0xFFF7FAFC), Icons.cancel_outlined);
+        return _StatusStyle('Cancelled', const Color(0xFFE8001C),
+            const Color(0xFFFFF5F5), Icons.cancel_outlined);
       default:
         return _StatusStyle('Pending', const Color(0xFFdd6b20),
             const Color(0xFFFFFAF0), Icons.schedule_outlined);
@@ -171,7 +202,7 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
       context: ctx,
       builder: (c) => AlertDialog(
         title: const Text('Cancel Booking'),
-        content: Text('Cancel your booking for $plate?\nThis cannot be undone.'),
+        content: Text('Are you sure you want to cancel this booking for $plate?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('No')),
           TextButton(
@@ -184,7 +215,11 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
     if (confirmed != true) return;
 
     final db = FirebaseFirestore.instance;
-    await db.collection('service_bookings').doc(docId).delete();
+    await db.collection('service_bookings').doc(docId).update({
+      'status': 'Cancelled',
+      'cancelledAt': FieldValue.serverTimestamp(),
+      'cancelledBy': 'customer',
+    });
 
     // Notify admin
     final customerName = data['customerName'] as String? ?? 'Customer';
@@ -199,7 +234,7 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Booking cancelled.'),
+        content: const Text('Booking cancelled successfully.'),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
       ));
@@ -381,8 +416,6 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
   // ── Build ─────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
@@ -390,71 +423,78 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
         elevation: 0,
         leading: Navigator.canPop(context)
             ? IconButton(
-                icon: const Icon(Icons.arrow_back,
-                    color: Colors.white),
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () => Navigator.pop(context),
               )
             : null,
         automaticallyImplyLeading: false,
         title: const Text('My Bookings',
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold)),
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         actions: [
           GestureDetector(
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) =>
-                        const CustomerBookService())),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const CustomerBookService())),
             child: Container(
               margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.add,
-                        color: Color(0xFFE8001C), size: 16),
-                    SizedBox(width: 4),
-                    Text('Book Service',
-                        style: TextStyle(
-                            color: Color(0xFFE8001C),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700)),
-                  ]),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.add, color: Color(0xFFE8001C), size: 16),
+                SizedBox(width: 4),
+                Text('Book Service',
+                    style: TextStyle(color: Color(0xFFE8001C), fontSize: 12, fontWeight: FontWeight.w700)),
+              ]),
             ),
           ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
+      // Wait for Firebase Auth to be ready before querying
+      body: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, authSnap) {
+          if (authSnap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final uid = authSnap.data?.uid ?? '';
+          if (uid.isEmpty) {
+            return const Center(
+              child: Text('Please sign in to view your bookings.',
+                  style: TextStyle(color: Color(0xFF718096))));
+          }
+          return StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('service_bookings')
             .where('customerId', isEqualTo: uid)
             .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState ==
-              ConnectionState.waiting) {
-            return const Center(
-                child: CircularProgressIndicator());
+          if (snapshot.connectionState == ConnectionState.waiting
+              && !snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
+            // Common cause: missing Firestore index or permission denied
+            final err = snapshot.error.toString();
+            final isIndex = err.contains('index') || err.contains('FAILED_PRECONDITION');
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Error loading bookings:\n${snapshot.error}',
-                  style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF718096)),
-                  textAlign: TextAlign.center,
-                ),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(isIndex ? Icons.storage_outlined : Icons.error_outline,
+                      size: 40, color: const Color(0xFF718096)),
+                  const SizedBox(height: 12),
+                  Text(
+                    isIndex
+                        ? 'A Firestore index is required.\nPlease check the debug console for a link to create it.'
+                        : 'Unable to load bookings.\nPlease check your connection and try again.',
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(err,
+                    style: const TextStyle(fontSize: 10, color: Color(0xFFa0aec0)),
+                    textAlign: TextAlign.center),
+                ]),
               ),
             );
           }
@@ -468,58 +508,119 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
           }).toList();
 
           docs.sort((a, b) {
-            final aTime = (a.data()
-                    as Map<String, dynamic>)['createdAt']
-                as Timestamp?;
-            final bTime = (b.data()
-                    as Map<String, dynamic>)['createdAt']
-                as Timestamp?;
+            final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+            final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
             if (aTime == null && bTime == null) return 0;
             if (aTime == null) return 1;
             if (bTime == null) return -1;
             return bTime.compareTo(aTime);
           });
 
-          if (docs.isEmpty) {
-            return Center(
-              child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.calendar_today_outlined,
-                        size: 48,
-                        color: Colors.grey.shade300),
-                    const SizedBox(height: 12),
-                    const Text('No bookings yet.',
-                        style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF718096))),
-                    const SizedBox(height: 4),
-                    const Text(
-                        'Book a service to get started.',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFFa0aec0))),
-                  ]),
-            );
+          // Count per status for stat chips
+          int countApproved = 0, countRescheduled = 0, countCancelled = 0;
+          for (final doc in docs) {
+            final d = doc.data() as Map<String, dynamic>;
+            final status = (d['status'] as String? ?? '').toLowerCase();
+            final prevDate = d['previousDate'] as String? ?? '';
+            final prefDate = d['preferredDate'] as String? ?? '';
+            final isResched = prevDate.isNotEmpty && prevDate != prefDate;
+            if (status == 'cancelled' || status == 'rejected') {
+              countCancelled++;
+            } else if (isResched && status == 'approved') {
+              countRescheduled++;
+            } else if (status == 'approved') {
+              countApproved++;
+            }
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
-            separatorBuilder: (_, __) =>
-                const SizedBox(height: 10),
-            itemBuilder: (_, i) {
-              final data = {
-                ...docs[i].data() as Map<String, dynamic>,
-                'docId': docs[i].id,
-              };
-              return _bookingCard(data);
-            },
-          );
+          // Apply status filter
+          final filteredDocs = docs.where((doc) {
+            if (_statusFilter == 'all') return true;
+            final d = doc.data() as Map<String, dynamic>;
+            final status = (d['status'] as String? ?? '').toLowerCase();
+            final prevDate = d['previousDate'] as String? ?? '';
+            final prefDate = d['preferredDate'] as String? ?? '';
+            final isResched = prevDate.isNotEmpty && prevDate != prefDate;
+            switch (_statusFilter) {
+              case 'Approved':    return status == 'approved' && !isResched;
+              case 'Rescheduled': return status == 'approved' && isResched;
+              case 'Cancelled':   return status == 'cancelled' || status == 'rejected';
+              default:            return true;
+            }
+          }).toList();
+
+          if (docs.isEmpty) {
+            return Column(children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Row(children: [
+                  _statChip('Total',      '${docs.length}',  Colors.blue,                  Icons.calendar_today_outlined, 'all'),
+                  const SizedBox(width: 6),
+                  _statChip('Approved',   '$countApproved',  const Color(0xFF38a169),      Icons.check_circle_outline,    'Approved'),
+                  const SizedBox(width: 6),
+                  _statChip('Resched',    '$countRescheduled', _blue,                      Icons.update_outlined,         'Rescheduled'),
+                  const SizedBox(width: 6),
+                  _statChip('Cancelled',  '$countCancelled', _red,                         Icons.cancel_outlined,         'Cancelled'),
+                ]),
+              ),
+              Expanded(
+                child: Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.calendar_today_outlined, size: 48, color: Colors.grey.shade300),
+                    const SizedBox(height: 12),
+                    const Text('No bookings yet.', style: TextStyle(fontSize: 14, color: Color(0xFF718096))),
+                    const SizedBox(height: 4),
+                    const Text('Book a service to get started.', style: TextStyle(fontSize: 12, color: Color(0xFFa0aec0))),
+                  ]),
+                ),
+              ),
+            ]);
+          }
+
+          return Column(children: [
+            // ── Stat chips ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Row(children: [
+                _statChip('Total',     '${docs.length}',    Colors.blue,             Icons.calendar_today_outlined, 'all'),
+                const SizedBox(width: 6),
+                _statChip('Approved',  '$countApproved',    const Color(0xFF38a169), Icons.check_circle_outline,    'Approved'),
+                const SizedBox(width: 6),
+                _statChip('Resched',   '$countRescheduled', _blue,                   Icons.update_outlined,         'Rescheduled'),
+                const SizedBox(width: 6),
+                _statChip('Cancelled', '$countCancelled',   _red,                    Icons.cancel_outlined,         'Cancelled'),
+              ]),
+            ),
+            // ── Filtered list ──
+            Expanded(
+              child: filteredDocs.isEmpty
+                  ? Center(
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.filter_list_off, size: 40, color: Colors.grey.shade300),
+                        const SizedBox(height: 10),
+                        Text('No $_statusFilter bookings.', style: const TextStyle(fontSize: 13, color: Color(0xFF718096))),
+                      ]),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: filteredDocs.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (_, i) {
+                        final data = {
+                          ...filteredDocs[i].data() as Map<String, dynamic>,
+                          'docId': filteredDocs[i].id,
+                        };
+                        return _bookingCard(data);
+                      },
+                    ),
+            ),
+          ]);
         },
-      ),
-    );
-  }
+      );  // inner StreamBuilder<QuerySnapshot>
+        },  // outer StreamBuilder<User?> builder
+      ),    // outer StreamBuilder<User?>
+    );      // Scaffold
+  }         // build
 }
 
 // ── Helper model ─────────────────────────────────────────────
