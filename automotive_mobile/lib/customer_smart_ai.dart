@@ -123,11 +123,21 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
           : parts[0][0].toUpperCase();
 
-      final snap = await FirebaseFirestore.instance
+      // Query by ownerId (Firebase UID) — most reliable
+      final snapById = await FirebaseFirestore.instance
+          .collection('vehicles')
+          .where('ownerId', isEqualTo: _customerUid)
+          .get();
+      // Fallback: query by owner name for older documents
+      final snapByName = await FirebaseFirestore.instance
           .collection('vehicles')
           .where('owner', isEqualTo: name)
           .get();
-      _vehicleCount = snap.docs.length;
+      // Deduplicate by doc ID
+      final seenIds = <String>{};
+      for (final doc in snapById.docs) seenIds.add(doc.id);
+      for (final doc in snapByName.docs) seenIds.add(doc.id);
+      _vehicleCount = seenIds.length;
     }
 
     if (mounted) setState(() => _dataLoaded = true);

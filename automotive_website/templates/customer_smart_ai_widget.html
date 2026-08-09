@@ -507,9 +507,35 @@
       // ── Store the resolved name for use in API calls ──────────────────
       if (userName) _resolvedCustomerName = userName;
 
-      const vSnap = await db.collection('vehicles').get();
-      _myVehicles = vSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-        .filter(v => (v.owner || '').toLowerCase() === (_resolvedCustomerName || '').toLowerCase());
+      // ── Query vehicles by ownerId (Firebase UID) first, fallback to owner name ──
+      const seenVehicleIds = new Set();
+      // Primary: ownerId == user.uid
+      const vSnapById = await db.collection('vehicles').where('ownerId', '==', user.uid).get();
+      vSnapById.docs.forEach(d => {
+        seenVehicleIds.add(d.id);
+        _myVehicles.push({ id: d.id, ...d.data() });
+      });
+      // Fallback: owner name match (case-insensitive for display, exact for Firestore)
+      // Try exact match first, then case-insensitive fallback
+      const vSnapByName = await db.collection('vehicles').where('owner', '==', _resolvedCustomerName).get();
+      vSnapByName.docs.forEach(d => {
+        if (!seenVehicleIds.has(d.id)) {
+          seenVehicleIds.add(d.id);
+          _myVehicles.push({ id: d.id, ...d.data() });
+        }
+      });
+      // If still no vehicles, try case-insensitive scan (handles capitalisation mismatch)
+      if (!_myVehicles.length && _resolvedCustomerName) {
+        const vAll = await db.collection('vehicles').get();
+        vAll.docs.forEach(d => {
+          const v = d.data();
+          if (!seenVehicleIds.has(d.id) &&
+              (v.owner || '').toLowerCase() === _resolvedCustomerName.toLowerCase()) {
+            seenVehicleIds.add(d.id);
+            _myVehicles.push({ id: d.id, ...v });
+          }
+        });
+      }
       if (_resolvedCustomerName) {
         const parts = _resolvedCustomerName.trim().split(' ').filter(Boolean);
         _customerInitials = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : parts[0][0].toUpperCase();

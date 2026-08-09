@@ -93,6 +93,25 @@ def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
                 "odo":         d.get("odo", ""),
             })
 
+    # ── Last resort: case-insensitive scan (handles capitalisation mismatch) ──
+    if not vehicles and customer_name:
+        name_lower = customer_name.lower()
+        for doc in db.collection("vehicles").stream():
+            if doc.id in seen_ids:
+                continue
+            d = doc.to_dict()
+            if (d.get("owner", "") or "").lower() == name_lower:
+                seen_ids.add(doc.id)
+                vehicles.append({
+                    "plate":       d.get("plate", ""),
+                    "desc":        d.get("desc", "") or d.get("assetDescription", ""),
+                    "type":        d.get("type", ""),
+                    "status":      d.get("status", "Active"),
+                    "lastSvcDate": d.get("lastSvcDate", "") or d.get("lastServiceDate", ""),
+                    "svcFreq":     d.get("svcFreq", "") or str(d.get("serviceFrequency", "")),
+                    "odo":         d.get("odo", ""),
+                })
+
     from collections import Counter
     status_counts = Counter(v["status"] for v in vehicles)
     return {
@@ -126,6 +145,15 @@ def get_my_service_history(customer_uid: str, customer_name: str,
         p = doc.to_dict().get("plate", "")
         if p:
             plate_set.add(p)
+    # ── Last resort: case-insensitive scan if still empty ─────────────────
+    if not plate_set and customer_name:
+        name_lower = customer_name.lower()
+        for doc in db.collection("vehicles").stream():
+            d = doc.to_dict()
+            if (d.get("owner", "") or "").lower() == name_lower:
+                p = d.get("plate", "")
+                if p:
+                    plate_set.add(p)
     plate_list = list(plate_set)
 
     if not plate_list:
@@ -242,6 +270,14 @@ def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
             filter=FieldFilter("owner", "==", customer_name)).stream():
         _process_doc(doc)
 
+    # ── Last resort: case-insensitive scan (handles capitalisation mismatch) ──
+    if not vehicles and customer_name:
+        name_lower = customer_name.lower()
+        for doc in db.collection("vehicles").stream():
+            d_raw = doc.to_dict()
+            if (d_raw.get("owner", "") or "").lower() == name_lower:
+                _process_doc(doc)
+
     overdue  = [v for v in vehicles if v["urgency"] == "Overdue"]
     due_soon = [v for v in vehicles if v["urgency"] in ("Due This Week", "Due Soon")]
 
@@ -290,6 +326,23 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
                 "services": ", ".join(svcs) if isinstance(svcs, list) else str(svcs),
                 "status":   d.get("status", ""),
             })
+
+    # Last resort: case-insensitive customerName scan
+    if not bookings and customer_name:
+        name_lower = customer_name.lower()
+        for doc in db.collection("service_bookings").stream():
+            d = doc.to_dict()
+            stored_name = (d.get("customerName", "") or "").lower()
+            if stored_name == name_lower:
+                svcs = d.get("services", [])
+                bookings.append({
+                    "date":     d.get("preferredDate", ""),
+                    "time":     d.get("preferredTime", ""),
+                    "plate":    d.get("plate", ""),
+                    "vehicle":  d.get("vehicleDesc", ""),
+                    "services": ", ".join(svcs) if isinstance(svcs, list) else str(svcs),
+                    "status":   d.get("status", ""),
+                })
 
     bookings.sort(key=lambda b: b["date"], reverse=True)
     pending   = [b for b in bookings if (b["status"] or "").lower() == "pending"]
@@ -401,8 +454,11 @@ CUSTOMER_TOOL_SCHEMAS = [
             "description": (
                 "Return all vehicles registered under the logged-in customer's name, "
                 "including their current PMS status (Active, Overdue, Due Soon, Under Maintenance). "
-                "Use for: 'my fleet', 'my vehicles', 'list my cars', 'fleet summary', "
-                "'how many vehicles do I have', 'show my vehicles'."
+                "ALWAYS use this tool when the customer asks about THEIR OWN vehicles — "
+                "regardless of whether they say 'all my vehicles', 'my fleet', 'my cars', "
+                "'list my vehicles', 'show all my vehicles', 'list all my registered vehicles', "
+                "'how many vehicles do I have', 'fleet summary', or similar. "
+                "The word 'all' combined with 'my' always means this customer's own vehicles only."
             ),
             "parameters": {
                 "type": "object",
@@ -420,7 +476,8 @@ CUSTOMER_TOOL_SCHEMAS = [
                 "Return the completed maintenance/service history for the customer's vehicles. "
                 "Shows job date, services performed, cost per job, and total spent. "
                 "Use for: 'service history', 'past services', 'how much have I spent', "
-                "'maintenance records', 'show my service history'. "
+                "'maintenance records', 'show my service history', 'show my pms history', "
+                "'my past pms', 'completed maintenance', 'service records'. "
                 "Optionally filter by a specific plate number."
             ),
             "parameters": {
