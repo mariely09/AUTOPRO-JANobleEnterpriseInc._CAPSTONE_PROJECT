@@ -306,34 +306,37 @@
   const db = firebase.firestore();
 
   let _myVehicles = [], _customerInitials = '?', _myMaintenance = [], _dataLoaded = false;
-  let _resolvedCustomerName = cpUser.name || '';  // updated by loadData() after Firestore lookup
-  const messages = [];
+  let _resolvedCustomerName = cpUser.name || '';
   let _chatHistory = [];
   let _sessionId   = null;
   let _rateLimited = false;
   let _currentUid  = null;
+  let _isSending   = false;   // guard: prevents double-send
 
   // ── localStorage persistence helpers ─────────────────────────────────────
-  function _storageKey(uid) { return 'ai_chat_' + uid; }
+  // Key for the ACTIVE (current) session — restored on every page load.
+  function _activeKey(uid)   { return 'ai_active_'  + uid; }
+  function _storageKey(uid)  { return 'ai_chat_'    + uid; }
 
+  // Save the live session into both the active-slot AND the history list.
   function _saveChat() {
-    if (!_currentUid) return;
+    if (!_currentUid || !_chatHistory.length) return;
     try {
+      // ── Active slot — always overwrite so tab-switches restore current chat ──
+      var sid = _sessionId || ('local_' + _currentUid);
+      localStorage.setItem(_activeKey(_currentUid), JSON.stringify({
+        id: sid, ts: Date.now(), messages: _chatHistory.slice()
+      }));
+
+      // ── History list — upsert by sid ──────────────────────────────────
       var existing = _loadAllSessions(_currentUid);
-      var sid = _sessionId || ('local_' + Date.now());
-      // Find existing session entry or create new one
       var idx = existing.findIndex(function(s){ return s.id === sid; });
-      var session = {
-        id: sid,
-        ts: Date.now(),
-        messages: _chatHistory.slice()
-      };
-      if (idx >= 0) existing[idx] = session;
-      else existing.unshift(session);
-      // Keep at most 50 sessions
+      var entry = { id: sid, ts: Date.now(), messages: _chatHistory.slice() };
+      if (idx >= 0) existing[idx] = entry;
+      else existing.unshift(entry);
       if (existing.length > 50) existing = existing.slice(0, 50);
       localStorage.setItem(_storageKey(_currentUid), JSON.stringify(existing));
-    } catch(e) { /* quota exceeded — silently ignore */ }
+    } catch(e) { /* quota exceeded — ignore */ }
   }
 
   function _loadAllSessions(uid) {
@@ -343,20 +346,34 @@
     } catch(e) { return []; }
   }
 
-  function _restoreCurrentSession(uid) {
-    var sessions = _loadAllSessions(uid);
-    if (!sessions.length) return;
-    var latest = sessions[0]; // most recent first
-    if (!latest.messages || !latest.messages.length) return;
-    _chatHistory = latest.messages.slice();
-    if (latest.id && !latest.id.startsWith('local_')) _sessionId = latest.id;
-    // Render restored messages
-    document.getElementById('aiWelcome').style.display = 'none';
-    const cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'flex';
-    _chatHistory.forEach(function(m) {
-      _addBubble(m.text, m.role);
-    });
+  // Restore the most-recent active session (called after auth + loadData).
+  function _restoreActiveSession(uid) {
+    try {
+      var raw = localStorage.getItem(_activeKey(uid));
+      if (!raw) return false;
+      var session = JSON.parse(raw);
+      if (!session || !session.messages || !session.messages.length) return false;
+      _chatHistory = session.messages.slice();
+      _sessionId   = (session.id && !session.id.startsWith('local_')) ? session.id : null;
+      // Render
+      var welcome = document.getElementById('aiWelcome');
+      if (welcome) welcome.style.display = 'none';
+      var cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'flex';
+      _chatHistory.forEach(function(m) { _addBubble(m.text, m.role); });
+      // Scroll to bottom after restoring
+      var msgs = document.getElementById('aiMessages');
+      if (msgs) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 60);
+      return true;
+    } catch(e) { return false; }
   }
+
+  // Save whenever the user navigates away so nothing is lost mid-session.
+  window.addEventListener('pagehide', function() { _saveChat(); });
+  window.addEventListener('beforeunload', function() { _saveChat(); });
+  // Also save on visibility change (mobile background / tab switch)
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') _saveChat();
+  });
 
   // ── History drawer ────────────────────────────────────────────────────────
   window.openHistory = function() {
@@ -370,36 +387,15 @@
   };
   window.deleteAllChats = function() {
     if (!confirm('Delete all chat history? This cannot be undone.')) return;
-    if (_currentUid) localStorage.removeItem(_storageKey(_currentUid));
-    // Clear server session too
-    if (_sessionId) { fetch('/api/ai-session/' + _sessionId, { method: 'DELETE' }).catch(function(){}); _sessionId = null; }
+    if (_currentUid) {
+      localStorage.removeItem(_storageKey(_currentUid));
+      localStorage.removeItem(_activeKey(_currentUid));
+    }
+    if (_sessionId) { fetch('/api/ai-session/' + _sessionId, {method:'DELETE'}).catch(function(){}); _sessionId = null; }
     _chatHistory = [];
     _setRateLimited(false);
-
-    // ── Safely rebuild messages area ──────────────────────────────────────
-    const msgs = document.getElementById('aiMessages');
-    const welcome = document.getElementById('aiWelcome');
-    if (welcome && welcome.parentNode === msgs) msgs.removeChild(welcome);
-    msgs.innerHTML = '';
-    if (welcome) {
-      welcome.style.display = '';
-      const sug = welcome.querySelector('#aiSuggestions');
-      if (sug) sug.style.display = 'flex';
-      msgs.appendChild(welcome);
-      welcome.querySelectorAll('.ai-suggest-pill[data-q]').forEach(function(btn) {
-        const fresh = btn.cloneNode(true);
-        btn.parentNode.replaceChild(fresh, btn);
-        fresh.addEventListener('click', function() {
-          var q = fresh.getAttribute('data-q');
-          if (q) window.send(q);
-        });
-      });
-    }
-    const cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'none';
-    const input = document.getElementById('aiInput');
-    if (input) { input.disabled = false; input.value = ''; input.style.height = 'auto'; input.placeholder = 'Ask about your vehicles, bookings, or services…'; }
-    const sendBtn = document.querySelector('.ai-send');
-    if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = ''; sendBtn.style.cursor = ''; }
+    _rebuildWelcome();
+    var cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'none';
     closeHistory();
   };
 
@@ -418,18 +414,24 @@
     var lastLabel = '';
     sessions.forEach(function(s) {
       var d = new Date(s.ts);
-      var label = d.toDateString() === todayStr ? 'Today' : d.toDateString() === yestStr ? 'Yesterday' : d.toLocaleDateString('en-PH', {month:'short',day:'numeric',year:'numeric'});
+      var label = d.toDateString() === todayStr ? 'Today'
+        : d.toDateString() === yestStr ? 'Yesterday'
+        : d.toLocaleDateString('en-PH', {month:'short',day:'numeric',year:'numeric'});
       if (label !== lastLabel) { html += '<div class="ai-hist-day-label">'+label+'</div>'; lastLabel = label; }
       var firstMsg = s.messages.find(function(m){ return m.role === 'user'; });
       var preview = firstMsg ? firstMsg.text : '(empty session)';
       var time = d.toLocaleTimeString('en-PH', {hour:'2-digit',minute:'2-digit'});
-      var isActive = s.id === (_sessionId || '');
-      html += '<div class="ai-hist-item'+(isActive?' active':'')+'" onclick="loadSession(\''+s.id+'\')">'
+      var isActive = s.id === (_sessionId || ('local_' + _currentUid));
+      html += '<div class="ai-hist-item'+(isActive?' active':'')+'" data-sid="'+_escHtml(s.id)+'">'
             + '<div class="ai-hist-item-preview">'+_escHtml(preview)+'</div>'
             + '<div class="ai-hist-item-time">'+time+' &nbsp;·&nbsp; '+s.messages.length+' message'+(s.messages.length!==1?'s':'')+'</div>'
             + '</div>';
     });
     list.innerHTML = html;
+    // Attach click handlers safely (no inline onclick with dynamic IDs)
+    list.querySelectorAll('.ai-hist-item[data-sid]').forEach(function(el) {
+      el.addEventListener('click', function() { window.loadSession(el.getAttribute('data-sid')); });
+    });
   }
 
   function _escHtml(s) {
@@ -440,24 +442,66 @@
     var sessions = _currentUid ? _loadAllSessions(_currentUid) : [];
     var session = sessions.find(function(s){ return s.id === sid; });
     if (!session || !session.messages || !session.messages.length) return;
-    // Clear current view
     _setRateLimited(false);
-    const msgs = document.getElementById('aiMessages');
-    const welcome = document.getElementById('aiWelcome');
-    if (welcome && welcome.parentNode === msgs) msgs.removeChild(welcome);
-    msgs.innerHTML = '';
-    document.getElementById('aiWelcome').style.display = 'none';
-    const cb = document.getElementById('clearBtnWrap'); if(cb) cb.style.display = 'flex';
-    // Restore welcome to DOM (hidden) so it stays accessible
-    msgs.appendChild(document.getElementById('aiWelcome'));
-    // Load session
     _chatHistory = session.messages.slice();
     _sessionId = (!session.id.startsWith('local_')) ? session.id : null;
+    var msgs = document.getElementById('aiMessages');
+    var welcome = document.getElementById('aiWelcome');
+    if (welcome && welcome.parentNode === msgs) msgs.removeChild(welcome);
+    msgs.innerHTML = '';
+    // Re-attach welcome (hidden) so it stays in the DOM
+    if (welcome) { welcome.style.display = 'none'; msgs.appendChild(welcome); }
+    var cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'flex';
     _chatHistory.forEach(function(m) { _addBubble(m.text, m.role); });
+    setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 60);
+    // Persist restored session as active
+    _saveChat();
     closeHistory();
   };
 
-  // Wire up suggestion pills using data-q attribute (no inline onclick quoting issues)
+  // ── Rebuild the welcome screen safely (used by clearChat + deleteAllChats) ──
+  function _rebuildWelcome() {
+    var msgs    = document.getElementById('aiMessages');
+    var welcome = document.getElementById('aiWelcome');
+    // Detach welcome first so innerHTML wipe doesn't destroy the element
+    if (welcome && welcome.parentNode === msgs) msgs.removeChild(welcome);
+    msgs.innerHTML = '';
+    if (welcome) {
+      welcome.style.display = '';
+      var sug = welcome.querySelector('#aiSuggestions');
+      if (sug) sug.style.display = 'flex';
+      msgs.appendChild(welcome);
+      // Re-wire suggestion pills — clone to strip stale listeners
+      welcome.querySelectorAll('.ai-suggest-pill[data-q]').forEach(function(btn) {
+        var fresh = btn.cloneNode(true);
+        btn.parentNode.replaceChild(fresh, btn);
+        fresh.addEventListener('click', function() {
+          var q = fresh.getAttribute('data-q');
+          if (q) window.send(q);
+        });
+      });
+    }
+    // Fully re-enable input
+    var input = document.getElementById('aiInput');
+    if (input) {
+      input.disabled    = false;
+      input.value       = '';
+      input.style.height = 'auto';
+      input.placeholder  = 'Ask about your vehicles, bookings, or services…';
+      // Remove any stale disabled attribute left by rate-limit
+      input.removeAttribute('disabled');
+    }
+    var sendBtn = document.querySelector('.ai-send');
+    if (sendBtn) {
+      sendBtn.disabled     = false;
+      sendBtn.style.opacity = '';
+      sendBtn.style.cursor  = '';
+      sendBtn.removeAttribute('disabled');
+    }
+    _isSending = false;
+  }
+
+  // Wire up suggestion pills on first load
   document.querySelectorAll('.ai-suggest-pill[data-q]').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var q = btn.getAttribute('data-q');
@@ -741,6 +785,9 @@
     const text = (preset || input.value).trim();
     if (!text) return;
     if (_rateLimited) return;
+    if (_isSending) return;   // prevent double-send
+
+    _isSending = true;
 
     // ── Hide welcome, show clear button ──────────────────────────────────
     const welcome = document.getElementById('aiWelcome');
@@ -748,11 +795,13 @@
     const cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'flex';
 
     _addBubbleAndSave(text, 'user');
-    input.value = ''; input.style.height = 'auto';
+    if (input) { input.value = ''; input.style.height = 'auto'; }
 
     if (!_dataLoaded) {
       _addBubbleAndSave('Still loading your profile — please try again in a moment.', 'bot');
-      _saveChat(); return;
+      _saveChat();
+      _isSending = false;
+      return;
     }
 
     const typing = addTyping();
@@ -786,7 +835,6 @@
         if (data.session_id) { _sessionId = data.session_id; }
         _addBubbleAndSave(data.answer, 'bot');
       } else if (data.offline || !data.success) {
-        // AI backend offline — use scoped local fallback
         _addBubbleAndSave(_localFallback(text), 'bot');
       } else {
         _addBubbleAndSave(_localFallback(text), 'bot');
@@ -796,55 +844,29 @@
       _addBubbleAndSave(_localFallback(text), 'bot');
     }
     _saveChat();
+    _isSending = false;
   };
 
   window.clearChat = function () {
-    // Save current session before clearing (if it has messages)
+    // Persist current chat to history before clearing
     if (_chatHistory.length) _saveChat();
     // Clear server-side memory for this session
-    if (_sessionId) { fetch('/api/ai-session/' + _sessionId, { method: 'DELETE' }).catch(function(){}); _sessionId = null; }
+    if (_sessionId) { fetch('/api/ai-session/' + _sessionId, {method:'DELETE'}).catch(function(){}); _sessionId = null; }
+    // Remove the active-slot so tab-switch after clear doesn't restore it
+    if (_currentUid) localStorage.removeItem(_activeKey(_currentUid));
     _setRateLimited(false);
     _chatHistory = [];
-
-    // ── Rebuild the messages area cleanly ────────────────────────────────
-    const msgs = document.getElementById('aiMessages');
-    // Detach welcome block before wiping innerHTML so we keep the reference
-    const welcome = document.getElementById('aiWelcome');
-    if (welcome && welcome.parentNode === msgs) msgs.removeChild(welcome);
-    msgs.innerHTML = '';
-
-    // Reset welcome block state
-    if (welcome) {
-      welcome.style.display = '';
-      const sug = welcome.querySelector('#aiSuggestions');
-      if (sug) sug.style.display = 'flex';
-      msgs.appendChild(welcome);
-      // Re-attach suggestion pill listeners (they were detached by removeChild)
-      welcome.querySelectorAll('.ai-suggest-pill[data-q]').forEach(function(btn) {
-        // Clone to strip old listeners, then re-add
-        const fresh = btn.cloneNode(true);
-        btn.parentNode.replaceChild(fresh, btn);
-        fresh.addEventListener('click', function() {
-          var q = fresh.getAttribute('data-q');
-          if (q) window.send(q);
-        });
-      });
-    }
-
-    const cb2 = document.getElementById('clearBtnWrap'); if (cb2) cb2.style.display = 'none';
-
-    // Make sure the input is enabled and functional
-    const input = document.getElementById('aiInput');
-    if (input) { input.disabled = false; input.value = ''; input.style.height = 'auto'; input.placeholder = 'Ask about your vehicles, bookings, or services…'; }
-    const sendBtn = document.querySelector('.ai-send');
-    if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = ''; sendBtn.style.cursor = ''; }
+    _rebuildWelcome();
+    var cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'none';
   };
 
   firebase.auth().onAuthStateChanged((user) => {
     if (user) {
       _currentUid = user.uid;
-      loadData(user);
-      _restoreCurrentSession(user.uid);
+      loadData(user).then(function() {
+        // Restore the active session AFTER data loads so avatars/initials render correctly
+        _restoreActiveSession(user.uid);
+      });
     } else {
       window.location.href = 'login.html';
     }
