@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'barcode_scanner_screen.dart';
 
 class AdminReceiving extends StatelessWidget {
   const AdminReceiving({super.key});
@@ -39,6 +40,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
   List<Map<String, dynamic>> _deliveries = [];
   bool _loading = true;
   StreamSubscription<QuerySnapshot>? _sub;
+
+  bool _fabOpen = false;
 
   @override
   void initState() {
@@ -191,23 +194,147 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
               }),
         ),
       ]),
-      // ── FAB ──
+      // ── Backdrop ──
+      if (_fabOpen)
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: () => setState(() => _fabOpen = false),
+            child: Container(color: Colors.transparent),
+          ),
+        ),
+      // ── Speed-dial FAB ──
       Positioned(
         bottom: 16, right: 16,
-        child: GestureDetector(
-          onTap: () => _showNewDeliveryModal(),
-          child: Container(
-            width: 56, height: 56,
-            decoration: BoxDecoration(
-              color: _red,
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: _red.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (_fabOpen) ...[
+              _fabAction(
+                label: 'Edit Purchase Order',
+                icon: Icons.edit_outlined,
+                onTap: () {
+                  setState(() => _fabOpen = false);
+                  final pendingDeliveries = _deliveries.where((d) => (d['status'] as String? ?? '') == 'Pending').toList();
+                  if (pendingDeliveries.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('No pending purchase orders to edit.'),
+                      backgroundColor: Color(0xFF718096), behavior: SnackBarBehavior.floating));
+                  } else {
+                    _showEditPOPicker(pendingDeliveries);
+                  }
+                },
+              ),
+              const SizedBox(height: 10),
+              _fabAction(
+                label: 'Scan Item',
+                icon: Icons.qr_code_scanner,
+                onTap: _scanAndFind,
+              ),
+              const SizedBox(height: 10),
+              _fabAction(
+                label: 'New Purchase Order (PO)',
+                icon: Icons.add_box_outlined,
+                onTap: () { setState(() => _fabOpen = false); _showNewDeliveryModal(); },
+              ),
+              const SizedBox(height: 10),
+            ],
+            GestureDetector(
+              onTap: () => setState(() => _fabOpen = !_fabOpen),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 56, height: 56,
+                decoration: BoxDecoration(
+                  color: _red, shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: _red.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))],
+                ),
+                child: AnimatedRotation(
+                  turns: _fabOpen ? 0.125 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(Icons.add, color: Colors.white, size: 28),
+                ),
+              ),
             ),
-            child: const Icon(Icons.add, color: Colors.white, size: 28),
-          ),
+          ],
         ),
       ),
     ]);
+  }
+
+  // ── Scan & find pending delivery ────────────────────────────
+  Future<void> _scanAndFind() async {
+    setState(() => _fabOpen = false);
+    final result = await Navigator.push<String>(
+      context, MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()));
+    if (!mounted || result == null || result.isEmpty) return;
+
+    final query = result.trim().toLowerCase();
+    String resolvedNum = '', resolvedName = '';
+    try {
+      var snap = await FirebaseFirestore.instance
+          .collection('item_master').where('barcode', isEqualTo: result.trim()).limit(1).get();
+      if (snap.docs.isEmpty) snap = await FirebaseFirestore.instance
+          .collection('item_master').where('qr', isEqualTo: result.trim()).limit(1).get();
+      if (snap.docs.isEmpty) snap = await FirebaseFirestore.instance
+          .collection('item_master').where('num', isEqualTo: result.trim().toUpperCase()).limit(1).get();
+      if (snap.docs.isNotEmpty) {
+        final d = snap.docs.first.data();
+        resolvedNum  = (d['num']  as String? ?? '').toLowerCase();
+        resolvedName = (d['name'] as String? ?? '').toLowerCase();
+      }
+    } catch (_) {}
+    if (!mounted) return;
+
+    final pending = _deliveries.where((d) => (d['status'] as String? ?? '') == 'Pending').toList();
+    Map<String, dynamic>? found;
+    for (final delivery in pending) {
+      final items = (delivery['items'] as List? ?? []);
+      final match = items.any((i) {
+        final num  = (i['itemNum']  as String? ?? '').toLowerCase();
+        final name = (i['itemName'] as String? ?? '').toLowerCase();
+        return (resolvedNum.isNotEmpty  && num.contains(resolvedNum)) ||
+               (resolvedName.isNotEmpty && name.contains(resolvedName)) ||
+               num.contains(query) || name.contains(query);
+      });
+      if (match) { found = delivery; break; }
+    }
+    if (!mounted) return;
+    if (found != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Item found in PO from ${found['supplier'] ?? ''}'),
+        backgroundColor: _green, behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+      _showReceiveModal(found);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('No pending PO found for that item'),
+        backgroundColor: Color(0xFF718096), behavior: SnackBarBehavior.floating));
+    }
+  }
+
+  Widget _fabAction({required String label, required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white, borderRadius: BorderRadius.circular(20),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2))],
+          ),
+          child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1a202c))),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          width: 42, height: 42,
+          decoration: BoxDecoration(
+            color: Colors.white, shape: BoxShape.circle,
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))],
+          ),
+          child: Icon(icon, color: _red, size: 20),
+        ),
+      ]),
+    );
   }
 
   Widget _chip(String label, String value, Color color, IconData icon, String filter) {
@@ -1028,6 +1155,82 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
     ]),
   );
 
+  // ── Edit PO Picker ──────────────────────────────────────────
+  void _showEditPOPicker(List<Map<String, dynamic>> pendingDeliveries) {
+    showModalBottomSheet(
+      context: context, isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => DraggableScrollableSheet(
+        expand: false, initialChildSize: 0.5, maxChildSize: 0.85,
+        builder: (_, ctrl) => Column(children: [
+          // Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            decoration: const BoxDecoration(
+              color: Color(0xFF003087),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Row(children: [
+              const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Edit Purchase Order', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                Text('Select a pending PO to edit', style: TextStyle(color: Colors.white70, fontSize: 11)),
+              ])),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: const Icon(Icons.close, color: Colors.white)),
+            ]),
+          ),
+          // List
+          Expanded(
+            child: ListView.separated(
+              controller: ctrl,
+              padding: const EdgeInsets.all(16),
+              itemCount: pendingDeliveries.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (_, i) {
+                final d = pendingDeliveries[i];
+                final items = (d['items'] as List? ?? []);
+                final createdAt = d['createdAt'];
+                String dateStr = '—';
+                if (createdAt is Timestamp) {
+                  final dt = createdAt.toDate();
+                  dateStr = '${_months[dt.month - 1]} ${dt.day}, ${dt.year}';
+                }
+                return GestureDetector(
+                  onTap: () { Navigator.pop(context); _showNewDeliveryModal(existing: d); },
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white, borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFe2e8f0)),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
+                    child: Row(children: [
+                      Container(
+                        width: 38, height: 38,
+                        decoration: BoxDecoration(color: const Color(0xFFEBF4FF), borderRadius: BorderRadius.circular(10)),
+                        child: const Icon(Icons.description_outlined, size: 18, color: Color(0xFF003087)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('${items.length} item${items.length != 1 ? 's' : ''}',
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c))),
+                        const SizedBox(height: 2),
+                        Text(dateStr, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                      ])),
+                      const Icon(Icons.chevron_right, size: 18, color: Color(0xFFa0aec0)),
+                    ]),
+                  ),
+                );
+              },
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
   // ── New / Edit Delivery Modal ──────────────────────────────
   void _showNewDeliveryModal({Map<String, dynamic>? existing}) {
     final isEdit = existing != null;
@@ -1202,7 +1405,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                     borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
                 child: Row(children: [
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(isEdit ? 'Edit Delivery' : 'Purchase Order (PO)',
+                    Text(isEdit ? 'Edit Purchase Order (PO)' : 'Purchase Order (PO)',
                         style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                     const Text('Record incoming stock delivery',
                         style: TextStyle(color: Colors.white70, fontSize: 11)),

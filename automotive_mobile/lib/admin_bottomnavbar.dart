@@ -692,8 +692,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
           controller: qtyCtrl, keyboardType: TextInputType.number,
           onChanged: (_) => onQtyChange(),
           decoration: InputDecoration(
-            labelText: 'Actual Qty *', border: const OutlineInputBorder(), isDense: true,
-            suffixText: item['uom'] as String? ?? ''),
+            labelText: 'Actual Qty *', border: const OutlineInputBorder(), isDense: true),
         ),
         const SizedBox(height: 10),
         const Text('Condition', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4a5568))),

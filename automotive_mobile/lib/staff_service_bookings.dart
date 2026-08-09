@@ -157,7 +157,7 @@ class _StaffServiceBookingsBodyState extends State<StaffServiceBookingsBody> {
       statusColor = const Color(0xFF38a169);
       statusLabel = 'Approved';
     } else {
-      statusColor = const Color(0xFF718096);
+      statusColor = const Color(0xFFE8001C);
       statusLabel = 'Cancelled';
     }
 
@@ -432,7 +432,7 @@ class _StaffBookingDetailsSheet extends StatelessWidget {
     } else if (isApproved) {
       statusColor = _green; statusLabel = 'Approved';
     } else {
-      statusColor = const Color(0xFF718096); statusLabel = 'Cancelled';
+      statusColor = _red; statusLabel = 'Cancelled';
     }
 
     return Padding(

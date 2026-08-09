@@ -176,7 +176,7 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
       statusColor = const Color(0xFF38a169);
       statusLabel = 'Approved';
     } else {
-      statusColor = const Color(0xFF718096);
+      statusColor = const Color(0xFFE8001C);
       statusLabel = 'Cancelled';
     }
 
@@ -741,7 +741,7 @@ class _BookingDetailsSheet extends StatelessWidget {
       statusColor = _green;
       statusLabel = 'Approved';
     } else {
-      statusColor = const Color(0xFF718096);
+      statusColor = _red;
       statusLabel = 'Cancelled';
     }
 
