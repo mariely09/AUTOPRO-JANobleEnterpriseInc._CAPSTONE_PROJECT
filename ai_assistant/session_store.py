@@ -16,7 +16,9 @@ import threading
 import time
 from collections import OrderedDict
 
-MAX_TURNS          = 15    # user+assistant pairs kept per session
+MAX_TURNS          = 8     # user+assistant pairs kept per session (was 15)
+                           # 8 turns = 5 turns of context — sufficient for follow-ups
+                           # while saving ~2,000–4,000 input tokens per request vs 15 turns
 SESSION_TTL_MINUTES = 60   # idle sessions expire after this many minutes
 
 _lock = threading.Lock()

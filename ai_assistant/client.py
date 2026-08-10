@@ -276,34 +276,35 @@ Keyword mappings (English and Filipino):
 
 def _call_groq(messages: list[dict], tools: list[dict] | None = None):
     """
-    Thin wrapper around the Groq API call.
+    Thin wrapper around the Groq API call with token limits enforced.
 
-    Uses the ApiKeyManager to get the current active key.  On RateLimitError
-    it rotates to the next key and retries automatically (up to
-    manager._max_retries times total).  A RateLimitError is re-raised only
-    when all keys are exhausted so the caller can return the friendly message.
+    - max_tokens is always set to GROQ_MAX_OUTPUT_TOKENS (default 800) so
+      the model cannot generate runaway responses that drain the daily quota.
+    - Uses the ApiKeyManager to get the current active key.  On RateLimitError
+      it rotates to the next key and retries automatically (up to
+      manager._max_retries times total).
     """
     manager = get_manager()
 
     def _do_call(api_key: str):
         client = Groq(api_key=api_key)
-        kwargs = {"model": settings.GROQ_MODEL, "messages": messages}
+        kwargs = {
+            "model":      settings.GROQ_MODEL,
+            "messages":   messages,
+            "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,  # ← token cap
+        }
         if tools:
             kwargs["tools"] = tools
         return client.chat.completions.create(**kwargs)
 
-    # Try current key, then rotate on rate-limit up to max_retries times.
-    # We count the total number of distinct keys tried, not just loop iterations,
-    # so with 2 keys and max_retries=3 we'll still try both keys.
     manager._ensure_loaded()
-    total_keys = max(1, len(manager._keys))
+    total_keys   = max(1, len(manager._keys))
     max_attempts = max(manager._max_retries, total_keys)
 
     last_key_id = manager.get_current_key_id()
     current_key = manager.get_current_key()
 
     if not current_key:
-        # No keys at all — fall back to env var
         current_key = settings.GROQ_API_KEY
         if not current_key:
             raise AllKeysRateLimitedError("No Groq API key configured.")
@@ -312,9 +313,7 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None):
     tried_key_ids: set = set()
 
     for attempt in range(max_attempts):
-        # Avoid retrying the exact same key twice
         if last_key_id in tried_key_ids:
-            # Already tried this key — force a rotation to get a fresh one
             next_key = manager.rotate_on_rate_limit(failed_key_id=last_key_id)
             if next_key is None:
                 break
@@ -336,7 +335,6 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None):
 
             next_key = manager.rotate_on_rate_limit(failed_key_id=last_key_id)
             if next_key is None:
-                # All keys exhausted
                 raise AllKeysRateLimitedError(
                     "All API keys are currently rate-limited. "
                     "Please try again in a few minutes."
@@ -344,7 +342,6 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None):
             last_key_id = manager.get_current_key_id()
             current_key = next_key
 
-    # Exhausted retries
     if last_exc:
         raise AllKeysRateLimitedError(
             "All API keys are currently rate-limited. "
@@ -373,11 +370,16 @@ def _strip_null_args(raw_args: str) -> dict:
 
 
 def chat(user_message: str, history: list[dict] | None = None, _retry: bool = False) -> dict:
-    messages = [{"role": "system", "content": ADMIN_SYSTEM_PROMPT}]
+    # ── Trim history to GROQ_MAX_HISTORY_MSGS before building the payload ──
+    # Each exchange = 2 messages (user + assistant). Keeping 10 messages = 5
+    # turns saves up to 4,000 input tokens vs the old 30-message cap.
+    trimmed_history: list[dict] = []
     if history:
-        # Sanitize: drop any history entries missing a role (Groq will 400 on them)
-        valid_history = [m for m in history if isinstance(m, dict) and "role" in m]
-        messages.extend(valid_history)
+        valid = [m for m in history if isinstance(m, dict) and "role" in m]
+        trimmed_history = valid[-settings.GROQ_MAX_HISTORY_MSGS:]
+
+    messages = [{"role": "system", "content": ADMIN_SYSTEM_PROMPT}]
+    messages.extend(trimmed_history)
     messages.append({"role": "user", "content": user_message})
 
     tool_call_log = []
@@ -387,17 +389,14 @@ def chat(user_message: str, history: list[dict] | None = None, _retry: bool = Fa
         try:
             response = _call_groq(messages, tools=TOOL_SCHEMAS)
         except (RateLimitError, AllKeysRateLimitedError):
-            # Re-raise so main.py can return the structured rate-limit response
             raise
         except BadRequestError as e:
             error_str = str(e)
             logger.warning("Groq BadRequestError: %s", error_str)
 
-            # If Groq rejected because of a null/invalid arg in a tool call,
-            # retry without tools so the LLM can still answer in plain text.
             if "tool" in error_str.lower() or "function" in error_str.lower():
                 try:
-                    fallback = _call_groq(messages)  # no tools — plain text answer
+                    fallback = _call_groq(messages)
                     final_reply = fallback.choices[0].message.content or \
                         "I could not retrieve that information. Please try rephrasing."
                     return {
@@ -443,10 +442,21 @@ def chat(user_message: str, history: list[dict] | None = None, _retry: bool = Fa
 
             tool_call_log.append({"tool": fn_name, "args": fn_args, "result": result})
 
+            # ── Cap tool result size before feeding back to the LLM ──────────
+            # Large payloads (e.g. full stock catalog) can push input tokens to
+            # 5,000–10,000 per call. We serialize, truncate if needed, and append
+            # a note so the model knows the data was trimmed.
+            result_json = json.dumps(result)
+            max_chars   = settings.GROQ_MAX_TOOL_RESULT_CHARS
+            if len(result_json) > max_chars:
+                result_json = result_json[:max_chars] + \
+                    '... [TRUNCATED — too many records. Summarise from the data shown above.]"}'
+                logger.info("Tool result for '%s' truncated to %d chars.", fn_name, max_chars)
+
             messages.append({
-                "role": "tool",
+                "role":         "tool",
                 "tool_call_id": call.id,
-                "content": json.dumps(result),
+                "content":      result_json,
             })
     else:
         final_reply = "Sorry, I had trouble completing that request."
@@ -467,10 +477,10 @@ def chat(user_message: str, history: list[dict] | None = None, _retry: bool = Fa
             check = verify_reply(final_reply, tool_call_log)
 
         return {
-            "reply": final_reply,
-            "tool_calls": tool_call_log,
-            "verified": check["verified"],
-            "unsupported_numbers": check["unsupported_numbers"],
+            "reply":                final_reply,
+            "tool_calls":           tool_call_log,
+            "verified":             check["verified"],
+            "unsupported_numbers":  check["unsupported_numbers"],
         }
 
     return {"reply": final_reply, "tool_calls": tool_call_log, "verified": True, "unsupported_numbers": []}
