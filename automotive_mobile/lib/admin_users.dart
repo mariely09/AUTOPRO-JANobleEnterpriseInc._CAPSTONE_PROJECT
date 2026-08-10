@@ -30,6 +30,7 @@ class _AdminUsersState extends State<AdminUsers> {
   String _searchQuery = '';
 
   String _roleFilter = 'all'; // 'all', 'admin', 'staff', 'customer'
+  String _statusFilter = 'all'; // 'all', 'Active', 'Inactive', 'Pending'
   String _sortBy = 'name-asc'; // 'name-asc', 'name-desc', 'email-asc'
 
   @override
@@ -247,13 +248,15 @@ class _AdminUsersState extends State<AdminUsers> {
           final staff = users.where((u) => u['role'] == 'staff').length;
           final admins = users.where((u) => u['role'] == 'admin').length;
 
-          // Split pending vs active/inactive
-          final nonPending = filtered.where((u) => u['status']?.toLowerCase() != 'pending').toList();
-
           // Apply role filter
           final afterRoleFilter = _roleFilter == 'all'
-              ? nonPending
-              : nonPending.where((u) => u['role'] == _roleFilter).toList();
+              ? filtered
+              : filtered.where((u) => u['role'] == _roleFilter).toList();
+
+          // Apply status filter
+          final afterStatusFilter = _statusFilter == 'all'
+              ? afterRoleFilter
+              : afterRoleFilter.where((u) => (u['status'] as String? ?? '').toLowerCase() == _statusFilter.toLowerCase()).toList();
 
           return Column(children: [
               // ── Stat chips ──
@@ -269,10 +272,22 @@ class _AdminUsersState extends State<AdminUsers> {
                   _statChip('Staff', '$staff', const Color(0xFF003087), 'staff'),
                 ]),
               ),
+              const SizedBox(height: 4),
+              // ── Status filter chips ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                child: Row(children: [
+                  _statusChip('All', Colors.blue, 'all'),
+                  const SizedBox(width: 8),
+                  _statusChip('Active', Colors.green, 'Active'),
+                  const SizedBox(width: 8),
+                  _statusChip('Inactive', Colors.grey, 'Inactive'),
+                ]),
+              ),
               const SizedBox(height: 8),
               // ── Sort ──
               Builder(builder: (_) {
-                afterRoleFilter.sort((a, b) {
+                afterStatusFilter.sort((a, b) {
                   switch (_sortBy) {
                     case 'name-desc': return (b['name'] ?? '').compareTo(a['name'] ?? '');
                     case 'email-asc': return (a['email'] ?? '').compareTo(b['email'] ?? '');
@@ -283,13 +298,13 @@ class _AdminUsersState extends State<AdminUsers> {
               }),
               // ── User list ──
               Expanded(
-                child: afterRoleFilter.isEmpty
+                child: afterStatusFilter.isEmpty
                     ? const Center(child: Text('No users found.', style: TextStyle(color: Color(0xFF718096))))
                     : ListView.separated(
                         padding: const EdgeInsets.all(16),
-                        itemCount: afterRoleFilter.length,
+                        itemCount: afterStatusFilter.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) => _userCard(afterRoleFilter[i]),
+                        itemBuilder: (_, i) => _userCard(afterStatusFilter[i]),
                       ),
               ),
             ]);
@@ -328,8 +343,34 @@ class _AdminUsersState extends State<AdminUsers> {
     );
   }
 
-  Widget _userCard(Map<String, String> u) {
-    final rc = _roleColor(u['role']!);
+  Widget _statusChip(String label, Color color, String filter) {
+    final isActive = _statusFilter == filter;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _statusFilter = _statusFilter == filter ? 'all' : filter),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          decoration: BoxDecoration(
+            color: isActive ? color.withOpacity(0.08) : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isActive ? color : Colors.transparent, width: 1.5),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)]),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                color: isActive ? color : const Color(0xFF718096),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _userCard(Map<String, String> u) {    final rc = _roleColor(u['role']!);
     return GestureDetector(
       onTap: () => _showUserDetails(u),
       child: Container(

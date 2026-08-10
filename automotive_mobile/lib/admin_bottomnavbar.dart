@@ -622,7 +622,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
                           if (ctx.mounted) {
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                              content: Text('Submitted for double check!'),
+                              content: Text('Submitted!'),
                               backgroundColor: Colors.orange,
                               behavior: SnackBarBehavior.floating));
                           }
@@ -636,7 +636,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
                         ? const SizedBox(width: 16, height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.check_circle_outline, size: 16),
-                      label: Text(submitting ? 'Submitting…' : 'Submit for Double Check'),
+                      label: Text(submitting ? 'Submitting…' : 'Submit'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _red, foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14)),
@@ -883,21 +883,6 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
                         child: Text(statusLabel,
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: barColor))),
                     ]),
-                    const SizedBox(height: 10),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        backgroundColor: const Color(0xFFe2e8f0),
-                        valueColor: AlwaysStoppedAnimation<Color>(barColor),
-                        minHeight: 8)),
-                    const SizedBox(height: 6),
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text('Min: $min', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                      Text('$stock / $max',
-                        style: TextStyle(fontSize: 11, color: barColor, fontWeight: FontWeight.w600)),
-                      Text('Max: $max', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                    ]),
                   ]),
                 ),
                 const SizedBox(height: 16),
@@ -1014,27 +999,27 @@ class _ScanAddStockWidgetState extends State<_ScanAddStockWidget> {
         TextField(
           controller: _stockCtrl, keyboardType: TextInputType.number, autofocus: true,
           decoration: InputDecoration(labelText: 'Current Quantity *', border: const OutlineInputBorder(),
-            filled: true, fillColor: Colors.white, suffixText: uom),
+            filled: true, fillColor: Colors.white),
         ),
         const SizedBox(height: 8),
         Row(children: [
           Expanded(child: TextField(
             controller: _minCtrl, keyboardType: TextInputType.number,
             decoration: InputDecoration(labelText: 'Min Level *', border: const OutlineInputBorder(),
-              filled: true, fillColor: Colors.white, suffixText: uom),
+              filled: true, fillColor: Colors.white),
           )),
           const SizedBox(width: 8),
           Expanded(child: TextField(
             controller: _maxCtrl, keyboardType: TextInputType.number,
             decoration: InputDecoration(labelText: 'Max Level *', border: const OutlineInputBorder(),
-              filled: true, fillColor: Colors.white, suffixText: uom),
+              filled: true, fillColor: Colors.white),
           )),
         ]),
         const SizedBox(height: 8),
         TextField(
           controller: _reorderCtrl, keyboardType: TextInputType.number,
           decoration: InputDecoration(labelText: 'Reorder Quantity', border: const OutlineInputBorder(),
-            filled: true, fillColor: Colors.white, suffixText: uom),
+            filled: true, fillColor: Colors.white),
         ),
         const SizedBox(height: 12),
         SizedBox(
@@ -1134,7 +1119,7 @@ class _ScanReceiveWidgetState extends State<_ScanReceiveWidget> {
           Expanded(child: TextField(
             controller: _qtyCtrl, keyboardType: TextInputType.number, autofocus: true,
             decoration: InputDecoration(labelText: 'Quantity to receive *', border: const OutlineInputBorder(),
-              filled: true, fillColor: Colors.white, suffixText: widget.uom),
+              filled: true, fillColor: Colors.white),
           )),
           const SizedBox(width: 10),
           SizedBox(height: 56, child: ElevatedButton(

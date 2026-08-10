@@ -673,8 +673,8 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       ),
       child: Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-          Text('$qty $uom  -  $cost / unit', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+          Text(uom.isNotEmpty ? '$name ($uom)' : name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          Text('$qty  -  $cost', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
         ])),
         Text(_fmtMoney(subtotal),
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1a202c))),
@@ -795,13 +795,34 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
     } else {
       matRows = makeRows(service?['matRows'] as List<dynamic>?);
       // Look up stock for each existing material row (edit mode)
+      // Query by item number (unique) to handle same-name different-UOM items correctly
       for (final row in matRows) {
         final name = row['name']!.text;
         if (name.isEmpty) continue;
+        final uomVal = row['uom']!.text;
         final maxStockCtrl = row['maxStock']!;
-        FirebaseFirestore.instance
-            .collection('stock_inventory').where('name', isEqualTo: name).limit(1).get()
-            .then((snap) {
+        // Match name+uom in _allItems (preserves duplicates) for correct num lookup
+        final matchedItem = _allItems.firstWhere(
+          (e) => (e['name'] as String).toLowerCase() == name.toLowerCase()
+              && (e['uom'] as String? ?? '').toLowerCase() == uomVal.toLowerCase(),
+          orElse: () => _itemMasterMap[name] ?? {},
+        );
+        final itemNum = ((matchedItem['num'] ?? _itemMasterMap[name]?['num']) as String? ?? '').trim();
+        final Future<QuerySnapshot> stockFuture;
+        if (itemNum.isNotEmpty) {
+          stockFuture = FirebaseFirestore.instance
+              .collection('stock_inventory').where('num', isEqualTo: itemNum).limit(1).get();
+        } else if (uomVal.isNotEmpty) {
+          stockFuture = FirebaseFirestore.instance
+              .collection('stock_inventory')
+              .where('name', isEqualTo: name)
+              .where('uom', isEqualTo: uomVal)
+              .limit(1).get();
+        } else {
+          stockFuture = FirebaseFirestore.instance
+              .collection('stock_inventory').where('name', isEqualTo: name).limit(1).get();
+        }
+        stockFuture.then((snap) {
           maxStockCtrl.text = snap.docs.isNotEmpty
               ? '${(snap.docs.first['stock'] as num?)?.toInt() ?? 0}'
               : '-1';
@@ -813,7 +834,8 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
 
     showModalBottomSheet(
       context: context, isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => StatefulBuilder(
         builder: (ctx, setModal) {
@@ -825,9 +847,17 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
             return t;
           }
           return AnimatedPadding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              top: MediaQuery.of(ctx).size.height * 0.08,
+            ),
             duration: const Duration(milliseconds: 150),
-            child: SingleChildScrollView(
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SingleChildScrollView(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Container(
                   width: double.infinity,
@@ -1180,12 +1210,13 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                           ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                           : Text(isEdit ? 'Update' : 'Save'),
                       )),
-                    ]),
-                  ]),
-                ),
-              ]),
-            ),
-          );
+                    ]),       // Row([Cancel, Save])
+                  ]),         // inner Column.children
+                  ),          // Padding
+                ]),           // outer Column.children
+              ),              // SingleChildScrollView
+            ),                // Container
+          );                  // AnimatedPadding
         },
       ),
     );
@@ -1365,8 +1396,27 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
           ? '0'
           : rawCost.toString().replaceAll('₱', '').replaceAll(',', '').trim();
       if (row['qty']!.text.isEmpty) row['qty']!.text = '1';
-      final stockSnap = await FirebaseFirestore.instance
-          .collection('stock_inventory').where('name', isEqualTo: name).limit(1).get();
+      // Look up stock by item number — match name+uom from _allItems (which preserves duplicates)
+      // so same-name different-UOM items get the correct distinct stock record
+      final uomForLookup = uom.isNotEmpty ? uom : (d['uom'] ?? '').toString();
+      final matchedItem = _allItems.firstWhere(
+        (e) => (e['name'] as String).toLowerCase() == name.toLowerCase()
+            && (e['uom'] as String? ?? '').toLowerCase() == uomForLookup.toLowerCase(),
+        orElse: () => d,
+      );
+      final itemNum = ((matchedItem['num'] ?? d['num']) as String? ?? '').trim();
+      final QuerySnapshot stockSnap;
+      if (itemNum.isNotEmpty) {
+        stockSnap = await FirebaseFirestore.instance
+            .collection('stock_inventory').where('num', isEqualTo: itemNum).limit(1).get();
+      } else {
+        // Fallback: query by name + uom together
+        stockSnap = await FirebaseFirestore.instance
+            .collection('stock_inventory')
+            .where('name', isEqualTo: name)
+            .where('uom', isEqualTo: uomForLookup)
+            .limit(1).get();
+      }
       final available = stockSnap.docs.isNotEmpty
           ? (stockSnap.docs.first['stock'] as num?)?.toInt() ?? 0
           : -1;
@@ -1454,9 +1504,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                           : [FilteringTextInputFormatter.digitsOnly],
                       onChanged: (_) => setModal(() {}),
                       decoration: InputDecoration(
-                        labelText: (maxStock > 0 && maxStock < 99999)
-                            ? 'Quantity * (max $maxStock)'
-                            : 'Quantity *',
+                        labelText: 'Quantity *',
                         border: const OutlineInputBorder(),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                         isDense: true,

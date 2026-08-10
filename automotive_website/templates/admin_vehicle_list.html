@@ -69,6 +69,13 @@
         </div>
 
         <div class="admin-content">
+            <div id="vehicleTabBar" style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:1.25rem;">
+                <button id="vtabActive" onclick="vSwitchTab('active',this)" style="padding:0.6rem 1.2rem;font-size:0.82rem;font-weight:700;border:none;background:none;cursor:pointer;color:#E8001C;border-bottom:2px solid #E8001C;margin-bottom:-2px;transition:all .15s;">Vehicles</button>
+                <button id="vtabArchive" onclick="vSwitchTab('archive',this)" style="padding:0.6rem 1.2rem;font-size:0.82rem;font-weight:600;border:none;background:none;cursor:pointer;color:#718096;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;">Archive</button>
+            </div>
+
+            <!-- Active Vehicles -->
+            <div id="vTabActiveContent">
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;">
                 <div class="stat-card" onclick="vehTypeFilter('all')" style="cursor:pointer;">
                     <div class="stat-icon" style="background:rgba(0,48,135,0.10);color:#003087;">
@@ -98,6 +105,18 @@
                     <div>Odometer (km)</div><div>KM Since Last Service</div><div>Last Service Date</div><div>Next PMS Due</div><div>Actions</div>
                 </div>
                 <div id="assetsList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading vehicles...</div></div>
+            </div>
+            </div><!-- /#vTabActiveContent -->
+
+            <!-- Archive Tab -->
+            <div id="vTabArchiveContent" style="display:none;">
+                <div class="data-table">
+                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1fr 1fr 1fr 120px;">
+                        <div>Plate Number</div><div>Vehicle Type</div><div>Owner / Company Name</div>
+                        <div>Odometer (km)</div><div>Last Service Date</div><div>Actions</div>
+                    </div>
+                    <div id="archivedVehiclesList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived vehicles...</div></div>
+                </div>
             </div>
         </div>
     </div>
@@ -373,6 +392,87 @@
     if (typeof renderAssetsList === 'function') renderAssetsList();
   };
 
+  // ── Tab switching ──
+  window._vActiveTab = 'active';
+  window.vSwitchTab = function(tab, btn) {
+    window._vActiveTab = tab;
+    document.getElementById('vTabActiveContent').style.display = tab === 'active' ? 'block' : 'none';
+    document.getElementById('vTabArchiveContent').style.display = tab === 'archive' ? 'block' : 'none';
+    // Update tab button styles
+    var activeBtn  = document.getElementById('vtabActive');
+    var archiveBtn = document.getElementById('vtabArchive');
+    if (activeBtn) {
+      activeBtn.style.color = tab === 'active' ? '#E8001C' : '#718096';
+      activeBtn.style.borderBottom = tab === 'active' ? '2px solid #E8001C' : '2px solid transparent';
+      activeBtn.style.fontWeight = tab === 'active' ? '700' : '600';
+    }
+    if (archiveBtn) {
+      archiveBtn.style.color = tab === 'archive' ? '#E8001C' : '#718096';
+      archiveBtn.style.borderBottom = tab === 'archive' ? '2px solid #E8001C' : '2px solid transparent';
+      archiveBtn.style.fontWeight = tab === 'archive' ? '700' : '600';
+    }
+    if (tab === 'archive') renderArchivedVehicles();
+  };
+
+  // ── Render archived vehicles ──
+  window.renderArchivedVehicles = function() {
+    var db = firebase.firestore();
+    var list = document.getElementById('archivedVehiclesList');
+    if (!list) return;
+    list.innerHTML = '<div style="padding:2rem;text-align:center;color:#a0aec0;font-size:13px;">Loading...</div>';
+    db.collection('vehicles').where('archived', '==', true).get().then(function(snap) {
+      if (snap.empty) {
+        list.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">'
+          + '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:10px;display:block;margin-left:auto;margin-right:auto;"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>'
+          + 'No archived vehicles.</div>';
+        return;
+      }
+      var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      function fmtDate(d) {
+        if (!d) return '—';
+        var dt = new Date(d + 'T00:00:00');
+        if (isNaN(dt)) return d;
+        return MONTHS[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+      }
+      var rows = snap.docs.map(function(doc) {
+        var v = doc.data();
+        var plate = v.plate || v.plateNumber || '—';
+        var type = v.type || '—';
+        var owner = v.owner || '—';
+        var odo = v.odo || (v.odometer ? v.odometer + ' km' : '—');
+        var lastSvc = fmtDate(v.lastSvcDate || v.lastServiceDate || '');
+        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr 120px;align-items:center;opacity:0.85;">'
+          + '<div style="font-weight:700;color:#1a202c;">' + plate + '</div>'
+          + '<div style="color:#4a5568;font-size:13px;">' + type + '</div>'
+          + '<div style="color:#4a5568;font-size:13px;">' + owner + '</div>'
+          + '<div style="color:#4a5568;font-size:13px;">' + odo + '</div>'
+          + '<div style="color:#4a5568;font-size:13px;">' + lastSvc + '</div>'
+          + '<div style="display:flex;gap:6px;">'
+          +   '<button onclick="restoreVehicle(\'' + doc.id + '\',\'' + plate.replace(/'/g,"\\'") + '\')" title="Restore" style="padding:0.35rem 0.75rem;background:#EBF4FF;border:none;border-radius:7px;color:#003087;font-size:0.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">'
+          +     '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg>'
+          +     'Restore'
+          +   '</button>'
+          + '</div>'
+          + '</div>';
+      });
+      list.innerHTML = rows.join('');
+    }).catch(function(err) {
+      list.innerHTML = '<div style="padding:2rem;text-align:center;color:#e53e3e;font-size:13px;">Error: ' + err.message + '</div>';
+    });
+  };
+
+  // ── Restore archived vehicle ──
+  window.restoreVehicle = function(docId, plate) {
+    if (!confirm('Restore "' + plate + '" back to the active vehicle list?')) return;
+    firebase.firestore().collection('vehicles').doc(docId).update({
+      archived: false,
+      archivedAt: firebase.firestore.FieldValue.delete()
+    }).then(function() {
+      showToast('"' + plate + '" restored successfully!', 'success');
+      renderArchivedVehicles();
+    }).catch(function(err) { showToast('Error: ' + err.message, 'error'); });
+  };
+
   // ── Just Serviced checkbox ──────────────────────────────
   function onJustServicedToggle(cb) {
     var section = document.getElementById('lastServiceSection');
@@ -521,11 +621,22 @@
     var asset = assets.find(function(a){ return a.assetNum === assetNum || a.plateNumber === assetNum; });
     if (!asset) return;
     var plate = asset.plateNumber || asset.plate || assetNum;
-    if (!confirm('Are you sure you want to delete "' + plate + '"?')) return;
+    if (!confirm('Are you sure you want to archive "' + plate + '"? It can be restored from the Archive tab.')) return;
     var docId = asset.id;
-    firebase.firestore().collection('vehicles').doc(docId).delete()
-      .then(function() { showToast('Vehicle deleted successfully!', 'success'); })
-      .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
+    firebase.firestore().collection('vehicles').doc(docId).get()
+      .then(function(snap) {
+        if (!snap.exists) throw new Error('Vehicle not found');
+        var data = snap.data();
+        data.archivedAt = firebase.firestore.FieldValue.serverTimestamp();
+        return firebase.firestore()
+          .collection('archive').doc('vehicles').collection('vehicles').doc(docId)
+          .set(data)
+          .then(function() {
+            return firebase.firestore().collection('vehicles').doc(docId).delete();
+          });
+      })
+      .then(function() { showToast('Vehicle archived successfully!', 'success'); })
+      .catch(function(err) { showToast('Archive failed: ' + err.message, 'error'); });
   }
 
   document.addEventListener('DOMContentLoaded', function() {

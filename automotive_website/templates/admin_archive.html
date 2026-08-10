@@ -54,6 +54,10 @@
                     style="padding:0.65rem 1.25rem;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:0.88rem;font-weight:600;color:#718096;cursor:pointer;">
                     Maintenance Records
                 </button>
+                <button id="tabVehiclesBtn" onclick="switchArchiveTab('vehicles')"
+                    style="padding:0.65rem 1.25rem;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:0.88rem;font-weight:600;color:#718096;cursor:pointer;">
+                    Vehicles
+                </button>
             </div>
 
             <!-- Item Master Tab -->
@@ -81,6 +85,17 @@
                         <div>Mechanic</div><div>Total Cost</div><div>Status</div><div style="text-align:center;">Actions</div>
                     </div>
                     <div id="archiveMaintenanceList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived records...</div></div>
+                </div>
+            </div>
+
+            <!-- Vehicles Tab -->
+            <div id="tabVehicles" style="display:none;">
+                <div class="data-table" style="overflow-x:auto;">
+                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1fr 1fr 1fr 120px;min-width:800px;">
+                        <div>Plate Number</div><div>Vehicle Type</div><div>Owner / Company</div>
+                        <div>Odometer</div><div>Last Service Date</div><div style="text-align:center;">Actions</div>
+                    </div>
+                    <div id="archiveVehiclesList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived vehicles...</div></div>
                 </div>
             </div>
         </div>
@@ -121,25 +136,30 @@ window.switchArchiveTab = function(tab) {
     _archiveCurrentTab = tab;
     document.getElementById('tabItemMaster').style.display   = tab === 'item-master'  ? 'block' : 'none';
     document.getElementById('tabMaintenance').style.display  = tab === 'maintenance'  ? 'block' : 'none';
+    document.getElementById('tabVehicles').style.display     = tab === 'vehicles'     ? 'block' : 'none';
     var iBtn = document.getElementById('tabItemMasterBtn');
     var mBtn = document.getElementById('tabMaintenanceBtn');
-    iBtn.style.borderBottomColor = tab === 'item-master' ? '#E31E24' : 'transparent';
-    iBtn.style.color = tab === 'item-master' ? '#E31E24' : '#718096';
-    iBtn.style.fontWeight = tab === 'item-master' ? '700' : '600';
-    mBtn.style.borderBottomColor = tab === 'maintenance' ? '#E31E24' : 'transparent';
-    mBtn.style.color = tab === 'maintenance' ? '#E31E24' : '#718096';
-    mBtn.style.fontWeight = tab === 'maintenance' ? '700' : '600';
+    var vBtn = document.getElementById('tabVehiclesBtn');
+    [iBtn, mBtn, vBtn].forEach(function(b) {
+        b.style.borderBottomColor = 'transparent';
+        b.style.color = '#718096';
+        b.style.fontWeight = '600';
+    });
+    var activeBtn = tab === 'item-master' ? iBtn : tab === 'maintenance' ? mBtn : vBtn;
+    activeBtn.style.borderBottomColor = '#E31E24';
+    activeBtn.style.color = '#E31E24';
+    activeBtn.style.fontWeight = '700';
     renderCurrentTab();
 };
 
 window.renderCurrentTab = function() {
     if (_archiveCurrentTab === 'item-master') renderArchiveList();
-    else renderMaintenanceArchiveList();
+    else if (_archiveCurrentTab === 'maintenance') renderMaintenanceArchiveList();
+    else renderVehiclesArchiveList();
 };
 
 // ── Item Master archive ──
-// Load archived item_master docs
-db.collection('item_master').where('archived', '==', true).onSnapshot(function(snap) {
+db.collection('archive').doc('item_master').collection('items').onSnapshot(function(snap) {
     _archivedItems = snap.docs.map(function(d) {
         var data = d.data();
         return {
@@ -151,7 +171,6 @@ db.collection('item_master').where('archived', '==', true).onSnapshot(function(s
             group: data.group || '',
             cost: parseFloat(String(data.cost || 0).replace(/[₱,]/g, '')) || 0,
             type: data.type || 'Material',
-            archivedAt: data.archivedAt || null,
         };
     });
     renderArchiveList();
@@ -194,38 +213,34 @@ function renderArchiveList() {
 
 window.restoreItem = function(docId, name) {
     if (!confirm('Are you sure you want to restore "' + name + '" back to Item Master?')) return;
-    db.collection('item_master').doc(docId).update({ archived: false, archivedAt: null })
-        .then(function() {
-            // Get item details to redirect to stock inventory with pre-filled form
-            db.collection('item_master').doc(docId).get().then(function(snap) {
-                if (!snap.exists) {
-                    showToast('"' + name + '" restored successfully!', 'success');
-                    return;
-                }
-                var data = snap.data();
-                var num          = data.num           || '';
-                var itemName     = data.name          || '';
-                var group        = data.group         || '';
-                var uom          = data.uom           || '';
-                var supplierCode = data.supplierCode  || '';
+    var archiveRef = db.collection('archive').doc('item_master').collection('items').doc(docId);
+    archiveRef.get().then(function(snap) {
+        if (!snap.exists) { showToast('Archive doc not found.', 'error'); return; }
+        var data = snap.data();
+        delete data.archivedAt;
+        return db.collection('item_master').doc(docId).set(data)
+            .then(function() { return archiveRef.delete(); })
+            .then(function() {
+                var num = data.num || '';
+                var itemName = data.name || '';
+                var group = data.group || '';
+                var uom = data.uom || '';
+                var supplierCode = data.supplierCode || '';
                 showToast('"' + name + '" restored! Redirecting to Stock Inventory...', 'success');
                 setTimeout(function() {
                     window.location.href = 'admin_inventory_stock.html#add='
                         + encodeURIComponent(num + '|' + itemName + '|' + group + '|' + uom + '|' + supplierCode);
                 }, 1000);
-            }).catch(function() {
-                showToast('"' + name + '" restored successfully!', 'success');
             });
-        })
-        .catch(function(err) { showToast('Restore failed: ' + err.message, 'error'); });
+    }).catch(function(err) { showToast('Restore failed: ' + err.message, 'error'); });
 };
 
 window.permanentlyDeleteItem = function(docId, name) {
     if (!confirm('This action cannot be undone. Are you sure you want to permanently delete "' + name + '"?')) return;
-    db.collection('item_master').doc(docId).get().then(function(snap) {
-        if (!snap.exists) return;
-        var num = snap.data().num || '';
-        return db.collection('item_master').doc(docId).delete().then(function() {
+    var archiveRef = db.collection('archive').doc('item_master').collection('items').doc(docId);
+    archiveRef.get().then(function(snap) {
+        var num = snap.exists ? (snap.data().num || '') : '';
+        return archiveRef.delete().then(function() {
             if (num) {
                 db.collection('stock_inventory').where('num', '==', num).limit(1).get().then(function(s) {
                     if (!s.empty) s.docs[0].ref.delete().catch(function(){});
@@ -237,7 +252,7 @@ window.permanentlyDeleteItem = function(docId, name) {
 };
 
 // ── Maintenance Records archive ──
-db.collection('maintenance').where('archived', '==', true).onSnapshot(function(snap) {
+db.collection('archive').doc('maintenance').collection('records').onSnapshot(function(snap) {
     _archivedMaintenance = snap.docs.map(function(d) {
         var data = d.data();
         return {
@@ -248,7 +263,6 @@ db.collection('maintenance').where('archived', '==', true).onSnapshot(function(s
             date: data.date || '—',
             cost: data.cost || '₱0.00',
             status: data.status || 'Ongoing',
-            archivedAt: data.archivedAt || null,
         };
     });
     if (_archiveCurrentTab === 'maintenance') renderMaintenanceArchiveList();
@@ -295,16 +309,98 @@ function renderMaintenanceArchiveList() {
 
 window.restoreMaintenanceRecord = function(docId, plate) {
     if (!confirm('Are you sure you want to restore the service record for "' + plate + '"?')) return;
-    db.collection('maintenance').doc(docId).update({ archived: false, archivedAt: null })
-        .then(function() { showToast('Service record for "' + plate + '" restored!', 'success'); })
-        .catch(function(err) { showToast('Restore failed: ' + err.message, 'error'); });
+    var archiveRef = db.collection('archive').doc('maintenance').collection('records').doc(docId);
+    archiveRef.get().then(function(snap) {
+        if (!snap.exists) { showToast('Archive doc not found.', 'error'); return; }
+        var data = snap.data();
+        delete data.archivedAt;
+        return db.collection('maintenance').doc(docId).set(data)
+            .then(function() { return archiveRef.delete(); })
+            .then(function() { showToast('Service record for "' + plate + '" restored!', 'success'); });
+    }).catch(function(err) { showToast('Restore failed: ' + err.message, 'error'); });
 };
 
 window.permanentlyDeleteMaintenance = function(docId, plate) {
     if (!confirm('This action cannot be undone. Are you sure you want to permanently delete the service record for "' + plate + '"?')) return;
-    db.collection('maintenance').doc(docId).delete()
+    db.collection('archive').doc('maintenance').collection('records').doc(docId).delete()
         .then(function() { showToast('Service record permanently deleted.', 'error'); })
         .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
+};
+
+// ── Vehicles archive ──
+var _archivedVehicles = [];
+db.collection('archive').doc('vehicles').collection('vehicles').onSnapshot(function(snap) {
+    _archivedVehicles = snap.docs.map(function(d) {
+        var v = d.data();
+        return {
+            id: d.id,
+            plate: v.plate || v.plateNumber || '—',
+            type: v.type || '—',
+            owner: v.owner || '—',
+            odo: v.odo || (v.odometer ? v.odometer + ' km' : '—'),
+            lastSvcDate: v.lastSvcDate || v.lastServiceDate || '',
+        };
+    });
+    if (_archiveCurrentTab === 'vehicles') renderVehiclesArchiveList();
+});
+
+function renderVehiclesArchiveList() {
+    var list = document.getElementById('archiveVehiclesList');
+    if (!list) return;
+    var q = ((document.getElementById('archiveSearch') || {}).value || '').toLowerCase().trim();
+    var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    function fmtDate(d) {
+        if (!d) return '—';
+        var dt = new Date(d + 'T00:00:00');
+        if (isNaN(dt)) return d;
+        return MONTHS[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+    }
+    var items = _archivedVehicles;
+    if (q) {
+        items = items.filter(function(v) {
+            return (v.plate || '').toLowerCase().includes(q) ||
+                   (v.owner || '').toLowerCase().includes(q) ||
+                   (v.type  || '').toLowerCase().includes(q);
+        });
+    }
+    if (!items.length) {
+        list.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">No archived vehicles found.</div>';
+        return;
+    }
+    var rows = items.map(function(v) {
+        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr 120px;min-width:800px;align-items:center;opacity:0.85;">'
+            + '<div><strong>' + v.plate + '</strong></div>'
+            + '<div style="color:#4a5568;font-size:13px;">' + v.type + '</div>'
+            + '<div style="color:#4a5568;font-size:13px;">' + v.owner + '</div>'
+            + '<div style="color:#4a5568;font-size:13px;">' + v.odo + '</div>'
+            + '<div style="color:#4a5568;font-size:13px;">' + fmtDate(v.lastSvcDate) + '</div>'
+            + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;">'
+            +   '<button class="btn-small btn-secondary" onclick="restoreArchivedVehicle(\'' + v.id + '\',\'' + v.plate.replace(/'/g,"\\'") + '\')" title="Restore" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;color:#38a169;border-color:#9ae6b4;background:#f0fff4;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg></button>'
+            +   '<button class="btn-small btn-danger" onclick="permanentlyDeleteVehicle(\'' + v.id + '\',\'' + v.plate.replace(/'/g,"\\'") + '\')" title="Delete Permanently" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
+            + '</div></div>';
+    });
+    list.innerHTML = rows.join('');
+}
+
+window.restoreArchivedVehicle = function(docId, plate) {
+    if (!confirm('Restore "' + plate + '" back to the active vehicle list?')) return;
+    var archiveRef = db.collection('archive').doc('vehicles').collection('vehicles').doc(docId);
+    archiveRef.get().then(function(snap) {
+        if (!snap.exists) { showToast('Archive doc not found.', 'error'); return; }
+        var data = snap.data();
+        delete data.archivedAt;
+        delete data.archived;
+        return db.collection('vehicles').doc(docId).set(data)
+            .then(function() { return archiveRef.delete(); })
+            .then(function() { showToast('"' + plate + '" restored successfully!', 'success'); });
+    }).catch(function(err) { showToast('Error: ' + err.message, 'error'); });
+};
+
+window.permanentlyDeleteVehicle = function(docId, plate) {
+    if (!confirm('This action cannot be undone. Permanently delete "' + plate + '"?')) return;
+    db.collection('archive').doc('vehicles').collection('vehicles').doc(docId).delete()
+        .then(function() { showToast('"' + plate + '" permanently deleted.', 'error'); })
+        .catch(function(err) { showToast('Error: ' + err.message, 'error'); });
 };
 </script>
 </body>

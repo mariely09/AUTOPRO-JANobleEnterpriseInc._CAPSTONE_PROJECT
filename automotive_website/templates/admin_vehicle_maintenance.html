@@ -132,7 +132,7 @@
 
 <!-- ── View Service Modal ── -->
 <div class="modal" id="svcDetailsModal">
-    <div class="modal-content" style="max-width:540px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
+    <div class="modal-content" style="max-width:540px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;overflow-x:hidden;">
         <!-- Header -->
         <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
             <div style="flex:1;">
@@ -142,7 +142,7 @@
             <button onclick="closeModal('svcDetailsModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
         </div>
         <!-- Body -->
-        <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.75rem;">
+        <div style="padding:1.25rem 1.5rem;overflow-y:auto;overflow-x:hidden;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.75rem;">
             <!-- Info rows -->
             <div style="background:white;border-radius:14px;padding:1rem 1.25rem;border:1px solid #e2e8f0;" id="svcDetailRows"></div>
             <!-- Issues Tags -->
@@ -177,13 +177,13 @@
 
 <!-- ── Add / Edit Service Modal ── -->
 <div class="modal" id="svcAddModal">
-    <div class="modal-content" style="max-width:600px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
+    <div class="modal-content" style="max-width:600px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;overflow-x:hidden;">
         <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
             <div id="svcModalIconWrap" style="display:none;"></div>
             <div style="flex:1;"><div id="svcModalTitle" style="color:white;font-size:1rem;font-weight:700;">New Service</div></div>
             <button onclick="closeModal('svcAddModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
         </div>
-        <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
+        <div style="padding:1.25rem 1.5rem;overflow-y:auto;overflow-x:hidden;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
             <div class="fl-field" style="position:relative;">
                 <input type="text" id="svcPlateInput" placeholder=" " autocomplete="off"
                     style="text-transform:uppercase;"
@@ -208,10 +208,9 @@
             </div>
             <!-- Odometer Reading -->
             <div class="fl-field">
-                <input type="number" id="svcOdometer" placeholder=" " min="0" oninput="svcOdometerInput(this)">
+                <input type="number" id="svcOdometer" placeholder=" " min="0">
                 <label>Odometer Reading (km)</label>
             </div>
-            <div id="svcOdometerNote" style="display:none;margin-top:-0.5rem;font-size:0.75rem;"></div>
             <!-- Vehicle Issues -->
             <div>
                 <label style="font-size:0.78rem;font-weight:600;color:#4a5568;display:block;margin-bottom:0.4rem;">Vehicle Issues <span style="font-weight:400;color:#a0aec0;">(optional — select all that apply)</span></label>
@@ -616,8 +615,7 @@ function svcPlateSelect(plate) {
     var odoInput = document.getElementById('svcOdometer');
     var curOdo = parseInt(String(v.odometer || v.odo || '0').replace(/[^0-9]/g, '')) || 0;
     if (odoInput && curOdo > 0) {
-      // Show note with current odometer but don't auto-fill — let user input manually
-      svcOdometerInput(odoInput);
+      // Do nothing — let user input manually
     }
   } else {
     info.style.display = 'none';
@@ -626,29 +624,6 @@ function svcPlateSelect(plate) {
 
 // Keep backward compat for editService which calls svcOnPlateChange
 function svcOnPlateChange(sel) { svcPlateSelect(sel.value || sel); }
-
-// ── Odometer input helper ──
-function svcOdometerInput(input) {
-  var val = parseInt(input.value) || 0;
-  var note = document.getElementById('svcOdometerNote');
-  var plate = document.getElementById('svcPlateSelect').value;
-  if (!note) return;
-  if (!val) { note.style.display = 'none'; return; }
-  var v = _svcVehicles.find(function(x){ return (x.plate || x.plateNumber) === plate; });
-  if (!v) { note.style.display = 'none'; return; }
-  var curOdo = parseInt(String(v.odometer || v.odo || '0').replace(/[^0-9]/g, '')) || 0;
-  if (curOdo > 0 && val < curOdo) {
-    note.style.display = 'block';
-    note.textContent = '⚠ Current vehicle odometer is ' + curOdo.toLocaleString() + ' km. Are you sure?';
-    note.style.color = '#d69e2e';
-  } else if (curOdo > 0 && val >= curOdo) {
-    note.style.display = 'block';
-    note.textContent = '✓ Odometer will update from ' + curOdo.toLocaleString() + ' → ' + val.toLocaleString() + ' km';
-    note.style.color = '#38a169';
-  } else {
-    note.style.display = 'none';
-  }
-}
 
 function svcParseToInputDate(dateStr) {
   if (!dateStr) return '';
@@ -839,6 +814,24 @@ function svcOnSvcSelect(sel, preQty, preUom, preCost) {}
 
 function svcAddMatRow(name, qty, uom, cost) {
   _svcRefreshData();
+  // Look up itemNum from _svcMaterialItems matching BOTH name and uom
+  // (handles same-name different-UOM items correctly — _svcMaterialItems preserves duplicates)
+  var _lookupItemNum = '';
+  if (name) {
+    var _masterItem = _svcMaterialItems.find(function(i) {
+      var nameMatch = (i.itemName || '').toLowerCase() === name.toLowerCase();
+      if (!nameMatch) return false;
+      // If uom provided, prefer exact uom match; otherwise take first name match
+      return uom ? (i.uom || '').toLowerCase() === uom.toLowerCase() : true;
+    });
+    if (!_masterItem && name) {
+      // Fallback: any name match
+      _masterItem = _svcMaterialItems.find(function(i) {
+        return (i.itemName || '').toLowerCase() === name.toLowerCase();
+      });
+    }
+    if (_masterItem) _lookupItemNum = _masterItem.itemNum || '';
+  }
   var div = document.createElement('div');
   div.className = 'svc-row';
   div.style.cssText = 'margin-bottom:0.6rem;';
@@ -906,7 +899,7 @@ function svcAddMatRow(name, qty, uom, cost) {
 
   if (name) {
     div.querySelector('.svc-mat-search').value = name;
-    svcMatApply(div, name, uom, cost, null);
+    svcMatApply(div, name, uom, cost, null, _lookupItemNum);
   }
 }
 
@@ -925,7 +918,7 @@ function svcMatLookup(input, exact) {
 
   if (exact && matches.length === 1) {
     suggestions.style.display = 'none';
-    svcMatApply(row, matches[0].itemName, matches[0].uom, matches[0].cost, null);
+    svcMatApply(row, matches[0].itemName, matches[0].uom, matches[0].cost, null, matches[0].itemNum || '');
     return;
   }
   if (exact && matches.length === 0) return;
@@ -947,7 +940,7 @@ function svcMatLookup(input, exact) {
     var secondLine = (i.uom||'') + (i.uom && i.cost ? ' • ' : '') + (i.cost ? '₱' + parseFloat(i.cost||0).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
     return '<div style="padding:0.6rem 0.85rem;cursor:pointer;border-bottom:1px solid #f0f4f8;transition:background 0.12s;" '
       + 'onmouseover="this.style.background=\'#f7f8fa\'" onmouseout="this.style.background=\'\'" '
-      + 'onmousedown="event.preventDefault();svcMatApply(this.closest(\'.svc-row\'),\'' + i.itemName.replace(/'/g,"\\'") + '\',\'' + (i.uom||'').replace(/'/g,"\\'") + '\',\'' + (i.cost||'0') + '\',null);this.closest(\'.svc-row\').querySelector(\'.svc-mat-suggestions\').style.display=\'none\';">'
+      + 'onmousedown="event.preventDefault();svcMatApply(this.closest(\'.svc-row\'),\'' + i.itemName.replace(/'/g,"\\'") + '\',\'' + (i.uom||'').replace(/'/g,"\\'") + '\',\'' + (i.cost||'0') + '\',null,\'' + (i.itemNum||'').replace(/'/g,"\\'") + '\');this.closest(\'.svc-row\').querySelector(\'.svc-mat-suggestions\').style.display=\'none\';">'
       + '<div style="font-weight:700;font-size:0.85rem;color:#1a202c;">' + i.itemName + '</div>'
       + (secondLine ? '<div style="font-size:0.75rem;color:#718096;">' + secondLine + '</div>' : '')
       + '</div>';
@@ -959,7 +952,7 @@ function svcMatLookup(input, exact) {
   suggestions.style.display = 'block';
 }
 
-function svcMatApply(row, name, uom, cost, maxStock) {
+function svcMatApply(row, name, uom, cost, maxStock, itemNum) {
   var costNum = parseFloat(cost) || 0;
   var searchWrap = row.querySelector('.svc-mat-search-wrap');
   var detailEl   = row.querySelector('.svc-row-detail');
@@ -1002,7 +995,7 @@ function svcMatApply(row, name, uom, cost, maxStock) {
         + (isLow ? 'color:#d69e2e;background:rgba(214,158,46,0.12);' : 'color:#38a169;background:rgba(56,161,105,0.12);');
       qtyInput.setAttribute('max', available);
       qtyInput.disabled = false;
-      qtyLabel.textContent = 'Quantity * (max ' + available + ')';
+      qtyLabel.textContent = 'Quantity *';
       // Clamp existing value
       var cur = parseInt(qtyInput.value) || 1;
       if (maxStock === null && cur > available) {
@@ -1015,6 +1008,9 @@ function svcMatApply(row, name, uom, cost, maxStock) {
   // Step 1: try from already-loaded window.inventory first (instant)
   var invList = window.inventory || [];
   var invItem = invList.find(function(i) {
+    if (itemNum && itemNum !== '') {
+      return (i.itemNum || i.num || '').toLowerCase() === itemNum.toLowerCase();
+    }
     return (i.itemName || '').toLowerCase() === name.toLowerCase()
         || (i.name   || '').toLowerCase() === name.toLowerCase();
   });
@@ -1027,12 +1023,17 @@ function svcMatApply(row, name, uom, cost, maxStock) {
     stockEl.style.cssText = 'font-size:0.75rem;font-weight:600;margin-top:6px;padding:3px 8px;border-radius:20px;display:inline-block;color:#718096;background:rgba(113,128,150,0.10);';
   }
 
-  // Step 2: always verify with Firestore (same as mobile's stockSnap query)
-  firebase.firestore().collection('stock_inventory')
-    .where('name', '==', name).limit(1).get()
+  // Step 2: always verify with Firestore — query by item number (unique) to handle same-name different-UOM items
+  var stockQuery = (itemNum && itemNum !== '')
+    ? firebase.firestore().collection('stock_inventory').where('num', '==', itemNum).limit(1).get()
+    : (uom && uom !== '')
+      ? firebase.firestore().collection('stock_inventory').where('name', '==', name).where('uom', '==', uom).limit(1).get()
+      : firebase.firestore().collection('stock_inventory').where('name', '==', name).limit(1).get();
+
+  stockQuery
     .then(function(snap) {
-      if (snap.empty) {
-        // Also try by itemName field
+      if (snap.empty && !(itemNum && itemNum !== '')) {
+        // Also try by itemName field (fallback for name-based lookup)
         return firebase.firestore().collection('stock_inventory')
           .where('itemName', '==', name).limit(1).get();
       }
@@ -1129,8 +1130,6 @@ function svcOpenAddModal() {
   document.getElementById('svcMatRows').innerHTML = '';
   document.getElementById('svcTotalDisplay').textContent = '₱0.00';
   document.getElementById('svcOdometer').value = '';
-  var _odoNote = document.getElementById('svcOdometerNote');
-  if (_odoNote) _odoNote.style.display = 'none';
   _svcSelectedIssues = [];
   svcRenderIssueTiles();
   svcAddSvcRow(); svcAddMatRow();
@@ -1162,8 +1161,6 @@ function openAddServiceModal() { svcOpenAddModal(); }
         document.getElementById('svcMatRows').innerHTML = '';
         document.getElementById('svcTotalDisplay').textContent = '₱0.00';
         document.getElementById('svcOdometer').value = '';
-        var _odoNote = document.getElementById('svcOdometerNote');
-        if (_odoNote) _odoNote.style.display = 'none';
         _svcSelectedIssues = [];
         svcRenderIssueTiles();
 
@@ -1283,7 +1280,7 @@ window._svcViewDetails = function(docId) {
         return '<div style="background:white;border-radius:10px;padding:0.75rem 1rem;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">'
           + '<div>'
           + '<div style="font-weight:600;font-size:13px;color:#1a202c;">' + (r.name || '—') + '</div>'
-          + '<div style="font-size:11px;color:#718096;">' + qty + ' ' + (r.uom || '') + ' &nbsp;•&nbsp; ₱' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '/unit</div>'
+          + '<div style="font-size:11px;color:#718096;">' + qty + ' ' + (r.uom || '') + ' &nbsp;•&nbsp; ₱' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</div>'
           + '</div>'
           + '<span style="font-weight:700;font-size:13px;color:#1a202c;">₱' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</span>'
           + '</div>';
@@ -1302,8 +1299,8 @@ window._svcViewDetails = function(docId) {
         var subtotal = qty * cost;
         return '<div style="background:white;border-radius:10px;padding:0.75rem 1rem;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">'
           + '<div>'
-          + '<div style="font-weight:600;font-size:13px;color:#1a202c;">' + (r.name || '—') + '</div>'
-          + '<div style="font-size:11px;color:#718096;">' + qty + ' ' + (r.uom || '') + ' &nbsp;•&nbsp; ₱' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '/unit</div>'
+          + '<div style="font-weight:600;font-size:13px;color:#1a202c;">' + (r.name || '—') + (r.uom ? ' (' + r.uom + ')' : '') + '</div>'
+          + '<div style="font-size:11px;color:#718096;">' + qty + ' &nbsp;•&nbsp; ₱' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</div>'
           + '</div>'
           + '<span style="font-weight:700;font-size:13px;color:#1a202c;">₱' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</span>'
           + '</div>';
