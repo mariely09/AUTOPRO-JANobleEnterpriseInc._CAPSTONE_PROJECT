@@ -203,12 +203,12 @@
                 <div style="font-size:15px;font-weight:800;color:#1a202c;margin-bottom:5px;letter-spacing:-0.2px;">Customer AI Assistant</div>
                 <div id="aiWelcomeSub" style="font-size:12.5px;color:#94a3b8;line-height:1.65;max-width:280px;margin:0 auto;">Ask me anything about your vehicles — PMS status, maintenance history, and more.</div>
                 <div style="display:flex;flex-direction:column;gap:8px;padding:18px 0 4px;" id="aiSuggestions">
-                    <button class="ai-suggest-pill" onclick="aiSend('List all my vehicles')">List all my registered vehicles</button>
-                    <button class="ai-suggest-pill" onclick="aiSend('Give me a fleet summary')">Give me a fleet summary</button>
-                    <button class="ai-suggest-pill" onclick="aiSend('Which vehicles are under maintenance?')">Which of my vehicles are under maintenance?</button>
-                    <button class="ai-suggest-pill" onclick="aiSend('Which vehicles have PMS overdue?')">Which vehicles have PMS overdue?</button>
-                    <button class="ai-suggest-pill" onclick="aiSend('Show my service history')">Show my complete service history</button>
-                    <button class="ai-suggest-pill" onclick="aiSend('How much is an Oil Change service?')">What services do you offer and what are the prices?</button>
+                    <button class="ai-suggest-pill" data-q="List all my vehicles">List all my registered vehicles</button>
+                    <button class="ai-suggest-pill" data-q="Give me a fleet summary">Give me a fleet summary</button>
+                    <button class="ai-suggest-pill" data-q="Which vehicles are under maintenance?">Which of my vehicles are under maintenance?</button>
+                    <button class="ai-suggest-pill" data-q="Which vehicles have PMS overdue?">Which vehicles have PMS overdue?</button>
+                    <button class="ai-suggest-pill" data-q="Show my service history">Show my complete service history</button>
+                    <button class="ai-suggest-pill" data-q="How much is an Oil Change service?">What services do you offer and what are the prices?</button>
                 </div>
             </div>
         </div>
@@ -311,14 +311,16 @@ function _aiRestoreSession(uid) {
     if (!latest.messages || !latest.messages.length) return;
     _aiChatHistory = latest.messages.slice();
     if (latest.id && latest.id.indexOf('w_')!==0) _aiSessionId = latest.id;
+    // Physically remove welcome so restored bubbles are the only content
+    var msgs = document.getElementById('aiMessages');
     var welcome = document.getElementById('aiWelcome');
-    if (welcome) welcome.style.display = 'none';
+    if (welcome && welcome.parentNode === msgs) msgs.removeChild(welcome);
+    else if (welcome) welcome.style.display = 'none';
     document.getElementById('aiChips').style.display = 'none';
     var cb = document.getElementById('aiClearBtn'); if(cb){ cb.style.display='flex'; }
     _aiChatHistory.forEach(function(m){ _aiAddBubble(m.text, m.role==='user'); });
     // Scroll to bottom after restoring
     setTimeout(function(){
-        var msgs = document.getElementById('aiMessages');
         if (msgs) msgs.scrollTop = msgs.scrollHeight;
     }, 60);
 }
@@ -375,14 +377,16 @@ window.aiLoadSession = function(sid) {
     if(!session||!session.messages||!session.messages.length) return;
     var msgs=document.getElementById('aiMessages');
     var welcome=document.getElementById('aiWelcome');
+    // Detach welcome before wiping, keep it in memory for when chat is cleared
     if(welcome&&welcome.parentNode===msgs) msgs.removeChild(welcome);
     msgs.innerHTML='';
-    if(welcome){ welcome.style.display='none'; msgs.appendChild(welcome); }
+    // Do NOT re-append welcome — bubbles are the sole content while a session is active
     document.getElementById('aiChips').style.display='none';
     var cb=document.getElementById('aiClearBtn'); if(cb) cb.style.display='flex';
     _aiChatHistory=session.messages.slice();
     _aiSessionId=(session.id&&session.id.indexOf('w_')!==0)?session.id:null;
     _aiChatHistory.forEach(function(m){ _aiAddBubble(m.text, m.role==='user'); });
+    setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 60);
     aiCloseHistory();
 };
 
@@ -423,6 +427,7 @@ function _updateFabIcon(open) {
 function _aiRebuildWelcome() {
     var msgs = document.getElementById('aiMessages');
     var welcome = document.getElementById('aiWelcome');
+    // Detach welcome if it wandered away, wipe bubbles, re-insert
     if (welcome && welcome.parentNode === msgs) msgs.removeChild(welcome);
     msgs.innerHTML = '';
     if (welcome) {
@@ -430,15 +435,6 @@ function _aiRebuildWelcome() {
         var sug = welcome.querySelector('#aiSuggestions');
         if (sug) sug.style.display = 'flex';
         msgs.appendChild(welcome);
-        // Re-wire suggestion pills after re-inserting
-        welcome.querySelectorAll('.ai-suggest-pill').forEach(function(btn) {
-            var fresh = btn.cloneNode(true);
-            btn.parentNode.replaceChild(fresh, btn);
-            fresh.addEventListener('click', function() {
-                var q = fresh.getAttribute('onclick');
-                if (q) { var m = q.match(/aiSend\('([^']+)'\)/); if(m) aiSend(m[1]); }
-            });
-        });
     }
     document.getElementById('aiChips').style.display = 'none';
     var cb = document.getElementById('aiClearBtn'); if(cb){ cb.style.display='none'; }
@@ -447,6 +443,12 @@ function _aiRebuildWelcome() {
     var sendBtn = document.getElementById('aiSendBtn');
     if(sendBtn){ sendBtn.disabled=false; sendBtn.style.opacity=''; sendBtn.style.cursor=''; }
 }
+
+// ── Delegated pill click handler — works even after welcome is re-inserted ──
+document.addEventListener('click', function(e) {
+    var pill = e.target.closest('.ai-suggest-pill[data-q]');
+    if (pill) { window.aiSend(pill.getAttribute('data-q')); }
+});
 
 // ── Load customer data (ownerId first, fallback owner name) ───────────────
 async function _aiLoadData() {
@@ -583,8 +585,14 @@ window.aiSend = async function(preset) {
     var text = (preset || input.value).trim();
     if (!text || _aiRateLimited) return;
 
+    // Physically remove the welcome block so bubbles are the only content
+    var msgs = document.getElementById('aiMessages');
     var welcome = document.getElementById('aiWelcome');
-    if (welcome) welcome.style.display = 'none';
+    if (welcome && welcome.parentNode === msgs) {
+        msgs.removeChild(welcome);
+    } else if (welcome) {
+        welcome.style.display = 'none';
+    }
     document.getElementById('aiChips').style.display = 'none';
     var cb = document.getElementById('aiClearBtn'); if(cb) cb.style.display='flex';
 
