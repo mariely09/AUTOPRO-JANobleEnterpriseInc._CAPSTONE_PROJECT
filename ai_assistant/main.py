@@ -1,6 +1,6 @@
 import traceback
 import uuid
-import re as _re
+import re
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -37,8 +37,8 @@ def _parse_rate_limit_reset(error_message: str) -> str:
     e.g. 'Please try again in 15m46.944s' → 'about 15 minutes'
          'Please try again in 1h30m.'     → 'about 1 hour and 30 minutes'
     """
-    hours   = _re.search(r'in\s+(\d+)h', error_message)
-    minutes = _re.search(r'in\s+(?:\d+h\s*)?(\d+)m', error_message)
+    hours   = re.search(r'in\s+(\d+)h', error_message)
+    minutes = re.search(r'in\s+(?:\d+h\s*)?(\d+)m', error_message)
 
     parts = []
     if hours:
