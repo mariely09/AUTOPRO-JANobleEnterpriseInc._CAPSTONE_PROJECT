@@ -7,14 +7,14 @@
   <div style="position:relative;display:inline-flex;">
     <button id="ragAiToggleBtn" onclick="ragAiToggle()"
       title="Smart Reports AI"
-      style="width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;
-             background:transparent;
-             box-shadow:0 4px 20px rgba(0,0,0,0.18),0 0 0 0 rgba(232,0,28,0.2);
+      style="width:58px;height:58px;border-radius:50%;border:2.5px solid #E8001C;cursor:pointer;
+             background:white;
+             box-shadow:0 4px 20px rgba(232,0,28,0.22),0 0 0 0 rgba(232,0,28,0.2);
              display:flex;align-items:center;justify-content:center;
-             transition:all 0.25s ease;padding:0;overflow:hidden;
+             transition:all 0.25s ease;padding:3px;overflow:hidden;
              animation:ragFabPulse 2.8s ease-in-out infinite;">
       <img id="ragFabAiImg" src="../static/img/AI_LOGO.png"
-           style="width:58px;height:58px;object-fit:cover;border-radius:50%;display:block;" alt="AI">
+           style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">
     </button>
     <!-- Green online indicator dot -->
     <span id="ragFabOnlineDot" style="position:absolute;bottom:2px;right:2px;width:13px;height:13px;border-radius:50%;
@@ -113,7 +113,7 @@
 
 <style>
 @keyframes ragAiSlideIn { from{opacity:0;transform:translateY(16px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
-@keyframes ragFabPulse  { 0%,100%{box-shadow:0 4px 20px rgba(0,0,0,0.18),0 0 0 0 rgba(232,0,28,0.15)} 50%{box-shadow:0 4px 20px rgba(0,0,0,0.18),0 0 0 8px rgba(232,0,28,0)} }
+@keyframes ragFabPulse  { 0%,100%{box-shadow:0 4px 20px rgba(232,0,28,0.22),0 0 0 0 rgba(232,0,28,0.15)} 50%{box-shadow:0 4px 20px rgba(232,0,28,0.22),0 0 0 8px rgba(232,0,28,0)} }
 @keyframes ragBounce    { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
 @keyframes ragSpin      { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
@@ -250,12 +250,16 @@ window.ragAiToggle = function() {
       // Now opening — show X
       btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
       btn.style.background = 'linear-gradient(135deg,#E8001C,#c0001a)';
+      btn.style.border = 'none';
       btn.style.overflow = 'visible';
+      btn.style.padding = '0';
     } else {
-      // Now closing — show AI image
-      btn.innerHTML = '<img id="ragFabAiImg" src="../static/img/AI_LOGO.png" style="width:58px;height:58px;object-fit:cover;border-radius:50%;display:block;" alt="AI">';
-      btn.style.background = 'transparent';
+      // Now closing — show AI image with red border
+      btn.innerHTML = '<img id="ragFabAiImg" src="../static/img/AI_LOGO.png" style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">';
+      btn.style.background = 'white';
+      btn.style.border = '2.5px solid #E8001C';
       btn.style.overflow = 'hidden';
+      btn.style.padding = '3px';
     }
   }
 };
