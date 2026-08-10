@@ -137,7 +137,7 @@
               <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,0.4);flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
                 <img src="../static/img/AI_LOGO.png" style="width:40px;height:40px;object-fit:cover;display:block;" alt="AI">
               </div>
-              <span id="aiFabOnlineDotHdr" style="position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid white;box-shadow:0 0 5px rgba(74,222,128,0.8);z-index:1;"></span>
+              <span id="aiFabOnlineDotHdr" style="display:none;position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid white;box-shadow:0 0 5px rgba(74,222,128,0.8);z-index:1;"></span>
             </div>
             <!-- Title -->
             <div style="flex:1;min-width:0;z-index:1;">
@@ -245,9 +245,6 @@
           <img id="aiFabImg" src="../static/img/AI_LOGO.png"
                style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">
       </button>
-      <!-- Online indicator dot -->
-      <span id="aiFabOnlineDot" style="position:absolute;bottom:2px;right:2px;width:13px;height:13px;border-radius:50%;
-            background:#22c55e;border:2.5px solid white;box-shadow:0 0 6px rgba(34,197,94,0.7);z-index:1;transition:background .3s;"></span>
     </div>
 </div>
 
@@ -319,7 +316,19 @@ function _aiRestoreSession(uid) {
     document.getElementById('aiChips').style.display = 'none';
     var cb = document.getElementById('aiClearBtn'); if(cb){ cb.style.display='flex'; }
     _aiChatHistory.forEach(function(m){ _aiAddBubble(m.text, m.role==='user'); });
+    // Scroll to bottom after restoring
+    setTimeout(function(){
+        var msgs = document.getElementById('aiMessages');
+        if (msgs) msgs.scrollTop = msgs.scrollHeight;
+    }, 60);
 }
+
+// ── Save on page exit so chat survives navigation ─────────────────────────
+window.addEventListener('pagehide', function(){ if (_aiChatHistory.length) _aiSaveChat(); });
+window.addEventListener('beforeunload', function(){ if (_aiChatHistory.length) _aiSaveChat(); });
+document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'hidden' && _aiChatHistory.length) _aiSaveChat();
+});
 
 // ── History drawer ────────────────────────────────────────────────────────
 window.aiOpenHistory = function() {
@@ -647,25 +656,17 @@ window.aiClear = function() {
 function _aiCheckHealth() {
     fetch('/api/ai-health').then(function(r){return r.json();}).then(function(d){
         var dot=document.getElementById('aiStatusDot'), txt=document.getElementById('aiStatusTxt');
-        var fabDot=document.getElementById('aiFabOnlineDot'), hdrDot=document.getElementById('aiFabOnlineDotHdr');
         if(d.online){
             if(dot){dot.style.background='#4ade80';dot.style.boxShadow='0 0 6px rgba(74,222,128,0.8)';}
             if(txt) txt.textContent='Online';
-            if(fabDot){fabDot.style.background='#22c55e';fabDot.style.boxShadow='0 0 6px rgba(34,197,94,0.7)';}
-            if(hdrDot){hdrDot.style.background='#4ade80';}
         } else {
             if(dot){dot.style.background='#d69e2e';dot.style.boxShadow='0 0 6px rgba(214,158,46,0.8)';}
             if(txt) txt.textContent='Local mode';
-            if(fabDot){fabDot.style.background='#f59e0b';fabDot.style.boxShadow='0 0 6px rgba(245,158,11,0.7)';}
-            if(hdrDot){hdrDot.style.background='#fbbf24';}
         }
     }).catch(function(){
         var dot=document.getElementById('aiStatusDot'),txt=document.getElementById('aiStatusTxt');
-        var fabDot=document.getElementById('aiFabOnlineDot'), hdrDot=document.getElementById('aiFabOnlineDotHdr');
         if(dot){dot.style.background='#d69e2e';dot.style.boxShadow='0 0 6px rgba(214,158,46,0.8)';}
         if(txt) txt.textContent='Local mode';
-        if(fabDot){fabDot.style.background='#f59e0b';fabDot.style.boxShadow='0 0 6px rgba(245,158,11,0.7)';}
-        if(hdrDot){hdrDot.style.background='#fbbf24';}
     });
 }
 

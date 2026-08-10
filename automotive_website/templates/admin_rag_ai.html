@@ -16,11 +16,6 @@
       <img id="ragFabAiImg" src="../static/img/AI_LOGO.png"
            style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">
     </button>
-    <!-- Green online indicator dot -->
-    <span id="ragFabOnlineDot" style="position:absolute;bottom:2px;right:2px;width:13px;height:13px;border-radius:50%;
-          background:#22c55e;border:2.5px solid white;
-          box-shadow:0 0 6px rgba(34,197,94,0.7);z-index:1;
-          transition:background .3s;"></span>
   </div>
 </div>
 
@@ -44,7 +39,7 @@
         <img src="../static/img/AI_LOGO.png" style="width:40px;height:40px;object-fit:cover;display:block;" alt="AI">
       </div>
       <!-- Online dot on avatar -->
-      <span id="ragHeaderOnlineDot" style="position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid white;box-shadow:0 0 5px rgba(74,222,128,0.8);"></span>
+      <span id="ragHeaderOnlineDot" style="display:none;position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid white;box-shadow:0 0 5px rgba(74,222,128,0.8);"></span>
     </div>
     <!-- Title -->
     <div style="flex:1;min-width:0;">
@@ -290,28 +285,18 @@ function _ragWatch() {
       fetch('/api/ai-health').then(function(r){return r.json();}).then(function(d){
         var dot = document.getElementById('ragAiDot');
         var txt = document.getElementById('ragAiStatus');
-        var fabDot = document.getElementById('ragFabOnlineDot');
-        var hdrDot = document.getElementById('ragHeaderOnlineDot');
         if (d.online) {
-          if (dot) dot.style.background = '#38a169';
-          if (txt) { txt.style.color = '#38a169'; txt.textContent = 'Online · RAG AI + Live data'; }
-          if (fabDot) { fabDot.style.background = '#22c55e'; fabDot.style.boxShadow = '0 0 6px rgba(34,197,94,0.7)'; }
-          if (hdrDot) { hdrDot.style.background = '#4ade80'; }
+          if (dot) dot.style.background = '#4ade80';
+          if (txt) { txt.textContent = 'Online · RAG AI'; }
         } else {
           if (dot) dot.style.background = '#d69e2e';
-          if (txt) { txt.style.color = '#d69e2e'; txt.textContent = 'Online · Local mode (no AI)'; }
-          if (fabDot) { fabDot.style.background = '#f59e0b'; fabDot.style.boxShadow = '0 0 6px rgba(245,158,11,0.7)'; }
-          if (hdrDot) { hdrDot.style.background = '#fbbf24'; }
+          if (txt) { txt.textContent = 'Online · Local mode'; }
         }
       }).catch(function(){
         var dot = document.getElementById('ragAiDot');
         var txt = document.getElementById('ragAiStatus');
-        var fabDot = document.getElementById('ragFabOnlineDot');
-        var hdrDot = document.getElementById('ragHeaderOnlineDot');
         if (dot) dot.style.background = '#d69e2e';
-        if (txt) { txt.style.color = '#d69e2e'; txt.textContent = 'Online · Local mode'; }
-        if (fabDot) { fabDot.style.background = '#f59e0b'; fabDot.style.boxShadow = '0 0 6px rgba(245,158,11,0.7)'; }
-        if (hdrDot) { hdrDot.style.background = '#fbbf24'; }
+        if (txt) { txt.textContent = 'Online · Local mode'; }
       });
     }
   }, 600);
