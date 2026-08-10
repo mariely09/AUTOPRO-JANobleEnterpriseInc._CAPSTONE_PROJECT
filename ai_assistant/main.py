@@ -428,72 +428,33 @@ CUSTOMER_SYSTEM_PROMPT = _build_customer_system_prompt("")  # fallback reference
 
 def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                        history: list[dict]) -> dict:
-    """Core customer LLM loop with tool-calling and automatic key rotation."""
+    """Core customer LLM loop — direct Groq call, no key rotation."""
     import json
     from groq import Groq, BadRequestError, RateLimitError
     from config import settings
     from customer_tools import CUSTOMER_TOOL_SCHEMAS, CUSTOMER_TOOL_FUNCTIONS
-    from api_key_manager import get_manager
 
-    manager = get_manager()
-
-    def _make_client() -> Groq:
-        key = manager.get_current_key() or settings.GROQ_API_KEY
-        return Groq(api_key=key)
-
-    def _call(msgs, tools=None, _attempt: int = 0):
-        """Call Groq with automatic rotation on rate-limit."""
-        from client import AllKeysRateLimitedError
-
-        manager._ensure_loaded()
-        total_keys = max(1, len(manager._keys))
-        max_attempts = max(manager._max_retries, total_keys)
-
-        last_key_id = manager.get_current_key_id()
-        current_key = manager.get_current_key() or settings.GROQ_API_KEY
-        last_exc: Exception | None = None
-        tried_key_ids: set = set()
-
-        for attempt in range(max_attempts):
-            # Avoid retrying the same key twice
-            if last_key_id in tried_key_ids:
-                next_key = manager.rotate_on_rate_limit(failed_key_id=last_key_id)
-                if next_key is None:
-                    break
-                last_key_id = manager.get_current_key_id()
-                current_key = next_key
-
-            tried_key_ids.add(last_key_id)
-
-            try:
-                client = Groq(api_key=current_key)
-                kwargs = {
-                    "model":      settings.GROQ_MODEL,
-                    "messages":   msgs,
-                    "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,  # ← token cap
-                }
-                if tools:
-                    kwargs["tools"] = tools
-                return client.chat.completions.create(**kwargs)
-            except RateLimitError as exc:
-                last_exc = exc
-                if not manager._rotation_enabled:
-                    raise
-                next_key = manager.rotate_on_rate_limit(failed_key_id=last_key_id)
-                if next_key is None:
-                    raise AllKeysRateLimitedError(
-                        "All API keys are currently rate-limited. "
-                        "Please try again in a few minutes."
-                    ) from exc
-                last_key_id = manager.get_current_key_id()
-                current_key = next_key
-
-        if last_exc:
-            raise AllKeysRateLimitedError(
-                "All API keys are currently rate-limited. "
-                "Please try again in a few minutes."
-            ) from last_exc
-        raise AllKeysRateLimitedError("All Groq API key rotation retries exhausted.")
+    def _call(msgs, tools=None):
+        """Call Groq directly using GROQ_API_KEY from config."""
+        from client import RateLimitedError as _RLE
+        api_key = settings.GROQ_API_KEY
+        if not api_key:
+            raise _RLE("No Groq API key configured. Set GROQ_API_KEY in .env.")
+        try:
+            client = Groq(api_key=api_key)
+            kwargs: dict = {
+                "model":      settings.GROQ_MODEL,
+                "messages":   msgs,
+                "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
+            }
+            if tools:
+                kwargs["tools"] = tools
+            return client.chat.completions.create(**kwargs)
+        except RateLimitError as exc:
+            raise _RLE(
+                "The AI service has reached its daily usage limit (Groq free tier). "
+                "Please try again later."
+            ) from exc
 
     def _strip_null(raw: str) -> dict:
         if not raw or not raw.strip():
