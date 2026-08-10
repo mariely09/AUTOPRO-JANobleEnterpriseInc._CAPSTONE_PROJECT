@@ -247,7 +247,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                   setState(() => _fabOpen = false);
                   final editablePOs = _deliveries.where((d) {
                     final st = d['status'] as String? ?? '';
-                    return st == 'For Admin Review' || st == 'Pending';
+                    return st == 'For Admin Review';
                   }).toList();
                   if (editablePOs.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -266,7 +266,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
               ),
               const SizedBox(height: 10),
               _fabAction(
-                label: 'New Purchase Order (PO)',
+                label: 'Create Purchase Order (PO)',
                 icon: Icons.add_box_outlined,
                 onTap: () { setState(() => _fabOpen = false); _showNewDeliveryModal(); },
               ),
@@ -1640,7 +1640,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                            content: Text('Item submitted for double check!'),
+                            content: Text('Submitted!'),
                             backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating));
                         }
                       } catch (err) {

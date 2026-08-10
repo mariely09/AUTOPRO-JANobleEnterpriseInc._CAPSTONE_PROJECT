@@ -720,7 +720,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                           if (ctx.mounted) {
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                              content: Text('Item submitted for double check!'),
+                              content: Text('Submitted!'),
                               backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating));
                           }
                         } catch (err) {
@@ -729,7 +729,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                         }
                       },
                       icon: const Icon(Icons.check_circle_outline, size: 16),
-                      label: const Text('Submit for Double Check'),
+                      label: const Text('Submit'),
                       style: ElevatedButton.styleFrom(backgroundColor: red, foregroundColor: Colors.white),
                     )),
                 ]),
@@ -873,21 +873,6 @@ class _StaffDashboardState extends State<StaffDashboard> {
                           color: barColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
                         child: Text(statusLabel,
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: barColor))),
-                    ]),
-                    const SizedBox(height: 10),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        backgroundColor: const Color(0xFFe2e8f0),
-                        valueColor: AlwaysStoppedAnimation<Color>(barColor),
-                        minHeight: 8)),
-                    const SizedBox(height: 6),
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text('Min: $min', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                      Text('$stock / $max',
-                        style: TextStyle(fontSize: 11, color: barColor, fontWeight: FontWeight.w600)),
-                      Text('Max: $max', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
                     ]),
                   ]),
                 ),

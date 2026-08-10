@@ -36,7 +36,7 @@ class _AdminArchiveBodyState extends State<AdminArchiveBody>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl = TabController(length: 3, vsync: this);
     _tabCtrl.addListener(() => setState(() {}));
   }
 
@@ -60,7 +60,9 @@ class _AdminArchiveBodyState extends State<AdminArchiveBody>
           decoration: InputDecoration(
             hintText: _tabCtrl.index == 0
                 ? 'Search archived items...'
-                : 'Search archived records...',
+                : _tabCtrl.index == 1
+                    ? 'Search archived records...'
+                    : 'Search archived vehicles...',
             hintStyle: const TextStyle(fontSize: 13, color: Color(0xFFa0aec0)),
             prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFFa0aec0)),
             suffixIcon: _searchQuery.isNotEmpty
@@ -79,7 +81,7 @@ class _AdminArchiveBodyState extends State<AdminArchiveBody>
         ),
       ),
       // ── Tab bar ──
-      Container(
+      Material(
         color: Colors.white,
         child: TabBar(
           controller: _tabCtrl,
@@ -91,6 +93,7 @@ class _AdminArchiveBodyState extends State<AdminArchiveBody>
           tabs: const [
             Tab(text: 'Item Master'),
             Tab(text: 'Maintenance Records'),
+            Tab(text: 'Vehicles'),
           ],
         ),
       ),
@@ -101,6 +104,7 @@ class _AdminArchiveBodyState extends State<AdminArchiveBody>
           children: [
             _ItemMasterArchiveTab(searchQuery: _searchQuery),
             _MaintenanceArchiveTab(searchQuery: _searchQuery),
+            _VehiclesArchiveTab(searchQuery: _searchQuery),
           ],
         ),
       ),
@@ -119,8 +123,9 @@ class _ItemMasterArchiveTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('item_master')
-          .where('archived', isEqualTo: true)
+          .collection('archive')
+          .doc('item_master')
+          .collection('items')
           .snapshots(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
@@ -259,10 +264,20 @@ class _ItemMasterCard extends StatelessWidget {
     );
     if (confirm != true) return;
     try {
+      final archiveRef = FirebaseFirestore.instance
+          .collection('archive')
+          .doc('item_master')
+          .collection('items')
+          .doc(item['id'] as String);
+      final archiveSnap = await archiveRef.get();
+      if (!archiveSnap.exists) throw Exception('Archive doc not found');
+      final data = Map<String, dynamic>.from(archiveSnap.data() as Map<String, dynamic>);
+      data.remove('archivedAt');
       await FirebaseFirestore.instance
           .collection('item_master')
           .doc(item['id'] as String)
-          .update({'archived': false, 'archivedAt': null});
+          .set(data);
+      await archiveRef.delete();
 
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -302,7 +317,12 @@ class _ItemMasterCard extends StatelessWidget {
     if (confirm != true) return;
     try {
       final num = item['num'] as String? ?? '';
-      await FirebaseFirestore.instance.collection('item_master').doc(item['id'] as String).delete();
+      await FirebaseFirestore.instance
+          .collection('archive')
+          .doc('item_master')
+          .collection('items')
+          .doc(item['id'] as String)
+          .delete();
       if (num.isNotEmpty) {
         final stockSnap = await FirebaseFirestore.instance
             .collection('stock_inventory').where('num', isEqualTo: num).limit(1).get();
@@ -329,8 +349,9 @@ class _MaintenanceArchiveTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('maintenance')
-          .where('archived', isEqualTo: true)
+          .collection('archive')
+          .doc('maintenance')
+          .collection('records')
           .snapshots(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
@@ -466,10 +487,20 @@ class _MaintenanceArchiveCard extends StatelessWidget {
     );
     if (confirm != true) return;
     try {
+      final archiveRef = FirebaseFirestore.instance
+          .collection('archive')
+          .doc('maintenance')
+          .collection('records')
+          .doc(item['id'] as String);
+      final archiveSnap = await archiveRef.get();
+      if (!archiveSnap.exists) throw Exception('Archive doc not found');
+      final data = Map<String, dynamic>.from(archiveSnap.data() as Map<String, dynamic>);
+      data.remove('archivedAt');
       await FirebaseFirestore.instance
           .collection('maintenance')
           .doc(item['id'] as String)
-          .update({'archived': false, 'archivedAt': null});
+          .set(data);
+      await archiveRef.delete();
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Service record for "$plate" restored!'),
         backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
@@ -498,12 +529,242 @@ class _MaintenanceArchiveCard extends StatelessWidget {
     if (confirm != true) return;
     try {
       await FirebaseFirestore.instance
-          .collection('maintenance')
+          .collection('archive')
+          .doc('maintenance')
+          .collection('records')
           .doc(item['id'] as String)
           .delete();
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Service record for "$plate" permanently deleted.'),
         backgroundColor: Colors.red, behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    }
+  }
+}
+
+// ── Vehicles Archive Tab ─────────────────────────────────────
+class _VehiclesArchiveTab extends StatelessWidget {
+  final String searchQuery;
+  const _VehiclesArchiveTab({required this.searchQuery});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('archive')
+          .doc('vehicles')
+          .collection('vehicles')
+          .snapshots(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final docs = snap.data?.docs ?? [];
+        final items = docs.map((d) {
+          final data = d.data() as Map<String, dynamic>;
+          return {
+            'id': d.id,
+            'plate':       data['plate']?.toString()       ?? data['plateNumber']?.toString() ?? '—',
+            'type':        data['type']?.toString()        ?? '—',
+            'owner':       data['owner']?.toString()       ?? '—',
+            'odo':         data['odo']?.toString()         ?? '',
+            'lastSvcDate': data['lastSvcDate']?.toString() ?? data['lastServiceDate']?.toString() ?? '',
+            'svcFreq':     data['svcFreq']?.toString()     ?? '',
+          };
+        }).where((v) {
+          if (searchQuery.isEmpty) return true;
+          return (v['plate'] as String).toLowerCase().contains(searchQuery) ||
+                 (v['owner'] as String).toLowerCase().contains(searchQuery) ||
+                 (v['type']  as String).toLowerCase().contains(searchQuery);
+        }).toList();
+
+        if (items.isEmpty) {
+          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.archive_outlined, size: 52, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            const Text('No archived vehicles found.', style: TextStyle(color: Color(0xFF718096))),
+          ]));
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (_, i) => _VehiclesArchiveCard(item: items[i]),
+        );
+      },
+    );
+  }
+}
+
+class _VehiclesArchiveCard extends StatelessWidget {
+  final Map<String, dynamic> item;
+  const _VehiclesArchiveCard({required this.item});
+
+  static const _monthsFull = ['January','February','March','April','May',
+    'June','July','August','September','October','November','December'];
+
+  String _fmtDate(String d) {
+    if (d.isEmpty) return '—';
+    final dt = DateTime.tryParse(d);
+    if (dt == null) return d;
+    return '${_monthsFull[dt.month - 1]} ${dt.day}, ${dt.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final plate = item['plate'] as String;
+    final odo   = (item['odo'] as String).isNotEmpty ? item['odo'] as String : '—';
+    final lastSvc = _fmtDate(item['lastSvcDate'] as String);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade100),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6)],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+            child: const Icon(Icons.archive_outlined, color: Colors.orange, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(plate, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1a202c))),
+            Text('${item['type']}  •  ${item['owner']}',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF4a5568))),
+            Text('$odo  •  Last service: $lastSvc',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+          ])),
+        ]),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: OutlinedButton.icon(
+            onPressed: () => _restore(context),
+            icon: const Icon(Icons.restore, size: 15),
+            label: const Text('Restore', style: TextStyle(fontSize: 12)),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              foregroundColor: const Color(0xFF38a169),
+              side: const BorderSide(color: Color(0xFF38a169)),
+            ),
+          )),
+          const SizedBox(width: 8),
+          Expanded(child: OutlinedButton.icon(
+            onPressed: () => _permanentDelete(context),
+            icon: const Icon(Icons.delete_forever_outlined, size: 15, color: Colors.red),
+            label: const Text('Delete', style: TextStyle(fontSize: 12, color: Colors.red)),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              side: const BorderSide(color: Colors.red),
+            ),
+          )),
+        ]),
+      ]),
+    );
+  }
+
+  Future<void> _restore(BuildContext context) async {
+    final plate = item['plate'] as String;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.unarchive_outlined, color: Color(0xFF003087), size: 22),
+          SizedBox(width: 8),
+          Text('Restore Vehicle', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: Text('Restore "$plate" back to the active vehicle list?',
+            style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096)))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF003087), foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            child: const Text('Restore'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      final archiveRef = FirebaseFirestore.instance
+          .collection('archive')
+          .doc('vehicles')
+          .collection('vehicles')
+          .doc(item['id'] as String);
+      final archiveSnap = await archiveRef.get();
+      if (!archiveSnap.exists) throw Exception('Archive doc not found');
+      final data = Map<String, dynamic>.from(archiveSnap.data() as Map<String, dynamic>);
+      data.remove('archivedAt');
+      data.remove('archived');
+      await FirebaseFirestore.instance
+          .collection('vehicles')
+          .doc(item['id'] as String)
+          .set(data);
+      await archiveRef.delete();
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('"$plate" restored to active vehicles!'),
+        backgroundColor: const Color(0xFF003087),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    }
+  }
+
+  Future<void> _permanentDelete(BuildContext context) async {
+    final plate = item['plate'] as String;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.delete_forever_outlined, color: Colors.red, size: 22),
+          SizedBox(width: 8),
+          Text('Delete Permanently', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: Text('This action cannot be undone. Permanently delete "$plate"?',
+            style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096)))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red, foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            child: const Text('Yes, Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('archive')
+          .doc('vehicles')
+          .collection('vehicles')
+          .doc(item['id'] as String)
+          .delete();
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('"$plate" permanently deleted.'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ));
     } catch (e) {

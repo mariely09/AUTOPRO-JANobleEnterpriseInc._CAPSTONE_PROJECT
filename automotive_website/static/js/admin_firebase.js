@@ -103,13 +103,13 @@
     // Vehicles
     db.collection('vehicles').onSnapshot(snap => {
       window._fbVehicles = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
-      // Map to admin_functions.js expected format
+      // Map to admin_functions.js expected format — all vehicles (no archived flag needed)
       window.assets = window._fbVehicles.map(v => {
         // Auto-calculate nextPMSDue from lastSvcDate + svcFreq months
         const lastSvc = v.lastSvcDate || v.lastServiceDate || '';
-        const freq = parseInt(v.svcFreq || v.serviceFrequency) || 2;
+        const freq = parseInt(v.svcFreq || v.serviceFrequency) || 0;
         let nextPMSDue = v.nextPMSDue || '';
-        if (lastSvc && !nextPMSDue) {
+        if (lastSvc && freq > 0 && !nextPMSDue) {
           const d = new Date(lastSvc);
           if (!isNaN(d)) {
             d.setMonth(d.getMonth() + freq);

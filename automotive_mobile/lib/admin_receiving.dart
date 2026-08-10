@@ -233,7 +233,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
               ),
               const SizedBox(height: 10),
               _fabAction(
-                label: 'New Purchase Order (PO)',
+                label: 'Create Purchase Order (PO)',
                 icon: Icons.add_box_outlined,
                 onTap: () { setState(() => _fabOpen = false); _showNewDeliveryModal(); },
               ),
@@ -1913,7 +1913,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                            content: Text('Item submitted for double check!'),
+                            content: Text('Submitted!'),
                             backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating));
                         }
                       } catch (err) {

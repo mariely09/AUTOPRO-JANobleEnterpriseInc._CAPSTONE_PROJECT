@@ -110,6 +110,11 @@
                     <svg style="position:absolute;left:0.65rem;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <input type="text" class="search-bar" placeholder="Search users..." id="userSearch" style="width:220px;padding-left:2rem;" oninput="renderUsersList()">
                 </div>
+                <select id="userStatusFilter" onchange="userSetStatusFilter(this.value,null)" class="search-bar" style="width:140px;padding:0.5rem 2rem 0.5rem 0.75rem;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%23a0aec0%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpolyline points=%276 9 12 15 18 9%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 0.6rem center;">
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
                 <select id="userSortBy" onchange="renderUsersList()" class="search-bar" style="width:160px;padding:0.5rem 2rem 0.5rem 0.75rem;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%23a0aec0%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpolyline points=%276 9 12 15 18 9%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 0.6rem center;">
                     <option value="name-asc">Name A→Z</option>
                     <option value="name-desc">Name Z→A</option>
@@ -323,10 +328,18 @@ var _currentTab = 'all';
 
 // ── User role filter ──
 window._userFilter = 'all';
+window._statusFilter = 'all';
 window.userSetFilter = function(filter, btn) {
   window._userFilter = filter;
   document.querySelectorAll('#userFilterPills .dss-pill').forEach(function(p){ p.classList.remove('active'); });
   if (btn) btn.classList.add('active');
+  if (typeof renderUsersList === 'function') renderUsersList();
+};
+window.userSetStatusFilter = function(filter, btn) {
+  window._statusFilter = filter;
+  // Sync dropdown
+  var sel = document.getElementById('userStatusFilter');
+  if (sel && sel.value !== filter) sel.value = filter;
   if (typeof renderUsersList === 'function') renderUsersList();
 };
 

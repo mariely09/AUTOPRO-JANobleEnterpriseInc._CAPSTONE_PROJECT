@@ -363,7 +363,7 @@ function renderAssetsList() {
             + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;">'
             +   '<button class="btn-small btn-primary" onclick="viewAssetDetails(\'' + asset.assetNum + '\')" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>'
             +   '<button class="btn-small btn-secondary" onclick="editAsset(\'' + asset.assetNum + '\')" title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
-            +   '<button class="btn-small btn-danger" onclick="deleteAsset(\'' + asset.assetNum + '\')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
+            +   '<button class="btn-small btn-danger" onclick="deleteAsset(\'' + asset.assetNum + '\')" title="Archive" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>'
             + '</div></div>';
     });
     apRenderPaged('assetsList', rows, 10, 'renderAssetsList');
@@ -2448,25 +2448,19 @@ function renderUsersList() {
     if (!window._fbUsersLoaded && userCardsList && userCardsList.innerHTML.indexOf('Loading') !== -1) return;
     var search = (document.getElementById('userSearch')||{}).value || '';
 
-    // Split pending vs non-pending
-    var pending    = allUsers.filter(function(u){ return (u.status||'').toLowerCase() === 'pending'; });
-    var nonPending = allUsers.filter(function(u){ return (u.status||'').toLowerCase() !== 'pending'; });
-
-    // Update pending badge
+    // Pending badge/cards (kept for backwards compat, will be empty)
+    var pending = allUsers.filter(function(u){ return (u.status||'').toLowerCase() === 'pending'; });
     var badge = document.getElementById('pendingBadge');
-    if (badge) {
-        if (pending.length > 0) { badge.textContent = pending.length; badge.style.display = 'inline-block'; }
-        else { badge.style.display = 'none'; }
-    }
-
-    // Render pending cards
+    if (badge) badge.style.display = 'none';
     if (typeof renderPendingCards === 'function') renderPendingCards(pending);
 
-    // Filter non-pending by search
-    var filtered = nonPending;
+    // All users go into the main list
+    var filtered = allUsers.slice();
+
+    // Apply search
     if (search.trim()) {
         var q = search.toLowerCase();
-        filtered = nonPending.filter(function(u){
+        filtered = filtered.filter(function(u){
             return (u.name||'').toLowerCase().includes(q)
                 || (u.username||'').toLowerCase().includes(q)
                 || (u.email||'').toLowerCase().includes(q)
@@ -2478,6 +2472,12 @@ function renderUsersList() {
     var userFilter = window._userFilter || 'all';
     if (userFilter !== 'all') {
         filtered = filtered.filter(function(u){ return (u.role||'').toLowerCase() === userFilter; });
+    }
+
+    // Apply status filter (Active / Inactive only)
+    var statusFilter = window._statusFilter || 'all';
+    if (statusFilter !== 'all') {
+        filtered = filtered.filter(function(u){ return (u.status||'').toLowerCase() === statusFilter; });
     }
 
     // Apply sort
@@ -2508,8 +2508,8 @@ function renderUsersList() {
     var rows = filtered.map(function(u, idx) {
         var roleColor = roleColors[(u.role||'').toLowerCase()] || '#718096';
         var statusLower = (u.status||'').toLowerCase();
-        var statusColor = statusLower === 'active' ? '#38a169' : '#718096';
-        var statusLabel = statusLower === 'active' ? 'Active' : 'Inactive';
+        var statusColor = statusLower === 'active' ? '#38a169' : statusLower === 'pending' ? '#d69e2e' : '#718096';
+        var statusLabel = statusLower === 'active' ? 'Active' : statusLower === 'pending' ? 'Pending' : 'Inactive';
         var statusBadge = '<span style="background:'+statusColor+'20;color:'+statusColor+';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">'+statusLabel+'</span>';
         var roleLabel = (u.role||'');
         roleLabel = roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1);

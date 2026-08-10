@@ -18,15 +18,15 @@ class AdminVehiclesList extends StatefulWidget {
 class _AdminVehiclesListState extends State<AdminVehiclesList> {
   static const _red = Color(0xFFE8001C);
 
-  // 0=Vehicles, 1=Maintenance, 2=Bookings, 3=Issuances
+  // 0=Vehicles, 1=Maintenance, 2=Bookings, 3=Issuances, 4=Archive
   int _tab = 0;
   bool _searching = false;
   final _searchCtrl = TextEditingController();
   String _maintSortBy = 'date-desc';
   String _vehicleSortBy = 'plate-asc';
 
-  static const _tabs = ['Vehicles', 'Maintenance', 'Bookings', 'Issuances'];
-  static const _tabTitles = ['Vehicle List', 'Maintenance', 'Bookings', 'Issuances'];
+  static const _tabs = ['Vehicles', 'Maintenance', 'Bookings', 'Issuances', 'Archive'];
+  static const _tabTitles = ['Vehicle List', 'Maintenance', 'Bookings', 'Issuances', 'Archived Vehicles'];
 
   @override
   void dispose() {
@@ -153,6 +153,7 @@ class _AdminVehiclesListState extends State<AdminVehiclesList> {
           AdminVehicleMaintenanceBody(searchQuery: _tab == 1 && _searching ? _searchCtrl.text.toLowerCase() : '', sortBy: _maintSortBy),
           AdminServiceBookingsBody(searchQuery: _tab == 2 && _searching ? _searchCtrl.text.toLowerCase() : ''),
           AdminIssuancesBody(searchQuery: _tab == 3 && _searching ? _searchCtrl.text.toLowerCase() : ''),
+          ArchivedVehiclesBody(searchQuery: _tab == 4 && _searching ? _searchCtrl.text.toLowerCase() : ''),
         ],
       )),
     );
@@ -250,8 +251,9 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
             'lastSvcOdo': data['lastSvcOdo']?.toString() ?? '',
             'lastSvcDate': data['lastSvcDate']?.toString() ?? '',
             'svcFreq': data['svcFreq']?.toString() ?? '',
+            'archived': (data['archived'] as bool? ?? false) ? 'true' : 'false',
           };
-        }).toList();
+        }).where((v) => v['archived'] != 'true').toList();
 
         // Apply sort
         vehicles.sort((a, b) {
@@ -434,10 +436,10 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                   )),
                   const SizedBox(width: 10),
                   Expanded(child: OutlinedButton.icon(
-                    onPressed: () { Navigator.pop(context); _confirmDelete(v); },
-                    icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                    label: const Text('Delete', style: TextStyle(color: Colors.red)),
-                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
+                    onPressed: () { Navigator.pop(context); _archiveVehicle(v); },
+                    icon: const Icon(Icons.archive_outlined, size: 16, color: Colors.orange),
+                    label: const Text('Archive', style: TextStyle(color: Colors.orange)),
+                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.orange)),
                   )),
                 ]),
               ]),
@@ -697,18 +699,18 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
     );
   }
 
-  void _confirmDelete(Map<String, String> v) {
+  void _archiveVehicle(Map<String, String> v) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(children: [
-          Icon(Icons.delete_outline, color: Colors.red, size: 22),
+          Icon(Icons.archive_outlined, color: Colors.orange, size: 22),
           SizedBox(width: 8),
-          Text('Delete Vehicle', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          Text('Archive Vehicle', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         ]),
         content: Text(
-          'Are you sure you want to delete "${v['plate']}"?',
+          'Are you sure you want to archive "${v['plate']}"?\n\nIt will be moved to the Archive tab and can be restored later.',
           style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
         ),
         actions: [
@@ -720,15 +722,29 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await SyncStatusNotifier.instance.trackWrite(() => _db.doc(v['id']).delete());
+                final docId = v['id']!;
+                final docSnap = await _db.doc(docId).get();
+                if (!docSnap.exists) throw Exception('Vehicle not found');
+                final data = Map<String, dynamic>.from(
+                    (docSnap.data() as Map<String, dynamic>));
+                data['archivedAt'] = FieldValue.serverTimestamp();
+                await SyncStatusNotifier.instance.trackWrite(
+                  () => FirebaseFirestore.instance
+                      .collection('archive')
+                      .doc('vehicles')
+                      .collection('vehicles')
+                      .doc(docId)
+                      .set(data));
+                await SyncStatusNotifier.instance.trackWrite(
+                  () => _db.doc(docId).delete());
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Row(children: const [
-                      Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+                    content: const Row(children: [
+                      Icon(Icons.archive_outlined, color: Colors.white, size: 18),
                       SizedBox(width: 8),
-                      Text('Deleted successfully!'),
+                      Text('Vehicle archived.'),
                     ]),
-                    backgroundColor: Colors.red,
+                    backgroundColor: Colors.orange,
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
@@ -739,10 +755,10 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red, foregroundColor: Colors.white,
+              backgroundColor: Colors.orange, foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Yes, Delete'),
+            child: const Text('Yes'),
           ),
         ],
       ),
@@ -990,6 +1006,172 @@ class _PlateNumberFormatter extends TextInputFormatter {
     return TextEditingValue(
       text: result,
       selection: TextSelection.collapsed(offset: result.length),
+    );
+  }
+}
+
+// ─── Archived Vehicles Tab ───────────────────────────────────────────────────
+
+class ArchivedVehiclesBody extends StatelessWidget {
+  final String searchQuery;
+  const ArchivedVehiclesBody({super.key, this.searchQuery = ''});
+
+  static const _monthsFull = ['January','February','March','April','May','June',
+    'July','August','September','October','November','December'];
+
+  String _fmtDate(String dateStr) {
+    if (dateStr.isEmpty || dateStr == '—') return '—';
+    final d = DateTime.tryParse(dateStr);
+    if (d == null) return dateStr;
+    return '${_monthsFull[d.month - 1]} ${d.day}, ${d.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final archiveDb = FirebaseFirestore.instance
+        .collection('archive').doc('vehicles').collection('vehicles');
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: archiveDb.snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        var vehicles = docs.map((d) {
+          final data = d.data() as Map<String, dynamic>;
+          return {
+            'id': d.id,
+            'plate': data['plate']?.toString() ?? '',
+            'desc': data['desc']?.toString() ?? '',
+            'owner': data['owner']?.toString() ?? '',
+            'odo': data['odo']?.toString() ?? '',
+            'type': data['type']?.toString() ?? '',
+            'lastSvcDate': data['lastSvcDate']?.toString() ?? '',
+            'svcFreq': data['svcFreq']?.toString() ?? '',
+          };
+        }).toList();
+
+        if (searchQuery.isNotEmpty) {
+          vehicles = vehicles.where((v) =>
+            v['plate']!.toLowerCase().contains(searchQuery) ||
+            v['desc']!.toLowerCase().contains(searchQuery) ||
+            v['owner']!.toLowerCase().contains(searchQuery)).toList();
+        }
+
+        if (vehicles.isEmpty) {
+          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.archive_outlined, size: 52, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            const Text('No archived vehicles.', style: TextStyle(color: Color(0xFF718096), fontSize: 13)),
+          ]));
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: vehicles.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (_, i) {
+            final v = vehicles[i];
+            return Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.shade100),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6)],
+              ),
+              child: Row(children: [
+                Container(
+                  width: 38, height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.archive_outlined, color: Colors.orange, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(v['plate']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1a202c))),
+                  Text(v['desc']!, style: const TextStyle(fontSize: 12, color: Color(0xFF4a5568))),
+                  Text('${v['owner']} • ${v['odo']}', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                ])),
+                // Restore button
+                TextButton.icon(
+                  onPressed: () => _restoreVehicle(context, archiveDb, v),
+                  icon: const Icon(Icons.unarchive_outlined, size: 16, color: Color(0xFF003087)),
+                  label: const Text('Restore', style: TextStyle(fontSize: 12, color: Color(0xFF003087))),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    backgroundColor: const Color(0xFFEBF4FF),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ]),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _restoreVehicle(BuildContext context, CollectionReference db, Map<String, String> v) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.unarchive_outlined, color: Color(0xFF003087), size: 22),
+          SizedBox(width: 8),
+          Text('Restore Vehicle', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: Text(
+          'Restore "${v['plate']}" back to the active vehicle list?',
+          style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                final docId = v['id']!;
+                final archiveSnap = await db.doc(docId).get();
+                if (!archiveSnap.exists) throw Exception('Archive doc not found');
+                final data = Map<String, dynamic>.from(archiveSnap.data() as Map<String, dynamic>);
+                data.remove('archivedAt');
+                data.remove('archived');
+                await FirebaseFirestore.instance.collection('vehicles').doc(docId).set(data);
+                await db.doc(docId).delete();
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Row(children: [
+                      Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+                      SizedBox(width: 8),
+                      Text('Vehicle restored successfully!'),
+                    ]),
+                    backgroundColor: const Color(0xFF003087),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              } catch (e) {
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF003087),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Restore'),
+          ),
+        ],
+      ),
     );
   }
 }
