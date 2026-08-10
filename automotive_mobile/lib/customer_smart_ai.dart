@@ -42,7 +42,6 @@ class CustomerSmartAI extends StatefulWidget {
 class _CustomerSmartAIState extends State<CustomerSmartAI> {
   // ── Brand colours ─────────────────────────────────────────────────────────
   static const _red  = Color(0xFFE8001C);
-  static const _blue = Color(0xFF003087);
   static const _bg   = Color(0xFFF7F8FA);
 
   final _inputCtrl  = TextEditingController();
@@ -294,9 +293,25 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         backgroundColor: _red,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'Vehicle Assistant',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        title: Row(
+          children: [
+            Container(
+              width: 32, height: 32,
+              margin: const EdgeInsets.only(right: 10),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4)],
+              ),
+              child: ClipOval(
+                child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.cover),
+              ),
+            ),
+            const Text(
+              'Vehicle Assistant',
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
         actions: [
           // Online dot
@@ -304,9 +319,20 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
             padding: const EdgeInsets.only(right: 4),
             child: Tooltip(
               message: _backendOnline ? 'AI Online' : 'AI Offline',
-              child: Icon(Icons.circle,
-                  size: 10,
-                  color: _backendOnline ? Colors.greenAccent : Colors.orange),
+              child: Container(
+                width: 12, height: 12,
+                margin: const EdgeInsets.only(right: 4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _backendOnline ? const Color(0xFF22c55e) : Colors.orange,
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2),
+                  boxShadow: [BoxShadow(
+                    color: _backendOnline
+                        ? const Color(0xFF22c55e).withValues(alpha: 0.6)
+                        : Colors.orange.withValues(alpha: 0.6),
+                    blurRadius: 6)],
+                ),
+              ),
             ),
           ),
           if (_messages.isNotEmpty)
@@ -488,12 +514,17 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+        // AI logo — transparent circle with image
         Container(
-          width: 60, height: 60,
+          width: 72, height: 72,
           decoration: BoxDecoration(
-              color: _blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(18)),
-          child: const Icon(Icons.directions_car_rounded, color: _blue, size: 30),
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFE8001C).withValues(alpha: 0.2), width: 2),
+            boxShadow: [BoxShadow(color: const Color(0xFFE8001C).withValues(alpha: 0.12), blurRadius: 16)],
+          ),
+          child: ClipOval(
+            child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.cover),
+          ),
         ),
         const SizedBox(height: 14),
         const Text(
@@ -671,17 +702,17 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)],
   );
 
-  // ── AI avatar — icon-based, matches admin style ──
+  // ── AI avatar — uses AI_LOGO image, transparent background ──
   Widget _aiAvatar() => Container(
-    width: 30, height: 30,
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-          colors: [Color(0xFFE8001C), Color(0xFFC0001A)],
-          begin: Alignment.topLeft, end: Alignment.bottomRight),
+    width: 32, height: 32,
+    decoration: BoxDecoration(
       shape: BoxShape.circle,
+      border: Border.all(color: const Color(0xFFe2e8f0), width: 1.5),
+      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4)],
     ),
-    child: const Center(
-      child: Icon(Icons.directions_car_rounded, color: Colors.white, size: 16)),
+    child: ClipOval(
+      child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.cover),
+    ),
   );
 
   // ── User avatar — gradient red with initials ──

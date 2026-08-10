@@ -22,11 +22,12 @@
         /* ── Welcome block ── */
         .ai-welcome { text-align:center; padding:28px 8px 8px; }
         .ai-welcome-icon {
-            width:64px;height:64px;
-            background:rgba(255,255,255,0.9);
-            border:2px solid rgba(232,0,28,0.12);border-radius:16px;
+            width:72px;height:72px;
+            border-radius:50%;overflow:hidden;
             display:flex;align-items:center;justify-content:center;
-            margin:0 auto 14px;box-shadow:0 4px 18px rgba(232,0,28,0.1);
+            margin:0 auto 14px;
+            box-shadow:0 4px 18px rgba(0,0,0,0.12);
+            border:2px solid rgba(232,0,28,0.15);
         }
         .ai-welcome-title { font-size:18px;font-weight:800;color:#1a202c;margin-bottom:6px;letter-spacing:-0.3px; }
         .ai-welcome-sub   { font-size:13px;color:#94a3b8;line-height:1.65;max-width:300px;margin:0 auto; }
@@ -54,7 +55,7 @@
         .ai-row { display:flex;gap:8px;align-items:flex-end; }
         .ai-row.user { flex-direction:row-reverse; }
         .ai-av { width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-        .ai-av.bot { background:rgba(255,255,255,0.9);box-shadow:0 2px 8px rgba(232,0,28,0.2); }
+        .ai-av.bot { background:white;border:1.5px solid rgba(226,232,240,0.8);box-shadow:0 2px 8px rgba(0,0,0,0.1);overflow:hidden; }
         .ai-av.usr { background:linear-gradient(135deg,#475569,#334155);font-size:10px;font-weight:700;color:white;box-shadow:0 2px 6px rgba(0,0,0,0.15);border-radius:50%; }
 
         /* ── Bubbles ── */
@@ -119,9 +120,21 @@
             pointer-events:none;
         }
         .ai-hdr-avatar {
-            width:34px;height:34px;background:rgba(255,255,255,0.18);
-            border:1.5px solid rgba(255,255,255,0.3);border-radius:11px;
-            display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;z-index:1;
+            position:relative;
+            flex-shrink:0;
+        }
+        .ai-hdr-avatar-img {
+            width:40px;height:40px;border-radius:50%;overflow:hidden;
+            border:2px solid rgba(255,255,255,0.4);
+            box-shadow:0 2px 8px rgba(0,0,0,0.15);
+            display:flex;align-items:center;justify-content:center;position:relative;z-index:1;
+        }
+        .ai-hdr-avatar-dot {
+            position:absolute;bottom:1px;right:1px;
+            width:10px;height:10px;border-radius:50%;
+            background:#4ade80;border:2px solid white;
+            box-shadow:0 0 5px rgba(74,222,128,0.8);
+            z-index:2;
         }
         .ai-hdr-title-wrap { flex:1;min-width:0;position:relative;z-index:1; }
         .ai-hdr-title { color:#fff;font-size:13.5px;font-weight:700; }
@@ -225,7 +238,10 @@
     <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.1) 0%,transparent 65%);pointer-events:none;"></div>
     <!-- Bot avatar -->
     <div class="ai-hdr-avatar">
-        <img src="../static/img/AI_LOGO.png" width="26" height="26" style="object-fit:contain;display:block;" alt="AI Assistant" />
+        <div class="ai-hdr-avatar-img">
+            <img src="../static/img/AI_LOGO.png" width="40" height="40" style="object-fit:cover;display:block;" alt="AI Assistant" />
+        </div>
+        <span class="ai-hdr-avatar-dot" id="aiHdrOnlineDot"></span>
     </div>
     <!-- Title + status -->
     <div class="ai-hdr-title-wrap">
@@ -254,7 +270,7 @@
 <div class="ai-messages" id="aiMessages">
     <div class="ai-welcome" id="aiWelcome">
         <div class="ai-welcome-icon">
-            <img src="../static/img/AI_LOGO.png" width="48" height="48" style="object-fit:contain;display:block;" alt="AI Assistant" />
+            <img src="../static/img/AI_LOGO.png" width="72" height="72" style="object-fit:cover;display:block;" alt="AI Assistant" />
         </div>
         <div class="ai-welcome-title">Customer AI Assistant</div>
         <div class="ai-welcome-sub" id="aiWelcomeSub">Ask me anything about your vehicles — PMS status, maintenance history, bookings, and more.</div>
@@ -743,7 +759,7 @@
     return `Here's a quick summary of your fleet:\n• Total vehicles: ${_myVehicles.length}\n• Active: ${active}\n• Under Maintenance: ${maint}\n• PMS Overdue: ${over}\n• Due Soon: ${soon}\n\nFor detailed answers, please ask when the AI service is online.`;
   }
 
-  const _BOT_AVATAR_SVG = '<img src="../static/img/AI_LOGO.png" width="28" height="28" style="object-fit:contain;display:block;" alt="AI">';
+  const _BOT_AVATAR_SVG = '<img src="../static/img/AI_LOGO.png" width="32" height="32" style="object-fit:cover;border-radius:50%;display:block;" alt="AI">';
 
   // Lightweight markdown renderer
   function _md(text) {
@@ -897,18 +913,23 @@
   fetch('/api/ai-health').then(r => r.json()).then(d => {
     const dot = document.getElementById('aiStatusDot');
     const txt = document.getElementById('aiStatusText');
+    const hdrDot = document.getElementById('aiHdrOnlineDot');
     if (d.online) {
-      if (dot) dot.style.background = '#4ade80';
+      if (dot) { dot.style.background = '#4ade80'; dot.style.boxShadow = '0 0 6px rgba(74,222,128,0.8)'; }
       if (txt) txt.textContent = 'Online';
+      if (hdrDot) { hdrDot.style.background = '#4ade80'; hdrDot.style.boxShadow = '0 0 5px rgba(74,222,128,0.8)'; }
     } else {
       if (dot) { dot.style.background = '#d69e2e'; dot.style.boxShadow = '0 0 6px rgba(214,158,46,0.8)'; }
       if (txt) txt.textContent = 'Local mode';
+      if (hdrDot) { hdrDot.style.background = '#fbbf24'; hdrDot.style.boxShadow = '0 0 5px rgba(251,191,36,0.7)'; }
     }
   }).catch(() => {
     const dot = document.getElementById('aiStatusDot');
     const txt = document.getElementById('aiStatusText');
+    const hdrDot = document.getElementById('aiHdrOnlineDot');
     if (dot) { dot.style.background = '#d69e2e'; dot.style.boxShadow = '0 0 6px rgba(214,158,46,0.8)'; }
     if (txt) txt.textContent = 'Local mode';
+    if (hdrDot) { hdrDot.style.background = '#fbbf24'; hdrDot.style.boxShadow = '0 0 5px rgba(251,191,36,0.7)'; }
   });
 
   fetch('customer_header.html').then(r => r.text()).then(html => {

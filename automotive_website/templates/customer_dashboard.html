@@ -132,8 +132,12 @@
         <!-- Panel header -->
         <div style="background:linear-gradient(135deg,#c62828 0%,#E8001C 60%,#ff5252 100%);padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:relative;">
             <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.1) 0%,transparent 65%);pointer-events:none;border-radius:20px 20px 0 0;"></div>
-            <div style="width:34px;height:34px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;z-index:1;">
-                <img src="../static/img/AI_LOGO.png" width="26" height="26" style="object-fit:contain;display:block;" alt="AI">
+            <!-- Avatar — transparent bg, full image in circle -->
+            <div style="position:relative;flex-shrink:0;z-index:1;">
+              <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,0.4);box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+                <img src="../static/img/AI_LOGO.png" width="40" height="40" style="object-fit:cover;display:block;" alt="AI">
+              </div>
+              <span id="aiFabOnlineDotHdr" style="position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid white;box-shadow:0 0 5px rgba(74,222,128,0.8);"></span>
             </div>
             <div style="flex:1;min-width:0;z-index:1;">
                 <div style="color:#fff;font-size:13.5px;font-weight:700;">Customer AI Assistant</div>
@@ -153,8 +157,8 @@
         <!-- Messages -->
         <div id="aiMessages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:#F7F8FA;">
             <div id="aiWelcome" style="text-align:center;padding:16px 8px 8px;">
-                <div style="width:56px;height:56px;background:rgba(255,255,255,0.9);border:2px solid rgba(232,0,28,0.12);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;box-shadow:0 4px 16px rgba(232,0,28,0.1);">
-                    <img src="../static/img/AI_LOGO.png" width="40" height="40" style="object-fit:contain;display:block;" alt="AI">
+                <div style="width:68px;height:68px;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;margin:0 auto 12px;box-shadow:0 4px 16px rgba(0,0,0,0.12);border:2px solid rgba(232,0,28,0.15);">
+                    <img src="../static/img/AI_LOGO.png" width="68" height="68" style="object-fit:cover;display:block;" alt="AI">
                 </div>
                 <div style="font-size:14px;font-weight:700;color:#1a202c;margin-bottom:4px;">Customer AI Assistant</div>
                 <div id="aiWelcomeSub" style="font-size:12px;color:#718096;line-height:1.6;">Ask me anything about your vehicles — PMS status, maintenance history, and more.</div>
@@ -183,20 +187,24 @@
         </div>
     </div>
     <!-- FAB toggle button -->
-    <button id="aiFab" onclick="toggleSmartAI()" style="width:56px;height:56px;background:linear-gradient(135deg,#E8001C,#c0001a);border:none;border-radius:50%;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(232,0,28,0.4);transition:transform .2s,box-shadow .2s;animation:aiFabPulse 2.8s ease-in-out infinite;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
-        <img id="aiFabImg" src="../static/img/AI_LOGO.png" width="34" height="34" style="object-fit:contain;display:block;" alt="AI">
-    </button>
+    <div id="aiFabWrap" style="position:relative;display:inline-flex;">
+      <button id="aiFab" onclick="toggleSmartAI()" style="width:56px;height:56px;background:transparent;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(0,0,0,0.18);transition:transform .2s,box-shadow .2s;animation:aiFabPulse 2.8s ease-in-out infinite;padding:0;overflow:hidden;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+          <img id="aiFabImg" src="../static/img/AI_LOGO.png" width="56" height="56" style="object-fit:cover;border-radius:50%;display:block;" alt="AI">
+      </button>
+      <!-- Online indicator dot -->
+      <span id="aiFabOnlineDot" style="position:absolute;bottom:2px;right:2px;width:13px;height:13px;border-radius:50%;background:#22c55e;border:2.5px solid white;box-shadow:0 0 6px rgba(34,197,94,0.7);z-index:1;transition:background .3s;"></span>
+    </div>
 </div>
 
 <style>
 @keyframes aiPanelIn { from{opacity:0;transform:translateY(16px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
-@keyframes aiFabPulse { 0%,100%{box-shadow:0 4px 18px rgba(232,0,28,0.4),0 0 0 0 rgba(232,0,28,0.25)} 50%{box-shadow:0 4px 18px rgba(232,0,28,0.4),0 0 0 8px rgba(232,0,28,0)} }
+@keyframes aiFabPulse { 0%,100%{box-shadow:0 4px 18px rgba(0,0,0,0.18),0 0 0 0 rgba(232,0,28,0.15)} 50%{box-shadow:0 4px 18px rgba(0,0,0,0.18),0 0 0 8px rgba(232,0,28,0)} }
 @keyframes aiBounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
 .ai-bubble-user { max-width:80%;padding:9px 13px;border-radius:16px 4px 16px 16px;background:linear-gradient(135deg,#E8001C,#c0001a);color:white;font-size:12.5px;line-height:1.65;align-self:flex-end;white-space:pre-wrap;box-shadow:0 2px 8px rgba(232,0,28,0.25); }
 .ai-bubble-bot  { max-width:82%;padding:9px 13px;border-radius:4px 16px 16px 16px;background:white;color:#1a202c;font-size:12.5px;line-height:1.65;align-self:flex-start;white-space:pre-wrap;box-shadow:0 2px 8px rgba(0,0,0,0.07);border:1px solid rgba(226,232,240,0.6); }
 .ai-row { display:flex;gap:8px;align-items:flex-end; }
 .ai-row.user { flex-direction:row-reverse; }
-.ai-av-bot { width:28px;height:28px;border-radius:9px;background:white;box-shadow:0 2px 6px rgba(232,0,28,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+.ai-av-bot { width:28px;height:28px;border-radius:50%;background:white;border:1.5px solid rgba(226,232,240,0.8);box-shadow:0 2px 6px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden; }
 .ai-av-usr { width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#475569,#334155);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;font-weight:700;color:white; }
 .ai-typing-dots { background:white;border-radius:4px 16px 16px 16px;padding:10px 14px;align-self:flex-start;display:flex;gap:4px;align-items:center;box-shadow:0 2px 6px rgba(0,0,0,0.06); }
 .ai-typing-dots span { width:6px;height:6px;background:#a0aec0;border-radius:50%;animation:aiBounce .9s ease-in-out infinite; }
@@ -321,9 +329,13 @@ function _updateFabIcon(open) {
     var fab = document.getElementById('aiFab');
     if (!fab) return;
     if (open) {
+        fab.style.background = 'linear-gradient(135deg,#E8001C,#c0001a)';
+        fab.style.overflow = 'visible';
         fab.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
     } else {
-        fab.innerHTML = '<img id="aiFabImg" src="../static/img/AI_LOGO.png" width="34" height="34" style="object-fit:contain;display:block;" alt="AI">';
+        fab.style.background = 'transparent';
+        fab.style.overflow = 'hidden';
+        fab.innerHTML = '<img id="aiFabImg" src="../static/img/AI_LOGO.png" width="56" height="56" style="object-fit:cover;border-radius:50%;display:block;" alt="AI">';
     }
 }
 
@@ -395,7 +407,7 @@ function _aiAddBubble(text, isUser) {
         av.textContent = initials;
     } else {
         av.className = 'ai-av-bot';
-        av.innerHTML = '<img src="../static/img/AI_LOGO.png" width="22" height="22" style="object-fit:contain;display:block;" alt="AI">';
+        av.innerHTML = '<img src="../static/img/AI_LOGO.png" width="28" height="28" style="object-fit:cover;border-radius:50%;display:block;" alt="AI">';
     }
     var bub = document.createElement('div');
     bub.className = isUser ? 'ai-bubble-user' : 'ai-bubble-bot';
@@ -413,7 +425,7 @@ function _aiAddTyping() {
     row.className = 'ai-row'; row.id = '_aiTypingRow';
     var av = document.createElement('div');
     av.className = 'ai-av-bot';
-    av.innerHTML = '<img src="../static/img/AI_LOGO.png" width="22" height="22" style="object-fit:contain;display:block;" alt="AI">';
+    av.innerHTML = '<img src="../static/img/AI_LOGO.png" width="28" height="28" style="object-fit:cover;border-radius:50%;display:block;" alt="AI">';
     var dots = document.createElement('div');
     dots.className = 'ai-typing-dots';
     dots.innerHTML = '<span></span><span></span><span></span>';
@@ -553,11 +565,25 @@ window.aiClear = function() {
 function _aiCheckHealth() {
     fetch('/api/ai-health').then(function(r){return r.json();}).then(function(d){
         var dot=document.getElementById('aiStatusDot'), txt=document.getElementById('aiStatusTxt');
-        if(d.online){ if(dot) dot.style.background='#4ade80'; if(txt) txt.textContent='Online'; }
-        else { if(dot){dot.style.background='#d69e2e';dot.style.boxShadow='0 0 6px rgba(214,158,46,0.8)';} if(txt) txt.textContent='Local mode'; }
+        var fabDot=document.getElementById('aiFabOnlineDot'), hdrDot=document.getElementById('aiFabOnlineDotHdr');
+        if(d.online){
+            if(dot){dot.style.background='#4ade80';dot.style.boxShadow='0 0 6px rgba(74,222,128,0.8)';}
+            if(txt) txt.textContent='Online';
+            if(fabDot){fabDot.style.background='#22c55e';fabDot.style.boxShadow='0 0 6px rgba(34,197,94,0.7)';}
+            if(hdrDot){hdrDot.style.background='#4ade80';}
+        } else {
+            if(dot){dot.style.background='#d69e2e';dot.style.boxShadow='0 0 6px rgba(214,158,46,0.8)';}
+            if(txt) txt.textContent='Local mode';
+            if(fabDot){fabDot.style.background='#f59e0b';fabDot.style.boxShadow='0 0 6px rgba(245,158,11,0.7)';}
+            if(hdrDot){hdrDot.style.background='#fbbf24';}
+        }
     }).catch(function(){
         var dot=document.getElementById('aiStatusDot'),txt=document.getElementById('aiStatusTxt');
-        if(dot){dot.style.background='#d69e2e';dot.style.boxShadow='0 0 6px rgba(214,158,46,0.8)';} if(txt) txt.textContent='Local mode';
+        var fabDot=document.getElementById('aiFabOnlineDot'), hdrDot=document.getElementById('aiFabOnlineDotHdr');
+        if(dot){dot.style.background='#d69e2e';dot.style.boxShadow='0 0 6px rgba(214,158,46,0.8)';}
+        if(txt) txt.textContent='Local mode';
+        if(fabDot){fabDot.style.background='#f59e0b';fabDot.style.boxShadow='0 0 6px rgba(245,158,11,0.7)';}
+        if(hdrDot){hdrDot.style.background='#fbbf24';}
     });
 }
 
