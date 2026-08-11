@@ -87,6 +87,10 @@ def _is_rate_limit(exc: Exception) -> bool:
         or ("token" in exc_str and "limit" in exc_str)
         or "request too large" in exc_str
         or "too large for model" in exc_str
+        # Firestore free-tier quota (ResourceExhausted / 429 from gRPC)
+        or "quota exceeded" in exc_str
+        or "resource_exhausted" in exc_str
+        or "resourceexhausted" in exc_str
     )
 
 
@@ -396,6 +400,9 @@ RULES:
 8. Inventory/warehouse/report queries → respond ONLY:
    "I can only answer questions related to the Automotive Service and Inventory Management System."
 9. Reformatting follow-ups ("make it a list", "simplify") → reformat previous answer, NO tool calls.
+10. If a tool returns {"error": "QUOTA_EXCEEDED"} or any error containing "quota" or "QUOTA_EXCEEDED",
+    respond ONLY: "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
+    Do NOT guess or invent any data values.
 
 SERVICE HISTORY (when get_my_service_history returns data):
 - Open: "Here's your service history! You have [N] completed record[s] with a total spend of [total]."
@@ -414,6 +421,12 @@ TOOL MAPPING:
 - "my bookings", "my appointments", "upcoming service" → get_my_bookings
 - "how much is", "price of", "cost of", "service prices", "services offered" → get_service_prices
 - "estimate", "how much would X and Y cost" → estimate_service_cost
+
+WHEN TOOL RETURNS EMPTY DATA:
+- get_service_prices returns total_services=0 → say: "I wasn't able to find pricing information in our system at the moment. Please contact us at caltexautopro2026@gmail.com or visit the shop for current service rates."
+- get_my_vehicles returns total_vehicles=0 → say: "You don't have any registered vehicles on file yet."
+- get_my_service_history returns total_jobs=0 → say the standard "no completed service records" message.
+- Any tool returns {"error": "QUOTA_EXCEEDED"} → say: "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
 """
     if _MANUAL_KEYWORDS.search(message):
         return base + "\n\n" + CUSTOMER_MANUAL_CONTEXT
@@ -476,7 +489,16 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     tool_log    = []
     final_reply = ""
 
-    for _ in range(5):
+    # ── Detect pricing queries so we can nudge the model if it stalls ────────
+    import re as _re
+    _is_pricing_query = bool(_re.search(
+        r"how\s+much\s+is|price\s+of|cost\s+of|how\s+much.*service|"
+        r"service\s+price|pricing|how\s+much\s+does|how\s+much\s+would|"
+        r"estimate.*cost|cost.*estimate",
+        message, _re.IGNORECASE
+    ))
+
+    for _turn in range(5):
         try:
             response = _call(messages, tools=CUSTOMER_TOOL_SCHEMAS)
         except BadRequestError as e:
@@ -501,6 +523,17 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
         messages.append(asst)
 
         if not msg.tool_calls:
+            # ── If this is a pricing query and the model answered without calling
+            #    a tool on the FIRST turn, nudge it to call get_service_prices ──
+            if _is_pricing_query and _turn == 0 and not tool_log:
+                messages.append({
+                    "role": "user",
+                    "content": (
+                        "Please call the get_service_prices tool now to retrieve "
+                        "the actual price from the database. Do not guess."
+                    ),
+                })
+                continue   # retry with the nudge
             final_reply = msg.content or ""
             break
 
