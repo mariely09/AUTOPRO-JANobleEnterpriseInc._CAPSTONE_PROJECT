@@ -1,16 +1,22 @@
 """
-LLM client using Groq (fast cloud inference, OpenAI-compatible API).
+LLM client using Groq (ONLY external AI provider).
 
-Calls the Groq API directly with the single GROQ_API_KEY from config.
-Rate-limit errors (HTTP 429) are caught and surfaced as a friendly message
-so main.py can return the standard rate-limit response to the frontend.
+Calls Groq with intelligent model routing:
+  - Llama 3.1 8B Instant  → primary / default model
+  - Llama 3.3 70B Versatile → secondary, used only for COMPLEX_ANALYSIS
+
+Token usage is recorded after every call via token_tracker.
+Rate-limit errors (HTTP 429) are surfaced as RateLimitedError so main.py
+returns a friendly message instead of a 500.
 """
 import json
 import logging
+import time
 from groq import Groq, BadRequestError, RateLimitError
 from config import settings
 from firestore_tools import TOOL_SCHEMAS, TOOL_FUNCTIONS
 from verifier import verify_reply
+import token_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -271,23 +277,28 @@ Keyword mappings (English and Filipino):
 
 """ + _build_report_prompt()
 
-def _call_groq(messages: list[dict], tools: list[dict] | None = None):
+def _call_groq(messages: list[dict], tools: list[dict] | None = None,
+               model: str | None = None):
     """
     Thin wrapper around the Groq API call with token limits enforced.
 
-    max_tokens is always set to GROQ_MAX_OUTPUT_TOKENS (default 800) so
-    the model cannot generate runaway responses that drain the daily quota.
+    model — pass an explicit model string to override the default (8B).
+    max_tokens is capped at GROQ_MAX_OUTPUT_TOKENS.
     RateLimitError is re-raised as RateLimitedError so main.py can return
     the friendly rate-limit message instead of a 500.
+
+    Returns the raw Groq response (usage.prompt_tokens etc. available on it).
     """
     api_key = settings.GROQ_API_KEY
     if not api_key:
         raise RateLimitedError("No Groq API key configured. Set GROQ_API_KEY in .env.")
 
+    chosen_model = model or settings.GROQ_MODEL_PRIMARY
+
     try:
         client = Groq(api_key=api_key)
         kwargs: dict = {
-            "model":      settings.GROQ_MODEL,
+            "model":      chosen_model,
             "messages":   messages,
             "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
         }
@@ -320,14 +331,27 @@ def _strip_null_args(raw_args: str) -> dict:
     return {k: v for k, v in args.items() if v is not None and v != ""}
 
 
-def chat(user_message: str, history: list[dict] | None = None, _retry: bool = False) -> dict:
-    # ── Trim history to GROQ_MAX_HISTORY_MSGS before building the payload ──
-    # Each exchange = 2 messages (user + assistant). Keeping 10 messages = 5
-    # turns saves up to 4,000 input tokens vs the old 30-message cap.
+def chat(user_message: str, history: list[dict] | None = None,
+         model: str | None = None,
+         intent: str = "UNKNOWN",
+         user_id: str = "admin",
+         _retry: bool = False) -> dict:
+    """
+    Admin LLM chat.
+
+    model  — explicit model override; defaults to primary (8B).
+    intent — the classified intent; used only for token-usage logging.
+    user_id — admin session or UID; used only for token-usage logging.
+    """
+    from model_router import GENERAL_AI_QUESTION, COMPLEX_ANALYSIS
+
+    # Trim history to GROQ_MAX_HISTORY_MSGS before building the payload.
     trimmed_history: list[dict] = []
     if history:
         valid = [m for m in history if isinstance(m, dict) and "role" in m]
         trimmed_history = valid[-settings.GROQ_MAX_HISTORY_MSGS:]
+
+    chosen_model = model or settings.GROQ_MODEL_PRIMARY
 
     messages = [{"role": "system", "content": ADMIN_SYSTEM_PROMPT}]
     messages.extend(trimmed_history)
@@ -335,19 +359,25 @@ def chat(user_message: str, history: list[dict] | None = None, _retry: bool = Fa
 
     tool_call_log = []
     final_reply = ""
+    t0 = time.time()
+    call_succeeded = True
 
     for _ in range(5):
         try:
-            response = _call_groq(messages, tools=TOOL_SCHEMAS)
+            response = _call_groq(messages, tools=TOOL_SCHEMAS, model=chosen_model)
         except (RateLimitError, AllKeysRateLimitedError):
+            call_succeeded = False
             raise
         except BadRequestError as e:
             error_str = str(e)
             logger.warning("Groq BadRequestError: %s", error_str)
+            call_succeeded = False
 
             if "tool" in error_str.lower() or "function" in error_str.lower():
                 try:
-                    fallback = _call_groq(messages)
+                    fallback = _call_groq(messages, model=chosen_model)
+                    _record_usage(fallback, chosen_model, intent, user_id, True,
+                                  time.time() - t0)
                     final_reply = fallback.choices[0].message.content or \
                         "I could not retrieve that information. Please try rephrasing."
                     return {
@@ -355,6 +385,8 @@ def chat(user_message: str, history: list[dict] | None = None, _retry: bool = Fa
                         "tool_calls": tool_call_log,
                         "verified": True,
                         "unsupported_numbers": [],
+                        "model": chosen_model,
+                        "intent": intent,
                     }
                 except (RateLimitError, AllKeysRateLimitedError):
                     raise
@@ -366,6 +398,8 @@ def chat(user_message: str, history: list[dict] | None = None, _retry: bool = Fa
                 "tool_calls": tool_call_log,
                 "verified": True,
                 "unsupported_numbers": [],
+                "model": chosen_model,
+                "intent": intent,
             }
 
         msg = response.choices[0].message
@@ -376,6 +410,8 @@ def chat(user_message: str, history: list[dict] | None = None, _retry: bool = Fa
 
         if not msg.tool_calls:
             final_reply = msg.content or ""
+            _record_usage(response, chosen_model, intent, user_id, True,
+                          time.time() - t0)
             break
 
         for call in msg.tool_calls:
@@ -393,10 +429,6 @@ def chat(user_message: str, history: list[dict] | None = None, _retry: bool = Fa
 
             tool_call_log.append({"tool": fn_name, "args": fn_args, "result": result})
 
-            # ── Cap tool result size before feeding back to the LLM ──────────
-            # Large payloads (e.g. full stock catalog) can push input tokens to
-            # 5,000–10,000 per call. We serialize, truncate if needed, and append
-            # a note so the model knows the data was trimmed.
             result_json = json.dumps(result)
             max_chars   = settings.GROQ_MAX_TOOL_RESULT_CHARS
             if len(result_json) > max_chars:
@@ -423,8 +455,10 @@ def chat(user_message: str, history: list[dict] | None = None, _retry: bool = Fa
                 f"If you cannot answer accurately with this data, say so explicitly."
             )
             messages.append({"role": "user", "content": correction_prompt})
-            response = _call_groq(messages)
-            final_reply = response.choices[0].message.content or final_reply
+            correction_resp = _call_groq(messages, model=chosen_model)
+            _record_usage(correction_resp, chosen_model, intent, user_id, True,
+                          time.time() - t0)
+            final_reply = correction_resp.choices[0].message.content or final_reply
             check = verify_reply(final_reply, tool_call_log)
 
         return {
@@ -432,6 +466,35 @@ def chat(user_message: str, history: list[dict] | None = None, _retry: bool = Fa
             "tool_calls":           tool_call_log,
             "verified":             check["verified"],
             "unsupported_numbers":  check["unsupported_numbers"],
+            "model":                chosen_model,
+            "intent":               intent,
         }
 
-    return {"reply": final_reply, "tool_calls": tool_call_log, "verified": True, "unsupported_numbers": []}
+    return {
+        "reply":               final_reply,
+        "tool_calls":          tool_call_log,
+        "verified":            True,
+        "unsupported_numbers": [],
+        "model":               chosen_model,
+        "intent":              intent,
+    }
+
+
+def _record_usage(response, model: str, intent: str, user_id: str,
+                  success: bool, elapsed_s: float) -> None:
+    """Extract token counts from a Groq response and record them."""
+    try:
+        usage = getattr(response, "usage", None)
+        if usage:
+            token_tracker.record(
+                user_id=user_id,
+                role="admin",
+                model=model,
+                intent=intent,
+                input_tokens=getattr(usage, "prompt_tokens", 0),
+                output_tokens=getattr(usage, "completion_tokens", 0),
+                response_ms=elapsed_s * 1000,
+                success=success,
+            )
+    except Exception:
+        pass  # never let tracking crash the main request

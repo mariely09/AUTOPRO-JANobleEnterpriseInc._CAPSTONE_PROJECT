@@ -34,7 +34,7 @@
         .ph-plate { font-size: 14px; font-weight: 700; color: #1a202c; }
         .ph-desc  { font-size: 11px; color: #718096; margin-top: 2px; }
         .ph-records { font-size: 11px; color: #718096; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
-        .ph-cost { font-size: 13px; font-weight: 700; color: #1a202c; }
+        .ph-cost { font-size: 13px; font-weight: 700; color: #E8001C; }
         .ph-cost-label { font-size: 9px; color: #718096; }
 
         /* History modal */
@@ -259,7 +259,7 @@
         const records = _allRecords.filter(r => r.plate === v.plate);
         const totalCost = records.reduce((sum, r) => {
           const raw = r.cost || r.totalCost || '0';
-          const num = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/[?,]/g, '')) || 0;
+          const num = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/[₱,]/g, '')) || 0;
           return sum + num;
         }, 0);
         const detailsUrl = `pms_history_details.html?plate=${encodeURIComponent(v.plate)}&desc=${encodeURIComponent(v.desc || '')}&type=${encodeURIComponent(v.type || '')}`;

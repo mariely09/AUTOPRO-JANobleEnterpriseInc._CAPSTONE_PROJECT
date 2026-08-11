@@ -1,4 +1,4 @@
-﻿<!-- ── Smart Reports AI Floating Widget ── -->
+﻿<!-- ── Admin AI Assistant Floating Widget ── -->
 <!-- Include this file in admin pages that need the AI chatbot -->
 <!-- Requires: window.assets, window.inventory, window.serviceTransactions from admin_firebase.js -->
 
@@ -6,7 +6,7 @@
 <div id="ragAiFabWrap" style="position:fixed;bottom:2rem;right:2rem;z-index:1200;display:inline-flex;">
   <div style="position:relative;display:inline-flex;">
     <button id="ragAiToggleBtn" onclick="ragAiToggle()"
-      title="Smart Reports AI"
+      title="AI Assistant"
       style="width:58px;height:58px;border-radius:50%;border:2.5px solid #E8001C;cursor:pointer;
              background:white;
              box-shadow:0 4px 20px rgba(232,0,28,0.22),0 0 0 0 rgba(232,0,28,0.2);
@@ -16,6 +16,12 @@
       <img id="ragFabAiImg" src="../static/img/AI_LOGO.png"
            style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">
     </button>
+    <!-- Green online indicator dot on FAB -->
+    <span id="ragFabOnlineDot"
+      style="position:absolute;bottom:3px;right:3px;width:13px;height:13px;
+             border-radius:50%;background:#22c55e;border:2.5px solid white;
+             box-shadow:0 0 6px rgba(34,197,94,0.7);z-index:1;
+             transition:background 0.3s;"></span>
   </div>
 </div>
 
@@ -43,10 +49,10 @@
     </div>
     <!-- Title -->
     <div style="flex:1;min-width:0;">
-      <div style="color:#fff;font-size:13.5px;font-weight:700;">Admin AI Assistant</div>
+      <div style="color:#fff;font-size:13.5px;font-weight:700;">AI Assistant</div>
       <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
         <span id="ragAiDot" style="width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;box-shadow:0 0 6px rgba(74,222,128,0.8);"></span>
-        <span id="ragAiStatus" style="font-size:10.5px;color:rgba(255,255,255,0.8);">Online · RAG AI</span>
+        <span id="ragAiStatus" style="font-size:10.5px;color:rgba(255,255,255,0.8);">Online · AI Assistant</span>
       </div>
     </div>
     <!-- Clear icon button with tooltip -->
@@ -190,7 +196,7 @@
 
 <script>
 // ════════════════════════════════════════════════════════════
-//  Smart Reports AI — Floating Widget
+//  Admin AI Assistant — Floating Widget
 // ════════════════════════════════════════════════════════════
 (function() {
 var _ragInitials = 'AD';
@@ -240,21 +246,24 @@ window.ragAiToggle = function() {
   panel.style.display = isOpen ? 'none' : 'flex';
   // Update FAB: show X icon when open, AI image when closed
   var btn = document.getElementById('ragAiToggleBtn');
+  var dot = document.getElementById('ragFabOnlineDot');
   if (btn) {
     if (!isOpen) {
-      // Now opening — show X
+      // Now opening — show X, hide dot
       btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
       btn.style.background = 'linear-gradient(135deg,#E8001C,#c0001a)';
       btn.style.border = 'none';
       btn.style.overflow = 'visible';
       btn.style.padding = '0';
+      if (dot) dot.style.display = 'none';
     } else {
-      // Now closing — show AI image with red border
+      // Now closing — show AI image with red border, restore dot
       btn.innerHTML = '<img id="ragFabAiImg" src="../static/img/AI_LOGO.png" style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">';
       btn.style.background = 'white';
       btn.style.border = '2.5px solid #E8001C';
       btn.style.overflow = 'hidden';
       btn.style.padding = '3px';
+      if (dot) dot.style.display = 'block';
     }
   }
 };

@@ -651,7 +651,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.cover),
               ),
             ),
-            const Text('Smart Reports AI',
+            const Text('AI Assistant',
                 style: TextStyle(
                     color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
           ],
@@ -859,12 +859,12 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         ),
         const SizedBox(height: 14),
         const Text(
-          'Admin AI Assistant',
+          'AI Assistant',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1a202c)),
         ),
         const SizedBox(height: 6),
         const Text(
-          'Ask me anything about fleet, inventory, maintenance costs, or generate PDF/Excel reports.',
+          'Ask me about fleet, inventory, maintenance costs, or generate PDF/Excel reports.',
           style: TextStyle(fontSize: 13, color: Color(0xFF718096), height: 1.5),
           textAlign: TextAlign.center,
         ),

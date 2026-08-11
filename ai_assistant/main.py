@@ -1,16 +1,23 @@
 import traceback
 import uuid
 import re
+import time
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from schemas import ChatRequest, ChatResponse, CustomerChatRequest, SessionInfoResponse
 from client import chat as llm_chat, AllKeysRateLimitedError as _AllKeysRateLimitedError
 from intent_classifier import classify_and_run
+from model_router import (
+    classify_intent, select_model, needs_llm,
+    DATABASE_LOOKUP, DATABASE_CALCULATION, GENERAL_AI_QUESTION,
+    COMPLEX_ANALYSIS, REPORT_GENERATION, UNKNOWN,
+)
 from session_store import (
     get_history, append_turn, clear_session, session_info, active_session_count
 )
 from config import settings as _settings  # for token-limit constants in _merge_history
+import token_tracker
 
 app = FastAPI(
     title="Caltex AutoPro AI",
@@ -125,46 +132,86 @@ def delete_session(session_id: str):
 @app.post("/admin/chat", response_model=ChatResponse)
 def admin_chat(req: ChatRequest):
     """
-    Admin AI chat with server-side conversational memory.
+    Admin AI chat with server-side conversational memory and model routing.
 
     Flow:
       1. Resolve or create a session_id.
-      2. Load stored history for that session from the in-memory store.
-      3. Merge with any client-supplied history (client history takes precedence
-         for the current turn; server history provides the long-term context).
-      4. Run the fast classifier, then the LLM tool-calling loop.
-      5. Append the new user/assistant pair to the session store.
-      6. Return the reply AND the session_id so the client sends it back next time.
+      2. Classify intent using deterministic rules (zero tokens).
+      3. Select model: 8B for most requests, 70B only for COMPLEX_ANALYSIS.
+      4. Try the admin fast-path classifier for obvious DB queries.
+         — If matched and intent is DATABASE_LOOKUP/CALCULATION: return the
+           data directly with a template reply (0 LLM tokens).
+         — If matched but still needs phrasing: call 8B with data already fetched.
+      5. Otherwise: full LLM tool-calling loop with selected model.
+      6. Append exchange to session store.
+      7. Return reply + session_id.
     """
-    # 1. Resolve session
     session_id = req.session_id or str(uuid.uuid4())
 
     try:
-        # 2. Load server-side history
-        server_history = get_history(session_id)
-
-        # 3. Build effective history: server history is the base; any client-supplied
-        #    history (legacy clients) is appended after deduplication.
+        server_history    = get_history(session_id)
         effective_history = _merge_history(server_history, req.history)
 
-        # 4. Run the fast classifier first (cheaper path for obvious queries)
+        # ── Step 2: intent classification (deterministic, 0 tokens) ──────────
+        intent      = classify_intent(req.message)
+        chosen_model = select_model(intent)
+
+        # ── Step 3: admin fast-path (pre-fetches DB data before any LLM call) ─
         fast_path = classify_and_run(req.message)
+
         if fast_path:
+            # Data already retrieved from Firestore.
+            # For pure DB lookups, skip the LLM entirely and reply with a
+            # compact template.  This saves ~400–800 tokens per request.
+            if intent in (DATABASE_LOOKUP, DATABASE_CALCULATION):
+                reply = _format_admin_db_reply(req.message, fast_path["result"])
+                append_turn(session_id, req.message, reply)
+                # Record zero LLM tokens (DB-only path)
+                token_tracker.record(
+                    user_id=session_id[:20],
+                    role="admin",
+                    model="none",
+                    intent=intent,
+                    input_tokens=0,
+                    output_tokens=0,
+                )
+                return ChatResponse(
+                    reply=reply,
+                    session_id=session_id,
+                    tool_calls=[fast_path],
+                )
+
+            # Needs phrasing — build a minimal prompt with only the retrieved data.
+            # Use 8B model: if the data is already fetched, phrasing is trivial.
             phrasing_prompt = (
                 f"The user asked: \"{req.message}\"\n\n"
-                f"Here is the exact data retrieved from the database:\n{fast_path['result']}\n\n"
+                f"Here is the exact data retrieved from the database:\n"
+                f"{fast_path['result']}\n\n"
                 f"Answer the user's question using ONLY this data. "
-                f"Do not recalculate anything."
+                f"Be concise. Do not recalculate anything."
             )
-            result = llm_chat(phrasing_prompt, history=effective_history)
+            t0 = time.time()
+            result = llm_chat(
+                phrasing_prompt,
+                history=effective_history,
+                model=_settings.GROQ_MODEL_PRIMARY,  # always 8B for phrasing
+                intent=intent,
+                user_id=session_id[:20],
+            )
             reply = result["reply"]
             tool_calls_out = [fast_path]
         else:
-            result = llm_chat(req.message, history=effective_history)
+            # Full LLM tool-calling loop with selected model
+            result = llm_chat(
+                req.message,
+                history=effective_history,
+                model=chosen_model,
+                intent=intent,
+                user_id=session_id[:20],
+            )
             reply = result["reply"]
             tool_calls_out = result["tool_calls"]
 
-        # 5. Persist this exchange to the session store
         append_turn(session_id, req.message, reply)
 
         return ChatResponse(
@@ -176,6 +223,12 @@ def admin_chat(req: ChatRequest):
     except Exception as e:
         if _is_rate_limit(e):
             rl = _rate_limit_reply(str(e))
+            token_tracker.record(
+                user_id=session_id[:20], role="admin",
+                model=_settings.GROQ_MODEL_PRIMARY, intent="UNKNOWN",
+                input_tokens=0, output_tokens=0,
+                success=False, rate_limited=True,
+            )
             return ChatResponse(
                 reply=rl["reply"],
                 session_id=session_id,
@@ -184,6 +237,68 @@ def admin_chat(req: ChatRequest):
             )
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _format_admin_db_reply(message: str, result: dict) -> str:
+    """
+    Build a direct template response for admin DATABASE_LOOKUP requests.
+    No LLM involved — zero tokens consumed.
+    """
+    msg_l = message.lower()
+
+    # Low stock
+    if "low" in msg_l and "stock" in msg_l or "reorder" in msg_l:
+        count = result.get("low_stock_count", len(result.get("items", [])))
+        if count == 0:
+            return "All items are currently at acceptable stock levels. No items are below the reorder point."
+        items = result.get("items", [])[:10]
+        lines = [f"**{it['name']}** — Stock: {it['stock']} {it['uom']} (Reorder: {it['reorder']})"
+                 for it in items]
+        tail = f"\n\n*...and {count - 10} more items.*" if count > 10 else ""
+        return f"There are **{count}** item(s) at or below the reorder point:\n\n" + "\n".join(lines) + tail
+
+    # User / customer count
+    if any(k in msg_l for k in ("how many", "count", "users", "customers", "staff")):
+        total = result.get("total_users", 0)
+        by_role = result.get("by_role", {})
+        breakdown = ", ".join(f"{v} {k}(s)" for k, v in by_role.items()) if by_role else ""
+        return f"There are **{total}** registered user(s) in the system." + (
+            f"\n\n**By role:** {breakdown}" if breakdown else ""
+        )
+
+    # Vehicles
+    if "vehicle" in msg_l or "fleet" in msg_l:
+        total = result.get("total_vehicles", 0)
+        by_status = result.get("by_status", {})
+        breakdown = ", ".join(f"{v} {k}" for k, v in by_status.items()) if by_status else ""
+        return f"There are **{total}** registered vehicle(s)." + (
+            f"\n\n**By status:** {breakdown}" if breakdown else ""
+        )
+
+    # Maintenance summary
+    if "maintenance" in msg_l or "repair" in msg_l or "summary" in msg_l:
+        total = result.get("total_jobs", 0)
+        by_status = result.get("by_status", {})
+        total_cost = result.get("total_cost", 0)
+        breakdown = ", ".join(f"{v} {k}" for k, v in by_status.items()) if by_status else ""
+        return (
+            f"**Maintenance Summary:** {total} total job(s)"
+            + (f" — {breakdown}" if breakdown else "")
+            + (f"\n\n**Total Cost:** ₱{total_cost:,.2f}" if total_cost else "")
+        )
+
+    # Bookings
+    if "booking" in msg_l or "appointment" in msg_l:
+        total = result.get("total_bookings", 0)
+        by_status = result.get("by_status", {})
+        breakdown = ", ".join(f"{v} {k}" for k, v in by_status.items()) if by_status else ""
+        return f"There are **{total}** booking(s) in the system." + (
+            f"\n\n**By status:** {breakdown}" if breakdown else ""
+        )
+
+    # Generic fallback: return a short summary
+    import json
+    return f"Here is the data retrieved:\n\n```\n{json.dumps(result, indent=2)[:1500]}\n```"
 
 
 # ── Admin report ──────────────────────────────────────────────────────────────
@@ -440,15 +555,46 @@ CUSTOMER_SYSTEM_PROMPT = _build_customer_system_prompt("")  # fallback reference
 
 
 def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
-                       history: list[dict]) -> dict:
-    """Core customer LLM loop — direct Groq call, no key rotation."""
+                       history: list[dict], intent: str = UNKNOWN) -> dict:
+    """
+    Core customer LLM loop.
+
+    Before calling the LLM:
+      1. Check if the intent is DATABASE_LOOKUP / DATABASE_CALCULATION.
+         If so, call the appropriate customer tool directly and return a
+         template response — 0 LLM tokens.
+      2. Otherwise select model (8B default, 70B only for COMPLEX_ANALYSIS)
+         and run the normal tool-calling loop.
+
+    Customer identity (customer_uid, customer_name) is always injected
+    server-side.  The LLM cannot override these values.
+    """
     import json
     from groq import Groq, BadRequestError, RateLimitError
     from config import settings
     from customer_tools import CUSTOMER_TOOL_SCHEMAS, CUSTOMER_TOOL_FUNCTIONS
+    import time as _time
+
+    # ── Step 1: direct DB path for simple lookups (0 LLM tokens) ─────────────
+    direct = _customer_direct_lookup(message, customer_uid, customer_name, intent)
+    if direct is not None:
+        token_tracker.record(
+            user_id=customer_uid,
+            role="customer",
+            model="none",
+            intent=intent,
+            input_tokens=0,
+            output_tokens=0,
+        )
+        return direct
+
+    # ── Step 2: select model ──────────────────────────────────────────────────
+    chosen_model = (settings.GROQ_MODEL_SECONDARY
+                    if intent == COMPLEX_ANALYSIS
+                    else settings.GROQ_MODEL_PRIMARY)
 
     def _call(msgs, tools=None):
-        """Call Groq directly using GROQ_API_KEY from config."""
+        """Call Groq with the selected model."""
         from client import RateLimitedError as _RLE
         api_key = settings.GROQ_API_KEY
         if not api_key:
@@ -456,7 +602,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
         try:
             client = Groq(api_key=api_key)
             kwargs: dict = {
-                "model":      settings.GROQ_MODEL,
+                "model":      chosen_model,
                 "messages":   msgs,
                 "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
             }
@@ -481,15 +627,15 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
         return {k: v for k, v in args.items() if v is not None and v != ""}
 
     messages = [{"role": "system", "content": _build_customer_system_prompt(message)}]
-    # ── Trim history to GROQ_MAX_HISTORY_MSGS before building the payload ──
     trimmed = history[-settings.GROQ_MAX_HISTORY_MSGS:] if len(history) > settings.GROQ_MAX_HISTORY_MSGS else history
     messages.extend(trimmed)
     messages.append({"role": "user", "content": message})
 
     tool_log    = []
     final_reply = ""
+    t0 = _time.time()
 
-    # ── Detect pricing queries so we can nudge the model if it stalls ────────
+    # Detect pricing queries to nudge the model if it stalls
     import re as _re
     _is_pricing_query = bool(_re.search(
         r"how\s+much\s+is|price\s+of|cost\s+of|how\s+much.*service|"
@@ -498,23 +644,32 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
         message, _re.IGNORECASE
     ))
 
+    last_response = None
     for _turn in range(5):
         try:
             response = _call(messages, tools=CUSTOMER_TOOL_SCHEMAS)
+            last_response = response
         except BadRequestError as e:
-            import logging
-            logging.warning("Customer Groq BadRequestError: %s", e)
+            import logging as _log
+            _log.getLogger(__name__).warning("Customer Groq BadRequestError: %s", e)
             try:
                 fb = _call(messages)
+                last_response = fb
+                _record_customer_usage(fb, chosen_model, intent, customer_uid,
+                                       True, _time.time() - t0)
                 return {
                     "reply": fb.choices[0].message.content
                              or "I couldn't retrieve that information. Please try rephrasing.",
                     "tool_calls": tool_log,
+                    "model": chosen_model,
+                    "intent": intent,
                 }
             except Exception:
                 return {
                     "reply": "I couldn't retrieve that information. Please try rephrasing.",
                     "tool_calls": tool_log,
+                    "model": chosen_model,
+                    "intent": intent,
                 }
         msg  = response.choices[0].message
         asst: dict = {"role": "assistant", "content": msg.content or ""}
@@ -523,8 +678,6 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
         messages.append(asst)
 
         if not msg.tool_calls:
-            # ── If this is a pricing query and the model answered without calling
-            #    a tool on the FIRST turn, nudge it to call get_service_prices ──
             if _is_pricing_query and _turn == 0 and not tool_log:
                 messages.append({
                     "role": "user",
@@ -533,8 +686,10 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                         "the actual price from the database. Do not guess."
                     ),
                 })
-                continue   # retry with the nudge
+                continue
             final_reply = msg.content or ""
+            _record_customer_usage(response, chosen_model, intent, customer_uid,
+                                   True, _time.time() - t0)
             break
 
         for call in msg.tool_calls:
@@ -546,9 +701,6 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                 result = {"error": f"Unknown tool '{fn_name}'"}
             else:
                 try:
-                    # Always inject the authenticated customer identity.
-                    # Remove any customer_uid / customer_name the LLM may have
-                    # attempted to pass — they are session-controlled, not LLM-controlled.
                     fn_args.pop("customer_uid", None)
                     fn_args.pop("customer_name", None)
                     result = fn(
@@ -561,7 +713,6 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
 
             tool_log.append({"tool": fn_name, "args": fn_args, "result": result})
 
-            # ── Cap tool result before feeding back to the LLM ───────────────
             result_json = json.dumps(result)
             max_chars   = settings.GROQ_MAX_TOOL_RESULT_CHARS
             if len(result_json) > max_chars:
@@ -575,8 +726,195 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
             })
     else:
         final_reply = "Sorry, I had trouble completing that request. Please try again."
+        if last_response:
+            _record_customer_usage(last_response, chosen_model, intent, customer_uid,
+                                   False, _time.time() - t0)
 
-    return {"reply": final_reply, "tool_calls": tool_log}
+    return {
+        "reply": final_reply,
+        "tool_calls": tool_log,
+        "model": chosen_model,
+        "intent": intent,
+    }
+
+
+def _customer_direct_lookup(message: str, customer_uid: str,
+                            customer_name: str, intent: str) -> dict | None:
+    """
+    Attempt to answer a customer DB query entirely without calling the LLM.
+
+    Returns a dict with reply + tool_calls if a direct answer was built,
+    or None to fall through to the LLM loop.
+
+    Only handles DATABASE_LOOKUP and DATABASE_CALCULATION intents.
+    Authorization is enforced by the customer_tools functions.
+    """
+    if intent not in (DATABASE_LOOKUP, DATABASE_CALCULATION):
+        return None
+
+    msg_l = message.lower()
+    from customer_tools import (
+        get_my_vehicles, get_my_service_history,
+        get_my_pms_status, get_my_bookings, get_service_prices,
+    )
+
+    # ── My vehicles ───────────────────────────────────────────────────────────
+    if re.search(
+        r"\b(my\s+(vehicles?|cars?|fleet|truck|van|suv)"
+        r"|list\s+(my\s+)?(vehicles?|cars?|fleet)"
+        r"|show\s+(my\s+)?(vehicles?|cars?|fleet)"
+        r"|how\s+many\s+(vehicles?|cars?)\s+(do\s+i|i\s+have))\b",
+        msg_l,
+    ):
+        result = get_my_vehicles(customer_uid=customer_uid, customer_name=customer_name)
+        if result.get("error"):
+            return None
+        total = result.get("total_vehicles", 0)
+        if total == 0:
+            reply = "You don't have any registered vehicles on file yet."
+        else:
+            vehicles = result.get("vehicles", [])
+            lines = []
+            for v in vehicles:
+                status = v.get("status", "Active")
+                last   = v.get("lastSvcDate", "")
+                line   = f"**{v.get('plate','')} — {v.get('desc','')}**\nStatus: {status}"
+                if last:
+                    line += f" | Last Service: {last}"
+                lines.append(line)
+            overdue  = [v for v in vehicles if v.get("status") == "Overdue"]
+            due_soon = [v for v in vehicles if v.get("status") in ("Due Soon", "Due This Week")]
+            header   = f"Here are your **{total}** registered vehicle(s):\n\n"
+            body     = "\n\n".join(lines)
+            footer   = ""
+            if overdue:
+                footer += f"\n\n⚠️ **{len(overdue)} vehicle(s) overdue** for maintenance."
+            if due_soon:
+                footer += f"\n\n🔔 **{len(due_soon)} vehicle(s) due soon** — consider scheduling a service."
+            reply = header + body + footer
+        return {
+            "reply": reply,
+            "tool_calls": [{"tool": "get_my_vehicles", "args": {}, "result": result}],
+            "model": "none",
+            "intent": intent,
+        }
+
+    # ── My service history (latest / last service) ────────────────────────────
+    if re.search(
+        r"\b(my\s+service\s+history|my\s+(pms|maintenance)\s+history"
+        r"|past\s+services?|service\s+records?|completed\s+services?"
+        r"|when\s+(was|is)\s+(my\s+)?(last|latest)\s+(service|oil|maintenance|pms))\b",
+        msg_l,
+    ):
+        result = get_my_service_history(customer_uid=customer_uid, customer_name=customer_name)
+        if result.get("error"):
+            return None
+        total = result.get("total_jobs", 0)
+        if total == 0:
+            reply = ("It looks like you don't have any completed service records on file yet. "
+                     "Once your first service is completed at our shop, it will appear here!")
+        else:
+            jobs     = result.get("jobs", [])
+            shown    = jobs[:10]
+            total_c  = result.get("total_cost", "₱0.00")
+            header   = f"Here's your service history! You have **{total}** completed record(s) with a total spend of **{total_c}**.\n\n"
+            lines    = []
+            for i, j in enumerate(shown, 1):
+                svcs = ", ".join(j.get("services", [])) or "—"
+                lines.append(
+                    f"**{i}. {j.get('date','')} — {j.get('plate','')}**\n"
+                    f"Services: {svcs}\nCost: {j.get('cost','—')}"
+                )
+            body  = "\n\n".join(lines)
+            tail  = f"\n\n*Showing your 10 most recent records.*" if total > 10 else ""
+            reply = header + body + tail
+        return {
+            "reply": reply,
+            "tool_calls": [{"tool": "get_my_service_history", "args": {}, "result": result}],
+            "model": "none",
+            "intent": intent,
+        }
+
+    # ── My bookings ───────────────────────────────────────────────────────────
+    if re.search(
+        r"\b(my\s+(bookings?|appointments?)"
+        r"|show\s+(my\s+)?(bookings?|appointments?)"
+        r"|upcoming\s+(service|appointment|booking)"
+        r"|did\s+i\s+(book|schedule))\b",
+        msg_l,
+    ):
+        result = get_my_bookings(customer_uid=customer_uid, customer_name=customer_name)
+        if result.get("error"):
+            return None
+        total = result.get("total", 0)
+        if total == 0:
+            reply = "You don't have any service bookings on file."
+        else:
+            bookings  = result.get("bookings", [])
+            shown     = bookings[:10]
+            pending   = result.get("pending", 0)
+            confirmed = result.get("confirmed", 0)
+            header    = f"You have **{total}** booking(s)"
+            if pending or confirmed:
+                header += f" ({pending} pending, {confirmed} confirmed/in-progress)"
+            header += ":\n\n"
+            lines  = []
+            for b in shown:
+                lines.append(
+                    f"**{b.get('date','')} {b.get('time','')} — {b.get('plate','')}**\n"
+                    f"Services: {b.get('services','—')} | Status: {b.get('status','—')}"
+                )
+            reply = header + "\n\n".join(lines)
+        return {
+            "reply": reply,
+            "tool_calls": [{"tool": "get_my_bookings", "args": {}, "result": result}],
+            "model": "none",
+            "intent": intent,
+        }
+
+    # ── Service prices (count query only — "how many services do you offer") ──
+    if re.search(r"\bhow\s+many\s+services?\b", msg_l):
+        result = get_service_prices(customer_uid=customer_uid, customer_name=customer_name)
+        if result.get("error"):
+            return None
+        total = result.get("total_services", 0)
+        reply = (
+            f"We offer **{total}** service(s). Ask me about a specific service "
+            f"to get its price, or say 'list all services' for the full catalog."
+        ) if total else (
+            "I wasn't able to find pricing information in our system. "
+            "Please contact us at caltexautopro2026@gmail.com for current rates."
+        )
+        return {
+            "reply": reply,
+            "tool_calls": [{"tool": "get_service_prices", "args": {}, "result": result}],
+            "model": "none",
+            "intent": intent,
+        }
+
+    # No direct match — fall through to LLM
+    return None
+
+
+def _record_customer_usage(response, model: str, intent: str,
+                           customer_uid: str, success: bool,
+                           elapsed_s: float) -> None:
+    """Extract token counts from a Groq response and record them."""
+    try:
+        usage = getattr(response, "usage", None)
+        if usage:
+            token_tracker.record(
+                user_id=customer_uid,
+                role="customer",
+                model=model,
+                intent=intent,
+                input_tokens=getattr(usage, "prompt_tokens", 0),
+                output_tokens=getattr(usage, "completion_tokens", 0),
+                response_ms=elapsed_s * 1000,
+                success=success,
+            )
+    except Exception:
+        pass
 
 
 @app.post("/customer/chat", response_model=ChatResponse)
@@ -585,12 +923,14 @@ def customer_chat_endpoint(req: CustomerChatRequest):
     Customer AI chat with server-side conversational memory.
     Scoped strictly to the logged-in customer's own data.
 
-    Requires:
-        message:       the customer's question
-        customer_uid:  Firebase Auth UID
-        customer_name: display name (matched against Firestore owner field)
-        session_id:    optional; auto-generated and returned if omitted
-        history:       optional client-side history (merged with server memory)
+    Flow:
+      1. Validate customer_uid and customer_name.
+      2. Classify intent using deterministic rules (0 tokens).
+      3. Try direct DB path for DATABASE_LOOKUP/CALCULATION (0 LLM tokens).
+      4. If LLM needed: select model (8B default, 70B for COMPLEX_ANALYSIS).
+      5. Run tool-calling loop.
+      6. Record token usage.
+      7. Return reply + session_id.
     """
     if not req.customer_uid or not req.customer_name:
         raise HTTPException(
@@ -598,7 +938,6 @@ def customer_chat_endpoint(req: CustomerChatRequest):
             detail="customer_uid and customer_name are required",
         )
 
-    # Reject empty or whitespace-only messages before they hit the LLM
     if not req.message or not req.message.strip():
         session_id = req.session_id or f"customer-{req.customer_uid}"
         return ChatResponse(
@@ -606,12 +945,11 @@ def customer_chat_endpoint(req: CustomerChatRequest):
             session_id=session_id,
         )
 
-    # Reject messages that contain only non-alphanumeric symbols / garbage characters
     import unicodedata as _ucd
     _stripped = req.message.strip()
     _meaningful_chars = sum(
         1 for c in _stripped
-        if _ucd.category(c).startswith(('L', 'N'))  # letters or digits
+        if _ucd.category(c).startswith(('L', 'N'))
     )
     if len(_stripped) > 0 and _meaningful_chars == 0:
         session_id = req.session_id or f"customer-{req.customer_uid}"
@@ -620,23 +958,21 @@ def customer_chat_endpoint(req: CustomerChatRequest):
             session_id=session_id,
         )
 
-    # Use customer_uid as the natural session key so each customer
-    # automatically has their own persistent memory across devices/sessions.
     session_id = req.session_id or f"customer-{req.customer_uid}"
 
     try:
         server_history    = get_history(session_id)
         effective_history = _merge_history(server_history, req.history)
 
-        # NOTE: Do NOT call classify_and_run() here — that fast-path is admin-only
-        # and exposes inventory/fleet/booking data for all customers.
-        # Customer queries always go through _run_customer_chat() which enforces
-        # the CUSTOMER_SYSTEM_PROMPT scope restrictions and per-customer filtering.
+        # Classify intent (deterministic, 0 tokens)
+        intent = classify_intent(req.message)
+
         result = _run_customer_chat(
             message=req.message,
             customer_uid=req.customer_uid,
             customer_name=req.customer_name,
             history=effective_history,
+            intent=intent,
         )
         reply = result["reply"]
 
@@ -651,6 +987,12 @@ def customer_chat_endpoint(req: CustomerChatRequest):
     except Exception as e:
         if _is_rate_limit(e):
             rl = _rate_limit_reply(str(e))
+            token_tracker.record(
+                user_id=req.customer_uid, role="customer",
+                model=_settings.GROQ_MODEL_PRIMARY, intent="UNKNOWN",
+                input_tokens=0, output_tokens=0,
+                success=False, rate_limited=True,
+            )
             return ChatResponse(
                 reply=rl["reply"],
                 session_id=session_id,
@@ -672,10 +1014,9 @@ def _merge_history(server: list[dict], client: list[dict] | None) -> list[dict]:
     - If the client sends history too, we use whichever is longer, preferring
       server history on tie.
     - Strips any messages missing a 'role' key (Groq rejects them).
-    - Caps at GROQ_MAX_HISTORY_MSGS (default 10) to keep context windows and
-      token consumption manageable. This was previously hard-coded to 30 messages
-      (15 turns). 10 messages = 5 turns — enough for follow-up questions while
-      saving up to 4,000 input tokens per request.
+    - Caps at GROQ_MAX_HISTORY_MSGS (default 6) to keep context windows and
+      token consumption manageable. 6 messages = 3 turns — enough for
+      follow-up questions while saving tokens vs larger caps.
     """
     clean_server = [m for m in server if isinstance(m, dict) and "role" in m]
     clean_client = [m for m in (client or []) if isinstance(m, dict) and "role" in m]
@@ -707,14 +1048,36 @@ def _check_admin(x_admin_token: str = ""):
 
 @app.get("/ai-settings/status")
 def ai_settings_status():
-    """Return current AI service status and key table (masked).
-    Always reloads from Firestore so the response is never stale across
-    Render workers or after a cold start.
+    """Return current AI service status, key table (masked), and token usage.
+    Always reloads from Firestore so the response is never stale.
     """
     from api_key_manager import get_manager
     manager = get_manager()
     manager.load_from_firestore()   # always fresh — Firestore is the source of truth
-    return manager.get_status()
+    status = manager.get_status()
+
+    # Attach today's token usage and model info
+    usage = token_tracker.get_daily_summary()
+    status["token_usage"] = usage
+    status["models"] = {
+        "primary":   _settings.GROQ_MODEL_PRIMARY,
+        "secondary": _settings.GROQ_MODEL_SECONDARY,
+    }
+    return status
+
+
+# ── Token usage ──────────────────────────────────────────────────────────────
+
+@app.get("/ai-settings/token-usage")
+def ai_token_usage():
+    """Return today's token usage summary (no raw prompt/context content)."""
+    return token_tracker.get_daily_summary()
+
+
+@app.get("/ai-settings/token-log")
+def ai_token_log(n: int = 50):
+    """Return the last *n* token usage log entries."""
+    return {"log": token_tracker.get_recent_log(min(n, 200))}
 
 
 # ── Event log ────────────────────────────────────────────────────────────────

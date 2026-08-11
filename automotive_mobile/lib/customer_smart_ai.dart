@@ -308,7 +308,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               ),
             ),
             const Text(
-              'Customer AI Assistant',
+              'AI Assistant',
               style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ],
@@ -449,7 +449,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                 rateLimited: _rateLimited,
                 hint: _rateLimited
                     ? 'AI unavailable — daily limit reached'
-                    : 'Ask about your vehicles…',
+                    : 'Ask about your vehicles, bookings, or services…',
                 onSend: _send,
               ),
               const SizedBox(height: 4),
@@ -506,7 +506,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         ),
         const SizedBox(height: 14),
         const Text(
-          'Customer AI Assistant',
+          'AI Assistant',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1a202c)),
         ),
         const SizedBox(height: 6),
