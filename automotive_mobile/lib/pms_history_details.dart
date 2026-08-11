@@ -29,6 +29,11 @@ class PmsHistoryDetails extends StatelessWidget {
             .where('status', isEqualTo: 'Completed')
             .snapshots(),
         builder: (context, snap) {
+          // Show a full-screen centered spinner while data is loading
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
           final docs = (snap.data?.docs ?? [])
             ..sort((a, b) {
               final aTime = (a.data() as Map)['createdAt'];
@@ -151,16 +156,13 @@ class PmsHistoryDetails extends StatelessWidget {
               ),
 
               // ── Records list ──
-              snap.connectionState == ConnectionState.waiting
+              docs.isEmpty
                   ? const SliverFillRemaining(
-                      child: Center(child: CircularProgressIndicator()))
-                  : docs.isEmpty
-                      ? const SliverFillRemaining(
-                          child: Center(
-                            child: Text('No completed services yet.',
-                                style: TextStyle(color: Color(0xFF718096))),
-                          ),
-                        )
+                      child: Center(
+                        child: Text('No completed services yet.',
+                            style: TextStyle(color: Color(0xFF718096))),
+                      ),
+                    )
                       : SliverPadding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                           sliver: SliverList(
@@ -252,7 +254,7 @@ class _ServiceRecordCard extends StatelessWidget {
               Text('$odometer km', style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(cost, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _red)),
+            Text(cost, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1a202c))),
             const SizedBox(height: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

@@ -12,7 +12,7 @@ returns a friendly message instead of a 500.
 import json
 import logging
 import time
-from groq import Groq, BadRequestError, RateLimitError
+from groq import Groq, BadRequestError, RateLimitError, AuthenticationError
 from config import settings
 from firestore_tools import TOOL_SCHEMAS, TOOL_FUNCTIONS
 from verifier import verify_reply
@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 
 class RateLimitedError(Exception):
     """Raised when the Groq API key hits its daily/minute rate limit."""
+    pass
+
+
+class InvalidApiKeyError(Exception):
+    """Raised when the Groq API key is invalid or revoked (HTTP 401)."""
     pass
 
 
@@ -284,14 +289,17 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None,
 
     model — pass an explicit model string to override the default (8B).
     max_tokens is capped at GROQ_MAX_OUTPUT_TOKENS.
-    RateLimitError is re-raised as RateLimitedError so main.py can return
-    the friendly rate-limit message instead of a 500.
+    RateLimitError  → re-raised as RateLimitedError (friendly rate-limit message).
+    AuthenticationError → re-raised as InvalidApiKeyError (friendly auth message).
 
     Returns the raw Groq response (usage.prompt_tokens etc. available on it).
     """
     api_key = settings.GROQ_API_KEY
     if not api_key:
-        raise RateLimitedError("No Groq API key configured. Set GROQ_API_KEY in .env.")
+        raise InvalidApiKeyError(
+            "No Groq API key configured. "
+            "Set GROQ_API_KEY in the Render environment variables."
+        )
 
     chosen_model = model or settings.GROQ_MODEL_PRIMARY
 
@@ -305,6 +313,12 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None,
         if tools:
             kwargs["tools"] = tools
         return client.chat.completions.create(**kwargs)
+    except AuthenticationError as exc:
+        logger.error("Groq AuthenticationError — invalid or revoked API key: %s", exc)
+        raise InvalidApiKeyError(
+            "The Groq API key is invalid or has been revoked. "
+            "Please update GROQ_API_KEY in the Render environment variables."
+        ) from exc
     except RateLimitError as exc:
         raise RateLimitedError(
             "The AI service has reached its daily usage limit (Groq free tier). "
