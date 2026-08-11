@@ -300,11 +300,15 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               margin: const EdgeInsets.only(right: 10),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
+                color: Colors.white,
                 border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4)],
               ),
               child: ClipOval(
-                child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.cover),
+                child: Padding(
+                  padding: const EdgeInsets.all(3),
+                  child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.contain),
+                ),
               ),
             ),
             const Text(

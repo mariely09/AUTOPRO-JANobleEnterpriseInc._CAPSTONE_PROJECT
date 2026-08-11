@@ -112,7 +112,7 @@
         .ai-panel-header {
             background:linear-gradient(135deg,#c62828 0%,#E8001C 60%,#ff5252 100%);
             padding:14px 12px;display:flex;align-items:center;gap:10px;flex-shrink:0;
-            position:relative;overflow:visible;
+            position:relative;overflow:visible;z-index:10;
         }
         .ai-panel-header::before {
             content:'';position:absolute;inset:0;
@@ -128,6 +128,10 @@
             border:2px solid rgba(255,255,255,0.4);
             box-shadow:0 2px 8px rgba(0,0,0,0.15);
             display:flex;align-items:center;justify-content:center;position:relative;z-index:1;
+            background:white;
+        }
+        .ai-hdr-avatar-img img {
+            width:36px;height:36px;object-fit:contain;display:block;
         }
         .ai-hdr-avatar-dot {
             position:absolute;bottom:1px;right:1px;
@@ -154,7 +158,7 @@
             position:absolute;top:calc(100% + 7px);left:50%;transform:translateX(-50%);
             background:rgba(30,30,30,0.88);color:#fff;font-size:10.5px;font-weight:600;
             padding:4px 9px;border-radius:6px;white-space:nowrap;pointer-events:none;
-            opacity:0;visibility:hidden;transition:opacity .18s ease;z-index:100;
+            opacity:0;visibility:hidden;transition:opacity .18s ease;z-index:9999;
         }
         .ai-hdr-tip::before {
             content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);
@@ -239,7 +243,7 @@
     <!-- Bot avatar -->
     <div class="ai-hdr-avatar">
         <div class="ai-hdr-avatar-img">
-            <img src="../static/img/AI_LOGO.png" width="40" height="40" style="object-fit:cover;display:block;" alt="AI Assistant" />
+            <img src="../static/img/AI_LOGO.png" alt="AI Assistant" />
         </div>
         <span class="ai-hdr-avatar-dot" id="aiHdrOnlineDot" style="display:none;"></span>
     </div>

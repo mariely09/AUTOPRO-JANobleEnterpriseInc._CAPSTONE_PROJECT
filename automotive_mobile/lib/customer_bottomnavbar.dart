@@ -93,41 +93,16 @@ class CustomerBottomNavBar extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // AI logo image fills the circle
-                          ClipOval(
-                            child: Image.asset(
-                              'assets/img/AI_LOGO.png',
-                              width: 38,
-                              height: 38,
-                              fit: BoxFit.cover,
-                            ),
+                      child: ClipOval(
+                        child: Padding(
+                          padding: const EdgeInsets.all(5),
+                          child: Image.asset(
+                            'assets/img/AI_LOGO.png',
+                            width: 38,
+                            height: 38,
+                            fit: BoxFit.contain,
                           ),
-                          // Green online dot — bottom-right corner
-                          Positioned(
-                            bottom: 3,
-                            right: 3,
-                            child: Container(
-                              width: 11,
-                              height: 11,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFF22c55e),
-                                border: Border.all(
-                                    color: Colors.white, width: 2),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF22c55e)
-                                        .withOpacity(0.7),
-                                    blurRadius: 5,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
