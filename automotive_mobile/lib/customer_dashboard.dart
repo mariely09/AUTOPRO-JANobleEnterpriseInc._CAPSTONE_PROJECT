@@ -103,7 +103,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
             Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const CustomerMyBookings()));
           } else if (i == 2) {
-            // Smart AI opens as a full separate screen (no app header / bottom nav)
+            // AI Assistant opens as a full separate screen (no app header / bottom nav)
             Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const CustomerSmartAI()));
           } else if (i == 3) {
@@ -807,7 +807,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     }
   }
 
-  // ── SMART REPORTS ──
+  // ── AI ASSISTANT (legacy inline widget — superseded by CustomerSmartAI full screen) ──
   final List<Map<String, String>> _chatMessages = [];
   final _chatCtrl = TextEditingController();
 
@@ -825,7 +825,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
           ),
           const SizedBox(width: 10),
           const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Smart Reports AI', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            Text('AI Assistant', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             Row(children: [
               CircleAvatar(radius: 4, backgroundColor: Colors.green),
               SizedBox(width: 4),
@@ -897,7 +897,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]),
       child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text("Hello! I'm your Smart Reports assistant. 👋",
+        Text("Hello! I'm your AI Assistant. 👋",
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         SizedBox(height: 4),
         Text('Ask me anything about your vehicles — PMS status, maintenance history, and more.',

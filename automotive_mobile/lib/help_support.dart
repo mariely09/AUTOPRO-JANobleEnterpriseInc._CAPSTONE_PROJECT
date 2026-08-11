@@ -97,7 +97,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         return const [
           {
             'q': 'What tabs are available in the app?',
-            'a': 'The app has five tabs: Home (My Vehicles), My Bookings, Smart AI (the center robot button), PMS History, and Profile.',
+            'a': 'The app has five tabs: Home (My Vehicles), My Bookings, AI Assistant (the center button), PMS History, and Profile.',
           },
           {
             'q': 'How do I view my vehicles?',
@@ -116,8 +116,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             'a': 'Tap the PMS History tab to see a list of your vehicles. Tap any vehicle to view its full maintenance history, including the service date, mechanic, services rendered, materials used, and total cost.',
           },
           {
-            'q': 'What is Smart AI?',
-            'a': 'Smart AI is the center button at the bottom of the screen (robot icon). You can ask it questions about your vehicles — such as which ones are overdue, when the next service is due, or get a summary of your maintenance history. Just type your question in natural language.',
+            'q': 'What is the AI Assistant?',
+            'a': 'The AI Assistant is the center button at the bottom of the screen. Tap it to open the chat. You can ask it questions about your vehicles — such as which ones are overdue, when the next service is due, or get a summary of your maintenance history. Just type your question in natural language.',
           },
           {
             'q': 'How do I change my profile photo?',

@@ -1626,6 +1626,33 @@ def ai_settings_logs():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/ai-settings/token-usage', methods=['GET'])
+def ai_settings_token_usage():
+    """Get today's token usage summary."""
+    try:
+        resp = _ai_settings_get('/ai-settings/token-usage', timeout=10)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except _requests_lib.exceptions.ConnectionError:
+        return _offline_response()
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ai-settings/token-log', methods=['GET'])
+def ai_settings_token_log():
+    """Get recent per-call token usage log (no raw content)."""
+    try:
+        n = request.args.get('n', 50, type=int)
+        resp = _ai_settings_get(f'/ai-settings/token-log?n={n}', timeout=10)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except _requests_lib.exceptions.ConnectionError:
+        return _offline_response()
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/ai-settings/keys', methods=['POST'])
 def ai_settings_add_key():
     """Add a new Groq API key."""

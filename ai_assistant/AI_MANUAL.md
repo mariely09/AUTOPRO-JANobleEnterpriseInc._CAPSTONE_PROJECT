@@ -43,10 +43,18 @@ Inside the `ai_assistant/` folder, create a file named `.env` with the following
 ```
 FIREBASE_CREDENTIALS_PATH=./caltex-autopro-1e664-firebase-adminsdk-fbsvc-07b4fc625e.json
 GROQ_API_KEY=gsk_...
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL_PRIMARY=llama-3.1-8b-instant
+GROQ_MODEL_SECONDARY=llama-3.3-70b-versatile
+GROQ_MAX_OUTPUT_TOKENS=512
+GROQ_MAX_HISTORY_MSGS=6
+GROQ_MAX_TOOL_RESULT_CHARS=4000
 ```
 
 Replace `gsk_...` with the actual Groq API key (ask the project owner).
+
+> **Note:** `GROQ_MODEL_PRIMARY` is the default model (Llama 3.1 8B Instant).
+> `GROQ_MODEL_SECONDARY` (Llama 3.3 70B Versatile) is used only for complex analysis requests.
+> The legacy `GROQ_MODEL` variable still works as a fallback alias for the primary model.
 
 ---
 

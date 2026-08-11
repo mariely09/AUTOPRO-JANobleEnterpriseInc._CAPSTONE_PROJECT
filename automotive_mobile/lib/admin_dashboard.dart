@@ -71,14 +71,57 @@ class _AdminDashboardState extends State<AdminDashboard> {
       backgroundColor: _bg,
       appBar: _buildTopBar(),
       body: _buildBody(),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'admin_dashboard_fab',
-        onPressed: () => Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const AdminSmartReports())),
-        backgroundColor: _red,
-        shape: const CircleBorder(),
-        elevation: 6,
-        child: const Icon(Icons.question_answer_rounded, color: Colors.white, size: 24),
+      floatingActionButton: Tooltip(
+        message: 'AI Assistant',
+        child: FloatingActionButton(
+          heroTag: 'admin_dashboard_fab',
+          onPressed: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const AdminSmartReports())),
+          backgroundColor: Colors.white,
+          shape: const CircleBorder(),
+          elevation: 6,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // AI logo fills the FAB
+              ClipOval(
+                child: Image.asset(
+                  'assets/img/AI_LOGO.png',
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              // Red border ring
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _red, width: 2.5),
+                ),
+              ),
+              // Green online dot — bottom-right
+              Positioned(
+                bottom: 3,
+                right: 3,
+                child: Container(
+                  width: 11,
+                  height: 11,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF22c55e),
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [BoxShadow(
+                      color: const Color(0xFF22c55e).withOpacity(0.7),
+                      blurRadius: 5,
+                    )],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
       bottomNavigationBar: AdminBottomNavBar(
         currentIndex: _currentIndex,

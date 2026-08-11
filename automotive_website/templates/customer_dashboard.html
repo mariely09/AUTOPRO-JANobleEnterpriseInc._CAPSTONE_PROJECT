@@ -110,7 +110,7 @@
 <!-- Toast -->
 <div id="cuToast"></div>
 
-<!-- ── Smart AI Floating Widget ─────────────────────────── -->
+<!-- ── AI Assistant Floating Widget ─────────────────────────── -->
 <!-- History overlay + drawer -->
 <div id="aiHistOverlay" onclick="aiCloseHistory()" style="position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:9100;opacity:0;pointer-events:none;transition:opacity .25s;"></div>
 <div id="aiHistDrawer" style="position:fixed;top:0;right:-340px;width:320px;height:100%;z-index:9101;background:white;box-shadow:-4px 0 24px rgba(0,0,0,0.15);transition:right .28s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden;">
@@ -141,7 +141,7 @@
             </div>
             <!-- Title -->
             <div style="flex:1;min-width:0;z-index:1;">
-                <div style="color:#fff;font-size:13.5px;font-weight:700;">Customer AI Assistant</div>
+                <div style="color:#fff;font-size:13.5px;font-weight:700;">AI Assistant</div>
                 <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
                     <span id="aiStatusDot" style="width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;box-shadow:0 0 6px rgba(74,222,128,0.8);"></span>
                     <span id="aiStatusTxt" style="font-size:10.5px;color:rgba(255,255,255,0.8);">Online</span>
@@ -200,7 +200,7 @@
                 <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 4px 18px rgba(0,0,0,0.12);border:2px solid rgba(232,0,28,0.15);">
                     <img src="../static/img/AI_LOGO.png" style="width:72px;height:72px;object-fit:cover;display:block;" alt="AI">
                 </div>
-                <div style="font-size:15px;font-weight:800;color:#1a202c;margin-bottom:5px;letter-spacing:-0.2px;">Customer AI Assistant</div>
+                <div style="font-size:15px;font-weight:800;color:#1a202c;margin-bottom:5px;letter-spacing:-0.2px;">AI Assistant</div>
                 <div id="aiWelcomeSub" style="font-size:12.5px;color:#94a3b8;line-height:1.65;max-width:280px;margin:0 auto;">Ask me anything about your vehicles — PMS status, maintenance history, and more.</div>
                 <div style="display:flex;flex-direction:column;gap:8px;padding:18px 0 4px;" id="aiSuggestions">
                     <button class="ai-suggest-pill" data-q="List all my vehicles">List all my registered vehicles</button>
@@ -245,6 +245,12 @@
           <img id="aiFabImg" src="../static/img/AI_LOGO.png"
                style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">
       </button>
+      <!-- Green online indicator dot on customer FAB -->
+      <span id="aiFabOnlineDot"
+        style="position:absolute;bottom:3px;right:3px;width:13px;height:13px;
+               border-radius:50%;background:#22c55e;border:2.5px solid white;
+               box-shadow:0 0 6px rgba(34,197,94,0.7);z-index:1;
+               transition:background 0.3s;"></span>
     </div>
 </div>
 
@@ -278,7 +284,7 @@
 </style>
 
 <script>
-// ── Smart AI Widget — fully fixed version ─────────────────────────────────
+// ── AI Assistant Widget — fully fixed version ─────────────────────────────────
 var _aiVehicles = [], _aiMaintenance = [], _aiLoaded = false;
 var _aiPanelOpen = false;
 var _aiChatHistory = [];
@@ -407,6 +413,7 @@ window.closeSmartAI = function() {
 };
 function _updateFabIcon(open) {
     var fab = document.getElementById('aiFab');
+    var dot = document.getElementById('aiFabOnlineDot');
     if (!fab) return;
     if (open) {
         fab.style.background = 'linear-gradient(135deg,#E8001C,#c0001a)';
@@ -414,12 +421,14 @@ function _updateFabIcon(open) {
         fab.style.overflow = 'visible';
         fab.style.padding = '0';
         fab.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+        if (dot) dot.style.display = 'none';
     } else {
         fab.style.background = 'white';
         fab.style.border = '2.5px solid #E8001C';
         fab.style.overflow = 'hidden';
         fab.style.padding = '3px';
         fab.innerHTML = '<img id="aiFabImg" src="../static/img/AI_LOGO.png" style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">';
+        if (dot) dot.style.display = 'block';
     }
 }
 

@@ -520,7 +520,108 @@
         </div>
 
 
-        <!-- ── 4. Event Log ── -->
+        <!-- ── 4. AI Usage Today (Token Monitoring) ── -->
+        <div class="ai-card">
+          <div class="ai-card-header">
+            <div class="ai-card-icon" style="background:linear-gradient(135deg,#d97706,#b45309);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                   fill="none" stroke="#fff" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+            </div>
+            <div>
+              <div class="ai-card-title">AI Usage Today</div>
+              <div class="ai-card-sub" id="usageDateLabel">Token consumption — today</div>
+            </div>
+            <button onclick="loadTokenUsage()"
+              style="margin-left:auto;padding:0.4rem 0.9rem;background:#fffbeb;
+                     border:1.5px solid #fde68a;border-radius:7px;
+                     font-size:0.78rem;font-weight:700;color:#b45309;cursor:pointer;">
+              Refresh Usage
+            </button>
+          </div>
+
+          <!-- Summary stats -->
+          <div class="ai-status-grid" id="tokenSummaryGrid" style="margin-bottom:1.25rem;">
+            <div class="ai-stat">
+              <div class="ai-stat-label">Input Tokens</div>
+              <div class="ai-stat-value" id="tuInput">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Output Tokens</div>
+              <div class="ai-stat-value" id="tuOutput">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Total Tokens</div>
+              <div class="ai-stat-value" id="tuTotal" style="color:#b45309;">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Requests</div>
+              <div class="ai-stat-value" id="tuRequests">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Avg Tokens/Req</div>
+              <div class="ai-stat-value" id="tuAvgTokens">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Avg Response</div>
+              <div class="ai-stat-value" id="tuAvgResp" style="font-size:1rem;">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Errors</div>
+              <div class="ai-stat-value" id="tuErrors" style="color:#c53030;">—</div>
+            </div>
+            <div class="ai-stat">
+              <div class="ai-stat-label">Rate Limit Events</div>
+              <div class="ai-stat-value" id="tuRateLimit" style="color:#975a16;">—</div>
+            </div>
+          </div>
+
+          <!-- Model breakdown -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem;" id="tuModelGrid">
+            <div class="ai-stat" style="background:#eff6ff;">
+              <div class="ai-stat-label" style="color:#1d4ed8;">Llama 3.1 8B (Primary)</div>
+              <div class="ai-stat-value" id="tu8bTotal" style="color:#1d4ed8;font-size:1.1rem;">—</div>
+              <div class="ai-stat-sub" id="tu8bRequests">— requests</div>
+            </div>
+            <div class="ai-stat" style="background:#fdf4ff;">
+              <div class="ai-stat-label" style="color:#7c3aed;">Llama 3.3 70B (Secondary)</div>
+              <div class="ai-stat-value" id="tu70bTotal" style="color:#7c3aed;font-size:1.1rem;">—</div>
+              <div class="ai-stat-sub" id="tu70bRequests">— requests</div>
+            </div>
+          </div>
+
+          <!-- By role -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem;">
+            <div class="ai-stat" style="background:#f0fdf4;">
+              <div class="ai-stat-label" style="color:#166534;">Customers</div>
+              <div class="ai-stat-value" id="tuCustomerTotal" style="color:#166534;font-size:1.1rem;">—</div>
+              <div class="ai-stat-sub" id="tuCustomerReqs">— requests</div>
+            </div>
+            <div class="ai-stat" style="background:#fff7ed;">
+              <div class="ai-stat-label" style="color:#9a3412;">Admins</div>
+              <div class="ai-stat-value" id="tuAdminTotal" style="color:#9a3412;font-size:1.1rem;">—</div>
+              <div class="ai-stat-sub" id="tuAdminReqs">— requests</div>
+            </div>
+          </div>
+
+          <!-- Model routing info -->
+          <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:1rem;">
+            <div style="font-size:0.78rem;font-weight:700;color:#0369a1;text-transform:uppercase;
+                        letter-spacing:0.5px;margin-bottom:0.6rem;">Model Routing Policy</div>
+            <div style="font-size:0.82rem;color:#0c4a6e;line-height:1.7;">
+              <span id="primaryModelName" style="font-weight:700;">Llama 3.1 8B Instant</span>
+              handles all database lookups, simple Q&A, and general questions.<br>
+              <span id="secondaryModelName" style="font-weight:700;">Llama 3.3 70B Versatile</span>
+              is reserved only for <em>complex analysis and multi-source reasoning</em>.<br>
+              Database queries (vehicles, history, bookings, counts) skip the LLM entirely — <strong>0 tokens used</strong>.
+            </div>
+          </div>
+        </div>
+
+
+        <!-- ── 5. Event Log ── -->
         <div class="ai-card">
           <div class="ai-card-header">
             <div class="ai-card-icon" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);">
@@ -717,12 +818,61 @@ async function refreshAll() {
   const btn = document.getElementById('refreshBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
   try {
-    await Promise.all([loadStatus(), loadLogs()]);
+    await Promise.all([loadStatus(), loadLogs(), loadTokenUsage()]);
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML =
       '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Refresh';
     }
   }
+}
+
+// ── Token usage ───────────────────────────────────────────────────────────────
+
+async function loadTokenUsage() {
+  try {
+    const r = await fetch('/api/ai-settings/token-usage');
+    if (!r.ok) return;
+    const d = await r.json();
+    renderTokenUsage(d);
+  } catch (e) {
+    // non-critical — don't show an error if token stats are unavailable
+  }
+}
+
+function renderTokenUsage(d) {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const fmt = n => (n || 0).toLocaleString();
+
+  set('tuInput',    fmt(d.input_tokens));
+  set('tuOutput',   fmt(d.output_tokens));
+  set('tuTotal',    fmt(d.total_tokens));
+  set('tuRequests', fmt(d.requests));
+  set('tuAvgTokens', fmt(d.avg_tokens_per_req));
+  set('tuAvgResp',  d.avg_response_ms ? d.avg_response_ms.toLocaleString() + ' ms' : '—');
+  set('tuErrors',   fmt(d.errors));
+  set('tuRateLimit', fmt(d.rate_limit_events));
+
+  // Date label
+  const dl = document.getElementById('usageDateLabel');
+  if (dl && d.date) dl.textContent = 'Token consumption — ' + d.date;
+
+  // By model
+  const models = d.by_model || {};
+  const primary8b   = models['llama-3.1-8b-instant'] || {};
+  const secondary70b = models['llama-3.3-70b-versatile'] || {};
+  set('tu8bTotal',    fmt(primary8b.total));
+  set('tu8bRequests', fmt(primary8b.requests) + ' requests');
+  set('tu70bTotal',   fmt(secondary70b.total));
+  set('tu70bRequests', fmt(secondary70b.requests) + ' requests');
+
+  // By role
+  const roles = d.by_role || {};
+  const customers = roles['customer'] || {};
+  const admins    = roles['admin'] || {};
+  set('tuCustomerTotal', fmt(customers.total));
+  set('tuCustomerReqs',  fmt(customers.requests) + ' requests');
+  set('tuAdminTotal',    fmt(admins.total));
+  set('tuAdminReqs',     fmt(admins.requests) + ' requests');
 }
 
 // ── Status & keys ────────────────────────────────────────────────────────────
@@ -732,13 +882,22 @@ function renderStatus(d) {
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   set('statAccount',  d.current_account  || '—');
   set('statKey',      d.current_key_masked || '—');
-  set('statModel',    d.current_model    || '—');
+  set('statModel',    (d.models && d.models.primary) ? d.models.primary : (d.current_model || '—'));
   set('statTotal',    d.total_keys       ?? '—');
   set('statAvail',    d.active_keys      ?? '—');
   set('statCooldown', d.cooldown_keys    ?? '—');
   set('statDisabled', d.disabled_keys    ?? '—');
   set('statRequests', (d.total_requests  ?? 0).toLocaleString());
   set('statSwitches', (d.total_switches  ?? 0).toLocaleString());
+
+  // Populate model routing panel names
+  if (d.models) {
+    set('primaryModelName',   d.models.primary   || 'Llama 3.1 8B Instant');
+    set('secondaryModelName', d.models.secondary || 'Llama 3.3 70B Versatile');
+  }
+
+  // Render token usage if it came bundled with status
+  if (d.token_usage) renderTokenUsage(d.token_usage);
 
   // Service badge
   const badge = document.getElementById('serviceStatusBadge');

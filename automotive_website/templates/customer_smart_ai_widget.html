@@ -245,7 +245,7 @@
     </div>
     <!-- Title + status -->
     <div class="ai-hdr-title-wrap">
-        <div class="ai-hdr-title">Customer AI Assistant</div>
+        <div class="ai-hdr-title">AI Assistant</div>
         <div class="ai-hdr-status">
             <span class="ai-hdr-dot" id="aiStatusDot"></span>
             <span class="ai-hdr-status-text" id="aiStatusText">Online</span>
@@ -272,7 +272,7 @@
         <div class="ai-welcome-icon">
             <img src="../static/img/AI_LOGO.png" width="72" height="72" style="object-fit:cover;display:block;" alt="AI Assistant" />
         </div>
-        <div class="ai-welcome-title">Customer AI Assistant</div>
+        <div class="ai-welcome-title">AI Assistant</div>
         <div class="ai-welcome-sub" id="aiWelcomeSub">Ask me anything about your vehicles — PMS status, maintenance history, bookings, and more.</div>
         <div class="ai-suggestions" id="aiSuggestions">
             <button class="ai-suggest-pill" data-q="List all my registered vehicles">List all my registered vehicles</button>
@@ -630,7 +630,7 @@
       }
       _dataLoaded = true;
     } catch(e) {
-      console.error('Smart AI load error:', e);
+      console.error('AI Assistant load error:', e);
       document.getElementById('aiWelcomeSub').textContent = 'Error loading data. Please refresh.';
     }
   }
