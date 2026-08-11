@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from schemas import ChatRequest, ChatResponse, CustomerChatRequest, SessionInfoResponse
-from client import chat as llm_chat, AllKeysRateLimitedError as _AllKeysRateLimitedError
+from client import chat as llm_chat, AllKeysRateLimitedError as _AllKeysRateLimitedError, InvalidApiKeyError as _InvalidApiKeyError
 from intent_classifier import classify_and_run
 from model_router import (
     classify_intent, select_model, needs_llm,
@@ -99,6 +99,35 @@ def _is_rate_limit(exc: Exception) -> bool:
         or "resource_exhausted" in exc_str
         or "resourceexhausted" in exc_str
     )
+
+
+def _is_invalid_key(exc: Exception) -> bool:
+    """Return True if the exception is a Groq authentication / invalid-key error."""
+    from client import InvalidApiKeyError
+    if isinstance(exc, InvalidApiKeyError):
+        return True
+    cls_name = type(exc).__name__.lower()
+    exc_str  = str(exc).lower()
+    return (
+        "authentication" in cls_name
+        or "invalidapikey" in cls_name
+        or "401" in exc_str
+        or "invalid api key" in exc_str
+        or "invalid_api_key" in exc_str
+        or "revoked" in exc_str
+        or "unauthorized" in exc_str
+    )
+
+
+def _invalid_key_reply() -> dict:
+    """Build a structured response for an invalid/revoked API key."""
+    return {
+        "rate_limited": False,
+        "reply": (
+            "⚠️ The AI service is currently unavailable due to a configuration issue.\n\n"
+            "Please contact the system administrator to update the API key."
+        ),
+    }
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
@@ -234,6 +263,12 @@ def admin_chat(req: ChatRequest):
                 session_id=session_id,
                 rate_limited=True,
                 reset_in=rl["reset_in"],
+            )
+        if _is_invalid_key(e):
+            ik = _invalid_key_reply()
+            return ChatResponse(
+                reply=ik["reply"],
+                session_id=session_id,
             )
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
@@ -570,7 +605,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     server-side.  The LLM cannot override these values.
     """
     import json
-    from groq import Groq, BadRequestError, RateLimitError
+    from groq import Groq, BadRequestError, RateLimitError, AuthenticationError
     from config import settings
     from customer_tools import CUSTOMER_TOOL_SCHEMAS, CUSTOMER_TOOL_FUNCTIONS
     import time as _time
@@ -595,10 +630,13 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
 
     def _call(msgs, tools=None):
         """Call Groq with the selected model."""
-        from client import RateLimitedError as _RLE
+        from client import RateLimitedError as _RLE, InvalidApiKeyError as _IKE
         api_key = settings.GROQ_API_KEY
         if not api_key:
-            raise _RLE("No Groq API key configured. Set GROQ_API_KEY in .env.")
+            raise _IKE(
+                "No Groq API key configured. "
+                "Set GROQ_API_KEY in the Render environment variables."
+            )
         try:
             client = Groq(api_key=api_key)
             kwargs: dict = {
@@ -609,6 +647,11 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
             if tools:
                 kwargs["tools"] = tools
             return client.chat.completions.create(**kwargs)
+        except AuthenticationError as exc:
+            raise _IKE(
+                "The Groq API key is invalid or has been revoked. "
+                "Please update GROQ_API_KEY in the Render environment variables."
+            ) from exc
         except RateLimitError as exc:
             raise _RLE(
                 "The AI service has reached its daily usage limit (Groq free tier). "
@@ -998,6 +1041,12 @@ def customer_chat_endpoint(req: CustomerChatRequest):
                 session_id=session_id,
                 rate_limited=True,
                 reset_in=rl["reset_in"],
+            )
+        if _is_invalid_key(e):
+            ik = _invalid_key_reply()
+            return ChatResponse(
+                reply=ik["reply"],
+                session_id=session_id,
             )
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,14 +1,35 @@
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 
-load_dotenv()
+# Load .env into the process environment on startup.
+load_dotenv(override=True)
+
+# Path to .env — resolved relative to this file so it works regardless of cwd.
+_ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
+
+
+def _reload_env_key(key: str, default: str = "") -> str:
+    """
+    Read a single key directly from the .env file on disk.
+    This bypasses the in-memory os.environ cache so a key updated in .env
+    is picked up without restarting the server.
+    Falls back to os.environ (the value set at startup) if the file is missing.
+    """
+    try:
+        values = dotenv_values(_ENV_PATH)
+        return values.get(key, os.getenv(key, default)) or default
+    except Exception:
+        return os.getenv(key, default)
 
 
 class Settings:
     # ── Groq / LLM ────────────────────────────────────────────────────────────
     # ONLY provider: Groq (free tier).
-    # GROQ_API_KEY is the single key used for all LLM calls.
-    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    # GROQ_API_KEY is read fresh from .env on every access so that updating
+    # the key in .env takes effect immediately without restarting the server.
+    @property
+    def GROQ_API_KEY(self) -> str:  # type: ignore[override]
+        return _reload_env_key("GROQ_API_KEY")
 
     # ── Model routing ─────────────────────────────────────────────────────────
     # PRIMARY (default): Llama 3.1 8B Instant — fast, cheap, handles the

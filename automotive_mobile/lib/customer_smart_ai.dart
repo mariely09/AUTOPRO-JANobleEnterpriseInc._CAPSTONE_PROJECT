@@ -296,45 +296,63 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         title: Row(
           children: [
             Container(
-              width: 32, height: 32,
+              width: 40, height: 40,
               margin: const EdgeInsets.only(right: 10),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4)],
+                color: Colors.white,
+                border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8)],
               ),
               child: ClipOval(
-                child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.cover),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.contain),
+                ),
               ),
             ),
-            const Text(
-              'AI Assistant',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'AI Assistant',
+                    style: TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7, height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _backendOnline ? const Color(0xFF4ade80) : Colors.orange,
+                          boxShadow: [BoxShadow(
+                            color: _backendOnline
+                                ? const Color(0xFF4ade80).withValues(alpha: 0.8)
+                                : Colors.orange.withValues(alpha: 0.6),
+                            blurRadius: 6,
+                          )],
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _backendOnline ? 'Online' : 'Offline',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: Colors.white.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
-          // Online dot
-          Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: Tooltip(
-              message: _backendOnline ? 'AI Online' : 'AI Offline',
-              child: Container(
-                width: 12, height: 12,
-                margin: const EdgeInsets.only(right: 4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _backendOnline ? const Color(0xFF22c55e) : Colors.orange,
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2),
-                  boxShadow: [BoxShadow(
-                    color: _backendOnline
-                        ? const Color(0xFF22c55e).withValues(alpha: 0.6)
-                        : Colors.orange.withValues(alpha: 0.6),
-                    blurRadius: 6)],
-                ),
-              ),
-            ),
-          ),
           if (_messages.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.white),
@@ -774,7 +792,7 @@ class _FocusInputBarState extends State<_FocusInputBar> {
               hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
               border: InputBorder.none,
               isDense: true,
-              contentPadding: EdgeInsets.zero,
+              contentPadding: const EdgeInsets.symmetric(vertical: 6),
             ),
             style: const TextStyle(fontSize: 13, color: Color(0xFF1a202c)),
             onTap: () => setState(() => _focused = true),
