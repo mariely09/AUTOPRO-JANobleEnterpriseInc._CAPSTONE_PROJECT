@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
 import 'customer_mybookings.dart';
 
 class CustomerBookService extends StatefulWidget {
@@ -174,116 +176,12 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       final db = FirebaseFirestore.instance;
       final userDoc = await db.collection('users').doc(uid).get();
       final customerName = userDoc.data()?['name'] as String? ?? '';
-      final userStatus = (userDoc.data()?['status'] as String? ?? 'active').toLowerCase();
 
       final selectedVehicles = _vehicles.where((v) => _selectedVehicleIds.contains(v['id'])).toList();
 
       final dateStr = '${_preferredDate!.year}-${_preferredDate!.month.toString().padLeft(2, '0')}-${_preferredDate!.day.toString().padLeft(2, '0')}';
 
-      // ═══════════════════════════════════════════════════════════
-      // AUTO-APPROVAL CHECKLIST (same as website)
-      // ═══════════════════════════════════════════════════════════
-      final checks = <String>[];
-      bool autoApprove = true;
-      String denyReason = '';
-
-      final today = DateTime.now();
-      final todayMidnight = DateTime(today.year, today.month, today.day);
-      final bookDate = DateTime.parse(dateStr);
-      final daysAhead = bookDate.difference(todayMidnight).inDays;
-
-      // 1. Advance Window — 1 to 30 days ahead
-      if (daysAhead < 1) {
-        autoApprove = false;
-        denyReason = 'Same-day bookings require admin approval.';
-        checks.add('❌ Advance Window: Same-day rush');
-      } else if (daysAhead > 30) {
-        autoApprove = false;
-        denyReason = 'Bookings more than 30 days ahead require admin approval.';
-        checks.add('❌ Advance Window: Too far ahead ($daysAhead days)');
-      } else {
-        checks.add('✅ Advance Window: $daysAhead days ahead');
-      }
-
-      // 2. Slot Availability — date is full only when all time slots are taken
-      final takenOnDate = (_bookedDates[dateStr] ?? []);
-      final dayBookings = takenOnDate.length;
-      if (dayBookings >= _allTimeSlots.length) {
-        autoApprove = false;
-        denyReason = 'This date is fully booked. Please choose another date.';
-        checks.add('❌ Slot Availability: Full ($dayBookings/${_allTimeSlots.length} time slots taken)');
-      } else {
-        checks.add('✅ Slot Availability: $dayBookings/${_allTimeSlots.length} time slots taken');
-      }
-
-      // 3. No Duplicate — same vehicle, same day
-      final firstVehicleId = _selectedVehicleIds.first;
-      final dupSnap = await db.collection('service_bookings')
-          .where('vehicleId', isEqualTo: firstVehicleId)
-          .where('preferredDate', isEqualTo: dateStr)
-          .where('status', whereIn: ['Approved', 'Pending'])
-          .get();
-      if (dupSnap.docs.isNotEmpty) {
-        autoApprove = false;
-        denyReason = 'A selected vehicle already has a booking on ${_fmtDatePretty(bookDate)}.';
-        checks.add('❌ No Duplicate: Vehicle already booked on this date');
-      } else {
-        checks.add('✅ No Duplicate: No conflict');
-      }
-
-      // 4. Service Type Valid
-      final validServiceNames = _services.map((s) => (s['name'] as String? ?? '').toLowerCase()).toList();
-      // Check all services across all vehicles
-      final allSelectedServiceNames = <String>{};
-      for (final vId in _selectedVehicleIds) {
-        final svcIds = _vehicleServices[vId] ?? {};
-        for (final sId in svcIds) {
-          final svc = _services.firstWhere((s) => s['id'] == sId, orElse: () => <String, dynamic>{});
-          final name = svc['name'] as String? ?? '';
-          if (name.isNotEmpty) allSelectedServiceNames.add(name);
-        }
-      }
-      final invalidSvc = allSelectedServiceNames.where((n) => !validServiceNames.contains(n.toLowerCase())).toList();
-      if (invalidSvc.isNotEmpty) {
-        autoApprove = false;
-        denyReason = 'Invalid service selected: ${invalidSvc.join(', ')}';
-        checks.add('❌ Service Type: Invalid (${invalidSvc.join(', ')})');
-      } else {
-        checks.add('✅ Service Type: All valid');
-      }
-
-      // 5. Customer Verified — account is active
-      if (userStatus == 'inactive' || userStatus == 'banned') {
-        autoApprove = false;
-        denyReason = 'Your account is restricted. Please contact admin.';
-        checks.add('❌ Customer Verified: Account $userStatus');
-      } else {
-        checks.add('✅ Customer Verified: Active');
-      }
-
-      // 6. Capacity Check — shop is open all days
-      checks.add('✅ Capacity: Shop open');
-
-      // 7. Duplicate time slot — same date, same time already taken
-      final timeSnap = await db.collection('service_bookings')
-          .where('preferredDate', isEqualTo: dateStr)
-          .where('preferredTime', isEqualTo: _preferredTime)
-          .where('status', whereIn: ['Approved', 'Pending'])
-          .get();
-      if (timeSnap.docs.isNotEmpty) {
-        autoApprove = false;
-        denyReason = 'The $_preferredTime slot on ${_fmtDatePretty(bookDate)} is already taken.';
-        checks.add('❌ Time Slot: Already taken');
-      } else {
-        checks.add('✅ Time Slot: Available');
-      }
-
-      // ═══════════════════════════════════════════════════════════
-      // DECISION
-      // ═══════════════════════════════════════════════════════════
-      final finalStatus = autoApprove ? 'Approved' : 'Pending';
-
-      // Create one booking per selected vehicle with its own services
+      // Create one booking per selected vehicle — always Approved
       for (final vehicle in selectedVehicles) {
         final plate = vehicle['plate'] as String? ?? '';
         final vehicleDesc = vehicle['desc'] as String? ?? '';
@@ -305,15 +203,12 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
           'preferredDate': dateStr,
           'preferredTime': _preferredTime,
           'notes': _notes.trim(),
-          'status': finalStatus,
-          'autoApproved': autoApprove,
-          'approvalChecks': checks,
-          'usedAiSuggestion': false, // mobile has no AI suggestion widget yet
+          'status': 'Approved',
+          'autoApproved': true,
+          'usedAiSuggestion': false,
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
-
-      final allPlates = selectedVehicles.map((v) => v['plate'] as String? ?? '—').join(', ');
 
       // Build per-vehicle service breakdown for notifications
       final vehicleBreakdown = <String>[];
@@ -329,58 +224,158 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         vehicleBreakdown.add('$plate: ${vNames.join(", ")}');
       }
       final detailedMsg = vehicleBreakdown.join(' | ');
+      final vCount = selectedVehicles.length;
+      final vLabel = '$vCount vehicle${vCount > 1 ? 's' : ''}';
+      final bookingMsg = '$customerName booked service for $vLabel on ${_fmtDatePretty(_preferredDate!)}. $detailedMsg';
 
-      // Send notifications based on decision
-      if (autoApprove) {
-        final msg = '$customerName booked service for ${selectedVehicles.length} vehicle${selectedVehicles.length > 1 ? 's' : ''} on ${_fmtDatePretty(bookDate)}. $detailedMsg (Auto-approved ✅)';
-        await db.collection('notifications').add({
-          'title': '📅 Booking Auto-Approved (${selectedVehicles.length} vehicle${selectedVehicles.length > 1 ? 's' : ''})',
-          'message': msg, 'type': 'info',
-          'targetRole': 'admin', 'targetUid': '',
-          'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
-        });
-        await db.collection('notifications').add({
-          'title': '📅 Booking Auto-Approved (${selectedVehicles.length} vehicle${selectedVehicles.length > 1 ? 's' : ''})',
-          'message': msg, 'type': 'info',
-          'targetRole': 'staff', 'targetUid': '',
-          'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
-        });
-        await db.collection('notifications').add({
-          'title': '✅ Booking Confirmed',
-          'message': 'Your service booking on ${_fmtDatePretty(bookDate)} has been confirmed.\n$detailedMsg',
-          'type': 'success', 'targetRole': '', 'targetUid': uid,
-          'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
-        });
-      } else {
-        final msg = '$customerName requested service for ${selectedVehicles.length} vehicle${selectedVehicles.length > 1 ? 's' : ''} on ${_fmtDatePretty(bookDate)}. $detailedMsg. Needs review: $denyReason';
-        await db.collection('notifications').add({
-          'title': '⏳ Booking Needs Review (${selectedVehicles.length} vehicle${selectedVehicles.length > 1 ? 's' : ''})',
-          'message': msg, 'type': 'warning',
-          'targetRole': 'admin', 'targetUid': '',
-          'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
-        });
-        await db.collection('notifications').add({
-          'title': '⏳ Booking Pending',
-          'message': 'Your booking on ${_fmtDatePretty(bookDate)} is pending admin approval.\n$detailedMsg\nReason: $denyReason',
-          'type': 'warning', 'targetRole': '', 'targetUid': uid,
-          'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
-        });
-      }
+      // ── Load admin & staff UIDs ──
+      final adminSnap = await db.collection('users').where('role', isEqualTo: 'admin').get();
+      final staffSnap2 = await db.collection('users').where('role', isEqualTo: 'staff').get();
+      final adminUids = adminSnap.docs.map((d) => d.id).toList();
+      final staffUids = staffSnap2.docs.map((d) => d.id).toList();
+
+      // ── Notify admin: in-app + push ──
+      await _sendAlertToUsers(
+        db: db,
+        uids: adminUids,
+        title: '📅 New Booking — $vLabel',
+        message: bookingMsg,
+        type: 'info',
+        targetRole: 'admin',
+      );
+
+      // ── Notify staff: in-app + push ──
+      await _sendAlertToUsers(
+        db: db,
+        uids: staffUids,
+        title: '📅 New Booking — $vLabel',
+        message: bookingMsg,
+        type: 'info',
+        targetRole: 'staff',
+      );
+
+      // ── Email admin & staff via Flask (server fetches recipient emails) ──
+      _sendBookingEmail(
+        customerName: customerName,
+        selectedVehicles: selectedVehicles,
+        vehicleServices: _vehicleServices,
+        services: _services,
+        preferredDate: _fmtDatePretty(_preferredDate!),
+        preferredTime: _preferredTime!,
+        notes: _notes,
+      ); // fire-and-forget — don't await so UI isn't blocked
+
+      // ── Notify customer: in-app only ──
+      await db.collection('notifications').add({
+        'title': '✅ Booking Confirmed',
+        'message': 'Your service booking on ${_fmtDatePretty(_preferredDate!)} at $_preferredTime has been confirmed.\n$detailedMsg',
+        'type': 'success', 'targetRole': '', 'targetUid': uid,
+        'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
+      });
 
       if (mounted) {
         Navigator.pushReplacement(context,
           MaterialPageRoute(builder: (_) => const CustomerMyBookings()));
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(autoApprove
-            ? '✅ Booking confirmed for ${selectedVehicles.length} vehicle${selectedVehicles.length > 1 ? 's' : ''}!'
-            : '⏳ Booking submitted — pending admin approval. $denyReason'),
-          backgroundColor: autoApprove ? Colors.green : Colors.orange,
+          content: Text('✅ Booking confirmed for $vCount vehicle${vCount > 1 ? 's' : ''}!'),
+          backgroundColor: Colors.green,
         ));
       }
     } catch (e) {
       _snack('Error: $e');
     } finally {
       if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  /// Sends in-app Firestore notification + OneSignal push to each uid.
+  /// Email is sent separately via _sendBookingEmail (Flask handles recipient lookup).
+  Future<void> _sendAlertToUsers({
+    required FirebaseFirestore db,
+    required List<String> uids,
+    required String title,
+    required String message,
+    required String type,
+    String targetRole = '',
+    String targetUid = '',
+  }) async {
+    if (uids.isEmpty) return;
+
+    // 1. In-app notification (one doc per role so all members see it)
+    await db.collection('notifications').add({
+      'title': title, 'message': message, 'type': type,
+      'targetRole': targetRole, 'targetUid': targetUid,
+      'readBy': <String, bool>{}, 'isRead': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    // 2. OneSignal push notification
+    const oneSignalAppId = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
+    const oneSignalApiKey =
+        'os_v7_app_yt4cvr2f1hkhvh5ldu4k637i51snjeyuythen3fd61ae1yhnprpy6kbxvn9kjd1pqdhygsqmlrouas4kfuydft32nkgj5flbra3oo5q';
+    try {
+      await http.post(
+        Uri.parse('https://onesignal.com/api/v1/notifications'),
+        headers: {
+          'Authorization': 'Basic $oneSignalApiKey',
+          'Content-Type': 'application/json; charset=utf-8',
+        },
+        body: jsonEncode({
+          'app_id': oneSignalAppId,
+          'include_aliases': {'external_id': uids},
+          'target_channel': 'push',
+          'headings': {'en': title},
+          'contents': {'en': message},
+          'data': {'type': type},
+          'android_channel_id': 'autopro_alerts',
+          'ios_sound': 'default',
+        }),
+      );
+    } catch (e) {
+      debugPrint('❌ OneSignal push error: $e');
+    }
+  }
+
+  /// Calls Flask /api/send-booking-email — server fetches admin/staff emails
+  /// from Firestore and sends a rich HTML booking notification email.
+  Future<void> _sendBookingEmail({
+    required String customerName,
+    required List<Map<String, dynamic>> selectedVehicles,
+    required Map<String, Set<String>> vehicleServices,
+    required List<Map<String, dynamic>> services,
+    required String preferredDate,
+    required String preferredTime,
+    required String notes,
+  }) async {
+    const flaskBaseUrl = 'https://caltex-autopro.onrender.com';
+    try {
+      final vehiclePayload = selectedVehicles.map((v) {
+        final vId = v['id'] as String;
+        final plate = v['plate'] as String? ?? '—';
+        final desc  = v['desc']  as String? ?? '';
+        final svcIds = vehicleServices[vId] ?? {};
+        final svcNames = services
+            .where((s) => svcIds.contains(s['id']))
+            .map((s) => s['name'] as String? ?? '')
+            .where((n) => n.isNotEmpty)
+            .toList();
+        return {'plate': plate, 'desc': desc, 'services': svcNames};
+      }).toList();
+
+      await http.post(
+        Uri.parse('$flaskBaseUrl/api/send-booking-email'),
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+        body: jsonEncode({
+          'customer_name':  customerName,
+          'vehicles':       vehiclePayload,
+          'preferred_date': preferredDate,
+          'preferred_time': preferredTime,
+          'notes':          notes,
+          'target_roles':   ['admin', 'staff'],
+        }),
+      );
+    } catch (e) {
+      debugPrint('❌ Booking email dispatch error: $e');
     }
   }
 

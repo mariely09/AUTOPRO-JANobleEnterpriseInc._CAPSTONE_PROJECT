@@ -763,6 +763,53 @@ function _showSelectedDate() {
 // Initialize calendar on first open
 _loadBookedDates();
 
+// ── OneSignal / Flask constants (mirrors background_dss.dart) ──
+var _kOneSignalAppId  = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
+var _kOneSignalApiKey = 'os_v7_app_yt4cvr2f1hkhvh5ldu4k637i51snjeyuythen3fd61ae1yhnprpy6kbxvn9kjd1pqdhygsqmlrouas4kfuydft32nkgj5flbra3oo5q';
+var _kFlaskBaseUrl    = 'https://caltex-autopro.onrender.com';
+
+// Sends a OneSignal push to a list of external_ids (Firebase UIDs)
+async function _onesignalPush(uids, title, message, type) {
+  if (!uids || !uids.length) return;
+  try {
+    await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + _kOneSignalApiKey,
+        'Content-Type': 'application/json; charset=utf-8',
+      },
+      body: JSON.stringify({
+        app_id: _kOneSignalAppId,
+        include_aliases: { external_id: uids },
+        target_channel: 'push',
+        headings: { en: title },
+        contents: { en: message },
+        data: { type: type },
+        android_channel_id: 'autopro_alerts',
+        ios_sound: 'default',
+      }),
+    });
+  } catch(e) { console.warn('OneSignal push error:', e); }
+}
+
+// _sendAlert: Firestore in-app + OneSignal push (email is sent separately via Flask /api/send-booking-email)
+async function _sendAlert(db, uids, title, message, type, targetRole, targetUid) {
+  targetRole = targetRole || '';
+  targetUid  = targetUid  || '';
+  if (!uids || !uids.length) return;
+
+  // 1. In-app notification
+  await db.collection('notifications').add({
+    title: title, message: message, type: type,
+    targetRole: targetRole, targetUid: targetUid,
+    readBy: {}, isRead: false,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // 2. Push notification
+  await _onesignalPush(uids, title, message, type);
+}
+
 window.bsSubmit = async function() {
   if (!Object.keys(_bsSelectedVehicles).length) { _toast('Please select at least one vehicle.','error'); return; }
   // Check each vehicle has at least one service
@@ -780,7 +827,7 @@ window.bsSubmit = async function() {
   if (!_bsTime) { _toast('Please select a preferred start time.','error'); return; }
 
   var btn = document.getElementById('bsSubmitBtn');
-  btn.disabled = true; btn.textContent = 'Verifying...';
+  btn.disabled = true; btn.textContent = 'Booking...';
 
   try {
     var user = firebase.auth().currentUser;
@@ -790,132 +837,15 @@ window.bsSubmit = async function() {
 
     var vehicleIds = Object.keys(_bsSelectedVehicles);
     var selectedVehicles = _bsVehicles.filter(function(v){ return _bsSelectedVehicles[v.id]; });
-
-    // Collect all unique service names for notifications
-    var allSelectedNames = [];
-    vehicleIds.forEach(function(vId) {
-      var svcs = _bsVehicleServices[vId] || {};
-      _bsServices.forEach(function(s) {
-        if (svcs[s.id] && allSelectedNames.indexOf(s.name||'') === -1) {
-          allSelectedNames.push(s.name||'');
-        }
-      });
-    });
-
-    // Use first selected vehicle for validation checks
-    var firstVehicle = selectedVehicles[0];
-    var plate = firstVehicle ? (firstVehicle.plate||'') : '';
-    var vehicleDesc = firstVehicle ? (firstVehicle.desc||'') : '';
-
-    // ═══════════════════════════════════════════════════════════
-    // AUTO-APPROVAL CHECKLIST
-    // ═══════════════════════════════════════════════════════════
-    var checks = [];
-    var autoApprove = true;
-    var denyReason = '';
-
-    // 1. Advance Window — 1 to 30 days ahead
-    var today = new Date(); today.setHours(0,0,0,0);
-    var bookDate = new Date(_bsDate + 'T00:00:00');
-    var daysAhead = Math.round((bookDate - today) / 86400000);
-    if (daysAhead < 1) {
-      autoApprove = false;
-      denyReason = 'Same-day bookings require admin approval.';
-      checks.push('❌ Advance Window: Same-day rush');
-    } else if (daysAhead > 30) {
-      autoApprove = false;
-      denyReason = 'Bookings more than 30 days ahead require admin approval.';
-      checks.push('❌ Advance Window: Too far ahead (' + daysAhead + ' days)');
-    } else {
-      checks.push('✅ Advance Window: ' + daysAhead + ' days ahead');
-    }
-
-    // 2. Slot Availability — date is full only when all time slots are taken
-    var takenOnDate = _bsBookedDates[_bsDate] || [];
-    var dayBookings = takenOnDate.length;
-    if (dayBookings >= _ALL_TIME_SLOTS.length) {
-      autoApprove = false;
-      denyReason = 'This date is fully booked. Please choose another date.';
-      checks.push('❌ Slot Availability: Full (' + dayBookings + '/' + _ALL_TIME_SLOTS.length + ' time slots taken)');
-    } else {
-      checks.push('✅ Slot Availability: ' + dayBookings + '/' + _ALL_TIME_SLOTS.length + ' time slots taken');
-    }
-
-    // 3. No Duplicate — same vehicle, same day (check first vehicle)
-    var dupSnap = await db.collection('service_bookings')
-      .where('vehicleId', '==', vehicleIds[0])
-      .where('preferredDate', '==', _bsDate)
-      .where('status', 'in', ['Approved', 'Pending'])
-      .get();
-    if (!dupSnap.empty) {
-      autoApprove = false;
-      denyReason = 'A selected vehicle already has a booking on ' + _fmtDatePretty(_bsDate) + '.';
-      checks.push('❌ No Duplicate: Vehicle already booked on this date');
-    } else {
-      checks.push('✅ No Duplicate: No conflict');
-    }
-
-    // 4. Service Type Valid — must be from item_master services list
-    var validServiceNames = _bsServices.map(function(s){ return (s.name||'').toLowerCase(); });
-    var invalidSvc = allSelectedNames.filter(function(n){ return validServiceNames.indexOf(n.toLowerCase()) === -1; });
-    if (invalidSvc.length > 0) {
-      autoApprove = false;
-      denyReason = 'Invalid service selected: ' + invalidSvc.join(', ');
-      checks.push('❌ Service Type: Invalid (' + invalidSvc.join(', ') + ')');
-    } else {
-      checks.push('✅ Service Type: All valid');
-    }
-
-    // 5. Customer Verified — account is active
-    var userDoc = await db.collection('users').doc(user.uid).get();
-    var userStatus = userDoc.exists ? (userDoc.data().status || 'active').toLowerCase() : 'active';
-    if (userStatus === 'inactive' || userStatus === 'banned') {
-      autoApprove = false;
-      denyReason = 'Your account is restricted. Please contact admin.';
-      checks.push('❌ Customer Verified: Account ' + userStatus);
-    } else {
-      checks.push('✅ Customer Verified: Active');
-    }
-
-    // 6. Capacity Check — date is available (not fully booked, already checked above)
-    checks.push('✅ Capacity: Shop open');
-
-    // 7. Duplicate time slot — same date + time already taken
-    var timeSlotSnap = await db.collection('service_bookings')
-      .where('preferredDate', '==', _bsDate)
-      .where('preferredTime', '==', _bsTime)
-      .where('status', 'in', ['Approved', 'Pending'])
-      .get();
-    if (!timeSlotSnap.empty) {
-      autoApprove = false;
-      denyReason = 'The ' + _bsTime + ' slot on ' + _fmtDatePretty(_bsDate) + ' is already taken.';
-      checks.push('❌ Time Slot: Already taken');
-    } else {
-      checks.push('✅ Time Slot: Available');
-    }
-
-    // 8. AI Slot Match (bonus confidence)
     var usedAiSlot = (_bsDate === _bsSuggestedDate);
-    if (usedAiSlot) {
-      checks.push('✅ AI Slot Match: +20% confidence');
-    }
+    var vCount = selectedVehicles.length;
+    var vLabel = vCount + ' vehicle' + (vCount > 1 ? 's' : '');
 
-    // ═══════════════════════════════════════════════════════════
-    // DECISION
-    // ═══════════════════════════════════════════════════════════
-    var finalStatus = autoApprove ? 'Approved' : 'Pending';
-
-    console.log('Auto-Approval Checklist:', checks);
-    console.log('Decision:', finalStatus, autoApprove ? '' : '(' + denyReason + ')');
-
-    btn.textContent = 'Booking...';
-
-    // Create one booking per selected vehicle with its own services
+    // Create one booking per selected vehicle — always Approved
     var allPlates = [];
     for (var vi = 0; vi < selectedVehicles.length; vi++) {
       var v = selectedVehicles[vi];
       allPlates.push(v.plate || '—');
-      // Get this vehicle's selected service names
       var vSvcs = _bsVehicleServices[v.id] || {};
       var vServiceNames = _bsServices
         .filter(function(s) { return vSvcs[s.id]; })
@@ -932,17 +862,14 @@ window.bsSubmit = async function() {
         preferredDate: _bsDate,
         preferredTime: _bsTime,
         notes: (document.getElementById('bsNotes').value||'').trim(),
-        status: finalStatus,
-        autoApproved: autoApprove,
-        approvalChecks: checks,
+        status: 'Approved',
+        autoApproved: true,
         usedAiSuggestion: usedAiSlot,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
     }
 
-    var plateStr = allPlates.join(', ');
-
-    // Build per-vehicle service breakdown for notifications
+    // Build per-vehicle service breakdown
     var vehicleBreakdown = [];
     for (var vi3 = 0; vi3 < selectedVehicles.length; vi3++) {
       var vb = selectedVehicles[vi3];
@@ -954,45 +881,58 @@ window.bsSubmit = async function() {
       vehicleBreakdown.push((vb.plate || '—') + ': ' + vbNames.join(', '));
     }
     var detailedMsg = vehicleBreakdown.join(' | ');
-    var vCount = selectedVehicles.length;
-    var vLabel = vCount + ' vehicle' + (vCount > 1 ? 's' : '');
+    var bookingMsg = customerName + ' booked service for ' + vLabel + ' on ' + _fmtDatePretty(_bsDate) + '. ' + detailedMsg;
 
-    if (autoApprove) {
-      var msg = customerName + ' booked service for ' + vLabel + ' on ' + _fmtDatePretty(_bsDate) + '. ' + detailedMsg + ' (Auto-approved ✅)';
-      await db.collection('notifications').add({
-        title: '📅 Booking Auto-Approved (' + vLabel + ')', message: msg, type: 'info',
-        targetRole: 'admin', targetUid: '',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
-      });
-      if (typeof sendAlertEmail === 'function') sendAlertEmail({ title: '📅 Booking Auto-Approved (' + vLabel + ')', message: msg, type: 'info', targetRole: 'admin' });
-      await db.collection('notifications').add({
-        title: '📅 Booking Auto-Approved (' + vLabel + ')', message: msg, type: 'info',
-        targetRole: 'staff', targetUid: '',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
-      });
-      if (typeof sendAlertEmail === 'function') sendAlertEmail({ title: '📅 Booking Auto-Approved (' + vLabel + ')', message: msg, type: 'info', targetRole: 'staff' });
-      await db.collection('notifications').add({
-        title: '✅ Booking Confirmed', message: 'Your service booking on ' + _fmtDatePretty(_bsDate) + ' has been confirmed.\n' + detailedMsg,
-        type: 'success', targetRole: '', targetUid: user.uid,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
-      });
-      if (typeof sendAlertEmail === 'function') sendAlertEmail({ title: '✅ Booking Confirmed', message: 'Your service booking on ' + _fmtDatePretty(_bsDate) + ' has been confirmed.\n' + detailedMsg, type: 'success', targetUid: user.uid });
-      _toast('Booking confirmed for ' + vCount + ' vehicle(s)! ✅','success');
-    } else {
-      var msg = customerName + ' requested service for ' + vLabel + ' on ' + _fmtDatePretty(_bsDate) + '. ' + detailedMsg + '. Needs review: ' + denyReason;
-      await db.collection('notifications').add({
-        title: '⏳ Booking Needs Review (' + vLabel + ')', message: msg, type: 'warning',
-        targetRole: 'admin', targetUid: '',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
-      });
-      await db.collection('notifications').add({
-        title: '⏳ Booking Pending', message: 'Your booking on ' + _fmtDatePretty(_bsDate) + ' is pending admin approval.\n' + detailedMsg + '\nReason: ' + denyReason,
-        type: 'warning', targetRole: '', targetUid: user.uid,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
-      });
-      _toast('Booking submitted — pending admin approval. ' + denyReason, 'error');
-    }
+    // ── Load admin & staff UIDs for push + in-app notifications ──
+    var adminSnap = await db.collection('users').where('role', '==', 'admin').get();
+    var staffSnap = await db.collection('users').where('role', '==', 'staff').get();
+    var adminUids = adminSnap.docs.map(function(d){ return d.id; });
+    var staffUids = staffSnap.docs.map(function(d){ return d.id; });
 
+    // ── Notify admin (in-app + push) ──
+    await _sendAlert(db, adminUids,
+      '📅 New Booking — ' + vLabel,
+      bookingMsg,
+      'info', 'admin', '');
+
+    // ── Notify staff (in-app + push) ──
+    await _sendAlert(db, staffUids,
+      '📅 New Booking — ' + vLabel,
+      bookingMsg,
+      'info', 'staff', '');
+
+    // ── Email admin & staff via Flask (server looks up emails from Firestore) ──
+    var vehiclePayload = selectedVehicles.map(function(v) {
+      var vbSvcs = _bsVehicleServices[v.id] || {};
+      var vbNames = _bsServices
+        .filter(function(s) { return vbSvcs[s.id]; })
+        .map(function(s) { return s.name || ''; })
+        .filter(Boolean);
+      return { plate: v.plate || '—', desc: v.desc || '', services: vbNames };
+    });
+    fetch(_kFlaskBaseUrl + '/api/send-booking-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({
+        customer_name:  customerName,
+        vehicles:       vehiclePayload,
+        preferred_date: _fmtDatePretty(_bsDate),
+        preferred_time: _bsTime,
+        notes:          (document.getElementById('bsNotes').value || '').trim(),
+        target_roles:   ['admin', 'staff'],
+      }),
+    }).catch(function(e) { console.warn('Booking email dispatch error:', e); });
+
+    // ── Notify customer (in-app only — they're on the web) ──
+    await db.collection('notifications').add({
+      title: '✅ Booking Confirmed',
+      message: 'Your service booking on ' + _fmtDatePretty(_bsDate) + ' at ' + _bsTime + ' has been confirmed.\n' + detailedMsg,
+      type: 'success', targetRole: '', targetUid: user.uid,
+      readBy: {}, isRead: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+
+    _toast('Booking confirmed for ' + vCount + ' vehicle(s)! ✅', 'success');
     setTimeout(function(){ window.location.href = 'customer_my_bookings.html'; }, 2000);
   } catch(e) {
     _toast('Error: '+e.message,'error');
