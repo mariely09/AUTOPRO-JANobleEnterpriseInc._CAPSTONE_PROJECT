@@ -60,6 +60,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   bool _dataLoaded    = false;
   bool _loading       = false;
   bool _backendOnline = true;
+  bool _firestoreQuota = false;
   bool get _rateLimited => CustomerChatStore.rateLimited;
   set _rateLimited(bool v) => CustomerChatStore.rateLimited = v;
   String get _resetIn => CustomerChatStore.resetIn;
@@ -111,35 +112,44 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     if (user == null) return;
     _customerUid = user.uid;
 
-    final doc = await FirebaseFirestore.instance
-        .collection('users').doc(user.uid).get();
-    final name = doc.data()?['name'] as String? ?? user.displayName ?? '';
-    _customerName = name;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users').doc(user.uid).get();
+      final name = doc.data()?['name'] as String? ?? user.displayName ?? '';
+      _customerName = name;
 
-    if (name.isNotEmpty) {
-      final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
-      _initials = parts.length >= 2
-          ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
-          : parts[0][0].toUpperCase();
+      if (name.isNotEmpty) {
+        final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
+        _initials = parts.length >= 2
+            ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+            : parts[0][0].toUpperCase();
 
-      // Query by ownerId (Firebase UID) — most reliable
-      final snapById = await FirebaseFirestore.instance
-          .collection('vehicles')
-          .where('ownerId', isEqualTo: _customerUid)
-          .get();
-      // Fallback: query by owner name for older documents
-      final snapByName = await FirebaseFirestore.instance
-          .collection('vehicles')
-          .where('owner', isEqualTo: name)
-          .get();
-      // Deduplicate by doc ID
-      final seenIds = <String>{};
-      for (final doc in snapById.docs) seenIds.add(doc.id);
-      for (final doc in snapByName.docs) seenIds.add(doc.id);
-      _vehicleCount = seenIds.length;
+        // Query by ownerId (Firebase UID) — most reliable
+        final snapById = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .where('ownerId', isEqualTo: _customerUid)
+            .get();
+        // Fallback: query by owner name for older documents
+        final snapByName = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .where('owner', isEqualTo: name)
+            .get();
+        // Deduplicate by doc ID
+        final seenIds = <String>{};
+        for (final doc in snapById.docs) seenIds.add(doc.id);
+        for (final doc in snapByName.docs) seenIds.add(doc.id);
+        _vehicleCount = seenIds.length;
+      }
+
+      if (mounted) setState(() => _dataLoaded = true);
+    } catch (e) {
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('resource-exhausted') || msg.contains('quota')) {
+        if (mounted) setState(() { _firestoreQuota = true; _dataLoaded = true; });
+      } else {
+        if (mounted) setState(() => _dataLoaded = true);
+      }
     }
-
-    if (mounted) setState(() => _dataLoaded = true);
   }
 
   Future<void> _checkBackend({bool silent = false}) async {
@@ -177,7 +187,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   // ─────────────────────────────────────────────────────────────────────────
   Future<void> _send([String? preset]) async {
     final text = (preset ?? _inputCtrl.text).trim();
-    if (text.isEmpty || _loading || _rateLimited) return;
+    if (text.isEmpty || _loading || _rateLimited || _firestoreQuota) return;
 
     if (!_dataLoaded) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -296,7 +306,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         title: Row(
           children: [
             Container(
-              width: 32, height: 32,
+              width: 36, height: 36,
               margin: const EdgeInsets.only(right: 10),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
@@ -304,7 +314,12 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4)],
               ),
               child: ClipOval(
-                child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.cover),
+                child: Image.asset(
+                  'assets/img/AI_LOGO.png',
+                  width: 36,
+                  height: 36,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             const Text(
@@ -314,27 +329,6 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           ],
         ),
         actions: [
-          // Online dot
-          Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: Tooltip(
-              message: _backendOnline ? 'AI Online' : 'AI Offline',
-              child: Container(
-                width: 12, height: 12,
-                margin: const EdgeInsets.only(right: 4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _backendOnline ? const Color(0xFF22c55e) : Colors.orange,
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2),
-                  boxShadow: [BoxShadow(
-                    color: _backendOnline
-                        ? const Color(0xFF22c55e).withValues(alpha: 0.6)
-                        : Colors.orange.withValues(alpha: 0.6),
-                    blurRadius: 6)],
-                ),
-              ),
-            ),
-          ),
           if (_messages.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.white),
@@ -352,8 +346,26 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         ],
       ),
       body: Column(children: [
+        // ── Firestore quota banner ───────────────────────────────────────
+        if (_firestoreQuota)
+          Container(
+            width: double.infinity,
+            color: const Color(0xFFFEF3C7),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFF92400E)),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'AI temporarily unavailable — Firestore daily quota reached.\nAll features are disabled until the quota resets at 3:00 PM.',
+                  style: TextStyle(fontSize: 11.5, color: Color(0xFF78350F), height: 1.5),
+                ),
+              ),
+            ]),
+          ),
+
         // ── Offline banner ───────────────────────────────────────────────
-        if (!_backendOnline && _dataLoaded)
+        if (!_backendOnline && _dataLoaded && !_firestoreQuota)
           Container(
             width: double.infinity,
             color: const Color(0xFFFFFBEB),
@@ -446,10 +458,12 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               _FocusInputBar(
                 inputCtrl: _inputCtrl,
                 loading: _loading,
-                rateLimited: _rateLimited,
-                hint: _rateLimited
-                    ? 'AI unavailable — daily limit reached'
-                    : 'Ask about your vehicles, bookings, or services…',
+                rateLimited: _rateLimited || _firestoreQuota,
+                hint: _firestoreQuota
+                    ? 'AI unavailable — Firestore quota reached. Resets at 3 PM.'
+                    : _rateLimited
+                        ? 'AI unavailable — daily limit reached'
+                        : 'Ask about your vehicles, bookings, or services…',
                 onSend: _send,
               ),
               const SizedBox(height: 4),
