@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
 import 'staff_maintenance.dart';
 
 class StaffServiceBookingsBody extends StatefulWidget {
@@ -706,11 +708,46 @@ class _StaffRescheduleSheetState extends State<_StaffRescheduleSheet> {
         'isRead':     false,
       });
     }
+
+    // Send reschedule email to customer (fire-and-forget)
+    if (widget.customerId.isNotEmpty) {
+      _sendRescheduleEmail(db, widget.customerId);
+    }
+
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Booking rescheduled to ${_fmt(_selectedDate!)} at $_selectedTime'),
         backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
+    }
+  }
+
+  /// Looks up customer email + booking services, then calls Flask /api/send-reschedule-email.
+  Future<void> _sendRescheduleEmail(FirebaseFirestore db, String customerId) async {
+    const flaskBaseUrl = 'https://caltex-autopro.onrender.com';
+    try {
+      final userDoc = await db.collection('users').doc(customerId).get();
+      final email   = userDoc.data()?['email'] as String? ?? '';
+      final name    = userDoc.data()?['name']  as String? ?? '';
+      if (email.isEmpty) return;
+
+      final bDoc     = await db.collection('service_bookings').doc(widget.docId).get();
+      final services = ((bDoc.data()?['services'] as List?) ?? []).join(', ');
+
+      await http.post(
+        Uri.parse('$flaskBaseUrl/api/send-reschedule-email'),
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+        body: jsonEncode({
+          'to_email': email,
+          'to_name':  name,
+          'plate':    widget.plate,
+          'old_date': _fmt(widget.currentDate) + (widget.currentTime.isNotEmpty ? ' at ${widget.currentTime}' : ''),
+          'new_date': _fmt(_selectedDate!) + ' at $_selectedTime',
+          'services': services,
+        }),
+      );
+    } catch (e) {
+      debugPrint('❌ Reschedule email error: $e');
     }
   }
 
