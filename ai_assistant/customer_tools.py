@@ -19,6 +19,33 @@ import re
 from datetime import datetime
 from firestore_client import get_db
 from google.cloud.firestore_v1.base_query import FieldFilter
+try:
+    from google.api_core.exceptions import ResourceExhausted as _ResourceExhausted
+except ImportError:
+    _ResourceExhausted = None
+
+
+# ── Firestore quota guard ─────────────────────────────────────────────────────
+
+def _is_firestore_quota(exc: Exception) -> bool:
+    """Return True if the exception is a Firestore free-tier quota error."""
+    msg = str(exc).lower()
+    return (
+        "quota exceeded" in msg
+        or "resource_exhausted" in msg
+        or "resourceexhausted" in msg
+        or "429" in msg
+    )
+
+
+def _quota_error() -> dict:
+    return {
+        "error": "QUOTA_EXCEEDED",
+        "message": (
+            "The database is temporarily unavailable due to a Firestore free-tier "
+            "quota limit. Please try again in a few minutes."
+        ),
+    }
 
 
 # ── Privacy helpers ───────────────────────────────────────────────────────────
@@ -57,51 +84,23 @@ def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
     if not customer_name or not customer_uid:
         return _privacy_error()
 
-    db = get_db()
+    try:
+        db = get_db()
+    except Exception as e:
+        if _is_firestore_quota(e):
+            return _quota_error()
+        raise
+
     vehicles = []
     seen_ids = set()
 
-    # ── Primary: query by ownerId (Firebase UID) — most reliable ─────────
-    for doc in db.collection("vehicles").where(
-            filter=FieldFilter("ownerId", "==", customer_uid)).stream():
-        if doc.id not in seen_ids:
-            seen_ids.add(doc.id)
-            d = doc.to_dict()
-            vehicles.append({
-                "plate":       d.get("plate", ""),
-                "desc":        d.get("desc", "") or d.get("assetDescription", ""),
-                "type":        d.get("type", ""),
-                "status":      d.get("status", "Active"),
-                "lastSvcDate": d.get("lastSvcDate", "") or d.get("lastServiceDate", ""),
-                "svcFreq":     d.get("svcFreq", "") or str(d.get("serviceFrequency", "")),
-                "odo":         d.get("odo", ""),
-            })
-
-    # ── Fallback: query by owner name (for older docs without ownerId) ────
-    for doc in db.collection("vehicles").where(
-            filter=FieldFilter("owner", "==", customer_name)).stream():
-        if doc.id not in seen_ids:
-            seen_ids.add(doc.id)
-            d = doc.to_dict()
-            vehicles.append({
-                "plate":       d.get("plate", ""),
-                "desc":        d.get("desc", "") or d.get("assetDescription", ""),
-                "type":        d.get("type", ""),
-                "status":      d.get("status", "Active"),
-                "lastSvcDate": d.get("lastSvcDate", "") or d.get("lastServiceDate", ""),
-                "svcFreq":     d.get("svcFreq", "") or str(d.get("serviceFrequency", "")),
-                "odo":         d.get("odo", ""),
-            })
-
-    # ── Last resort: case-insensitive scan (handles capitalisation mismatch) ──
-    if not vehicles and customer_name:
-        name_lower = customer_name.lower()
-        for doc in db.collection("vehicles").stream():
-            if doc.id in seen_ids:
-                continue
-            d = doc.to_dict()
-            if (d.get("owner", "") or "").lower() == name_lower:
+    try:
+        # ── Primary: query by ownerId (Firebase UID) — most reliable ─────────
+        for doc in db.collection("vehicles").where(
+                filter=FieldFilter("ownerId", "==", customer_uid)).stream():
+            if doc.id not in seen_ids:
                 seen_ids.add(doc.id)
+                d = doc.to_dict()
                 vehicles.append({
                     "plate":       d.get("plate", ""),
                     "desc":        d.get("desc", "") or d.get("assetDescription", ""),
@@ -111,6 +110,45 @@ def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
                     "svcFreq":     d.get("svcFreq", "") or str(d.get("serviceFrequency", "")),
                     "odo":         d.get("odo", ""),
                 })
+
+        # ── Fallback: query by owner name (for older docs without ownerId) ────
+        for doc in db.collection("vehicles").where(
+                filter=FieldFilter("owner", "==", customer_name)).stream():
+            if doc.id not in seen_ids:
+                seen_ids.add(doc.id)
+                d = doc.to_dict()
+                vehicles.append({
+                    "plate":       d.get("plate", ""),
+                    "desc":        d.get("desc", "") or d.get("assetDescription", ""),
+                    "type":        d.get("type", ""),
+                    "status":      d.get("status", "Active"),
+                    "lastSvcDate": d.get("lastSvcDate", "") or d.get("lastServiceDate", ""),
+                    "svcFreq":     d.get("svcFreq", "") or str(d.get("serviceFrequency", "")),
+                    "odo":         d.get("odo", ""),
+                })
+
+        # ── Last resort: case-insensitive scan (handles capitalisation mismatch) ──
+        if not vehicles and customer_name:
+            name_lower = customer_name.lower()
+            for doc in db.collection("vehicles").stream():
+                if doc.id in seen_ids:
+                    continue
+                d = doc.to_dict()
+                if (d.get("owner", "") or "").lower() == name_lower:
+                    seen_ids.add(doc.id)
+                    vehicles.append({
+                        "plate":       d.get("plate", ""),
+                        "desc":        d.get("desc", "") or d.get("assetDescription", ""),
+                        "type":        d.get("type", ""),
+                        "status":      d.get("status", "Active"),
+                        "lastSvcDate": d.get("lastSvcDate", "") or d.get("lastServiceDate", ""),
+                        "svcFreq":     d.get("svcFreq", "") or str(d.get("serviceFrequency", "")),
+                        "odo":         d.get("odo", ""),
+                    })
+    except Exception as e:
+        if _is_firestore_quota(e):
+            return _quota_error()
+        raise
 
     from collections import Counter
     status_counts = Counter(v["status"] for v in vehicles)
@@ -131,78 +169,83 @@ def get_my_service_history(customer_uid: str, customer_name: str,
     if not customer_name or not customer_uid:
         return _privacy_error()
 
-    db = get_db()
+    try:
+        db = get_db()
 
-    # ── Get this customer's plates (by UID first, then by name) ──────────
-    plate_set = set()
-    for doc in db.collection("vehicles").where(
-            filter=FieldFilter("ownerId", "==", customer_uid)).stream():
-        p = doc.to_dict().get("plate", "")
-        if p:
-            plate_set.add(p)
-    for doc in db.collection("vehicles").where(
-            filter=FieldFilter("owner", "==", customer_name)).stream():
-        p = doc.to_dict().get("plate", "")
-        if p:
-            plate_set.add(p)
-    # ── Last resort: case-insensitive scan if still empty ─────────────────
-    if not plate_set and customer_name:
-        name_lower = customer_name.lower()
-        for doc in db.collection("vehicles").stream():
-            d = doc.to_dict()
-            if (d.get("owner", "") or "").lower() == name_lower:
-                p = d.get("plate", "")
-                if p:
-                    plate_set.add(p)
-    plate_list = list(plate_set)
+        # ── Get this customer's plates (by UID first, then by name) ──────────
+        plate_set = set()
+        for doc in db.collection("vehicles").where(
+                filter=FieldFilter("ownerId", "==", customer_uid)).stream():
+            p = doc.to_dict().get("plate", "")
+            if p:
+                plate_set.add(p)
+        for doc in db.collection("vehicles").where(
+                filter=FieldFilter("owner", "==", customer_name)).stream():
+            p = doc.to_dict().get("plate", "")
+            if p:
+                plate_set.add(p)
+        # ── Last resort: case-insensitive scan if still empty ─────────────────
+        if not plate_set and customer_name:
+            name_lower = customer_name.lower()
+            for doc in db.collection("vehicles").stream():
+                d = doc.to_dict()
+                if (d.get("owner", "") or "").lower() == name_lower:
+                    p = d.get("plate", "")
+                    if p:
+                        plate_set.add(p)
+        plate_list = list(plate_set)
 
-    if not plate_list:
-        return {"owner": customer_name, "total_jobs": 0, "total_cost": "₱0.00", "jobs": []}
-
-    # Filter to specific plate if requested
-    if plate:
-        plate_list = [p for p in plate_list if p.upper() == plate.upper()]
         if not plate_list:
-            return {
-                "owner": customer_name, "plate": plate,
-                "total_jobs": 0, "total_cost": "₱0.00", "jobs": [],
-                "note": f"No vehicle with plate {plate} found under your account.",
-            }
+            return {"owner": customer_name, "total_jobs": 0, "total_cost": "₱0.00", "jobs": []}
 
-    # Firestore 'in' max 10 — chunk if needed
-    jobs = []
-    for i in range(0, len(plate_list), 10):
-        chunk = plate_list[i:i+10]
-        for doc in db.collection("maintenance").where(
-                filter=FieldFilter("plate", "in", chunk)).stream():
-            d = doc.to_dict()
-            # Only show completed jobs to the customer
-            if (d.get("status") or "").lower() != "completed":
-                continue
-            cost = _strip_currency(d.get("cost", 0))
-            jobs.append({
-                "id":        d.get("id", doc.id),
-                "plate":     d.get("plate", ""),
-                "desc":      d.get("desc", ""),
-                "date":      d.get("date", ""),
-                "mechanic":  d.get("mechanic", ""),
-                "status":    d.get("status", ""),
-                "cost":      _fmt_cost(d.get("cost", 0)),
-                "cost_raw":  cost,
-                "services":  [r.get("name", "") for r in (d.get("svcRows") or [])],
-                "materials": [r.get("name", "") for r in (d.get("matRows") or [])],
-            })
+        # Filter to specific plate if requested
+        if plate:
+            plate_list = [p for p in plate_list if p.upper() == plate.upper()]
+            if not plate_list:
+                return {
+                    "owner": customer_name, "plate": plate,
+                    "total_jobs": 0, "total_cost": "₱0.00", "jobs": [],
+                    "note": f"No vehicle with plate {plate} found under your account.",
+                }
 
-    jobs.sort(key=lambda j: j["date"], reverse=True)
-    total_cost = sum(j["cost_raw"] for j in jobs)
+        # Firestore 'in' max 10 — chunk if needed
+        jobs = []
+        for i in range(0, len(plate_list), 10):
+            chunk = plate_list[i:i+10]
+            for doc in db.collection("maintenance").where(
+                    filter=FieldFilter("plate", "in", chunk)).stream():
+                d = doc.to_dict()
+                # Only show completed jobs to the customer
+                if (d.get("status") or "").lower() != "completed":
+                    continue
+                cost = _strip_currency(d.get("cost", 0))
+                jobs.append({
+                    "id":        d.get("id", doc.id),
+                    "plate":     d.get("plate", ""),
+                    "desc":      d.get("desc", ""),
+                    "date":      d.get("date", ""),
+                    "mechanic":  d.get("mechanic", ""),
+                    "status":    d.get("status", ""),
+                    "cost":      _fmt_cost(d.get("cost", 0)),
+                    "cost_raw":  cost,
+                    "services":  [r.get("name", "") for r in (d.get("svcRows") or [])],
+                    "materials": [r.get("name", "") for r in (d.get("matRows") or [])],
+                })
 
-    return {
-        "owner":      customer_name,
-        "plate":      plate or "all vehicles",
-        "total_jobs": len(jobs),
-        "total_cost": _fmt_cost(total_cost),
-        "jobs":       jobs[:20],   # cap at 20 most recent
-    }
+        jobs.sort(key=lambda j: j["date"], reverse=True)
+        total_cost = sum(j["cost_raw"] for j in jobs)
+
+        return {
+            "owner":      customer_name,
+            "plate":      plate or "all vehicles",
+            "total_jobs": len(jobs),
+            "total_cost": _fmt_cost(total_cost),
+            "jobs":       jobs[:20],   # cap at 20 most recent
+        }
+    except Exception as e:
+        if _is_firestore_quota(e):
+            return _quota_error()
+        raise
 
 
 def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
@@ -210,84 +253,89 @@ def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
     if not customer_name or not customer_uid:
         return _privacy_error()
 
-    db = get_db()
-    now = datetime.now()
-    vehicles = []
-    seen_ids = set()
+    try:
+        db = get_db()
+        now = datetime.now()
+        vehicles = []
+        seen_ids = set()
 
-    def _process_doc(doc):
-        if doc.id in seen_ids:
-            return
-        seen_ids.add(doc.id)
-        d = doc.to_dict()
-        plate      = d.get("plate", "")
-        last_svc   = d.get("lastSvcDate", "") or d.get("lastServiceDate", "")
-        svc_freq   = d.get("svcFreq", "") or str(d.get("serviceFrequency", ""))
-        status     = d.get("status", "Active")
+        def _process_doc(doc):
+            if doc.id in seen_ids:
+                return
+            seen_ids.add(doc.id)
+            d = doc.to_dict()
+            plate      = d.get("plate", "")
+            last_svc   = d.get("lastSvcDate", "") or d.get("lastServiceDate", "")
+            svc_freq   = d.get("svcFreq", "") or str(d.get("serviceFrequency", ""))
+            status     = d.get("status", "Active")
 
-        next_pms   = ""
-        days_until = None
-        try:
-            if last_svc and svc_freq:
-                months  = int(svc_freq)
-                last_dt = datetime.fromisoformat(last_svc)
-                next_dt = datetime(
-                    last_dt.year + (last_dt.month + months - 1) // 12,
-                    (last_dt.month + months - 1) % 12 + 1,
-                    last_dt.day,
-                )
-                next_pms   = next_dt.strftime("%b %d, %Y")
-                days_until = (next_dt - now).days
-        except Exception:
-            pass
+            next_pms   = ""
+            days_until = None
+            try:
+                if last_svc and svc_freq:
+                    months  = int(svc_freq)
+                    last_dt = datetime.fromisoformat(last_svc)
+                    next_dt = datetime(
+                        last_dt.year + (last_dt.month + months - 1) // 12,
+                        (last_dt.month + months - 1) % 12 + 1,
+                        last_dt.day,
+                    )
+                    next_pms   = next_dt.strftime("%b %d, %Y")
+                    days_until = (next_dt - now).days
+            except Exception:
+                pass
 
-        urgency = "Active"
-        if days_until is not None:
-            if days_until < 0:
-                urgency = "Overdue"
-            elif days_until <= 7:
-                urgency = "Due This Week"
-            elif days_until <= 30:
-                urgency = "Due Soon"
+            urgency = "Active"
+            if days_until is not None:
+                if days_until < 0:
+                    urgency = "Overdue"
+                elif days_until <= 7:
+                    urgency = "Due This Week"
+                elif days_until <= 30:
+                    urgency = "Due Soon"
 
-        vehicles.append({
-            "plate":       plate,
-            "desc":        d.get("desc", "") or d.get("assetDescription", ""),
-            "status":      status,
-            "lastSvcDate": last_svc,
-            "nextPMS":     next_pms,
-            "daysUntil":   days_until,
-            "urgency":     urgency,
-        })
+            vehicles.append({
+                "plate":       plate,
+                "desc":        d.get("desc", "") or d.get("assetDescription", ""),
+                "status":      status,
+                "lastSvcDate": last_svc,
+                "nextPMS":     next_pms,
+                "daysUntil":   days_until,
+                "urgency":     urgency,
+            })
 
-    # ── Primary: query by ownerId ─────────────────────────────────────────
-    for doc in db.collection("vehicles").where(
-            filter=FieldFilter("ownerId", "==", customer_uid)).stream():
-        _process_doc(doc)
+        # ── Primary: query by ownerId ─────────────────────────────────────────
+        for doc in db.collection("vehicles").where(
+                filter=FieldFilter("ownerId", "==", customer_uid)).stream():
+            _process_doc(doc)
 
-    # ── Fallback: query by owner name ─────────────────────────────────────
-    for doc in db.collection("vehicles").where(
-            filter=FieldFilter("owner", "==", customer_name)).stream():
-        _process_doc(doc)
+        # ── Fallback: query by owner name ─────────────────────────────────────
+        for doc in db.collection("vehicles").where(
+                filter=FieldFilter("owner", "==", customer_name)).stream():
+            _process_doc(doc)
 
-    # ── Last resort: case-insensitive scan (handles capitalisation mismatch) ──
-    if not vehicles and customer_name:
-        name_lower = customer_name.lower()
-        for doc in db.collection("vehicles").stream():
-            d_raw = doc.to_dict()
-            if (d_raw.get("owner", "") or "").lower() == name_lower:
-                _process_doc(doc)
+        # ── Last resort: case-insensitive scan ────────────────────────────────
+        if not vehicles and customer_name:
+            name_lower = customer_name.lower()
+            for doc in db.collection("vehicles").stream():
+                d_raw = doc.to_dict()
+                if (d_raw.get("owner", "") or "").lower() == name_lower:
+                    _process_doc(doc)
 
-    overdue  = [v for v in vehicles if v["urgency"] == "Overdue"]
-    due_soon = [v for v in vehicles if v["urgency"] in ("Due This Week", "Due Soon")]
+        overdue  = [v for v in vehicles if v["urgency"] == "Overdue"]
+        due_soon = [v for v in vehicles if v["urgency"] in ("Due This Week", "Due Soon")]
 
-    return {
-        "owner":    customer_name,
-        "total":    len(vehicles),
-        "overdue":  len(overdue),
-        "due_soon": len(due_soon),
-        "vehicles": vehicles,
-    }
+        return {
+            "owner":    customer_name,
+            "total":    len(vehicles),
+            "overdue":  len(overdue),
+            "due_soon": len(due_soon),
+            "vehicles": vehicles,
+        }
+    except Exception as e:
+        if _is_firestore_quota(e):
+            return _quota_error()
+        raise
 
 
 def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
@@ -295,27 +343,13 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
     if not customer_name or not customer_uid:
         return _privacy_error()
 
-    db = get_db()
-    bookings = []
+    try:
+        db = get_db()
+        bookings = []
 
-    # Primary filter: by customerId (Firebase UID)
-    for doc in db.collection("service_bookings").where(
-            filter=FieldFilter("customerId", "==", customer_uid)).stream():
-        d = doc.to_dict()
-        svcs = d.get("services", [])
-        bookings.append({
-            "date":     d.get("preferredDate", ""),
-            "time":     d.get("preferredTime", ""),
-            "plate":    d.get("plate", ""),
-            "vehicle":  d.get("vehicleDesc", ""),
-            "services": ", ".join(svcs) if isinstance(svcs, list) else str(svcs),
-            "status":   d.get("status", ""),
-        })
-
-    # Fallback: by customerName (for older bookings that may not have customerId)
-    if not bookings:
+        # Primary filter: by customerId (Firebase UID)
         for doc in db.collection("service_bookings").where(
-                filter=FieldFilter("customerName", "==", customer_name)).stream():
+                filter=FieldFilter("customerId", "==", customer_uid)).stream():
             d = doc.to_dict()
             svcs = d.get("services", [])
             bookings.append({
@@ -327,13 +361,11 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
                 "status":   d.get("status", ""),
             })
 
-    # Last resort: case-insensitive customerName scan
-    if not bookings and customer_name:
-        name_lower = customer_name.lower()
-        for doc in db.collection("service_bookings").stream():
-            d = doc.to_dict()
-            stored_name = (d.get("customerName", "") or "").lower()
-            if stored_name == name_lower:
+        # Fallback: by customerName (for older bookings that may not have customerId)
+        if not bookings:
+            for doc in db.collection("service_bookings").where(
+                    filter=FieldFilter("customerName", "==", customer_name)).stream():
+                d = doc.to_dict()
                 svcs = d.get("services", [])
                 bookings.append({
                     "date":     d.get("preferredDate", ""),
@@ -344,17 +376,38 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
                     "status":   d.get("status", ""),
                 })
 
-    bookings.sort(key=lambda b: b["date"], reverse=True)
-    pending   = [b for b in bookings if (b["status"] or "").lower() == "pending"]
-    confirmed = [b for b in bookings if (b["status"] or "").lower() in ("confirmed", "in progress", "ongoing")]
+        # Last resort: case-insensitive customerName scan
+        if not bookings and customer_name:
+            name_lower = customer_name.lower()
+            for doc in db.collection("service_bookings").stream():
+                d = doc.to_dict()
+                stored_name = (d.get("customerName", "") or "").lower()
+                if stored_name == name_lower:
+                    svcs = d.get("services", [])
+                    bookings.append({
+                        "date":     d.get("preferredDate", ""),
+                        "time":     d.get("preferredTime", ""),
+                        "plate":    d.get("plate", ""),
+                        "vehicle":  d.get("vehicleDesc", ""),
+                        "services": ", ".join(svcs) if isinstance(svcs, list) else str(svcs),
+                        "status":   d.get("status", ""),
+                    })
 
-    return {
-        "owner":     customer_name,
-        "total":     len(bookings),
-        "pending":   len(pending),
-        "confirmed": len(confirmed),
-        "bookings":  bookings,
-    }
+        bookings.sort(key=lambda b: b["date"], reverse=True)
+        pending   = [b for b in bookings if (b["status"] or "").lower() == "pending"]
+        confirmed = [b for b in bookings if (b["status"] or "").lower() in ("confirmed", "in progress", "ongoing")]
+
+        return {
+            "owner":     customer_name,
+            "total":     len(bookings),
+            "pending":   len(pending),
+            "confirmed": len(confirmed),
+            "bookings":  bookings,
+        }
+    except Exception as e:
+        if _is_firestore_quota(e):
+            return _quota_error()
+        raise
 
 
 def get_service_prices(customer_uid: str, customer_name: str,
@@ -364,28 +417,33 @@ def get_service_prices(customer_uid: str, customer_name: str,
     This is public pricing information — any authenticated customer can view it.
     Optionally filter by service name keyword.
     """
-    db = get_db()
-    services = []
-    for doc in db.collection("item_master").where(
-            filter=FieldFilter("type", "==", "Service")).stream():
-        d = doc.to_dict()
-        name = d.get("name", "")
-        if service_name and service_name.lower() not in name.lower():
-            continue
-        services.append({
-            "num":   d.get("num", ""),
-            "name":  name,
-            "group": d.get("group", ""),
-            "uom":   d.get("uom", ""),
-            "cost":  _fmt_cost(d.get("cost", 0)),
-        })
+    try:
+        db = get_db()
+        services = []
+        for doc in db.collection("item_master").where(
+                filter=FieldFilter("type", "==", "Service")).stream():
+            d = doc.to_dict()
+            name = d.get("name", "")
+            if service_name and service_name.lower() not in name.lower():
+                continue
+            services.append({
+                "num":   d.get("num", ""),
+                "name":  name,
+                "group": d.get("group", ""),
+                "uom":   d.get("uom", ""),
+                "cost":  _fmt_cost(d.get("cost", 0)),
+            })
 
-    services.sort(key=lambda s: s["name"])
-    return {
-        "filter":          service_name or "all services",
-        "total_services":  len(services),
-        "services":        services,
-    }
+        services.sort(key=lambda s: s["name"])
+        return {
+            "filter":          service_name or "all services",
+            "total_services":  len(services),
+            "services":        services,
+        }
+    except Exception as e:
+        if _is_firestore_quota(e):
+            return _quota_error()
+        raise
 
 
 def estimate_service_cost(customer_uid: str, customer_name: str,
@@ -394,51 +452,56 @@ def estimate_service_cost(customer_uid: str, customer_name: str,
     Estimate the total cost for one or more services by name.
     Used when a customer asks 'how much would a change oil + brake cleaning cost?'
     """
-    db = get_db()
-    matched   = []
-    unmatched = []
-    total     = 0.0
+    try:
+        db = get_db()
+        matched   = []
+        unmatched = []
+        total     = 0.0
 
-    # Load all services once
-    catalog = {}
-    for doc in db.collection("item_master").where(
-            filter=FieldFilter("type", "==", "Service")).stream():
-        d = doc.to_dict()
-        catalog[d.get("name", "").lower()] = {
-            "name": d.get("name", ""),
-            "cost": _strip_currency(d.get("cost", 0)),
-            "uom":  d.get("uom", ""),
+        # Load all services once
+        catalog = {}
+        for doc in db.collection("item_master").where(
+                filter=FieldFilter("type", "==", "Service")).stream():
+            d = doc.to_dict()
+            catalog[d.get("name", "").lower()] = {
+                "name": d.get("name", ""),
+                "cost": _strip_currency(d.get("cost", 0)),
+                "uom":  d.get("uom", ""),
+            }
+
+        for svc in service_names:
+            key  = svc.lower().strip()
+            item = catalog.get(key)
+            if not item:
+                for k, v in catalog.items():
+                    if key in k or k in key:
+                        item = v
+                        break
+            if item:
+                matched.append({
+                    "service": item["name"],
+                    "cost":    _fmt_cost(item["cost"]),
+                    "uom":     item["uom"],
+                })
+                total += item["cost"]
+            else:
+                unmatched.append(svc)
+
+        return {
+            "requested":       service_names,
+            "matched":         matched,
+            "unmatched":       unmatched,
+            "estimated_total": _fmt_cost(total),
+            "note": (
+                "Some services were not found in the catalog. "
+                "Please ask for the full service list to see available options."
+                if unmatched else ""
+            ),
         }
-
-    for svc in service_names:
-        key  = svc.lower().strip()
-        item = catalog.get(key)
-        if not item:
-            for k, v in catalog.items():
-                if key in k or k in key:
-                    item = v
-                    break
-        if item:
-            matched.append({
-                "service": item["name"],
-                "cost":    _fmt_cost(item["cost"]),
-                "uom":     item["uom"],
-            })
-            total += item["cost"]
-        else:
-            unmatched.append(svc)
-
-    return {
-        "requested":       service_names,
-        "matched":         matched,
-        "unmatched":       unmatched,
-        "estimated_total": _fmt_cost(total),
-        "note": (
-            "Some services were not found in the catalog. "
-            "Please ask for the full service list to see available options."
-            if unmatched else ""
-        ),
-    }
+    except Exception as e:
+        if _is_firestore_quota(e):
+            return _quota_error()
+        raise
 
 
 # ── Tool schemas (OpenAI / Groq format) ──────────────────────────────────────

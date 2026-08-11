@@ -7,20 +7,15 @@
   <div style="position:relative;display:inline-flex;">
     <button id="ragAiToggleBtn" onclick="ragAiToggle()"
       title="Smart Reports AI"
-      style="width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;
-             background:transparent;
-             box-shadow:0 4px 20px rgba(0,0,0,0.18),0 0 0 0 rgba(232,0,28,0.2);
+      style="width:58px;height:58px;border-radius:50%;border:2.5px solid #E8001C;cursor:pointer;
+             background:white;
+             box-shadow:0 4px 20px rgba(232,0,28,0.22),0 0 0 0 rgba(232,0,28,0.2);
              display:flex;align-items:center;justify-content:center;
-             transition:all 0.25s ease;padding:0;overflow:hidden;
+             transition:all 0.25s ease;padding:3px;overflow:hidden;
              animation:ragFabPulse 2.8s ease-in-out infinite;">
       <img id="ragFabAiImg" src="../static/img/AI_LOGO.png"
-           style="width:58px;height:58px;object-fit:cover;border-radius:50%;display:block;" alt="AI">
+           style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">
     </button>
-    <!-- Green online indicator dot -->
-    <span id="ragFabOnlineDot" style="position:absolute;bottom:2px;right:2px;width:13px;height:13px;border-radius:50%;
-          background:#22c55e;border:2.5px solid white;
-          box-shadow:0 0 6px rgba(34,197,94,0.7);z-index:1;
-          transition:background .3s;"></span>
   </div>
 </div>
 
@@ -44,7 +39,7 @@
         <img src="../static/img/AI_LOGO.png" style="width:40px;height:40px;object-fit:cover;display:block;" alt="AI">
       </div>
       <!-- Online dot on avatar -->
-      <span id="ragHeaderOnlineDot" style="position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid white;box-shadow:0 0 5px rgba(74,222,128,0.8);"></span>
+      <span id="ragHeaderOnlineDot" style="display:none;position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid white;box-shadow:0 0 5px rgba(74,222,128,0.8);"></span>
     </div>
     <!-- Title -->
     <div style="flex:1;min-width:0;">
@@ -113,7 +108,7 @@
 
 <style>
 @keyframes ragAiSlideIn { from{opacity:0;transform:translateY(16px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
-@keyframes ragFabPulse  { 0%,100%{box-shadow:0 4px 20px rgba(0,0,0,0.18),0 0 0 0 rgba(232,0,28,0.15)} 50%{box-shadow:0 4px 20px rgba(0,0,0,0.18),0 0 0 8px rgba(232,0,28,0)} }
+@keyframes ragFabPulse  { 0%,100%{box-shadow:0 4px 20px rgba(232,0,28,0.22),0 0 0 0 rgba(232,0,28,0.15)} 50%{box-shadow:0 4px 20px rgba(232,0,28,0.22),0 0 0 8px rgba(232,0,28,0)} }
 @keyframes ragBounce    { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
 @keyframes ragSpin      { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
@@ -250,12 +245,16 @@ window.ragAiToggle = function() {
       // Now opening — show X
       btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
       btn.style.background = 'linear-gradient(135deg,#E8001C,#c0001a)';
+      btn.style.border = 'none';
       btn.style.overflow = 'visible';
+      btn.style.padding = '0';
     } else {
-      // Now closing — show AI image
-      btn.innerHTML = '<img id="ragFabAiImg" src="../static/img/AI_LOGO.png" style="width:58px;height:58px;object-fit:cover;border-radius:50%;display:block;" alt="AI">';
-      btn.style.background = 'transparent';
+      // Now closing — show AI image with red border
+      btn.innerHTML = '<img id="ragFabAiImg" src="../static/img/AI_LOGO.png" style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">';
+      btn.style.background = 'white';
+      btn.style.border = '2.5px solid #E8001C';
       btn.style.overflow = 'hidden';
+      btn.style.padding = '3px';
     }
   }
 };
@@ -286,28 +285,18 @@ function _ragWatch() {
       fetch('/api/ai-health').then(function(r){return r.json();}).then(function(d){
         var dot = document.getElementById('ragAiDot');
         var txt = document.getElementById('ragAiStatus');
-        var fabDot = document.getElementById('ragFabOnlineDot');
-        var hdrDot = document.getElementById('ragHeaderOnlineDot');
         if (d.online) {
-          if (dot) dot.style.background = '#38a169';
-          if (txt) { txt.style.color = '#38a169'; txt.textContent = 'Online · RAG AI + Live data'; }
-          if (fabDot) { fabDot.style.background = '#22c55e'; fabDot.style.boxShadow = '0 0 6px rgba(34,197,94,0.7)'; }
-          if (hdrDot) { hdrDot.style.background = '#4ade80'; }
+          if (dot) dot.style.background = '#4ade80';
+          if (txt) { txt.textContent = 'Online · RAG AI'; }
         } else {
           if (dot) dot.style.background = '#d69e2e';
-          if (txt) { txt.style.color = '#d69e2e'; txt.textContent = 'Online · Local mode (no AI)'; }
-          if (fabDot) { fabDot.style.background = '#f59e0b'; fabDot.style.boxShadow = '0 0 6px rgba(245,158,11,0.7)'; }
-          if (hdrDot) { hdrDot.style.background = '#fbbf24'; }
+          if (txt) { txt.textContent = 'Online · Local mode'; }
         }
       }).catch(function(){
         var dot = document.getElementById('ragAiDot');
         var txt = document.getElementById('ragAiStatus');
-        var fabDot = document.getElementById('ragFabOnlineDot');
-        var hdrDot = document.getElementById('ragHeaderOnlineDot');
         if (dot) dot.style.background = '#d69e2e';
-        if (txt) { txt.style.color = '#d69e2e'; txt.textContent = 'Online · Local mode'; }
-        if (fabDot) { fabDot.style.background = '#f59e0b'; fabDot.style.boxShadow = '0 0 6px rgba(245,158,11,0.7)'; }
-        if (hdrDot) { hdrDot.style.background = '#fbbf24'; }
+        if (txt) { txt.textContent = 'Online · Local mode'; }
       });
     }
   }, 600);

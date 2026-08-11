@@ -308,7 +308,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               ),
             ),
             const Text(
-              'Vehicle Assistant',
+              'Customer AI Assistant',
               style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ],
@@ -441,44 +441,22 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         SafeArea(
           child: Container(
             color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-            child: Row(children: [
-              Expanded(
-                child: TextField(
-                  controller: _inputCtrl,
-                  maxLines: null,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _send(),
-                  enabled: !_loading && !_rateLimited,
-                  decoration: InputDecoration(
-                    hintText: _rateLimited
-                        ? 'AI unavailable — daily limit reached'
-                        : 'Ask about your vehicles…',
-                    hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
-                    filled: true,
-                    fillColor: _bg,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  ),
-                ),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              _FocusInputBar(
+                inputCtrl: _inputCtrl,
+                loading: _loading,
+                rateLimited: _rateLimited,
+                hint: _rateLimited
+                    ? 'AI unavailable — daily limit reached'
+                    : 'Ask about your vehicles…',
+                onSend: _send,
               ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: _loading || _rateLimited ? null : _send,
-                child: Container(
-                  width: 44, height: 44,
-                  decoration: BoxDecoration(
-                    color: _loading || _rateLimited ? Colors.grey : _red,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      if (!_loading && !_rateLimited)
-                        BoxShadow(color: _red.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 3)),
-                    ],
-                  ),
-                  child: const Icon(Icons.send, color: Colors.white, size: 18),
-                ),
+              const SizedBox(height: 4),
+              const Text(
+                'Enter to send  ·  Shift+Enter for new line',
+                style: TextStyle(fontSize: 10, color: Color(0xFFC0C8D4)),
+                textAlign: TextAlign.center,
               ),
             ]),
           ),
@@ -544,18 +522,29 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
             onTap: () => _send(s),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: const Color(0xFFe2e8f0), width: 1.2),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFe8edf2), width: 1.5),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4)],
               ),
-              child: Text(
-                s,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF9AA5B4)),
-                textAlign: TextAlign.center,
-              ),
+              child: Row(children: [
+                Container(
+                  width: 7, height: 7,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE8001C),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    s,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF4a5568), fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ]),
             ),
           ),
         )),
@@ -729,6 +718,94 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
     ),
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Focused input bar — matches admin/website wrapped input style
+// ─────────────────────────────────────────────────────────────────────────────
+class _FocusInputBar extends StatefulWidget {
+  final TextEditingController inputCtrl;
+  final bool loading;
+  final bool rateLimited;
+  final String hint;
+  final Future<void> Function([String?]) onSend;
+
+  const _FocusInputBar({
+    required this.inputCtrl,
+    required this.loading,
+    required this.rateLimited,
+    required this.hint,
+    required this.onSend,
+  });
+
+  @override
+  State<_FocusInputBar> createState() => _FocusInputBarState();
+}
+
+class _FocusInputBarState extends State<_FocusInputBar> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final canSend = !widget.loading && !widget.rateLimited;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F6F9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _focused ? const Color(0xFFE8001C) : const Color(0xFFEDF0F5),
+          width: 1.5,
+        ),
+        boxShadow: _focused
+            ? [BoxShadow(color: const Color(0xFFE8001C).withValues(alpha: 0.08), blurRadius: 8)]
+            : [],
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        Expanded(
+          child: TextField(
+            controller: widget.inputCtrl,
+            maxLines: 4,
+            minLines: 1,
+            enabled: canSend,
+            decoration: InputDecoration(
+              hintText: widget.hint,
+              hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+            style: const TextStyle(fontSize: 13, color: Color(0xFF1a202c)),
+            onTap: () => setState(() => _focused = true),
+            onEditingComplete: () => setState(() => _focused = false),
+            textInputAction: TextInputAction.send,
+            onSubmitted: (_) { widget.onSend(); },
+          ),
+        ),
+        const SizedBox(width: 6),
+        GestureDetector(
+          onTap: canSend ? () => widget.onSend() : null,
+          child: Container(
+            width: 34, height: 34,
+            decoration: BoxDecoration(
+              gradient: canSend
+                  ? const LinearGradient(
+                      colors: [Color(0xFFE8001C), Color(0xFFC0001A)],
+                      begin: Alignment.topLeft, end: Alignment.bottomRight)
+                  : null,
+              color: canSend ? null : Colors.grey.shade300,
+              shape: BoxShape.circle,
+              boxShadow: canSend
+                  ? [BoxShadow(color: const Color(0xFFE8001C).withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 3))]
+                  : [],
+            ),
+            child: const Icon(Icons.send_rounded, color: Colors.white, size: 16),
+          ),
+        ),
+      ]),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

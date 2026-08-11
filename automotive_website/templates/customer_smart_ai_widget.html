@@ -241,11 +241,11 @@
         <div class="ai-hdr-avatar-img">
             <img src="../static/img/AI_LOGO.png" width="40" height="40" style="object-fit:cover;display:block;" alt="AI Assistant" />
         </div>
-        <span class="ai-hdr-avatar-dot" id="aiHdrOnlineDot"></span>
+        <span class="ai-hdr-avatar-dot" id="aiHdrOnlineDot" style="display:none;"></span>
     </div>
     <!-- Title + status -->
     <div class="ai-hdr-title-wrap">
-        <div class="ai-hdr-title">Smart Reports AI</div>
+        <div class="ai-hdr-title">Customer AI Assistant</div>
         <div class="ai-hdr-status">
             <span class="ai-hdr-dot" id="aiStatusDot"></span>
             <span class="ai-hdr-status-text" id="aiStatusText">Online</span>
@@ -909,27 +909,22 @@
     }
   });
 
-  // Check AI health + update status dot (mirrors admin panel behaviour)
+  // Check AI health + update status dot
   fetch('/api/ai-health').then(r => r.json()).then(d => {
     const dot = document.getElementById('aiStatusDot');
     const txt = document.getElementById('aiStatusText');
-    const hdrDot = document.getElementById('aiHdrOnlineDot');
     if (d.online) {
       if (dot) { dot.style.background = '#4ade80'; dot.style.boxShadow = '0 0 6px rgba(74,222,128,0.8)'; }
       if (txt) txt.textContent = 'Online';
-      if (hdrDot) { hdrDot.style.background = '#4ade80'; hdrDot.style.boxShadow = '0 0 5px rgba(74,222,128,0.8)'; }
     } else {
       if (dot) { dot.style.background = '#d69e2e'; dot.style.boxShadow = '0 0 6px rgba(214,158,46,0.8)'; }
       if (txt) txt.textContent = 'Local mode';
-      if (hdrDot) { hdrDot.style.background = '#fbbf24'; hdrDot.style.boxShadow = '0 0 5px rgba(251,191,36,0.7)'; }
     }
   }).catch(() => {
     const dot = document.getElementById('aiStatusDot');
     const txt = document.getElementById('aiStatusText');
-    const hdrDot = document.getElementById('aiHdrOnlineDot');
     if (dot) { dot.style.background = '#d69e2e'; dot.style.boxShadow = '0 0 6px rgba(214,158,46,0.8)'; }
     if (txt) txt.textContent = 'Local mode';
-    if (hdrDot) { hdrDot.style.background = '#fbbf24'; hdrDot.style.boxShadow = '0 0 5px rgba(251,191,36,0.7)'; }
   });
 
   fetch('customer_header.html').then(r => r.text()).then(html => {

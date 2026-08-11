@@ -1,6 +1,6 @@
 import traceback
 import uuid
-import re as _re
+import re
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -37,8 +37,8 @@ def _parse_rate_limit_reset(error_message: str) -> str:
     e.g. 'Please try again in 15m46.944s' → 'about 15 minutes'
          'Please try again in 1h30m.'     → 'about 1 hour and 30 minutes'
     """
-    hours   = _re.search(r'in\s+(\d+)h', error_message)
-    minutes = _re.search(r'in\s+(?:\d+h\s*)?(\d+)m', error_message)
+    hours   = re.search(r'in\s+(\d+)h', error_message)
+    minutes = re.search(r'in\s+(?:\d+h\s*)?(\d+)m', error_message)
 
     parts = []
     if hours:
@@ -87,6 +87,10 @@ def _is_rate_limit(exc: Exception) -> bool:
         or ("token" in exc_str and "limit" in exc_str)
         or "request too large" in exc_str
         or "too large for model" in exc_str
+        # Firestore free-tier quota (ResourceExhausted / 429 from gRPC)
+        or "quota exceeded" in exc_str
+        or "resource_exhausted" in exc_str
+        or "resourceexhausted" in exc_str
     )
 
 
@@ -396,6 +400,9 @@ RULES:
 8. Inventory/warehouse/report queries → respond ONLY:
    "I can only answer questions related to the Automotive Service and Inventory Management System."
 9. Reformatting follow-ups ("make it a list", "simplify") → reformat previous answer, NO tool calls.
+10. If a tool returns {"error": "QUOTA_EXCEEDED"} or any error containing "quota" or "QUOTA_EXCEEDED",
+    respond ONLY: "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
+    Do NOT guess or invent any data values.
 
 SERVICE HISTORY (when get_my_service_history returns data):
 - Open: "Here's your service history! You have [N] completed record[s] with a total spend of [total]."
@@ -414,6 +421,12 @@ TOOL MAPPING:
 - "my bookings", "my appointments", "upcoming service" → get_my_bookings
 - "how much is", "price of", "cost of", "service prices", "services offered" → get_service_prices
 - "estimate", "how much would X and Y cost" → estimate_service_cost
+
+WHEN TOOL RETURNS EMPTY DATA:
+- get_service_prices returns total_services=0 → say: "I wasn't able to find pricing information in our system at the moment. Please contact us at caltexautopro2026@gmail.com or visit the shop for current service rates."
+- get_my_vehicles returns total_vehicles=0 → say: "You don't have any registered vehicles on file yet."
+- get_my_service_history returns total_jobs=0 → say the standard "no completed service records" message.
+- Any tool returns {"error": "QUOTA_EXCEEDED"} → say: "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
 """
     if _MANUAL_KEYWORDS.search(message):
         return base + "\n\n" + CUSTOMER_MANUAL_CONTEXT
@@ -428,72 +441,33 @@ CUSTOMER_SYSTEM_PROMPT = _build_customer_system_prompt("")  # fallback reference
 
 def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                        history: list[dict]) -> dict:
-    """Core customer LLM loop with tool-calling and automatic key rotation."""
+    """Core customer LLM loop — direct Groq call, no key rotation."""
     import json
     from groq import Groq, BadRequestError, RateLimitError
     from config import settings
     from customer_tools import CUSTOMER_TOOL_SCHEMAS, CUSTOMER_TOOL_FUNCTIONS
-    from api_key_manager import get_manager
 
-    manager = get_manager()
-
-    def _make_client() -> Groq:
-        key = manager.get_current_key() or settings.GROQ_API_KEY
-        return Groq(api_key=key)
-
-    def _call(msgs, tools=None, _attempt: int = 0):
-        """Call Groq with automatic rotation on rate-limit."""
-        from client import AllKeysRateLimitedError
-
-        manager._ensure_loaded()
-        total_keys = max(1, len(manager._keys))
-        max_attempts = max(manager._max_retries, total_keys)
-
-        last_key_id = manager.get_current_key_id()
-        current_key = manager.get_current_key() or settings.GROQ_API_KEY
-        last_exc: Exception | None = None
-        tried_key_ids: set = set()
-
-        for attempt in range(max_attempts):
-            # Avoid retrying the same key twice
-            if last_key_id in tried_key_ids:
-                next_key = manager.rotate_on_rate_limit(failed_key_id=last_key_id)
-                if next_key is None:
-                    break
-                last_key_id = manager.get_current_key_id()
-                current_key = next_key
-
-            tried_key_ids.add(last_key_id)
-
-            try:
-                client = Groq(api_key=current_key)
-                kwargs = {
-                    "model":      settings.GROQ_MODEL,
-                    "messages":   msgs,
-                    "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,  # ← token cap
-                }
-                if tools:
-                    kwargs["tools"] = tools
-                return client.chat.completions.create(**kwargs)
-            except RateLimitError as exc:
-                last_exc = exc
-                if not manager._rotation_enabled:
-                    raise
-                next_key = manager.rotate_on_rate_limit(failed_key_id=last_key_id)
-                if next_key is None:
-                    raise AllKeysRateLimitedError(
-                        "All API keys are currently rate-limited. "
-                        "Please try again in a few minutes."
-                    ) from exc
-                last_key_id = manager.get_current_key_id()
-                current_key = next_key
-
-        if last_exc:
-            raise AllKeysRateLimitedError(
-                "All API keys are currently rate-limited. "
-                "Please try again in a few minutes."
-            ) from last_exc
-        raise AllKeysRateLimitedError("All Groq API key rotation retries exhausted.")
+    def _call(msgs, tools=None):
+        """Call Groq directly using GROQ_API_KEY from config."""
+        from client import RateLimitedError as _RLE
+        api_key = settings.GROQ_API_KEY
+        if not api_key:
+            raise _RLE("No Groq API key configured. Set GROQ_API_KEY in .env.")
+        try:
+            client = Groq(api_key=api_key)
+            kwargs: dict = {
+                "model":      settings.GROQ_MODEL,
+                "messages":   msgs,
+                "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
+            }
+            if tools:
+                kwargs["tools"] = tools
+            return client.chat.completions.create(**kwargs)
+        except RateLimitError as exc:
+            raise _RLE(
+                "The AI service has reached its daily usage limit (Groq free tier). "
+                "Please try again later."
+            ) from exc
 
     def _strip_null(raw: str) -> dict:
         if not raw or not raw.strip():
@@ -515,7 +489,16 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     tool_log    = []
     final_reply = ""
 
-    for _ in range(5):
+    # ── Detect pricing queries so we can nudge the model if it stalls ────────
+    import re as _re
+    _is_pricing_query = bool(_re.search(
+        r"how\s+much\s+is|price\s+of|cost\s+of|how\s+much.*service|"
+        r"service\s+price|pricing|how\s+much\s+does|how\s+much\s+would|"
+        r"estimate.*cost|cost.*estimate",
+        message, _re.IGNORECASE
+    ))
+
+    for _turn in range(5):
         try:
             response = _call(messages, tools=CUSTOMER_TOOL_SCHEMAS)
         except BadRequestError as e:
@@ -540,6 +523,17 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
         messages.append(asst)
 
         if not msg.tool_calls:
+            # ── If this is a pricing query and the model answered without calling
+            #    a tool on the FIRST turn, nudge it to call get_service_prices ──
+            if _is_pricing_query and _turn == 0 and not tool_log:
+                messages.append({
+                    "role": "user",
+                    "content": (
+                        "Please call the get_service_prices tool now to retrieve "
+                        "the actual price from the database. Do not guess."
+                    ),
+                })
+                continue   # retry with the nudge
             final_reply = msg.content or ""
             break
 
