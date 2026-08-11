@@ -149,7 +149,6 @@
   var _events    = {};   // 'YYYY-MM-DD' → [{type,label,daysUntil,urgency,...}]
   var _selDay    = null;
   var _open      = false;
-  var _loaded    = false;
 
   function _urgencyColor(u) {
     if (u === 'overdue') return '#E8001C';
@@ -166,8 +165,7 @@
     if (!panel) return;
     panel.style.display = _open ? 'block' : 'none';
     if (_open) {
-      if (!_loaded) _loadData();
-      else _renderGrid();
+      _loadData(); // always reload so cancelled bookings are excluded and upcoming PMS month is set
     }
   };
 
@@ -201,7 +199,7 @@
         snap.forEach(function(doc) {
           var d    = doc.data();
           var st   = (d.status || '').toLowerCase();
-          if (st === 'completed' || st === 'in progress' || st === 'dismissed') return;
+          if (st === 'completed' || st === 'in progress' || st === 'dismissed' || st === 'cancelled' || st === 'rejected') return;
           var date = d.preferredDate || '';
           if (!date) return;
           var due  = new Date(date + 'T00:00:00');
@@ -220,23 +218,35 @@
         });
 
         // 2. Customer's vehicle PMS due dates
-        var stored   = sessionStorage.getItem('cpUser');
-        var cpUser   = stored ? JSON.parse(stored) : {};
-        var userName = (cpUser.name || '').toLowerCase();
+        var stored      = sessionStorage.getItem('cpUser');
+        var cpUser      = stored ? JSON.parse(stored) : {};
+        var userName    = (cpUser.name || '').toLowerCase();
+        var companyName = (cpUser.companyName || '').toLowerCase();
 
         var loadVehicles = userName
-          ? Promise.resolve(userName)
+          ? Promise.resolve({ name: userName, companyName: companyName })
           : db.collection('users').doc(user.uid).get().then(function(uDoc) {
-              return uDoc.exists ? (uDoc.data().name || '').toLowerCase() : '';
+              var data = uDoc.exists ? uDoc.data() : {};
+              return {
+                name:        (data.name        || '').toLowerCase(),
+                companyName: (data.companyName || '').toLowerCase(),
+              };
             });
 
-        return loadVehicles.then(function(uName) {
-          if (!uName) return;
+        return loadVehicles.then(function(uInfo) {
+          var uName = uInfo.name;
+          var uCompany = uInfo.companyName;
+          if (!uName && !uCompany) return;
           return db.collection('vehicles').get().then(function(vSnap) {
             vSnap.forEach(function(doc) {
               var d     = doc.data();
               var owner = (d.owner || '').toLowerCase();
-              if (owner !== uName) return;
+              var ownerId = (d.ownerId || '').trim();
+              // Match by owner name, company name, or ownerId
+              var matches = (uName && owner === uName)
+                         || (uCompany && owner === uCompany)
+                         || (ownerId && ownerId === user.uid);
+              if (!matches) return;
               var plate = d.plate || '';
               var freq  = parseInt(d.svcFreq) || 0;
               var last  = d.lastSvcDate || '';
@@ -251,7 +261,7 @@
                 + String(next.getMonth()+1).padStart(2,'0') + '-'
                 + String(next.getDate()).padStart(2,'0');
               var urgency = days < 0 ? 'overdue' : days === 0 ? 'today' : days <= 7 ? 'week' : 'upcoming';
-              if (urgency !== 'upcoming') urgentCount++;
+              urgentCount++; // all PMS dates show the badge dot
               if (!events[key]) events[key] = [];
               events[key].push({ type:'pms', label:plate, daysUntil:days, urgency:urgency });
             });
@@ -260,9 +270,19 @@
       })
       .then(function() {
         _events = events;
-        _loaded = true;
         var dot = document.getElementById('cuCalDot');
         if (dot) dot.style.display = urgentCount > 0 ? 'block' : 'none';
+
+        // Auto-navigate to the month of the nearest future PMS event
+        var futureKeys = Object.keys(events).filter(function(k) {
+          return events[k].some(function(e) { return e.type === 'pms' && e.daysUntil >= 0; });
+        }).sort();
+        if (futureKeys.length) {
+          var nearest = futureKeys[0].split('-');
+          _calYear  = parseInt(nearest[0]);
+          _calMonth = parseInt(nearest[1]) - 1;
+        }
+
         _renderGrid();
       })
       .catch(function() { _renderGrid(); });

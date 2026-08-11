@@ -120,6 +120,26 @@
         <div class="mb-stat-lbl">Cancelled</div>
       </div>
     </div>
+
+    <!-- ── Filter tab bar ── -->
+    <div id="mbTabBar" style="display:none;border-bottom:2px solid #e2e8f0;margin-bottom:1.25rem;display:flex;gap:0;">
+      <button id="mbTab_all" onclick="mbSetFilter('all')"
+        style="padding:0.6rem 1.1rem;background:none;border:none;border-bottom:2px solid #E8001C;margin-bottom:-2px;font-size:0.85rem;font-weight:700;color:#E8001C;cursor:pointer;font-family:inherit;transition:color .15s,border-color .15s;">
+        All
+      </button>
+      <button id="mbTab_approved" onclick="mbSetFilter('approved')"
+        style="padding:0.6rem 1.1rem;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:0.85rem;font-weight:600;color:#718096;cursor:pointer;font-family:inherit;transition:color .15s,border-color .15s;">
+        Approved
+      </button>
+      <button id="mbTab_rescheduled" onclick="mbSetFilter('rescheduled')"
+        style="padding:0.6rem 1.1rem;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:0.85rem;font-weight:600;color:#718096;cursor:pointer;font-family:inherit;transition:color .15s,border-color .15s;">
+        Rescheduled
+      </button>
+      <button id="mbTab_cancelled" onclick="mbSetFilter('cancelled')"
+        style="padding:0.6rem 1.1rem;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:0.85rem;font-weight:600;color:#718096;cursor:pointer;font-family:inherit;transition:color .15s,border-color .15s;">
+        Cancelled
+      </button>
+    </div>
     <div id="mbList" class="mb-grid">
       <div style="grid-column:1/-1;text-align:center;padding:40px;color:#718096;font-size:13px;">Loading bookings...</div>
     </div>
@@ -193,9 +213,20 @@ var _mbFilter = 'all';
 
 window.mbSetFilter = function(filter) {
   _mbFilter = filter;
+  // Update stat cards
   ['approved','rescheduled','cancelled'].forEach(function(f) {
     var card = document.getElementById('mbStat_' + f);
     if (card) card.classList.toggle('active', f === filter);
+  });
+  // Update tab bar
+  var tabs = ['all','approved','rescheduled','cancelled'];
+  tabs.forEach(function(f) {
+    var btn = document.getElementById('mbTab_' + f);
+    if (!btn) return;
+    var isActive = f === filter;
+    btn.style.color = isActive ? '#E8001C' : '#718096';
+    btn.style.borderBottomColor = isActive ? '#E8001C' : 'transparent';
+    btn.style.fontWeight = isActive ? '700' : '600';
   });
   _mbRender();
 };
@@ -400,6 +431,8 @@ firebase.auth().onAuthStateChanged(function(user) {
       // Show stats grid once data loads
       var statsEl = document.getElementById('mbStats');
       if (statsEl) statsEl.style.display = cntAll > 0 ? 'grid' : 'none';
+      var tabBar = document.getElementById('mbTabBar');
+      if (tabBar) tabBar.style.display = cntAll > 0 ? 'flex' : 'none';
 
       _mbRender();
     }, function(err) {

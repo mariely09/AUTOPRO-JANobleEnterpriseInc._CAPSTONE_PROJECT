@@ -1196,7 +1196,7 @@ function renderInventoryList() {
     var filtered = inventory;
     if (search.trim()) {
         var q = search.toLowerCase();
-        filtered = inventory.filter(function(i){ return (i.itemName||'').toLowerCase().includes(q) || (i.itemNum||'').toLowerCase().includes(q); });
+        filtered = inventory.filter(function(i){ return (i.itemName||'').toLowerCase().includes(q) || (i.itemNum||'').toLowerCase().includes(q) || (i.supplierCode||'').toLowerCase().includes(q); });
     }
 
     // Apply status filter from pills
@@ -1769,7 +1769,7 @@ function renderItemMasterList() {
     filtered = filtered.filter(function(i){ return !i.archived; });
     if (search.trim()) {
         var q = search.toLowerCase();
-        filtered = filtered.filter(function(i){ return (i.itemName||'').toLowerCase().includes(q) || (i.itemNum||'').toLowerCase().includes(q); });
+        filtered = filtered.filter(function(i){ return (i.itemName||'').toLowerCase().includes(q) || (i.itemNum||'').toLowerCase().includes(q) || (i.supplierCode||'').toLowerCase().includes(q); });
     }
 
     // Apply type filter from filter pills

@@ -128,6 +128,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
   bool _lookupLoaded = false;
   String _currentUserName = '';
   Set<String> _inactiveItemNames = {}; // names of Inactive stock items
+  Map<String, int> _stockMap = {};    // name.lower → current stock qty (for dropdown oos badge)
 
   @override
   void initState() {
@@ -184,11 +185,17 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
       _currentUserName = (userDoc.data()?['name'] as String?) ?? '';
     }
-    // Load inactive stock items to exclude from materials search
+    // Load stock inventory — build stockMap (name→qty) and inactiveItemNames
     try {
       final stockSnap = await FirebaseFirestore.instance
-          .collection('stock_inventory').where('status', isEqualTo: 'Inactive').get();
+          .collection('stock_inventory').get();
+      _stockMap = {
+        for (final d in stockSnap.docs)
+          (d['name'] as String? ?? '').toLowerCase():
+            (d['stock'] as num?)?.toInt() ?? 0
+      };
       _inactiveItemNames = stockSnap.docs
+          .where((d) => (d['status'] as String? ?? '') == 'Inactive')
           .map((d) => (d['name'] as String? ?? '').toLowerCase())
           .where((n) => n.isNotEmpty).toSet();
     } catch (_) {}
@@ -880,7 +887,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                 Expanded(
                   child: SingleChildScrollView(
                     controller: scrollCtrl,
-                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Autocomplete<String>(
@@ -1234,6 +1241,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
 
   Widget _svcRow(Map<String, TextEditingController> row, VoidCallback onRemove, StateSetter setModal, List<Map<String, TextEditingController>> allSvcRows, BuildContext ctx) {
     row.putIfAbsent('searchText', () => TextEditingController(text: row['name']!.text));
+    final svcFieldKey = row.putIfAbsent('_svcKey', () => GlobalKey()) as GlobalKey;
 
     // All service items preserving same-name different-UOM entries
     final serviceItems = _allItems
@@ -1268,100 +1276,57 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
     }
 
     final isSelected = row['name']!.text.isNotEmpty;
-    final q = row['searchText']!.text.trim().toLowerCase();
-    final svcResults = isSelected ? <Map<String, dynamic>>[] : (q.isEmpty
-        ? <Map<String, dynamic>>[]
-        : serviceItems.where((e) {
-            final n = (e['name'] as String).toLowerCase();
-            final num = (e['num'] as String? ?? '').toLowerCase();
-            return n.contains(q) || num.contains(q);
-          }).toList());
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(
-            child: isSelected
-              ? Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFe2e8f0)),
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      Expanded(child: Text(row['name']!.text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
-                      GestureDetector(
-                        onTap: () {
-                          row['name']!.text = '';
-                          row['searchText']!.text = '';
-                          row['uom']!.text = '';
-                          row['cost']!.text = '';
-                          setModal(() {});
-                        },
-                        child: const Icon(Icons.close, size: 14, color: Color(0xFF718096)),
-                      ),
-                    ]),
-                    const SizedBox(height: 4),
-                    Text('${row['uom']!.text}  •  ₱${row['cost']!.text}',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                    const SizedBox(height: 8),
-                    TextField(controller: row['qty'], keyboardType: TextInputType.number, onChanged: (_) => setModal(() {}),
-                      decoration: const InputDecoration(labelText: 'Quantity *', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), isDense: true)),
-                  ]),
-                )
-              : TextField(
-                  controller: row['searchText']!,
-                  onChanged: (_) => setModal(() {}),
-                  decoration: const InputDecoration(
-                    labelText: 'Service Name *',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                    isDense: true,
-                    prefixIcon: Icon(Icons.search, size: 18, color: Color(0xFF718096)),
-                  ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+          child: isSelected
+            ? Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFe2e8f0)),
                 ),
-          ),
-          SizedBox(width: 32, child: IconButton(icon: const Icon(Icons.close, size: 16, color: Colors.red), padding: EdgeInsets.zero, onPressed: onRemove)),
-        ]),
-        if (!isSelected) ...[
-          if (svcResults.isEmpty && q.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: const Color(0xFFF7F8FA), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFe2e8f0))),
-                child: const Center(child: Text('No services found.', style: TextStyle(fontSize: 12, color: Color(0xFFa0aec0)))),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Expanded(child: Text(row['name']!.text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+                    GestureDetector(
+                      onTap: () {
+                        row['name']!.text = '';
+                        row['searchText']!.text = '';
+                        row['uom']!.text = '';
+                        row['cost']!.text = '';
+                        setModal(() {});
+                      },
+                      child: const Icon(Icons.close, size: 14, color: Color(0xFF718096)),
+                    ),
+                  ]),
+                  const SizedBox(height: 4),
+                  Text('${row['uom']!.text}  •  ₱${row['cost']!.text}',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                  const SizedBox(height: 8),
+                  TextField(controller: row['qty'], keyboardType: TextInputType.number, onChanged: (_) => setModal(() {}),
+                    decoration: const InputDecoration(labelText: 'Quantity *', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), isDense: true)),
+                ]),
+              )
+            : _ItemSearchField(
+                key: svcFieldKey,
+                controller: row['searchText']!,
+                label: 'Service Name *',
+                items: serviceItems,
+                filter: (item, q) {
+                  final n = (item['name'] as String).toLowerCase();
+                  final num = (item['num'] as String? ?? '').toLowerCase();
+                  return n.contains(q) || num.contains(q);
+                },
+                isOutOfStock: (_) => false,
+                onSelected: (item) => applyService(item['name'] as String, item['uom'] as String? ?? ''),
+                onChanged: () => setModal(() {}),
               ),
-            )
-          else
-            ...svcResults.take(6).map((e) {
-              final name = e['name'] as String;
-              final uom = e['uom'] as String? ?? '';
-              final rawCost = e['cost'];
-              final costStr = rawCost == null ? '0' : rawCost.toString().replaceAll('₱','').replaceAll(',','').trim();
-              return GestureDetector(
-                onTap: () => applyService(name, uom),
-                child: Container(
-                  margin: const EdgeInsets.only(top: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFe2e8f0)),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)]),
-                  child: Row(children: [
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1a202c))),
-                      if (uom.isNotEmpty || costStr != '0')
-                        Text('${uom.isNotEmpty ? uom : '—'}  •  ₱$costStr',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                    ])),
-                    const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF718096)),
-                  ]),
-                ),
-              );
-            }),
-        ],
+        ),
+        SizedBox(width: 32, child: IconButton(icon: const Icon(Icons.close, size: 16, color: Colors.red), padding: EdgeInsets.zero, onPressed: onRemove)),
       ]),
     );
   }
@@ -1369,6 +1334,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
   Widget _matRow(Map<String, TextEditingController> row, VoidCallback onRemove, StateSetter setModal, BuildContext ctx, List<Map<String, TextEditingController>> allMatRows) {
     row.putIfAbsent('maxStock', () => TextEditingController(text: '99999'));
     row.putIfAbsent('searchText', () => TextEditingController());
+    final matFieldKey = row.putIfAbsent('_matKey', () => GlobalKey()) as GlobalKey;
 
     // All material items from item master (type == Material), excluding Inactive stock items
     // Use _allItems to preserve items with same name but different UOM
@@ -1379,6 +1345,19 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       ..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
 
     Future<void> applyMaterial(String name, String uom) async {
+      // Block items marked Inactive or with zero stock
+      final nameKey = name.toLowerCase();
+      final isInactive = _inactiveItemNames.contains(nameKey);
+      final stockQty = _stockMap[nameKey];
+      final isZeroStock = stockQty != null && stockQty == 0;
+      if (isInactive || isZeroStock) {
+        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+          content: Text('⚠ This item is out of stock and cannot be added.'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+        return;
+      }
       final alreadyUsed = allMatRows.any((r) => r != row && r['name']!.text == name && r['uom']!.text == uom);
       if (alreadyUsed) {
         showDialog(
@@ -1430,6 +1409,15 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       final available = stockSnap.docs.isNotEmpty
           ? (stockSnap.docs.first['stock'] as num?)?.toInt() ?? 0
           : -1;
+      // Block if actual stock is 0 (covers Low-status items with 0 qty)
+      if (available == 0) {
+        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+          content: Text('⚠ This item is out of stock and cannot be added.'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+        return;
+      }
       row['maxStock']!.text = '$available';
       final currentQty = int.tryParse(row['qty']!.text) ?? 1;
       if (available >= 0 && currentQty > available) row['qty']!.text = '$available';
@@ -1441,174 +1429,124 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(
-            child: isSelected
-              ? Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFe2e8f0)),
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      Expanded(child: Text(row['name']!.text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
-                      GestureDetector(
-                        onTap: () {
-                          row['name']!.text = '';
-                          row['searchText']!.text = '';
-                          row['uom']!.text = '';
-                          row['cost']!.text = '';
-                          row['maxStock']!.text = '99999';
-                          setModal(() {});
-                        },
-                        child: const Icon(Icons.close, size: 14, color: Color(0xFF718096)),
-                      ),
-                    ]),
-                    const SizedBox(height: 4),
-                    Text('${row['uom']!.text}  •  ₱${row['cost']!.text}',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                    const SizedBox(height: 4),
-                    // Always show stock badge once material is selected
-                    Builder(builder: (_) {
-                      final ms = int.tryParse(row['maxStock']!.text) ?? 99999;
-                      if (ms == 99999) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(color: const Color(0xFFF7F8FA), borderRadius: BorderRadius.circular(20)),
-                          child: const Text('Checking stock...', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF718096))),
-                        );
-                      }
-                      if (ms < 0) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(color: const Color(0xFFF7F8FA), borderRadius: BorderRadius.circular(20)),
-                          child: const Text('No stock record', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF718096))),
-                        );
-                      }
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: ms == 0 ? const Color(0xFFFFF5F5) : ms <= 5 ? const Color(0xFFFFFBEB) : const Color(0xFFF0FFF4),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          ms == 0 ? '⚠ Out of stock' : 'Available stock: $ms',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-                            color: ms == 0 ? Colors.red : ms <= 5 ? Colors.orange : Colors.green),
-                        ),
-                      );
-                    }),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: row['qty'],
-                      keyboardType: TextInputType.number,
-                      enabled: maxStock != 0,
-                      inputFormatters: (maxStock > 0 && maxStock < 99999)
-                          ? [
-                              FilteringTextInputFormatter.digitsOnly,
-                              _MaxValueFormatter(maxStock),
-                            ]
-                          : [FilteringTextInputFormatter.digitsOnly],
-                      onChanged: (_) => setModal(() {}),
-                      decoration: InputDecoration(
-                        labelText: 'Quantity *',
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        isDense: true,
-                        errorText: maxStock == 0 ? 'Out of stock' : null,
-                      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+          child: isSelected
+            ? Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFe2e8f0)),
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Expanded(child: Text(row['name']!.text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+                    GestureDetector(
+                      onTap: () {
+                        row['name']!.text = '';
+                        row['searchText']!.text = '';
+                        row['uom']!.text = '';
+                        row['cost']!.text = '';
+                        row['maxStock']!.text = '99999';
+                        setModal(() {});
+                      },
+                      child: const Icon(Icons.close, size: 14, color: Color(0xFF718096)),
                     ),
                   ]),
-                )
-              : TextField(
-                  controller: row['searchText']!,
-                  onChanged: (_) => setModal(() {}),
-                  decoration: InputDecoration(
-                    labelText: 'Material Name *',
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                    isDense: true,
-                    prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF718096)),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
-                      padding: EdgeInsets.zero,
-                      onPressed: () async {
-                        final result = await Navigator.push<String>(ctx,
-                          MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()));
-                        if (result != null) {
-                          final match = _allItems.firstWhere(
-                            (e) => e['barcode'] == result || e['qr'] == result,
-                            orElse: () => {},
-                          );
-                          if ((match['name'] as String? ?? '').isNotEmpty) {
-                            applyMaterial(match['name'] as String, match['uom'] as String? ?? '');
-                          }
-                        }
-                      },
+                  const SizedBox(height: 4),
+                  Text('${row['uom']!.text}  •  ₱${row['cost']!.text}',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                  const SizedBox(height: 4),
+                  Builder(builder: (_) {
+                    final ms = int.tryParse(row['maxStock']!.text) ?? 99999;
+                    if (ms == 99999) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: const Color(0xFFF7F8FA), borderRadius: BorderRadius.circular(20)),
+                        child: const Text('Checking stock...', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF718096))),
+                      );
+                    }
+                    if (ms < 0) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: const Color(0xFFF7F8FA), borderRadius: BorderRadius.circular(20)),
+                        child: const Text('No stock record', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF718096))),
+                      );
+                    }
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: ms == 0 ? const Color(0xFFFFF5F5) : ms <= 5 ? const Color(0xFFFFFBEB) : const Color(0xFFF0FFF4),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        ms == 0 ? '⚠ Out of stock' : 'Available stock: $ms',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                          color: ms == 0 ? Colors.red : ms <= 5 ? Colors.orange : Colors.green),
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: row['qty'],
+                    keyboardType: TextInputType.number,
+                    enabled: maxStock != 0,
+                    inputFormatters: (maxStock > 0 && maxStock < 99999)
+                        ? [FilteringTextInputFormatter.digitsOnly, _MaxValueFormatter(maxStock)]
+                        : [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (_) => setModal(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'Quantity *',
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      isDense: true,
+                      errorText: maxStock == 0 ? 'Out of stock' : null,
                     ),
                   ),
+                ]),
+              )
+            : _ItemSearchField(
+                key: matFieldKey,
+                controller: row['searchText']!,
+                label: 'Material Name *',
+                items: materialItems,
+                filter: (item, q) {
+                  final n = (item['name'] as String).toLowerCase();
+                  final num = (item['num'] as String? ?? '').toLowerCase();
+                  final sc = (item['supplierCode'] as String? ?? '').toLowerCase();
+                  return n.contains(q) || num.contains(q) || sc.contains(q);
+                },
+                isOutOfStock: (item) {
+                  final n = (item['name'] as String).toLowerCase();
+                  return (_stockMap[n] ?? -1) == 0 || _inactiveItemNames.contains(n);
+                },
+                onSelected: (item) => applyMaterial(item['name'] as String, item['uom'] as String? ?? ''),
+                onChanged: () => setModal(() {}),
+                trailing: IconButton(
+                  icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
+                  padding: EdgeInsets.zero,
+                  onPressed: () async {
+                    final result = await Navigator.push<String>(ctx,
+                      MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()));
+                    if (result != null) {
+                      final match = _allItems.firstWhere(
+                        (e) => e['barcode'] == result || e['qr'] == result,
+                        orElse: () => {},
+                      );
+                      if ((match['name'] as String? ?? '').isNotEmpty) {
+                        applyMaterial(match['name'] as String, match['uom'] as String? ?? '');
+                      }
+                    }
+                  },
                 ),
-          ),
-          SizedBox(width: 32, child: IconButton(
-            icon: const Icon(Icons.close, size: 16, color: Colors.red),
-            padding: EdgeInsets.zero,
-            onPressed: onRemove,
-          )),
-        ]),
-        // ── Inline material results ──
-        if (!isSelected) ...[
-          if (row['searchText']!.text.trim().isNotEmpty &&
-              materialItems.where((e) => (e['name'] as String).toLowerCase().contains(row['searchText']!.text.trim().toLowerCase())).isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: const Color(0xFFF7F8FA), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFe2e8f0))),
-                child: const Center(child: Text('No materials found.', style: TextStyle(fontSize: 12, color: Color(0xFFa0aec0)))),
               ),
-            )
-          else
-            ...(() {
-              final q = row['searchText']!.text.trim().toLowerCase();
-              final res = q.isEmpty ? <Map<String, dynamic>>[] : materialItems.where((e) {
-                final n = (e['name'] as String).toLowerCase();
-                final num = (e['num'] as String? ?? '').toLowerCase();
-                final sc = (e['supplierCode'] as String? ?? '').toLowerCase();
-                return n.contains(q) || num.contains(q) || sc.contains(q);
-              }).toList();
-              return res.take(6).map((e) {
-                final name = e['name'] as String;
-                final uom = e['uom'] as String? ?? '';
-                final rawCost = e['cost'];
-                final cost = rawCost == null
-                    ? 0.0
-                    : double.tryParse(rawCost.toString().replaceAll('₱', '').replaceAll(',', '').trim()) ?? 0.0;
-                return GestureDetector(
-                  onTap: () => applyMaterial(name, uom),
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFe2e8f0)),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)]),
-                    child: Row(children: [
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c))),
-                        if (uom.isNotEmpty || cost > 0)
-                          Text(
-                            '${uom.isNotEmpty ? uom : '—'}  •  ₱${cost.toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
-                          ),
-                      ])),
-                      const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF718096)),
-                    ]),
-                  ),
-                );
-              });
-            })(),
-        ],
+        ),
+        SizedBox(width: 32, child: IconButton(
+          icon: const Icon(Icons.close, size: 16, color: Colors.red),
+          padding: EdgeInsets.zero,
+          onPressed: onRemove,
+        )),
       ]),
     );
   }
@@ -1679,5 +1617,192 @@ class _MaxValueFormatter extends TextInputFormatter {
     if (entered == null) return oldValue;
     if (entered > max) return oldValue; // block — don't apply the new value
     return newValue;
+  }
+}
+
+
+/// Search field with overlay dropdown that survives StatefulBuilder rebuilds.
+/// Pass a stable [key] (stored on the row map) to keep State alive.
+class _ItemSearchField extends StatefulWidget {
+  final TextEditingController controller;
+  final String label;
+  final List<Map<String, dynamic>> items;
+  final bool Function(Map<String, dynamic>, String) filter;
+  final bool Function(Map<String, dynamic>) isOutOfStock;
+  final void Function(Map<String, dynamic>) onSelected;
+  final Widget? trailing;
+  final VoidCallback? onChanged;
+
+  const _ItemSearchField({
+    required super.key,
+    required this.controller,
+    required this.label,
+    required this.items,
+    required this.filter,
+    required this.isOutOfStock,
+    required this.onSelected,
+    this.trailing,
+    this.onChanged,
+  });
+
+  @override
+  State<_ItemSearchField> createState() => _ItemSearchFieldState();
+}
+
+class _ItemSearchFieldState extends State<_ItemSearchField> {
+  final _layerLink = LayerLink();
+  final _focusNode = FocusNode();
+  OverlayEntry? _overlay;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_rebuild);
+    _focusNode.addListener(_onFocus);
+  }
+
+  @override
+  void dispose() {
+    _close();
+    widget.controller.removeListener(_rebuild);
+    _focusNode.removeListener(_onFocus);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _rebuild() {
+    widget.onChanged?.call();
+    if (_focusNode.hasFocus) _open();
+  }
+
+  void _onFocus() {
+    if (_focusNode.hasFocus) {
+      _open();
+    } else {
+      Future.delayed(const Duration(milliseconds: 180), _close);
+    }
+  }
+
+  List<Map<String, dynamic>> get _results {
+    final q = widget.controller.text.trim().toLowerCase();
+    if (q.isEmpty) return [];
+    return widget.items.where((e) => widget.filter(e, q)).take(8).toList();
+  }
+
+  void _open() {
+    _close();
+    final results = _results;
+    final q = widget.controller.text.trim();
+    if (results.isEmpty && q.isEmpty) return;
+    final overlay = Overlay.of(context);
+    _overlay = OverlayEntry(builder: (_) => _buildOverlay(results));
+    overlay.insert(_overlay!);
+  }
+
+  void _close() {
+    _overlay?.remove();
+    _overlay?.dispose();
+    _overlay = null;
+  }
+
+  Widget _buildOverlay(List<Map<String, dynamic>> results) {
+    final mq = MediaQuery.of(context);
+    final w = mq.size.width - 48;
+    return Positioned(
+      width: 0,
+      child: CompositedTransformFollower(
+        link: _layerLink,
+        showWhenUnlinked: false,
+        offset: const Offset(0, 46),
+        child: Material(
+          elevation: 8,
+          borderRadius: BorderRadius.circular(10),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: w, maxHeight: 260),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: results.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    child: Text(
+                      widget.label.contains('Service') ? 'No services found.' : 'No materials found.',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFFa0aec0)),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    itemCount: results.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFe2e8f0)),
+                    itemBuilder: (_, i) {
+                      final item = results[i];
+                      final name = item['name'] as String;
+                      final uom = item['uom'] as String? ?? '';
+                      final rawCost = item['cost'];
+                      final cost = rawCost == null ? 0.0
+                          : double.tryParse(rawCost.toString().replaceAll('₱','').replaceAll(',','').trim()) ?? 0.0;
+                      final oos = widget.isOutOfStock(item);
+                      return InkWell(
+                        onTap: oos ? null : () {
+                          _close();
+                          _focusNode.unfocus();
+                          widget.onSelected(item);
+                        },
+                        child: Container(
+                          color: oos ? const Color(0xFFF8F8F8) : null,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          child: Row(children: [
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(name, style: TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 13,
+                                color: oos ? const Color(0xFFa0aec0) : const Color(0xFF1a202c))),
+                              if (uom.isNotEmpty || cost > 0)
+                                Text('${uom.isNotEmpty ? uom : '—'}  •  ₱${cost.toStringAsFixed(2)}',
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                              if (oos)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 3),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF5F5),
+                                      borderRadius: BorderRadius.circular(20)),
+                                    child: const Text('⚠ Out of stock — cannot add',
+                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.red)),
+                                  ),
+                                ),
+                            ])),
+                            oos
+                              ? const Icon(Icons.block_outlined, size: 16, color: Color(0xFFa0aec0))
+                              : const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF718096)),
+                          ]),
+                        ),
+                      );
+                    },
+                  ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: TextField(
+        controller: widget.controller,
+        focusNode: _focusNode,
+        decoration: InputDecoration(
+          labelText: widget.label,
+          border: const OutlineInputBorder(),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          isDense: true,
+          prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF718096)),
+          suffixIcon: widget.trailing,
+        ),
+      ),
+    );
   }
 }

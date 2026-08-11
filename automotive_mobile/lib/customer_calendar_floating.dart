@@ -79,7 +79,7 @@ class _CustomerCalendarFloatingState extends State<CustomerCalendarFloating>
       if (date.isEmpty) continue;
       // Skip completed or in-progress bookings
       final statusLower = status.toLowerCase();
-      if (statusLower == 'completed' || statusLower == 'in progress' || statusLower == 'dismissed') continue;
+      if (statusLower == 'completed' || statusLower == 'in progress' || statusLower == 'dismissed' || statusLower == 'cancelled' || statusLower == 'rejected') continue;
       final due = DateTime.tryParse(date);
       if (due == null) continue;
       final daysUntil =
@@ -134,7 +134,7 @@ class _CustomerCalendarFloatingState extends State<CustomerCalendarFloating>
             '${next.year}-${next.month.toString().padLeft(2, '0')}-${next.day.toString().padLeft(2, '0')}';
         final urgency =
             daysUntil < 0 ? 'overdue' : daysUntil == 0 ? 'today' : daysUntil <= 7 ? 'week' : 'upcoming';
-        if (urgency != 'upcoming') urgent++;
+        urgent++; // all PMS dates (including upcoming) show badge dot
 
         events.putIfAbsent(key, () => []);
         events[key]!.add({
@@ -147,10 +147,27 @@ class _CustomerCalendarFloatingState extends State<CustomerCalendarFloating>
     }
 
     if (mounted) {
+      // Auto-navigate to nearest future PMS month
+      String? nearestKey;
+      for (final key in events.keys) {
+        final hasFuturePms = events[key]!.any(
+            (e) => e['type'] == 'pms' && (e['daysUntil'] as int) >= 0);
+        if (!hasFuturePms) continue;
+        if (nearestKey == null || key.compareTo(nearestKey) < 0) nearestKey = key;
+      }
+      int navYear = DateTime.now().year;
+      int navMonth = DateTime.now().month;
+      if (nearestKey != null) {
+        final parts = nearestKey.split('-');
+        navYear  = int.parse(parts[0]);
+        navMonth = int.parse(parts[1]);
+      }
       setState(() {
         _events      = events;
         _urgentCount = urgent;
         _loading     = false;
+        _year  = navYear;
+        _month = navMonth;
       });
     }
   }
@@ -170,6 +187,7 @@ class _CustomerCalendarFloatingState extends State<CustomerCalendarFloating>
       _panelOpen = !_panelOpen;
       if (_panelOpen) {
         _animCtrl.forward(from: 0);
+        _loadData(); // reload on every open so cancelled bookings are excluded
       } else {
         _animCtrl.reverse();
       }

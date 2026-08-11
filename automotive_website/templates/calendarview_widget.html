@@ -260,7 +260,7 @@
 
       const daysUntil = Math.round((due - today) / 86400000);
       const urgency   = daysUntil < 0 ? 'overdue' : daysUntil === 0 ? 'today' : daysUntil <= 7 ? 'week' : 'upcoming';
-      if (urgency !== 'upcoming') urgentCount++;
+      urgentCount++; // all PMS dates (including upcoming) show badge dot
 
       if (!_pmsEvents[key]) _pmsEvents[key] = [];
       _pmsEvents[key].push({ plate: v.plate, daysUntil, urgency });
@@ -269,6 +269,16 @@
     // Show/hide dot on toggle button
     const dot = document.getElementById('pmsCalDot');
     if (dot) dot.style.display = urgentCount > 0 ? 'block' : 'none';
+
+    // ── Auto-navigate to nearest future PMS month ──
+    const futureKeys = Object.keys(_pmsEvents).filter(function(k) {
+      return _pmsEvents[k].some(function(e) { return e.urgency !== 'booking' && e.daysUntil >= 0; });
+    }).sort();
+    if (futureKeys.length) {
+      const nearest = futureKeys[0].split('-');
+      _calYear  = parseInt(nearest[0]);
+      _calMonth = parseInt(nearest[1]) - 1;
+    }
 
     // ── Add approved service bookings to calendar ──
     _approvedBookings.forEach(function(b) {

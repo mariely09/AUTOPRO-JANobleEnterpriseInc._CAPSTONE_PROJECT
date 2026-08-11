@@ -74,7 +74,7 @@ class _PmsCalendarFloatingState extends State<PmsCalendarFloating>
 
       final key = '${next.year}-${next.month.toString().padLeft(2, '0')}-${next.day.toString().padLeft(2, '0')}';
       final urgency = daysUntil < 0 ? 'overdue' : daysUntil == 0 ? 'today' : daysUntil <= 7 ? 'week' : 'upcoming';
-      if (urgency != 'upcoming') urgent++;
+      urgent++; // all PMS dates (including upcoming) show the badge dot
 
       events.putIfAbsent(key, () => []);
       events[key]!.add({
@@ -106,10 +106,27 @@ class _PmsCalendarFloatingState extends State<PmsCalendarFloating>
     }
 
     if (mounted) {
+      // Auto-navigate to the nearest future PMS month
+      String? nearestKey;
+      for (final key in events.keys) {
+        final evts = events[key]!;
+        final hasFuturePms = evts.any((e) => e['urgency'] != 'booking' && (e['daysUntil'] as int) >= 0);
+        if (!hasFuturePms) continue;
+        if (nearestKey == null || key.compareTo(nearestKey) < 0) nearestKey = key;
+      }
+      int navYear = DateTime.now().year;
+      int navMonth = DateTime.now().month;
+      if (nearestKey != null) {
+        final parts = nearestKey.split('-');
+        navYear  = int.parse(parts[0]);
+        navMonth = int.parse(parts[1]);
+      }
       setState(() {
         _pmsEvents = events;
         _urgentCount = urgent;
         _loading = false;
+        _year = navYear;
+        _month = navMonth;
       });
     }
   }
