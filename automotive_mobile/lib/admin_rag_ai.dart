@@ -159,7 +159,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   String get _resetIn => AdminChatStore.resetIn;
   set _resetIn(String v) => AdminChatStore.resetIn = v;
   bool _backendOnline = true;
-  bool _firestoreQuota = false;
 
   @override
   void initState() {
@@ -206,12 +205,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             : parts[0][0].toUpperCase();
         if (mounted) setState(() => _initials = ini);
       }
-    } catch (e) {
-      final msg = e.toString().toLowerCase();
-      if (msg.contains('resource-exhausted') || msg.contains('quota')) {
-        if (mounted) setState(() => _firestoreQuota = true);
-      }
-    }
+    } catch (_) {}
   }
 
   @override
@@ -265,7 +259,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
 
   Future<void> _sendQuery([String? preset]) async {
     final text = (preset ?? _inputCtrl.text).trim();
-    if (text.isEmpty || _loading || _rateLimited || _firestoreQuota) return;
+    if (text.isEmpty || _loading || _rateLimited) return;
 
     // ── Report intent? Handle separately ──────────────────────────────────
     final reportType = _detectReportIntent(text);
@@ -646,7 +640,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           children: [
             // AI logo in AppBar title area
             Container(
-              width: 36, height: 36,
+              width: 32, height: 32,
               margin: const EdgeInsets.only(right: 10),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
@@ -654,12 +648,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4)],
               ),
               child: ClipOval(
-                child: Image.asset(
-                  'assets/img/AI_LOGO.png',
-                  width: 36,
-                  height: 36,
-                  fit: BoxFit.cover,
-                ),
+                child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.cover),
               ),
             ),
             const Text('AI Assistant',
@@ -668,31 +657,22 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           ],
         ),
         actions: [
-          // Online/offline/quota indicator dot
+          // Online indicator dot
           Padding(
             padding: const EdgeInsets.only(right: 4),
             child: Tooltip(
-              message: _firestoreQuota
-                  ? 'Firestore quota reached'
-                  : _backendOnline ? 'AI Online' : 'AI Offline',
+              message: _backendOnline ? 'AI Online' : 'AI Offline',
               child: Container(
                 width: 12, height: 12,
                 margin: const EdgeInsets.only(right: 4),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _firestoreQuota
-                      ? const Color(0xFFF59E0B)
-                      : _backendOnline
-                          ? const Color(0xFF22c55e)
-                          : const Color(0xFFF97316),
+                  color: _backendOnline ? const Color(0xFF22c55e) : Colors.orange,
                   border: Border.all(color: Colors.white.withValues(alpha: 0.8), width: 2),
                   boxShadow: [BoxShadow(
-                    color: (_firestoreQuota
-                        ? const Color(0xFFF59E0B)
-                        : _backendOnline
-                            ? const Color(0xFF22c55e)
-                            : const Color(0xFFF97316))
-                        .withValues(alpha: 0.6),
+                    color: _backendOnline
+                        ? const Color(0xFF22c55e).withValues(alpha: 0.6)
+                        : Colors.orange.withValues(alpha: 0.6),
                     blurRadius: 6)],
                 ),
               ),
@@ -717,26 +697,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         ],
       ),
       body: Column(children: [
-        // Firestore quota banner
-        if (_firestoreQuota)
-          Container(
-            width: double.infinity,
-            color: const Color(0xFFFEF3C7),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFF92400E)),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'AI temporarily unavailable — Firestore daily quota reached.\nAll features are disabled until the quota resets at 3:00 PM.',
-                  style: TextStyle(fontSize: 11.5, color: Color(0xFF78350F), height: 1.5),
-                ),
-              ),
-            ]),
-          ),
-
         // Offline banner
-        if (!_backendOnline && !_firestoreQuota)
+        if (!_backendOnline)
           Container(
             width: double.infinity,
             color: const Color(0xFFFFFBEB),
@@ -845,12 +807,10 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
               _AdminFocusInputBar(
                 inputCtrl: _inputCtrl,
                 loading: _loading,
-                rateLimited: _rateLimited || _firestoreQuota,
-                hint: _firestoreQuota
-                    ? 'AI unavailable — Firestore quota reached. Resets at 3 PM.'
-                    : _rateLimited
-                        ? 'AI unavailable — daily limit reached'
-                        : 'Ask about fleet, inventory, reports…',
+                rateLimited: _rateLimited,
+                hint: _rateLimited
+                    ? 'AI unavailable — daily limit reached'
+                    : 'Ask about fleet, inventory, reports…',
                 onSend: _sendQuery,
               ),
               const SizedBox(height: 4),
