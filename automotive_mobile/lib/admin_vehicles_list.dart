@@ -18,15 +18,15 @@ class AdminVehiclesList extends StatefulWidget {
 class _AdminVehiclesListState extends State<AdminVehiclesList> {
   static const _red = Color(0xFFE8001C);
 
-  // 0=Vehicles, 1=Maintenance, 2=Bookings, 3=Issuances, 4=Archive
+  // 0=Vehicles, 1=Maintenance, 2=Bookings, 3=Issuances
   int _tab = 0;
   bool _searching = false;
   final _searchCtrl = TextEditingController();
   String _maintSortBy = 'date-desc';
   String _vehicleSortBy = 'plate-asc';
 
-  static const _tabs = ['Vehicles', 'Maintenance', 'Bookings', 'Issuances', 'Archive'];
-  static const _tabTitles = ['Vehicle List', 'Maintenance', 'Bookings', 'Issuances', 'Archived Vehicles'];
+  static const _tabs = ['Vehicles', 'Maintenance', 'Bookings', 'Issuances'];
+  static const _tabTitles = ['Vehicle List', 'Maintenance', 'Bookings', 'Issuances'];
 
   @override
   void dispose() {
@@ -153,7 +153,6 @@ class _AdminVehiclesListState extends State<AdminVehiclesList> {
           AdminVehicleMaintenanceBody(searchQuery: _tab == 1 && _searching ? _searchCtrl.text.toLowerCase() : '', sortBy: _maintSortBy),
           AdminServiceBookingsBody(searchQuery: _tab == 2 && _searching ? _searchCtrl.text.toLowerCase() : ''),
           AdminIssuancesBody(searchQuery: _tab == 3 && _searching ? _searchCtrl.text.toLowerCase() : ''),
-          ArchivedVehiclesBody(searchQuery: _tab == 4 && _searching ? _searchCtrl.text.toLowerCase() : ''),
         ],
       )),
     );

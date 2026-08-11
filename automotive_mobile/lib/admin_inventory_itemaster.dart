@@ -717,11 +717,9 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                       final isDup = existingNames.contains(key);
                       if (isDup != nameDuplicate) setModalState(() => nameDuplicate = isDup);
                     },
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Item Name *',
-                      border: const OutlineInputBorder(),
-                      errorText: nameDuplicate ? 'An item with this name and UOM already exists.' : null,
-                      errorStyle: const TextStyle(fontSize: 11),
+                      border: OutlineInputBorder(),
                     )),
                   const SizedBox(height: 10),
                   TextField(controller: descCtrl,
@@ -1154,10 +1152,20 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await SyncStatusNotifier.instance.trackWrite(() => _db.doc(item['id']).update({
-                  'archived': true,
-                  'archivedAt': FieldValue.serverTimestamp(),
-                }));
+                final docId = item['id']!;
+                // Fetch full doc then move to archive sub-collection
+                final snap = await _db.doc(docId).get();
+                if (!snap.exists) throw Exception('Item not found');
+                final data = Map<String, dynamic>.from(snap.data() as Map<String, dynamic>);
+                data['archivedAt'] = FieldValue.serverTimestamp();
+                await SyncStatusNotifier.instance.trackWrite(() =>
+                    FirebaseFirestore.instance
+                        .collection('archive')
+                        .doc('item_master')
+                        .collection('items')
+                        .doc(docId)
+                        .set(data));
+                await SyncStatusNotifier.instance.trackWrite(() => _db.doc(docId).delete());
                 // Delete matching stock_inventory doc
                 final num = item['num'] as String? ?? '';
                 if (num.isNotEmpty) {

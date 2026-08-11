@@ -410,6 +410,7 @@ class _AdminUsersState extends State<AdminUsers> {
             onSelected: (val) {
               if (val == 'edit') _showAddUserModal(user: u);
               if (val == 'toggle') _confirmDelete(u);
+              if (val == 'archive') _archiveUser(u);
             },
             itemBuilder: (_) => [
               const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_outlined, size: 16), SizedBox(width: 8), Text('Edit')])),
@@ -434,6 +435,14 @@ class _AdminUsersState extends State<AdminUsers> {
                     ),
                   ]),
                 ),
+              const PopupMenuItem(
+                value: 'archive',
+                child: Row(children: [
+                  Icon(Icons.archive_outlined, size: 16, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Text('Archive', style: TextStyle(color: Colors.orange)),
+                ]),
+              ),
             ],
           ),
         ]),
@@ -868,31 +877,82 @@ class _AdminUsersState extends State<AdminUsers> {
                         try {
                           if (isEdit) {
                             // ── Edit existing user ──
+                            final newEmail = emailCtrl.text.trim();
+                            final oldEmail = user!['email'] ?? '';
+                            final emailChanged = newEmail != oldEmail;
+
                             await FirebaseFirestore.instance
                                 .collection('users')
-                                .doc(user!['uid'])
+                                .doc(user['uid'])
                                 .update({
                               'firstName': firstName,
                               'lastName':  lastName,
                               'name':      fullName,
-                              'email':     emailCtrl.text.trim(),
+                              'email':     newEmail,
                               'role':      selectedRole.toLowerCase(),
                               'status':    selectedStatus,
                               'companyName': selectedRole.toLowerCase() == 'customer' ? companyNameCtrl.text.trim() : '',
                             });
+
+                            // If email changed and user hasn't logged in yet, resend credentials
+                            if (emailChanged) {
+                              final userDoc = await FirebaseFirestore.instance
+                                  .collection('users').doc(user['uid']).get();
+                              final mustChange = userDoc.data()?['mustChangePassword'] as bool? ?? false;
+                              if (mustChange) {
+                                final newTempPass = _generateTempPassword();
+                                // Update Auth email + password via Flask
+                                try {
+                                  await http.post(
+                                    Uri.parse('http://10.0.2.2:5000/api/update-user-email-password'),
+                                    headers: {'Content-Type': 'application/json'},
+                                    body: jsonEncode({
+                                      'uid': user['uid'],
+                                      'new_email': newEmail,
+                                      'new_password': newTempPass,
+                                    }),
+                                  );
+                                } catch (authErr) {
+                                  debugPrint('⚠️ Auth update failed: $authErr');
+                                }
+                                // Send welcome email to new address
+                                final sent = await _sendWelcomeEmail(
+                                  toEmail:      newEmail,
+                                  toName:       fullName,
+                                  tempPassword: newTempPass,
+                                  role:         selectedRole,
+                                );
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                    content: Row(children: [
+                                      const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+                                      const SizedBox(width: 8),
+                                      Expanded(child: Text(sent
+                                          ? 'User updated! New credentials sent to $newEmail.'
+                                          : 'User updated! (Email failed — check server.)')),
+                                    ]),
+                                    backgroundColor: Colors.green,
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 5),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ));
+                                }
+                                return;
+                              }
+                            }
+
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
                               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                 content: const Row(children: [
-                                  Icon(Icons.check_circle_outline,
-                                      color: Colors.white, size: 18),
+                                  Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
                                   SizedBox(width: 8),
                                   Text('User updated successfully!'),
                                 ]),
                                 backgroundColor: Colors.green,
                                 behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ));
                             }
                           } else {
@@ -1033,6 +1093,67 @@ class _AdminUsersState extends State<AdminUsers> {
         ),
       ),
     );
+  }
+
+  Future<void> _archiveUser(Map<String, String> u) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.archive_outlined, color: Colors.orange, size: 22),
+          SizedBox(width: 8),
+          Text('Archive User', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: Text(
+          'Are you sure you want to archive "${u['name']}"?\n\nThis will move the user to the archive.',
+          style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Archive'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final uid = u['uid']!;
+      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (!snap.exists) throw Exception('User not found.');
+      final data = Map<String, dynamic>.from(snap.data()!);
+      data['archivedAt'] = FieldValue.serverTimestamp();
+      await FirebaseFirestore.instance
+          .collection('archive')
+          .doc('users')
+          .collection('users')
+          .doc(uid)
+          .set(data);
+      await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(children: [
+          const Icon(Icons.archive_outlined, color: Colors.white, size: 18),
+          const SizedBox(width: 8),
+          Text('"${u['name']}" archived successfully.'),
+        ]),
+        backgroundColor: Colors.orange,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    }
   }
 
   void _confirmDelete(Map<String, String> u) {

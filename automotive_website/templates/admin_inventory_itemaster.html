@@ -173,7 +173,6 @@
             <div class="fl-field">
                 <input type="text" name="itemName" required placeholder=" " oninput="imCheckDuplicateName(this)">
                 <label>Item Name *</label>
-                <div id="imNameError" style="display:none;font-size:0.72rem;color:#E31E24;margin-top:0.25rem;padding-left:0.25rem;">⚠ An item with this name and UOM already exists.</div>
             </div>
             <div class="fl-field">
                 <input type="text" name="description" placeholder=" ">
@@ -408,19 +407,16 @@
   // ── Live duplicate name check on Item Name field ──
   // Only blocks duplicate if BOTH name AND uom match an existing item
   window.imCheckDuplicateName = function(input) {
-    var errEl = document.getElementById('imNameError');
-    if (!errEl) return;
     var val = (input.value || '').trim().toLowerCase();
     var editingNum = (document.getElementById('itemMasterItemNum') || {}).value || '';
     var uomVal = (document.getElementById('itemMasterUOM') || {}).value || '';
     var items = window.itemMaster || [];
     var isDup = val.length > 0 && items.some(function(i) {
-      if (editingNum && (i.itemNum || '') === editingNum) return false; // skip self
+      if (editingNum && (i.itemNum || '') === editingNum) return false;
       var sameName = (i.itemName || '').toLowerCase().trim() === val;
       var sameUom  = uomVal === '' || (i.uom || '') === uomVal;
       return sameName && sameUom;
     });
-    errEl.style.display = isDup ? 'block' : 'none';
     input.style.borderColor = isDup ? '#E31E24' : '';
     input.style.boxShadow   = isDup ? '0 0 0 3px rgba(227,30,36,0.12)' : '';
   };
@@ -488,10 +484,11 @@
   // Update Item Master stat cards from live data
   (function() {
     function updateImStats() {
-      const items = window.itemMaster || [];
-      const total = items.length;
-      const materials = items.filter(i => (i.itemType || i.type || '') === 'Material').length;
-      const services = items.filter(i => (i.itemType || i.type || '') === 'Service').length;
+      // Filter out archived items, matching the Flutter behavior
+      const items = (window.itemMaster || []).filter(function(i) { return !i.archived; });
+      const total     = items.length;
+      const materials = items.filter(function(i) { return (i.itemType || '') === 'Material'; }).length;
+      const services  = items.filter(function(i) { return (i.itemType || '') === 'Service';  }).length;
       const t = document.getElementById('imStatTotal');
       const m = document.getElementById('imStatMaterials');
       const s = document.getElementById('imStatServices');
@@ -499,15 +496,22 @@
       if (m) m.textContent = materials;
       if (s) s.textContent = services;
     }
-    // Patch renderItemMasterList to also update stats
-    const _orig = window.renderItemMasterList;
+    // Patch renderItemMasterList to also update stats on every render
+    var _origRender = window.renderItemMasterList;
     window.renderItemMasterList = function() {
-      if (typeof _orig === 'function') _orig();
+      if (typeof _origRender === 'function') _origRender();
       updateImStats();
     };
-    // Also update on initial load
+    // Also run once as soon as Firestore data arrives
     document.addEventListener('DOMContentLoaded', function() {
-      setTimeout(updateImStats, 1000);
+      var attempts = 0;
+      var poll = setInterval(function() {
+        attempts++;
+        if (window._fbItemMasterLoaded || attempts > 30) {
+          clearInterval(poll);
+          updateImStats();
+        }
+      }, 300);
     });
   })();
 

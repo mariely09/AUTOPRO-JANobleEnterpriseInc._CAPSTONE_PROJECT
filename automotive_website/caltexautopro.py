@@ -205,6 +205,34 @@ def send_push_notification():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/api/update-user-email-password', methods=['POST'])
+def update_user_email_password():
+    """Update Firebase Auth email and/or password for a user. Called when admin edits a not-yet-logged-in user's email."""
+    data     = request.get_json(silent=True) or {}
+    uid      = data.get('uid', '').strip()
+    new_email    = data.get('new_email', '').strip()
+    new_password = data.get('new_password', '').strip()
+
+    if not uid:
+        return jsonify({'ok': False, 'error': 'Missing uid'}), 400
+    if not firebase_admin._apps:
+        return jsonify({'ok': False, 'error': 'Firebase Admin SDK not initialized.'}), 503
+
+    try:
+        kwargs = {}
+        if new_email:    kwargs['email']    = new_email
+        if new_password: kwargs['password'] = new_password
+        if kwargs:
+            fb_auth.update_user(uid, **kwargs)
+        print(f'✅ Updated Auth user {uid}: {list(kwargs.keys())}')
+        return jsonify({'ok': True})
+    except fb_auth.UserNotFoundError:
+        return jsonify({'ok': False, 'error': 'User not found in Firebase Auth.'}), 404
+    except Exception as e:
+        print(f'❌ update_user_email_password error: {e}')
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/api/delete-user', methods=['POST'])
 def delete_user():
     """Delete a Firebase Auth user by UID. Firestore doc is deleted client-side."""

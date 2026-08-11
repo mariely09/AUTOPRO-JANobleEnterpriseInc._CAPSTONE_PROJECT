@@ -183,7 +183,7 @@
             <!-- ── Users Table ── -->
             <div id="tabAll">
                 <div class="data-table">
-                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:40px 2fr 2fr 1.5fr 1fr 1fr 140px;">
+                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:40px 2fr 2fr 1.5fr 1fr 1fr 175px;">
                         <div>#</div><div>Full Name</div><div>Email</div><div>Company Name</div><div>Role</div><div>Status</div><div>Actions</div>
                     </div>
                     <div id="userCardsList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading users...</div></div>
@@ -646,18 +646,47 @@ document.addEventListener('DOMContentLoaded', function() {
         var db = firebase.firestore();
         if (_editingUserId) {
             // Edit — update fields, preserve existing status
-            db.collection('users').doc(_editingUserId).update({
+            // Check if email changed AND user hasn't logged in yet (mustChangePassword)
+            var existingUser = (window.users || []).find(function(u){ return u.id === _editingUserId; });
+            var emailChanged = existingUser && existingUser.email !== email;
+            var notYetLoggedIn = existingUser && existingUser.mustChangePassword === true;
+
+            var updatePromise = db.collection('users').doc(_editingUserId).update({
                 firstName: firstName,
                 lastName:  lastName,
                 name:      fullName,
                 email:     email,
                 role:      role,
                 companyName: role === 'customer' ? companyName : ''
-            })
-                .then(function(){
+            });
+
+            if (emailChanged && notYetLoggedIn) {
+                var newTempPass = _generateTempPassword();
+                updatePromise = updatePromise
+                    .then(function() {
+                        // Update email + password in Firebase Auth via Flask
+                        return fetch('/api/update-user-email-password', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ uid: _editingUserId, new_email: email, new_password: newTempPass })
+                        }).then(function(r){ return r.json(); }).catch(function(){ return { ok: false }; });
+                    })
+                    .then(function() {
+                        // Send welcome email to new address with new temp password
+                        return _sendWelcomeEmail(email, fullName, newTempPass, role);
+                    })
+                    .then(function(sent) {
+                        closeModal('addUserModal');
+                        showToast('User updated!' + (sent ? ' New credentials sent to ' + email + '.' : ' (Email not sent — check server.)'), 'success');
+                    });
+            } else {
+                updatePromise = updatePromise.then(function(){
                     closeModal('addUserModal');
                     showToast('User updated successfully!', 'success');
-                })
+                });
+            }
+
+            updatePromise
                 .catch(function(err){ showToast('Error: ' + err.message, 'error'); })
                 .finally(function(){ setLoading(false); });
         } else {

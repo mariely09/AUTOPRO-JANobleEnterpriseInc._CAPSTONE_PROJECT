@@ -248,7 +248,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
           children: [
             if (_fabOpen) ...[
               _fabAction(
-                label: 'Review Purchase Order',
+                label: 'Edit Purchase Order',
                 icon: Icons.edit_outlined,
                 onTap: () {
                   setState(() => _fabOpen = false);
@@ -258,7 +258,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                   }).toList();
                   if (editablePOs.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('No purchase orders to review.'),
+                      content: Text('No purchase orders to edit.'),
                       backgroundColor: Color(0xFF718096), behavior: SnackBarBehavior.floating));
                   } else {
                     _showEditPOPicker(editablePOs);
@@ -737,7 +737,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                           .collection('stock_inventory').where('num', isEqualTo: n).limit(1).get();
                       if (ss.docs.isNotEmpty) stockVal = (ss.docs.first['stock'] as num?)?.toInt();
                     } catch (_) {}
-                    enriched.add({...item, '_cost': c, '_stock': stockVal, 'supplierCode': numToSupplierCode[n] ?? ''});
+                    enriched.add({...item, '_cost': c, '_stock': stockVal, 'supplierCode': numToSupplierCode[n] ?? '', '_maxQty': (item['expectedQty'] as int?) ?? 1});
                   }
                   if (ctx.mounted) setModal(() => addedItems..clear()..addAll(enriched));
                 }
@@ -779,9 +779,9 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                 decoration: const BoxDecoration(color: _red, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
                 child: Row(children: [
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(isEdit ? 'Review Purchase Order (PO)' : 'Purchase Order (PO)',
+                    Text(isEdit ? 'Edit Purchase Order (PO)' : 'Purchase Order (PO)',
                         style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text(isEdit ? 'Review and update items for admin' : 'Submit for admin approval',
+                    Text(isEdit ? 'Update items for this delivery' : 'Submit for admin approval',
                         style: const TextStyle(color: Colors.white70, fontSize: 11)),
                   ])),
                   GestureDetector(onTap: () => Navigator.pop(ctx), child: const Icon(Icons.close, color: Colors.white)),
@@ -847,7 +847,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                                 final rowIdx = addedItems.length;
                                 qtyCtrlrs[rowIdx] = TextEditingController(text: '$rec');
                                 setModal(() {
-                                  addedItems.add({'itemNum': num, 'itemName': name, 'uom': uom, 'expectedQty': rec, '_rowIdx': rowIdx, '_cost': cost, '_stock': stock, 'supplierCode': supplierCode});
+                                  addedItems.add({'itemNum': num, 'itemName': name, 'uom': uom, 'expectedQty': rec, '_rowIdx': rowIdx, '_cost': cost, '_stock': stock, 'supplierCode': supplierCode, '_maxQty': rec});
                                   addedNums.add(num);
                                 });
                               },
@@ -984,17 +984,29 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1a202c)),
                                       decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
-                                      onChanged: (v) { final q2 = int.tryParse(v) ?? 1; setModal(() => addedItems[rowIdx] = {...addedItems[rowIdx], 'expectedQty': q2}); },
+                                      onChanged: (v) {
+                                        final maxQ = (addedItems[rowIdx]['_maxQty'] as int?) ?? 9999;
+                                        final q2 = (int.tryParse(v) ?? 1).clamp(1, maxQ);
+                                        if (q2.toString() != v) qtyCtrlrs[rowIdx]!.text = '$q2';
+                                        setModal(() => addedItems[rowIdx] = {...addedItems[rowIdx], 'expectedQty': q2});
+                                      },
                                     ))),
                                   GestureDetector(
                                     onTap: () {
+                                      final maxQ = (addedItems[rowIdx]['_maxQty'] as int?) ?? 9999;
                                       final v = int.tryParse(qtyCtrlrs[rowIdx]!.text) ?? 1;
+                                      if (v >= maxQ) return; // cap reached
                                       qtyCtrlrs[rowIdx]!.text = '${v + 1}';
                                       setModal(() => addedItems[rowIdx] = {...addedItems[rowIdx], 'expectedQty': v + 1});
                                     },
                                     child: Container(width: 34, height: 34,
                                       decoration: const BoxDecoration(borderRadius: BorderRadius.only(topRight: Radius.circular(7), bottomRight: Radius.circular(7))),
-                                      child: const Icon(Icons.add, size: 16, color: Color(0xFFE8001C)))),
+                                      child: Builder(builder: (_) {
+                                        final maxQ = (addedItems[rowIdx]['_maxQty'] as int?) ?? 9999;
+                                        final cur = int.tryParse(qtyCtrlrs[rowIdx]!.text) ?? 1;
+                                        return Icon(Icons.add, size: 16,
+                                          color: cur >= maxQ ? const Color(0xFFcbd5e0) : const Color(0xFFE8001C));
+                                      }))),
                                 ]),
                               ),
                             ]),
@@ -1077,8 +1089,8 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(isEdit ? 'Request updated!' : 'Request submitted! Waiting for admin approval.'),
-                            backgroundColor: _red, behavior: SnackBarBehavior.floating,
+                            content: Text(isEdit ? 'Request updated!' : 'Purchase order created successfully!'),
+                            backgroundColor: isEdit ? _red : _green, behavior: SnackBarBehavior.floating,
                             shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10)))));
                         }
                       } catch (e) {
@@ -1090,7 +1102,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                     style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)),
                     child: saving
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Text(isEdit ? 'Update Request' : 'Save'),
+                      : Text(isEdit ? 'Update' : 'Save'),
                   )),
                 ]),
               )),
@@ -1120,8 +1132,8 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
             ),
             child: Row(children: [
               const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Review Purchase Order', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                Text('Select a PO to review', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                Text('Edit Purchase Order', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                Text('Select a PO to edit', style: TextStyle(color: Colors.white70, fontSize: 11)),
               ])),
               GestureDetector(
                 onTap: () => Navigator.pop(context),

@@ -1991,17 +1991,23 @@ function deleteItemMaster(itemNum) {
     if (!confirm('Are you sure you want to archive "' + itemName + '"?')) return;
 
     var db = firebase.firestore();
-    db.collection('item_master').doc(fbItem._id).update({
-        archived: true,
-        archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    })
-    .then(function() {
-        db.collection('stock_inventory').where('num', '==', itemNum).limit(1).get().then(function(snap) {
-            if (!snap.empty) snap.docs[0].ref.delete().catch(function(){});
-        }).catch(function(){});
-        showToast('Item archived successfully!', 'success');
-    })
-    .catch(function(err) { showToast('Archive failed: ' + err.message, 'error'); });
+    var docId = fbItem._id;
+    // Fetch full doc then copy to archive sub-collection (same pattern as vehicles/users)
+    db.collection('item_master').doc(docId).get()
+        .then(function(snap) {
+            if (!snap.exists) throw new Error('Item not found');
+            var data = snap.data();
+            data.archivedAt = firebase.firestore.FieldValue.serverTimestamp();
+            return db.collection('archive').doc('item_master').collection('items').doc(docId).set(data)
+                .then(function() { return db.collection('item_master').doc(docId).delete(); });
+        })
+        .then(function() {
+            db.collection('stock_inventory').where('num', '==', itemNum).limit(1).get().then(function(snap) {
+                if (!snap.empty) snap.docs[0].ref.delete().catch(function(){});
+            }).catch(function(){});
+            showToast('Item archived successfully!', 'success');
+        })
+        .catch(function(err) { showToast('Archive failed: ' + err.message, 'error'); });
 }
 
 function viewItemMasterDetails(itemNum) {
@@ -2513,26 +2519,41 @@ function renderUsersList() {
         var statusBadge = '<span style="background:'+statusColor+'20;color:'+statusColor+';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">'+statusLabel+'</span>';
         var roleLabel = (u.role||'');
         roleLabel = roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1);
-        return '<div class="table-row" style="grid-template-columns:40px 2fr 2fr 1.5fr 1fr 1fr 140px;">'
+        return '<div class="table-row" style="grid-template-columns:40px 2fr 2fr 1.5fr 1fr 1fr 175px;">'
             + '<div style="color:#a0aec0;font-size:0.85rem;">' + (idx+1) + '</div>'
             + '<div><strong>' + (u.name||'—') + '</strong></div>'
             + '<div style="color:#718096;font-size:0.85rem;">' + (u.email||'—') + '</div>'
             + '<div style="color:#4a5568;font-size:0.85rem;">' + (u.companyName||'—') + '</div>'
             + '<div><span style="background:'+roleColor+'20;color:'+roleColor+';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">' + roleLabel + '</span></div>'
             + '<div>' + statusBadge + '</div>'
-            + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;">'
+            + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.25rem;">'
             +   '<button class="btn-small btn-primary" onclick="viewUser(\''+u.id+'\')" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>'
             +   '<button class="btn-small btn-secondary" onclick="editUser(\''+u.id+'\')" title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
             +   (statusLower !== 'pending'
                 ? '<button class="btn-small btn-danger" onclick="toggleUserStatus(\''+u.id+'\',\''+statusLower+'\')" title="'+(statusLower==='active'?'Deactivate':'Activate')+'" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;">'+(statusLower==='active'?'<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>')+'</button>'
-                : '')
+                : '<div></div>')
+            +   '<button class="btn-small" onclick="archiveUser(\''+u.id+'\',\''+escHtml(u.name||'')+'\')" title="Archive" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;background:#fffbeb;border:1px solid #f6ad55;color:#c05621;border-radius:4px;cursor:pointer;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>'
             + '</div></div>';
     });
     apRenderPaged('userCardsList', rows, 10, 'renderUsersList');
 }
 
+window.archiveUser = function(uid, name) {
+    if (!confirm('Are you sure you want to archive "' + name + '"?\n\nThis will move the user to the archive.')) return;
+    var db = firebase.firestore();
+    db.collection('users').doc(uid).get()
+        .then(function(snap) {
+            if (!snap.exists) throw new Error('User not found.');
+            var data = snap.data();
+            data.archivedAt = firebase.firestore.FieldValue.serverTimestamp();
+            return db.collection('archive').doc('users').collection('users').doc(uid).set(data)
+                .then(function() { return db.collection('users').doc(uid).delete(); });
+        })
+        .then(function() { showToast('"' + name + '" archived successfully.', 'success'); })
+        .catch(function(err) { showToast('Error: ' + err.message, 'error'); });
+};
+
 function openAddUserModal() {
-    currentEditingUser = null;
     document.getElementById('userModalTitle').textContent = 'Add User';
     document.getElementById('addUserForm').reset();
     document.getElementById('userPasswordLabel').textContent = 'Password *';

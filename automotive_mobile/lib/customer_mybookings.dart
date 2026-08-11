@@ -198,45 +198,202 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
     final docId = data['docId'] as String? ?? '';
     if (docId.isEmpty) return;
 
-    final confirmed = await showDialog<bool>(
+    String? reason;
+    bool confirmed = false;
+
+    await showModalBottomSheet(
       context: ctx,
-      builder: (c) => AlertDialog(
-        title: const Text('Cancel Booking'),
-        content: Text('Are you sure you want to cancel this booking for $plate?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('No')),
-          TextButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: const Text('Yes, Cancel', style: TextStyle(color: Colors.red)),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(
+        builder: (sheetCtx, setSheet) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-        ],
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // ── Red header ──
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFE31E24), Color(0xFFC41E3A)],
+                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Row(children: [
+                Container(
+                  width: 42, height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.cancel_outlined, color: Colors.white, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Cancel Booking',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+                  Text('Plate: $plate',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                ])),
+                GestureDetector(
+                  onTap: () => Navigator.pop(sheetCtx),
+                  child: Container(
+                    width: 30, height: 30,
+                    decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.close, color: Colors.white, size: 16),
+                  ),
+                ),
+              ]),
+            ),
+
+            // ── Body ──
+            Padding(
+              padding: EdgeInsets.only(
+                left: 20, right: 20, top: 20,
+                bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 24,
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // Warning message
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF5F5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE8001C).withOpacity(0.2)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFE8001C), size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(child: RichText(
+                      text: TextSpan(
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF4a5568), height: 1.5),
+                        children: [
+                          const TextSpan(text: 'Are you sure you want to cancel your booking for '),
+                          TextSpan(text: plate,
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1a202c))),
+                          const TextSpan(text: '? This action cannot be undone.'),
+                        ],
+                      ),
+                    )),
+                  ]),
+                ),
+                const SizedBox(height: 18),
+
+                // Reason label
+                const Text('Reason for cancellation',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+                const SizedBox(height: 4),
+                const Text('Optional — helps us improve our service.',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                const SizedBox(height: 10),
+
+                // Dropdown
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFe2e8f0)),
+                  ),
+                  child: DropdownButtonFormField<String>(
+                    value: reason,
+                    isExpanded: true,
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF718096)),
+                    decoration: const InputDecoration(
+                      hintText: 'Select a reason...',
+                      hintStyle: TextStyle(fontSize: 13, color: Color(0xFFa0aec0)),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    ),
+                    dropdownColor: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    items: const [
+                      DropdownMenuItem(value: 'Schedule conflict',            child: Text('Schedule conflict')),
+                      DropdownMenuItem(value: 'Vehicle issue resolved',       child: Text('Vehicle issue resolved')),
+                      DropdownMenuItem(value: 'Found another service center', child: Text('Found another service center')),
+                      DropdownMenuItem(value: 'Financial reasons',            child: Text('Financial reasons')),
+                      DropdownMenuItem(value: 'Booked by mistake',            child: Text('Booked by mistake')),
+                      DropdownMenuItem(value: 'Emergency / Personal reason',  child: Text('Emergency / Personal reason')),
+                      DropdownMenuItem(value: 'Other',                        child: Text('Other')),
+                    ],
+                    onChanged: (v) => setSheet(() => reason = v),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // ── Buttons ──
+                Row(children: [
+                  Expanded(child: OutlinedButton(
+                    onPressed: () => Navigator.pop(sheetCtx),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: Color(0xFFe2e8f0)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('No, Keep It',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF718096))),
+                  )),
+                  const SizedBox(width: 12),
+                  Expanded(child: ElevatedButton(
+                    onPressed: () {
+                      confirmed = true;
+                      Navigator.pop(sheetCtx);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE8001C),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 3,
+                    ),
+                    child: const Text('Yes, Cancel',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                  )),
+                ]),
+              ]),
+            ),
+          ]),
+        ),
       ),
     );
-    if (confirmed != true) return;
+
+    if (!confirmed) return;
 
     final db = FirebaseFirestore.instance;
-    await db.collection('service_bookings').doc(docId).update({
+    final updateData = <String, dynamic>{
       'status': 'Cancelled',
       'cancelledAt': FieldValue.serverTimestamp(),
       'cancelledBy': 'customer',
-    });
+    };
+    if (reason != null && reason!.isNotEmpty) {
+      updateData['cancellationReason'] = reason;
+    }
+    await db.collection('service_bookings').doc(docId).update(updateData);
 
-    // Notify admin
     final customerName = data['customerName'] as String? ?? 'Customer';
     final date = data['preferredDate'] as String? ?? '';
+    final reasonSuffix = (reason != null && reason!.isNotEmpty) ? ' Reason: $reason' : '';
     await db.collection('notifications').add({
       'title': '❌ Booking Cancelled by Customer',
-      'message': '$customerName cancelled their booking for $plate on ${date.isNotEmpty ? _fmtDateLong(date) : date}.',
+      'message': '$customerName cancelled their booking for $plate on ${date.isNotEmpty ? _fmtDateLong(date) : date}.$reasonSuffix',
       'type': 'warning',
       'targetRole': 'admin', 'targetUid': '',
       'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
     });
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: const Text('Booking cancelled successfully.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Row(children: [
+          Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+          SizedBox(width: 8),
+          Text('Booking cancelled successfully.'),
+        ]),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ));
     }
   }
@@ -554,8 +711,6 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Row(children: [
-                  _statChip('Total',      '${docs.length}',  Colors.blue,                  Icons.calendar_today_outlined, 'all'),
-                  const SizedBox(width: 6),
                   _statChip('Approved',   '$countApproved',  const Color(0xFF38a169),      Icons.check_circle_outline,    'Approved'),
                   const SizedBox(width: 6),
                   _statChip('Resched',    '$countRescheduled', _blue,                      Icons.update_outlined,         'Rescheduled'),
@@ -566,7 +721,7 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
               Expanded(
                 child: Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.calendar_today_outlined, size: 48, color: Colors.grey.shade300),
+                    Icon(Icons.build_circle_outlined, size: 52, color: Colors.grey.shade300),
                     const SizedBox(height: 12),
                     const Text('No bookings yet.', style: TextStyle(fontSize: 14, color: Color(0xFF718096))),
                     const SizedBox(height: 4),
@@ -582,8 +737,6 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Row(children: [
-                _statChip('Total',     '${docs.length}',    Colors.blue,             Icons.calendar_today_outlined, 'all'),
-                const SizedBox(width: 6),
                 _statChip('Approved',  '$countApproved',    const Color(0xFF38a169), Icons.check_circle_outline,    'Approved'),
                 const SizedBox(width: 6),
                 _statChip('Resched',   '$countRescheduled', _blue,                   Icons.update_outlined,         'Rescheduled'),
@@ -596,7 +749,7 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
               child: filteredDocs.isEmpty
                   ? Center(
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.filter_list_off, size: 40, color: Colors.grey.shade300),
+                        Icon(Icons.build_circle_outlined, size: 44, color: Colors.grey.shade300),
                         const SizedBox(height: 10),
                         Text('No $_statusFilter bookings.', style: const TextStyle(fontSize: 13, color: Color(0xFF718096))),
                       ]),

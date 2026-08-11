@@ -1161,21 +1161,44 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         : '';
     final isTaken = dateStr.isNotEmpty && (_bookedTimes[dateStr]?.contains(time) ?? false);
 
+    // Check if the slot has already passed (only applies when selected date is today)
+    bool isPast = false;
+    if (_preferredDate != null) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final selected = DateTime(_preferredDate!.year, _preferredDate!.month, _preferredDate!.day);
+      if (selected == today) {
+        const slotHour24 = {
+          '8:00 AM': 8, '9:00 AM': 9, '10:00 AM': 10, '11:00 AM': 11,
+          '1:00 PM': 13, '2:00 PM': 14, '3:00 PM': 15, '4:00 PM': 16,
+        };
+        final h = slotHour24[time];
+        if (h != null) isPast = now.hour >= h;
+      }
+    }
+
+    final isDisabled = isTaken || isPast || _preferredDate == null;
+    final tooltip = isPast
+        ? 'This time has already passed'
+        : isTaken
+            ? 'Already booked — choose another time'
+            : '';
+
     return GestureDetector(
-      onTap: (isTaken || _preferredDate == null) ? null : () => setState(() => _preferredTime = time),
+      onTap: isDisabled ? null : () => setState(() => _preferredTime = time),
       child: Tooltip(
-        message: isTaken ? 'Already booked — choose another time' : '',
+        message: tooltip,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: isTaken
+            color: (isTaken || isPast)
                 ? const Color(0xFFF1F5F9)
                 : isSelected
                     ? const Color(0xFFFFF5F5)
                     : Colors.white,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isTaken
+              color: (isTaken || isPast)
                   ? const Color(0xFFe2e8f0)
                   : isSelected
                       ? _red
@@ -1188,12 +1211,12 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: isTaken
+              color: (isTaken || isPast)
                   ? const Color(0xFFa0aec0)
                   : isSelected
                       ? _red
                       : const Color(0xFF4a5568),
-              decoration: isTaken ? TextDecoration.lineThrough : null,
+              decoration: (isTaken || isPast) ? TextDecoration.lineThrough : null,
               decorationColor: const Color(0xFFa0aec0),
             ),
           ),

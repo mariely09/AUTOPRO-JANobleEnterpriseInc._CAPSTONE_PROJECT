@@ -222,9 +222,9 @@ function fabOpenNewPO() {
 }
 function fabOpenEditPO() {
   if (_fabOpen) toggleFab();
-  var pendingDeliveries = (_allDeliveries || []).filter(function(d){ return d.status === 'Pending'; });
+  var pendingDeliveries = (_allDeliveries || []).filter(function(d){ return d.status === 'For Admin Review'; });
   if (!pendingDeliveries.length) {
-    showToast('No pending purchase orders to review.', 'error');
+    showToast('No purchase orders for admin review found.', 'error');
     return;
   }
   // Show a small picker positioned near the FAB
@@ -832,12 +832,7 @@ window.openItemViewModal = function(deliveryId, itemIdx) {
   var itemStatus = item.itemStatus || status;
   var footer = '';
   if (status === 'For Admin Review') {
-    footer = '<button type="button" style="flex:1;padding:0.7rem;background:white;border:2px solid #E8001C;border-radius:10px;color:#E8001C;font-weight:700;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="closeModal(\'itemViewModal\');rejectAdminReview(\'' + deliveryId + '\',' + itemIdx + ');">'
-      + '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
-      + 'Reject</button>'
-      + '<button type="button" style="flex:1.5;padding:0.7rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="closeModal(\'itemViewModal\');approveAdminReview(\'' + deliveryId + '\',' + itemIdx + ');">'
-      + '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
-      + 'Approve Request</button>';
+    footer = '<button type="button" class="btn-secondary" style="flex:1;" onclick="closeModal(\'itemViewModal\')">Close</button>';
   } else if (!item.itemStatus || item.itemStatus === 'Pending' || itemStatus === 'Pending') {
     footer = '<button type="button" class="btn-secondary" style="flex:1;" onclick="closeModal(\'itemViewModal\')">Close</button>'
       + '<button type="button" style="flex:1.5;padding:0.7rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="closeModal(\'itemViewModal\');openReceiveModal(\'' + deliveryId + '\',' + itemIdx + ');">'
@@ -1125,6 +1120,7 @@ window._ndBuildItemCard = function(opts) {
   var cost         = opts.cost  || 0;
   var stock        = opts.stock !== undefined ? opts.stock : null;
   var supplierCode = opts.supplierCode || '';
+  var maxQty       = opts.maxQty !== undefined ? opts.maxQty : qty; // cap at suggested order qty
   var subtotal = cost * qty;
 
   var div = document.createElement('div');
@@ -1168,10 +1164,10 @@ window._ndBuildItemCard = function(opts) {
     +     '<button type="button" onclick="(function(){var el=document.getElementById(\'ndQty_' + rowIdx + '\');var v=Math.max(1,(parseInt(el.value)||1)-1);el.value=v;el.dispatchEvent(new Event(\'input\'));})()" '
     +       'style="background:none;border:none;color:#718096;width:34px;height:34px;cursor:pointer;font-size:1.1rem;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .1s;" '
     +       'onmouseover="this.style.background=\'#f0f4f8\'" onmouseout="this.style.background=\'none\'">&minus;</button>'
-    +     '<input type="number" id="ndQty_' + rowIdx + '" value="' + qty + '" min="1"'
+    +     '<input type="number" id="ndQty_' + rowIdx + '" value="' + qty + '" min="1" max="' + maxQty + '"'
     +       ' style="width:48px;border:none;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;background:white;font-size:0.9rem;font-weight:700;text-align:center;outline:none;padding:4px 0;height:34px;box-sizing:border-box;-moz-appearance:textfield;-webkit-appearance:none;appearance:none;"'
-    +       ' oninput="(function(el,i){var v=Math.max(1,parseInt(el.value)||1);el.value=v;var found=_ndItems.find(function(x){return x._idx===i;});if(found){found.expectedQty=v;_ndUpdateTotal();var sub=document.getElementById(\'ndSub_\'+i);if(sub)sub.textContent=found._cost>0?\'\u20b1\'+(found._cost*v).toLocaleString(\'en-PH\',{minimumFractionDigits:2}):\'\'}})(this,' + rowIdx + ')">'
-    +     '<button type="button" onclick="(function(){var el=document.getElementById(\'ndQty_' + rowIdx + '\');var v=(parseInt(el.value)||1)+1;el.value=v;el.dispatchEvent(new Event(\'input\'));})()" '
+    +       ' oninput="(function(el,i,mx){var v=Math.min(mx,Math.max(1,parseInt(el.value)||1));el.value=v;var found=_ndItems.find(function(x){return x._idx===i;});if(found){found.expectedQty=v;_ndUpdateTotal();var sub=document.getElementById(\'ndSub_\'+i);if(sub)sub.textContent=found._cost>0?\'\u20b1\'+(found._cost*v).toLocaleString(\'en-PH\',{minimumFractionDigits:2}):\'\'}})(this,' + rowIdx + ',' + maxQty + ')">'
+    +     '<button type="button" onclick="(function(){var el=document.getElementById(\'ndQty_' + rowIdx + '\');var mx=' + maxQty + ';var v=Math.min(mx,(parseInt(el.value)||1)+1);el.value=v;el.dispatchEvent(new Event(\'input\'));})()" '
     +       'style="background:none;border:none;color:#E8001C;width:34px;height:34px;cursor:pointer;font-size:1.1rem;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .1s;" '
     +       'onmouseover="this.style.background=\'#fff5f5\'" onmouseout="this.style.background=\'none\'">+</button>'
     +   '</div>'
@@ -1206,11 +1202,11 @@ window.ndSelectItem = function(idx) {
 
   _ndIdx++;
   var rowIdx = _ndIdx;
-  _ndItems.push({ itemNum:num, itemName:name, uom:uom, expectedQty:recQty, _idx:rowIdx, _cardIdx:idx, _cost: item._cost || 0, supplierCode: item.supplierCode || '' });
+  _ndItems.push({ itemNum:num, itemName:name, uom:uom, expectedQty:recQty, _idx:rowIdx, _cardIdx:idx, _cost: item._cost || 0, supplierCode: item.supplierCode || '', _maxQty: recQty });
 
   var cost  = item._cost || 0;
   var stock = (item._stock !== null && item._stock !== undefined) ? item._stock : null;
-  var row = window._ndBuildItemCard({ rowIdx:rowIdx, num:num, name:name, uom:uom, qty:recQty, cost:cost, stock:stock, supplierCode: item.supplierCode || '' });
+  var row = window._ndBuildItemCard({ rowIdx:rowIdx, num:num, name:name, uom:uom, qty:recQty, cost:cost, stock:stock, supplierCode: item.supplierCode || '', maxQty: recQty });
   document.getElementById('ndAddedItems').appendChild(row);
 
   document.getElementById('ndAddedCount').textContent = _ndItems.length + ' item' + (_ndItems.length !== 1 ? 's' : '');
@@ -1328,15 +1324,16 @@ window.saveNewDelivery = function() {
   var items=_ndItems.map(function(i){return{itemNum:i.itemNum,itemName:i.itemName,uom:i.uom,expectedQty:i.expectedQty,supplierCode:i.supplierCode||''};});
   var btn=document.getElementById('ndSaveBtn');
   btn.disabled=true;
-  btn.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite;flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving...</span>';
+  btn.innerHTML='<span style="display:inline-flex;align-items:center;gap:6px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite;flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> ' + (!!_currentEditDeliveryId ? 'Approving...' : 'Saving...') + '</span>';
   var data = { items:items };
 
   var isEdit = !!_currentEditDeliveryId;
   var promise;
   if (isEdit) {
-    // Update existing delivery
+    // Approve: set status to Pending so admin can assign for receiving
+    data.status = 'Pending';
     promise = db.collection('deliveries').doc(_currentEditDeliveryId).update(data)
-      .then(function(){ closeModal('newDeliveryModal'); showToast('Purchase order updated successfully!','success'); _currentEditDeliveryId = null; });
+      .then(function(){ closeModal('newDeliveryModal'); showToast('Purchase order approved! Status set to Pending.','success'); _currentEditDeliveryId = null; });
   } else {
     // Create new delivery
     data.status = 'Pending';
@@ -1349,7 +1346,7 @@ window.saveNewDelivery = function() {
     .catch(function(err){showToast('Error: '+err.message,'error');})
     .finally(function(){
       btn.disabled=false;
-      btn.innerHTML = isEdit ? '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update' : '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
+      btn.innerHTML = isEdit ? '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Approve' : '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
     });
 };
 </script>
@@ -1381,7 +1378,7 @@ window.editDelivery = function(id) {
   // Update save button label
   var saveBtn = document.getElementById('ndSaveBtn');
   if (saveBtn) {
-    saveBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update';
+    saveBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Approve';
   }
 
   document.getElementById('newDeliveryModal').classList.add('active');
@@ -1433,9 +1430,9 @@ window.editDelivery = function(id) {
 
         _ndIdx++;
         var rowIdx = _ndIdx;
-        _ndItems.push({ itemNum: num, itemName: name, uom: uom, expectedQty: qty, _idx: rowIdx, _cost: cost, supplierCode: sc });
+        _ndItems.push({ itemNum: num, itemName: name, uom: uom, expectedQty: qty, _idx: rowIdx, _cost: cost, supplierCode: sc, _maxQty: qty });
 
-        var row = window._ndBuildItemCard({ rowIdx:rowIdx, num:num, name:name, uom:uom, qty:qty, cost:cost, stock:stock, supplierCode: sc });
+        var row = window._ndBuildItemCard({ rowIdx:rowIdx, num:num, name:name, uom:uom, qty:qty, cost:cost, stock:stock, supplierCode: sc, maxQty: qty });
 
         document.getElementById('ndAddedItems').appendChild(row);
       });
@@ -1524,6 +1521,7 @@ window.editItemInDelivery = function(deliveryId, itemIdx) {
   var cost = item._cost || 0;
   var stock = (item._stock !== undefined && item._stock !== null) ? item._stock : null;
   var qty = item.expectedQty || 1;
+  var maxQty = item._maxQty !== undefined ? item._maxQty : qty; // cap = original ordered qty
 
   // Build card using same style as Items Added
   function _chip(text, icon, color) {
@@ -1546,14 +1544,18 @@ window.editItemInDelivery = function(deliveryId, itemIdx) {
     + (metaChips ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">' + metaChips + '</div>' : '')
     // Order Quantity stepper
     + '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">'
-    +   '<span style="font-size:0.78rem;font-weight:600;color:#4a5568;">Order Quantity</span>'
+    +   '<div style="display:flex;flex-direction:column;">'
+    +     '<span style="font-size:0.78rem;font-weight:600;color:#4a5568;">Order Quantity</span>'
+    +     '<span style="font-size:0.68rem;color:#a0aec0;margin-top:1px;">Max: ' + maxQty + '</span>'
+    +   '</div>'
     +   '<div style="display:flex;align-items:center;gap:0;background:white;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);overflow:hidden;">'
     +     '<button type="button" onclick="var el=document.getElementById(\'eiQtyInput\');var v=Math.max(1,(parseInt(el.value)||1)-1);el.value=v;" '
     +       'style="background:none;border:none;color:#718096;width:34px;height:34px;cursor:pointer;font-size:1.1rem;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .1s;" '
     +       'onmouseover="this.style.background=\'#f0f4f8\'" onmouseout="this.style.background=\'none\'">&minus;</button>'
-    +     '<input type="number" id="eiQtyInput" value="' + qty + '" min="1"'
+    +     '<input type="number" id="eiQtyInput" value="' + qty + '" min="1" max="' + maxQty + '"'
+    +       ' oninput="var mx=' + maxQty + ';var v=parseInt(this.value)||1;if(v>mx){this.value=mx;}else if(v<1){this.value=1;}"'
     +       ' style="width:48px;border:none;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;background:white;font-size:0.9rem;font-weight:700;text-align:center;outline:none;padding:4px 0;height:34px;box-sizing:border-box;-moz-appearance:textfield;-webkit-appearance:none;appearance:none;">'
-    +     '<button type="button" onclick="var el=document.getElementById(\'eiQtyInput\');var v=(parseInt(el.value)||1)+1;el.value=v;" '
+    +     '<button type="button" onclick="var el=document.getElementById(\'eiQtyInput\');var mx=' + maxQty + ';var v=Math.min(mx,(parseInt(el.value)||1)+1);el.value=v;" '
     +       'style="background:none;border:none;color:#E8001C;width:34px;height:34px;cursor:pointer;font-size:1.1rem;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .1s;" '
     +       'onmouseover="this.style.background=\'#fff5f5\'" onmouseout="this.style.background=\'none\'">+</button>'
     +   '</div>'
@@ -1578,6 +1580,9 @@ window.saveEditItem = function() {
   if (!d || !d.items || !d.items[_editItemIdx]) return;
   var newQty = parseInt(document.getElementById('eiQtyInput').value);
   if (!newQty || newQty <= 0) { showToast('Quantity must be greater than 0.', 'error'); return; }
+  var item = d.items[_editItemIdx];
+  var maxQty = item._maxQty !== undefined ? item._maxQty : item.expectedQty;
+  if (newQty > maxQty) { showToast('Quantity cannot exceed the original order quantity (' + maxQty + ').', 'error'); return; }
   var btn = document.getElementById('eiSaveBtn');
   btn.disabled = true;
   btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving...';
@@ -1607,7 +1612,7 @@ window.deleteItemFromDelivery = function(deliveryId, itemIdx) {
   if (updatedItems.length === 0) {
     // Last item — delete entire delivery
     db.collection('deliveries').doc(deliveryId).delete()
-      .then(function(){ showToast('Purchase order deleted successfully!', 'error'); })
+      .then(function(){ showToast('Item deleted successfully!', 'error'); })
       .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
   } else {
     db.collection('deliveries').doc(deliveryId).update({ items: updatedItems })

@@ -215,10 +215,10 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                 icon: Icons.edit_outlined,
                 onTap: () {
                   setState(() => _fabOpen = false);
-                  final pendingDeliveries = _deliveries.where((d) => (d['status'] as String? ?? '') == 'Pending').toList();
+                  final pendingDeliveries = _deliveries.where((d) => (d['status'] as String? ?? '') == 'For Admin Review').toList();
                   if (pendingDeliveries.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('No pending purchase orders to review.'),
+                      content: Text('No purchase orders for admin review found.'),
                       backgroundColor: Color(0xFF718096), behavior: SnackBarBehavior.floating));
                   } else {
                     _showEditPOPicker(pendingDeliveries);
@@ -612,7 +612,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                   Row(children: [
                     Expanded(child: OutlinedButton.icon(
                       onPressed: () async {
-                        final newQty = await _showEditQtyDialog(qty);
+                        final maxQty = (item['_maxQty'] as num?)?.toInt() ?? qty;
+                        final newQty = await _showEditQtyDialog(qty, maxQty: maxQty);
                         if (newQty == null || newQty == qty) return;
                         final updatedItems = List<Map<String, dynamic>>.from(items.map((i) => Map<String, dynamic>.from(i as Map)));
                         updatedItems[itemIdx] = {...updatedItems[itemIdx], 'expectedQty': newQty};
@@ -692,18 +693,53 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
     ]),
   );
 
-  Future<int?> _showEditQtyDialog(int currentQty) async {
+  Future<int?> _showEditQtyDialog(int currentQty, {int? maxQty}) async {
+    final max = maxQty ?? currentQty;
     final ctrl = TextEditingController(text: '$currentQty');
     return showDialog<int>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Edit Order Quantity'),
-        content: TextField(controller: ctrl, keyboardType: TextInputType.number, autofocus: true,
-          decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Quantity')),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Edit Order Quantity', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Max allowed: $max', style: const TextStyle(fontSize: 12, color: Color(0xFF718096))),
+          const SizedBox(height: 10),
+          TextField(
+            controller: ctrl,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(),
+              labelText: 'Quantity',
+              helperText: 'Enter 1 – $max',
+            ),
+            onChanged: (val) {
+              final v = int.tryParse(val);
+              if (v != null && v > max) {
+                ctrl.text = '$max';
+                ctrl.selection = TextSelection.collapsed(offset: ctrl.text.length);
+              }
+            },
+          ),
+        ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(onPressed: () { final v = int.tryParse(ctrl.text) ?? 0; if (v > 0) Navigator.pop(context, v); },
-            child: const Text('Save')),
+          TextButton(
+            onPressed: () {
+              final v = int.tryParse(ctrl.text) ?? 0;
+              if (v <= 0) return;
+              if (v > max) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('Quantity cannot exceed $max.'),
+                  backgroundColor: Colors.red,
+                  behavior: SnackBarBehavior.floating,
+                ));
+                return;
+              }
+              Navigator.pop(context, v);
+            },
+            child: const Text('Save'),
+          ),
         ],
       ),
     );
@@ -750,7 +786,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
       await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({'items': items});
     }
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(items.isEmpty ? 'Purchase order deleted successfully!' : 'Item removed successfully!'),
+      content: Text(items.isEmpty ? 'Item deleted successfully!' : 'Item removed successfully!'),
       backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
   }
 
@@ -1358,7 +1394,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                           .collection('stock_inventory').where('num', isEqualTo: n).limit(1).get();
                       if (ss.docs.isNotEmpty) stockVal = (ss.docs.first['stock'] as num?)?.toInt();
                     } catch (_) {}
-                    enriched.add({...item, '_cost': c, '_stock': stockVal, 'supplierCode': numToSupplierCode[n] ?? ''});
+                    enriched.add({...item, '_cost': c, '_stock': stockVal, 'supplierCode': numToSupplierCode[n] ?? '', '_maxQty': (item['expectedQty'] as int?) ?? 1});
                   }
                   if (ctx.mounted) setModal(() => addedItems
                     ..clear()
@@ -1479,7 +1515,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                 setModal(() {
                                   addedItems.add({'itemNum': num, 'itemName': name,
                                     'uom': uom, 'expectedQty': rec, '_rowIdx': rowIdx,
-                                    '_cost': cost, '_stock': stock, 'supplierCode': supplierCode});
+                                    '_cost': cost, '_stock': stock, 'supplierCode': supplierCode, '_maxQty': rec});
                                   addedNums.add(num);
                                 });
                               },
@@ -1651,7 +1687,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                           contentPadding: EdgeInsets.zero,
                                         ),
                                         onChanged: (v) {
-                                          final q2 = int.tryParse(v) ?? 1;
+                                          final maxQ = (addedItems[rowIdx]['_maxQty'] as int?) ?? 9999;
+                                          final q2 = (int.tryParse(v) ?? 1).clamp(1, maxQ);
+                                          if (q2.toString() != v) qtyCtrlrs[rowIdx]!.text = '$q2';
                                           setModal(() => addedItems[rowIdx] = {...addedItems[rowIdx], 'expectedQty': q2});
                                         },
                                       ),
@@ -1659,7 +1697,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                   ),
                                   GestureDetector(
                                     onTap: () {
+                                      final maxQ = (addedItems[rowIdx]['_maxQty'] as int?) ?? 9999;
                                       final v = (int.tryParse(qtyCtrlrs[rowIdx]!.text) ?? 1);
+                                      if (v >= maxQ) return; // cap reached
                                       qtyCtrlrs[rowIdx]!.text = '${v + 1}';
                                       setModal(() => addedItems[rowIdx] = {...addedItems[rowIdx], 'expectedQty': v + 1});
                                     },
@@ -1667,7 +1707,13 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                       width: 34, height: 34,
                                       decoration: const BoxDecoration(
                                         borderRadius: BorderRadius.only(topRight: Radius.circular(7), bottomRight: Radius.circular(7))),
-                                      child: const Icon(Icons.add, size: 16, color: Color(0xFFE8001C)),
+                                      child: Builder(builder: (ctx3) {
+                                        final maxQ = (addedItems[rowIdx]['_maxQty'] as int?) ?? 9999;
+                                        final cur = int.tryParse(qtyCtrlrs[rowIdx]!.text) ?? 1;
+                                        final atMax = cur >= maxQ;
+                                        return Icon(Icons.add, size: 16,
+                                          color: atMax ? const Color(0xFFcbd5e0) : const Color(0xFFE8001C));
+                                      }),
                                     ),
                                   ),
                                 ]),
@@ -1746,6 +1792,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                       final data = <String, dynamic>{'items': items};
                       try {
                         if (isEdit) {
+                          // Approve: update items and set status to Pending
+                          data['status'] = 'Pending';
                           await FirebaseFirestore.instance.collection('deliveries')
                               .doc(existing['id'] as String).update(data);
                         } else {
@@ -1756,7 +1804,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(isEdit ? 'Purchase order updated!' : 'Purchase order created!'),
+                            content: Text(isEdit ? 'Purchase order approved! Status set to Pending.' : 'Purchase order created!'),
                             backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                         }
@@ -1771,7 +1819,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                     child: saving
                       ? const SizedBox(width: 18, height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Text(isEdit ? 'Update' : 'Save'),
+                      : Text(isEdit ? 'Approve' : 'Save'),
                   )),
                 ]),
               )),

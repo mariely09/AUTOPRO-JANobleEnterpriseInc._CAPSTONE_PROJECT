@@ -38,7 +38,7 @@
             <div style="margin-left:auto;display:flex;align-items:center;gap:0.6rem;">
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <input type="text" class="search-bar" placeholder="Search archived items..." id="archiveSearch" style="width:220px;padding-left:2rem;" oninput="renderCurrentTab()">
+                    <input type="text" class="search-bar" placeholder="Search archived items..." id="archiveSearch" style="width:220px;padding-left:2rem;" oninput="_archiveResetPage(); renderCurrentTab();">
                 </div>
             </div>
         </div>
@@ -58,12 +58,16 @@
                     style="padding:0.65rem 1.25rem;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:0.88rem;font-weight:600;color:#718096;cursor:pointer;">
                     Vehicles
                 </button>
+                <button id="tabUsersBtn" onclick="switchArchiveTab('users')"
+                    style="padding:0.65rem 1.25rem;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:0.88rem;font-weight:600;color:#718096;cursor:pointer;">
+                    Users
+                </button>
             </div>
 
             <!-- Item Master Tab -->
             <div id="tabItemMaster">
                 <div class="data-table" style="overflow-x:auto;">
-                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 120px;min-width:900px;">
+                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 1.2fr 120px;min-width:1000px;">
                         <div style="white-space:nowrap;">Item Number</div>
                         <div style="white-space:nowrap;">Supplier Item Code</div>
                         <div>Item Name</div>
@@ -71,6 +75,7 @@
                         <div style="white-space:nowrap;">Commodity Group</div>
                         <div style="white-space:nowrap;">Item Type</div>
                         <div>Cost</div>
+                        <div style="white-space:nowrap;">Archived At</div>
                         <div style="text-align:center;">Actions</div>
                     </div>
                     <div id="archiveList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived items...</div></div>
@@ -80,9 +85,9 @@
             <!-- Maintenance Records Tab -->
             <div id="tabMaintenance" style="display:none;">
                 <div class="data-table" style="overflow-x:auto;">
-                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1.5fr 1fr 1fr 1fr 110px;min-width:900px;">
+                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1.5fr 1fr 1fr 1fr 1.2fr 110px;min-width:1000px;">
                         <div>Date Serviced</div><div>Plate Number</div><div>Description</div>
-                        <div>Mechanic</div><div>Total Cost</div><div>Status</div><div style="text-align:center;">Actions</div>
+                        <div>Mechanic</div><div>Total Cost</div><div>Status</div><div style="white-space:nowrap;">Archived At</div><div style="text-align:center;">Actions</div>
                     </div>
                     <div id="archiveMaintenanceList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived records...</div></div>
                 </div>
@@ -91,16 +96,46 @@
             <!-- Vehicles Tab -->
             <div id="tabVehicles" style="display:none;">
                 <div class="data-table" style="overflow-x:auto;">
-                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1fr 1fr 1fr 120px;min-width:800px;">
+                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1.2fr 120px;min-width:900px;">
                         <div>Plate Number</div><div>Vehicle Type</div><div>Owner / Company</div>
-                        <div>Odometer</div><div>Last Service Date</div><div style="text-align:center;">Actions</div>
+                        <div>Odometer</div><div>Last Service Date</div><div style="white-space:nowrap;">Archived At</div><div style="text-align:center;">Actions</div>
                     </div>
                     <div id="archiveVehiclesList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived vehicles...</div></div>
+                </div>
+            </div>
+
+            <!-- Users Tab -->
+            <div id="tabUsers" style="display:none;">
+                <div class="data-table" style="overflow-x:auto;">
+                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:2fr 2fr 1fr 1.2fr 120px;min-width:700px;">
+                        <div>Full Name</div><div>Email</div><div>Role</div><div style="white-space:nowrap;">Archived At</div><div style="text-align:center;">Actions</div>
+                    </div>
+                    <div id="archiveUsersList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived users...</div></div>
                 </div>
             </div>
         </div>
     </div>
     </div>
+</div>
+
+<!-- Permanently Delete Confirm Modal -->
+<div id="archiveDeleteDialog" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:18px;padding:0;max-width:420px;width:92%;box-shadow:0 16px 48px rgba(0,0,0,0.2);overflow:hidden;">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.75rem;">
+      <div style="background:rgba(255,255,255,0.2);width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">⚠️</div>
+      <div id="archiveDeleteTitle" style="color:white;font-size:1rem;font-weight:700;"></div>
+    </div>
+    <!-- Body -->
+    <div style="padding:1.25rem 1.5rem;">
+      <div id="archiveDeleteBody" style="font-size:0.88rem;color:#4a5568;line-height:1.6;"></div>
+    </div>
+    <!-- Footer -->
+    <div style="padding:0.85rem 1.5rem 1.1rem;display:flex;gap:0.65rem;justify-content:flex-end;border-top:1px solid #e2e8f0;">
+      <button id="archiveDeleteCancelBtn" style="padding:0.55rem 1.2rem;border:1.5px solid #e2e8f0;border-radius:8px;background:white;cursor:pointer;font-size:0.85rem;font-weight:600;color:#718096;">Cancel</button>
+      <button id="archiveDeleteOkBtn" style="padding:0.55rem 1.4rem;border:none;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;color:white;background:#E31E24;">Yes, Delete</button>
+    </div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -131,21 +166,92 @@ var _archivedItems = [];
 var _archivedMaintenance = [];
 var _archiveCurrentTab = 'item-master';
 
+// Ensure _apPages exists (it's declared in admin_functions.js but guard here too)
+if (typeof _apPages === 'undefined') { var _apPages = {}; }
+
+function _archiveResetPage() {
+    ['archiveList','archiveMaintenanceList','archiveVehiclesList','archiveUsersList'].forEach(function(id) {
+        _apPages[id] = 1;
+    });
+}
+
+// ── Styled permanent-delete confirm modal ──
+function showDeleteConfirm(title, itemName, context, onOk) {
+    var dialog   = document.getElementById('archiveDeleteDialog');
+    var titleEl  = document.getElementById('archiveDeleteTitle');
+    var bodyEl   = document.getElementById('archiveDeleteBody');
+    var okBtn    = document.getElementById('archiveDeleteOkBtn');
+    var cancelBtn = document.getElementById('archiveDeleteCancelBtn');
+    titleEl.textContent = title;
+    bodyEl.innerHTML = 'This action cannot be undone. Are you sure you want to permanently delete <strong>"' + itemName + '"</strong> from the archive?<br/><br/><span style="color:#718096;font-size:0.82rem;">This will remove all records and history associated with this ' + context + '.</span>';
+    dialog.style.display = 'flex';
+    function close() { dialog.style.display = 'none'; okBtn.onclick = null; cancelBtn.onclick = null; }
+    okBtn.onclick     = function() { close(); onOk(); };
+    cancelBtn.onclick = function() { close(); };
+}
+
+// ── Migrate old soft-archived items (archived:true) to the archive sub-collection ──
+(function migrateArchivedItems() {
+    db.collection('item_master').where('archived', '==', true).get()
+        .then(function(snap) {
+            if (snap.empty) return;
+            var batch = db.batch();
+            var deletes = [];
+            snap.docs.forEach(function(doc) {
+                var data = doc.data();
+                // Only migrate if not already in archive sub-collection
+                var archiveRef = db.collection('archive').doc('item_master').collection('items').doc(doc.id);
+                archiveRef.get().then(function(existing) {
+                    if (existing.exists) {
+                        // Already migrated — just delete from item_master
+                        doc.ref.delete().catch(function(){});
+                        return;
+                    }
+                    // Copy to archive, delete from item_master
+                    archiveRef.set(data).then(function() {
+                        doc.ref.delete().catch(function(){});
+                    }).catch(function(){});
+                }).catch(function(){});
+            });
+        })
+        .catch(function() {});
+})();
+
+// ── Shared date+time formatter for archivedAt Firestore Timestamps ──
+function fmtArchivedAt(ts) {
+    if (!ts) return '—';
+    var dt = ts.toDate ? ts.toDate() : new Date(ts);
+    if (isNaN(dt)) return '—';
+    var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var mon  = MONTHS[dt.getMonth()];
+    var day  = dt.getDate();
+    var yr   = dt.getFullYear();
+    var h    = dt.getHours();
+    var m    = String(dt.getMinutes()).padStart(2,'0');
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return mon + ' ' + day + ', ' + yr + ' ' + h + ':' + m + ' ' + ampm;
+}
+
 // ── Tab switching ──
 window.switchArchiveTab = function(tab) {
     _archiveCurrentTab = tab;
+    // Reset pagination to page 1 for all archive lists
+    _archiveResetPage();
     document.getElementById('tabItemMaster').style.display   = tab === 'item-master'  ? 'block' : 'none';
     document.getElementById('tabMaintenance').style.display  = tab === 'maintenance'  ? 'block' : 'none';
     document.getElementById('tabVehicles').style.display     = tab === 'vehicles'     ? 'block' : 'none';
+    document.getElementById('tabUsers').style.display        = tab === 'users'        ? 'block' : 'none';
     var iBtn = document.getElementById('tabItemMasterBtn');
     var mBtn = document.getElementById('tabMaintenanceBtn');
     var vBtn = document.getElementById('tabVehiclesBtn');
-    [iBtn, mBtn, vBtn].forEach(function(b) {
+    var uBtn = document.getElementById('tabUsersBtn');
+    [iBtn, mBtn, vBtn, uBtn].forEach(function(b) {
         b.style.borderBottomColor = 'transparent';
         b.style.color = '#718096';
         b.style.fontWeight = '600';
     });
-    var activeBtn = tab === 'item-master' ? iBtn : tab === 'maintenance' ? mBtn : vBtn;
+    var activeBtn = tab === 'item-master' ? iBtn : tab === 'maintenance' ? mBtn : tab === 'vehicles' ? vBtn : uBtn;
     activeBtn.style.borderBottomColor = '#E31E24';
     activeBtn.style.color = '#E31E24';
     activeBtn.style.fontWeight = '700';
@@ -155,7 +261,8 @@ window.switchArchiveTab = function(tab) {
 window.renderCurrentTab = function() {
     if (_archiveCurrentTab === 'item-master') renderArchiveList();
     else if (_archiveCurrentTab === 'maintenance') renderMaintenanceArchiveList();
-    else renderVehiclesArchiveList();
+    else if (_archiveCurrentTab === 'vehicles') renderVehiclesArchiveList();
+    else renderUsersArchiveList();
 };
 
 // ── Item Master archive ──
@@ -171,6 +278,7 @@ db.collection('archive').doc('item_master').collection('items').onSnapshot(funct
             group: data.group || '',
             cost: parseFloat(String(data.cost || 0).replace(/[₱,]/g, '')) || 0,
             type: data.type || 'Material',
+            archivedAt: data.archivedAt || null,
         };
     });
     renderArchiveList();
@@ -195,7 +303,7 @@ function renderArchiveList() {
     var rows = items.map(function(item) {
         var typeColor = item.type === 'Service' ? '#0033A0' : '#e53e3e';
         var typeBg    = item.type === 'Service' ? 'rgba(0,51,160,0.07)' : 'rgba(229,62,62,0.07)';
-        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 120px;min-width:900px;align-items:center;opacity:0.85;">'
+        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 1.2fr 120px;min-width:1000px;align-items:center;opacity:0.85;">'
             + '<div><strong>' + item.num + '</strong></div>'
             + '<div style="font-size:11px;color:#718096;">' + (item.supplierCode || '—') + '</div>'
             + '<div>' + item.name + '</div>'
@@ -203,12 +311,14 @@ function renderArchiveList() {
             + '<div>' + (item.group || '—') + '</div>'
             + '<div><span style="display:inline-block;background:' + typeBg + ';color:' + typeColor + ';border:1.5px solid ' + typeColor + ';padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;">' + item.type + '</span></div>'
             + '<div>₱' + item.cost.toLocaleString('en-PH', {minimumFractionDigits:2}) + '</div>'
+            + '<div style="font-size:11px;color:#718096;white-space:nowrap;">' + fmtArchivedAt(item.archivedAt) + '</div>'
             + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;">'
             +   '<button class="btn-small btn-secondary" onclick="restoreItem(\'' + item.id + '\',\'' + item.name.replace(/'/g,"\\'") + '\')" title="Restore" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;color:#38a169;border-color:#9ae6b4;background:#f0fff4;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg></button>'
             +   '<button class="btn-small btn-danger" onclick="permanentlyDeleteItem(\'' + item.id + '\',\'' + item.name.replace(/'/g,"\\'") + '\')" title="Delete Permanently" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
             + '</div></div>';
     });
-    list.innerHTML = rows.join('');
+    list.innerHTML = '';
+    apRenderPaged('archiveList', rows, 10, 'renderArchiveList');
 }
 
 window.restoreItem = function(docId, name) {
@@ -218,6 +328,7 @@ window.restoreItem = function(docId, name) {
         if (!snap.exists) { showToast('Archive doc not found.', 'error'); return; }
         var data = snap.data();
         delete data.archivedAt;
+        delete data.archived;   // remove the old soft-archive flag too
         return db.collection('item_master').doc(docId).set(data)
             .then(function() { return archiveRef.delete(); })
             .then(function() {
@@ -236,19 +347,20 @@ window.restoreItem = function(docId, name) {
 };
 
 window.permanentlyDeleteItem = function(docId, name) {
-    if (!confirm('This action cannot be undone. Are you sure you want to permanently delete "' + name + '"?')) return;
-    var archiveRef = db.collection('archive').doc('item_master').collection('items').doc(docId);
-    archiveRef.get().then(function(snap) {
-        var num = snap.exists ? (snap.data().num || '') : '';
-        return archiveRef.delete().then(function() {
-            if (num) {
-                db.collection('stock_inventory').where('num', '==', num).limit(1).get().then(function(s) {
-                    if (!s.empty) s.docs[0].ref.delete().catch(function(){});
-                }).catch(function(){});
-            }
-            showToast('"' + name + '" permanently deleted.', 'error');
-        });
-    }).catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
+    showDeleteConfirm('Permanently Delete Item?', name, 'item', function() {
+        var archiveRef = db.collection('archive').doc('item_master').collection('items').doc(docId);
+        archiveRef.get().then(function(snap) {
+            var num = snap.exists ? (snap.data().num || '') : '';
+            return archiveRef.delete().then(function() {
+                if (num) {
+                    db.collection('stock_inventory').where('num', '==', num).limit(1).get().then(function(s) {
+                        if (!s.empty) s.docs[0].ref.delete().catch(function(){});
+                    }).catch(function(){});
+                }
+                showToast('"' + name + '" permanently deleted.', 'error');
+            });
+        }).catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
+    });
 };
 
 // ── Maintenance Records archive ──
@@ -263,6 +375,7 @@ db.collection('archive').doc('maintenance').collection('records').onSnapshot(fun
             date: data.date || '—',
             cost: data.cost || '₱0.00',
             status: data.status || 'Ongoing',
+            archivedAt: data.archivedAt || null,
         };
     });
     if (_archiveCurrentTab === 'maintenance') renderMaintenanceArchiveList();
@@ -291,20 +404,22 @@ function renderMaintenanceArchiveList() {
     var rows = items.map(function(item) {
         var sc = statusColors[(item.status||'').toLowerCase()] || ['#718096','rgba(113,128,150,0.1)'];
         var badge = '<span style="background:' + sc[1] + ';color:' + sc[0] + ';border:1.5px solid ' + sc[0] + ';padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;">' + item.status + '</span>';
-        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 1fr 1fr 1fr 110px;min-width:900px;align-items:center;opacity:0.85;">'
+        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 1fr 1fr 1fr 1.2fr 110px;min-width:1000px;align-items:center;opacity:0.85;">'
             + '<div style="font-size:12px;color:#4a5568;">' + item.date + '</div>'
             + '<div><strong>' + item.plate + '</strong></div>'
             + '<div style="font-size:12px;color:#4a5568;">' + (item.desc || '—') + '</div>'
             + '<div style="font-size:12px;">' + item.mechanic + '</div>'
             + '<div style="font-size:12px;font-weight:600;">' + item.cost + '</div>'
             + '<div>' + badge + '</div>'
+            + '<div style="font-size:11px;color:#718096;white-space:nowrap;">' + fmtArchivedAt(item.archivedAt) + '</div>'
             + '<div style="display:flex;gap:0.25rem;">'
             +   '<button class="btn-small btn-secondary" onclick="restoreMaintenanceRecord(\'' + item.id + '\',\'' + item.plate.replace(/'/g,"\\'") + '\')" title="Restore" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;color:#38a169;border-color:#9ae6b4;background:#f0fff4;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg></button>'
             +   '<button class="btn-small btn-danger" onclick="permanentlyDeleteMaintenance(\'' + item.id + '\',\'' + item.plate.replace(/'/g,"\\'") + '\')" title="Delete Permanently" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
             + '</div>'
             + '</div>';
     });
-    list.innerHTML = rows.join('');
+    list.innerHTML = '';
+    apRenderPaged('archiveMaintenanceList', rows, 10, 'renderMaintenanceArchiveList');
 }
 
 window.restoreMaintenanceRecord = function(docId, plate) {
@@ -321,10 +436,11 @@ window.restoreMaintenanceRecord = function(docId, plate) {
 };
 
 window.permanentlyDeleteMaintenance = function(docId, plate) {
-    if (!confirm('This action cannot be undone. Are you sure you want to permanently delete the service record for "' + plate + '"?')) return;
-    db.collection('archive').doc('maintenance').collection('records').doc(docId).delete()
-        .then(function() { showToast('Service record permanently deleted.', 'error'); })
-        .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
+    showDeleteConfirm('Permanently Delete Record?', plate, 'service record', function() {
+        db.collection('archive').doc('maintenance').collection('records').doc(docId).delete()
+            .then(function() { showToast('Service record permanently deleted.', 'error'); })
+            .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
+    });
 };
 
 // ── Vehicles archive ──
@@ -339,6 +455,7 @@ db.collection('archive').doc('vehicles').collection('vehicles').onSnapshot(funct
             owner: v.owner || '—',
             odo: v.odo || (v.odometer ? v.odometer + ' km' : '—'),
             lastSvcDate: v.lastSvcDate || v.lastServiceDate || '',
+            archivedAt: v.archivedAt || null,
         };
     });
     if (_archiveCurrentTab === 'vehicles') renderVehiclesArchiveList();
@@ -368,22 +485,24 @@ function renderVehiclesArchiveList() {
         return;
     }
     var rows = items.map(function(v) {
-        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr 120px;min-width:800px;align-items:center;opacity:0.85;">'
+        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr 1.2fr 120px;min-width:900px;align-items:center;opacity:0.85;">'
             + '<div><strong>' + v.plate + '</strong></div>'
             + '<div style="color:#4a5568;font-size:13px;">' + v.type + '</div>'
             + '<div style="color:#4a5568;font-size:13px;">' + v.owner + '</div>'
             + '<div style="color:#4a5568;font-size:13px;">' + v.odo + '</div>'
             + '<div style="color:#4a5568;font-size:13px;">' + fmtDate(v.lastSvcDate) + '</div>'
+            + '<div style="font-size:11px;color:#718096;white-space:nowrap;">' + fmtArchivedAt(v.archivedAt) + '</div>'
             + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;">'
             +   '<button class="btn-small btn-secondary" onclick="restoreArchivedVehicle(\'' + v.id + '\',\'' + v.plate.replace(/'/g,"\\'") + '\')" title="Restore" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;color:#38a169;border-color:#9ae6b4;background:#f0fff4;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg></button>'
             +   '<button class="btn-small btn-danger" onclick="permanentlyDeleteVehicle(\'' + v.id + '\',\'' + v.plate.replace(/'/g,"\\'") + '\')" title="Delete Permanently" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
             + '</div></div>';
     });
-    list.innerHTML = rows.join('');
+    list.innerHTML = '';
+    apRenderPaged('archiveVehiclesList', rows, 10, 'renderVehiclesArchiveList');
 }
 
 window.restoreArchivedVehicle = function(docId, plate) {
-    if (!confirm('Restore "' + plate + '" back to the active vehicle list?')) return;
+    if (!confirm('Are you sure you want to restore "' + plate + '" back to the active vehicle list?')) return;
     var archiveRef = db.collection('archive').doc('vehicles').collection('vehicles').doc(docId);
     archiveRef.get().then(function(snap) {
         if (!snap.exists) { showToast('Archive doc not found.', 'error'); return; }
@@ -397,10 +516,88 @@ window.restoreArchivedVehicle = function(docId, plate) {
 };
 
 window.permanentlyDeleteVehicle = function(docId, plate) {
-    if (!confirm('This action cannot be undone. Permanently delete "' + plate + '"?')) return;
-    db.collection('archive').doc('vehicles').collection('vehicles').doc(docId).delete()
-        .then(function() { showToast('"' + plate + '" permanently deleted.', 'error'); })
-        .catch(function(err) { showToast('Error: ' + err.message, 'error'); });
+    showDeleteConfirm('Permanently Delete Vehicle?', plate, 'vehicle', function() {
+        db.collection('archive').doc('vehicles').collection('vehicles').doc(docId).delete()
+            .then(function() { showToast('"' + plate + '" permanently deleted.', 'error'); })
+            .catch(function(err) { showToast('Error: ' + err.message, 'error'); });
+    });
+};
+
+// ── Users archive ──
+var _archivedUsers = [];
+db.collection('archive').doc('users').collection('users').onSnapshot(function(snap) {
+    _archivedUsers = snap.docs.map(function(d) {
+        var u = d.data();
+        return {
+            id: d.id,
+            name: u.name || '—',
+            email: u.email || '—',
+            role: u.role || '—',
+            status: u.status || 'Inactive',
+            companyName: u.companyName || '',
+            archivedAt: u.archivedAt || null,
+        };
+    });
+    if (_archiveCurrentTab === 'users') renderUsersArchiveList();
+});
+
+function renderUsersArchiveList() {
+    var list = document.getElementById('archiveUsersList');
+    if (!list) return;
+    var q = ((document.getElementById('archiveSearch') || {}).value || '').toLowerCase().trim();
+    var roleColors = { admin:'#E31E24', staff:'#003087', customer:'#38a169' };
+    var items = _archivedUsers;
+    if (q) {
+        items = items.filter(function(u) {
+            return (u.name || '').toLowerCase().includes(q) ||
+                   (u.email || '').toLowerCase().includes(q) ||
+                   (u.role || '').toLowerCase().includes(q);
+        });
+    }
+    if (!items.length) {
+        list.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">No archived users found.</div>';
+        return;
+    }
+    var rows = items.map(function(u) {
+        var rc = roleColors[(u.role||'').toLowerCase()] || '#718096';
+        var roleLabel = (u.role||''); roleLabel = roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1);
+        var statusLower = (u.status||'').toLowerCase();
+        var statusColor = statusLower === 'active' ? '#38a169' : '#718096';
+        var statusLabel = statusLower === 'active' ? 'Active' : 'Inactive';
+        return '<div class="table-row" style="grid-template-columns:2fr 2fr 1fr 1.2fr 120px;min-width:700px;align-items:center;opacity:0.85;">'
+            + '<div><strong>' + u.name + '</strong>' + (u.companyName ? '<div style="font-size:11px;color:#718096;">' + u.companyName + '</div>' : '') + '</div>'
+            + '<div style="font-size:12px;color:#718096;word-break:break-all;">' + u.email + '</div>'
+            + '<div><span style="background:' + rc + '20;color:' + rc + ';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.75rem;font-weight:700;">' + roleLabel + '</span></div>'
+            + '<div style="font-size:11px;color:#718096;white-space:nowrap;">' + fmtArchivedAt(u.archivedAt) + '</div>'
+            + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;">'
+            +   '<button class="btn-small btn-secondary" onclick="restoreArchivedUser(\'' + u.id + '\',\'' + u.name.replace(/'/g,"\\'") + '\')" title="Restore" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;color:#38a169;border-color:#9ae6b4;background:#f0fff4;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg></button>'
+            +   '<button class="btn-small btn-danger" onclick="permanentlyDeleteArchivedUser(\'' + u.id + '\',\'' + u.name.replace(/'/g,"\\'") + '\')" title="Delete Permanently" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
+            + '</div>'
+            + '</div>';
+    });
+    list.innerHTML = '';
+    apRenderPaged('archiveUsersList', rows, 10, 'renderUsersArchiveList');
+}
+
+window.restoreArchivedUser = function(docId, name) {
+    if (!confirm('Are you sure you want to restore "' + name + '" back to User Management?')) return;
+    var archiveRef = db.collection('archive').doc('users').collection('users').doc(docId);
+    archiveRef.get().then(function(snap) {
+        if (!snap.exists) { showToast('Archive doc not found.', 'error'); return; }
+        var data = snap.data();
+        delete data.archivedAt;
+        return db.collection('users').doc(docId).set(data)
+            .then(function() { return archiveRef.delete(); })
+            .then(function() { showToast('"' + name + '" restored to User Management!', 'success'); });
+    }).catch(function(err) { showToast('Error: ' + err.message, 'error'); });
+};
+
+window.permanentlyDeleteArchivedUser = function(docId, name) {
+    showDeleteConfirm('Permanently Delete User?', name, 'user', function() {
+        db.collection('archive').doc('users').collection('users').doc(docId).delete()
+            .then(function() { showToast('"' + name + '" permanently deleted.', 'error'); })
+            .catch(function(err) { showToast('Error: ' + err.message, 'error'); });
+    });
 };
 </script>
 </body>
