@@ -211,14 +211,14 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
           children: [
             if (_fabOpen) ...[
               _fabAction(
-                label: 'Edit Purchase Order',
+                label: 'Review Purchase Order',
                 icon: Icons.edit_outlined,
                 onTap: () {
                   setState(() => _fabOpen = false);
                   final pendingDeliveries = _deliveries.where((d) => (d['status'] as String? ?? '') == 'Pending').toList();
                   if (pendingDeliveries.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('No pending purchase orders to edit.'),
+                      content: Text('No pending purchase orders to review.'),
                       backgroundColor: Color(0xFF718096), behavior: SnackBarBehavior.floating));
                   } else {
                     _showEditPOPicker(pendingDeliveries);
@@ -1181,8 +1181,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
             ),
             child: Row(children: [
               const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Edit Purchase Order', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                Text('Select a pending PO to edit', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                Text('Review Purchase Order', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                Text('Select a pending PO to review', style: TextStyle(color: Colors.white70, fontSize: 11)),
               ])),
               GestureDetector(
                 onTap: () => Navigator.pop(context),
@@ -1412,7 +1412,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                     borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
                 child: Row(children: [
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(isEdit ? 'Edit Purchase Order (PO)' : 'Purchase Order (PO)',
+                    Text(isEdit ? 'Review Purchase Order (PO)' : 'Purchase Order (PO)',
                         style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                     const Text('Record incoming stock delivery',
                         style: TextStyle(color: Colors.white70, fontSize: 11)),

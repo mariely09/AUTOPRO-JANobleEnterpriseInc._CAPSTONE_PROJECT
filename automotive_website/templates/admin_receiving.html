@@ -178,9 +178,9 @@
   <!-- Speed-dial actions (hidden by default) -->
   <div id="fabActions" style="display:none;flex-direction:column;align-items:flex-end;gap:10px;">
 
-    <!-- Edit Purchase Order -->
+    <!-- Review Purchase Order -->
     <div style="display:flex;align-items:center;gap:10px;" id="fabEditPORow">
-      <div style="background:white;padding:6px 14px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.12);font-size:12px;font-weight:600;color:#1a202c;white-space:nowrap;cursor:pointer;" onclick="fabOpenEditPO()">Edit Purchase Order</div>
+      <div style="background:white;padding:6px 14px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.12);font-size:12px;font-weight:600;color:#1a202c;white-space:nowrap;cursor:pointer;" onclick="fabOpenEditPO()">Review Purchase Order</div>
       <div onclick="fabOpenEditPO()" style="width:42px;height:42px;border-radius:50%;background:white;box-shadow:0 2px 8px rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       </div>
@@ -224,7 +224,7 @@ function fabOpenEditPO() {
   if (_fabOpen) toggleFab();
   var pendingDeliveries = (_allDeliveries || []).filter(function(d){ return d.status === 'Pending'; });
   if (!pendingDeliveries.length) {
-    showToast('No pending purchase orders to edit.', 'error');
+    showToast('No pending purchase orders to review.', 'error');
     return;
   }
   // Show a small picker positioned near the FAB
@@ -233,7 +233,7 @@ function fabOpenEditPO() {
   var picker = document.createElement('div');
   picker.id = 'fabEditPOPicker';
   picker.style.cssText = 'position:fixed;bottom:5rem;right:2rem;background:white;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,0.12);min-width:260px;z-index:10000;overflow:hidden;';
-  picker.innerHTML = '<div style="padding:8px 12px;font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #f0f4f8;">Select Purchase Order to Edit</div>'
+  picker.innerHTML = '<div style="padding:8px 12px;font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #f0f4f8;">Select Purchase Order to Review</div>'
     + '<div style="max-height:240px;overflow-y:auto;">'
     + pendingDeliveries.map(function(d) {
         var itemCount = (d.items || []).length;
@@ -1367,7 +1367,7 @@ window.editDelivery = function(id) {
   // Swap header to Edit mode
   var hdTitle = document.querySelector('#newDeliveryModal .modal-content > div:first-child div div:first-child');
   var hdSub   = document.querySelector('#newDeliveryModal .modal-content > div:first-child div div:last-child');
-  if (hdTitle) hdTitle.textContent = 'Edit Purchase Order (PO)';
+  if (hdTitle) hdTitle.textContent = 'Review Purchase Order (PO)';
   if (hdSub)   hdSub.textContent   = 'Update items for this delivery';
 
   // Clear search/preview/items
