@@ -96,7 +96,7 @@
   <div style="padding:10px 12px 12px;background:white;border-top:1px solid #edf0f5;flex-shrink:0;">
     <div style="display:flex;gap:8px;align-items:center;background:#f4f6f9;border:1.5px solid #edf0f5;border-radius:20px;padding:8px 8px 8px 14px;transition:border-color .2s,box-shadow .2s;" id="ragInputWrap">
       <textarea id="ragAiInput" placeholder="Ask about fleet, inventory, reports…"
-        rows="1" style="flex:1;border:none;background:transparent;font-size:12.5px;font-family:inherit;color:#1a202c;outline:none;resize:none;max-height:80px;overflow-y:auto;line-height:1.5;padding:0;margin:0;display:block;align-self:center;"
+        rows="1" style="flex:1;border:none;background:transparent;font-size:12.5px;font-family:inherit;color:#1a202c;outline:none;resize:none;max-height:80px;overflow-y:auto;line-height:1.5;padding:2px 0;margin:0;display:block;align-self:center;"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();ragAiSend();}"
         oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'"
         onfocus="document.getElementById('ragInputWrap').style.borderColor='#E8001C';document.getElementById('ragInputWrap').style.boxShadow='0 0 0 3px rgba(232,0,28,0.08)';"
