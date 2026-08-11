@@ -105,16 +105,23 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
 
     final pending = _deliveries.where((d) => (d['status'] as String? ?? '') == 'Pending').toList();
     Map<String, dynamic>? found;
+    int foundItemIdx = -1;
     for (final delivery in pending) {
       final items = (delivery['items'] as List? ?? []);
-      final match = items.any((i) {
+      for (int idx = 0; idx < items.length; idx++) {
+        final i = items[idx];
         final num  = (i['itemNum']  as String? ?? '').toLowerCase();
         final name = (i['itemName'] as String? ?? '').toLowerCase();
-        return (resolvedNum.isNotEmpty  && num.contains(resolvedNum)) ||
-               (resolvedName.isNotEmpty && name.contains(resolvedName)) ||
-               num.contains(query) || name.contains(query);
-      });
-      if (match) { found = delivery; break; }
+        final match = (resolvedNum.isNotEmpty  && num.contains(resolvedNum)) ||
+                      (resolvedName.isNotEmpty && name.contains(resolvedName)) ||
+                      num.contains(query) || name.contains(query);
+        if (match) {
+          found = delivery;
+          foundItemIdx = idx;
+          break;
+        }
+      }
+      if (found != null) break;
     }
     if (!mounted) return;
     if (found != null) {
@@ -122,7 +129,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
         content: Text('Item found in delivery from ${found['supplier']}'),
         backgroundColor: _green, behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
-      _showReceiveModal(found);
+      _showReceiveModal(found, itemIdx: foundItemIdx >= 0 ? foundItemIdx : null);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('No pending delivery found for that item'),

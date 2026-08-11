@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
 import 'staff_maintenance.dart';
 
 class StaffServiceBookingsBody extends StatefulWidget {
@@ -383,6 +385,7 @@ class _StaffServiceBookingsBodyState extends State<StaffServiceBookingsBody> {
         docId: docId,
         plate:       data['plate']         as String? ?? '—',
         currentDate: data['preferredDate'] as String? ?? '',
+        currentTime: data['preferredTime'] as String? ?? '',
         customerId:  data['customerId']    as String? ?? '',
       ),
     );
@@ -613,12 +616,14 @@ class _StaffRescheduleSheet extends StatefulWidget {
   final String docId;
   final String plate;
   final String currentDate;
+  final String currentTime;
   final String customerId;
 
   const _StaffRescheduleSheet({
     required this.docId,
     required this.plate,
     required this.currentDate,
+    required this.currentTime,
     required this.customerId,
   });
 
@@ -633,10 +638,15 @@ class _StaffRescheduleSheetState extends State<_StaffRescheduleSheet> {
     'July','August','September','October','November','December'
   ];
   static const _allTimeSlots = ['8:00 AM','9:00 AM','10:00 AM','11:00 AM','1:00 PM','2:00 PM','3:00 PM','4:00 PM'];
+  static const _arriveByMap = {
+    '8:00 AM': '7:45 AM', '9:00 AM': '8:45 AM', '10:00 AM': '9:45 AM', '11:00 AM': '10:45 AM',
+    '1:00 PM': '12:45 PM', '2:00 PM': '1:45 PM', '3:00 PM': '2:45 PM', '4:00 PM': '3:45 PM',
+  };
 
   late int _year;
   late int _month;
   String? _selectedDate;
+  String? _selectedTime;
   Map<String, List<String>> _bookedDates = {};
   bool _loading = true;
 
@@ -656,6 +666,7 @@ class _StaffRescheduleSheetState extends State<_StaffRescheduleSheet> {
         .get();
     final slots = <String, List<String>>{};
     for (final d in snap.docs) {
+      if (d.id == widget.docId) continue; // exclude self
       final date = d.data()['preferredDate'] as String? ?? '';
       final time = d.data()['preferredTime'] as String? ?? '';
       if (date.isNotEmpty && time.isNotEmpty) {
@@ -675,18 +686,20 @@ class _StaffRescheduleSheetState extends State<_StaffRescheduleSheet> {
   }
 
   Future<void> _confirm() async {
-    if (_selectedDate == null) return;
+    if (_selectedDate == null || _selectedTime == null) return;
     final db = FirebaseFirestore.instance;
     await db.collection('service_bookings').doc(widget.docId).update({
       'preferredDate': _selectedDate,
+      'preferredTime': _selectedTime,
       'previousDate':  widget.currentDate,
+      'previousTime':  widget.currentTime,
       'rescheduledBy': 'staff',
       'rescheduledAt': FieldValue.serverTimestamp(),
     });
     if (widget.customerId.isNotEmpty) {
       await db.collection('notifications').add({
         'title':      '📅 Booking Rescheduled',
-        'message':    'Your booking for ${widget.plate} has been rescheduled from ${_fmt(widget.currentDate)} to ${_fmt(_selectedDate!)}.',
+        'message':    'Your booking for ${widget.plate} has been rescheduled from ${_fmt(widget.currentDate)}${widget.currentTime.isNotEmpty ? ' at ${widget.currentTime}' : ''} to ${_fmt(_selectedDate!)} at $_selectedTime.',
         'type':       'warning',
         'targetRole': '',
         'targetUid':  widget.customerId,
@@ -695,11 +708,46 @@ class _StaffRescheduleSheetState extends State<_StaffRescheduleSheet> {
         'isRead':     false,
       });
     }
+
+    // Send reschedule email to customer (fire-and-forget)
+    if (widget.customerId.isNotEmpty) {
+      _sendRescheduleEmail(db, widget.customerId);
+    }
+
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Booking rescheduled to ${_fmt(_selectedDate!)}'),
+        content: Text('Booking rescheduled to ${_fmt(_selectedDate!)} at $_selectedTime'),
         backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
+    }
+  }
+
+  /// Looks up customer email + booking services, then calls Flask /api/send-reschedule-email.
+  Future<void> _sendRescheduleEmail(FirebaseFirestore db, String customerId) async {
+    const flaskBaseUrl = 'https://caltex-autopro.onrender.com';
+    try {
+      final userDoc = await db.collection('users').doc(customerId).get();
+      final email   = userDoc.data()?['email'] as String? ?? '';
+      final name    = userDoc.data()?['name']  as String? ?? '';
+      if (email.isEmpty) return;
+
+      final bDoc     = await db.collection('service_bookings').doc(widget.docId).get();
+      final services = ((bDoc.data()?['services'] as List?) ?? []).join(', ');
+
+      await http.post(
+        Uri.parse('$flaskBaseUrl/api/send-reschedule-email'),
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+        body: jsonEncode({
+          'to_email': email,
+          'to_name':  name,
+          'plate':    widget.plate,
+          'old_date': _fmt(widget.currentDate) + (widget.currentTime.isNotEmpty ? ' at ${widget.currentTime}' : ''),
+          'new_date': _fmt(_selectedDate!) + ' at $_selectedTime',
+          'services': services,
+        }),
+      );
+    } catch (e) {
+      debugPrint('❌ Reschedule email error: $e');
     }
   }
 
@@ -714,6 +762,9 @@ class _StaffRescheduleSheetState extends State<_StaffRescheduleSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final takenTimes = _selectedDate != null ? (_bookedDates[_selectedDate] ?? []) : <String>[];
+    final canConfirm = _selectedDate != null && _selectedTime != null;
+
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
@@ -743,12 +794,14 @@ class _StaffRescheduleSheetState extends State<_StaffRescheduleSheet> {
               Text(widget.plate, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF1a202c))),
               if (widget.currentDate.isNotEmpty) ...[
                 const SizedBox(height: 4),
-                Text('Current: ${_fmt(widget.currentDate)}',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF718096))),
+                Text(
+                  'Current: ${_fmt(widget.currentDate)}${widget.currentTime.isNotEmpty ? ' at ${widget.currentTime}' : ''}',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF718096)),
+                ),
               ],
               const SizedBox(height: 16),
-              const Text('Select new date',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF4a5568))),
+              const Text('1. Select new date',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF4a5568))),
               const SizedBox(height: 10),
               // Month nav
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -773,20 +826,81 @@ class _StaffRescheduleSheetState extends State<_StaffRescheduleSheet> {
                 _legend(const Color(0xFFd97706), 'Full'),
                 _legend(_blue, 'Current'),
               ]),
+
+              // ── Step 2: Time ──
+              if (_selectedDate != null) ...[
+                const SizedBox(height: 20),
+                const Text('2. Select new time',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF4a5568))),
+                const SizedBox(height: 4),
+                const Text('Please arrive 15 minutes before your selected time.',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: _allTimeSlots.map((time) {
+                    final isTaken = takenTimes.contains(time);
+                    final isSelected = _selectedTime == time;
+                    return GestureDetector(
+                      onTap: isTaken ? null : () => setState(() => _selectedTime = time),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isTaken ? const Color(0xFFF1F5F9) : isSelected ? const Color(0xFFEBF8FF) : Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isTaken ? const Color(0xFFe2e8f0) : isSelected ? _blue : const Color(0xFFe2e8f0),
+                            width: isSelected ? 2 : 1.5,
+                          ),
+                        ),
+                        child: Text(time, style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600,
+                          color: isTaken ? const Color(0xFFa0aec0) : isSelected ? _blue : const Color(0xFF4a5568),
+                          decoration: isTaken ? TextDecoration.lineThrough : null,
+                          decorationColor: const Color(0xFFa0aec0),
+                        )),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                if (_selectedTime != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFC6F6D5)),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.access_time, size: 13, color: Color(0xFF38A169)),
+                      const SizedBox(width: 6),
+                      Text('Customer arrives by: ${_arriveByMap[_selectedTime!] ?? _selectedTime!}',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF276749), fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                ],
+              ],
+
               const SizedBox(height: 16),
-              if (_selectedDate != null)
+              // Summary card
+              if (canConfirm)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(12),
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                      color: const Color(0xFFF0FDF4),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFF38a169))),
-                  child: Text('📅 New Date: ${_fmt(_selectedDate!)}',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF38a169))),
+                    color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF38a169)),
+                  ),
+                  child: Column(children: [
+                    Text('📅 ${_fmt(_selectedDate!)}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF38a169))),
+                    const SizedBox(height: 2),
+                    Text('🕐 $_selectedTime',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF276749))),
+                  ]),
                 ),
+
               Row(children: [
                 Expanded(child: OutlinedButton(
                   onPressed: () => Navigator.pop(context),
@@ -795,7 +909,7 @@ class _StaffRescheduleSheetState extends State<_StaffRescheduleSheet> {
                 )),
                 const SizedBox(width: 12),
                 Expanded(child: ElevatedButton(
-                  onPressed: _selectedDate != null ? _confirm : null,
+                  onPressed: canConfirm ? _confirm : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _blue, foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -860,7 +974,10 @@ class _StaffRescheduleSheetState extends State<_StaffRescheduleSheet> {
       }
 
       cells.add(GestureDetector(
-        onTap: isDisabled ? null : () => setState(() => _selectedDate = key),
+        onTap: isDisabled ? null : () => setState(() {
+          _selectedDate = key;
+          _selectedTime = null; // reset time when date changes
+        }),
         child: Container(
           decoration: BoxDecoration(
             color: bg, borderRadius: BorderRadius.circular(8), border: border,

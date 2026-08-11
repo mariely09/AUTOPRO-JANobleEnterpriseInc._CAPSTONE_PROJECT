@@ -297,6 +297,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
 
     Map<String, dynamic>? foundDelivery;
     String? foundItemStatus;
+    int foundItemIdx = -1;
     try {
       final deliveriesSnap = await FirebaseFirestore.instance
           .collection('deliveries').orderBy('createdAt', descending: true).get();
@@ -305,7 +306,8 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
         final deliveryStatus = d['status'] as String? ?? 'Pending';
         if (deliveryStatus == 'Approved' || deliveryStatus == 'Rejected') continue;
         final items = (d['items'] as List? ?? []);
-        for (final i in items) {
+        for (int idx = 0; idx < items.length; idx++) {
+          final i = items[idx];
           final num  = str(i['itemNum']).toLowerCase();
           final name = str(i['itemName']).toLowerCase();
           final matched = (resolvedNum.isNotEmpty && num.contains(resolvedNum)) ||
@@ -314,6 +316,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
           if (matched) {
             foundDelivery = d;
             foundItemStatus = (i['itemStatus'] as String?) ?? deliveryStatus;
+            foundItemIdx = idx;
             break;
           }
         }
@@ -324,7 +327,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
     }
 
     if (!mounted) return;
-    _showScanResultModal(context, trimmed, masterItem, stockItem, foundDelivery, foundItemStatus);
+    _showScanResultModal(context, trimmed, masterItem, stockItem, foundDelivery, foundItemStatus, foundItemIdx);
   }
 
   void _showScanResultModal(
@@ -333,8 +336,9 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
     Map<String, dynamic>? masterItem,
     Map<String, dynamic>? stockItem,
     Map<String, dynamic>? delivery,
-    String? foundItemStatus,
-  ) {
+    String? foundItemStatus, [
+    int foundItemIdx = -1,
+  ]) {
     final itemName  = masterItem?['name']?.toString()  ?? rawValue;
     final itemNum   = masterItem?['num']?.toString()   ?? '—';
     final itemGroup = masterItem?['group']?.toString() ?? '';
@@ -445,7 +449,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
                           ? () {
                               Navigator.pop(context);
                               Navigator.push(context, MaterialPageRoute(
-                                builder: (_) => _ReceivingWithModal(delivery: delivery)));
+                                builder: (_) => _ReceivingWithModal(delivery: delivery, itemIdx: foundItemIdx)));
                             }
                           : null,
                     );
@@ -920,7 +924,8 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
 // ── Receiving page wrapper that auto-opens the receive modal ────────────────
 class _ReceivingWithModal extends StatefulWidget {
   final Map<String, dynamic> delivery;
-  const _ReceivingWithModal({required this.delivery});
+  final int itemIdx;
+  const _ReceivingWithModal({required this.delivery, this.itemIdx = -1});
 
   @override
   State<_ReceivingWithModal> createState() => _ReceivingWithModalState();
@@ -935,7 +940,10 @@ class _ReceivingWithModalState extends State<_ReceivingWithModal> {
     super.initState();
     // Open the receive modal as soon as the page is laid out
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _bodyKey.currentState?.openReceiveModal(widget.delivery);
+      _bodyKey.currentState?.openReceiveModal(
+        widget.delivery,
+        itemIdx: widget.itemIdx >= 0 ? widget.itemIdx : null,
+      );
     });
   }
 

@@ -147,17 +147,20 @@
 <div id="toast"></div>
 
 <!-- Reschedule Modal -->
-<div id="rescheduleModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;">
-  <div style="background:white;border-radius:18px;width:360px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;">
-    <div style="background:linear-gradient(135deg,#003087,#001d52);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;">
+<div id="rescheduleModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:18px;width:420px;max-width:90vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;">
+    <div style="background:linear-gradient(135deg,#003087,#001d52);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
       <div style="color:white;font-size:15px;font-weight:700;">Reschedule Booking</div>
       <button onclick="closeRescheduleModal()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;">×</button>
     </div>
-    <div style="padding:20px;">
-      <div style="font-size:12px;color:#718096;margin-bottom:4px;">Vehicle</div>
-      <div id="rsPlate" style="font-size:16px;font-weight:700;color:#1a202c;margin-bottom:16px;"></div>
-      <div style="font-size:12px;color:#718096;margin-bottom:8px;">Select new date</div>
-      <div id="rsCalendar" style="margin-bottom:16px;">
+    <div style="padding:20px;overflow-y:auto;flex:1;">
+      <div style="font-size:12px;color:#718096;margin-bottom:2px;">Vehicle</div>
+      <div id="rsPlate" style="font-size:16px;font-weight:700;color:#1a202c;margin-bottom:4px;"></div>
+      <div id="rsCurrentInfo" style="font-size:12px;color:#718096;margin-bottom:16px;"></div>
+
+      <!-- Step 1: Date -->
+      <div style="font-size:12px;font-weight:700;color:#4a5568;margin-bottom:8px;">1. Select new date</div>
+      <div id="rsCalendar" style="margin-bottom:4px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
           <button onclick="rsCalNav(-1)" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:16px;color:#4a5568;">‹</button>
           <span id="rsCalMonth" style="font-size:14px;font-weight:700;color:#1a202c;"></span>
@@ -175,14 +178,29 @@
         <div id="rsCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;"></div>
         <div style="display:flex;gap:12px;margin-top:10px;padding-top:8px;border-top:1px solid #f0f4f8;justify-content:center;flex-wrap:wrap;">
           <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#38a169;border-radius:50%;display:inline-block;"></span>Available</span>
-          <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#d97706;border-radius:50%;border:1.5px solid #d97706;display:inline-block;"></span>Full</span>
+          <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#d97706;border-radius:50%;display:inline-block;"></span>Full</span>
           <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#003087;border-radius:50%;display:inline-block;"></span>Current</span>
         </div>
       </div>
-      <div id="rsSelectedInfo" style="display:none;padding:10px;background:#f0fdf4;border:1.5px solid #38a169;border-radius:10px;margin-bottom:16px;text-align:center;">
-        <span style="font-size:13px;font-weight:700;color:#38a169;" id="rsSelectedText"></span>
+
+      <!-- Step 2: Time (shown after date selected) -->
+      <div id="rsTimeSection" style="display:none;margin-top:18px;padding-top:16px;border-top:1px solid #f0f4f8;">
+        <div style="font-size:12px;font-weight:700;color:#4a5568;margin-bottom:4px;">2. Select new time</div>
+        <div style="font-size:11px;color:#718096;margin-bottom:10px;">Please arrive 15 minutes before the selected time.</div>
+        <div id="rsTimeSlots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
+        <div id="rsArriveBy" style="display:none;margin-top:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #c6f6d5;border-radius:10px;font-size:11px;color:#276749;display:flex;align-items:center;gap:6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Customer arrives by: <strong id="rsArriveByTime"></strong></span>
+        </div>
       </div>
-      <div style="display:flex;gap:10px;">
+
+      <!-- Summary -->
+      <div id="rsSelectedInfo" style="display:none;padding:12px;background:#f0fdf4;border:1.5px solid #38a169;border-radius:10px;margin-top:14px;text-align:center;">
+        <div style="font-size:13px;font-weight:700;color:#38a169;" id="rsSelectedDate"></div>
+        <div style="font-size:12px;color:#276749;margin-top:2px;" id="rsSelectedTime"></div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:16px;">
         <button onclick="closeRescheduleModal()" style="flex:1;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;background:white;font-size:13px;font-weight:600;cursor:pointer;color:#718096;">Cancel</button>
         <button id="rsConfirmBtn" onclick="confirmReschedule()" disabled style="flex:1;padding:12px;border:none;border-radius:10px;background:#003087;font-size:13px;font-weight:700;cursor:pointer;color:white;opacity:0.5;">Confirm</button>
       </div>
@@ -202,6 +220,10 @@
 #rsCalGrid .rs-day.full:hover { transform:none; }
 #rsCalGrid .rs-day.empty { background:transparent;cursor:default; }
 #rsCalGrid .rs-day.empty:hover { transform:none; }
+.rs-time-chip { padding:8px 4px;background:white;border:1.5px solid #e2e8f0;border-radius:10px;font-size:11px;font-weight:600;color:#4a5568;cursor:pointer;transition:all .12s;font-family:inherit;text-align:center; }
+.rs-time-chip:hover:not(:disabled) { border-color:#003087;background:#f0f4ff; }
+.rs-time-chip.selected { border-color:#003087;border-width:2px;background:#ebf8ff;color:#003087; }
+.rs-time-chip:disabled { background:#f1f5f9;color:#a0aec0;cursor:not-allowed;text-decoration:line-through;opacity:0.6; }
 </style>
 
 <!-- Firebase SDK -->
@@ -371,7 +393,7 @@
                   return '<button disabled title="' + disabledTitle + '" style="' + btnStyle + 'background:#38a169;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>';
                 }
               })()
-              + '<button onclick="rescheduleBooking(\'' + r.id + '\',\'' + (r.plate||'') + '\',\'' + (r.preferredDate||'') + '\',\'' + (r.customerId||'') + '\',\'' + (r.customerName||'') + '\')" title="Reschedule" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#003087;border:none;border-radius:7px;color:white;cursor:pointer;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>'
+              + '<button onclick="rescheduleBooking(\'' + r.id + '\',\'' + (r.plate||'') + '\',\'' + (r.preferredDate||'') + '\',\'' + (r.customerId||'') + '\',\'' + (r.customerName||'').replace(/'/g,"\\'") + '\')" title="Reschedule" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#003087;border:none;border-radius:7px;color:white;cursor:pointer;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>'
               + '<button onclick="dismissBooking(\'' + r.id + '\')" title="Cancel" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#e53e3e;border:none;border-radius:7px;color:white;cursor:pointer;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
             : '<span style="font-size:12px;color:#a0aec0;">—</span>')
         + '</div>'
@@ -431,28 +453,53 @@
     window._rsDocId = docId;
     window._rsPlate = plate;
     window._rsCurrentDate = currentDate;
+    window._rsCurrentTime = '';
     window._rsCustomerId = customerId || '';
     window._rsCustomerName = customerName || '';
     window._rsSelectedDate = '';
-    window._rsBookedDates = {};
+    window._rsSelectedTime = '';
+    window._rsBookedSlots = {}; // date → [time, time, ...]
+
+    // Fetch current time from booking doc
+    db.collection('service_bookings').doc(docId).get().then(function(doc) {
+      if (doc.exists) window._rsCurrentTime = doc.data().preferredTime || '';
+      var currentInfo = document.getElementById('rsCurrentInfo');
+      if (currentInfo) {
+        currentInfo.textContent = currentDate
+          ? 'Current: ' + _formatDate(currentDate) + (window._rsCurrentTime ? ' at ' + window._rsCurrentTime : '')
+          : '';
+      }
+    });
+
     var now = new Date();
     window._rsYear = now.getFullYear();
     window._rsMonth = now.getMonth();
-    document.getElementById('rsPlate').textContent = plate + (currentDate ? ' — Current: ' + _formatDate(currentDate) : '');
+
+    document.getElementById('rsPlate').textContent = plate;
+    document.getElementById('rsCurrentInfo').textContent = currentDate
+      ? 'Current: ' + _formatDate(currentDate)
+      : '';
     document.getElementById('rsSelectedInfo').style.display = 'none';
+    document.getElementById('rsTimeSection').style.display = 'none';
+    document.getElementById('rsArriveBy').style.display = 'none';
     document.getElementById('rsConfirmBtn').disabled = true;
     document.getElementById('rsConfirmBtn').style.opacity = '0.5';
 
-    // Load booked dates for availability
+    // Load booked slots (date → taken times), exclude self
     db.collection('service_bookings')
       .where('status', 'in', ['Approved'])
       .get().then(function(snap) {
-        var counts = {};
+        var slots = {};
         snap.docs.forEach(function(d) {
+          if (d.id === docId) return; // exclude self
           var date = d.data().preferredDate;
-          if (date) counts[date] = (counts[date] || 0) + 1;
+          var time = d.data().preferredTime;
+          if (date && time) {
+            if (!slots[date]) slots[date] = [];
+            if (slots[date].indexOf(time) === -1) slots[date].push(time);
+          }
         });
-        window._rsBookedDates = counts;
+        window._rsBookedSlots = slots;
         rsRenderCal();
       }).catch(function() { rsRenderCal(); });
 
@@ -470,7 +517,11 @@
     rsRenderCal();
   };
 
-  var _rsMaxPerDay = 5;
+  var _ALL_TIME_SLOTS = ['8:00 AM','9:00 AM','10:00 AM','11:00 AM','1:00 PM','2:00 PM','3:00 PM','4:00 PM'];
+  var _ARRIVE_BY_MAP = {
+    '8:00 AM':'7:45 AM','9:00 AM':'8:45 AM','10:00 AM':'9:45 AM','11:00 AM':'10:45 AM',
+    '1:00 PM':'12:45 PM','2:00 PM':'1:45 PM','3:00 PM':'2:45 PM','4:00 PM':'3:45 PM'
+  };
 
   function rsRenderCal() {
     var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -478,7 +529,7 @@
     var firstDay = new Date(window._rsYear, window._rsMonth, 1).getDay();
     var daysInMonth = new Date(window._rsYear, window._rsMonth + 1, 0).getDate();
     var today = new Date(); today.setHours(0,0,0,0);
-    var bookedDates = window._rsBookedDates || {};
+    var slots = window._rsBookedSlots || {};
     var cells = '';
     for (var i = 0; i < firstDay; i++) cells += '<button class="rs-day empty"></button>';
     for (var d = 1; d <= daysInMonth; d++) {
@@ -490,8 +541,8 @@
       var isPast = dt < today;
       var isSel = dateStr === window._rsSelectedDate;
       var isCurrent = dateStr === window._rsCurrentDate;
-      var bookings = bookedDates[dateStr] || 0;
-      var isFull = bookings >= _rsMaxPerDay;
+      var takenTimes = slots[dateStr] || [];
+      var isFull = takenTimes.length >= _ALL_TIME_SLOTS.length;
       var cls = 'rs-day';
       if (isSel) cls += ' selected';
       else if (isCurrent && !isPast) cls += ' current';
@@ -499,73 +550,107 @@
       else if (isFull) cls += ' full';
       var clickable = !isPast && !isFull;
       var click = clickable ? ' onclick="rsPickDate(\'' + dateStr + '\')"' : '';
-      var slotText = (!isPast && !isSun && !isFull && bookings > 0) ? ' title="' + bookings + '/' + _rsMaxPerDay + ' booked"' : '';
-      cells += '<button class="' + cls + '"' + click + slotText + '>' + d + '</button>';
+      cells += '<button class="' + cls + '"' + click + '>' + d + '</button>';
     }
     document.getElementById('rsCalGrid').innerHTML = cells;
   }
 
   window.rsPickDate = function(dateStr) {
     window._rsSelectedDate = dateStr;
+    window._rsSelectedTime = ''; // reset time on new date
     rsRenderCal();
-    var parts = dateStr.split('-');
-    var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var m = parseInt(parts[1]) - 1;
-    var d = parseInt(parts[2]);
-    var y = parseInt(parts[0]);
-    document.getElementById('rsSelectedText').textContent = '📅 New Date: ' + MONTHS[m] + ' ' + d + ', ' + y;
+    // Show time section
+    document.getElementById('rsTimeSection').style.display = 'block';
+    document.getElementById('rsArriveBy').style.display = 'none';
+    document.getElementById('rsSelectedInfo').style.display = 'none';
+    document.getElementById('rsConfirmBtn').disabled = true;
+    document.getElementById('rsConfirmBtn').style.opacity = '0.5';
+    rsRenderTimeSlots();
+  };
+
+  function rsRenderTimeSlots() {
+    var takenTimes = (window._rsBookedSlots || {})[window._rsSelectedDate] || [];
+    var html = _ALL_TIME_SLOTS.map(function(time) {
+      var isTaken = takenTimes.indexOf(time) !== -1;
+      var isSel = time === window._rsSelectedTime;
+      var cls = 'rs-time-chip' + (isSel ? ' selected' : '');
+      if (isTaken) {
+        return '<button class="' + cls + '" disabled title="Already booked">' + time + '</button>';
+      }
+      return '<button class="' + cls + '" onclick="rsPickTime(\'' + time + '\')">' + time + '</button>';
+    }).join('');
+    document.getElementById('rsTimeSlots').innerHTML = html;
+  }
+
+  window.rsPickTime = function(time) {
+    window._rsSelectedTime = time;
+    rsRenderTimeSlots();
+    // Arrive-by hint
+    var arriveEl = document.getElementById('rsArriveBy');
+    var arriveText = document.getElementById('rsArriveByTime');
+    if (arriveEl && arriveText) {
+      arriveText.textContent = _ARRIVE_BY_MAP[time] || time;
+      arriveEl.style.display = 'flex';
+    }
+    // Summary card
+    var MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var parts = window._rsSelectedDate.split('-');
+    var dateLabel = MONTHS_SHORT[parseInt(parts[1])-1] + ' ' + parseInt(parts[2]) + ', ' + parts[0];
+    document.getElementById('rsSelectedDate').textContent = '📅 ' + dateLabel;
+    document.getElementById('rsSelectedTime').textContent = '🕐 ' + time;
     document.getElementById('rsSelectedInfo').style.display = 'block';
+    // Enable confirm
     document.getElementById('rsConfirmBtn').disabled = false;
     document.getElementById('rsConfirmBtn').style.opacity = '1';
   };
 
   window.confirmReschedule = function() {
-    if (!window._rsSelectedDate || !window._rsDocId) return;
+    if (!window._rsSelectedDate || !window._rsSelectedTime || !window._rsDocId) return;
     var oldDate = window._rsCurrentDate || '';
+    var oldTime = window._rsCurrentTime || '';
     var newDate = window._rsSelectedDate;
+    var newTime = window._rsSelectedTime;
     var plate = window._rsPlate || '';
     var customerId = window._rsCustomerId || '';
     var customerName = window._rsCustomerName || '';
 
     db.collection('service_bookings').doc(window._rsDocId).update({
       preferredDate: newDate,
+      preferredTime: newTime,
       previousDate: oldDate,
+      previousTime: oldTime,
       rescheduledBy: 'admin',
       rescheduledAt: firebase.firestore.FieldValue.serverTimestamp(),
     })
     .then(function() {
       closeRescheduleModal();
-      showToast('Booking rescheduled to ' + newDate, 'success');
+      var MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var p = newDate.split('-');
+      var newDateLabel = MONTHS_SHORT[parseInt(p[1])-1] + ' ' + parseInt(p[2]) + ', ' + p[0];
+      showToast('Booking rescheduled to ' + newDateLabel + ' at ' + newTime, 'success');
 
-      // Create in-app notification for the customer
+      // Notify customer in-app
       if (customerId) {
         db.collection('notifications').add({
           title: '📅 Booking Rescheduled',
-          message: 'Your booking for ' + plate + ' has been rescheduled from ' + _formatDate(oldDate) + ' to ' + _formatDate(newDate) + '.',
+          message: 'Your booking for ' + plate + ' has been rescheduled from ' + _formatDate(oldDate) + (oldTime ? ' at ' + oldTime : '') + ' to ' + _formatDate(newDate) + ' at ' + newTime + '.',
           type: 'warning',
-          targetRole: '',
-          targetUid: customerId,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          readBy: {},
-          isRead: false,
+          targetRole: '', targetUid: customerId,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
         });
       }
 
-      // Get the booking doc to find services and customer email for email notification
+      // Send reschedule email to customer
       db.collection('service_bookings').doc(window._rsDocId).get().then(function(doc) {
         if (!doc.exists) return;
         var bookingData = doc.data();
         var services = (bookingData.services || []).join(', ');
-
-        // Look up customer email
         if (customerId) {
           db.collection('users').doc(customerId).get().then(function(userDoc) {
             if (!userDoc.exists) return;
             var userData = userDoc.data();
             var email = userData.email || '';
             if (!email) return;
-
-            // Send reschedule email notification
             fetch('/api/send-reschedule-email', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -573,8 +658,8 @@
                 to_email: email,
                 to_name: customerName || userData.name || '',
                 plate: plate,
-                old_date: oldDate,
-                new_date: newDate,
+                old_date: oldDate + (oldTime ? ' at ' + oldTime : ''),
+                new_date: newDate + ' at ' + newTime,
                 services: services
               })
             }).catch(function(err) { console.error('Reschedule email error:', err); });

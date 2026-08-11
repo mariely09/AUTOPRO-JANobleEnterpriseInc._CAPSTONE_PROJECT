@@ -248,6 +248,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
     // Step 2: Find matching delivery (any active status) and get the per-item status
     Map<String, dynamic>? foundDelivery;
     String? foundItemStatus;
+    int foundItemIdx = -1;
     try {
       final deliveriesSnap = await FirebaseFirestore.instance
           .collection('deliveries')
@@ -260,7 +261,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
         // Skip completed deliveries
         if (deliveryStatus == 'Approved' || deliveryStatus == 'Rejected') continue;
         final items = (d['items'] as List? ?? []);
-        for (final i in items) {
+        for (int idx = 0; idx < items.length; idx++) {
+          final i = items[idx];
           final num  = (i['itemNum']  as String? ?? '').toLowerCase();
           final name = (i['itemName'] as String? ?? '').toLowerCase();
           final matched = (resolvedNum.isNotEmpty && num.contains(resolvedNum)) ||
@@ -269,6 +271,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
           if (matched) {
             foundDelivery = d;
             foundItemStatus = i['itemStatus'] as String? ?? deliveryStatus;
+            foundItemIdx = idx;
             break;
           }
         }
@@ -286,6 +289,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       masterItem: masterItem,
       delivery:   foundDelivery,
       itemStatus: foundItemStatus,
+      itemIdx:    foundItemIdx,
     );
   }
 
@@ -294,6 +298,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
     required Map<String, dynamic>? masterItem,
     required Map<String, dynamic>? delivery,
     String? itemStatus,
+    int itemIdx = -1,
   }) {
     final itemName  = masterItem?['name']?.toString() ?? rawValue;
     final itemNum   = masterItem?['num']?.toString()  ?? '—';
@@ -385,7 +390,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                       badge: itemStatus ?? 'Pending',
                       badgeColor: isPending ? const Color(0xFF718096) : const Color(0xFFd69e2e),
                       onTap: isPending
-                          ? () { Navigator.pop(context); _showReceiveFromDashboard(delivery); }
+                          ? () { Navigator.pop(context); _showReceiveFromDashboard(delivery, itemIdx: itemIdx); }
                           : null,
                     );
                   }),
@@ -519,7 +524,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
   }
 
   // ── Inline receive modal (called from scan result modal) ──────────────────
-  void _showReceiveFromDashboard(Map<String, dynamic> delivery) async {
+  void _showReceiveFromDashboard(Map<String, dynamic> delivery, {int itemIdx = -1}) async {
     const red   = Color(0xFFE8001C);
     const amber = Color(0xFFd69e2e);
     const green = Color(0xFF38a169);
@@ -542,8 +547,13 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
     final items = List<Map<String, dynamic>>.from(
       (delivery['items'] as List? ?? []).map((i) => Map<String, dynamic>.from(i as Map)));
-    // Find the first pending item to receive
-    final rcvIdx = items.indexWhere((i) => (i['itemStatus'] ?? 'Pending') == 'Pending');
+    // Use the scanned item index if valid, otherwise find first pending item
+    int rcvIdx;
+    if (itemIdx >= 0 && itemIdx < items.length) {
+      rcvIdx = itemIdx;
+    } else {
+      rcvIdx = items.indexWhere((i) => (i['itemStatus'] ?? 'Pending') == 'Pending');
+    }
     if (rcvIdx < 0) return; // no pending items
     final rcvItem = items[rcvIdx];
     final receivedByCtrl = TextEditingController(text: currentUserName);

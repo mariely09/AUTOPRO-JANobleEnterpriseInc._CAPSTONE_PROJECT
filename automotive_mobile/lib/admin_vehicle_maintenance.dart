@@ -882,7 +882,6 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
       context: context, isScrollControlled: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => StatefulBuilder(
         builder: (ctx, setModal) {
           double totalCost() {
@@ -894,22 +893,28 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
           }
 
           return AnimatedPadding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(ctx).viewInsets.bottom,
-              top: MediaQuery.of(ctx).size.height * 0.08,
-            ),
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
             duration: const Duration(milliseconds: 150),
-            child: Container(
+            curve: Curves.easeOut,
+            child: DraggableScrollableSheet(
+            initialChildSize: 0.92,
+            minChildSize: 0.5,
+            maxChildSize: 1.0,
+            expand: false,
+            builder: (ctx2, scrollCtrl) => Container(
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              child: SingleChildScrollView(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              child: Column(children: [
+                // ── Sticky header ──
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                  decoration: const BoxDecoration(color: _red, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+                  decoration: const BoxDecoration(
+                    color: _red,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
                   child: Row(children: [
                     const SizedBox(width: 12),
                     Expanded(child: Text(isEdit ? 'Edit Service' : 'New Service',
@@ -918,9 +923,13 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                       child: const Icon(Icons.close, color: Colors.white)),
                   ]),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // ── Scrollable content ──
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollCtrl,
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Autocomplete<String>(
                       initialValue: TextEditingValue(text: plateCtrl.text),
                       optionsBuilder: (value) {
@@ -1309,12 +1318,13 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                               Text(isEdit ? 'Update' : 'Save'),
                             ]),
                       )),
-                    ]),       // Row([Cancel, Save])
-                  ]),         // inner Column.children
-                  ),          // Padding
-                ]),           // outer Column.children
-              ),              // SingleChildScrollView
+                    ]),         // Row([Cancel, Save])
+                  ]),           // Column children end
+                  ),          // SingleChildScrollView
+                ),            // Expanded
+              ]),             // Column([header, Expanded])
             ),                // Container
+            ),                // DraggableScrollableSheet
           );                  // AnimatedPadding
         },
       ),

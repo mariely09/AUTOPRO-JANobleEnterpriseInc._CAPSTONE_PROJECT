@@ -1102,6 +1102,228 @@ def terms_conditions():
     return render_template('terms_condiion.html')
 
 
+@app.route('/api/send-booking-email', methods=['POST'])
+def send_booking_email():
+    """
+    Send a booking confirmation email to admin/staff when a customer books a service.
+
+    Request body:
+        customer_name  : str  – customer who made the booking
+        vehicles       : list – [{ plate, desc, services: [str] }]
+        preferred_date : str  – e.g. "Aug 12, 2026"
+        preferred_time : str  – e.g. "10:00 AM"
+        notes          : str  – optional customer notes
+        target_roles   : list – ["admin", "staff"] — which roles to email
+    """
+    import firebase_admin.firestore as _fs
+
+    data           = request.get_json(silent=True) or {}
+    customer_name  = data.get('customer_name', 'Customer').strip()
+    vehicles       = data.get('vehicles', [])        # list of {plate, desc, services}
+    preferred_date = data.get('preferred_date', '').strip()
+    preferred_time = data.get('preferred_time', '').strip()
+    notes          = data.get('notes', '').strip()
+    target_roles   = data.get('target_roles', ['admin', 'staff'])
+
+    if not vehicles or not preferred_date or not preferred_time:
+        return jsonify({'ok': False, 'error': 'Missing required fields'}), 400
+
+    # ── Build per-vehicle rows for the email ──
+    vehicle_rows = ''
+    for v in vehicles:
+        plate = v.get('plate', '—')
+        desc  = v.get('desc', '')
+        svcs  = ', '.join(v.get('services', []))
+        vehicle_rows += f"""
+        <tr>
+          <td style="padding:10px 14px;font-size:13px;font-weight:600;
+                     color:#1a202c;border-bottom:1px solid #f0f4f8;">{plate}</td>
+          <td style="padding:10px 14px;font-size:12px;color:#718096;
+                     border-bottom:1px solid #f0f4f8;">{desc}</td>
+          <td style="padding:10px 14px;font-size:12px;color:#E8001C;font-weight:600;
+                     border-bottom:1px solid #f0f4f8;">{svcs}</td>
+        </tr>"""
+
+    notes_row = ''
+    if notes:
+        notes_row = f"""
+        <div style="margin-top:18px;background:#fffbeb;border-left:4px solid #d97706;
+                    border-radius:0 10px 10px 0;padding:12px 16px;">
+          <p style="margin:0;font-size:12px;font-weight:700;color:#92400e;">
+            📝 Customer Notes
+          </p>
+          <p style="margin:6px 0 0;font-size:13px;color:#1a202c;">{notes}</p>
+        </div>"""
+
+    html_template = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;padding:40px 0;">
+  <tr><td align="center">
+    <table width="560" cellpadding="0" cellspacing="0"
+           style="background:#fff;border-radius:16px;overflow:hidden;
+                  box-shadow:0 4px 24px rgba(0,0,0,.10);">
+      <!-- Header -->
+      <tr>
+        <td style="background:#E8001C;padding:30px 40px 0;text-align:center;">
+          <div style="font-size:13px;font-weight:700;letter-spacing:4px;
+                      color:rgba(255,255,255,.8);margin-bottom:6px;">CALTEX</div>
+          <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:2px;">AutoPro</div>
+          <div style="background:#fff;border-radius:24px 24px 0 0;height:22px;margin-top:20px;"></div>
+        </td>
+      </tr>
+      <!-- Body -->
+      <tr>
+        <td style="padding:8px 40px 36px;">
+          <!-- Badge -->
+          <div style="text-align:center;margin-bottom:18px;">
+            <span style="display:inline-block;background:#003087;
+                         border-radius:24px;padding:7px 20px;
+                         font-size:12px;font-weight:700;color:#fff;letter-spacing:0.5px;">
+              📅 &nbsp;New Service Booking
+            </span>
+          </div>
+          <p style="margin:0 0 20px;font-size:13px;color:#718096;
+                    text-align:center;line-height:1.7;">
+            A customer has booked a service appointment.<br/>
+            Please review the details below.
+          </p>
+
+          <!-- Info cards row -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+            <tr>
+              <td width="50%" style="padding-right:8px;vertical-align:top;">
+                <div style="background:#f7f8fa;border-radius:10px;padding:14px 16px;">
+                  <div style="font-size:10px;font-weight:700;color:#a0aec0;
+                               text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">
+                    Customer
+                  </div>
+                  <div style="font-size:14px;font-weight:700;color:#1a202c;">
+                    {customer_name}
+                  </div>
+                </div>
+              </td>
+              <td width="50%" style="padding-left:8px;vertical-align:top;">
+                <div style="background:#f7f8fa;border-radius:10px;padding:14px 16px;">
+                  <div style="font-size:10px;font-weight:700;color:#a0aec0;
+                               text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">
+                    Date &amp; Time
+                  </div>
+                  <div style="font-size:13px;font-weight:700;color:#1a202c;">
+                    {preferred_date}
+                  </div>
+                  <div style="font-size:12px;color:#718096;margin-top:2px;">
+                    {preferred_time}
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Vehicle & services table -->
+          <div style="font-size:11px;font-weight:700;color:#4a5568;
+                      text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">
+            Vehicles &amp; Services
+          </div>
+          <table width="100%" cellpadding="0" cellspacing="0"
+                 style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;
+                        border-collapse:separate;border-spacing:0;">
+            <thead>
+              <tr style="background:#f7f8fa;">
+                <th style="padding:9px 14px;font-size:11px;font-weight:700;color:#718096;
+                           text-align:left;border-bottom:1px solid #e2e8f0;">Plate</th>
+                <th style="padding:9px 14px;font-size:11px;font-weight:700;color:#718096;
+                           text-align:left;border-bottom:1px solid #e2e8f0;">Vehicle</th>
+                <th style="padding:9px 14px;font-size:11px;font-weight:700;color:#718096;
+                           text-align:left;border-bottom:1px solid #e2e8f0;">Services</th>
+              </tr>
+            </thead>
+            <tbody>{vehicle_rows}</tbody>
+          </table>
+
+          {notes_row}
+
+          <!-- Status badge -->
+          <div style="margin-top:20px;text-align:center;">
+            <span style="display:inline-block;background:#f0fdf4;
+                         border:1.5px solid #c6f6d5;border-radius:20px;
+                         padding:6px 18px;font-size:12px;font-weight:700;color:#276749;">
+              ✅ &nbsp;Status: Confirmed
+            </span>
+          </div>
+
+          <p style="margin:20px 0 0;font-size:12px;color:#a0aec0;
+                    text-align:center;line-height:1.6;">
+            Log in to the AutoPro admin portal to view or manage this booking.
+          </p>
+        </td>
+      </tr>
+      <!-- Footer -->
+      <tr>
+        <td style="background:#f7f8fa;padding:18px 40px;text-align:center;
+                   border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:11px;color:#a0aec0;line-height:1.6;">
+            &copy; 2025 AutoPro &middot; JA Noble Enterprise Inc<br/>
+            102 National Highway, Brgy. Landayan, San Pedro, Laguna<br/>
+            This is an automated message &mdash; please do not reply.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>"""
+
+    # ── Fetch admin & staff emails from Firestore ──
+    try:
+        fdb = _fs.client()
+        recipients = []
+        for role in target_roles:
+            docs = fdb.collection('users').where('role', '==', role).stream()
+            for doc in docs:
+                d = doc.to_dict()
+                email = (d.get('email') or '').strip()
+                name  = (d.get('name')  or role.capitalize()).strip()
+                if email:
+                    recipients.append({'email': email, 'name': name})
+    except Exception as e:
+        print(f'❌ Firestore lookup error: {e}')
+        return jsonify({'ok': False, 'error': f'Firestore lookup failed: {e}'}), 500
+
+    if not recipients:
+        print('⚠️ send-booking-email: no recipients found for roles', target_roles)
+        return jsonify({'ok': True, 'sent': 0, 'note': 'No recipients found'})
+
+    # ── Send one email per recipient ──
+    sent = 0
+    errors = []
+    for r in recipients:
+        personalized = html_template.replace(
+            'Please review the details below.',
+            f'Hi <strong>{r["name"]}</strong>, please review the details below.'
+        )
+        try:
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = f'📅 New Service Booking — {customer_name}'
+            msg['From']    = SMTP_FROM
+            msg['To']      = r['email']
+            msg.attach(MIMEText(personalized, 'html'))
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+                server.ehlo()
+                server.starttls()
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.sendmail(SMTP_USER, r['email'], msg.as_string())
+            print(f'✅ Booking email → {r["email"]}')
+            sent += 1
+        except Exception as e:
+            print(f'❌ Booking email error → {r["email"]}: {e}')
+            errors.append({'email': r['email'], 'error': str(e)})
+
+    return jsonify({'ok': True, 'sent': sent, 'errors': errors})
+
+
 @app.route('/api/send-alert-email', methods=['POST'])
 def send_alert_email():
     """
