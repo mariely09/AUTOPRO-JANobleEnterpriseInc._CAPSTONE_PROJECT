@@ -19,7 +19,7 @@
 </head>
 <body class="portal-body" data-page="notifications">
 <script>
-// Instant auth guard Ã¢â‚¬â€ blocks bfcache back-navigation after logout
+// Instant auth guard — blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -39,7 +39,7 @@
 })();
 </script>
 
-<!-- Ã¢â€â‚¬Ã¢â€â‚¬ Admin layout Ã¢â€â‚¬Ã¢â€â‚¬ -->
+<!-- ── Admin layout ── -->
 <div id="adminWrap" style="flex-direction:column;width:100%;min-height:100vh;" class="admin-dashboard">
     <div id="headerContainer"></div>
     <div class="admin-dashboard-body">
@@ -47,7 +47,7 @@
         <div class="admin-main">
             <div class="admin-header">
                 <div>
-                    <div class="breadcrumb">Admin Portal Ã¢â‚¬Âº My Profile Ã¢â‚¬Âº Notifications</div>
+                    <div class="breadcrumb">Admin Portal › My Profile › Notifications</div>
                     <div class="admin-header-title">Manage Alerts</div>
                 </div>
             </div>
@@ -58,7 +58,7 @@
     </div>
 </div>
 
-<!-- Ã¢â€â‚¬Ã¢â€â‚¬ Customer / Staff layout Ã¢â€â‚¬Ã¢â€â‚¬ -->
+<!-- ── Customer / Staff layout ── -->
 <div id="standaloneWrap" style="flex-direction:column;min-height:100vh;width:100%;">
     <div id="cuHeaderWrap"></div>
     <main style="flex:1;overflow-y:auto;padding:1.5rem 2rem;background:#F7F8FA;width:100%;box-sizing:border-box;">
@@ -106,7 +106,7 @@
 var _notifRole = window._notifRole || 'customer';
 var _notifUid  = null;
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Defaults Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Defaults ──
 var _prefs = {
     pmsOverdue:     true,
     pmsDueSoon:     true,
@@ -166,7 +166,7 @@ function _renderContent() {
     var isStaffOrAdmin = _notifRole === 'staff' || _notifRole === 'admin';
     var isAdmin        = _notifRole === 'admin';
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Right column: alert cards Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Right column: alert cards ──
     var rightHtml = '<div class="notif-right">';
 
     // Vehicle Alerts (all roles)
@@ -239,7 +239,7 @@ function _renderContent() {
         + '</a>'
         + '<div class="notif-page-grid">'
 
-        // Ã¢â€â‚¬Ã¢â€â‚¬ Left: info card Ã¢â€â‚¬Ã¢â€â‚¬
+        // ── Left: info card ──
         + '<div class="notif-info-card">'
         +   '<div class="notif-info-banner">'
         +     '<div class="notif-info-banner-icon">'
@@ -284,7 +284,7 @@ function _alertTile(iconBg, iconColor, svgPath, label, sub, key, isLast) {
 window.saveNotifPrefs = function () {
     if (!_notifUid) return;
     var btn = document.getElementById('notifSaveBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'SavingÃ¢â‚¬Â¦'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
     var isStaffOrAdmin = _notifRole === 'staff' || _notifRole === 'admin';
     var isAdmin        = _notifRole === 'admin';

@@ -1,4 +1,4 @@
-<!-- Ã¢â€â‚¬Ã¢â€â‚¬ Admin AI Assistant Floating Widget Ã¢â€â‚¬Ã¢â€â‚¬ -->
+<!-- ── Admin AI Assistant Floating Widget ── -->
 <!-- Include this file in admin pages that need the AI chatbot -->
 <!-- Requires: window.assets, window.inventory, window.serviceTransactions from admin_firebase.js -->
 
@@ -39,7 +39,7 @@
   <div id="ragAiHeader" style="background:linear-gradient(135deg,#c62828 0%,#E8001C 60%,#ff5252 100%);padding:14px 12px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:relative;overflow:visible;">
     <!-- Subtle shine overlay -->
     <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.1) 0%,transparent 65%);pointer-events:none;border-radius:22px 22px 0 0;"></div>
-    <!-- Avatar Ã¢â‚¬â€ transparent bg, image fills circle -->
+    <!-- Avatar — transparent bg, image fills circle -->
     <div style="position:relative;flex-shrink:0;">
       <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,0.4);flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.15);background:white;display:flex;align-items:center;justify-content:center;">
         <img src="../static/img/AI_LOGO.png" style="width:36px;height:36px;object-fit:contain;display:block;" alt="AI">
@@ -52,7 +52,7 @@
       <div style="color:#fff;font-size:13.5px;font-weight:700;">AI Assistant</div>
       <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
         <span id="ragAiDot" style="width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;box-shadow:0 0 6px rgba(74,222,128,0.8);"></span>
-        <span id="ragAiStatus" style="font-size:10.5px;color:rgba(255,255,255,0.8);">Online Ã‚Â· AI Assistant</span>
+        <span id="ragAiStatus" style="font-size:10.5px;color:rgba(255,255,255,0.8);">Online · AI Assistant</span>
       </div>
     </div>
     <!-- Clear icon button with tooltip -->
@@ -68,7 +68,7 @@
           <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
         </svg>
       </button>
-      <!-- Tooltip Ã¢â‚¬â€ above the button so it's never clipped -->
+      <!-- Tooltip — above the button so it's never clipped -->
       <div id="ragClearTip" style="position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);
            background:rgba(30,30,30,0.88);color:#fff;font-size:10.5px;font-weight:600;
            padding:4px 9px;border-radius:6px;white-space:nowrap;pointer-events:none;
@@ -83,19 +83,19 @@
              display:flex;align-items:center;justify-content:center;flex-shrink:0;
              transition:background .18s;"
       onmouseover="this.style.background='rgba(255,255,255,0.28)'"
-      onmouseout="this.style.background='rgba(255,255,255,0.15)'">Ãƒâ€”</button>
+      onmouseout="this.style.background='rgba(255,255,255,0.15)'">×</button>
   </div>
 
   <!-- Messages area -->
   <div id="ragAiChat" style="flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px;background:linear-gradient(180deg,#f8f9fb 0%,#f2f4f7 100%);scroll-behavior:smooth;"></div>
 
-  <!-- Quick chips Ã¢â‚¬â€ hidden -->
+  <!-- Quick chips — hidden -->
   <div id="ragAiChips" style="display:none;"></div>
 
   <!-- Input bar -->
   <div style="padding:10px 12px 12px;background:white;border-top:1px solid #edf0f5;flex-shrink:0;">
     <div style="display:flex;gap:8px;align-items:center;background:#f4f6f9;border:1.5px solid #edf0f5;border-radius:20px;padding:8px 8px 8px 14px;transition:border-color .2s,box-shadow .2s;" id="ragInputWrap">
-      <textarea id="ragAiInput" placeholder="Ask about fleet, inventory, reportsÃ¢â‚¬Â¦"
+      <textarea id="ragAiInput" placeholder="Ask about fleet, inventory, reports…"
         rows="1" style="flex:1;border:none;background:transparent;font-size:12.5px;font-family:inherit;color:#1a202c;outline:none;resize:none;max-height:80px;overflow-y:auto;line-height:1.5;padding:2px 0;margin:0;display:block;align-self:center;"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();ragAiSend();}"
         oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'"
@@ -108,7 +108,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
     </div>
-    <div style="text-align:center;font-size:10px;color:#c0c8d4;margin-top:5px;">Enter to send &nbsp;Ã‚Â·&nbsp; Shift+Enter for new line</div>
+    <div style="text-align:center;font-size:10px;color:#c0c8d4;margin-top:5px;">Enter to send &nbsp;·&nbsp; Shift+Enter for new line</div>
   </div>
 </div>
 
@@ -121,16 +121,16 @@
 .rag-chip { padding:4px 10px;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:16px;font-size:11px;font-weight:500;color:#4a5568;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:inherit; }
 .rag-chip:hover { background:#E8001C;color:white;border-color:#E8001C; }
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Message rows Ã¢â€â‚¬Ã¢â€â‚¬ */
+/* ── Message rows ── */
 #ragAiChat .rag-row { display:flex;gap:9px;align-items:flex-end; }
 #ragAiChat .rag-row.user { flex-direction:row-reverse; }
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Avatars Ã¢â€â‚¬Ã¢â€â‚¬ */
+/* ── Avatars ── */
 #ragAiChat .rag-av { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden; }
 #ragAiChat .rag-av.ai  { background:transparent;box-shadow:0 2px 8px rgba(0,0,0,0.12);border:1.5px solid rgba(226,232,240,0.8); }
 #ragAiChat .rag-av.usr { background:linear-gradient(135deg,#475569,#334155);color:white;font-size:10px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.15); }
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Bubbles Ã¢â€â‚¬Ã¢â€â‚¬ */
+/* ── Bubbles ── */
 #ragAiChat .rag-bub { max-width:80%;padding:10px 14px;border-radius:16px;font-size:12.5px;line-height:1.65;word-break:break-word; }
 #ragAiChat .rag-bub.ai {
   background:white;color:#1a202c;
@@ -138,7 +138,7 @@
   box-shadow:0 2px 12px rgba(0,0,0,0.07);
   border:1px solid rgba(226,232,240,0.6);
 }
-/* user class Ã¢â‚¬â€ matches what _ragAppend sets */
+/* user class — matches what _ragAppend sets */
 #ragAiChat .rag-bub.user,
 #ragAiChat .rag-bub.usr {
   background:linear-gradient(135deg,#E8001C 0%,#c0001a 100%);
@@ -147,19 +147,19 @@
   box-shadow:0 3px 12px rgba(232,0,28,0.25);
 }
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Tables inside AI bubble Ã¢â€â‚¬Ã¢â€â‚¬ */
+/* ── Tables inside AI bubble ── */
 #ragAiChat .rag-bub table { width:100%;border-collapse:collapse;margin-top:8px;font-size:11px; }
 #ragAiChat .rag-bub table th { background:#f7f8fa;padding:5px 8px;text-align:left;font-weight:700;color:#4a5568;border-bottom:1.5px solid #e2e8f0;font-size:10.5px; }
 #ragAiChat .rag-bub table td { padding:5px 8px;border-bottom:1px solid #f0f4f8;color:#1a202c; }
 #ragAiChat .rag-bub .sr-tag { display:inline-block;padding:1px 6px;border-radius:12px;font-size:10px;font-weight:700;margin:1px; }
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Typing indicator Ã¢â€â‚¬Ã¢â€â‚¬ */
+/* ── Typing indicator ── */
 .rag-typing { display:flex;gap:5px;align-items:center;padding:10px 14px; }
 .rag-typing span { width:7px;height:7px;background:#cbd5e0;border-radius:50%;animation:ragBounce .9s ease-in-out infinite; }
 .rag-typing span:nth-child(2) { animation-delay:.15s; }
 .rag-typing span:nth-child(3) { animation-delay:.3s; }
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Welcome suggestion pills Ã¢â€â‚¬Ã¢â€â‚¬ */
+/* ── Welcome suggestion pills ── */
 .rag-suggest-pill {
   display:flex;align-items:center;gap:8px;width:100%;text-align:left;
   background:white;
@@ -184,27 +184,27 @@
   transform:translateY(-1px);
 }
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Scrollbar Ã¢â€â‚¬Ã¢â€â‚¬ */
+/* ── Scrollbar ── */
 #ragAiChat::-webkit-scrollbar { width:4px; }
 #ragAiChat::-webkit-scrollbar-track { background:transparent; }
 #ragAiChat::-webkit-scrollbar-thumb { background:#d1d5db;border-radius:4px; }
 #ragAiChat::-webkit-scrollbar-thumb:hover { background:#9ca3af; }
 
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Rate-limit banner Ã¢â€â‚¬Ã¢â€â‚¬ */
+/* ── Rate-limit banner ── */
 .rag-rate-banner { background:#fff7ed;border-bottom:2px solid #fb923c;padding:10px 14px;font-size:11.5px;color:#9a3412;display:flex;align-items:flex-start;gap:8px;flex-shrink:0;line-height:1.55; }
 </style>
 
 <script>
-// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
-//  Admin AI Assistant Ã¢â‚¬â€ Floating Widget
-// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Admin AI Assistant — Floating Widget
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 (function() {
 var _ragInitials = 'AD';
 var _ragReady = false;
-var _ragSessionId = null;  // server-side session key Ã¢â‚¬â€ sent back on each request
+var _ragSessionId = null;  // server-side session key — sent back on each request
 var _ragRateLimited = false;
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Rate-limit helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Rate-limit helpers ────────────────────────────────────────────────────
 function _ragSetRateLimited(limited, resetIn) {
   _ragRateLimited = limited;
   var input  = document.getElementById('ragAiInput');
@@ -212,7 +212,7 @@ function _ragSetRateLimited(limited, resetIn) {
   var banner  = document.getElementById('ragRateBanner');
 
   if (limited) {
-    if (input)   { input.disabled = true;  input.placeholder = 'AI unavailable Ã¢â‚¬â€ daily limit reached'; }
+    if (input)   { input.disabled = true;  input.placeholder = 'AI unavailable — daily limit reached'; }
     if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.45'; sendBtn.style.cursor = 'not-allowed'; }
     if (!banner) {
       // Insert banner below the panel header
@@ -226,7 +226,7 @@ function _ragSetRateLimited(limited, resetIn) {
           'align-items:flex-start;gap:8px;flex-shrink:0;line-height:1.55;';
         b.innerHTML =
           '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#9a3412" style="flex-shrink:0;margin-top:1px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
-          '<div><strong style="display:block;margin-bottom:2px;">AI unavailable Ã¢â‚¬â€ daily token limit reached</strong>' +
+          '<div><strong style="display:block;margin-bottom:2px;">AI unavailable — daily token limit reached</strong>' +
           'Groq free-tier quota is exhausted. Resets in <strong>' + (resetIn || 'some time') + '</strong>. ' +
           'Chat is disabled until then.</div>';
         chat.parentNode.insertBefore(b, chat);
@@ -249,7 +249,7 @@ window.ragAiToggle = function() {
   var dot = document.getElementById('ragFabOnlineDot');
   if (btn) {
     if (!isOpen) {
-      // Now opening Ã¢â‚¬â€ show X, hide dot
+      // Now opening — show X, hide dot
       btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
       btn.style.background = 'linear-gradient(135deg,#E8001C,#c0001a)';
       btn.style.border = 'none';
@@ -257,7 +257,7 @@ window.ragAiToggle = function() {
       btn.style.padding = '0';
       if (dot) dot.style.display = 'none';
     } else {
-      // Now closing Ã¢â‚¬â€ show AI image with red border, restore dot
+      // Now closing — show AI image with red border, restore dot
       btn.innerHTML = '<img id="ragFabAiImg" src="../static/img/AI_LOGO.png" style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">';
       btn.style.background = 'white';
       btn.style.border = '2.5px solid #E8001C';
@@ -296,16 +296,16 @@ function _ragWatch() {
         var txt = document.getElementById('ragAiStatus');
         if (d.online) {
           if (dot) dot.style.background = '#4ade80';
-          if (txt) { txt.textContent = 'Online Ã‚Â· RAG AI'; }
+          if (txt) { txt.textContent = 'Online · RAG AI'; }
         } else {
           if (dot) dot.style.background = '#d69e2e';
-          if (txt) { txt.textContent = 'Online Ã‚Â· Local mode'; }
+          if (txt) { txt.textContent = 'Online · Local mode'; }
         }
       }).catch(function(){
         var dot = document.getElementById('ragAiDot');
         var txt = document.getElementById('ragAiStatus');
         if (dot) dot.style.background = '#d69e2e';
-        if (txt) { txt.textContent = 'Online Ã‚Â· Local mode'; }
+        if (txt) { txt.textContent = 'Online · Local mode'; }
       });
     }
   }, 600);
@@ -339,8 +339,8 @@ function _ragMarkdown(text) {
   s = s.replace(/^## (.+)$/gm,  '<div style="font-weight:700;font-size:13.5px;margin:8px 0 3px;color:#1a202c;">$1</div>');
   s = s.replace(/^# (.+)$/gm,   '<div style="font-weight:800;font-size:14px;margin:8px 0 4px;color:#1a202c;">$1</div>');
 
-  // Bullet lists: lines starting with - or * or Ã¢â‚¬Â¢
-  s = s.replace(/^[\-\*Ã¢â‚¬Â¢] (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;flex-shrink:0;margin-top:1px;">Ã¢â‚¬Â¢</span><span>$1</span></div>');
+  // Bullet lists: lines starting with - or * or •
+  s = s.replace(/^[\-\*•] (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;flex-shrink:0;margin-top:1px;">•</span><span>$1</span></div>');
 
   // Numbered lists: lines starting with 1. 2. etc.
   s = s.replace(/^(\d+)\. (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;font-weight:700;flex-shrink:0;min-width:16px;">$1.</span><span>$2</span></div>');
@@ -348,7 +348,7 @@ function _ragMarkdown(text) {
   // Horizontal rule ---
   s = s.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid #e2e8f0;margin:8px 0;">');
 
-  // Line breaks Ã¢â‚¬â€ double newline = paragraph gap, single = <br>
+  // Line breaks — double newline = paragraph gap, single = <br>
   s = s.replace(/\n\n/g, '<div style="height:6px;"></div>');
   s = s.replace(/\n/g, '<br>');
 
@@ -386,7 +386,7 @@ window.ragAiSend = function(preset) {
   var text = (preset||input.value).trim();
   if (!text) return;
   if (_ragRateLimited) { return; }  // blocked while rate-limited
-  if (!_ragReady) { _ragAppend('ai','<strong>Still loading dataÃ¢â‚¬Â¦</strong> Please wait.'); return; }
+  if (!_ragReady) { _ragAppend('ai','<strong>Still loading data…</strong> Please wait.'); return; }
   // Hide welcome block on first real message
   var wb = document.getElementById('ragWelcomeBlock');
   if (wb) wb.remove();
@@ -395,7 +395,7 @@ window.ragAiSend = function(preset) {
   input.value=''; input.style.height='auto';
   _ragTyping();
 
-  // Call the Flask AI endpoint Ã¢â‚¬â€ session_id enables server-side memory
+  // Call the Flask AI endpoint — session_id enables server-side memory
   fetch('/api/ai-chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -411,7 +411,7 @@ window.ragAiSend = function(preset) {
     // Persist the session_id returned by the backend for memory continuity
     if (data.session_id) { _ragSessionId = data.session_id; }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Rate limit notice Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Rate limit notice ─────────────────────────────────────────────────
     if (data.rate_limited) {
       _ragSetRateLimited(true, data.reset_in || 'some time');
       var resetMsg = data.reset_in || 'some time';
@@ -430,7 +430,7 @@ window.ragAiSend = function(preset) {
 
     if (data.offline || !data.success) {
       if (data.cold_start) {
-        // Render cold start Ã¢â‚¬â€ backend is waking up, not truly offline
+        // Render cold start — backend is waking up, not truly offline
         _ragAppend('ai',
           '<div style="background:#ebf8ff;border:1px solid #bee3f8;border-radius:8px;padding:9px 12px;font-size:11.5px;color:#2b6cb0;">' +
           '&#x26A0; <strong>AI service is warming up</strong> (Render cold start).<br>' +
@@ -438,13 +438,13 @@ window.ragAiSend = function(preset) {
           '</div>'
         );
       } else {
-        // Truly offline Ã¢â‚¬â€ fall back to local JS engine
-        _ragAppend('ai', '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:7px 11px;font-size:11px;color:#9a3412;margin-bottom:6px;"><strong>AI backend offline</strong> Ã¢â‚¬â€ using local data mode.</div>');
+        // Truly offline — fall back to local JS engine
+        _ragAppend('ai', '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:7px 11px;font-size:11px;color:#9a3412;margin-bottom:6px;"><strong>AI backend offline</strong> — using local data mode.</div>');
         var result = _ragProcess(text);
         _ragAppend('ai', result.html);
       }
     } else if (data.report_ready) {
-      // Report is ready Ã¢â‚¬â€ show message with ONLY the requested download button(s)
+      // Report is ready — show message with ONLY the requested download button(s)
       var answer = (data.answer || '').replace(/\n/g, '<br>');
       var rMonth   = data.report_month       || null;
       var rStart   = data.report_start_date  || null;
@@ -455,12 +455,12 @@ window.ragAiSend = function(preset) {
       // Build a human-readable filter label for the button text
       var filterLabel = '';
       if (rStart || rEnd) {
-        filterLabel = ' (' + (rStart || 'Ã¢â‚¬â€') + ' to ' + (rEnd || 'Ã¢â‚¬â€') + ')';
+        filterLabel = ' (' + (rStart || '—') + ' to ' + (rEnd || '—') + ')';
       } else if (rMonth) {
         filterLabel = ' (' + rMonth + ')';
       }
 
-      // Ã¢â€â‚¬Ã¢â€â‚¬ Safe button approach: store params in a JS map, never inject into onclick Ã¢â€â‚¬Ã¢â€â‚¬
+      // ── Safe button approach: store params in a JS map, never inject into onclick ──
       // Injecting JSON.stringify into an onclick attribute breaks on any string value
       // containing quotes (e.g. owner names). Instead we assign a unique ID and look up.
       var rId = 'rp_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
@@ -501,15 +501,15 @@ window.ragAiSend = function(preset) {
       // Render the AI answer with lightweight markdown formatting
       _ragAppend('ai', _ragMarkdown(data.answer));
     } else {
-      // AI returned success but no answer Ã¢â‚¬â€ use local fallback
+      // AI returned success but no answer — use local fallback
       var result = _ragProcess(text);
       _ragAppend('ai', result.html);
     }
   })
   .catch(function(err) {
-    // Network error or Flask backend down Ã¢â‚¬â€ fall back to local JS query engine
+    // Network error or Flask backend down — fall back to local JS query engine
     _ragRemoveTyping();
-    _ragAppend('ai', '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:7px 11px;font-size:11px;color:#9a3412;margin-bottom:6px;"><strong>AI backend unreachable</strong> Ã¢â‚¬â€ using local data mode.</div>');
+    _ragAppend('ai', '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:7px 11px;font-size:11px;color:#9a3412;margin-bottom:6px;"><strong>AI backend unreachable</strong> — using local data mode.</div>');
     var result = _ragProcess(text);
     _ragAppend('ai', result.html);
   });
@@ -528,13 +528,13 @@ window.ragAiClear = function() {
 };
 
 window.ragDownloadReport = function(reportId, format) {
-  // Ã¢â€â‚¬Ã¢â€â‚¬ Guard: block concurrent downloads Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+  // ── Guard: block concurrent downloads ────────────────────────────────────
   if (window._ragDownloading) return;
 
   // Look up the stored report params for this button
   var params = (window._ragReportParams || {})[reportId];
   if (!params) {
-    // Params missing Ã¢â‚¬â€ show inline error in the error slot if it exists
+    // Params missing — show inline error in the error slot if it exists
     var errSlot = document.getElementById(reportId + '_err');
     if (errSlot) errSlot.innerHTML = '<span style="color:#E8001C;">Session expired. Please ask for the report again.</span>';
     return;
@@ -548,7 +548,7 @@ window.ragDownloadReport = function(reportId, format) {
   var errSlot    = document.getElementById(reportId + '_err');
   var btn        = document.getElementById(reportId + '_' + format);
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ Lock: disable all buttons for this report, show spinner on clicked one Ã¢â€â‚¬
+  // ── Lock: disable all buttons for this report, show spinner on clicked one ─
   window._ragDownloading = true;
   ['pdf','excel'].forEach(function(f) {
     var b = document.getElementById(reportId + '_' + f);
@@ -564,11 +564,11 @@ window.ragDownloadReport = function(reportId, format) {
     btn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px;">'
       + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:ragSpin 0.8s linear infinite;">'
       + '<path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>'
-      + 'GeneratingÃ¢â‚¬Â¦</span>';
+      + 'Generating…</span>';
   }
   if (errSlot) errSlot.innerHTML = '';
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ Build request body Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+  // ── Build request body ────────────────────────────────────────────────────
   var body = { report_type: reportType, format: format };
   if (startDate || endDate) {
     if (startDate) body.start_date = startDate;
@@ -596,7 +596,7 @@ window.ragDownloadReport = function(reportId, format) {
     return res.blob();
   })
   .then(function(blob) {
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Build filename Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Build filename ──────────────────────────────────────────────────────
     var ext = format === 'pdf' ? '.pdf' : '.xlsx';
     var safeSuffix = '';
     if (startDate || endDate) {
@@ -607,7 +607,7 @@ window.ragDownloadReport = function(reportId, format) {
     }
     var filename = reportType + '_report' + safeSuffix + ext;
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Trigger browser download Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Trigger browser download ────────────────────────────────────────────
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url; a.download = filename;
@@ -615,7 +615,7 @@ window.ragDownloadReport = function(reportId, format) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Update button to "Downloaded Ã¢Å“â€œ" permanently Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Update button to "Downloaded ✓" permanently ────────────────────────
     if (btn) {
       btn.innerHTML = '&#x2713; Downloaded';
       btn.style.background = '#38a169';
@@ -636,7 +636,7 @@ window.ragDownloadReport = function(reportId, format) {
     });
   })
   .catch(function(err) {
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Restore buttons and show inline error Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Restore buttons and show inline error ──────────────────────────────
     ['pdf','excel'].forEach(function(f) {
       var b = document.getElementById(reportId + '_' + f);
       if (b) {
@@ -649,7 +649,7 @@ window.ragDownloadReport = function(reportId, format) {
       // Restore original label
       var origLabel = format.toUpperCase();
       var filterLabel = '';
-      if (startDate || endDate) filterLabel = ' (' + (startDate||'Ã¢â‚¬â€') + ' to ' + (endDate||'Ã¢â‚¬â€') + ')';
+      if (startDate || endDate) filterLabel = ' (' + (startDate||'—') + ' to ' + (endDate||'—') + ')';
       else if (month) filterLabel = ' (' + month + ')';
       btn.innerHTML = '&#x2193; Download ' + origLabel + filterLabel;
     }
@@ -686,7 +686,7 @@ function _ragShowWelcome() {
     '</div>';
   chat.appendChild(div);
 
-  // Attach click handlers after DOM insertion Ã¢â‚¬â€ avoids inline onclick quoting issues
+  // Attach click handlers after DOM insertion — avoids inline onclick quoting issues
   var pills = div.querySelectorAll('.rag-suggest-pill');
   pills.forEach(function(btn) {
     btn.addEventListener('click', function() {
@@ -696,14 +696,14 @@ function _ragShowWelcome() {
   });
 }
 
-// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Query Engine (same logic as admin_smart_reports.html)
-// Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 function _ragProcess(query) {
   var q = query.toLowerCase().trim();
   var assets=window.assets||[], inventory=window.inventory||[], services=window.serviceTransactions||[], issuances=window.issuances||[], users=window.users||[];
   var MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  function fmtP(n){return 'Ã¢â€šÂ±'+(parseFloat(n)||0).toLocaleString('en-PH',{minimumFractionDigits:2});}
+  function fmtP(n){return '₱'+(parseFloat(n)||0).toLocaleString('en-PH',{minimumFractionDigits:2});}
   function tag(t,c,b){return '<span class="sr-tag" style="background:'+b+';color:'+c+';">'+_ragEsc(t)+'</span>';}
   function isOverdue(a){var s=(a.status||'').toLowerCase();return s==='overdue'||s.includes('overdue');}
   function isMaint(a){var s=(a.status||'').toLowerCase();return s==='maintenance'||s.includes('maintenance');}
@@ -711,7 +711,7 @@ function _ragProcess(query) {
   function isActive(a){var s=(a.status||'').toLowerCase();return s==='active'||s==='on track';}
   function isLowStock(i){return (parseInt(i.stock)||0)<=(parseInt(i.minLevel)||0);}
   function statusTag(raw){
-    var s=(raw||'').toLowerCase(),label=raw||'Ã¢â‚¬â€';
+    var s=(raw||'').toLowerCase(),label=raw||'—';
     if(s==='overdue'||s.includes('overdue'))label='Overdue';
     else if(s==='maintenance'||s.includes('maintenance'))label='Maintenance';
     else if(s==='due-soon'||s.includes('due'))label='Due Soon';
@@ -731,51 +731,51 @@ function _ragProcess(query) {
   // Fleet summary
   if(q.includes('fleet summary')||q.includes('summary')||q.includes('overview')){
     var tot=assets.length,ov=assets.filter(isOverdue).length,mt=assets.filter(isMaint).length,ds=assets.filter(isDueSoon).length,ac=assets.filter(isActive).length,ls=inventory.filter(isLowStock).length;
-    return ret('<strong>Fleet Summary</strong><br>Ã¢â‚¬Â¢ Vehicles: <strong>'+tot+'</strong> (Active: '+ac+', Maintenance: '+mt+')<br>Ã¢â‚¬Â¢ PMS Overdue: <strong>'+ov+'</strong>, Due Soon: <strong>'+ds+'</strong><br>Ã¢â‚¬Â¢ Low Stock Items: <strong>'+ls+'</strong><br>Ã¢â‚¬Â¢ Services: <strong>'+services.length+'</strong>');
+    return ret('<strong>Fleet Summary</strong><br>• Vehicles: <strong>'+tot+'</strong> (Active: '+ac+', Maintenance: '+mt+')<br>• PMS Overdue: <strong>'+ov+'</strong>, Due Soon: <strong>'+ds+'</strong><br>• Low Stock Items: <strong>'+ls+'</strong><br>• Services: <strong>'+services.length+'</strong>');
   }
   // All vehicles
   if((q.includes('all')&&q.includes('vehicle'))||q.includes('show vehicle')||q.includes('list vehicle')){
     if(!assets.length)return ret('No vehicles found.');
-    var rows=assets.slice(0,15).map(function(a){return [_ragEsc(a.plateNumber||'Ã¢â‚¬â€'),_ragEsc(a.assetDescription||'Ã¢â‚¬â€'),statusTag(a.status)];});
+    var rows=assets.slice(0,15).map(function(a){return [_ragEsc(a.plateNumber||'—'),_ragEsc(a.assetDescription||'—'),statusTag(a.status)];});
     return ret('<strong>Vehicles ('+assets.length+')</strong>'+tbl(['Plate','Description','Status'],rows));
   }
   // Under maintenance
   if(q.includes('under maintenance')||(q.includes('maintenance')&&!q.includes('cost'))){
     var list=assets.filter(isMaint);
     if(!list.length)return ret('No vehicles under maintenance.');
-    var rows=list.map(function(a){return [_ragEsc(a.plateNumber||'Ã¢â‚¬â€'),_ragEsc(a.assetDescription||'Ã¢â‚¬â€'),_ragEsc(a.owner||'Ã¢â‚¬â€')];});
+    var rows=list.map(function(a){return [_ragEsc(a.plateNumber||'—'),_ragEsc(a.assetDescription||'—'),_ragEsc(a.owner||'—')];});
     return ret('<strong>Under Maintenance ('+list.length+')</strong>'+tbl(['Plate','Description','Owner'],rows));
   }
   // PMS overdue
   if(q.includes('overdue')){
     var list=assets.filter(isOverdue);
     if(!list.length)return ret('No PMS overdue vehicles.');
-    var rows=list.map(function(a){return [_ragEsc(a.plateNumber||'Ã¢â‚¬â€'),_ragEsc(a.assetDescription||'Ã¢â‚¬â€'),_ragEsc(a.owner||'Ã¢â‚¬â€')];});
+    var rows=list.map(function(a){return [_ragEsc(a.plateNumber||'—'),_ragEsc(a.assetDescription||'—'),_ragEsc(a.owner||'—')];});
     return ret('<strong>PMS Overdue ('+list.length+')</strong>'+tbl(['Plate','Description','Owner'],rows));
   }
   // Due soon
   if(q.includes('due this week')||q.includes('due soon')||(q.includes('pms')&&q.includes('due'))){
     var list=assets.filter(isDueSoon);
     if(!list.length)return ret('No PMS due soon.');
-    var rows=list.map(function(a){return [_ragEsc(a.plateNumber||'Ã¢â‚¬â€'),_ragEsc(a.assetDescription||'Ã¢â‚¬â€'),statusTag(a.status)];});
+    var rows=list.map(function(a){return [_ragEsc(a.plateNumber||'—'),_ragEsc(a.assetDescription||'—'),statusTag(a.status)];});
     return ret('<strong>PMS Due Soon ('+list.length+')</strong>'+tbl(['Plate','Description','Status'],rows));
   }
   // Low stock
   if(q.includes('low')&&q.includes('stock')){
     var list=inventory.filter(isLowStock);
     if(!list.length)return ret('All stock levels adequate.');
-    var rows=list.map(function(i){return [_ragEsc(i.itemName||'Ã¢â‚¬â€'),String(i.stock||0)+'/'+String(i.minLevel||0),_ragEsc(i.unit||'')];});
+    var rows=list.map(function(i){return [_ragEsc(i.itemName||'—'),String(i.stock||0)+'/'+String(i.minLevel||0),_ragEsc(i.unit||'')];});
     return ret('<strong>Low Stock ('+list.length+')</strong>'+tbl(['Item','Stock/Min','Unit'],rows));
   }
   // Inventory summary
   if(q.includes('inventory summary')||q.includes('inventory overview')){
     var tot=inventory.length,ls=inventory.filter(isLowStock).length,ok=tot-ls;
-    return ret('<strong>Inventory</strong><br>Ã¢â‚¬Â¢ Total: <strong>'+tot+'</strong><br>Ã¢â‚¬Â¢ OK: <strong>'+ok+'</strong><br>Ã¢â‚¬Â¢ Low: <strong>'+ls+'</strong>');
+    return ret('<strong>Inventory</strong><br>• Total: <strong>'+tot+'</strong><br>• OK: <strong>'+ok+'</strong><br>• Low: <strong>'+ls+'</strong>');
   }
   // Materials / parts / stock list
   if(q.includes('material')||q.includes('parts')||q.includes('supplies')||q.includes('stock item')||(q.includes('list')&&q.includes('inventor'))||(q.includes('show')&&(q.includes('stock')||q.includes('inventor')))){
     if(!inventory.length)return ret('No inventory data loaded yet.');
-    var rows=inventory.slice(0,20).map(function(i){return [_ragEsc(i.itemName||i.name||'Ã¢â‚¬â€'),String(i.stock||0),_ragEsc(i.unit||i.uom||''),_ragEsc(i.group||'Ã¢â‚¬â€')];});
+    var rows=inventory.slice(0,20).map(function(i){return [_ragEsc(i.itemName||i.name||'—'),String(i.stock||0),_ragEsc(i.unit||i.uom||''),_ragEsc(i.group||'—')];});
     var note=inventory.length>20?'<div style="font-size:10px;color:#718096;margin-top:4px;">Showing 20 of '+inventory.length+' items. Start the AI backend for the full list.</div>':'';
     return ret('<strong>Materials / Stock ('+inventory.length+')</strong>'+tbl(['Item','Stock','Unit','Group'],rows)+note);
   }
@@ -783,8 +783,8 @@ function _ragProcess(query) {
   if(q.includes('inventory')){
     if(!inventory.length)return ret('No inventory data loaded yet.');
     var tot=inventory.length,ls=inventory.filter(isLowStock).length,ok=tot-ls;
-    var rows=inventory.slice(0,15).map(function(i){return [_ragEsc(i.itemName||i.name||'Ã¢â‚¬â€'),String(i.stock||0),_ragEsc(i.unit||i.uom||'')];});
-    return ret('<strong>Inventory ('+tot+')</strong><br>Ã¢â‚¬Â¢ OK: <strong>'+ok+'</strong> &nbsp;Ã¢â‚¬Â¢ Low: <strong>'+ls+'</strong>'+tbl(['Item','Stock','Unit'],rows));
+    var rows=inventory.slice(0,15).map(function(i){return [_ragEsc(i.itemName||i.name||'—'),String(i.stock||0),_ragEsc(i.unit||i.uom||'')];});
+    return ret('<strong>Inventory ('+tot+')</strong><br>• OK: <strong>'+ok+'</strong> &nbsp;• Low: <strong>'+ls+'</strong>'+tbl(['Item','Stock','Unit'],rows));
   }
   // Cost
   if(q.includes('cost')||q.includes('expense')){
@@ -792,13 +792,13 @@ function _ragProcess(query) {
     var thisMonth=services.filter(function(s){var d=s.dateServiced||s.date||'';if(!d)return false;var dt=new Date(d);return !isNaN(dt)&&dt.getMonth()===now.getMonth()&&dt.getFullYear()===now.getFullYear();});
     var mCost=thisMonth.reduce(function(s,t){return s+(parseFloat(t.totalCost||t.cost||0)||0);},0);
     var aCost=services.reduce(function(s,t){return s+(parseFloat(t.totalCost||t.cost||0)||0);},0);
-    return ret('<strong>Maintenance Cost</strong><br>Ã¢â‚¬Â¢ This month: <strong>'+fmtP(mCost)+'</strong> ('+thisMonth.length+' services)<br>Ã¢â‚¬Â¢ All time: <strong>'+fmtP(aCost)+'</strong>');
+    return ret('<strong>Maintenance Cost</strong><br>• This month: <strong>'+fmtP(mCost)+'</strong> ('+thisMonth.length+' services)<br>• All time: <strong>'+fmtP(aCost)+'</strong>');
   }
   // Pending
   if(q.includes('pending')){
     var list=services.filter(function(s){return (s.status||'').toLowerCase()==='pending';});
     if(!list.length)return ret('No pending services.');
-    var rows=list.map(function(s){return [_ragEsc(s.plate||'Ã¢â‚¬â€'),_ragEsc(s.mechanicName||s.mechanic||'Ã¢â‚¬â€'),_ragEsc(s.dateServiced||s.date||'Ã¢â‚¬â€')];});
+    var rows=list.map(function(s){return [_ragEsc(s.plate||'—'),_ragEsc(s.mechanicName||s.mechanic||'—'),_ragEsc(s.dateServiced||s.date||'—')];});
     return ret('<strong>Pending ('+list.length+')</strong>'+tbl(['Plate','Mechanic','Date'],rows));
   }
   // Fast moving
@@ -813,10 +813,10 @@ function _ragProcess(query) {
   // Users
   if(q.includes('user')||q.includes('staff')){
     var adm=users.filter(function(u){return u.role==='admin';}).length,stf=users.filter(function(u){return u.role==='staff';}).length,cus=users.filter(function(u){return u.role==='customer';}).length;
-    return ret('<strong>Users ('+users.length+')</strong><br>Ã¢â‚¬Â¢ Admin: '+adm+'<br>Ã¢â‚¬Â¢ Staff: '+stf+'<br>Ã¢â‚¬Â¢ Customer: '+cus);
+    return ret('<strong>Users ('+users.length+')</strong><br>• Admin: '+adm+'<br>• Staff: '+stf+'<br>• Customer: '+cus);
   }
   // Fallback
-  return ret('<strong>AI backend offline</strong> Ã¢â‚¬â€ running in local mode.<br><span style="font-size:11px;color:#718096;">Local mode supports: <em>fleet summary, overdue, due soon, low stock, inventory, materials, cost, pending, fast moving, users</em>.<br>For full natural language queries, start the AI backend (<code>start.bat</code>).</span>');
+  return ret('<strong>AI backend offline</strong> — running in local mode.<br><span style="font-size:11px;color:#718096;">Local mode supports: <em>fleet summary, overdue, due soon, low stock, inventory, materials, cost, pending, fast moving, users</em>.<br>For full natural language queries, start the AI backend (<code>start.bat</code>).</span>');
 }
 
 })();

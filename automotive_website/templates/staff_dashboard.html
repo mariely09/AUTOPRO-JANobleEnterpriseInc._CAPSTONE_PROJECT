@@ -12,7 +12,7 @@
 </head>
 <body>
 <script>
-// Instant auth guard Ã¢â‚¬â€ blocks bfcache back-navigation after logout
+// Instant auth guard — blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -89,7 +89,7 @@
                 </div>
             </div>
             <button class="sf-logout-btn" onclick="sfLogout()">
-                <span>Ã°Å¸Å¡Âª</span> Logout
+                <span>🚪</span> Logout
             </button>
         </div>
     </aside>
@@ -240,7 +240,7 @@
     <div class="sf-modal-content" style="max-width:480px;">
         <div class="sf-modal-header blue">
             <div>
-                <div class="sf-modal-title">Ã°Å¸â€œÂ¥ Receive Items</div>
+                <div class="sf-modal-title">📥 Receive Items</div>
                 <div class="sf-modal-sub">Update stock from delivery</div>
             </div>
             <button class="sf-modal-close" onclick="sfCloseReceiveModal()">&times;</button>
@@ -251,10 +251,10 @@
                 <input type="text" id="sfReceiveSearch" class="sf-input" placeholder="Item name or code..." oninput="sfSearchReceiveItem()">
             </div>
             <div id="sfReceiveInfo" style="display:none;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:14px;margin-bottom:16px;">
-                <div style="font-size:11px;font-weight:700;color:#16a34a;text-transform:uppercase;margin-bottom:8px;">Ã¢Å“â€¦ Item Found</div>
+                <div style="font-size:11px;font-weight:700;color:#16a34a;text-transform:uppercase;margin-bottom:8px;">✅ Item Found</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                    <div><div style="font-size:10px;color:#718096;font-weight:600;text-transform:uppercase;">Item</div><div style="font-weight:700;font-size:13px;" id="sfReceiveItemName">Ã¢â‚¬â€</div></div>
-                    <div><div style="font-size:10px;color:#718096;font-weight:600;text-transform:uppercase;">Current Stock</div><div style="font-weight:700;font-size:13px;" id="sfReceiveCurrentStock">Ã¢â‚¬â€</div></div>
+                    <div><div style="font-size:10px;color:#718096;font-weight:600;text-transform:uppercase;">Item</div><div style="font-weight:700;font-size:13px;" id="sfReceiveItemName">—</div></div>
+                    <div><div style="font-size:10px;color:#718096;font-weight:600;text-transform:uppercase;">Current Stock</div><div style="font-weight:700;font-size:13px;" id="sfReceiveCurrentStock">—</div></div>
                 </div>
             </div>
             <div class="sf-form-group">
@@ -263,7 +263,7 @@
             </div>
             <div style="display:flex;gap:10px;margin-top:8px;">
                 <button class="sf-btn sf-btn-secondary" style="flex:1;" onclick="sfCloseReceiveModal()">Cancel</button>
-                <button class="sf-btn sf-btn-success" style="flex:2;" onclick="sfSubmitReceive()">Ã¢Å“â€¦ Confirm & Update Stock</button>
+                <button class="sf-btn sf-btn-success" style="flex:2;" onclick="sfSubmitReceive()">✅ Confirm & Update Stock</button>
             </div>
         </div>
     </div>
@@ -274,7 +274,7 @@
     <div class="sf-modal-content" style="max-width:520px;">
         <div class="sf-modal-header">
             <div>
-                <div class="sf-modal-title">Ã°Å¸â€Â§ New Service</div>
+                <div class="sf-modal-title">🔧 New Service</div>
                 <div class="sf-modal-sub">Create service transaction</div>
             </div>
             <button class="sf-modal-close" onclick="sfCloseNewServiceModal()">&times;</button>
@@ -309,12 +309,12 @@
                 <input type="text" id="sfSvcDesc" class="sf-input" placeholder="e.g. Change oil, brake inspection...">
             </div>
             <div class="sf-form-group">
-                <label class="sf-label">Total Cost (Ã¢â€šÂ±)</label>
+                <label class="sf-label">Total Cost (₱)</label>
                 <input type="number" id="sfSvcCost" class="sf-input" placeholder="0.00" min="0" step="0.01">
             </div>
             <div style="display:flex;gap:10px;margin-top:8px;">
                 <button class="sf-btn sf-btn-secondary" style="flex:1;" onclick="sfCloseNewServiceModal()">Cancel</button>
-                <button class="sf-btn sf-btn-primary" style="flex:2;" onclick="sfSubmitService()">Ã°Å¸â€™Â¾ Save Service</button>
+                <button class="sf-btn sf-btn-primary" style="flex:2;" onclick="sfSubmitService()">💾 Save Service</button>
             </div>
         </div>
     </div>
@@ -325,7 +325,7 @@
     <div class="sf-modal-content" style="max-width:480px;">
         <div class="sf-modal-header">
             <div>
-                <div class="sf-modal-title">Ã°Å¸Å¡â€” Add New Vehicle</div>
+                <div class="sf-modal-title">🚗 Add New Vehicle</div>
                 <div class="sf-modal-sub">Fill in the vehicle details</div>
             </div>
             <button class="sf-modal-close" onclick="sfCloseAddVehicleModal()">&times;</button>
@@ -351,7 +351,7 @@
             </div>
             <div style="display:flex;gap:10px;margin-top:8px;">
                 <button class="sf-btn sf-btn-secondary" style="flex:1;" onclick="sfCloseAddVehicleModal()">Cancel</button>
-                <button class="sf-btn sf-btn-primary" style="flex:2;" onclick="sfSubmitAddVehicle()">Ã°Å¸â€™Â¾ Save Vehicle</button>
+                <button class="sf-btn sf-btn-primary" style="flex:2;" onclick="sfSubmitAddVehicle()">💾 Save Vehicle</button>
             </div>
         </div>
     </div>

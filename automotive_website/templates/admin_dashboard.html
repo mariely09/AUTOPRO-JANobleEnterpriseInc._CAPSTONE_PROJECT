@@ -191,7 +191,7 @@
 </head>
 <body class="portal-body" data-page="overview">
 <script>
-// Instant auth guard Ã¢â‚¬â€ blocks bfcache back-navigation after logout
+// Instant auth guard — blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -234,8 +234,8 @@
                         <select id="txnSortSelect" onchange="renderInventoryTransactions()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
                             <option value="date-desc">Date (Newest First)</option>
                             <option value="date-asc">Date (Oldest First)</option>
-                            <option value="item-asc">Item Name A?Z</option>
-                            <option value="item-desc">Item Name Z?A</option>
+                            <option value="item-asc">Item Name A→Z</option>
+                            <option value="item-desc">Item Name Z→A</option>
                             <option value="qty-desc">Qty (Highest)</option>
                             <option value="qty-asc">Qty (Lowest)</option>
                         </select>
@@ -257,7 +257,7 @@
                         </select>
                         <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
-                    <!-- Date Range Filter removed from header Ã¢â‚¬â€ now lives inside the section filter bar -->
+                    <!-- Date Range Filter removed from header — now lives inside the section filter bar -->
                     <button class="btn-icon btn-secondary" onclick="printTransactions()" style="display:flex;align-items:center;gap:0.3rem;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                         Print
@@ -278,8 +278,8 @@
                         <select id="issSortSelect" onchange="renderIssuancesList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
                             <option value="date-desc">Date (Newest First)</option>
                             <option value="date-asc">Date (Oldest First)</option>
-                            <option value="item-asc">Item Name A?Z</option>
-                            <option value="item-desc">Item Name Z?A</option>
+                            <option value="item-asc">Item Name A→Z</option>
+                            <option value="item-desc">Item Name Z→A</option>
                             <option value="qty-desc">Qty (Highest)</option>
                             <option value="qty-asc">Qty (Lowest)</option>
                             <option value="cost-desc">Cost (Highest)</option>
@@ -295,7 +295,7 @@
                         </select>
                         <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
-                    <!-- Date Range Filter removed from header Ã¢â‚¬â€ now lives inside the section filter bar -->
+                    <!-- Date Range Filter removed from header — now lives inside the section filter bar -->
                     <div style="position:relative;display:flex;align-items:center;">
                         <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                         <select id="issCommodityFilterDropdown" onchange="issSetCommodityFilter(this.value)" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:150px;outline:none;">
@@ -366,7 +366,7 @@
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                                 </div>
                                 <div style="flex:1;min-width:0;">
-                                    <div class="dash-chart-title">Services by Type Ã¢â‚¬â€ Last 7 Days</div>
+                                    <div class="dash-chart-title">Services by Type — Last 7 Days</div>
                                     <div class="dash-chart-sub">Completed service types per day</div>
                                 </div>
                                 <div id="barChartTotal" class="dash-chart-badge" style="background:#fff5f5;color:#E8001C;flex-shrink:0;"></div>
@@ -488,7 +488,7 @@
                             <div class="stat-label">Materials</div>
                         </div>
                     </div>
-                    <!-- Filter pills Ã¢â‚¬â€ Issuances -->
+                    <!-- Filter pills — Issuances -->
                     <div class="dss-filter-bar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
                         <div class="dss-filter-group">
                             <label class="dss-filter-label">Filter by Type</label>
@@ -554,7 +554,7 @@
                             <div class="stat-label">Stock Out (Issued)</div>
                         </div>
                     </div>
-                    <!-- Filter pills Ã¢â‚¬â€ Inventory Transactions -->
+                    <!-- Filter pills — Inventory Transactions -->
                     <div class="dss-filter-bar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
                         <div class="dss-filter-group">
                             <label class="dss-filter-label">Filter by Type</label>
@@ -720,7 +720,7 @@
         const transactions = window._fbTransactions || [];
 
         // ----------------------------------------
-        // 1. STACKED BAR CHART Ã¢â‚¬â€ Services by Type, last 7 days
+        // 1. STACKED BAR CHART — Services by Type, last 7 days
         // ----------------------------------------
         const { labels: barLabels, keys: barKeys } = _last7DayLabels();
 
@@ -784,7 +784,7 @@
           barLegendEl.innerHTML = allTypes.map((t, i) =>
             '<span style="display:flex;align-items:center;gap:4px;font-size:0.7rem;color:#4a5568;">'
             + '<span style="width:10px;height:10px;border-radius:3px;background:' + typeColors[i] + ';display:inline-block;"></span>'
-            + (t.length > 14 ? t.slice(0, 12) + 'Ã¢â‚¬Â¦' : t)
+            + (t.length > 14 ? t.slice(0, 12) + '…' : t)
             + '</span>'
           ).join('');
         }
@@ -861,7 +861,7 @@
         }
 
         // ----------------------------------------
-        // 2. DONUT CHART Ã¢â‚¬â€ Vehicle status
+        // 2. DONUT CHART — Vehicle status
         // ----------------------------------------
         // Use the same date-math logic as the DSS PMS tab so counts stay in sync.
         let active = 0, dueSoon = 0, overdue = 0, maintenance = 0;
@@ -948,7 +948,7 @@
         }
 
         // ----------------------------------------
-        // 3. LINE CHART Ã¢â‚¬â€ Stock In vs Stock Out by month
+        // 3. LINE CHART — Stock In vs Stock Out by month
         // ----------------------------------------
         // Build last 12 months
         const now = new Date();
@@ -959,11 +959,11 @@
           monthLabels.push(MONTHS[d.getMonth()]); // month name only
           monthKeys.push({ month: d.getMonth(), year: d.getFullYear() });
         }
-        // Year range for subtitle (e.g. "Jun 2025 Ã¢â‚¬â€œ May 2026")
+        // Year range for subtitle (e.g. "Jun 2025 – May 2026")
         const firstKey = monthKeys[0];
         const lastKey  = monthKeys[monthKeys.length - 1];
         const yearRange = MONTHS[firstKey.month] + ' ' + firstKey.year
-                        + ' Ã¢â‚¬â€œ ' + MONTHS[lastKey.month] + ' ' + lastKey.year;
+                        + ' – ' + MONTHS[lastKey.month] + ' ' + lastKey.year;
         const lineSubEl = document.getElementById('stockLineSubLabel');
         if (lineSubEl) lineSubEl.textContent = yearRange;
 
@@ -993,7 +993,7 @@
           return null;
         }
 
-        // Parse qty Ã¢â‚¬â€ handles number, "+5", "5", "-3"
+        // Parse qty — handles number, "+5", "5", "-3"
         function _parseQty(raw) {
           if (typeof raw === 'number') return Math.abs(raw);
           return parseFloat(String(raw || '0').replace(/[^0-9.]/g, '')) || 0;
@@ -1002,7 +1002,7 @@
         const stockInByMonth  = monthKeys.map(mk =>
           transactions.filter(t => {
             if ((t.type || '').toUpperCase() !== 'IN') return false;
-            // Exclude initial stock setup Ã¢â‚¬â€ only count actual receiving transactions
+            // Exclude initial stock setup — only count actual receiving transactions
             const desc = (t.desc || t.description || '').toLowerCase();
             if (desc.includes('initial stock')) return false;
             const d = _parseTxnDate(t);
@@ -1105,7 +1105,7 @@
         }
 
         // ----------------------------------------
-        // 4. BAR CHART Ã¢â‚¬â€ Top 10 Most Used Parts (Current Month)
+        // 4. BAR CHART — Top 10 Most Used Parts (Current Month)
         // ----------------------------------------
         const issuances = window._fbIssuances || [];
         const nowDate   = new Date();
@@ -1116,7 +1116,7 @@
         // Filter to current month only, materials only
         const materialIssuances = issuances.filter(iss => {
           if ((iss.itemType || '').toLowerCase() === 'service') return false;
-          // Parse date Ã¢â‚¬â€ handles "Jan 5, 2025" or Firestore Timestamp
+          // Parse date — handles "Jan 5, 2025" or Firestore Timestamp
           const dateStr = iss.date || '';
           if (dateStr) {
             const parts = dateStr.split(' ');
@@ -1137,7 +1137,7 @@
         // Aggregate qty by item name
         const partUsage = {};
         materialIssuances.forEach(iss => {
-          const name = iss.itemName || iss.item || 'Ã¢â‚¬â€';
+          const name = iss.itemName || iss.item || '—';
           const qty  = typeof iss.quantity === 'number' ? iss.quantity
                      : parseFloat(String(iss.quantity || iss.qty || '0').replace(/[^0-9.]/g, '')) || 0;
           if (qty > 0) partUsage[name] = (partUsage[name] || 0) + qty;
@@ -1154,7 +1154,7 @@
         const topPartsSub    = document.getElementById('topPartsSubLabel');
 
         // Update subtitle
-        if (topPartsSub) topPartsSub.textContent = curMonthLabel + ' Ã‚Â· Materials only';
+        if (topPartsSub) topPartsSub.textContent = curMonthLabel + ' · Materials only';
 
         if (sorted.length === 0) {
           if (topPartsEmpty)  topPartsEmpty.style.display  = 'block';
@@ -1166,7 +1166,7 @@
           if (topPartsBadge)  topPartsBadge.textContent    = sorted.length + ' items';
 
           const partLabels = sorted.map(([name]) =>
-            name.length > 18 ? name.slice(0, 16) + 'Ã¢â‚¬Â¦' : name
+            name.length > 18 ? name.slice(0, 16) + '…' : name
           );
           const partCounts = sorted.map(([, qty]) => qty);
 
@@ -1311,7 +1311,7 @@
 
       function printTransactions() {
         var txns = (window._fbTransactions || []).map(function(t) {
-          var itemName = t.item || t.name || 'Ã¢â‚¬â€';
+          var itemName = t.item || t.name || '—';
           var cg = t.commodityGroup || (function() {
             var nm = (itemName || '').toLowerCase().trim();
             var inNum = (t.itemNum || '').toLowerCase().trim();
@@ -1330,27 +1330,27 @@
             // raw Firestore item_master
             var rawMaster = window._fbItemMaster || [];
             var rawMf = rawMaster.find(function(i){ return (i.name||'').toLowerCase() === nm || (inNum && (i.num||'').toLowerCase() === inNum); });
-            return (rawMf && rawMf.group) ? rawMf.group : 'Ã¢â‚¬â€';
+            return (rawMf && rawMf.group) ? rawMf.group : '—';
           })();
           var rawDesc = t.desc || t.description || '';
           var type = (t.type || 'IN').toUpperCase();
           var cleanedDesc = (function(raw) {
-                var d = (raw || 'Ã¢â‚¬â€')
-                    .replace(/for maintenance SVC-\d+\s*[Ã¢â‚¬â€\-]\s*/gi, 'for ')
+                var d = (raw || '—')
+                    .replace(/for maintenance SVC-\d+\s*[—\-]\s*/gi, 'for ')
                     .replace(/for maintenance SVC-\d+/gi, '')
                     .replace(/\s*SVC-\d+\s*/gi, '')
-                    .replace(/for maintenance\s+[A-Za-z0-9]{15,}\s*[Ã¢â‚¬â€\-]\s*/gi, 'for ')
+                    .replace(/for maintenance\s+[A-Za-z0-9]{15,}\s*[—\-]\s*/gi, 'for ')
                     .replace(/for maintenance\s+[A-Za-z0-9]{15,}/gi, '')
-                    .replace(/^(Stock received|Initial stock received)\s*[Ã¢â‚¬â€\-]\s*.+$/i, function(m, base) { return base; })
+                    .replace(/^(Stock received|Initial stock received)\s*[—\-]\s*.+$/i, function(m, base) { return base; })
                     .trim();
-                return d || 'Ã¢â‚¬â€';
+                return d || '—';
             })(rawDesc);
           // For OUT transactions, show vehicle description as sub-line
           var assetLine = '';
           if (type === 'OUT') {
-              // Pattern: "Issued to PLATE-123 Ã¢â‚¬â€ Vehicle Desc" or "Issued for PLATE-123 Ã¢â‚¬â€ Vehicle Desc"
-              // Only split on em-dash (Ã¢â‚¬â€), NOT regular hyphen (-), to preserve full plate numbers
-              var issuedMatch = cleanedDesc.match(/^(Issued (?:to|for)\s+\S+)\s*Ã¢â‚¬â€\s*(.+)$/i);
+              // Pattern: "Issued to PLATE-123 — Vehicle Desc" or "Issued for PLATE-123 — Vehicle Desc"
+              // Only split on em-dash (—), NOT regular hyphen (-), to preserve full plate numbers
+              var issuedMatch = cleanedDesc.match(/^(Issued (?:to|for)\s+\S+)\s*—\s*(.+)$/i);
               if (issuedMatch) {
                   assetLine = issuedMatch[2].trim();
                   cleanedDesc = issuedMatch[1].trim();
@@ -1383,7 +1383,7 @@
             assetLine: assetLine,
             type: (t.type || 'IN').toUpperCase(),
             qty: t.qty || t.quantity || 0,
-            by: t.by || t.performedBy || 'Ã¢â‚¬â€'
+            by: t.by || t.performedBy || '—'
           };
         });
         var q = ((document.getElementById('txnSearch') || {}).value || '').trim().toLowerCase();
@@ -1414,7 +1414,7 @@
 
         // Apply commodity filter
         var cgF = window._txnCommodityFilter || '';
-        if (cgF) txns = txns.filter(function(t){ return (t.commodityGroup || 'Ã¢â‚¬â€') === cgF; });
+        if (cgF) txns = txns.filter(function(t){ return (t.commodityGroup || '—') === cgF; });
 
         // Apply date range filter
         var txnFromP = ((document.getElementById('txnDateFrom') || {}).value || '').trim();
@@ -1456,8 +1456,8 @@
         var _MONTHS_PRINT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         var _FULL_MONTHS_PRINT = ['January','February','March','April','May','June','July','August','September','October','November','December'];
         function _fmtPrintDate(d) {
-          if (!d) return 'Ã¢â‚¬â€';
-          // Already "Jul 2, 2026" or "July 2, 2026" style Ã¢â‚¬â€ convert to full month
+          if (!d) return '—';
+          // Already "Jul 2, 2026" or "July 2, 2026" style — convert to full month
           var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
           if (m1) {
             var abbr = m1[1].slice(0,3);
@@ -1485,20 +1485,20 @@
         }
 
         var printTitle = 'Inventory Transactions';
-        if (selectedTxnMonth) printTitle += ' Ã¢â‚¬â€ ' + selectedTxnMonth;
+        if (selectedTxnMonth) printTitle += ' — ' + selectedTxnMonth;
         if (txnFilter === 'IN') printTitle += ' (Received)';
         else if (txnFilter === 'OUT') printTitle += ' (Issued)';
-        if (cgF) printTitle += ' Ã‚Â· ' + cgF;
+        if (cgF) printTitle += ' · ' + cgF;
 
         var txnPrintDateRange = (txnFromP || txnToP)
-          ? _fmtIsoForPrint(txnFromP || 'Ã¢â‚¬Â¦') + ' Ã¢â‚¬â€œ ' + _fmtIsoForPrint(txnToP || 'Ã¢â‚¬Â¦')
+          ? _fmtIsoForPrint(txnFromP || '…') + ' – ' + _fmtIsoForPrint(txnToP || '…')
           : '';
 
         _doPrint(printTitle,
           [{ label:'Total', value:txns.length, color:'#1a202c' }, { label:'Stock In', value:inCount, color:'#003087' }, { label:'Stock Out', value:outCount, color:'#E8001C' }],
           ['Date', 'Item', 'Commodity Group', 'Qty'],
           rows,
-          { values: [totalQty > 0 ? totalQty : 'Ã¢â‚¬â€'] },
+          { values: [totalQty > 0 ? totalQty : '—'] },
           { dateRange: txnPrintDateRange }
         );
       }
@@ -1592,13 +1592,13 @@
         var reportTitle = 'Issuances';
         if (issFilter === 'Service') reportTitle += ' (Services)';
         else if (issFilter === 'Material') reportTitle += ' (Materials)';
-        if (selectedMonth) reportTitle += ' Ã¢â‚¬â€ ' + selectedMonth;
-        if (issCgF) reportTitle += ' Ã‚Â· ' + issCgF;
+        if (selectedMonth) reportTitle += ' — ' + selectedMonth;
+        if (issCgF) reportTitle += ' · ' + issCgF;
 
         var FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
         var MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         function fmtDate(d) {
-          if (!d) return 'Ã¢â‚¬â€';
+          if (!d) return '—';
           // "Jan 7, 2026" or "January 7, 2026" ? "January 7, 2026"
           var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
           if (m1) {
@@ -1619,7 +1619,7 @@
         }
 
         var issPrintDateRange = (issFrom || issTo)
-          ? fmtDate(issFrom || '') + ' Ã¢â‚¬â€œ ' + fmtDate(issTo || '')
+          ? fmtDate(issFrom || '') + ' – ' + fmtDate(issTo || '')
           : '';
 
         var grandTotalQty = 0;
@@ -1629,7 +1629,7 @@
           var qty      = parseFloat(i.quantity || i.qty || 0) || 0;
           var uc       = parseFloat(String(i.unitCost || i.unit_cost || 0).replace(/[?,]/g,'')) || 0;
           var subtotal = parseFloat(String(i.subtotal || 0).replace(/[?,]/g,'')) || (qty * uc);
-          var plate    = i.plate || i.assetNum || i.assetDesc || 'Ã¢â‚¬â€';
+          var plate    = i.plate || i.assetNum || i.assetDesc || '—';
           var assetDesc = i.assetDescription || i.assetDesc || '';
           var plateCell = plate + (assetDesc ? '<br><span style="font-size:7.5px;color:#718096;">' + assetDesc + '</span>' : '');
 
@@ -1639,13 +1639,13 @@
           return [
             fmtDate(i.date),
             plateCell,
-            i.itemNum  || 'Ã¢â‚¬â€',
-            i.itemName || 'Ã¢â‚¬â€',
-            i.commodityGroup || 'Ã¢â‚¬â€',
-            i.uom || i.unit || 'Ã¢â‚¬â€',
-            qty > 0 ? qty : 'Ã¢â‚¬â€',
-            uc > 0 ? '?' + uc.toLocaleString('en-PH',{minimumFractionDigits:2}) : 'Ã¢â‚¬â€',
-            subtotal > 0 ? '?' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) : 'Ã¢â‚¬â€'
+            i.itemNum  || '—',
+            i.itemName || '—',
+            i.commodityGroup || '—',
+            i.uom || i.unit || '—',
+            qty > 0 ? qty : '—',
+            uc > 0 ? '?' + uc.toLocaleString('en-PH',{minimumFractionDigits:2}) : '—',
+            subtotal > 0 ? '?' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) : '—'
           ];
         });
 
@@ -1653,18 +1653,18 @@
           [{ label:'Total', value:filtered.length, color:'#1a202c' }, { label:'Services', value:svcCount, color:'#003087' }, { label:'Materials', value:matCount, color:'#E8001C' }],
           ['Date', 'Plate No.', 'Item No.', 'Description', 'Group', 'UOM', 'Qty', 'Unit Cost', 'Subtotal'],
           rows,
-          { values: [grandTotalQty > 0 ? grandTotalQty : 'Ã¢â‚¬â€', '', '?' + grandTotalSubtotal.toLocaleString('en-PH',{minimumFractionDigits:2})] },
+          { values: [grandTotalQty > 0 ? grandTotalQty : '—', '', '?' + grandTotalSubtotal.toLocaleString('en-PH',{minimumFractionDigits:2})] },
           { dateRange: issPrintDateRange }
         );
       }
 
       // -- Styled Excel export helper (mirrors print layout) --
       // Uses ExcelJS (loaded via CDN above) to produce a .xlsx with:
-      //   Ã¢â‚¬Â¢ Company header block (name, branch, address + report title)
-      //   Ã¢â‚¬Â¢ Dark header row  (#1a202c fill, white bold text)
-      //   Ã¢â‚¬Â¢ Alternating row stripes  (white / #f8fafc)
-      //   Ã¢â‚¬Â¢ Bold totals row with top border
-      //   Ã¢â‚¬Â¢ Auto column widths
+      //   • Company header block (name, branch, address + report title)
+      //   • Dark header row  (#1a202c fill, white bold text)
+      //   • Alternating row stripes  (white / #f8fafc)
+      //   • Bold totals row with top border
+      //   • Auto column widths
       async function _downloadExcel(filename, reportTitle, headers, rows, footer, opts) {
         var ExcelJS = window.ExcelJS;
         if (!ExcelJS) { alert('ExcelJS not loaded yet, please try again.'); return; }
@@ -1691,7 +1691,7 @@
         var leftCols  = Math.ceil(colCount / 2);
         var rightStart = leftCols + 1;
 
-        // -- Row 1: LEFT Ã¢â‚¬â€ "JA Noble Enterprise Inc."  |  RIGHT Ã¢â‚¬â€ "OFFICIAL REPORT" label --
+        // -- Row 1: LEFT — "JA Noble Enterprise Inc."  |  RIGHT — "OFFICIAL REPORT" label --
         ws.mergeCells(1, 1,          1, leftCols);
         ws.mergeCells(1, rightStart, 1, colCount);
         var r1L = ws.getCell(1, 1);
@@ -1705,7 +1705,7 @@
         r1R.font      = { name: 'Segoe UI', size: 7, bold: true, color: { argb: LGREY } };
         r1R.alignment = { vertical: 'middle', horizontal: 'right' };
 
-        // -- Row 2: LEFT Ã¢â‚¬â€ "Caltex San Pedro"  |  RIGHT Ã¢â‚¬â€ report title --
+        // -- Row 2: LEFT — "Caltex San Pedro"  |  RIGHT — report title --
         ws.mergeCells(2, 1,          2, leftCols);
         ws.mergeCells(2, rightStart, 2, colCount);
         var r2L = ws.getCell(2, 1);
@@ -1719,7 +1719,7 @@
         r2R.font      = { name: 'Segoe UI', size: 13, bold: true, color: { argb: DARK } };
         r2R.alignment = { vertical: 'middle', horizontal: 'right' };
 
-        // -- Row 3: LEFT Ã¢â‚¬â€ address  |  RIGHT Ã¢â‚¬â€ Date Range (if any) --
+        // -- Row 3: LEFT — address  |  RIGHT — Date Range (if any) --
         ws.mergeCells(3, 1,          3, leftCols);
         ws.mergeCells(3, rightStart, 3, colCount);
         var r3L = ws.getCell(3, 1);
@@ -1738,7 +1738,7 @@
         }
         r3R.alignment = { vertical: 'middle', horizontal: 'right' };
 
-        // -- Row 4: LEFT Ã¢â‚¬â€ (empty)  |  RIGHT Ã¢â‚¬â€ "Generated on Ã¢â‚¬Â¦" meta --
+        // -- Row 4: LEFT — (empty)  |  RIGHT — "Generated on …" meta --
         ws.mergeCells(4, 1,          4, leftCols);
         ws.mergeCells(4, rightStart, 4, colCount);
         ws.getRow(4).height = 13;
@@ -1748,7 +1748,7 @@
         r4R.font      = { name: 'Segoe UI', size: 8, color: { argb: GREY } };
         r4R.alignment = { vertical: 'middle', horizontal: 'right' };
 
-        // -- Row 5: red divider Ã¢â‚¬â€ full width solid red fill (ap-header-rule) --
+        // -- Row 5: red divider — full width solid red fill (ap-header-rule) --
         ws.addRow([]);
         var divRow = ws.getRow(5);
         divRow.height = 3;
@@ -1804,8 +1804,8 @@
 
             if (colIdx0 === descColIdx && hasTwoLines) {
               // -- Two-line description cell --
-              // Line 1: main action text (bold, dark)   Ã¢â‚¬â€ matches print's bold first line
-              // Line 2: vehicle description (smaller, grey) Ã¢â‚¬â€ matches print's grey sub-line
+              // Line 1: main action text (bold, dark)   — matches print's bold first line
+              // Line 2: vehicle description (smaller, grey) — matches print's grey sub-line
               var lines = String(cleaned[descColIdx] || '').split('\n');
               cell.value = { richText: [
                 { text: lines[0], font: { name: 'Segoe UI', size: 8.5, bold: true,  color: { argb: 'FF1A202C' } } },
@@ -1878,7 +1878,7 @@
       // -- Export Transactions --
       function exportTransactionsExcel() {
         var txns = (window._fbTransactions || []).map(function(t) {
-          var itemName = t.item || t.name || 'Ã¢â‚¬â€';
+          var itemName = t.item || t.name || '—';
           var cg = t.commodityGroup || (function() {
             var nm = (itemName || '').toLowerCase().trim();
             var inNum = (t.itemNum || '').toLowerCase().trim();
@@ -1893,28 +1893,28 @@
             if (mf && mf.commodityGroup) return mf.commodityGroup;
             var rawMaster = window._fbItemMaster || [];
             var rawMf = rawMaster.find(function(i){ return (i.name||'').toLowerCase() === nm || (inNum && (i.num||'').toLowerCase() === inNum); });
-            return (rawMf && rawMf.group) ? rawMf.group : 'Ã¢â‚¬â€';
+            return (rawMf && rawMf.group) ? rawMf.group : '—';
           })();
 
           // -- Exact same cleaning as printTransactions --
           var rawDesc = t.desc || t.description || '';
           var type = (t.type || 'IN').toUpperCase();
           var cleanedDesc = (function(raw) {
-            var d = (raw || 'Ã¢â‚¬â€')
-              .replace(/for maintenance SVC-\d+\s*[Ã¢â‚¬â€\-]\s*/gi, 'for ')
+            var d = (raw || '—')
+              .replace(/for maintenance SVC-\d+\s*[—\-]\s*/gi, 'for ')
               .replace(/for maintenance SVC-\d+/gi, '')
               .replace(/\s*SVC-\d+\s*/gi, '')
-              .replace(/for maintenance\s+[A-Za-z0-9]{15,}\s*[Ã¢â‚¬â€\-]\s*/gi, 'for ')
+              .replace(/for maintenance\s+[A-Za-z0-9]{15,}\s*[—\-]\s*/gi, 'for ')
               .replace(/for maintenance\s+[A-Za-z0-9]{15,}/gi, '')
-              .replace(/^(Stock received|Initial stock received)\s*[Ã¢â‚¬â€\-]\s*.+$/i, function(m, base) { return base; })
+              .replace(/^(Stock received|Initial stock received)\s*[—\-]\s*.+$/i, function(m, base) { return base; })
               .trim();
-            return d || 'Ã¢â‚¬â€';
+            return d || '—';
           })(rawDesc);
 
-          // For OUT: extract vehicle desc sub-line and append after " Ã¢â‚¬â€ " (Excel can't do HTML sub-line)
+          // For OUT: extract vehicle desc sub-line and append after " — " (Excel can't do HTML sub-line)
           var assetLine = '';
           if (type === 'OUT') {
-            var issuedMatch = cleanedDesc.match(/^(Issued (?:to|for)\s+\S+)\s*Ã¢â‚¬â€\s*(.+)$/i);
+            var issuedMatch = cleanedDesc.match(/^(Issued (?:to|for)\s+\S+)\s*—\s*(.+)$/i);
             if (issuedMatch) {
               assetLine   = issuedMatch[2].trim();
               cleanedDesc = issuedMatch[1].trim();
@@ -1941,7 +1941,7 @@
           // In Excel: main description on line 1, vehicle info on line 2 (same cell, wrap)
           var fullDesc = assetLine ? (cleanedDesc + '\n' + assetLine) : cleanedDesc;
 
-          return { date: t.date||'', item: itemName, cg: cg, desc: fullDesc, hasAssetLine: !!assetLine, type: type, qty: t.qty||t.quantity||0, by: t.by||t.performedBy||'Ã¢â‚¬â€' };
+          return { date: t.date||'', item: itemName, cg: cg, desc: fullDesc, hasAssetLine: !!assetLine, type: type, qty: t.qty||t.quantity||0, by: t.by||t.performedBy||'—' };
         });
 
         var q = ((document.getElementById('txnSearch')||{}).value||'').trim().toLowerCase();
@@ -1996,7 +1996,7 @@
         var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
         // Normalize date to "July 2, 2026" format (full month name)
         function _fmtTxnDateExport(d) {
-          if (!d) return 'Ã¢â‚¬â€';
+          if (!d) return '—';
           var MONTHS_S_TXN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
           var FULL_MONTHS_TXN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
           if (/^[A-Za-z]/.test(d)) {
@@ -2017,13 +2017,13 @@
         }
 
         var txnExportTitle = 'Inventory Transactions';
-        if (selMonth) txnExportTitle += ' Ã¢â‚¬â€ ' + selMonth;
+        if (selMonth) txnExportTitle += ' — ' + selMonth;
         if (txnF === 'IN') txnExportTitle += ' (Received)';
         else if (txnF === 'OUT') txnExportTitle += ' (Issued)';
-        if (cgF) txnExportTitle += ' Ã‚Â· ' + cgF;
+        if (cgF) txnExportTitle += ' · ' + cgF;
 
         var txnExcelDateRange = (txnFromE || txnToE)
-          ? _fmtTxnDateExport(txnFromE || '') + ' Ã¢â‚¬â€œ ' + _fmtTxnDateExport(txnToE || '')
+          ? _fmtTxnDateExport(txnFromE || '') + ' – ' + _fmtTxnDateExport(txnToE || '')
           : '';
 
         var txnTotalQty = txns.reduce(function(s,t){
@@ -2035,7 +2035,7 @@
           txnExportTitle,
           ['Date','Item','Commodity Group','Qty'],
           txns.map(function(t){ return [_fmtTxnDateExport(t.date), t.item, t.cg, t.qty]; }),
-          { values: [{ value: txnTotalQty > 0 ? txnTotalQty : 'Ã¢â‚¬â€', colIndex: 4 }] },
+          { values: [{ value: txnTotalQty > 0 ? txnTotalQty : '—', colIndex: 4 }] },
           { dateRange: txnExcelDateRange }
         );
       }
@@ -2101,7 +2101,7 @@
         // Normalize any date string to "July 2, 2026" format (full month name)
         var FULL_MONTHS_E = ['January','February','March','April','May','June','July','August','September','October','November','December'];
         function _fmtIssDate(d) {
-          if (!d) return 'Ã¢â‚¬â€';
+          if (!d) return '—';
           // "Jan 2, 2026" or "January 2, 2026"
           var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
           if (m1) {
@@ -2121,11 +2121,11 @@
         var issExportTitle = 'Issuances';
         if (issF === 'Service')  issExportTitle += ' (Services)';
         else if (issF === 'Material') issExportTitle += ' (Materials)';
-        if (selMonth) issExportTitle += ' Ã¢â‚¬â€ ' + selMonth;
-        if (cgF) issExportTitle += ' Ã‚Â· ' + cgF;
+        if (selMonth) issExportTitle += ' — ' + selMonth;
+        if (cgF) issExportTitle += ' · ' + cgF;
 
         var issExcelDateRange = (issFromE || issToE)
-          ? _fmtIssDate(issFromE || '') + ' Ã¢â‚¬â€œ ' + _fmtIssDate(issToE || '')
+          ? _fmtIssDate(issFromE || '') + ' – ' + _fmtIssDate(issToE || '')
           : '';
 
         var grandTotalQty = 0, grandTotalSubtotal = 0;
@@ -2137,15 +2137,15 @@
           grandTotalSubtotal += sub;
           return [
             _fmtIssDate(i.date),
-            i.plate||i.assetNum||'Ã¢â‚¬â€',
-            i.itemNum||'Ã¢â‚¬â€',
-            i.itemName||'Ã¢â‚¬â€',
-            i.itemType||'Ã¢â‚¬â€',
-            i.commodityGroup||'Ã¢â‚¬â€',
-            i.uom||i.unit||'Ã¢â‚¬â€',
-            qty || 'Ã¢â‚¬â€',
-            uc  || 'Ã¢â‚¬â€',
-            sub > 0 ? parseFloat(sub.toFixed(2)) : 'Ã¢â‚¬â€'
+            i.plate||i.assetNum||'—',
+            i.itemNum||'—',
+            i.itemName||'—',
+            i.itemType||'—',
+            i.commodityGroup||'—',
+            i.uom||i.unit||'—',
+            qty || '—',
+            uc  || '—',
+            sub > 0 ? parseFloat(sub.toFixed(2)) : '—'
           ];
         });
 
@@ -2158,8 +2158,8 @@
           ['Date','Plate No.','Item No.','Item Name','Item Type','Commodity Group','UOM','Qty','Unit Cost','Subtotal'],
           rows,
           { values: [
-              { value: grandTotalQty > 0 ? grandTotalQty : 'Ã¢â‚¬â€',                              colIndex: 8  },
-              { value: grandTotalSubtotal > 0 ? parseFloat(grandTotalSubtotal.toFixed(2)) : 'Ã¢â‚¬â€', colIndex: 10 }
+              { value: grandTotalQty > 0 ? grandTotalQty : '—',                              colIndex: 8  },
+              { value: grandTotalSubtotal > 0 ? parseFloat(grandTotalSubtotal.toFixed(2)) : '—', colIndex: 10 }
             ]
           },
           { dateRange: issExcelDateRange }

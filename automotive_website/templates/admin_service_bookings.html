@@ -13,7 +13,7 @@
 </head>
 <body class="portal-body" data-page="pms-reschedule">
 <script>
-// Instant auth guard ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â blocks bfcache back-navigation after logout
+// Instant auth guard â€â€ blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -41,7 +41,7 @@
     <div class="admin-main">
         <div class="admin-header">
             <div>
-                <div class="breadcrumb">Admin Portal ÃƒÂ¢Ã¢â€šÂ¬Ã‚Âº Vehicle Maintenance Management</div>
+                <div class="breadcrumb">Admin Portal › Vehicle Maintenance Management</div>
                 <div class="admin-header-title">Service Bookings</div>
             </div>
             <div style="margin-left:auto;display:flex;align-items:center;gap:0.6rem;">
@@ -54,12 +54,12 @@
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
                     <select id="sbSortSelect" onchange="_apPages['rescheduleTableBody']=1;renderRescheduleList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
-                        <option value="date-desc">Date ? Newest</option>
-                        <option value="date-asc">Date ? Oldest</option>
-                        <option value="plate-asc">Plate A?Z</option>
-                        <option value="plate-desc">Plate Z?A</option>
-                        <option value="customer-asc">Customer A?Z</option>
-                        <option value="customer-desc">Customer Z?A</option>
+                        <option value="date-desc">Date → Newest</option>
+                        <option value="date-asc">Date → Oldest</option>
+                        <option value="plate-asc">Plate A→Z</option>
+                        <option value="plate-desc">Plate Z→A</option>
+                        <option value="customer-asc">Customer A→Z</option>
+                        <option value="customer-desc">Customer Z→A</option>
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -151,7 +151,7 @@
   <div style="background:white;border-radius:18px;width:420px;max-width:90vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;">
     <div style="background:linear-gradient(135deg,#003087,#001d52);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
       <div style="color:white;font-size:15px;font-weight:700;">Reschedule Booking</div>
-      <button onclick="closeRescheduleModal()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;">ÃƒÆ’Ã¢â‚¬â€</button>
+      <button onclick="closeRescheduleModal()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;">×</button>
     </div>
     <div style="padding:20px;overflow-y:auto;flex:1;">
       <div style="font-size:12px;color:#718096;margin-bottom:2px;">Vehicle</div>
@@ -162,9 +162,9 @@
       <div style="font-size:12px;font-weight:700;color:#4a5568;margin-bottom:8px;">1. Select new date</div>
       <div id="rsCalendar" style="margin-bottom:4px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <button onclick="rsCalNav(-1)" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:16px;color:#4a5568;">ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¹</button>
+          <button onclick="rsCalNav(-1)" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:16px;color:#4a5568;">‹</button>
           <span id="rsCalMonth" style="font-size:14px;font-weight:700;color:#1a202c;"></span>
-          <button onclick="rsCalNav(1)" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:16px;color:#4a5568;">ÃƒÂ¢Ã¢â€šÂ¬Ã‚Âº</button>
+          <button onclick="rsCalNav(1)" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:16px;color:#4a5568;">›</button>
         </div>
         <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:6px;">
           <span style="font-size:10px;font-weight:700;color:#a0aec0;">SU</span>
@@ -252,7 +252,7 @@
   var _allDocs = [];
 
   function _timeAgo(ts) {
-    if (!ts || !ts.toMillis) return 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
+    if (!ts || !ts.toMillis) return 'â€â€';
     var diff = Date.now() - ts.toMillis();
     var mins = Math.floor(diff / 60000);
     if (mins < 1)  return 'Just now';
@@ -266,7 +266,7 @@
   var _MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   function _formatDate(dateStr) {
-    if (!dateStr) return 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
+    if (!dateStr) return 'â€â€';
     var parts = dateStr.split('-');
     if (parts.length !== 3) return dateStr;
     var y = parseInt(parts[0]);
@@ -353,7 +353,7 @@
       } else {
         sc = '#E8001C'; sb = 'rgba(232,0,28,0.1)'; statusLabel = 'Cancelled';
       }
-      var svcList = (r.services || []).join(', ') || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
+      var svcList = (r.services || []).join(', ') || 'â€â€';
 
       // Date display: show both original (customer's preferred) and rescheduled date
       var dateHtml = '';
@@ -368,11 +368,11 @@
       }
 
       return '<div class="table-row" style="grid-template-columns:1fr 1.5fr 1.5fr 1fr 0.8fr 1fr 140px;align-items:center;">'
-        + '<div style="font-weight:700;color:#1a202c;">' + (r.plate || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</div>'
-        + '<div style="color:#4a5568;font-size:13px;">' + (r.customerName || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</div>'
+        + '<div style="font-weight:700;color:#1a202c;">' + (r.plate || 'â€â€') + '</div>'
+        + '<div style="color:#4a5568;font-size:13px;">' + (r.customerName || 'â€â€') + '</div>'
         + '<div style="color:#718096;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + svcList + '">' + svcList + '</div>'
         + '<div>' + dateHtml + '</div>'
-        + '<div style="font-size:12px;color:#4a5568;">' + (r.preferredTime || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</div>'
+        + '<div style="font-size:12px;color:#4a5568;">' + (r.preferredTime || 'â€â€') + '</div>'
         + '<div><span style="background:' + sb + ';color:' + sc + ';font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">' + statusLabel + '</span></div>'
         + '<div style="display:flex;gap:6px;">'
         + (isApproved
@@ -388,8 +388,8 @@
                 } else {
                   var isPastDate = r.preferredDate < todayKey;
                   var disabledTitle = isPastDate
-                    ? 'Scheduled date has passed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â please reschedule.'
-                    : 'Scheduled on ' + _formatDate(r.preferredDate) + ' ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â not yet available to start.';
+                    ? 'Scheduled date has passed â€â€ please reschedule.'
+                    : 'Scheduled on ' + _formatDate(r.preferredDate) + ' â€â€ not yet available to start.';
                   return '<button disabled title="' + disabledTitle + '" style="' + btnStyle + 'background:#38a169;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>';
                 }
               })()

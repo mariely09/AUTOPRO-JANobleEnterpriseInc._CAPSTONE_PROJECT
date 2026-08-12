@@ -38,7 +38,7 @@
         .bs-empty { text-align:center; padding:28px; color:#718096; font-size:13px; background:white; border-radius:14px; border:1.5px solid #e2e8f0; }
         .bs-bottom { margin-top:28px; }
 
-        /* Ã¢â€â‚¬Ã¢â€â‚¬ Calendar Ã¢â€â‚¬Ã¢â€â‚¬ */
+        /* ── Calendar ── */
         .bs-calendar-wrap { background:white; border-radius:14px; border:1.5px solid #e2e8f0; padding:16px; }
         .bs-cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
         .bs-cal-month { font-size:15px; font-weight:700; color:#1a202c; }
@@ -53,7 +53,7 @@
         .bs-cal-cell.available:hover { background:#dcfce7; border-color:#38a169; transform:scale(1.05); }
         .bs-cal-cell.full { background:#fef3c7; color:#92400e; cursor:not-allowed; }
         .bs-cal-cell.closed { background:#f1f5f9; color:#cbd5e0; cursor:not-allowed; }
-        /* Sunday is now open Ã¢â‚¬â€ no separate style needed */
+        /* Sunday is now open — no separate style needed */
         .bs-cal-cell.selected { background:#E8001C; color:white; border-color:#E8001C; transform:scale(1.08); box-shadow:0 3px 12px rgba(232,0,28,0.3); }
         .bs-cal-cell .bs-cal-dot { width:5px; height:5px; border-radius:50%; margin-top:2px; }
         .bs-cal-cell.available .bs-cal-dot { background:#38a169; }
@@ -67,14 +67,14 @@
         .bs-legend-dot.full { border:2px solid #d97706; background:#fef3c7; }
         .bs-legend-dot.closed { background:#e2e8f0; }
 
-        /* Ã¢â€â‚¬Ã¢â€â‚¬ Time Slot Chips Ã¢â€â‚¬Ã¢â€â‚¬ */
+        /* ── Time Slot Chips ── */
         .bs-time-chip { padding:10px 6px; background:white; border:1.5px solid #e2e8f0; border-radius:10px; font-size:12px; font-weight:600; color:#4a5568; cursor:pointer; transition:all .15s; font-family:inherit; }
         .bs-time-chip:hover { border-color:#cbd5e0; background:#f7f8fa; }
         .bs-time-chip.selected { border-color:#E8001C; border-width:2px; background:#fff5f5; color:#E8001C; font-weight:700; }
         .bs-time-chip:disabled { opacity:.4; cursor:not-allowed; }
         .bs-time-chip.taken { background:#f1f5f9; color:#a0aec0; border-color:#e2e8f0; text-decoration:line-through; opacity:.5; cursor:not-allowed; }
 
-        /* Ã¢â€â‚¬Ã¢â€â‚¬ Mobile view Ã¢â€â‚¬Ã¢â€â‚¬ */
+        /* ── Mobile view ── */
         @media (max-width: 768px) {
             .bs-page { padding:16px 16px 32px; }
             .bs-grid { grid-template-columns:1fr; gap:20px; }
@@ -92,7 +92,7 @@
 </head>
 <body data-page="book-service">
 <script>
-// Instant auth guard Ã¢â‚¬â€ blocks bfcache back-navigation after logout
+// Instant auth guard — blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -148,9 +148,9 @@
         </button>
         <div class="bs-calendar-wrap" id="bsCalendarWrap" style="display:none;margin-top:10px;">
             <div class="bs-cal-header">
-                <button class="bs-cal-nav" onclick="bsCalNav(-1)">Ã¢â‚¬Â¹</button>
+                <button class="bs-cal-nav" onclick="bsCalNav(-1)">‹</button>
                 <span class="bs-cal-month" id="bsCalMonth"></span>
-                <button class="bs-cal-nav" onclick="bsCalNav(1)">Ã¢â‚¬Âº</button>
+                <button class="bs-cal-nav" onclick="bsCalNav(1)">›</button>
             </div>
             <div class="bs-cal-days">
                 <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
@@ -210,7 +210,7 @@
         <div style="color:white;font-size:15px;font-weight:700;" id="bsModalTitle">Select Services</div>
         <div style="color:rgba(255,255,255,0.75);font-size:12px;" id="bsModalSub"></div>
       </div>
-      <button onclick="bsCloseServiceModal()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;">Ãƒâ€”</button>
+      <button onclick="bsCloseServiceModal()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;">×</button>
     </div>
     <!-- Search bar -->
     <div style="padding:12px 16px 6px;flex-shrink:0;border-bottom:1px solid #f0f4f8;">
@@ -221,7 +221,7 @@
           style="width:100%;padding:9px 32px 9px 32px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;color:#1a202c;background:#f7f8fa;outline:none;box-sizing:border-box;transition:border-color .15s;"
           onfocus="this.style.borderColor='#E8001C';this.style.background='white'"
           onblur="this.style.borderColor='#e2e8f0';this.style.background='#f7f8fa'">
-        <button id="bsModalSearchClear" onclick="document.getElementById('bsModalSearch').value='';_renderModalServices();" style="display:none;position:absolute;right:8px;background:none;border:none;cursor:pointer;color:#a0aec0;font-size:16px;line-height:1;padding:0;">Ãƒâ€”</button>
+        <button id="bsModalSearchClear" onclick="document.getElementById('bsModalSearch').value='';_renderModalServices();" style="display:none;position:absolute;right:8px;background:none;border:none;cursor:pointer;color:#a0aec0;font-size:16px;line-height:1;padding:0;">×</button>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
         <span id="bsModalResultCount" style="font-size:11px;color:#718096;"></span>
@@ -255,11 +255,11 @@
 <script>
 var _bsVehicles = [], _bsServices = [];
 var _bsSelectedVehicles = {};
-// Per-vehicle service selections: vehicleId Ã¢â€ â€™ { serviceId: true }
+// Per-vehicle service selections: vehicleId → { serviceId: true }
 var _bsVehicleServices = {};
 var _bsDate = '';
 var _bsTime = '';
-var _bsBookedTimes = {}; // date Ã¢â€ â€™ array of taken times
+var _bsBookedTimes = {}; // date → array of taken times
 
 window.bsSelectTime = function(btn) {
   document.querySelectorAll('.bs-time-chip').forEach(function(c){ c.classList.remove('selected'); });
@@ -279,7 +279,7 @@ window.bsSelectTime = function(btn) {
 };
 
 function _updateSummaryCard() {
-  // Summary card removed Ã¢â‚¬â€ services per vehicle now shown in right column
+  // Summary card removed — services per vehicle now shown in right column
 }
 
 // Load header
@@ -309,7 +309,7 @@ async function _loadBookingData(user) {
   var userName = (uData.name || '').toLowerCase().trim();
   var companyName = (uData.companyName || '').toLowerCase().trim();
 
-  // Load vehicles Ã¢â‚¬â€ match if owner equals user name OR company name (case-insensitive)
+  // Load vehicles — match if owner equals user name OR company name (case-insensitive)
   var vSnap = await db.collection('vehicles').get();
   _bsVehicles = vSnap.docs
     .map(function(d){ return Object.assign({id:d.id}, d.data()); })
@@ -348,7 +348,7 @@ function _renderVehicles() {
   el.innerHTML = _bsVehicles.map(function(v){
     var sel = !!_bsSelectedVehicles[v.id];
     return '<div class="bs-card'+(sel?' selected':'')+'" onclick="bsToggleVehicle(\''+v.id+'\')">'
-      +'<div style="flex:1;"><div class="bs-card-title" style="'+(sel?'color:#E8001C;':'')+'">'+_esc(v.plate||'Ã¢â‚¬â€')+'</div><div class="bs-card-sub">'+_esc(v.desc||'')+'</div></div>'
+      +'<div style="flex:1;"><div class="bs-card-title" style="'+(sel?'color:#E8001C;':'')+'">'+_esc(v.plate||'—')+'</div><div class="bs-card-sub">'+_esc(v.desc||'')+'</div></div>'
       +'<div class="bs-check'+(sel?' checked':'')+'">'+( sel?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':'')+'</div>'
       +'</div>';
   }).join('');
@@ -384,7 +384,7 @@ function _renderPerVehicleServices() {
     + vehicleIds.map(function(vId) {
       var vehicle = _bsVehicles.find(function(v){ return v.id === vId; });
       if (!vehicle) return '';
-      var plate = vehicle.plate || 'Ã¢â‚¬â€';
+      var plate = vehicle.plate || '—';
       var desc = vehicle.desc || '';
       var svcs = _bsVehicleServices[vId] || {};
       var svcCount = Object.keys(svcs).length;
@@ -426,10 +426,10 @@ var _bsModalVehicleId = '';
 window.bsOpenServiceModal = function(vehicleId) {
   _bsModalVehicleId = vehicleId;
   var vehicle = _bsVehicles.find(function(v){ return v.id === vehicleId; });
-  var plate = vehicle ? (vehicle.plate || 'Ã¢â‚¬â€') : 'Ã¢â‚¬â€';
+  var plate = vehicle ? (vehicle.plate || '—') : '—';
   var desc = vehicle ? (vehicle.desc || '') : '';
   document.getElementById('bsModalTitle').textContent = 'Select Services';
-  document.getElementById('bsModalSub').textContent = plate + (desc ? ' Ã¢â‚¬â€ ' + desc : '');
+  document.getElementById('bsModalSub').textContent = plate + (desc ? ' — ' + desc : '');
   // Clear search on open
   var searchEl = document.getElementById('bsModalSearch');
   if (searchEl) searchEl.value = '';
@@ -495,7 +495,7 @@ window.bsModalToggleService = function(serviceId) {
 };
 
 function _renderServices() {
-  // No longer needed Ã¢â‚¬â€ services are rendered per-vehicle
+  // No longer needed — services are rendered per-vehicle
   var el = document.getElementById('bsServices');
   if (el) el.innerHTML = '';
 }
@@ -529,7 +529,7 @@ function _updateDateSuggestion() {
         reason = 'Based on PMS schedule (due ' + _toLocalDateStr(nextPms) + ')';
       } else {
         suggested = new Date(tomorrow);
-        reason = 'PMS is overdue Ã¢â‚¬â€ book ASAP';
+        reason = 'PMS is overdue — book ASAP';
       }
     }
   }
@@ -551,7 +551,7 @@ function _updateDateSuggestion() {
   }
 
   _bsSuggestedDate = _toLocalDateStr(suggested);
-  txt.textContent = _fmtDatePretty(_bsSuggestedDate) + ' Ã¢â‚¬â€ ' + reason;
+  txt.textContent = _fmtDatePretty(_bsSuggestedDate) + ' — ' + reason;
   el.style.display = 'flex';
 }
 
@@ -575,10 +575,10 @@ window.bsUseSuggestion = function() {
 };
 
 window.bsToggleService = function(id) {
-  // Legacy Ã¢â‚¬â€ no longer used
+  // Legacy — no longer used
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Custom Calendar Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Custom Calendar ──
 var _bsCalYear, _bsCalMonth, _bsCalSelectedDate = '';
 var _bsBookedDates = {}; // date -> Set of taken time strings
 var _ALL_TIME_SLOTS = ['8:00 AM','9:00 AM','10:00 AM','11:00 AM','1:00 PM','2:00 PM','3:00 PM','4:00 PM'];
@@ -741,7 +741,7 @@ function _renderTimeSlots() {
       btn.disabled = true;
       btn.classList.add('taken');
       btn.classList.remove('selected');
-      btn.title = isPast ? 'This time has already passed' : 'Already booked Ã¢â‚¬â€ choose another time';
+      btn.title = isPast ? 'This time has already passed' : 'Already booked — choose another time';
       if (_bsTime === time) {
         _bsTime = '';
         var arriveEl = document.getElementById('bsArriveBy');
@@ -780,7 +780,7 @@ function _showSelectedDate() {
 // Initialize calendar on first open
 _loadBookedDates();
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ OneSignal / Flask constants (mirrors background_dss.dart) Ã¢â€â‚¬Ã¢â€â‚¬
+// ── OneSignal / Flask constants (mirrors background_dss.dart) ──
 var _kOneSignalAppId  = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
 var _kOneSignalApiKey = 'os_v7_app_yt4cvr2f1hkhvh5ldu4k637i51snjeyuythen3fd61ae1yhnprpy6kbxvn9kjd1pqdhygsqmlrouas4kfuydft32nkgj5flbra3oo5q';
 var _kFlaskBaseUrl    = 'https://caltex-autopro.onrender.com';
@@ -858,11 +858,11 @@ window.bsSubmit = async function() {
     var vCount = selectedVehicles.length;
     var vLabel = vCount + ' vehicle' + (vCount > 1 ? 's' : '');
 
-    // Create one booking per selected vehicle Ã¢â‚¬â€ always Approved
+    // Create one booking per selected vehicle — always Approved
     var allPlates = [];
     for (var vi = 0; vi < selectedVehicles.length; vi++) {
       var v = selectedVehicles[vi];
-      allPlates.push(v.plate || 'Ã¢â‚¬â€');
+      allPlates.push(v.plate || '—');
       var vSvcs = _bsVehicleServices[v.id] || {};
       var vServiceNames = _bsServices
         .filter(function(s) { return vSvcs[s.id]; })
@@ -895,37 +895,37 @@ window.bsSubmit = async function() {
         .filter(function(s) { return vbSvcs[s.id]; })
         .map(function(s) { return s.name || ''; })
         .filter(Boolean);
-      vehicleBreakdown.push((vb.plate || 'Ã¢â‚¬â€') + ': ' + vbNames.join(', '));
+      vehicleBreakdown.push((vb.plate || '—') + ': ' + vbNames.join(', '));
     }
     var detailedMsg = vehicleBreakdown.join(' | ');
     var bookingMsg = customerName + ' booked service for ' + vLabel + ' on ' + _fmtDatePretty(_bsDate) + '. ' + detailedMsg;
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Load admin & staff UIDs for push + in-app notifications Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Load admin & staff UIDs for push + in-app notifications ──
     var adminSnap = await db.collection('users').where('role', '==', 'admin').get();
     var staffSnap = await db.collection('users').where('role', '==', 'staff').get();
     var adminUids = adminSnap.docs.map(function(d){ return d.id; });
     var staffUids = staffSnap.docs.map(function(d){ return d.id; });
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Notify admin (in-app + push) Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Notify admin (in-app + push) ──
     await _sendAlert(db, adminUids,
-      'Ã°Å¸â€œâ€¦ New Booking Ã¢â‚¬â€ ' + vLabel,
+      '📅 New Booking — ' + vLabel,
       bookingMsg,
       'info', 'admin', '');
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Notify staff (in-app + push) Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Notify staff (in-app + push) ──
     await _sendAlert(db, staffUids,
-      'Ã°Å¸â€œâ€¦ New Booking Ã¢â‚¬â€ ' + vLabel,
+      '📅 New Booking — ' + vLabel,
       bookingMsg,
       'info', 'staff', '');
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Email admin & staff via Flask (server looks up emails from Firestore) Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Email admin & staff via Flask (server looks up emails from Firestore) ──
     var vehiclePayload = selectedVehicles.map(function(v) {
       var vbSvcs = _bsVehicleServices[v.id] || {};
       var vbNames = _bsServices
         .filter(function(s) { return vbSvcs[s.id]; })
         .map(function(s) { return s.name || ''; })
         .filter(Boolean);
-      return { plate: v.plate || 'Ã¢â‚¬â€', desc: v.desc || '', services: vbNames };
+      return { plate: v.plate || '—', desc: v.desc || '', services: vbNames };
     });
     fetch(_kFlaskBaseUrl + '/api/send-booking-email', {
       method: 'POST',
@@ -940,16 +940,16 @@ window.bsSubmit = async function() {
       }),
     }).catch(function(e) { console.warn('Booking email dispatch error:', e); });
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Notify customer (in-app only Ã¢â‚¬â€ they're on the web) Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Notify customer (in-app only — they're on the web) ──
     await db.collection('notifications').add({
-      title: 'Ã¢Å“â€¦ Booking Confirmed',
+      title: '✅ Booking Confirmed',
       message: 'Your service booking on ' + _fmtDatePretty(_bsDate) + ' at ' + _bsTime + ' has been confirmed.\n' + detailedMsg,
       type: 'success', targetRole: '', targetUid: user.uid,
       readBy: {}, isRead: false,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
-    _toast('Booking confirmed for ' + vCount + ' vehicle(s)! Ã¢Å“â€¦', 'success');
+    _toast('Booking confirmed for ' + vCount + ' vehicle(s)! ✅', 'success');
     setTimeout(function(){ window.location.href = 'customer_my_bookings.html'; }, 2000);
   } catch(e) {
     _toast('Error: '+e.message,'error');
@@ -969,11 +969,11 @@ function _toast(msg, type) {
 function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function _fmtCost(c) {
-  var raw = String(c||'').replace(/[Ã¢â€šÂ±,\s]/g,'').trim();
+  var raw = String(c||'').replace(/[₱,\s]/g,'').trim();
   if (!raw) return '';
   var num = parseFloat(raw);
-  if (isNaN(num)) return 'Ã¢â€šÂ±' + raw;
-  return 'Ã¢â€šÂ±' + num.toLocaleString('en-PH');
+  if (isNaN(num)) return '₱' + raw;
+  return '₱' + num.toLocaleString('en-PH');
 }
 
 var _MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];

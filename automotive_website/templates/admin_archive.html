@@ -32,7 +32,7 @@
     <div class="admin-main">
         <div class="admin-header">
             <div>
-                <div class="breadcrumb">Admin Portal ÃƒÂ¢Ã¢â€šÂ¬Ã‚Âº Archive</div>
+                <div class="breadcrumb">Admin Portal › Archive</div>
                 <div class="admin-header-title">Archive</div>
             </div>
             <div style="margin-left:auto;display:flex;align-items:center;gap:0.6rem;">
@@ -123,7 +123,7 @@
   <div style="background:#fff;border-radius:18px;padding:0;max-width:420px;width:92%;box-shadow:0 16px 48px rgba(0,0,0,0.2);overflow:hidden;">
     <!-- Header -->
     <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.75rem;">
-      <div style="background:rgba(255,255,255,0.2);width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â</div>
+      <div style="background:rgba(255,255,255,0.2);width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">⚠ï¸Â</div>
       <div id="archiveDeleteTitle" style="color:white;font-size:1rem;font-weight:700;"></div>
     </div>
     <!-- Body -->
@@ -175,7 +175,7 @@ function _archiveResetPage() {
     });
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Styled permanent-delete confirm modal ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ââ€€ââ€€ Styled permanent-delete confirm modal ââ€€ââ€€
 function showDeleteConfirm(title, itemName, context, onOk) {
     var dialog   = document.getElementById('archiveDeleteDialog');
     var titleEl  = document.getElementById('archiveDeleteTitle');
@@ -190,7 +190,7 @@ function showDeleteConfirm(title, itemName, context, onOk) {
     cancelBtn.onclick = function() { close(); };
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Migrate old soft-archived items (archived:true) to the archive sub-collection ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ââ€€ââ€€ Migrate old soft-archived items (archived:true) to the archive sub-collection ââ€€ââ€€
 (function migrateArchivedItems() {
     db.collection('item_master').where('archived', '==', true).get()
         .then(function(snap) {
@@ -203,7 +203,7 @@ function showDeleteConfirm(title, itemName, context, onOk) {
                 var archiveRef = db.collection('archive').doc('item_master').collection('items').doc(doc.id);
                 archiveRef.get().then(function(existing) {
                     if (existing.exists) {
-                        // Already migrated ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â just delete from item_master
+                        // Already migrated â€â€ just delete from item_master
                         doc.ref.delete().catch(function(){});
                         return;
                     }
@@ -217,11 +217,11 @@ function showDeleteConfirm(title, itemName, context, onOk) {
         .catch(function() {});
 })();
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Shared date+time formatter for archivedAt Firestore Timestamps ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ââ€€ââ€€ Shared date+time formatter for archivedAt Firestore Timestamps ââ€€ââ€€
 function fmtArchivedAt(ts) {
-    if (!ts) return 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
+    if (!ts) return 'â€â€';
     var dt = ts.toDate ? ts.toDate() : new Date(ts);
-    if (isNaN(dt)) return 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
+    if (isNaN(dt)) return 'â€â€';
     var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     var mon  = MONTHS[dt.getMonth()];
     var day  = dt.getDate();
@@ -233,7 +233,7 @@ function fmtArchivedAt(ts) {
     return mon + ' ' + day + ', ' + yr + ' ' + h + ':' + m + ' ' + ampm;
 }
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Tab switching ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ââ€€ââ€€ Tab switching ââ€€ââ€€
 window.switchArchiveTab = function(tab) {
     _archiveCurrentTab = tab;
     // Reset pagination to page 1 for all archive lists
@@ -265,18 +265,18 @@ window.renderCurrentTab = function() {
     else renderUsersArchiveList();
 };
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Item Master archive ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ââ€€ââ€€ Item Master archive ââ€€ââ€€
 db.collection('archive').doc('item_master').collection('items').onSnapshot(function(snap) {
     _archivedItems = snap.docs.map(function(d) {
         var data = d.data();
         return {
             id: d.id,
-            num: data.num || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+            num: data.num || 'â€â€',
             supplierCode: data.supplierCode || '',
-            name: data.name || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+            name: data.name || 'â€â€',
             uom: data.uom || '',
             group: data.group || '',
-            cost: parseFloat(String(data.cost || 0).replace(/[ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±,]/g, '')) || 0,
+            cost: parseFloat(String(data.cost || 0).replace(/[₱,]/g, '')) || 0,
             type: data.type || 'Material',
             archivedAt: data.archivedAt || null,
         };
@@ -305,12 +305,12 @@ function renderArchiveList() {
         var typeBg    = item.type === 'Service' ? 'rgba(0,51,160,0.07)' : 'rgba(229,62,62,0.07)';
         return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 1.2fr 120px;min-width:1000px;align-items:center;opacity:0.85;">'
             + '<div><strong>' + item.num + '</strong></div>'
-            + '<div style="font-size:11px;color:#718096;">' + (item.supplierCode || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</div>'
+            + '<div style="font-size:11px;color:#718096;">' + (item.supplierCode || 'â€â€') + '</div>'
             + '<div>' + item.name + '</div>'
-            + '<div>' + (item.uom || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</div>'
-            + '<div>' + (item.group || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</div>'
+            + '<div>' + (item.uom || 'â€â€') + '</div>'
+            + '<div>' + (item.group || 'â€â€') + '</div>'
             + '<div><span style="display:inline-block;background:' + typeBg + ';color:' + typeColor + ';border:1.5px solid ' + typeColor + ';padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;">' + item.type + '</span></div>'
-            + '<div>ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±' + item.cost.toLocaleString('en-PH', {minimumFractionDigits:2}) + '</div>'
+            + '<div>₱' + item.cost.toLocaleString('en-PH', {minimumFractionDigits:2}) + '</div>'
             + '<div style="font-size:11px;color:#718096;white-space:nowrap;">' + fmtArchivedAt(item.archivedAt) + '</div>'
             + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;">'
             +   '<button class="btn-small btn-secondary" onclick="restoreItem(\'' + item.id + '\',\'' + item.name.replace(/'/g,"\\'") + '\')" title="Restore" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;color:#38a169;border-color:#9ae6b4;background:#f0fff4;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg></button>'
@@ -363,17 +363,17 @@ window.permanentlyDeleteItem = function(docId, name) {
     });
 };
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Maintenance Records archive ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ââ€€ââ€€ Maintenance Records archive ââ€€ââ€€
 db.collection('archive').doc('maintenance').collection('records').onSnapshot(function(snap) {
     _archivedMaintenance = snap.docs.map(function(d) {
         var data = d.data();
         return {
             id: d.id,
-            plate: data.plate || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+            plate: data.plate || 'â€â€',
             desc: data.desc || '',
-            mechanic: data.mechanic || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
-            date: data.date || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
-            cost: data.cost || 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±0.00',
+            mechanic: data.mechanic || 'â€â€',
+            date: data.date || 'â€â€',
+            cost: data.cost || '₱0.00',
             status: data.status || 'Ongoing',
             archivedAt: data.archivedAt || null,
         };
@@ -407,7 +407,7 @@ function renderMaintenanceArchiveList() {
         return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 1fr 1fr 1fr 1.2fr 110px;min-width:1000px;align-items:center;opacity:0.85;">'
             + '<div style="font-size:12px;color:#4a5568;">' + item.date + '</div>'
             + '<div><strong>' + item.plate + '</strong></div>'
-            + '<div style="font-size:12px;color:#4a5568;">' + (item.desc || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</div>'
+            + '<div style="font-size:12px;color:#4a5568;">' + (item.desc || 'â€â€') + '</div>'
             + '<div style="font-size:12px;">' + item.mechanic + '</div>'
             + '<div style="font-size:12px;font-weight:600;">' + item.cost + '</div>'
             + '<div>' + badge + '</div>'
@@ -443,17 +443,17 @@ window.permanentlyDeleteMaintenance = function(docId, plate) {
     });
 };
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Vehicles archive ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ââ€€ââ€€ Vehicles archive ââ€€ââ€€
 var _archivedVehicles = [];
 db.collection('archive').doc('vehicles').collection('vehicles').onSnapshot(function(snap) {
     _archivedVehicles = snap.docs.map(function(d) {
         var v = d.data();
         return {
             id: d.id,
-            plate: v.plate || v.plateNumber || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
-            type: v.type || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
-            owner: v.owner || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
-            odo: v.odo || (v.odometer ? v.odometer + ' km' : 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'),
+            plate: v.plate || v.plateNumber || 'â€â€',
+            type: v.type || 'â€â€',
+            owner: v.owner || 'â€â€',
+            odo: v.odo || (v.odometer ? v.odometer + ' km' : 'â€â€'),
             lastSvcDate: v.lastSvcDate || v.lastServiceDate || '',
             archivedAt: v.archivedAt || null,
         };
@@ -467,7 +467,7 @@ function renderVehiclesArchiveList() {
     var q = ((document.getElementById('archiveSearch') || {}).value || '').toLowerCase().trim();
     var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     function fmtDate(d) {
-        if (!d) return 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
+        if (!d) return 'â€â€';
         var dt = new Date(d + 'T00:00:00');
         if (isNaN(dt)) return d;
         return MONTHS[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
@@ -523,16 +523,16 @@ window.permanentlyDeleteVehicle = function(docId, plate) {
     });
 };
 
-// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Users archive ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+// ââ€€ââ€€ Users archive ââ€€ââ€€
 var _archivedUsers = [];
 db.collection('archive').doc('users').collection('users').onSnapshot(function(snap) {
     _archivedUsers = snap.docs.map(function(d) {
         var u = d.data();
         return {
             id: d.id,
-            name: u.name || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
-            email: u.email || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
-            role: u.role || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+            name: u.name || 'â€â€',
+            email: u.email || 'â€â€',
+            role: u.role || 'â€â€',
             status: u.status || 'Inactive',
             companyName: u.companyName || '',
             archivedAt: u.archivedAt || null,
