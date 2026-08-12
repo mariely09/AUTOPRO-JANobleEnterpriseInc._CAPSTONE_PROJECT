@@ -129,6 +129,8 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
   String _currentUserName = '';
   Set<String> _inactiveItemNames = {}; // names of Inactive stock items
   Map<String, int> _stockMap = {};    // name.lower → current stock qty (for dropdown oos badge)
+  // Stable GlobalKeys for _ItemSearchField — keyed by row object identity
+  final _rowKeys = <int, GlobalKey>{};
 
   @override
   void initState() {
@@ -1241,7 +1243,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
 
   Widget _svcRow(Map<String, TextEditingController> row, VoidCallback onRemove, StateSetter setModal, List<Map<String, TextEditingController>> allSvcRows, BuildContext ctx) {
     row.putIfAbsent('searchText', () => TextEditingController(text: row['name']!.text));
-    final svcFieldKey = row.putIfAbsent('_svcKey', () => GlobalKey()) as GlobalKey;
+    final svcFieldKey = _rowKeys.putIfAbsent(identityHashCode(row), () => GlobalKey());
 
     // All service items preserving same-name different-UOM entries
     final serviceItems = _allItems
@@ -1334,7 +1336,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
   Widget _matRow(Map<String, TextEditingController> row, VoidCallback onRemove, StateSetter setModal, BuildContext ctx, List<Map<String, TextEditingController>> allMatRows) {
     row.putIfAbsent('maxStock', () => TextEditingController(text: '99999'));
     row.putIfAbsent('searchText', () => TextEditingController());
-    final matFieldKey = row.putIfAbsent('_matKey', () => GlobalKey()) as GlobalKey;
+    final matFieldKey = _rowKeys.putIfAbsent(identityHashCode(row) + 1, () => GlobalKey());
 
     // All material items from item master (type == Material), excluding Inactive stock items
     // Use _allItems to preserve items with same name but different UOM

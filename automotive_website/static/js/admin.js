@@ -424,20 +424,20 @@ window.renderDSS = function () {
 function renderDSSKpis() {
     const el = document.getElementById('dssKpiGrid');
     if (!el) return;
+    // Enforce 2-column layout (In Stock removed)
+    el.style.gridTemplateColumns = 'repeat(2, 1fr)';
+    el.style.maxWidth = '600px';
     const d = _dssData;
     const outOfStock = d.filter(function (x) { return x.priority === 0; }).length;
     const lowStock   = d.filter(function (x) { return x.priority === 1; }).length;
-    const adequate   = d.filter(function (x) { return x.priority === 2; }).length;
 
     el.innerHTML = [
         { svg: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
-          label: 'Out of Stock', val: outOfStock, color: '#e53e3e', bg: 'rgba(229,62,62,0.10)', filter: 'critical' },
+          label: 'Out of Stock', val: outOfStock, color: '#e53e3e', bg: 'rgba(229,62,62,0.10)', filter: 'critical', idx: 1 },
         { svg: '<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>',
-          label: 'Low Stock', val: lowStock, color: '#d69e2e', bg: 'rgba(214,158,46,0.10)', filter: 'low-stock' },
-        { svg: '<polyline points="20 6 9 17 4 12"/>',
-          label: 'In Stock', val: adequate, color: '#38a169', bg: 'rgba(56,161,105,0.10)', filter: 'ok' },
+          label: 'Low Stock', val: lowStock, color: '#d69e2e', bg: 'rgba(214,158,46,0.10)', filter: 'low-stock', idx: 2 },
     ].map(function (k) {
-        return '<div class="stat-card" style="cursor:pointer;" onclick="dssSetFilter(\'' + k.filter + '\',document.querySelectorAll(\'#dssFilterPills .dss-pill\')[' + ({'critical':1,'low-stock':2,'ok':3}[k.filter]) + '])">'
+        return '<div class="stat-card" style="cursor:pointer;" onclick="dssSetFilter(\'' + k.filter + '\',document.querySelectorAll(\'#dssFilterPills .dss-pill\')[' + k.idx + '])">'
             + '<div class="stat-icon" style="background:' + k.bg + ';color:' + k.color + ';">'
             +   '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + k.svg + '</svg>'
             + '</div>'
@@ -456,6 +456,9 @@ function renderDSSTable() {
     const search = (document.getElementById('dssSearch') || {}).value || '';
     let rows = _dssData;
 
+    // Only show items that need attention: Out of Stock + Low Stock
+    rows = rows.filter(function (x) { return x.priority <= 1; });
+
     if (_dssFilter !== 'all') {
         rows = rows.filter(function (x) {
             if (_dssFilter === 'critical')  return x.priority === 0;
@@ -473,7 +476,7 @@ function renderDSSTable() {
     }
 
     if (rows.length === 0) {
-        body.innerHTML = '<tr><td colspan="7" class="dss-empty">No results found.</td></tr>';
+        body.innerHTML = '<tr><td colspan="7" class="dss-empty">' + (_dssFilter === 'all' ? '✅ All items are in stock. No replenishment needed.' : 'No results found.') + '</td></tr>';
         // Remove pagination if exists
         var oldPag = document.getElementById('dssPagination');
         if (oldPag) oldPag.innerHTML = '';

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -13,7 +13,7 @@
 </head>
 <body class="portal-body" data-page="asset-servicing">
 <script>
-// Instant auth guard — blocks bfcache back-navigation after logout
+// Instant auth guard � blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -41,7 +41,7 @@
     <div class="admin-main">
         <div class="admin-header">
             <div>
-                <div class="breadcrumb">Admin Portal › Vehicle Maintenance Management</div>
+                <div class="breadcrumb">Admin Portal � Vehicle Maintenance Management</div>
                 <div class="admin-header-title">Vehicle Maintenance</div>
             </div>
             <div style="margin-left:auto;display:flex;gap:0.5rem;align-items:center;">
@@ -54,13 +54,13 @@
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
                     <select id="svcSortSelect" onchange="renderServicesList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
-                        <option value="date-desc">Date ↓ Newest</option>
-                        <option value="date-asc">Date ↑ Oldest</option>
-                        <option value="plate-asc">Plate A→Z</option>
-                        <option value="plate-desc">Plate Z→A</option>
-                        <option value="mechanic-asc">Mechanic A→Z</option>
-                        <option value="cost-desc">Cost ↑ Highest</option>
-                        <option value="cost-asc">Cost ↓ Lowest</option>
+                        <option value="date-desc">Date ? Newest</option>
+                        <option value="date-asc">Date ? Oldest</option>
+                        <option value="plate-asc">Plate A?Z</option>
+                        <option value="plate-desc">Plate Z?A</option>
+                        <option value="mechanic-asc">Mechanic A?Z</option>
+                        <option value="cost-desc">Cost ? Highest</option>
+                        <option value="cost-asc">Cost ? Lowest</option>
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -130,7 +130,7 @@
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>
 
-<!-- ── View Service Modal ── -->
+<!-- -- View Service Modal -- -->
 <div class="modal" id="svcDetailsModal">
     <div class="modal-content" style="max-width:540px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;overflow-x:hidden;">
         <!-- Header -->
@@ -175,7 +175,7 @@
     </div>
 </div>
 
-<!-- ── Add / Edit Service Modal ── -->
+<!-- -- Add / Edit Service Modal -- -->
 <div class="modal" id="svcAddModal">
     <div class="modal-content" style="max-width:600px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;overflow-x:hidden;">
         <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
@@ -213,7 +213,7 @@
             </div>
             <!-- Vehicle Issues -->
             <div>
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;display:block;margin-bottom:0.4rem;">Vehicle Issues <span style="font-weight:400;color:#a0aec0;">(optional — select all that apply)</span></label>
+                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;display:block;margin-bottom:0.4rem;">Vehicle Issues <span style="font-weight:400;color:#a0aec0;">(optional � select all that apply)</span></label>
                 <div id="svcIssueTiles" style="display:flex;flex-wrap:wrap;gap:0.4rem;"></div>
                 <div style="margin-top:0.5rem;display:flex;gap:0.4rem;align-items:center;">
                     <input type="text" id="svcIssueCustomInput" placeholder="Add custom issue..." autocomplete="off"
@@ -242,7 +242,7 @@
             <!-- Total -->
             <div style="background:white;border-radius:10px;padding:0.85rem 1rem;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
                 <span style="font-size:0.88rem;font-weight:600;color:#2c5282;">Total Cost</span>
-                <span id="svcTotalDisplay" style="font-size:1.2rem;font-weight:800;color:#2b6cb0;">₱0.00</span>
+                <span id="svcTotalDisplay" style="font-size:1.2rem;font-weight:800;color:#2b6cb0;">?0.00</span>
             </div>
         </div>
         <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
@@ -261,7 +261,7 @@
 <div id="toast"></div>
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
-/* ── Floating label fields ── */
+/* -- Floating label fields -- */
 .fl-field {
     position: relative;
     width: 100%;
@@ -334,7 +334,7 @@
 <script src="../static/js/admin_firebase.js"></script>
 
 <script src="../static/js/admin_functions.js?v=202607180001"></script>
-<script src="../static/js/admin.js"></script>
+<script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script>
 var _svcEditingId = null;
@@ -342,7 +342,7 @@ var _svcServiceItems = [];
 var _svcMaterialItems = [];
 var _svcVehicles = [];
 
-// ── Service status filter ──
+// -- Service status filter --
 window._svcStatusFilter = 'all';
 window.svcSetFilter = function(filter, btn) {
   window._svcStatusFilter = filter;
@@ -351,7 +351,7 @@ window.svcSetFilter = function(filter, btn) {
   if (typeof renderServicesList === 'function') renderServicesList();
 };
 
-// ── Vehicle Issue Tags ──────────────────────────────────────
+// -- Vehicle Issue Tags --------------------------------------
 var _SVC_PRESET_ISSUES = [
   'Engine Problem','Brake Issue','Tire/Wheel','Battery','Overheating',
   'Oil Leak','Transmission','Suspension','Electrical','AC/Cooling',
@@ -376,7 +376,7 @@ function svcRenderIssueTiles() {
   _svcSelectedIssues.filter(function(i){ return _SVC_PRESET_ISSUES.indexOf(i) === -1; }).forEach(function(issue) {
     html += '<button type="button" onclick="svcToggleIssue(\'' + issue.replace(/'/g,"\\'") + '\',this)"'
       + ' style="padding:0.3rem 0.75rem;border-radius:20px;font-size:0.78rem;font-weight:600;cursor:pointer;background:#E31E24;color:white;border:1.5px solid #E31E24;">'
-      + issue + ' ✕</button>';
+      + issue + ' ?</button>';
   });
   container.innerHTML = html;
 }
@@ -407,7 +407,7 @@ function svcAddCustomIssue() {
   input.value = '';
 }
 
-// ── Service Date formatting (matches mobile: "Jan 5, 2025") ──
+// -- Service Date formatting (matches mobile: "Jan 5, 2025") --
 var _SVC_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 function svcFormatDateDisplay(isoVal) {
@@ -480,13 +480,13 @@ function svcMechanicSelect(name) {
 
 // (outside-click handling consolidated above)
 
-// Pull latest data from Firebase globals — called on demand so timing doesn't matter
+// Pull latest data from Firebase globals � called on demand so timing doesn't matter
 function _svcRefreshData() {
   _svcVehicles = window._fbVehicles || window.assets || [];
   var master = window.itemMaster || window._fbItemMaster || [];
   // Normalize: _fbItemMaster uses raw Firestore fields, itemMaster uses mapped fields
   if (master.length && master[0].name && !master[0].itemName) {
-    // Raw _fbItemMaster — map it
+    // Raw _fbItemMaster � map it
     master = master.map(function(i) {
       return {
         itemName: i.name || '',
@@ -494,7 +494,7 @@ function _svcRefreshData() {
         supplierCode: i.supplierCode || '',
         itemType: i.type || 'Material',
         uom: i.uom || '',
-        cost: parseFloat(String(i.cost || 0).replace(/[₱,]/g, '')) || 0,
+        cost: parseFloat(String(i.cost || 0).replace(/[?,]/g, '')) || 0,
       };
     });
   }
@@ -529,7 +529,7 @@ function _svcEnsureDataThen(callback) {
         supplierCode: i.supplierCode || '',
         itemName: i.name || '',
         uom: i.uom || '',
-        cost: parseFloat(String(i.cost || 0).replace(/[₱,]/g, '')) || 0,
+        cost: parseFloat(String(i.cost || 0).replace(/[?,]/g, '')) || 0,
         itemType: i.type || 'Material',
       };
     });
@@ -591,7 +591,7 @@ function svcPlateLookup(input) {
       + 'onmouseover="this.style.background=\'#f7f8fa\'" onmouseout="this.style.background=\'\'" '
       + 'onmousedown="event.preventDefault();svcPlateSelect(\'' + plate.replace(/'/g,"\\'") + '\');">'
       + '<div style="font-weight:700;font-size:0.85rem;color:#1a202c;">' + plate + '</div>'
-      + (desc ? '<div style="font-size:0.75rem;color:#718096;">' + desc + (owner ? ' • ' + owner : '') + '</div>' : '')
+      + (desc ? '<div style="font-size:0.75rem;color:#718096;">' + desc + (owner ? ' � ' + owner : '') + '</div>' : '')
       + '</div>';
   }).join('');
   _svcPositionDropdown(input, suggestions);
@@ -615,7 +615,7 @@ function svcPlateSelect(plate) {
     var odoInput = document.getElementById('svcOdometer');
     var curOdo = parseInt(String(v.odometer || v.odo || '0').replace(/[^0-9]/g, '')) || 0;
     if (odoInput && curOdo > 0) {
-      // Do nothing — let user input manually
+      // Do nothing � let user input manually
     }
   } else {
     info.style.display = 'none';
@@ -643,7 +643,7 @@ function svcCalcTotal() {
     var cost = parseFloat((row.querySelector('.svc-row-cost') || {}).value) || 0;
     total += qty * cost;
   });
-  document.getElementById('svcTotalDisplay').textContent = '₱' + total.toLocaleString('en-PH', {minimumFractionDigits:2});
+  document.getElementById('svcTotalDisplay').textContent = '?' + total.toLocaleString('en-PH', {minimumFractionDigits:2});
   return total;
 }
 
@@ -670,7 +670,7 @@ function svcAddSvcRow(name, qty, uom, cost) {
   div.innerHTML =
     '<div style="display:flex;gap:0.4rem;align-items:stretch;">'
     + '<div style="flex:1;position:relative;">'
-    // ── Search input (shown when nothing selected) ──
+    // -- Search input (shown when nothing selected) --
     + '<div class="svc-svc-search-wrap">'
     + '<input type="text" class="svc-svc-search" autocomplete="off"'
     + ' style="width:100%;padding:1rem 1rem 0.4rem 1rem;border:1.5px solid #c5cdd9;border-radius:8px;font-size:0.85rem;font-family:inherit;color:#1a202c;background:white;outline:none;box-sizing:border-box;transition:border-color 0.2s;"'
@@ -679,11 +679,11 @@ function svcAddSvcRow(name, qty, uom, cost) {
     + '<label style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:0.88rem;color:#a0aec0;pointer-events:none;transition:all 0.18s;background:white;padding:0 0.2rem;line-height:1;">Service Name *</label>'
     + '<div class="svc-svc-suggestions" style="display:none;position:fixed;background:white;border:1px solid #e2e8f0;border-radius:8px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.14);z-index:99999;"></div>'
     + '</div>'
-    // ── Selected card (shown once a service is picked) ──
+    // -- Selected card (shown once a service is picked) --
     + '<div class="svc-svc-detail" style="display:none;background:white;border-radius:8px;padding:0.65rem 0.85rem;border:1px solid #e2e8f0;">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;">'
     + '<span class="svc-svc-name-display" style="font-weight:600;font-size:0.85rem;color:#1a202c;"></span>'
-    + '<button type="button" onclick="svcSvcClear(this)" style="background:none;border:none;color:#718096;cursor:pointer;font-size:0.8rem;padding:0;">✕ Clear</button>'
+    + '<button type="button" onclick="svcSvcClear(this)" style="background:none;border:none;color:#718096;cursor:pointer;font-size:0.8rem;padding:0;">? Clear</button>'
     + '</div>'
     + '<div style="font-size:0.75rem;color:#718096;margin-top:2px;" class="svc-svc-meta"></div>'
     + '<div style="margin-top:0.5rem;">'
@@ -695,7 +695,7 @@ function svcAddSvcRow(name, qty, uom, cost) {
     + '<input type="hidden" class="svc-row-cost" value="' + (cost||'') + '">'
     + '</div>'
     + '</div>'
-    + '<button type="button" onclick="this.closest(\'.svc-row\').remove();svcCalcTotal();" style="width:30px;height:30px;background:none;border:none;color:#e53e3e;cursor:pointer;font-size:1.1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;align-self:flex-start;margin-top:0.6rem;">✕</button>'
+    + '<button type="button" onclick="this.closest(\'.svc-row\').remove();svcCalcTotal();" style="width:30px;height:30px;background:none;border:none;color:#e53e3e;cursor:pointer;font-size:1.1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;align-self:flex-start;margin-top:0.6rem;">?</button>'
     + '</div>';
 
   document.getElementById('svcSvcRows').appendChild(div);
@@ -753,7 +753,7 @@ function svcSvcLookup(input) {
     return;
   }
   suggestions.innerHTML = matches.map(function(i){
-    var secondLine = (i.uom||'') + (i.uom && i.cost ? ' • ' : '') + (i.cost ? '₱' + parseFloat(i.cost||0).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
+    var secondLine = (i.uom||'') + (i.uom && i.cost ? ' � ' : '') + (i.cost ? '?' + parseFloat(i.cost||0).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
     return '<div style="padding:0.6rem 0.85rem;cursor:pointer;border-bottom:1px solid #f0f4f8;transition:background 0.12s;" '
       + 'onmouseover="this.style.background=\'#f7f8fa\'" onmouseout="this.style.background=\'\'" '
       + 'onmousedown="event.preventDefault();svcSvcApply(this.closest(\'.svc-row\'),\'' + i.itemName.replace(/'/g,"\\'") + '\',\'' + (i.uom||'').replace(/'/g,"\\'") + '\',\'' + (i.cost||0) + '\');">'
@@ -787,7 +787,7 @@ function svcSvcApply(row, name, uom, cost) {
   row.querySelector('.svc-row-uom').value  = uom || '';
   row.querySelector('.svc-row-cost').value = costNum;
   row.querySelector('.svc-svc-name-display').textContent = name;
-  row.querySelector('.svc-svc-meta').textContent = (uom||'—') + '  •  ₱' + costNum.toLocaleString('en-PH',{minimumFractionDigits:2});
+  row.querySelector('.svc-svc-meta').textContent = (uom||'�') + '  �  ?' + costNum.toLocaleString('en-PH',{minimumFractionDigits:2});
   if (!row.querySelector('.svc-row-qty').value) row.querySelector('.svc-row-qty').value = 1;
   svcCalcTotal();
 }
@@ -809,13 +809,13 @@ function svcSvcClear(btn) {
   svcCalcTotal();
 }
 
-// Legacy — keep for backward compat (editService passes name via svcAddSvcRow)
+// Legacy � keep for backward compat (editService passes name via svcAddSvcRow)
 function svcOnSvcSelect(sel, preQty, preUom, preCost) {}
 
 function svcAddMatRow(name, qty, uom, cost) {
   _svcRefreshData();
   // Look up itemNum from _svcMaterialItems matching BOTH name and uom
-  // (handles same-name different-UOM items correctly — _svcMaterialItems preserves duplicates)
+  // (handles same-name different-UOM items correctly � _svcMaterialItems preserves duplicates)
   var _lookupItemNum = '';
   if (name) {
     var _masterItem = _svcMaterialItems.find(function(i) {
@@ -838,7 +838,7 @@ function svcAddMatRow(name, qty, uom, cost) {
   div.innerHTML =
     '<div style="display:flex;gap:0.4rem;align-items:stretch;">'
     + '<div style="flex:1;position:relative;">'
-    // ── Search input (shown when nothing selected) ──
+    // -- Search input (shown when nothing selected) --
     + '<div class="svc-mat-search-wrap">'
     + '<input type="text" class="svc-mat-search" autocomplete="off"'
     + ' style="width:100%;padding:1rem 2.2rem 0.4rem 1rem;border:1.5px solid #c5cdd9;border-radius:8px;font-size:0.85rem;font-family:inherit;color:#1a202c;background:white;outline:none;box-sizing:border-box;transition:border-color 0.2s;"'
@@ -847,14 +847,14 @@ function svcAddMatRow(name, qty, uom, cost) {
     + '<button type="button" onclick="svcMatLookup(this.previousElementSibling.previousElementSibling,true)" title="Search" style="position:absolute;right:0.4rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#718096;padding:0;display:flex;align-items:center;justify-content:center;"><svg xmlns=\'http://www.w3.org/2000/svg\' width=\'15\' height=\'15\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><circle cx=\'11\' cy=\'11\' r=\'8\'/><line x1=\'21\' y1=\'21\' x2=\'16.65\' y2=\'16.65\'/></svg></button>'
     + '<div class="svc-mat-suggestions" style="display:none;position:fixed;background:white;border:1px solid #e2e8f0;border-radius:8px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.14);z-index:99999;"></div>'
     + '</div>'
-    // ── Selected card (shown once a material is picked) ──
+    // -- Selected card (shown once a material is picked) --
     + '<div class="svc-row-detail" style="display:none;margin-top:0;background:white;border-radius:8px;padding:0.65rem 0.85rem;border:1px solid #e2e8f0;">'
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
     + '<div>'
     + '<div class="svc-mat-name-display" style="font-weight:600;font-size:0.85rem;color:#1a202c;"></div>'
     + '<div style="font-size:0.75rem;color:#718096;margin-top:2px;" class="svc-row-meta"></div>'
     + '</div>'
-    + '<button type="button" onclick="svcMatClear(this)" style="background:none;border:none;color:#718096;cursor:pointer;font-size:0.8rem;padding:0;">✕ Clear</button>'
+    + '<button type="button" onclick="svcMatClear(this)" style="background:none;border:none;color:#718096;cursor:pointer;font-size:0.8rem;padding:0;">? Clear</button>'
     + '</div>'
     + '<div class="svc-mat-stock" style="font-size:0.75rem;font-weight:700;margin-top:6px;padding:3px 8px;border-radius:20px;display:inline-block;"></div>'
     + '<div style="margin-top:0.5rem;">'
@@ -867,7 +867,7 @@ function svcAddMatRow(name, qty, uom, cost) {
     + '<input type="hidden" class="svc-mat-max" value="99999">'
     + '</div>'
     + '</div>'
-    + '<button type="button" onclick="this.closest(\'.svc-row\').remove();svcCalcTotal();" style="width:30px;height:30px;background:none;border:none;color:#e53e3e;cursor:pointer;font-size:1.1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;align-self:flex-start;margin-top:0.6rem;">✕</button>'
+    + '<button type="button" onclick="this.closest(\'.svc-row\').remove();svcCalcTotal();" style="width:30px;height:30px;background:none;border:none;color:#e53e3e;cursor:pointer;font-size:1.1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;align-self:flex-start;margin-top:0.6rem;">?</button>'
     + '</div>';
 
   document.getElementById('svcMatRows').appendChild(div);
@@ -937,7 +937,7 @@ function svcMatLookup(input, exact) {
   }
 
   suggestions.innerHTML = matches.map(function(i){
-    var secondLine = (i.uom||'') + (i.uom && i.cost ? ' • ' : '') + (i.cost ? '₱' + parseFloat(i.cost||0).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
+    var secondLine = (i.uom||'') + (i.uom && i.cost ? ' � ' : '') + (i.cost ? '?' + parseFloat(i.cost||0).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
     // Check stock level from window.inventory cache (already loaded, no extra query)
     var stockAvailable = -1; // -1 = unknown
     var invList = window.inventory || [];
@@ -957,7 +957,7 @@ function svcMatLookup(input, exact) {
     return '<div style="' + cardStyle + '" ' + mouseEvents + '>'
       + '<div style="font-weight:700;font-size:0.85rem;color:' + nameColor + ';">' + i.itemName + '</div>'
       + (secondLine ? '<div style="font-size:0.75rem;color:#718096;">' + secondLine + '</div>' : '')
-      + (isOutOfStock ? '<div style="margin-top:4px;display:inline-block;padding:2px 8px;border-radius:20px;background:rgba(229,62,62,0.08);font-size:0.72rem;font-weight:700;color:#e53e3e;">⚠ Out of stock — cannot add</div>' : '')
+      + (isOutOfStock ? '<div style="margin-top:4px;display:inline-block;padding:2px 8px;border-radius:20px;background:rgba(229,62,62,0.08);font-size:0.72rem;font-weight:700;color:#e53e3e;">? Out of stock � cannot add</div>' : '')
       + '</div>';
   }).join('');
   var rect = input.getBoundingClientRect();
@@ -978,7 +978,7 @@ function svcMatApply(row, name, uom, cost, maxStock, itemNum) {
   row.querySelector('.svc-row-uom').value  = uom || '';
   row.querySelector('.svc-row-cost').value = costNum;
   row.querySelector('.svc-mat-name-display').textContent = name;
-  row.querySelector('.svc-row-meta').textContent = (uom||'—') + '  •  ₱' + costNum.toLocaleString('en-PH',{minimumFractionDigits:2});
+  row.querySelector('.svc-row-meta').textContent = (uom||'�') + '  �  ?' + costNum.toLocaleString('en-PH',{minimumFractionDigits:2});
   var sugg = row.querySelector('.svc-mat-suggestions');
   if (sugg) sugg.style.display = 'none';
   if (!row.querySelector('.svc-row-qty').value) row.querySelector('.svc-row-qty').value = 1;
@@ -990,14 +990,14 @@ function svcMatApply(row, name, uom, cost, maxStock, itemNum) {
   function _applyStockDisplay(available, minLvl) {
     row.querySelector('.svc-mat-max').value = available;
     if (available >= 99999) {
-      // No stock record — no restriction
+      // No stock record � no restriction
       stockEl.textContent = '';
       stockEl.style.cssText = '';
       qtyInput.removeAttribute('max');
       qtyInput.disabled = false;
       qtyLabel.textContent = 'Quantity *';
     } else if (available === 0) {
-      stockEl.textContent = '⚠ Out of stock — cannot add';
+      stockEl.textContent = '? Out of stock � cannot add';
       stockEl.style.cssText = 'font-size:0.75rem;font-weight:700;margin-top:6px;padding:3px 8px;border-radius:20px;display:inline-block;color:#e53e3e;background:rgba(229,62,62,0.12);';
       qtyInput.setAttribute('max', '0');
       qtyInput.value = 0;
@@ -1033,12 +1033,12 @@ function svcMatApply(row, name, uom, cost, maxStock, itemNum) {
   if (invItem !== undefined) {
     _applyStockDisplay(parseInt(invItem.stock) || 0, parseInt(invItem.minLevel || invItem.min) || 0);
   } else {
-    // Not loaded yet — show loading state then fetch
+    // Not loaded yet � show loading state then fetch
     stockEl.textContent = 'Checking stock...';
     stockEl.style.cssText = 'font-size:0.75rem;font-weight:600;margin-top:6px;padding:3px 8px;border-radius:20px;display:inline-block;color:#718096;background:rgba(113,128,150,0.10);';
   }
 
-  // Step 2: always verify with Firestore — query by item number (unique) to handle same-name different-UOM items
+  // Step 2: always verify with Firestore � query by item number (unique) to handle same-name different-UOM items
   var stockQuery = (itemNum && itemNum !== '')
     ? firebase.firestore().collection('stock_inventory').where('num', '==', itemNum).limit(1).get()
     : (uom && uom !== '')
@@ -1056,7 +1056,7 @@ function svcMatApply(row, name, uom, cost, maxStock, itemNum) {
     })
     .then(function(snap) {
       if (snap.empty) {
-        // No stock record — no restriction
+        // No stock record � no restriction
         _applyStockDisplay(99999, 0);
         return;
       }
@@ -1086,7 +1086,7 @@ function svcMatQtyCheck(input) {
   svcCalcTotal();
 }
 
-// Block keypresses that would push qty above max — fires before value changes
+// Block keypresses that would push qty above max � fires before value changes
 function svcMatQtyKeyDown(e, input) {
   // Allow: backspace, delete, tab, arrows, home, end
   var allowed = ['Backspace','Delete','Tab','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'];
@@ -1143,7 +1143,7 @@ function svcOpenAddModal() {
   document.getElementById('svcDateDisplay').value = _svcTodayFormatted();
   document.getElementById('svcSvcRows').innerHTML = '';
   document.getElementById('svcMatRows').innerHTML = '';
-  document.getElementById('svcTotalDisplay').textContent = '₱0.00';
+  document.getElementById('svcTotalDisplay').textContent = '?0.00';
   document.getElementById('svcOdometer').value = '';
   _svcSelectedIssues = [];
   svcRenderIssueTiles();
@@ -1174,7 +1174,7 @@ function openAddServiceModal() { svcOpenAddModal(); }
         document.getElementById('svcMechanic').value = '';
         document.getElementById('svcSvcRows').innerHTML = '';
         document.getElementById('svcMatRows').innerHTML = '';
-        document.getElementById('svcTotalDisplay').textContent = '₱0.00';
+        document.getElementById('svcTotalDisplay').textContent = '?0.00';
         document.getElementById('svcOdometer').value = '';
         _svcSelectedIssues = [];
         svcRenderIssueTiles();
@@ -1241,7 +1241,7 @@ function viewServiceDetails(docId) {
 window._svcViewDetails = function(docId) {
   var db = firebase.firestore();
 
-  // Use cached data first (instant) — fall back to Firestore if not found
+  // Use cached data first (instant) � fall back to Firestore if not found
   var cached = (window._fbServices || []).find(function(s) { return s._id === docId; });
 
   function _renderDetails(s) {
@@ -1249,17 +1249,17 @@ window._svcViewDetails = function(docId) {
     var sc = { 'completed':'#38a169', 'ongoing':'#d69e2e', 'pending':'#718096' };
     var color = sc[statusLower] || '#718096';
 
-    document.getElementById('svcDetailPlate').textContent = s.plate || '—';
-    document.getElementById('svcDetailDesc').textContent = s.desc || '—';
+    document.getElementById('svcDetailPlate').textContent = s.plate || '�';
+    document.getElementById('svcDetailDesc').textContent = s.desc || '�';
 
     // Info rows
     var rows = [
-      ['Plate Number', s.plate || '—'],
-      ['Mechanic', s.mechanic || '—'],
-      ['Service Date', s.date || '—'],
-      ['Odometer Reading', s.odometer ? Number(s.odometer).toLocaleString() + ' km' : '—'],
-      ['Total Cost', s.cost || '₱0.00'],
-      ['Status', '<span style="display:inline-block;padding:2px 10px;border-radius:20px;background:' + color + '1a;color:' + color + ';font-weight:700;font-size:0.82rem;">' + (s.status || '—') + '</span>'],
+      ['Plate Number', s.plate || '�'],
+      ['Mechanic', s.mechanic || '�'],
+      ['Service Date', s.date || '�'],
+      ['Odometer Reading', s.odometer ? Number(s.odometer).toLocaleString() + ' km' : '�'],
+      ['Total Cost', s.cost || '?0.00'],
+      ['Status', '<span style="display:inline-block;padding:2px 10px;border-radius:20px;background:' + color + '1a;color:' + color + ';font-weight:700;font-size:0.82rem;">' + (s.status || '�') + '</span>'],
     ];
     document.getElementById('svcDetailRows').innerHTML = rows.map(function(r, i) {
       var isLast = i === rows.length - 1;
@@ -1294,10 +1294,10 @@ window._svcViewDetails = function(docId) {
         var subtotal = qty * cost;
         return '<div style="background:white;border-radius:10px;padding:0.75rem 1rem;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">'
           + '<div>'
-          + '<div style="font-weight:600;font-size:13px;color:#1a202c;">' + (r.name || '—') + '</div>'
-          + '<div style="font-size:11px;color:#718096;">' + qty + ' ' + (r.uom || '') + ' &nbsp;•&nbsp; ₱' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</div>'
+          + '<div style="font-weight:600;font-size:13px;color:#1a202c;">' + (r.name || '�') + '</div>'
+          + '<div style="font-size:11px;color:#718096;">' + qty + ' ' + (r.uom || '') + ' &nbsp;�&nbsp; ?' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</div>'
           + '</div>'
-          + '<span style="font-weight:700;font-size:13px;color:#1a202c;">₱' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</span>'
+          + '<span style="font-weight:700;font-size:13px;color:#1a202c;">?' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</span>'
           + '</div>';
       }).join('');
     } else { svcSec.style.display = 'none'; }
@@ -1314,15 +1314,15 @@ window._svcViewDetails = function(docId) {
         var subtotal = qty * cost;
         return '<div style="background:white;border-radius:10px;padding:0.75rem 1rem;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">'
           + '<div>'
-          + '<div style="font-weight:600;font-size:13px;color:#1a202c;">' + (r.name || '—') + (r.uom ? ' (' + r.uom + ')' : '') + '</div>'
-          + '<div style="font-size:11px;color:#718096;">' + qty + ' &nbsp;•&nbsp; ₱' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</div>'
+          + '<div style="font-weight:600;font-size:13px;color:#1a202c;">' + (r.name || '�') + (r.uom ? ' (' + r.uom + ')' : '') + '</div>'
+          + '<div style="font-size:11px;color:#718096;">' + qty + ' &nbsp;�&nbsp; ?' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</div>'
           + '</div>'
-          + '<span style="font-weight:700;font-size:13px;color:#1a202c;">₱' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</span>'
+          + '<span style="font-weight:700;font-size:13px;color:#1a202c;">?' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</span>'
           + '</div>';
       }).join('');
     } else { matSec.style.display = 'none'; }
 
-    // Action buttons — mirror mobile logic (no Pending state anymore)
+    // Action buttons � mirror mobile logic (no Pending state anymore)
     var completeBtn = document.getElementById('svcDetailCompleteBtn');
     var editBtn = document.getElementById('svcDetailEditBtn');
     completeBtn.style.display = statusLower === 'ongoing' ? 'flex' : 'none';
@@ -1332,7 +1332,7 @@ window._svcViewDetails = function(docId) {
       if (!confirm('Are you sure you want to mark service for ' + s.plate + ' as Completed?')) return;
       var cBtn = document.getElementById('svcDetailCompleteBtn');
       var cBtnOrigHtml = cBtn ? cBtn.innerHTML : '';
-      if (cBtn) { cBtn.disabled = true; cBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Completing…'; }
+      if (cBtn) { cBtn.disabled = true; cBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Completing�'; }
       db.collection('maintenance').doc(docId).update({ status: 'Completed' }).then(function() {
         var now = new Date();
         var _MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1378,7 +1378,7 @@ window._svcViewDetails = function(docId) {
               }
               // Log OUT transaction
               db.collection('transactions').add({
-                item: r.name, desc: 'Issued for maintenance ' + (s.id || docId) + ' — ' + plate,
+                item: r.name, desc: 'Issued for maintenance ' + (s.id || docId) + ' � ' + plate,
                 type: 'OUT', qty: '-' + qty, date: dateStr, by: byName,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
               });
@@ -1475,7 +1475,7 @@ function svcSave() {
     mechanic: mechanic,
     date: date,
     odometer: odometer,
-    cost: '₱' + total.toLocaleString('en-PH', {minimumFractionDigits:2}),
+    cost: '?' + total.toLocaleString('en-PH', {minimumFractionDigits:2}),
     svcRows: svcRows,
     matRows: matRows,
     issues: _svcSelectedIssues.slice(),
@@ -1495,8 +1495,8 @@ function svcSave() {
   }
   var sBtn = document.getElementById('svcSubmitBtn');
   var sBtnOrigHtml = sBtn ? sBtn.innerHTML : '';
-  var spinSave = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving…';
-  var spinUpdate = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Updating…';
+  var spinSave = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving�';
+  var spinUpdate = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Updating�';
   if (sBtn) { sBtn.disabled = true; sBtn.innerHTML = window._svcEditingId ? spinUpdate : spinSave; }
   if (window._svcEditingId) {
     db.collection('maintenance').doc(window._svcEditingId).update(data)

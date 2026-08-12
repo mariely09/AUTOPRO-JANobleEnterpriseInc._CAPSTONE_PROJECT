@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="../static/css/admin.css">
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
-/* ── Floating label fields ── */
+/* -- Floating label fields -- */
 .fl-field {
     position: relative;
     width: 100%;
@@ -74,7 +74,7 @@
 </head>
 <body class="portal-body" data-page="users">
 <script>
-// Instant auth guard — blocks bfcache back-navigation after logout
+// Instant auth guard � blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -116,9 +116,9 @@
                     <option value="inactive">Inactive</option>
                 </select>
                 <select id="userSortBy" onchange="renderUsersList()" class="search-bar" style="width:160px;padding:0.5rem 2rem 0.5rem 0.75rem;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%23a0aec0%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpolyline points=%276 9 12 15 18 9%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 0.6rem center;">
-                    <option value="name-asc">Name A→Z</option>
-                    <option value="name-desc">Name Z→A</option>
-                    <option value="email-asc">Email A→Z</option>
+                    <option value="name-asc">Name A?Z</option>
+                    <option value="name-desc">Name Z?A</option>
+                    <option value="email-asc">Email A?Z</option>
                 </select>
             </div>
         </div>
@@ -180,7 +180,7 @@
                 </div>
             </div>
 
-            <!-- ── Users Table ── -->
+            <!-- -- Users Table -- -->
             <div id="tabAll">
                 <div class="data-table">
                     <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:40px 2fr 2fr 1.5fr 1fr 1fr 175px;">
@@ -284,7 +284,7 @@
 
 <div id="toast"></div>
 
-<!-- ── Confirm Dialog ── -->
+<!-- -- Confirm Dialog -- -->
 <div id="confirmDialog" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:16px;padding:0;max-width:400px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,0.18);overflow:hidden;">
     <div id="confirmHeader" style="padding:1.1rem 1.4rem;display:flex;align-items:center;gap:0.75rem;">
@@ -320,13 +320,13 @@
 <script src="../static/js/admin_firebase.js"></script>
 
 <script src="../static/js/admin_functions.js?v=202607180001"></script>
-<script src="../static/js/admin.js"></script>
+<script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script>
 var _editingUserId = null;
 var _currentTab = 'all';
 
-// ── User role filter ──
+// -- User role filter --
 window._userFilter = 'all';
 window._statusFilter = 'all';
 window.userSetFilter = function(filter, btn) {
@@ -391,7 +391,7 @@ function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// ── Styled confirm dialog ──
+// -- Styled confirm dialog --
 function showConfirm(opts) {
     // opts: { title, body, icon, iconBg, okLabel, okColor, onOk }
     var dialog     = document.getElementById('confirmDialog');
@@ -402,7 +402,7 @@ function showConfirm(opts) {
     var okBtn      = document.getElementById('confirmOkBtn');
     var cancelBtn  = document.getElementById('confirmCancelBtn');
 
-    iconWrap.textContent      = opts.icon   || '❓';
+    iconWrap.textContent      = opts.icon   || '?';
     iconWrap.style.background = opts.iconBg || '#f0f4ff';
     titleEl.textContent       = opts.title  || 'Confirm';
     bodyEl.innerHTML          = opts.body   || '';
@@ -416,12 +416,12 @@ function showConfirm(opts) {
     cancelBtn.onclick = function() { close(); };
 }
 
-// ── Approve user ──
+// -- Approve user --
 function approveUser(uid, email, name) {
     showConfirm({
         title:   'Approve Account',
         body:    'Approve <strong>' + escHtml(name) + '</strong>?<br/><br/>They will receive an email notification and can sign in immediately.',
-        icon:    '✅',
+        icon:    '?',
         iconBg:  '#f0fff4',
         okLabel: 'Approve',
         okColor: '#38a169',
@@ -430,7 +430,7 @@ function approveUser(uid, email, name) {
             db.collection('users').doc(uid).update({ status: 'Active' })
                 .then(function() {
                     return db.collection('notifications').add({
-                        title:      '✅ Account Approved',
+                        title:      '? Account Approved',
                         message:    name + ' (' + email + ') has been approved and can now sign in.',
                         type:       'success',
                         targetRole: 'admin',
@@ -442,19 +442,19 @@ function approveUser(uid, email, name) {
                 })
                 .then(function() { return _sendApprovalEmail(email, name); })
                 .then(function(sent) {
-                    showToast(name + ' approved!' + (sent ? ' Email sent.' : ' (Email not sent — check server.)'), 'success');
+                    showToast(name + ' approved!' + (sent ? ' Email sent.' : ' (Email not sent � check server.)'), 'success');
                 })
                 .catch(function(err) { showToast('Error: ' + err.message, 'error'); });
         }
     });
 }
 
-// ── Reject user (delete from Firestore + Firebase Auth) ──
+// -- Reject user (delete from Firestore + Firebase Auth) --
 function rejectUser(uid, name) {
     showConfirm({
         title:   'Reject & Delete Account',
         body:    'Reject <strong>' + escHtml(name) + '</strong>\'s account?<br/><br/>This will <strong>permanently delete</strong> their account.',
-        icon:    '🗑️',
+        icon:    '???',
         iconBg:  '#fff5f5',
         okLabel: 'Delete Account',
         okColor: '#e53e3e',
@@ -479,7 +479,7 @@ function rejectUser(uid, name) {
     });
 }
 
-// ── Toggle active/inactive (non-pending only) ──
+// -- Toggle active/inactive (non-pending only) --
 function toggleUserStatus(uid, currentStatus) {
     if (currentStatus === 'pending') return;
     var newStatus = currentStatus === 'active' ? 'Inactive' : 'Active';
@@ -494,7 +494,7 @@ function toggleUserStatus(uid, currentStatus) {
         });
 }
 
-// ── Render pending cards ──
+// -- Render pending cards --
 function renderPendingCards(pending) {
     var list = document.getElementById('pendingCardsList');
     if (!list) return;
@@ -509,8 +509,8 @@ function renderPendingCards(pending) {
         return '<div style="background:white;border:1px solid #fbd38d;border-radius:14px;padding:1.1rem 1.25rem;margin-bottom:0.85rem;display:flex;align-items:center;gap:1rem;">'
             + '<div style="width:44px;height:44px;border-radius:50%;background:#fff3cd;display:flex;align-items:center;justify-content:center;font-weight:800;color:#c05621;font-size:1rem;flex-shrink:0;">'+initials+'</div>'
             + '<div style="flex:1;min-width:0;">'
-            +   '<div style="font-weight:700;color:#1a202c;font-size:0.92rem;">'+escHtml(u.name||'—')+'</div>'
-            +   '<div style="color:#718096;font-size:0.8rem;margin-top:0.1rem;">'+escHtml(u.email||'—')+'</div>'
+            +   '<div style="font-weight:700;color:#1a202c;font-size:0.92rem;">'+escHtml(u.name||'�')+'</div>'
+            +   '<div style="color:#718096;font-size:0.8rem;margin-top:0.1rem;">'+escHtml(u.email||'�')+'</div>'
             + '</div>'
             + '<span style="background:#fff3cd;color:#c05621;padding:0.2rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;flex-shrink:0;">Pending</span>'
             + '<div style="display:flex;gap:0.5rem;flex-shrink:0;">'
@@ -544,7 +544,7 @@ function viewUser(userId) {
     var roleColors = { admin:'#E31E24', staff:'#003087', customer:'#38a169' };
     var rc = roleColors[(u.role||'').toLowerCase()] || '#718096';
     document.getElementById('vuAvatar').textContent = (u.name||'?').split(' ').map(function(n){ return n[0]; }).join('').toUpperCase().slice(0,2);
-    document.getElementById('vuName').textContent = u.name || '—';
+    document.getElementById('vuName').textContent = u.name || '�';
     document.getElementById('vuUsername').textContent = u.email || '';
     document.getElementById('vuUsername').style.display = u.email ? 'block' : 'none';
     var roleLabel = (u.role||''); roleLabel = roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1);
@@ -552,9 +552,9 @@ function viewUser(userId) {
     var statusColor = statusLower === 'active' ? '#38a169' : '#718096';
     var statusLabel = statusLower === 'active' ? 'Active' : 'Inactive';
 
-    // Build info items — only include company name if it has a value
+    // Build info items � only include company name if it has a value
     var infoItems = [
-        ['Email', '<span style="word-break:break-all;">' + escHtml(u.email||'—') + '</span>'],
+        ['Email', '<span style="word-break:break-all;">' + escHtml(u.email||'�') + '</span>'],
     ];
     if ((u.companyName||'').trim()) {
         infoItems.push(['Company Name', '<span style="font-weight:700;color:#1a202c;">' + escHtml(u.companyName) + '</span>']);
@@ -606,7 +606,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch('/api/cleanup-orphaned-users', { method: 'POST' })
         .then(function(r) { return r.json(); })
         .then(function(data) {
-            if (data.count > 0) console.log('🧹 Cleaned ' + data.count + ' orphaned user doc(s)');
+            if (data.count > 0) console.log('?? Cleaned ' + data.count + ' orphaned user doc(s)');
         })
         .catch(function() {});
 
@@ -645,7 +645,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var db = firebase.firestore();
         if (_editingUserId) {
-            // Edit — update fields, preserve existing status
+            // Edit � update fields, preserve existing status
             // Check if email changed AND user hasn't logged in yet (mustChangePassword)
             var existingUser = (window.users || []).find(function(u){ return u.id === _editingUserId; });
             var emailChanged = existingUser && existingUser.email !== email;
@@ -677,7 +677,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     })
                     .then(function(sent) {
                         closeModal('addUserModal');
-                        showToast('User updated!' + (sent ? ' New credentials sent to ' + email + '.' : ' (Email not sent — check server.)'), 'success');
+                        showToast('User updated!' + (sent ? ' New credentials sent to ' + email + '.' : ' (Email not sent � check server.)'), 'success');
                     });
             } else {
                 updatePromise = updatePromise.then(function(){
@@ -690,7 +690,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 .catch(function(err){ showToast('Error: ' + err.message, 'error'); })
                 .finally(function(){ setLoading(false); });
         } else {
-            // Add — check for existing email first, then auto-generate password, create via Firebase Auth REST, save to Firestore, send email
+            // Add � check for existing email first, then auto-generate password, create via Firebase Auth REST, save to Firestore, send email
             var tempPass = _generateTempPassword();
             var apiKey = 'AIzaSyCaoJWbwJk0Xi694ARHpdHhiNjT0SpASRs';
 
@@ -726,7 +726,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     return _sendWelcomeEmail(email, fullName, pass, role)
                         .then(function(sent) {
                             closeModal('addUserModal');
-                            showToast('User added!' + (sent ? ' Credentials sent to ' + email + '.' : ' (Email not sent — check server.)'), 'success');
+                            showToast('User added!' + (sent ? ' Credentials sent to ' + email + '.' : ' (Email not sent � check server.)'), 'success');
                         });
                 })
                 .catch(function(err){
