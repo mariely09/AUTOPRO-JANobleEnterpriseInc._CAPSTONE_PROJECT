@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -12,7 +12,7 @@
 </head>
 <body data-page="dashboard">
 <script>
-// Instant auth guard — blocks bfcache back-navigation after logout
+// Instant auth guard Ã¢â‚¬â€ blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -95,8 +95,8 @@
         <div class="cu-modal-header">
             <div class="cu-modal-header-row">
                 <div style="flex:1;">
-                    <div class="cu-modal-title" id="cuModalPlate">—</div>
-                    <div class="cu-modal-sub" id="cuModalDesc">—</div>
+                    <div class="cu-modal-title" id="cuModalPlate">Ã¢â‚¬â€</div>
+                    <div class="cu-modal-sub" id="cuModalDesc">Ã¢â‚¬â€</div>
                 </div>
                 <button class="cu-modal-close" onclick="cuCloseModal()">&times;</button>
             </div>
@@ -110,14 +110,14 @@
 <!-- Toast -->
 <div id="cuToast"></div>
 
-<!-- ── AI Assistant Floating Widget ─────────────────────────── -->
+<!-- Ã¢â€â‚¬Ã¢â€â‚¬ AI Assistant Floating Widget Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ -->
 <!-- History overlay + drawer -->
 <div id="aiHistOverlay" onclick="aiCloseHistory()" style="position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:9100;opacity:0;pointer-events:none;transition:opacity .25s;"></div>
 <div id="aiHistDrawer" style="position:fixed;top:0;right:-340px;width:320px;height:100%;z-index:9101;background:white;box-shadow:-4px 0 24px rgba(0,0,0,0.15);transition:right .28s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden;">
     <div style="background:linear-gradient(135deg,#c62828,#E8001C);padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
         <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="white"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
         <div style="flex:1;color:#fff;font-size:14px;font-weight:700;">Chat History</div>
-        <button onclick="aiCloseHistory()" style="width:28px;height:28px;background:rgba(255,255,255,0.18);border:none;color:white;border-radius:8px;cursor:pointer;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;">×</button>
+        <button onclick="aiCloseHistory()" style="width:28px;height:28px;background:rgba(255,255,255,0.18);border:none;color:white;border-radius:8px;cursor:pointer;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;">Ãƒâ€”</button>
     </div>
     <button onclick="aiDeleteAllChats()" style="margin:12px 14px 0;padding:9px 14px;background:#fff5f5;border:1.5px solid #fca5a5;border-radius:10px;color:#dc2626;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:8px;transition:all .18s;width:calc(100% - 28px);" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fff5f5'">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
@@ -192,7 +192,7 @@
                      display:flex;align-items:center;justify-content:center;flex-shrink:0;
                      transition:background .18s;z-index:1;"
               onmouseover="this.style.background='rgba(255,255,255,0.28)'"
-              onmouseout="this.style.background='rgba(255,255,255,0.15)'">×</button>
+              onmouseout="this.style.background='rgba(255,255,255,0.15)'">Ãƒâ€”</button>
         </div>
         <!-- Messages -->
         <div id="aiMessages" style="flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px;background:linear-gradient(180deg,#f8f9fb 0%,#f2f4f7 100%);scroll-behavior:smooth;">
@@ -201,7 +201,7 @@
                     <img src="../static/img/AI_LOGO.png" style="width:72px;height:72px;object-fit:cover;display:block;" alt="AI">
                 </div>
                 <div style="font-size:15px;font-weight:800;color:#1a202c;margin-bottom:5px;letter-spacing:-0.2px;">AI Assistant</div>
-                <div id="aiWelcomeSub" style="font-size:12.5px;color:#94a3b8;line-height:1.65;max-width:280px;margin:0 auto;">Ask me anything about your vehicles — PMS status, maintenance history, and more.</div>
+                <div id="aiWelcomeSub" style="font-size:12.5px;color:#94a3b8;line-height:1.65;max-width:280px;margin:0 auto;">Ask me anything about your vehicles Ã¢â‚¬â€ PMS status, maintenance history, and more.</div>
                 <div style="display:flex;flex-direction:column;gap:8px;padding:18px 0 4px;" id="aiSuggestions">
                     <button class="ai-suggest-pill" data-q="List all my vehicles">List all my registered vehicles</button>
                     <button class="ai-suggest-pill" data-q="Give me a fleet summary">Give me a fleet summary</button>
@@ -212,12 +212,12 @@
                 </div>
             </div>
         </div>
-        <!-- Quick chips — hidden after first message -->
+        <!-- Quick chips Ã¢â‚¬â€ hidden after first message -->
         <div id="aiChips" style="display:none;"></div>
         <!-- Input bar -->
         <div style="padding:10px 12px 12px;background:white;border-top:1px solid #edf0f5;flex-shrink:0;">
             <div style="display:flex;gap:8px;align-items:center;background:#f4f6f9;border:1.5px solid #edf0f5;border-radius:20px;padding:8px 8px 8px 14px;transition:border-color .2s,box-shadow .2s;" id="aiInputWrap">
-                <textarea id="aiInput" placeholder="Ask about your vehicles, bookings, or services…" rows="1"
+                <textarea id="aiInput" placeholder="Ask about your vehicles, bookings, or servicesÃ¢â‚¬Â¦" rows="1"
                     style="flex:1;border:none;background:transparent;font-size:12.5px;font-family:inherit;color:#1a202c;outline:none;resize:none;max-height:80px;overflow-y:auto;line-height:1.5;padding:0;margin:0;display:block;align-self:center;"
                     onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();aiSend();}"
                     oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'"
@@ -230,7 +230,7 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </button>
             </div>
-            <div style="text-align:center;font-size:10px;color:#c0c8d4;margin-top:5px;">Enter to send &nbsp;·&nbsp; Shift+Enter for new line</div>
+            <div style="text-align:center;font-size:10px;color:#c0c8d4;margin-top:5px;">Enter to send &nbsp;Ã‚Â·&nbsp; Shift+Enter for new line</div>
         </div>
     </div>
     <!-- FAB toggle button -->
@@ -267,7 +267,7 @@
 .ai-typing-dots { background:white;border-radius:4px 16px 16px 16px;padding:13px 16px;align-self:flex-start;display:flex;gap:5px;align-items:center;box-shadow:0 2px 10px rgba(0,0,0,0.06); }
 .ai-typing-dots span { width:7px;height:7px;background:#cbd5e0;border-radius:50%;animation:aiBounce .9s ease-in-out infinite; }
 .ai-typing-dots span:nth-child(2){animation-delay:.15s} .ai-typing-dots span:nth-child(3){animation-delay:.3s}
-/* Suggestion pills — matches admin RAG AI style */
+/* Suggestion pills Ã¢â‚¬â€ matches admin RAG AI style */
 .ai-suggest-pill {
   display:flex;align-items:center;gap:8px;width:100%;text-align:left;
   background:white;border:1.5px solid #e8edf2;border-radius:12px;
@@ -284,7 +284,7 @@
 </style>
 
 <script>
-// ── AI Assistant Widget — fully fixed version ─────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ AI Assistant Widget Ã¢â‚¬â€ fully fixed version Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 var _aiVehicles = [], _aiMaintenance = [], _aiLoaded = false;
 var _aiPanelOpen = false;
 var _aiChatHistory = [];
@@ -293,7 +293,7 @@ var _aiResolvedName = '';   // resolved from Firestore (not just sessionStorage)
 var _aiSessionId = null;    // server-side session key
 var _aiRateLimited = false;
 
-// ── localStorage persistence ──────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ localStorage persistence Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function _aiStorKey(uid) { return 'ai_widget_chat_' + uid; }
 function _aiLoadSessions(uid) {
     try { var r = localStorage.getItem(_aiStorKey(uid)); return r ? JSON.parse(r) : []; } catch(e) { return []; }
@@ -331,14 +331,14 @@ function _aiRestoreSession(uid) {
     }, 60);
 }
 
-// ── Save on page exit so chat survives navigation ─────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Save on page exit so chat survives navigation Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 window.addEventListener('pagehide', function(){ if (_aiChatHistory.length) _aiSaveChat(); });
 window.addEventListener('beforeunload', function(){ if (_aiChatHistory.length) _aiSaveChat(); });
 document.addEventListener('visibilitychange', function(){
     if (document.visibilityState === 'hidden' && _aiChatHistory.length) _aiSaveChat();
 });
 
-// ── History drawer ────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ History drawer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 window.aiOpenHistory = function() {
     _aiRenderHistory();
     document.getElementById('aiHistDrawer').style.right = '0';
@@ -373,7 +373,7 @@ function _aiRenderHistory() {
         var preview=first?first.text:'(empty)',time=d.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});
         html+='<div style="background:#f8f9fb;border:1.5px solid #e8edf2;border-radius:11px;padding:10px 12px;margin-bottom:7px;cursor:pointer;" onclick="aiLoadSession(\''+s.id+'\')" onmouseover="this.style.background=\'#fff5f5\';this.style.borderColor=\'#E8001C\'" onmouseout="this.style.background=\'#f8f9fb\';this.style.borderColor=\'#e8edf2\'">'
              +'<div style="font-size:12px;color:#1a202c;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;">'+_aiEscH(preview)+'</div>'
-             +'<div style="font-size:10.5px;color:#94a3b8;margin-top:3px;">'+time+' &nbsp;·&nbsp; '+s.messages.length+' message'+(s.messages.length!==1?'s':'')+'</div></div>';
+             +'<div style="font-size:10.5px;color:#94a3b8;margin-top:3px;">'+time+' &nbsp;Ã‚Â·&nbsp; '+s.messages.length+' message'+(s.messages.length!==1?'s':'')+'</div></div>';
     });
     list.innerHTML=html;
 }
@@ -386,7 +386,7 @@ window.aiLoadSession = function(sid) {
     // Detach welcome before wiping, keep it in memory for when chat is cleared
     if(welcome&&welcome.parentNode===msgs) msgs.removeChild(welcome);
     msgs.innerHTML='';
-    // Do NOT re-append welcome — bubbles are the sole content while a session is active
+    // Do NOT re-append welcome Ã¢â‚¬â€ bubbles are the sole content while a session is active
     document.getElementById('aiChips').style.display='none';
     var cb=document.getElementById('aiClearBtn'); if(cb) cb.style.display='flex';
     _aiChatHistory=session.messages.slice();
@@ -396,7 +396,7 @@ window.aiLoadSession = function(sid) {
     aiCloseHistory();
 };
 
-// ── Panel open/close ──────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Panel open/close Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 window.openSmartAI = function() {
     var panel = document.getElementById('aiPanel');
     panel.style.display = 'flex';
@@ -432,7 +432,7 @@ function _updateFabIcon(open) {
     }
 }
 
-// ── Rebuild welcome (used by clear + delete) ──────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Rebuild welcome (used by clear + delete) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function _aiRebuildWelcome() {
     var msgs = document.getElementById('aiMessages');
     var welcome = document.getElementById('aiWelcome');
@@ -448,18 +448,18 @@ function _aiRebuildWelcome() {
     document.getElementById('aiChips').style.display = 'none';
     var cb = document.getElementById('aiClearBtn'); if(cb){ cb.style.display='none'; }
     var input = document.getElementById('aiInput');
-    if(input){ input.disabled=false; input.value=''; input.style.height='auto'; input.placeholder='Ask about your vehicles, bookings, or services…'; }
+    if(input){ input.disabled=false; input.value=''; input.style.height='auto'; input.placeholder='Ask about your vehicles, bookings, or servicesÃ¢â‚¬Â¦'; }
     var sendBtn = document.getElementById('aiSendBtn');
     if(sendBtn){ sendBtn.disabled=false; sendBtn.style.opacity=''; sendBtn.style.cursor=''; }
 }
 
-// ── Delegated pill click handler — works even after welcome is re-inserted ──
+// Ã¢â€â‚¬Ã¢â€â‚¬ Delegated pill click handler Ã¢â‚¬â€ works even after welcome is re-inserted Ã¢â€â‚¬Ã¢â€â‚¬
 document.addEventListener('click', function(e) {
     var pill = e.target.closest('.ai-suggest-pill[data-q]');
     if (pill) { window.aiSend(pill.getAttribute('data-q')); }
 });
 
-// ── Load customer data (ownerId first, fallback owner name) ───────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Load customer data (ownerId first, fallback owner name) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 async function _aiLoadData() {
     try {
         var user = firebase.auth().currentUser; if(!user) return;
@@ -483,7 +483,7 @@ async function _aiLoadData() {
 
         var subEl = document.getElementById('aiWelcomeSub');
         if (subEl) subEl.textContent = _aiVehicles.length
-            ? 'Ask me anything about your '+_aiVehicles.length+' vehicle'+(_aiVehicles.length!==1?'s':'')+' — PMS, history, bookings, and more.'
+            ? 'Ask me anything about your '+_aiVehicles.length+' vehicle'+(_aiVehicles.length!==1?'s':'')+' Ã¢â‚¬â€ PMS, history, bookings, and more.'
             : 'No vehicles found under your account.';
 
         if (_aiVehicles.length) {
@@ -497,7 +497,7 @@ async function _aiLoadData() {
     } catch(e) { console.error('AI load error:',e); }
 }
 
-// ── Add chat bubble ───────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Add chat bubble Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function _aiAddBubble(text, isUser) {
     var msgs = document.getElementById('aiMessages');
     var row = document.createElement('div');
@@ -536,7 +536,7 @@ function _aiAddTyping() {
     return row;
 }
 
-// ── Scoped local fallback (AI backend unreachable) ────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Scoped local fallback (AI backend unreachable) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function _aiFallback(q) {
     var ql = q.toLowerCase().trim();
     // Out-of-scope: inventory
@@ -565,30 +565,30 @@ function _aiFallback(q) {
     if (ql.indexOf('service history')!==-1||ql.indexOf('past service')!==-1||ql.indexOf('show my service')!==-1||ql.indexOf('spent')!==-1||ql.indexOf('maintenance record')!==-1) {
         var done=_aiMaintenance.filter(function(m){return (m.status||'').toLowerCase()==='completed';});
         if (!done.length) return "You don't have any completed service records yet.";
-        var total=done.reduce(function(s,r){var raw=r.cost||'0';return s+(parseFloat(String(raw).replace(/[₱,\s]/g,''))||0);},0);
-        return 'You have '+done.length+' completed service record'+(done.length!==1?'s':'')+'.\nTotal spent: ₱'+total.toLocaleString('en-PH',{minimumFractionDigits:2})+'\n\nGo to the "PMS History" tab to view full details.';
+        var total=done.reduce(function(s,r){var raw=r.cost||'0';return s+(parseFloat(String(raw).replace(/[Ã¢â€šÂ±,\s]/g,''))||0);},0);
+        return 'You have '+done.length+' completed service record'+(done.length!==1?'s':'')+'.\nTotal spent: Ã¢â€šÂ±'+total.toLocaleString('en-PH',{minimumFractionDigits:2})+'\n\nGo to the "PMS History" tab to view full details.';
     }
     // Vehicles
     if (ql.indexOf('my vehicle')!==-1||ql.indexOf('my fleet')!==-1||ql.indexOf('my car')!==-1||ql.indexOf('list my')!==-1||ql.indexOf('show my vehicle')!==-1) {
-        var lines=_aiVehicles.map(function(v){var e=(v.status==='On Track'||v.status==='Active')?'✅':v.status&&v.status.toLowerCase().indexOf('maintenance')!==-1?'🔧':v.status==='Overdue'?'⚠️':'•'; return e+' '+(v.plate||v.plateNumber||'—')+' — '+(v.desc||v.assetDescription||'—')+' ('+(v.status||'Active')+')';}).join('\n');
+        var lines=_aiVehicles.map(function(v){var e=(v.status==='On Track'||v.status==='Active')?'Ã¢Å“â€¦':v.status&&v.status.toLowerCase().indexOf('maintenance')!==-1?'Ã°Å¸â€Â§':v.status==='Overdue'?'Ã¢Å¡Â Ã¯Â¸Â':'Ã¢â‚¬Â¢'; return e+' '+(v.plate||v.plateNumber||'Ã¢â‚¬â€')+' Ã¢â‚¬â€ '+(v.desc||v.assetDescription||'Ã¢â‚¬â€')+' ('+(v.status||'Active')+')';}).join('\n');
         return 'Your fleet ('+_aiVehicles.length+' vehicle'+(_aiVehicles.length!==1?'s':'')+'): \n'+lines;
     }
     // PMS overdue
     if (ql.indexOf('overdue')!==-1) {
         var list=_aiVehicles.filter(function(v){return (v.status||'').toLowerCase()==='overdue';});
-        return list.length?'PMS Overdue ('+list.length+'):\n'+list.map(function(v){return '• '+(v.plate||'—')+' — '+(v.desc||'—');}).join('\n')+'\n\nPlease schedule a service soon!':'None of your vehicles are overdue for PMS. ✅';
+        return list.length?'PMS Overdue ('+list.length+'):\n'+list.map(function(v){return 'Ã¢â‚¬Â¢ '+(v.plate||'Ã¢â‚¬â€')+' Ã¢â‚¬â€ '+(v.desc||'Ã¢â‚¬â€');}).join('\n')+'\n\nPlease schedule a service soon!':'None of your vehicles are overdue for PMS. Ã¢Å“â€¦';
     }
     // Pricing
     if (ql.indexOf('how much')!==-1||ql.indexOf('price')!==-1||ql.indexOf('cost of')!==-1||ql.indexOf('oil change')!==-1||ql.indexOf('change oil')!==-1)
-        return 'For service pricing, please ask when the AI service is online — it can look up exact prices from the catalog.';
+        return 'For service pricing, please ask when the AI service is online Ã¢â‚¬â€ it can look up exact prices from the catalog.';
     // Fleet summary fallback
     var active=_aiVehicles.filter(function(v){return (v.status==='Active'||v.status==='On Track');}).length;
     var maint=_aiVehicles.filter(function(v){return v.status&&v.status.toLowerCase().indexOf('maintenance')!==-1;}).length;
     var over=_aiVehicles.filter(function(v){return (v.status||'').toLowerCase()==='overdue';}).length;
-    return 'Fleet Summary:\n✅ Active: '+active+'\n🔧 Under Maintenance: '+maint+'\n⚠️ PMS Overdue: '+over+'\n🚗 Total: '+_aiVehicles.length;
+    return 'Fleet Summary:\nÃ¢Å“â€¦ Active: '+active+'\nÃ°Å¸â€Â§ Under Maintenance: '+maint+'\nÃ¢Å¡Â Ã¯Â¸Â PMS Overdue: '+over+'\nÃ°Å¸Å¡â€” Total: '+_aiVehicles.length;
 }
 
-// ── Send ──────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Send Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 window.aiSend = async function(preset) {
     var input = document.getElementById('aiInput');
     var text = (preset || input.value).trim();
@@ -610,7 +610,7 @@ window.aiSend = async function(preset) {
     input.value=''; input.style.height='auto';
 
     if (!_aiLoaded) {
-        var msg='Still loading your profile — please try again in a moment.';
+        var msg='Still loading your profile Ã¢â‚¬â€ please try again in a moment.';
         _aiChatHistory.push({role:'bot',text:msg,ts:Date.now()});
         _aiAddBubble(msg, false); _aiSaveChat(); return;
     }
@@ -633,10 +633,10 @@ window.aiSend = async function(preset) {
 
         if (data.rate_limited) {
             _aiRateLimited = true;
-            var rlMsg = 'AI Unavailable — Daily token limit reached. Resets in '+(data.reset_in||'some time')+'.';
+            var rlMsg = 'AI Unavailable Ã¢â‚¬â€ Daily token limit reached. Resets in '+(data.reset_in||'some time')+'.';
             _aiChatHistory.push({role:'bot',text:rlMsg,ts:Date.now()});
             _aiAddBubble(rlMsg, false);
-            var inp=document.getElementById('aiInput'); if(inp){inp.disabled=true;inp.placeholder='AI unavailable — daily limit reached';}
+            var inp=document.getElementById('aiInput'); if(inp){inp.disabled=true;inp.placeholder='AI unavailable Ã¢â‚¬â€ daily limit reached';}
             var sb=document.getElementById('aiSendBtn'); if(sb){sb.disabled=true;sb.style.opacity='0.45';}
         } else if (data.answer) {
             if (data.session_id) _aiSessionId = data.session_id;
@@ -660,7 +660,7 @@ window.aiSend = async function(preset) {
     _aiSaveChat();
 };
 
-// ── Clear chat ────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Clear chat Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 window.aiClear = function() {
     if (_aiChatHistory.length) _aiSaveChat();
     if (_aiSessionId) { fetch('/api/ai-session/'+_aiSessionId,{method:'DELETE'}).catch(function(){}); _aiSessionId=null; }
@@ -669,7 +669,7 @@ window.aiClear = function() {
     _aiRebuildWelcome();
 };
 
-// ── Check AI health ───────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Check AI health Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function _aiCheckHealth() {
     fetch('/api/ai-health').then(function(r){return r.json();}).then(function(d){
         var dot=document.getElementById('aiStatusDot'), txt=document.getElementById('aiStatusTxt');
@@ -687,7 +687,7 @@ function _aiCheckHealth() {
     });
 }
 
-// ── Init on auth state ────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Init on auth state Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // Show the FAB once auth is ready; restore session
 firebase.auth().onAuthStateChanged(function(user) {
     if (user) {

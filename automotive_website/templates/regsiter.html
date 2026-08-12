@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
   <link rel="stylesheet" href="../static/css/login.css" />
   <style>
-    /* ── Two-column name row ── */
+    /* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Two-column name row ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
     .name-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -15,7 +15,7 @@
     }
     .name-row .field-group { display: flex; flex-direction: column; }
 
-    /* ── Sign-in link row ── */
+    /* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Sign-in link row ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
     .signin-row {
       text-align: center;
       margin-top: 20px;
@@ -29,7 +29,7 @@
     }
     .signin-row a:hover { text-decoration: underline; }
 
-    /* ── Pending dialog overlay ── */
+    /* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Pending dialog overlay ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
     .pending-overlay {
       display: none;
       position: fixed;
@@ -189,7 +189,7 @@
 <!-- Pending approval dialog -->
 <div class="pending-overlay" id="pendingOverlay">
   <div class="pending-box">
-    <div class="pending-icon">⏳</div>
+    <div class="pending-icon">ÃƒÂ¢Ã‚ÂÃ‚Â³</div>
     <div class="pending-title">Registration Submitted!</div>
     <div class="pending-msg">
       Your account is pending admin approval.<br/><br/>
@@ -203,7 +203,7 @@
 <div id="toast"></div>
 
 <script>
-  // ── Helpers ──
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Helpers ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   function showToast(msg, type = 'error') {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -220,7 +220,7 @@
       : 'Create Account';
   }
 
-  // ── Register ──
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Register ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   const registerBtn = document.getElementById('registerBtn');
 
   document.getElementById('confirmPassword').addEventListener('keydown', e => {
@@ -257,7 +257,7 @@
       // 2. Update display name
       await cred.user.updateProfile({ displayName: name });
 
-      // 3. Save Firestore doc — status 'pending' until admin approves
+      // 3. Save Firestore doc ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â status 'pending' until admin approves
       const db = firebase.firestore();
       await db.collection('users').doc(uid).set({
         uid:       uid,
@@ -272,7 +272,7 @@
 
       // 3b. Notify admins about new registration
       await db.collection('notifications').add({
-        title:      '🆕 New Account Registered',
+        title:      'ÃƒÂ°Ã…Â¸Ã¢â‚¬Â Ã¢â‚¬Â¢ New Account Registered',
         message:    name + ' (' + email + ') has created a new account.',
         type:       'info',
         targetRole: 'admin',
@@ -282,7 +282,7 @@
         isRead:     false,
       });
 
-      // 4. Sign out — they need to login with their new credentials
+      // 4. Sign out ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â they need to login with their new credentials
       await firebase.auth().signOut();
 
       // 5. Show success toast and redirect to login
@@ -302,7 +302,7 @@
 </script>
 
 <script>
-  // ── Toggle password visibility ──
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Toggle password visibility ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   function setupPasswordToggle(inputId, toggleId) {
     const input = document.getElementById(inputId);
     const toggle = document.getElementById(toggleId);

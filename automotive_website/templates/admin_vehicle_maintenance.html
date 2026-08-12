@@ -13,7 +13,7 @@
 </head>
 <body class="portal-body" data-page="asset-servicing">
 <script>
-// Instant auth guard � blocks bfcache back-navigation after logout
+// Instant auth guard Ã¢â‚¬â€ blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -41,7 +41,7 @@
     <div class="admin-main">
         <div class="admin-header">
             <div>
-                <div class="breadcrumb">Admin Portal � Vehicle Maintenance Management</div>
+                <div class="breadcrumb">Admin Portal Ã¢â‚¬Âº Vehicle Maintenance Management</div>
                 <div class="admin-header-title">Vehicle Maintenance</div>
             </div>
             <div style="margin-left:auto;display:flex;gap:0.5rem;align-items:center;">
@@ -213,7 +213,7 @@
             </div>
             <!-- Vehicle Issues -->
             <div>
-                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;display:block;margin-bottom:0.4rem;">Vehicle Issues <span style="font-weight:400;color:#a0aec0;">(optional � select all that apply)</span></label>
+                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;display:block;margin-bottom:0.4rem;">Vehicle Issues <span style="font-weight:400;color:#a0aec0;">(optional Ã¢â‚¬â€ select all that apply)</span></label>
                 <div id="svcIssueTiles" style="display:flex;flex-wrap:wrap;gap:0.4rem;"></div>
                 <div style="margin-top:0.5rem;display:flex;gap:0.4rem;align-items:center;">
                     <input type="text" id="svcIssueCustomInput" placeholder="Add custom issue..." autocomplete="off"
@@ -480,13 +480,13 @@ function svcMechanicSelect(name) {
 
 // (outside-click handling consolidated above)
 
-// Pull latest data from Firebase globals � called on demand so timing doesn't matter
+// Pull latest data from Firebase globals Ã¢â‚¬â€ called on demand so timing doesn't matter
 function _svcRefreshData() {
   _svcVehicles = window._fbVehicles || window.assets || [];
   var master = window.itemMaster || window._fbItemMaster || [];
   // Normalize: _fbItemMaster uses raw Firestore fields, itemMaster uses mapped fields
   if (master.length && master[0].name && !master[0].itemName) {
-    // Raw _fbItemMaster � map it
+    // Raw _fbItemMaster Ã¢â‚¬â€ map it
     master = master.map(function(i) {
       return {
         itemName: i.name || '',
@@ -591,7 +591,7 @@ function svcPlateLookup(input) {
       + 'onmouseover="this.style.background=\'#f7f8fa\'" onmouseout="this.style.background=\'\'" '
       + 'onmousedown="event.preventDefault();svcPlateSelect(\'' + plate.replace(/'/g,"\\'") + '\');">'
       + '<div style="font-weight:700;font-size:0.85rem;color:#1a202c;">' + plate + '</div>'
-      + (desc ? '<div style="font-size:0.75rem;color:#718096;">' + desc + (owner ? ' � ' + owner : '') + '</div>' : '')
+      + (desc ? '<div style="font-size:0.75rem;color:#718096;">' + desc + (owner ? ' Ã¢â‚¬Â¢ ' + owner : '') + '</div>' : '')
       + '</div>';
   }).join('');
   _svcPositionDropdown(input, suggestions);
@@ -615,7 +615,7 @@ function svcPlateSelect(plate) {
     var odoInput = document.getElementById('svcOdometer');
     var curOdo = parseInt(String(v.odometer || v.odo || '0').replace(/[^0-9]/g, '')) || 0;
     if (odoInput && curOdo > 0) {
-      // Do nothing � let user input manually
+      // Do nothing Ã¢â‚¬â€ let user input manually
     }
   } else {
     info.style.display = 'none';
@@ -753,7 +753,7 @@ function svcSvcLookup(input) {
     return;
   }
   suggestions.innerHTML = matches.map(function(i){
-    var secondLine = (i.uom||'') + (i.uom && i.cost ? ' � ' : '') + (i.cost ? '?' + parseFloat(i.cost||0).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
+    var secondLine = (i.uom||'') + (i.uom && i.cost ? ' Ã¢â‚¬Â¢ ' : '') + (i.cost ? '?' + parseFloat(i.cost||0).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
     return '<div style="padding:0.6rem 0.85rem;cursor:pointer;border-bottom:1px solid #f0f4f8;transition:background 0.12s;" '
       + 'onmouseover="this.style.background=\'#f7f8fa\'" onmouseout="this.style.background=\'\'" '
       + 'onmousedown="event.preventDefault();svcSvcApply(this.closest(\'.svc-row\'),\'' + i.itemName.replace(/'/g,"\\'") + '\',\'' + (i.uom||'').replace(/'/g,"\\'") + '\',\'' + (i.cost||0) + '\');">'
@@ -787,7 +787,7 @@ function svcSvcApply(row, name, uom, cost) {
   row.querySelector('.svc-row-uom').value  = uom || '';
   row.querySelector('.svc-row-cost').value = costNum;
   row.querySelector('.svc-svc-name-display').textContent = name;
-  row.querySelector('.svc-svc-meta').textContent = (uom||'�') + '  �  ?' + costNum.toLocaleString('en-PH',{minimumFractionDigits:2});
+  row.querySelector('.svc-svc-meta').textContent = (uom||'Ã¢â‚¬â€') + '  Ã¢â‚¬Â¢  ?' + costNum.toLocaleString('en-PH',{minimumFractionDigits:2});
   if (!row.querySelector('.svc-row-qty').value) row.querySelector('.svc-row-qty').value = 1;
   svcCalcTotal();
 }
@@ -809,13 +809,13 @@ function svcSvcClear(btn) {
   svcCalcTotal();
 }
 
-// Legacy � keep for backward compat (editService passes name via svcAddSvcRow)
+// Legacy Ã¢â‚¬â€ keep for backward compat (editService passes name via svcAddSvcRow)
 function svcOnSvcSelect(sel, preQty, preUom, preCost) {}
 
 function svcAddMatRow(name, qty, uom, cost) {
   _svcRefreshData();
   // Look up itemNum from _svcMaterialItems matching BOTH name and uom
-  // (handles same-name different-UOM items correctly � _svcMaterialItems preserves duplicates)
+  // (handles same-name different-UOM items correctly Ã¢â‚¬â€ _svcMaterialItems preserves duplicates)
   var _lookupItemNum = '';
   if (name) {
     var _masterItem = _svcMaterialItems.find(function(i) {
@@ -937,7 +937,7 @@ function svcMatLookup(input, exact) {
   }
 
   suggestions.innerHTML = matches.map(function(i){
-    var secondLine = (i.uom||'') + (i.uom && i.cost ? ' � ' : '') + (i.cost ? '?' + parseFloat(i.cost||0).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
+    var secondLine = (i.uom||'') + (i.uom && i.cost ? ' Ã¢â‚¬Â¢ ' : '') + (i.cost ? '?' + parseFloat(i.cost||0).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
     // Check stock level from window.inventory cache (already loaded, no extra query)
     var stockAvailable = -1; // -1 = unknown
     var invList = window.inventory || [];
@@ -957,7 +957,7 @@ function svcMatLookup(input, exact) {
     return '<div style="' + cardStyle + '" ' + mouseEvents + '>'
       + '<div style="font-weight:700;font-size:0.85rem;color:' + nameColor + ';">' + i.itemName + '</div>'
       + (secondLine ? '<div style="font-size:0.75rem;color:#718096;">' + secondLine + '</div>' : '')
-      + (isOutOfStock ? '<div style="margin-top:4px;display:inline-block;padding:2px 8px;border-radius:20px;background:rgba(229,62,62,0.08);font-size:0.72rem;font-weight:700;color:#e53e3e;">? Out of stock � cannot add</div>' : '')
+      + (isOutOfStock ? '<div style="margin-top:4px;display:inline-block;padding:2px 8px;border-radius:20px;background:rgba(229,62,62,0.08);font-size:0.72rem;font-weight:700;color:#e53e3e;">? Out of stock Ã¢â‚¬â€ cannot add</div>' : '')
       + '</div>';
   }).join('');
   var rect = input.getBoundingClientRect();
@@ -978,7 +978,7 @@ function svcMatApply(row, name, uom, cost, maxStock, itemNum) {
   row.querySelector('.svc-row-uom').value  = uom || '';
   row.querySelector('.svc-row-cost').value = costNum;
   row.querySelector('.svc-mat-name-display').textContent = name;
-  row.querySelector('.svc-row-meta').textContent = (uom||'�') + '  �  ?' + costNum.toLocaleString('en-PH',{minimumFractionDigits:2});
+  row.querySelector('.svc-row-meta').textContent = (uom||'Ã¢â‚¬â€') + '  Ã¢â‚¬Â¢  ?' + costNum.toLocaleString('en-PH',{minimumFractionDigits:2});
   var sugg = row.querySelector('.svc-mat-suggestions');
   if (sugg) sugg.style.display = 'none';
   if (!row.querySelector('.svc-row-qty').value) row.querySelector('.svc-row-qty').value = 1;
@@ -990,14 +990,14 @@ function svcMatApply(row, name, uom, cost, maxStock, itemNum) {
   function _applyStockDisplay(available, minLvl) {
     row.querySelector('.svc-mat-max').value = available;
     if (available >= 99999) {
-      // No stock record � no restriction
+      // No stock record Ã¢â‚¬â€ no restriction
       stockEl.textContent = '';
       stockEl.style.cssText = '';
       qtyInput.removeAttribute('max');
       qtyInput.disabled = false;
       qtyLabel.textContent = 'Quantity *';
     } else if (available === 0) {
-      stockEl.textContent = '? Out of stock � cannot add';
+      stockEl.textContent = '? Out of stock Ã¢â‚¬â€ cannot add';
       stockEl.style.cssText = 'font-size:0.75rem;font-weight:700;margin-top:6px;padding:3px 8px;border-radius:20px;display:inline-block;color:#e53e3e;background:rgba(229,62,62,0.12);';
       qtyInput.setAttribute('max', '0');
       qtyInput.value = 0;
@@ -1033,12 +1033,12 @@ function svcMatApply(row, name, uom, cost, maxStock, itemNum) {
   if (invItem !== undefined) {
     _applyStockDisplay(parseInt(invItem.stock) || 0, parseInt(invItem.minLevel || invItem.min) || 0);
   } else {
-    // Not loaded yet � show loading state then fetch
+    // Not loaded yet Ã¢â‚¬â€ show loading state then fetch
     stockEl.textContent = 'Checking stock...';
     stockEl.style.cssText = 'font-size:0.75rem;font-weight:600;margin-top:6px;padding:3px 8px;border-radius:20px;display:inline-block;color:#718096;background:rgba(113,128,150,0.10);';
   }
 
-  // Step 2: always verify with Firestore � query by item number (unique) to handle same-name different-UOM items
+  // Step 2: always verify with Firestore Ã¢â‚¬â€ query by item number (unique) to handle same-name different-UOM items
   var stockQuery = (itemNum && itemNum !== '')
     ? firebase.firestore().collection('stock_inventory').where('num', '==', itemNum).limit(1).get()
     : (uom && uom !== '')
@@ -1056,7 +1056,7 @@ function svcMatApply(row, name, uom, cost, maxStock, itemNum) {
     })
     .then(function(snap) {
       if (snap.empty) {
-        // No stock record � no restriction
+        // No stock record Ã¢â‚¬â€ no restriction
         _applyStockDisplay(99999, 0);
         return;
       }
@@ -1086,7 +1086,7 @@ function svcMatQtyCheck(input) {
   svcCalcTotal();
 }
 
-// Block keypresses that would push qty above max � fires before value changes
+// Block keypresses that would push qty above max Ã¢â‚¬â€ fires before value changes
 function svcMatQtyKeyDown(e, input) {
   // Allow: backspace, delete, tab, arrows, home, end
   var allowed = ['Backspace','Delete','Tab','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'];
@@ -1241,7 +1241,7 @@ function viewServiceDetails(docId) {
 window._svcViewDetails = function(docId) {
   var db = firebase.firestore();
 
-  // Use cached data first (instant) � fall back to Firestore if not found
+  // Use cached data first (instant) Ã¢â‚¬â€ fall back to Firestore if not found
   var cached = (window._fbServices || []).find(function(s) { return s._id === docId; });
 
   function _renderDetails(s) {
@@ -1249,17 +1249,17 @@ window._svcViewDetails = function(docId) {
     var sc = { 'completed':'#38a169', 'ongoing':'#d69e2e', 'pending':'#718096' };
     var color = sc[statusLower] || '#718096';
 
-    document.getElementById('svcDetailPlate').textContent = s.plate || '�';
-    document.getElementById('svcDetailDesc').textContent = s.desc || '�';
+    document.getElementById('svcDetailPlate').textContent = s.plate || 'Ã¢â‚¬â€';
+    document.getElementById('svcDetailDesc').textContent = s.desc || 'Ã¢â‚¬â€';
 
     // Info rows
     var rows = [
-      ['Plate Number', s.plate || '�'],
-      ['Mechanic', s.mechanic || '�'],
-      ['Service Date', s.date || '�'],
-      ['Odometer Reading', s.odometer ? Number(s.odometer).toLocaleString() + ' km' : '�'],
+      ['Plate Number', s.plate || 'Ã¢â‚¬â€'],
+      ['Mechanic', s.mechanic || 'Ã¢â‚¬â€'],
+      ['Service Date', s.date || 'Ã¢â‚¬â€'],
+      ['Odometer Reading', s.odometer ? Number(s.odometer).toLocaleString() + ' km' : 'Ã¢â‚¬â€'],
       ['Total Cost', s.cost || '?0.00'],
-      ['Status', '<span style="display:inline-block;padding:2px 10px;border-radius:20px;background:' + color + '1a;color:' + color + ';font-weight:700;font-size:0.82rem;">' + (s.status || '�') + '</span>'],
+      ['Status', '<span style="display:inline-block;padding:2px 10px;border-radius:20px;background:' + color + '1a;color:' + color + ';font-weight:700;font-size:0.82rem;">' + (s.status || 'Ã¢â‚¬â€') + '</span>'],
     ];
     document.getElementById('svcDetailRows').innerHTML = rows.map(function(r, i) {
       var isLast = i === rows.length - 1;
@@ -1294,8 +1294,8 @@ window._svcViewDetails = function(docId) {
         var subtotal = qty * cost;
         return '<div style="background:white;border-radius:10px;padding:0.75rem 1rem;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">'
           + '<div>'
-          + '<div style="font-weight:600;font-size:13px;color:#1a202c;">' + (r.name || '�') + '</div>'
-          + '<div style="font-size:11px;color:#718096;">' + qty + ' ' + (r.uom || '') + ' &nbsp;�&nbsp; ?' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</div>'
+          + '<div style="font-weight:600;font-size:13px;color:#1a202c;">' + (r.name || 'Ã¢â‚¬â€') + '</div>'
+          + '<div style="font-size:11px;color:#718096;">' + qty + ' ' + (r.uom || '') + ' &nbsp;Ã¢â‚¬Â¢&nbsp; ?' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</div>'
           + '</div>'
           + '<span style="font-weight:700;font-size:13px;color:#1a202c;">?' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</span>'
           + '</div>';
@@ -1314,15 +1314,15 @@ window._svcViewDetails = function(docId) {
         var subtotal = qty * cost;
         return '<div style="background:white;border-radius:10px;padding:0.75rem 1rem;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">'
           + '<div>'
-          + '<div style="font-weight:600;font-size:13px;color:#1a202c;">' + (r.name || '�') + (r.uom ? ' (' + r.uom + ')' : '') + '</div>'
-          + '<div style="font-size:11px;color:#718096;">' + qty + ' &nbsp;�&nbsp; ?' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</div>'
+          + '<div style="font-weight:600;font-size:13px;color:#1a202c;">' + (r.name || 'Ã¢â‚¬â€') + (r.uom ? ' (' + r.uom + ')' : '') + '</div>'
+          + '<div style="font-size:11px;color:#718096;">' + qty + ' &nbsp;Ã¢â‚¬Â¢&nbsp; ?' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</div>'
           + '</div>'
           + '<span style="font-weight:700;font-size:13px;color:#1a202c;">?' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</span>'
           + '</div>';
       }).join('');
     } else { matSec.style.display = 'none'; }
 
-    // Action buttons � mirror mobile logic (no Pending state anymore)
+    // Action buttons Ã¢â‚¬â€ mirror mobile logic (no Pending state anymore)
     var completeBtn = document.getElementById('svcDetailCompleteBtn');
     var editBtn = document.getElementById('svcDetailEditBtn');
     completeBtn.style.display = statusLower === 'ongoing' ? 'flex' : 'none';
@@ -1332,7 +1332,7 @@ window._svcViewDetails = function(docId) {
       if (!confirm('Are you sure you want to mark service for ' + s.plate + ' as Completed?')) return;
       var cBtn = document.getElementById('svcDetailCompleteBtn');
       var cBtnOrigHtml = cBtn ? cBtn.innerHTML : '';
-      if (cBtn) { cBtn.disabled = true; cBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Completing�'; }
+      if (cBtn) { cBtn.disabled = true; cBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> CompletingÃ¢â‚¬Â¦'; }
       db.collection('maintenance').doc(docId).update({ status: 'Completed' }).then(function() {
         var now = new Date();
         var _MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1378,7 +1378,7 @@ window._svcViewDetails = function(docId) {
               }
               // Log OUT transaction
               db.collection('transactions').add({
-                item: r.name, desc: 'Issued for maintenance ' + (s.id || docId) + ' � ' + plate,
+                item: r.name, desc: 'Issued for maintenance ' + (s.id || docId) + ' Ã¢â‚¬â€ ' + plate,
                 type: 'OUT', qty: '-' + qty, date: dateStr, by: byName,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
               });
@@ -1495,8 +1495,8 @@ function svcSave() {
   }
   var sBtn = document.getElementById('svcSubmitBtn');
   var sBtnOrigHtml = sBtn ? sBtn.innerHTML : '';
-  var spinSave = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving�';
-  var spinUpdate = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Updating�';
+  var spinSave = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> SavingÃ¢â‚¬Â¦';
+  var spinUpdate = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> UpdatingÃ¢â‚¬Â¦';
   if (sBtn) { sBtn.disabled = true; sBtn.innerHTML = window._svcEditingId ? spinUpdate : spinSave; }
   if (window._svcEditingId) {
     db.collection('maintenance').doc(window._svcEditingId).update(data)

@@ -13,7 +13,7 @@
 </head>
 <body class="portal-body" data-page="dss">
 <script>
-// Instant auth guard � blocks bfcache back-navigation after logout
+// Instant auth guard ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -49,7 +49,7 @@
     <div class="admin-main">
         <div class="admin-header">
             <div>
-                <div class="breadcrumb">Admin Portal � Decision Support System</div>
+                <div class="breadcrumb">Admin Portal ÃƒÂ¢Ã¢â€šÂ¬Ã‚Âº Decision Support System</div>
                 <div class="admin-header-title" id="dssPageTitle">Stock Replenishment</div>
             </div>
             <div style="margin-left:auto;position:relative;display:flex;align-items:center;gap:0.5rem;">
@@ -148,7 +148,7 @@
 
             <!-- Preventive Maintenance Section -->
             <div class="admin-section" id="dss-pms">
-                <!-- PMS Calendar floating widget � only shown on PMS tab -->
+                <!-- PMS Calendar floating widget ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â only shown on PMS tab -->
                 {% include 'calendarview_widget.html' %}
                 <div class="dss-kpi-grid" id="dssPmsKpiGrid" style="grid-template-columns:repeat(5,1fr);">
                     <div class="stat-card">
@@ -270,7 +270,7 @@
     if (stockSort) stockSort.style.display = section === 'dss-pms' ? 'none' : 'flex';
     if (pmsSort)   pmsSort.style.display   = section === 'dss-pms' ? 'flex' : 'none';
 
-    // In-page switch: data is already loaded � mark flags so guards pass
+    // In-page switch: data is already loaded ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â mark flags so guards pass
     window._fbDSSLoaded    = true;
     window._fbDSSPMSLoaded = true;
 
@@ -289,7 +289,7 @@
     window.scrollTo(0, 0);
   }
 
-  // Track which section to show � set immediately from hash/data-page
+  // Track which section to show ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â set immediately from hash/data-page
   window._dssPendingSection = document.body.getAttribute('data-page') || 'dss';
 
   // Apply section UI (tabs, title, search) without rendering data yet

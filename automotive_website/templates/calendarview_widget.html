@@ -1,4 +1,4 @@
-<!-- ── PMS Calendar Floating Widget ── -->
+<!-- ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ PMS Calendar Floating Widget ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ -->
 <!-- Include this file in any admin page that needs the PMS calendar -->
 <!-- Requires: window._fbVehicles to be populated by admin_firebase.js -->
 
@@ -20,7 +20,7 @@
     <line x1="8" y1="2" x2="8" y2="6"/>
     <line x1="3" y1="10" x2="21" y2="10"/>
   </svg>
-  <!-- Unread dot — shown when there are overdue/due-soon vehicles -->
+  <!-- Unread dot ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â shown when there are overdue/due-soon vehicles -->
   <span id="pmsCalDot" style="display:none;position:absolute;top:4px;right:4px;
         width:10px;height:10px;border-radius:50%;background:#fbbf24;
         border:2px solid #fff;"></span>
@@ -174,7 +174,7 @@
   let _selectedDay = null;
   let _panelOpen  = false;
 
-  // ── Toggle panel ──
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Toggle panel ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   window.pmsCalToggle = function() {
     _panelOpen = !_panelOpen;
     const panel = document.getElementById('pmsCalPanel');
@@ -184,7 +184,7 @@
     }
   };
 
-  // Close on outside click — but NOT when clicking inside the panel
+  // Close on outside click ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â but NOT when clicking inside the panel
   document.addEventListener('click', function(e) {
     if (!_panelOpen) return;
     const panel = document.getElementById('pmsCalPanel');
@@ -197,7 +197,7 @@
     }
   });
 
-  // ── Build PMS events ──
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Build PMS events ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   // Uses window.assets (mapped, always has nextPMSDue computed) if available,
   // falls back to window._fbVehicles (raw Firestore) for pages without admin_firebase.js
   // Also includes approved service bookings from service_bookings collection
@@ -224,7 +224,7 @@
     const source = (window.assets && window.assets.length > 0)
       ? window.assets.map(function(a) {
           return {
-            plate:      a.plateNumber || a.plate || a.assetNum || '—',
+            plate:      a.plateNumber || a.plate || a.assetNum || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
             nextPMSDue: a.nextPMSDue  || '',
           };
         })
@@ -243,7 +243,7 @@
             }
           }
           return {
-            plate:      v.plate || v.plateNumber || v._id || '—',
+            plate:      v.plate || v.plateNumber || v._id || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
             nextPMSDue: nextPMSDue,
           };
         });
@@ -270,7 +270,7 @@
     const dot = document.getElementById('pmsCalDot');
     if (dot) dot.style.display = urgentCount > 0 ? 'block' : 'none';
 
-    // ── Auto-navigate to nearest future PMS month ──
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Auto-navigate to nearest future PMS month ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     const futureKeys = Object.keys(_pmsEvents).filter(function(k) {
       return _pmsEvents[k].some(function(e) { return e.urgency !== 'booking' && e.daysUntil >= 0; });
     }).sort();
@@ -280,7 +280,7 @@
       _calMonth = parseInt(nearest[1]) - 1;
     }
 
-    // ── Add approved service bookings to calendar ──
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Add approved service bookings to calendar ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     _approvedBookings.forEach(function(b) {
       if (!b.preferredDate) return;
       const key = b.preferredDate; // already YYYY-MM-DD format
@@ -289,7 +289,7 @@
       const daysUntil = Math.round((due - today) / 86400000);
       if (!_pmsEvents[key]) _pmsEvents[key] = [];
       _pmsEvents[key].push({
-        plate: (b.plate || '—') + ' (Booked)',
+        plate: (b.plate || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + ' (Booked)',
         daysUntil: daysUntil,
         urgency: 'booking'
       });
@@ -304,7 +304,7 @@
     return '#EAB308';
   }
 
-  // ── Render calendar ──
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Render calendar ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   function _renderCalendar() {
     const label = document.getElementById('calMonthLabel');
     if (label) label.textContent = CAL_MONTHS[_calMonth];
@@ -376,7 +376,7 @@
     if (_selectedDay) _renderDayDetail(_selectedDay);
   }
 
-  // ── Day detail ──
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Day detail ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   function _renderDayDetail(key) {
     const events = _pmsEvents[key] || [];
     const detail = document.getElementById('pmsDayDetail');
@@ -388,7 +388,7 @@
     const parts = key.split('-');
     const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
     title.textContent = CAL_MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear()
-      + ' — ' + events.length + ' vehicle' + (events.length > 1 ? 's' : '') + ' due';
+      + ' ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ' + events.length + ' vehicle' + (events.length > 1 ? 's' : '') + ' due';
 
     list.innerHTML = events.map(function(e) {
       const color = _urgencyColor(e.urgency);
@@ -409,7 +409,7 @@
     detail.style.display = 'block';
   }
 
-  // ── Public API ──
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Public API ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   window.pmsCalNav = function(dir) {
     _calMonth += dir;
     if (_calMonth > 11) { _calMonth = 0;  _calYear++; }
@@ -436,7 +436,7 @@
     if (_panelOpen) _renderCalendar();
   };
 
-  // Init — wait for either window.assets or window._fbVehicles to be populated
+  // Init ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â wait for either window.assets or window._fbVehicles to be populated
   document.addEventListener('DOMContentLoaded', function() {
     _loadApprovedBookings();
     const iv = setInterval(function() {
@@ -447,7 +447,7 @@
         window.renderPmsCalendar();
       }
     }, 400);
-    // Safety timeout — render after 5s even if no data
+    // Safety timeout ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â render after 5s even if no data
     setTimeout(function() { clearInterval(iv); window.renderPmsCalendar(); }, 5000);
   });
 })();

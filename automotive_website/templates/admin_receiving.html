@@ -80,7 +80,7 @@
     <div class="admin-main">
         <div class="admin-header">
             <div>
-                <div class="breadcrumb">Admin Portal › Inventory Management</div>
+                <div class="breadcrumb">Admin Portal ÃƒÂ¢Ã¢â€šÂ¬Ã‚Âº Inventory Management</div>
                 <div class="admin-header-title">Receiving Items</div>
             </div>
             <div style="margin-left:auto;display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
@@ -105,7 +105,7 @@
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
-                <!-- Print PO — shown only when there are Pending deliveries -->
+                <!-- Print PO ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â shown only when there are Pending deliveries -->
                 <div id="printPOWrap" style="display:none;position:relative;">
                     <button id="printPOBtn" onclick="togglePrintPOMenu()" style="display:flex;align-items:center;gap:6px;padding:0.55rem 1rem;background:#E8001C;border:none;border-radius:8px;color:white;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='#C41E3A'" onmouseout="this.style.background='#E8001C'">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
@@ -196,7 +196,7 @@
 
   </div>
 
-  <!-- Main FAB button (rotates ×) -->
+  <!-- Main FAB button (rotates ÃƒÆ’Ã¢â‚¬â€) -->
   <button id="fabMainBtn" onclick="toggleFab()" style="width:56px;height:56px;border-radius:50%;background:#E31E24;border:none;color:white;cursor:pointer;box-shadow:0 4px 16px rgba(227,30,36,0.4);display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 6px 24px rgba(227,30,36,0.5)'" onmouseout="this.style.boxShadow='0 4px 16px rgba(227,30,36,0.4)'">
     <svg id="fabIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
   </button>
@@ -238,7 +238,7 @@ function fabOpenEditPO() {
     + pendingDeliveries.map(function(d) {
         var itemCount = (d.items || []).length;
         var createdAt = d.createdAt;
-        var dateStr = '—';
+        var dateStr = 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
         if (createdAt && createdAt.toDate) dateStr = _fmtDate(createdAt.toDate().toISOString());
         else if (createdAt && createdAt.seconds) dateStr = _fmtDate(new Date(createdAt.seconds * 1000).toISOString());
         return '<div onclick="document.getElementById(\'fabEditPOPicker\').remove();editDelivery(\'' + d.id + '\');" '
@@ -300,7 +300,7 @@ function fabOpenEditPO() {
             <div id="ndItemMeta" style="font-size:0.78rem;color:#718096;margin-top:0.1rem;"></div>
             <div id="ndCurrentStock" style="font-size:0.78rem;font-weight:600;margin-top:0.2rem;"></div>
           </div>
-          <button type="button" onclick="ndClearSelection()" style="background:none;border:none;color:#718096;cursor:pointer;font-size:1rem;line-height:1;padding:0 0 0 8px;">✕</button>
+          <button type="button" onclick="ndClearSelection()" style="background:none;border:none;color:#718096;cursor:pointer;font-size:1rem;line-height:1;padding:0 0 0 8px;">ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¢</button>
         </div>
         <div style="display:flex;gap:0.5rem;align-items:flex-end;">
           <div style="flex:1;">
@@ -466,7 +466,7 @@ function fabOpenEditPO() {
 
 <div id="toast"></div>
 
-<!-- ── PO Print Area (same-page print, hidden until printing) ── -->
+<!-- ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ PO Print Area (same-page print, hidden until printing) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ -->
 <div id="poPrintArea" style="display:none;"></div>
 
 <style>
@@ -515,7 +515,7 @@ var _itemMasterCache = [];
 var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 function _fmtDate(d) {
-  if (!d) return '—';
+  if (!d) return 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
   // Handle Firestore Timestamp objects
   if (d && typeof d === 'object' && d.toDate) d = d.toDate().toISOString();
   if (d && typeof d === 'object' && d.seconds) d = new Date(d.seconds * 1000).toISOString();
@@ -524,14 +524,14 @@ function _fmtDate(d) {
   return MONTHS[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
 }
 
-// Get the delivery date — use receivedAt (when received) or createdAt as fallback
+// Get the delivery date ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â use receivedAt (when received) or createdAt as fallback
 function _getDeliveryDate(d) {
   if (d.receivedAt) return d.receivedAt;
   if (d.createdAt) return d.createdAt;
   return d.date || '';
 }
 
-// Get per-item date — use item's receivedAt, else delivery receivedAt, else createdAt
+// Get per-item date ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â use item's receivedAt, else delivery receivedAt, else createdAt
 function _getItemDate(item, d) {
   if (item.receivedAt) return item.receivedAt;
   if (d.receivedAt) return d.receivedAt;
@@ -565,7 +565,7 @@ window._updateStats = function _updateStats() {
   _updatePrintPOMenu();
 }
 
-// ── Print PO header button ──
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Print PO header button ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 window._updatePrintPOMenu = function() {
   var pendingDeliveries = _allDeliveries.filter(function(d){ return d.status === 'Pending'; });
   var wrap = document.getElementById('printPOWrap');
@@ -575,7 +575,7 @@ window._updatePrintPOMenu = function() {
   if (!list) return;
   if (!pendingDeliveries.length) { list.innerHTML = ''; return; }
   list.innerHTML = pendingDeliveries.map(function(d) {
-    var label = (d.supplier || '—') + (d.date ? ' · ' + _fmtDate(d.date) : '');
+    var label = (d.supplier || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + (d.date ? ' Ãƒâ€šÃ‚Â· ' + _fmtDate(d.date) : '');
     var itemCount = (d.items || []).length;
     return '<div onclick="_currentDeliveryId=\'' + d.id + '\';generatePO();togglePrintPOMenu();" '
       + 'style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #f0f4f8;display:flex;flex-direction:column;gap:2px;transition:background .1s;" '
@@ -694,12 +694,12 @@ window._renderList = function _renderList() {
   list.forEach(function(d) {
     var c = sc[d.status] || ['#718096','rgba(113,128,150,0.1)'];
     var badge = '<span class="rcv-badge" style="color:' + c[0] + ';background:' + c[1] + ';">' + (d.status||'Pending') + '</span>';
-    // One row per item — every row gets actions
+    // One row per item ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â every row gets actions
     var items = d.items || [];
     if (!items.length) {
       var emptyActions = '<button class="btn-small btn-primary" onclick="openItemViewModal(\'' + d.id + '\',0)" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>';
       rows.push('<div class="table-row" style="grid-template-columns:90px 1.1fr 1.6fr 0.7fr 0.7fr 0.8fr 0.9fr 140px 120px;align-items:center;">'
-        + '<div style="font-size:11px;color:#718096;">—</div>'
+        + '<div style="font-size:11px;color:#718096;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>'
         + '<div style="font-size:11px;color:#718096;">\u2014</div>'
         + '<div style="font-size:12px;color:#4a5568;">\u2014</div>'
         + '<div style="font-size:12px;color:#4a5568;">\u2014</div>'
@@ -734,13 +734,13 @@ window._renderList = function _renderList() {
         var deleteBtn = (!item.itemStatus || item.itemStatus === 'Pending')
           ? '<button class="btn-small btn-danger" onclick="deleteItemFromDelivery(\'' + d.id + '\',' + idx + ')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
           : '<button class="btn-small btn-danger" disabled title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
-        // Print PO button — only on the first item row of a Pending delivery
+        // Print PO button ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â only on the first item row of a Pending delivery
         var printPOBtn = '';
         var cols = [viewBtn, editBtn, deleteBtn].filter(function(b){return b;});
         var rowActions = '<div style="display:grid;grid-template-columns:repeat(' + cols.length + ',1fr);gap:0.2rem;">' + cols.join('') + '</div>';
 
         rows.push('<div class="table-row" style="grid-template-columns:90px 1.1fr 1.6fr 0.7fr 0.7fr 0.8fr 0.9fr 140px 120px;align-items:center;">'
-          + '<div style="font-size:11px;color:#718096;">' + (item.receivedAt ? _fmtDate(item.receivedAt) : '—') + '</div>'
+          + '<div style="font-size:11px;color:#718096;">' + (item.receivedAt ? _fmtDate(item.receivedAt) : 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</div>'
           + '<div style="font-size:11px;color:#718096;">' + (item.supplierCode || '\u2014') + '</div>'
           + '<div><div style="font-weight:600;color:#1a202c;font-size:12px;">' + (item.itemName||'\u2014') + '</div>'
           + (item.uom ? '<div style="font-size:10px;color:#a0aec0;">' + item.uom + '</div>' : '') + '</div>'
@@ -780,7 +780,7 @@ window.openItemViewModal = function(deliveryId, itemIdx) {
   var sc = statusColors[status] || '#718096';
 
   // Header
-  document.getElementById('ivItemName').textContent = (item.itemName || '—') + (item.uom ? '  (' + item.uom + ')' : '');
+  document.getElementById('ivItemName').textContent = (item.itemName || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + (item.uom ? '  (' + item.uom + ')' : '');
   document.getElementById('ivItemMeta').textContent = (item.supplierCode || '');
 
   // Body
@@ -789,7 +789,7 @@ window.openItemViewModal = function(deliveryId, itemIdx) {
   var stock = (item.stockAtReceive !== undefined && item.stockAtReceive !== null) ? item.stockAtReceive : ((item._stock !== undefined && item._stock !== null) ? item._stock : null);
   var subtotal = cost * qty;
   var actual = item.actualQty;
-  var cond = item.condition || '—';
+  var cond = item.condition || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
   var remark = item.remark || '';
 
   var html = '';
@@ -828,7 +828,7 @@ window.openItemViewModal = function(deliveryId, itemIdx) {
 
   document.getElementById('ivBody').innerHTML = html;
 
-  // Footer buttons — use per-item status
+  // Footer buttons ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â use per-item status
   var itemStatus = item.itemStatus || status;
   var footer = '';
   if (status === 'For Admin Review') {
@@ -874,7 +874,7 @@ db.collection('deliveries').orderBy('createdAt','desc').onSnapshot(function(snap
     var numToCost = {}, numToStock = {};
     results[0].docs.forEach(function(d) {
       var data = d.data(); var n = data.num||'';
-      if (n) numToCost[n] = parseFloat((data.cost||'0').toString().replace(/[₱,]/g,''))||0;
+      if (n) numToCost[n] = parseFloat((data.cost||'0').toString().replace(/[ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±,]/g,''))||0;
     });
     results[1].docs.forEach(function(d) {
       var data = d.data(); var n = data.num||'';
@@ -939,13 +939,13 @@ window.openNewDeliveryModal = function() {
   _ndLoadAllItems();
 };
 
-// ── Auto-load only Low Stock / Out of Stock items on modal open ──
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Auto-load only Low Stock / Out of Stock items on modal open ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 window._ndLoadAllItems = function() {
   var outerEl   = document.getElementById('ndSearchResults');
   var resultsEl = document.getElementById('ndSearchResultsInner');
   if (!outerEl || !resultsEl) return;
 
-  resultsEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#a0aec0;font-size:0.83rem;">Loading items…</div>';
+  resultsEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#a0aec0;font-size:0.83rem;">Loading itemsÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</div>';
   outerEl.style.display = 'block';
 
   // Fetch stock items that are Low or Out of Stock
@@ -959,19 +959,19 @@ window._ndLoadAllItems = function() {
       });
 
     if (!needReplenish.length) {
-      resultsEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#38a169;font-size:0.83rem;">✅ All items are sufficiently stocked.</div>';
+      resultsEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#38a169;font-size:0.83rem;">ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ All items are sufficiently stocked.</div>';
       outerEl.style.display = 'block';
       return;
     }
 
-    // Build match list — also fetch cost and supplierCode from item_master
+    // Build match list ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â also fetch cost and supplierCode from item_master
     var numToMaxCost = {};
     var numToSupplierCode = {};
     var masterPromise = db.collection('item_master').where('type', '==', 'Material').get().then(function(mSnap) {
       mSnap.docs.forEach(function(d) {
         var data = d.data();
         var num = data.num || '';
-        var cost = parseFloat((data.cost || '0').toString().replace(/[₱,]/g, '')) || 0;
+        var cost = parseFloat((data.cost || '0').toString().replace(/[ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±,]/g, '')) || 0;
         if (num) {
           numToMaxCost[num] = cost;
           numToSupplierCode[num] = data.supplierCode || '';
@@ -1026,7 +1026,7 @@ window._ndLoadAllItems = function() {
   });
 };
 
-// ── Render item list with DSS-style stock badges ──
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Render item list with DSS-style stock badges ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 window._ndRenderItemList = function(matches) {
   var outerEl  = document.getElementById('ndSearchResults');
   var resultsEl = document.getElementById('ndSearchResultsInner');
@@ -1034,7 +1034,7 @@ window._ndRenderItemList = function(matches) {
   window._ndSearchMatches = matches;
 
   if (!matches.length) {
-    resultsEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#38a169;font-size:0.83rem;">✅ All items are sufficiently stocked.</div>';
+    resultsEl.innerHTML = '<div style="padding:1rem;text-align:center;color:#38a169;font-size:0.83rem;">ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ All items are sufficiently stocked.</div>';
     outerEl.style.display = 'block';
     return;
   }
@@ -1053,18 +1053,18 @@ window._ndRenderItemList = function(matches) {
     var max      = item._maxLevel  || 0;
     var recQty   = (stock !== null && max > 0) ? Math.max(0, max - stock) : 0;
 
-    // Stock badge — use pre-loaded _stock/_minLevel if available, else show ···
+    // Stock badge ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â use pre-loaded _stock/_minLevel if available, else show Ãƒâ€šÃ‚Â·Ãƒâ€šÃ‚Â·Ãƒâ€šÃ‚Â·
     var badge = (stock !== null)
       ? _statusBadge(stock, min)
-      : '<span style="font-size:0.7rem;color:#a0aec0;">···</span>';
+      : '<span style="font-size:0.7rem;color:#a0aec0;">Ãƒâ€šÃ‚Â·Ãƒâ€šÃ‚Â·Ãƒâ€šÃ‚Â·</span>';
 
     var recHtml = recQty > 0
       ? '<span style="font-size:0.7rem;color:#718096;">Suggest order: <strong style="color:#1a202c;">' + recQty + '</strong></span>'
       : '';
 
     var infoHtml = (item.supplierCode ? '<span style="font-size:0.75rem;color:#718096;">' + item.supplierCode + '</span>' : '')
-      + (stock !== null ? '<span style="font-size:0.75rem;color:#718096;">' + (item.supplierCode ? '&nbsp;·&nbsp;' : '') + 'Current: <strong style="color:#1a202c;">' + stock + '</strong></span>' : '')
-      + (item._cost > 0 ? '<span style="font-size:0.75rem;color:#718096;">₱' + item._cost.toLocaleString('en-PH', {minimumFractionDigits:2}) + '/unit</span>' : '');
+      + (stock !== null ? '<span style="font-size:0.75rem;color:#718096;">' + (item.supplierCode ? '&nbsp;Ãƒâ€šÃ‚Â·&nbsp;' : '') + 'Current: <strong style="color:#1a202c;">' + stock + '</strong></span>' : '')
+      + (item._cost > 0 ? '<span style="font-size:0.75rem;color:#718096;">ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±' + item._cost.toLocaleString('en-PH', {minimumFractionDigits:2}) + '/unit</span>' : '');
 
     return '<div id="ndResult_' + idx + '" onclick="ndSelectItem(' + idx + ')" '
       + 'style="padding:12px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;'
@@ -1106,7 +1106,7 @@ window._ndRenderItemList = function(matches) {
   });
 };
 
-// ── Shared card builder for "Items Added" list (New + Edit modals) ──
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Shared card builder for "Items Added" list (New + Edit modals) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 window._ndBuildItemCard = function(opts) {
   /*
     opts: { rowIdx, num, name, uom, qty, cost, stock, supplierCode }
@@ -1140,7 +1140,7 @@ window._ndBuildItemCard = function(opts) {
   if (stock !== null) metaChips += _chip('Stock: ' + stock, '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>', stock === 0 ? '#e53e3e' : '#718096');
 
   div.innerHTML =
-    // ── Header: name + remove button ──
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Header: name + remove button ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     '<div style="display:flex;align-items:flex-start;gap:10px;">'
       + '<div style="flex:1;min-width:0;">'
       +   '<div style="font-weight:700;font-size:0.9rem;color:#1a202c;line-height:1.35;">'
@@ -1154,10 +1154,10 @@ window._ndBuildItemCard = function(opts) {
       +   'onmouseout="this.style.background=\'#fef2f2\'">\u00d7</button>'
     + '</div>'
 
-    // ── Meta chips ──
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Meta chips ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     + (metaChips ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">' + metaChips + '</div>' : '')
 
-    // ── Order Quantity stepper ──
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Order Quantity stepper ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     + '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">'
     +   '<span style="font-size:0.78rem;font-weight:600;color:#4a5568;">Order Quantity</span>'
     +   '<div style="display:flex;align-items:center;gap:0;background:white;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);overflow:hidden;">'
@@ -1173,7 +1173,7 @@ window._ndBuildItemCard = function(opts) {
     +   '</div>'
     + '</div>'
 
-    // ── Subtotal ──
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Subtotal ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     + (cost > 0
         ? '<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:10px;">'
         +   '<span style="font-size:0.72rem;color:#a0aec0;font-weight:500;">Subtotal</span>'
@@ -1258,7 +1258,7 @@ window.ndAddCurrentItem = function() {
   document.getElementById('ndAddedCount').textContent = _ndItems.length + ' item' + (_ndItems.length !== 1 ? 's' : '');
   document.getElementById('ndAddedItemsWrap').style.display = 'flex';
 
-  // Reset for next item — restore the replenishment list
+  // Reset for next item ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â restore the replenishment list
   document.getElementById('ndItemPreview').style.display  = 'none';
   document.getElementById('ndExpectedQty').value = '';
   _ndFoundItem = null;
@@ -1290,7 +1290,7 @@ window._ndUpdateTotal = function() {
   }, 0);
   if (total > 0) {
     totalEl.style.display = 'flex';
-    document.getElementById('ndTotalValue').textContent = '₱' + total.toLocaleString('en-PH', {minimumFractionDigits:2});
+    document.getElementById('ndTotalValue').textContent = 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±' + total.toLocaleString('en-PH', {minimumFractionDigits:2});
   } else {
     totalEl.style.display = 'none';
   }
@@ -1463,7 +1463,7 @@ window.deleteDelivery = function(id) {
     .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
 };
 
-// -- Approve Admin Review (staff request) — per item --
+// -- Approve Admin Review (staff request) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â per item --
 window.approveAdminReview = function(id, itemIdx) {
   var d = _allDeliveries.find(function(x){ return x.id === id; });
   if (!d) return;
@@ -1480,7 +1480,7 @@ window.approveAdminReview = function(id, itemIdx) {
     .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
 };
 
-// -- Reject Admin Review (staff request) — per item --
+// -- Reject Admin Review (staff request) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â per item --
 window.rejectAdminReview = function(id, itemIdx) {
   var d = _allDeliveries.find(function(x){ return x.id === id; });
   if (!d) return;
@@ -1490,7 +1490,7 @@ window.rejectAdminReview = function(id, itemIdx) {
   var updatedItems = (d.items || []).slice();
   updatedItems.splice(itemIdx, 1);
   if (updatedItems.length === 0) {
-    // Last item — delete the whole delivery
+    // Last item ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â delete the whole delivery
     db.collection('deliveries').doc(id).delete()
       .then(function(){ showToast('Request rejected. Purchase order deleted (no items left).', 'error'); })
       .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
@@ -1610,7 +1610,7 @@ window.deleteItemFromDelivery = function(deliveryId, itemIdx) {
   var updatedItems = d.items.slice();
   updatedItems.splice(itemIdx, 1);
   if (updatedItems.length === 0) {
-    // Last item — delete entire delivery
+    // Last item ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â delete entire delivery
     db.collection('deliveries').doc(deliveryId).delete()
       .then(function(){ showToast('Item deleted successfully!', 'error'); })
       .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
@@ -1635,7 +1635,7 @@ window.openReceiveModal = function(id, itemIdx) {
   var apUser = JSON.parse(sessionStorage.getItem('apUser') || '{}');
   var userName = apUser.name || '';
   document.getElementById('rmReceivedBy').value = userName;
-  document.getElementById('rmReceivedByLabel').textContent = userName || '—';
+  document.getElementById('rmReceivedByLabel').textContent = userName || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
 
   var uom = item.uom || '';
   var uomLabel = uom ? ' <span style="font-size:0.75rem;font-weight:400;color:#718096;">(' + uom + ')</span>' : '';
@@ -1644,7 +1644,7 @@ window.openReceiveModal = function(id, itemIdx) {
     '<div style="background:white;border:1.5px solid #90cdf4;border-radius:12px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">'
     + '<div style="font-weight:700;font-size:0.9rem;color:#1a202c;">' + (item.itemName||'') + uomLabel + '</div>'
     + '<div style="font-size:0.75rem;color:#718096;margin-top:3px;">'
-    +   (item.supplierCode ? item.supplierCode + ' · ' : '') + 'Order Qty: <strong style="color:#1a202c;">' + (item.expectedQty||0) + '</strong>'
+    +   (item.supplierCode ? item.supplierCode + ' Ãƒâ€šÃ‚Â· ' : '') + 'Order Qty: <strong style="color:#1a202c;">' + (item.expectedQty||0) + '</strong>'
     + '</div>'
     + '<div style="height:1px;background:#f0f4f8;margin:10px 0;"></div>'
     + '<div style="margin-bottom:10px;">'
@@ -1738,7 +1738,7 @@ window.submitReceiving = function() {
 
   var btn = document.getElementById('rmSubmitBtn');
   btn.disabled = true;
-  btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Submitting…';
+  btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> SubmittingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦';
   db.collection('deliveries').doc(_currentDeliveryId).update({
     items: updatedItems,
     receivedBy: receivedBy,
@@ -1798,7 +1798,7 @@ window.openReviewModal = function(id, itemIdx) {
   rvNotesEl.readOnly = false;
 
   // Received By
-  document.getElementById('rvReceivedBy').value = item.receivedBy || d.receivedBy || '—';
+  document.getElementById('rvReceivedBy').value = item.receivedBy || d.receivedBy || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
 
   // Item details card
   document.getElementById('rvItemRows').innerHTML =
@@ -1806,10 +1806,10 @@ window.openReviewModal = function(id, itemIdx) {
     // Item name + condition badge
     + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">'
     +   '<div style="flex:1;">'
-    +     '<div style="font-weight:700;font-size:0.95rem;color:#1a202c;">' + (item.itemName||'—') + (item.uom ? '&nbsp;&nbsp;<span style="font-weight:400;font-size:0.78rem;color:#718096;">(' + item.uom + ')</span>' : '') + '</div>'
+    +     '<div style="font-weight:700;font-size:0.95rem;color:#1a202c;">' + (item.itemName||'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + (item.uom ? '&nbsp;&nbsp;<span style="font-weight:400;font-size:0.78rem;color:#718096;">(' + item.uom + ')</span>' : '') + '</div>'
     +     (item.supplierCode ? '<div style="font-size:0.75rem;color:#718096;margin-top:3px;">' + item.supplierCode + '</div>' : '')
     +   '</div>'
-    +   '<span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:' + cc + '1a;color:' + cc + ';flex-shrink:0;">' + (item.condition||'—') + '</span>'
+    +   '<span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:' + cc + '1a;color:' + cc + ';flex-shrink:0;">' + (item.condition||'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</span>'
     + '</div>'
     // Stats grid
     + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid #f0f4f8;">'
@@ -1819,11 +1819,11 @@ window.openReviewModal = function(id, itemIdx) {
     +   '</div>'
     +   '<div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;">'
     +     '<div style="font-size:9px;color:#a0aec0;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">Actual Received</div>'
-    +     '<div style="font-size:1.1rem;font-weight:800;color:' + cc + ';margin-top:2px;">' + (item.actualQty !== undefined ? item.actualQty : '—') + '</div>'
+    +     '<div style="font-size:1.1rem;font-weight:800;color:' + cc + ';margin-top:2px;">' + (item.actualQty !== undefined ? item.actualQty : 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</div>'
     +   '</div>'
     +   '<div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;">'
     +     '<div style="font-size:9px;color:#a0aec0;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;">Difference</div>'
-    +     '<div style="font-size:1.1rem;font-weight:800;color:' + (diff !== null && diff !== 0 ? (diff < 0 ? '#E8001C' : '#d69e2e') : '#38a169') + ';margin-top:2px;">' + (diff !== null ? (diff === 0 ? '0' : (diff > 0 ? '+' : '') + diff) : '—') + '</div>'
+    +     '<div style="font-size:1.1rem;font-weight:800;color:' + (diff !== null && diff !== 0 ? (diff < 0 ? '#E8001C' : '#d69e2e') : '#38a169') + ';margin-top:2px;">' + (diff !== null ? (diff === 0 ? '0' : (diff > 0 ? '+' : '') + diff) : 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</div>'
     +   '</div>'
     + '</div>'
     // Remarks
@@ -1885,7 +1885,7 @@ window.submitReview = function(decision) {
           }).then(function() {
             return db.collection('transactions').add({
               item: item.itemName,
-              desc: 'Stock received – delivery',
+              desc: 'Stock received ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ delivery',
               type: 'IN',
               qty: '+' + item.actualQty,
               date: (function(){ var _d=new Date(),_m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return _m[_d.getMonth()]+' '+_d.getDate()+', '+_d.getFullYear(); })(),
@@ -1921,14 +1921,14 @@ window.submitReview = function(decision) {
     });
   }).then(function() {
     closeModal('reviewModal');
-    showToast(decision==='Approved'?'✅ Approved! Stock updated.':'❌ Rejected.', decision==='Approved'?'success':'error');
+    showToast(decision==='Approved'?'ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Approved! Stock updated.':'ÃƒÂ¢Ã‚ÂÃ…â€™ Rejected.', decision==='Approved'?'success':'error');
   }).catch(function(err){
     showToast('Error: '+err.message,'error');
     footerEl.innerHTML = originalFooter;
   });
 };
 
-// ── Generate Purchase Order (same-page print) ──
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Generate Purchase Order (same-page print) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 window.generatePO = function() {
   var d = _allDeliveries.find(function(x){ return x.id === _currentDeliveryId; });
   if (!d) return;
@@ -1948,12 +1948,12 @@ window.generatePO = function() {
 
   var items = d.items || [];
 
-  // Build table rows — only actual items, no empty padding
+  // Build table rows ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â only actual items, no empty padding
   var rows = items.map(function(item, i) {
     var bg = i % 2 === 1 ? '#dce9f7' : '#ffffff';
     var curStock = (item.stockAtReceive !== undefined && item.stockAtReceive !== null)
       ? item.stockAtReceive
-      : (item._stock !== undefined && item._stock !== null ? item._stock : '—');
+      : (item._stock !== undefined && item._stock !== null ? item._stock : 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â');
     var supPrice = parseFloat(item._cost || item.supplierPrice || item.price || 0);
     var orderQty = parseInt(item.expectedQty || item.orderQty || 0);
     var totalAmt = supPrice * orderQty;
@@ -1961,10 +1961,10 @@ window.generatePO = function() {
     var totalAmtStr = totalAmt > 0 ? totalAmt.toLocaleString('en-PH', {minimumFractionDigits:2}) : '0.00';
     return '<tr style="background:' + bg + ';">'
       + '<td style="padding:3px 4px;border:1px solid #b0c4de;text-align:center;">' + (i+1) + '</td>'
-      + '<td style="padding:3px 4px;border:1px solid #b0c4de;font-weight:600;">' + (item.itemNum || '—') + '</td>'
-      + '<td style="padding:3px 4px;border:1px solid #b0c4de;">' + (item.supplierCode || item.supplierItemCode || '—') + '</td>'
-      + '<td style="padding:3px 4px;border:1px solid #b0c4de;">' + (item.oem || '—') + '</td>'
-      + '<td style="padding:3px 4px;border:1px solid #b0c4de;">' + (item.itemName || '—') + '</td>'
+      + '<td style="padding:3px 4px;border:1px solid #b0c4de;font-weight:600;">' + (item.itemNum || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</td>'
+      + '<td style="padding:3px 4px;border:1px solid #b0c4de;">' + (item.supplierCode || item.supplierItemCode || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</td>'
+      + '<td style="padding:3px 4px;border:1px solid #b0c4de;">' + (item.oem || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</td>'
+      + '<td style="padding:3px 4px;border:1px solid #b0c4de;">' + (item.itemName || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</td>'
       + '<td style="padding:3px 4px;border:1px solid #b0c4de;text-align:center;">' + curStock + '</td>'
       + '<td style="padding:3px 4px;border:1px solid #b0c4de;text-align:center;font-weight:700;">' + (orderQty || '0') + '</td>'
       + '<td style="padding:3px 4px;border:1px solid #b0c4de;text-align:right;">' + supPriceStr + '</td>'
@@ -1979,7 +1979,7 @@ window.generatePO = function() {
   }, 0);
   var grandTotalStr = grandTotal > 0 ? grandTotal.toLocaleString('en-PH', {minimumFractionDigits:2}) : '0.00';
   var noteLines = items.filter(function(i){ return i.remark; })
-    .map(function(i){ return (i.itemNum||i.itemName||'') + ' — ' + i.remark; }).join('\n');
+    .map(function(i){ return (i.itemNum||i.itemName||'') + ' ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ' + i.remark; }).join('\n');
   var preparedBy = d.receivedBy || d.checkedBy || '';
   var opsHead    = d.checkedBy  || '';
 
@@ -2004,7 +2004,7 @@ window.generatePO = function() {
     + '<h1>Internal Purchase Order Form</h1>'
     + '<table class="mt"><tbody>'
     + '<tr><td>Order Type (Normal/Rush)</td><td><span class="ul">' + (d.orderType||'Normal') + '</span></td></tr>'
-    + '<tr><td>Supplier:</td><td><span class="ul">' + (d.supplier||'—') + '</span></td></tr>'
+    + '<tr><td>Supplier:</td><td><span class="ul">' + (d.supplier||'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â') + '</span></td></tr>'
     + '<tr><td>Target Delivery Date:</td><td><span class="ul">' + delivDateStr + delivDay + '</span></td></tr>'
     + '</tbody></table>'
     + '<table class="po"><thead><tr>'

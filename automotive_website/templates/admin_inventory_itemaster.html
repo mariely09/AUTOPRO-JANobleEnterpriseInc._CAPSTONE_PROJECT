@@ -13,7 +13,7 @@
 </head>
 <body class="portal-body" data-page="item-master">
 <script>
-// Instant auth guard — blocks bfcache back-navigation after logout
+// Instant auth guard ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -43,7 +43,7 @@
     <div class="admin-main">
         <div class="admin-header">
             <div>
-                <div class="breadcrumb">Admin Portal › Inventory Management</div>
+                <div class="breadcrumb">Admin Portal ÃƒÂ¢Ã¢â€šÂ¬Ã‚Âº Inventory Management</div>
                 <div class="admin-header-title">Item Master</div>
             </div>
             <div style="margin-left:auto;display:flex;align-items:center;gap:0.6rem;">
@@ -58,10 +58,10 @@
                     <select id="imSortSelect" onchange="renderItemMasterList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:160px;outline:none;transition:border-color 0.2s ease;">
                         <option value="num-asc">Supplier Code (Ascending)</option>
                         <option value="num-desc">Supplier Code (Descending)</option>
-                        <option value="name-asc">Name A→Z</option>
-                        <option value="name-desc">Name Z→A</option>
-                        <option value="cost-desc">Cost ↑ Highest</option>
-                        <option value="cost-asc">Cost ↓ Lowest</option>
+                        <option value="name-asc">Name AÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢Z</option>
+                        <option value="name-desc">Name ZÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢A</option>
+                        <option value="cost-desc">Cost ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬Ëœ Highest</option>
+                        <option value="cost-asc">Cost ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬Å“ Lowest</option>
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -193,7 +193,7 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
                 <div class="fl-field">
                     <input type="number" name="cost" step="0.01" min="0" placeholder=" ">
-                    <label>Cost (₱)</label>
+                    <label>Cost (ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±)</label>
                 </div>
                 <div class="fl-field has-value">
                     <select name="itemType" id="itemMasterItemType" required onchange="onItemTypeChange(this.value)">
@@ -219,7 +219,7 @@
 <!-- Item Master Details Modal -->
 <div class="modal" id="itemMasterDetailsModal">
     <div class="modal-content" style="max-width:520px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
-        <!-- Colored header — red for Material, blue for Service -->
+        <!-- Colored header ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â red for Material, blue for Service -->
         <div id="imDetailHeader" style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;position:relative;overflow:hidden;flex-shrink:0;">
             <button onclick="closeModal('itemMasterDetailsModal')" style="position:absolute;top:0.85rem;right:0.85rem;background:rgba(255,255,255,0.2);border:none;color:white;width:30px;height:30px;border-radius:50%;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;">&times;</button>
             <div style="display:flex;align-items:center;gap:0.85rem;position:relative;z-index:1;">
@@ -264,20 +264,20 @@
     <div class="modal-content" style="max-width:420px;border-radius:20px;overflow:hidden;padding:0;">
         <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
             <div style="display:flex;align-items:center;gap:0.75rem;">
-                <div style="background:rgba(255,255,255,0.2);width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">📷</div>
+                <div style="background:rgba(255,255,255,0.2);width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â·</div>
                 <div style="color:white;font-size:1rem;font-weight:700;">Scan Item</div>
             </div>
             <button onclick="closeModal('itemMasterScanModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:30px;height:30px;border-radius:50%;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
         </div>
         <div style="padding:1.5rem;background:#f8fafc;">
             <div style="background:white;border:2px dashed #cbd5e0;border-radius:14px;padding:2rem;text-align:center;margin-bottom:1.25rem;">
-                <div style="font-size:3rem;margin-bottom:0.5rem;">📷</div>
+                <div style="font-size:3rem;margin-bottom:0.5rem;">ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â·</div>
                 <div style="color:#4a5568;font-weight:600;font-size:0.88rem;">Camera Preview</div>
             </div>
             <div style="background:white;border-radius:12px;padding:1.1rem;border:1px solid #e2e8f0;">
                 <label style="font-size:0.75rem;font-weight:700;color:#4a5568;text-transform:uppercase;display:block;margin-bottom:0.5rem;">Or Enter Code Manually</label>
                 <input type="text" id="itemMasterScanInput" placeholder="Enter barcode or QR code..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.9rem;font-size:0.9rem;outline:none;box-sizing:border-box;">
-                <button class="btn-primary" style="width:100%;margin-top:0.65rem;" onclick="searchItemMasterByScan()">🔍 Search Item</button>
+                <button class="btn-primary" style="width:100%;margin-top:0.65rem;" onclick="searchItemMasterByScan()">ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â Search Item</button>
             </div>
         </div>
     </div>
@@ -313,7 +313,7 @@
 
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
-/* ── Floating label field — Flutter OutlineInputBorder equivalent ── */
+/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Floating label field ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Flutter OutlineInputBorder equivalent ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
 .fl-field {
     position: relative;
     width: 100%;
@@ -400,11 +400,11 @@
 <script src="../static/js/print_layout_header.js"></script>
 <script src="../static/js/excel_export.js"></script>
 <script>
-  // ── Item Master filter ──
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Item Master filter ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   window._imFilter = 'all';
   window._imCommodityFilter = '';
 
-  // ── Live duplicate name check on Item Name field ──
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Live duplicate name check on Item Name field ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   // Only blocks duplicate if BOTH name AND uom match an existing item
   window.imCheckDuplicateName = function(input) {
     var val = (input.value || '').trim().toLowerCase();
@@ -515,7 +515,7 @@
     });
   })();
 
-  // ── Print Item Master ──
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Print Item Master ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   window.printItemMaster = function() {
     var items = window.itemMaster || [];
 
@@ -540,11 +540,11 @@
         return (i.commodityGroup||'') === cgFilter;
       });
     }
-    // Sort same as table — respects active sort selection
+    // Sort same as table ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â respects active sort selection
     var imSortVal = (document.getElementById('imSortSelect') || {}).value || 'num-asc';
     filtered = filtered.slice().sort(function(a, b) {
       function numPart(s) { return parseInt((s||'').replace(/[^0-9]/g,'')) || 0; }
-      function costVal(i) { return parseFloat(String(i.cost||0).replace(/[₱,]/g,'')) || 0; }
+      function costVal(i) { return parseFloat(String(i.cost||0).replace(/[ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±,]/g,'')) || 0; }
       switch (imSortVal) {
         case 'num-asc':   return numPart(a.itemNum) - numPart(b.itemNum);
         case 'num-desc':  return numPart(b.itemNum) - numPart(a.itemNum);
@@ -562,20 +562,20 @@
 
     var rows = filtered.map(function(i) {
       return [
-        i.itemNum || '—',
-        i.itemName || '—',
-        i.description || '—',
-        i.commodityGroup || '—',
-        i.uom || '—',
-        i.itemType || '—',
-        '₱' + (parseFloat(String(i.cost||0).replace(/[₱,]/g,''))||0).toLocaleString('en-PH',{minimumFractionDigits:2})
+        i.itemNum || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+        i.itemName || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+        i.description || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+        i.commodityGroup || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+        i.uom || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+        i.itemType || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+        'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±' + (parseFloat(String(i.cost||0).replace(/[ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±,]/g,''))||0).toLocaleString('en-PH',{minimumFractionDigits:2})
       ];
     });
 
     var printTitle = 'Item Master';
     if (imFilter === 'Material') printTitle += ' (Materials)';
     else if (imFilter === 'Service') printTitle += ' (Services)';
-    if (cgFilter) printTitle += ' · ' + cgFilter;
+    if (cgFilter) printTitle += ' Ãƒâ€šÃ‚Â· ' + cgFilter;
 
     _doPrint(printTitle,
       [{ label:'Total', value:filtered.length, color:'#1a202c' }, { label:'Materials', value:matCount, color:'#E8001C' }, { label:'Services', value:svcCount, color:'#003087' }],
@@ -584,7 +584,7 @@
     );
   };
 
-  // ── Export Item Master to Excel ──
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Export Item Master to Excel ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   window.exportItemMasterExcel = function() {
     var items = window.itemMaster || [];
 
@@ -629,16 +629,16 @@
     var imTitle = 'Item Master';
     if (imFilter === 'Material') imTitle += ' (Materials)';
     else if (imFilter === 'Service') imTitle += ' (Services)';
-    if (cgFilter) imTitle += ' · ' + cgFilter;
+    if (cgFilter) imTitle += ' Ãƒâ€šÃ‚Â· ' + cgFilter;
 
     var rows = filtered.map(function(i) {
       return [
-        i.itemNum || '—',
-        i.itemName || '—',
-        i.description || '—',
-        i.commodityGroup || '—',
-        i.uom || '—',
-        i.itemType || '—',
+        i.itemNum || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+        i.itemName || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+        i.description || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+        i.commodityGroup || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+        i.uom || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+        i.itemType || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
         (parseFloat(String(i.cost||0).replace(/[^0-9.]/g,''))||0)
       ];
     });
@@ -651,7 +651,7 @@
     );
   };
 
-  // ── Generate & Show Barcode from view modal ──
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Generate & Show Barcode from view modal ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   window._imCurrentViewItem = null; // set by viewItemMasterDetails
 
   window.imGenerateAndShowBarcode = function() {

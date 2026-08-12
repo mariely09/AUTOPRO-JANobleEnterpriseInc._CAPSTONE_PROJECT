@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Settings — Admin Portal</title>
+    <title>AI Settings ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Admin Portal</title>
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
     <link rel="stylesheet" href="../static/css/style.css">
     <link rel="stylesheet" href="../static/css/admin.css">
     <style>
-      /* ── Page-level overrides ── */
+      /* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Page-level overrides ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
       .ai-page {
         width: 100%;
         box-sizing: border-box;
@@ -201,16 +201,16 @@
       }
       .ai-empty svg { display: block; margin: 0 auto 0.75rem; opacity: 0.35; }
 
-      /* ── Responsive ── */
+      /* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Responsive ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
 
-      /* Tablet (≤ 900px) */
+      /* Tablet (ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¤ 900px) */
       @media (max-width: 900px) {
         .ai-status-grid { grid-template-columns: repeat(3, 1fr); }
         .rot-grid        { grid-template-columns: repeat(2, 1fr); }
         .ai-card         { padding: 1.25rem 1.25rem; }
       }
 
-      /* Large phone / small tablet (≤ 700px) */
+      /* Large phone / small tablet (ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¤ 700px) */
       @media (max-width: 700px) {
         .ai-page         { max-width: 100%; }
         .ai-card         { padding: 1rem; border-radius: 12px; }
@@ -225,11 +225,11 @@
         /* Rotation form: 1 column */
         .rot-grid        { grid-template-columns: 1fr; gap: 0.75rem; }
 
-        /* Keys table — scroll horizontally */
+        /* Keys table ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â scroll horizontally */
         .keys-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .keys-table      { min-width: 600px; }
 
-        /* Log table — scroll horizontally */
+        /* Log table ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â scroll horizontally */
         .log-table-wrap  { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .log-table       { min-width: 520px; }
 
@@ -248,12 +248,12 @@
           padding: 0.45rem 0.75rem !important;
         }
 
-        /* Modal — full-width on small screens */
+        /* Modal ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â full-width on small screens */
         .ai-modal        { padding: 1.25rem; border-radius: 14px; margin: 0.75rem; }
         .ai-modal h3     { font-size: 1rem; }
       }
 
-      /* Phone (≤ 480px) */
+      /* Phone (ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¤ 480px) */
       @media (max-width: 480px) {
         .ai-card         { padding: 0.85rem; border-radius: 10px; margin-bottom: 1rem; }
         .ai-card-header  { gap: 0.5rem; margin-bottom: 1rem; padding-bottom: 0.75rem; }
@@ -285,7 +285,7 @@
         }
       }
 
-      /* Very small phones (≤ 360px) */
+      /* Very small phones (ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¤ 360px) */
       @media (max-width: 360px) {
         .ai-status-grid  { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
         .ai-stat-value   { font-size: 1rem !important; }
@@ -360,11 +360,11 @@
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
             <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
-          <span>AI service is offline — the backend at Render may be sleeping (cold start). Wait 30 seconds and click <strong>Refresh</strong>, or check your Render deployment.</span>
+          <span>AI service is offline ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the backend at Render may be sleeping (cold start). Wait 30 seconds and click <strong>Refresh</strong>, or check your Render deployment.</span>
         </div>
 
 
-        <!-- ── 1. Current AI Status ── -->
+        <!-- ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ 1. Current AI Status ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ -->
         <div class="ai-card">
           <div class="ai-card-header">
             <div class="ai-card-icon" style="background:linear-gradient(135deg,#E8001C,#c0001a);">
@@ -384,45 +384,45 @@
           <div class="ai-status-grid" id="statusGrid">
             <div class="ai-stat">
               <div class="ai-stat-label">Active Account</div>
-              <div class="ai-stat-value" id="statAccount" style="font-size:1rem;">—</div>
+              <div class="ai-stat-value" id="statAccount" style="font-size:1rem;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Active Key</div>
-              <div class="ai-stat-value key-mono" id="statKey" style="font-size:0.82rem;margin-top:4px;">—</div>
+              <div class="ai-stat-value key-mono" id="statKey" style="font-size:0.82rem;margin-top:4px;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Current Model</div>
-              <div class="ai-stat-value" id="statModel" style="font-size:0.88rem;margin-top:4px;">—</div>
+              <div class="ai-stat-value" id="statModel" style="font-size:0.88rem;margin-top:4px;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Total Keys</div>
-              <div class="ai-stat-value" id="statTotal">—</div>
+              <div class="ai-stat-value" id="statTotal">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Available Keys</div>
-              <div class="ai-stat-value" id="statAvail" style="color:#276749;">—</div>
+              <div class="ai-stat-value" id="statAvail" style="color:#276749;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Cooling Down</div>
-              <div class="ai-stat-value" id="statCooldown" style="color:#975a16;">—</div>
+              <div class="ai-stat-value" id="statCooldown" style="color:#975a16;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Disabled</div>
-              <div class="ai-stat-value" id="statDisabled" style="color:#718096;">—</div>
+              <div class="ai-stat-value" id="statDisabled" style="color:#718096;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Total Requests</div>
-              <div class="ai-stat-value" id="statRequests">—</div>
+              <div class="ai-stat-value" id="statRequests">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Key Switches</div>
-              <div class="ai-stat-value" id="statSwitches">—</div>
+              <div class="ai-stat-value" id="statSwitches">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
           </div>
         </div>
 
 
-        <!-- ── 2. API Keys Table ── -->
+        <!-- ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ 2. API Keys Table ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ -->
         <div class="ai-card">
           <div class="ai-card-header">
             <div class="ai-card-icon" style="background:linear-gradient(135deg,#003087,#001f5c);">
@@ -435,7 +435,7 @@
             </div>
             <div>
               <div class="ai-card-title">API Keys</div>
-              <div class="ai-card-sub" id="keysSubLabel">Loading…</div>
+              <div class="ai-card-sub" id="keysSubLabel">LoadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</div>
             </div>
           </div>
 
@@ -461,7 +461,7 @@
                     <line x1="12" y1="8" x2="12" y2="12"/>
                     <line x1="12" y1="16" x2="12.01" y2="16"/>
                   </svg>
-                  Loading API keys…
+                  Loading API keysÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦
                 </td></tr>
               </tbody>
             </table>
@@ -469,7 +469,7 @@
         </div>
 
 
-        <!-- ── 3. Rotation Settings ── -->
+        <!-- ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ 3. Rotation Settings ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ -->
         <div class="ai-card">
           <div class="ai-card-header">
             <div class="ai-card-icon" style="background:linear-gradient(135deg,#0d9488,#0a7a70);">
@@ -490,8 +490,8 @@
             <div class="form-field">
               <label>Auto Rotation</label>
               <select id="rotEnabled">
-                <option value="true">Enabled — auto-switch on rate limit</option>
-                <option value="false">Disabled — single key only</option>
+                <option value="true">Enabled ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â auto-switch on rate limit</option>
+                <option value="false">Disabled ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â single key only</option>
               </select>
             </div>
             <div class="form-field">
@@ -520,7 +520,7 @@
         </div>
 
 
-        <!-- ── 4. AI Usage Today (Token Monitoring) ── -->
+        <!-- ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ 4. AI Usage Today (Token Monitoring) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ -->
         <div class="ai-card">
           <div class="ai-card-header">
             <div class="ai-card-icon" style="background:linear-gradient(135deg,#d97706,#b45309);">
@@ -532,7 +532,7 @@
             </div>
             <div>
               <div class="ai-card-title">AI Usage Today</div>
-              <div class="ai-card-sub" id="usageDateLabel">Token consumption — today</div>
+              <div class="ai-card-sub" id="usageDateLabel">Token consumption ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â today</div>
             </div>
             <button onclick="loadTokenUsage()"
               style="margin-left:auto;padding:0.4rem 0.9rem;background:#fffbeb;
@@ -546,35 +546,35 @@
           <div class="ai-status-grid" id="tokenSummaryGrid" style="margin-bottom:1.25rem;">
             <div class="ai-stat">
               <div class="ai-stat-label">Input Tokens</div>
-              <div class="ai-stat-value" id="tuInput">—</div>
+              <div class="ai-stat-value" id="tuInput">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Output Tokens</div>
-              <div class="ai-stat-value" id="tuOutput">—</div>
+              <div class="ai-stat-value" id="tuOutput">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Total Tokens</div>
-              <div class="ai-stat-value" id="tuTotal" style="color:#b45309;">—</div>
+              <div class="ai-stat-value" id="tuTotal" style="color:#b45309;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Requests</div>
-              <div class="ai-stat-value" id="tuRequests">—</div>
+              <div class="ai-stat-value" id="tuRequests">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Avg Tokens/Req</div>
-              <div class="ai-stat-value" id="tuAvgTokens">—</div>
+              <div class="ai-stat-value" id="tuAvgTokens">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Avg Response</div>
-              <div class="ai-stat-value" id="tuAvgResp" style="font-size:1rem;">—</div>
+              <div class="ai-stat-value" id="tuAvgResp" style="font-size:1rem;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Errors</div>
-              <div class="ai-stat-value" id="tuErrors" style="color:#c53030;">—</div>
+              <div class="ai-stat-value" id="tuErrors" style="color:#c53030;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
             <div class="ai-stat">
               <div class="ai-stat-label">Rate Limit Events</div>
-              <div class="ai-stat-value" id="tuRateLimit" style="color:#975a16;">—</div>
+              <div class="ai-stat-value" id="tuRateLimit" style="color:#975a16;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
             </div>
           </div>
 
@@ -582,13 +582,13 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem;" id="tuModelGrid">
             <div class="ai-stat" style="background:#eff6ff;">
               <div class="ai-stat-label" style="color:#1d4ed8;">Llama 3.1 8B (Primary)</div>
-              <div class="ai-stat-value" id="tu8bTotal" style="color:#1d4ed8;font-size:1.1rem;">—</div>
-              <div class="ai-stat-sub" id="tu8bRequests">— requests</div>
+              <div class="ai-stat-value" id="tu8bTotal" style="color:#1d4ed8;font-size:1.1rem;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
+              <div class="ai-stat-sub" id="tu8bRequests">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â requests</div>
             </div>
             <div class="ai-stat" style="background:#fdf4ff;">
               <div class="ai-stat-label" style="color:#7c3aed;">Llama 3.3 70B (Secondary)</div>
-              <div class="ai-stat-value" id="tu70bTotal" style="color:#7c3aed;font-size:1.1rem;">—</div>
-              <div class="ai-stat-sub" id="tu70bRequests">— requests</div>
+              <div class="ai-stat-value" id="tu70bTotal" style="color:#7c3aed;font-size:1.1rem;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
+              <div class="ai-stat-sub" id="tu70bRequests">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â requests</div>
             </div>
           </div>
 
@@ -596,13 +596,13 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem;">
             <div class="ai-stat" style="background:#f0fdf4;">
               <div class="ai-stat-label" style="color:#166534;">Customers</div>
-              <div class="ai-stat-value" id="tuCustomerTotal" style="color:#166534;font-size:1.1rem;">—</div>
-              <div class="ai-stat-sub" id="tuCustomerReqs">— requests</div>
+              <div class="ai-stat-value" id="tuCustomerTotal" style="color:#166534;font-size:1.1rem;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
+              <div class="ai-stat-sub" id="tuCustomerReqs">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â requests</div>
             </div>
             <div class="ai-stat" style="background:#fff7ed;">
               <div class="ai-stat-label" style="color:#9a3412;">Admins</div>
-              <div class="ai-stat-value" id="tuAdminTotal" style="color:#9a3412;font-size:1.1rem;">—</div>
-              <div class="ai-stat-sub" id="tuAdminReqs">— requests</div>
+              <div class="ai-stat-value" id="tuAdminTotal" style="color:#9a3412;font-size:1.1rem;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
+              <div class="ai-stat-sub" id="tuAdminReqs">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â requests</div>
             </div>
           </div>
 
@@ -615,13 +615,13 @@
               handles all database lookups, simple Q&A, and general questions.<br>
               <span id="secondaryModelName" style="font-weight:700;">Llama 3.3 70B Versatile</span>
               is reserved only for <em>complex analysis and multi-source reasoning</em>.<br>
-              Database queries (vehicles, history, bookings, counts) skip the LLM entirely — <strong>0 tokens used</strong>.
+              Database queries (vehicles, history, bookings, counts) skip the LLM entirely ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â <strong>0 tokens used</strong>.
             </div>
           </div>
         </div>
 
 
-        <!-- ── 5. Event Log ── -->
+        <!-- ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ 5. Event Log ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ -->
         <div class="ai-card">
           <div class="ai-card-header">
             <div class="ai-card-icon" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);">
@@ -658,7 +658,7 @@
                 </tr>
               </thead>
               <tbody id="logTableBody">
-                <tr><td colspan="4" class="ai-empty">Loading events…</td></tr>
+                <tr><td colspan="4" class="ai-empty">Loading eventsÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</td></tr>
               </tbody>
             </table>
           </div>
@@ -673,7 +673,7 @@
 <div id="aiToast"></div>
 
 
-<!-- ── Add / Edit Key Modal ── -->
+<!-- ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Add / Edit Key Modal ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ -->
 <div class="ai-modal-overlay" id="keyModal">
   <div class="ai-modal">
     <button class="ai-modal-close" onclick="closeKeyModal()">&times;</button>
@@ -694,7 +694,7 @@
           </span>
         </label>
         <div style="position:relative;display:flex;align-items:center;">
-          <input type="password" id="keyModalKey" placeholder="gsk_…"
+          <input type="password" id="keyModalKey" placeholder="gsk_ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦"
             style="padding-right:2.5rem;font-family:'Courier New',monospace;letter-spacing:1px;width:100%;">
           <button type="button" onclick="toggleKeyVisibility()"
             style="position:absolute;right:8px;background:none;border:none;cursor:pointer;color:#718096;padding:4px;">
@@ -734,14 +734,14 @@
   </div>
 </div>
 
-<!-- ── Confirm delete modal ── -->
+<!-- ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Confirm delete modal ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ -->
 <div class="ai-modal-overlay" id="deleteModal">
   <div class="ai-modal" style="max-width:400px;">
     <button class="ai-modal-close" onclick="closeDeleteModal()">&times;</button>
     <h3>Delete API Key?</h3>
     <p style="color:#718096;font-size:0.88rem;margin:0 0 1.25rem;">
       This will permanently remove the key
-      <strong id="deleteKeyName">—</strong> from Firestore. This action cannot be undone.
+      <strong id="deleteKeyName">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</strong> from Firestore. This action cannot be undone.
     </p>
     <input type="hidden" id="deleteKeyId">
     <div style="display:flex;gap:0.65rem;">
@@ -781,7 +781,7 @@
 <script>
 'use strict';
 
-// ── Utility helpers ──────────────────────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Utility helpers ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 function showToast(msg, type = 'success') {
   const t = document.getElementById('aiToast');
@@ -808,15 +808,15 @@ function setOffline(offline) {
   const addBtn = document.querySelector('button[onclick="openAddKeyModal()"]');
   if (addBtn) {
     addBtn.style.opacity = offline ? '0.5' : '1';
-    addBtn.title = offline ? 'AI service is offline — check Render deployment' : '';
+    addBtn.title = offline ? 'AI service is offline ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â check Render deployment' : '';
   }
 }
 
-// ── Load all data ────────────────────────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Load all data ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 async function refreshAll() {
   const btn = document.getElementById('refreshBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'RefreshingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦'; }
   try {
     await Promise.all([loadStatus(), loadLogs(), loadTokenUsage()]);
   } finally {
@@ -826,7 +826,7 @@ async function refreshAll() {
   }
 }
 
-// ── Token usage ───────────────────────────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Token usage ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 async function loadTokenUsage() {
   try {
@@ -835,7 +835,7 @@ async function loadTokenUsage() {
     const d = await r.json();
     renderTokenUsage(d);
   } catch (e) {
-    // non-critical — don't show an error if token stats are unavailable
+    // non-critical ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â don't show an error if token stats are unavailable
   }
 }
 
@@ -848,13 +848,13 @@ function renderTokenUsage(d) {
   set('tuTotal',    fmt(d.total_tokens));
   set('tuRequests', fmt(d.requests));
   set('tuAvgTokens', fmt(d.avg_tokens_per_req));
-  set('tuAvgResp',  d.avg_response_ms ? d.avg_response_ms.toLocaleString() + ' ms' : '—');
+  set('tuAvgResp',  d.avg_response_ms ? d.avg_response_ms.toLocaleString() + ' ms' : 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â');
   set('tuErrors',   fmt(d.errors));
   set('tuRateLimit', fmt(d.rate_limit_events));
 
   // Date label
   const dl = document.getElementById('usageDateLabel');
-  if (dl && d.date) dl.textContent = 'Token consumption — ' + d.date;
+  if (dl && d.date) dl.textContent = 'Token consumption ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ' + d.date;
 
   // By model
   const models = d.by_model || {};
@@ -875,18 +875,18 @@ function renderTokenUsage(d) {
   set('tuAdminReqs',     fmt(admins.requests) + ' requests');
 }
 
-// ── Status & keys ────────────────────────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Status & keys ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 // (Full implementation with key cache is defined below, after _keysCache declaration)
 
 function renderStatus(d) {
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  set('statAccount',  d.current_account  || '—');
-  set('statKey',      d.current_key_masked || '—');
-  set('statModel',    (d.models && d.models.primary) ? d.models.primary : (d.current_model || '—'));
-  set('statTotal',    d.total_keys       ?? '—');
-  set('statAvail',    d.active_keys      ?? '—');
-  set('statCooldown', d.cooldown_keys    ?? '—');
-  set('statDisabled', d.disabled_keys    ?? '—');
+  set('statAccount',  d.current_account  || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â');
+  set('statKey',      d.current_key_masked || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â');
+  set('statModel',    (d.models && d.models.primary) ? d.models.primary : (d.current_model || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'));
+  set('statTotal',    d.total_keys       ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â');
+  set('statAvail',    d.active_keys      ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â');
+  set('statCooldown', d.cooldown_keys    ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â');
+  set('statDisabled', d.disabled_keys    ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â');
   set('statRequests', (d.total_requests  ?? 0).toLocaleString());
   set('statSwitches', (d.total_switches  ?? 0).toLocaleString());
 
@@ -918,7 +918,7 @@ function renderStatus(d) {
       if (card) card.parentNode.insertBefore(decryptBanner, card);
     }
     decryptBanner.innerHTML =
-      `⚠️ <strong>${d.decrypt_errors} key(s) could not be decrypted.</strong> ` +
+      `ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â <strong>${d.decrypt_errors} key(s) could not be decrypted.</strong> ` +
       `The <code>GROQ_KEY_ENCRYPTION_SECRET</code> environment variable may be missing ` +
       `or inconsistent across Render workers. ` +
       `Set the same value on every service and redeploy, then click <strong>Refresh</strong>.`;
@@ -940,18 +940,18 @@ function renderStatus(d) {
     }
     const isQuota = d.load_error.toLowerCase().includes('quota');
     loadErrBanner.innerHTML = isQuota
-      ? `🔴 <strong>Firestore daily read quota exceeded.</strong> ` +
+      ? `ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´ <strong>Firestore daily read quota exceeded.</strong> ` +
         `Your keys are saved but cannot be displayed until the quota resets (usually midnight Pacific Time). ` +
         `The backend will automatically retry every 60 seconds. ` +
         `Click <strong>Refresh</strong> to check again.`
-      : `🔴 <strong>Failed to load keys from Firestore:</strong> ${d.load_error} — ` +
+      : `ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â´ <strong>Failed to load keys from Firestore:</strong> ${d.load_error} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ` +
         `Click <strong>Refresh</strong> to retry.`;
   } else if (loadErrBanner) {
     loadErrBanner.remove();
   }
 }
 
-// ── Countdown timer management ────────────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Countdown timer management ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 // Tracks active countdown intervals so we can clear them on re-render.
 let _countdownIntervals = [];
 
@@ -965,7 +965,7 @@ function _startCountdown(keyId, initialSeconds) {
   const update = () => {
     remaining--;
     if (remaining <= 0) {
-      // Cooldown expired — refresh from server
+      // Cooldown expired ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â refresh from server
       clearInterval(intervalId);
       _countdownIntervals = _countdownIntervals.filter(i => i !== intervalId);
       loadStatus();
@@ -1001,7 +1001,7 @@ function renderKeys(keys) {
   _clearCountdowns();
 
   const sub = document.getElementById('keysSubLabel');
-  if (sub) sub.textContent = keys.length + ' key(s) configured — max 10';
+  if (sub) sub.textContent = keys.length + ' key(s) configured ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â max 10';
 
   const tbody = document.getElementById('keysTableBody');
   if (!tbody) return;
@@ -1020,22 +1020,22 @@ function renderKeys(keys) {
 
   // Build the default/system key row (always first, protected, cannot be deleted)
   const defaultRow = `<tr class="default-key-row">
-    <td style="font-weight:700;color:#6b21a8;">★</td>
+    <td style="font-weight:700;color:#6b21a8;">ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦</td>
     <td style="font-weight:700;color:#6b21a8;">
       Default (System)
-      <div style="font-size:0.7rem;font-weight:500;color:#a78bfa;margin-top:2px;">Main backend key · .env</div>
+      <div style="font-size:0.7rem;font-weight:500;color:#a78bfa;margin-top:2px;">Main backend key Ãƒâ€šÃ‚Â· .env</div>
     </td>
-    <td><span class="key-mono" style="color:#6b21a8;" id="defaultKeyMasked">••••••••••••••••••••</span></td>
+    <td><span class="key-mono" style="color:#6b21a8;" id="defaultKeyMasked">ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢</span></td>
     <td>
       <span class="badge badge-default-key" id="defaultKeyStatusBadge">
         <span class="badge-dot" style="background:#9333ea;"></span>Default Key
       </span>
     </td>
     <td style="color:#718096;font-size:0.8rem;">System startup</td>
-    <td id="defaultKeyCooldown"><span style="color:#a0aec0;">—</span></td>
+    <td id="defaultKeyCooldown"><span style="color:#a0aec0;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</span></td>
     <td>
       <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
-        <span style="font-size:0.72rem;color:#a78bfa;font-style:italic;">Protected — cannot be deleted</span>
+        <span style="font-size:0.72rem;color:#a78bfa;font-style:italic;">Protected ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â cannot be deleted</span>
       </div>
     </td>
   </tr>`;
@@ -1057,7 +1057,7 @@ function renderKeys(keys) {
         ${formatted}
       </span>`;
     } else {
-      cooldownCell = '<span style="color:#a0aec0;">—</span>';
+      cooldownCell = '<span style="color:#a0aec0;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</span>';
     }
 
     const toggleLabel = k.status === 'disabled' ? 'Enable' : 'Disable';
@@ -1113,7 +1113,7 @@ function _statusBadge(status, isCurrent, keyId, cooldownRemaining) {
     return '<span class="badge badge-disabled"><span class="badge-dot" style="background:#a0aec0;"></span>Disabled</span>';
   }
   if (status === 'cooldown' || (cooldownRemaining && cooldownRemaining > 0)) {
-    // Token limit reached — show warning badge with countdown hint
+    // Token limit reached ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â show warning badge with countdown hint
     return `<span class="badge badge-cooldown">
       <span class="badge-dot" style="background:#c53030;"></span>Token Limit Reached
     </span>`;
@@ -1126,7 +1126,7 @@ function _esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ── Logs ─────────────────────────────────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Logs ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 async function loadLogs() {
   try {
@@ -1136,7 +1136,7 @@ async function loadLogs() {
     renderLogs(d.logs || []);
   } catch (e) {
     document.getElementById('logTableBody').innerHTML =
-      '<tr><td colspan="4" class="ai-empty">Could not load logs — AI service may be offline.</td></tr>';
+      '<tr><td colspan="4" class="ai-empty">Could not load logs ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â AI service may be offline.</td></tr>';
   }
 }
 
@@ -1171,9 +1171,9 @@ function renderLogs(logs) {
 }
 
 
-// ── API key similarity check ──────────────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ API key similarity check ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 // Returns true if `newKey` is too similar to any key already in the cache.
-// Uses normalized Levenshtein distance — rejects if similarity >= 80%.
+// Uses normalized Levenshtein distance ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â rejects if similarity >= 80%.
 function _isTooSimilarToExisting(newKey) {
   if (!newKey || !_keysCache.length) return { similar: false };
   const nk = newKey.toLowerCase();
@@ -1185,7 +1185,7 @@ function _isTooSimilarToExisting(newKey) {
     // but since we can't recover the full stored key (security), we instead
     // look for two signals:
     //   1. The last 4 chars of the new key match the last 4 chars of a stored masked key.
-    //   2. The new key has ≥ 80% character-level similarity to other new-key inputs
+    //   2. The new key has ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¥ 80% character-level similarity to other new-key inputs
     //      in the current session (checked via in-memory plain-text only at add time).
     const maskedSuffix = (existing.api_key_masked || '').slice(-4).toLowerCase();
     const newSuffix    = nk.slice(-4);
@@ -1234,7 +1234,7 @@ function _levenshteinDistance(a, b) {
   return prev[n];
 }
 
-// ── Add / Edit key modal ─────────────────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Add / Edit key modal ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 // Cache for the keys loaded by loadStatus so openEditKeyModal can look up by id
 let _keysCache = [];
@@ -1260,7 +1260,7 @@ async function loadStatus() {
     }
   } catch (e) {
     setOffline(true);
-    // Don't wipe the table on a transient error — keep the last known keys visible
+    // Don't wipe the table on a transient error ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â keep the last known keys visible
     if (_keysCache.length === 0) renderKeys([]);
   }
 }
@@ -1272,7 +1272,7 @@ function openAddKeyModal() {
   document.getElementById('keyModalKey').value          = '';
   document.getElementById('keyModalStatus').value       = 'active';
   document.getElementById('keyModalKeyHint').textContent = '';
-  document.getElementById('keyModalKey').placeholder    = 'gsk_…';
+  document.getElementById('keyModalKey').placeholder    = 'gsk_ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦';
   document.getElementById('keyModalKey').required       = true;
   _clearModalFeedback();
   document.getElementById('keyModal').classList.add('open');
@@ -1321,12 +1321,12 @@ async function saveKey() {
   if (!name)              { _showModalFeedback('Account name is required.', 'error'); return; }
   if (!isEdit && !apiKey) { _showModalFeedback('API key is required.', 'error'); return; }
 
-  // Similarity check — only on add (or when a new key value is provided on edit)
+  // Similarity check ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â only on add (or when a new key value is provided on edit)
   if (apiKey) {
     const sim = _isTooSimilarToExisting(apiKey);
     if (sim.similar) {
       _showModalFeedback(
-        `This key is too similar to an existing one (${sim.reason}${sim.account ? ' — ' + sim.account : ''}). Please enter a different key.`,
+        `This key is too similar to an existing one (${sim.reason}${sim.account ? ' ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ' + sim.account : ''}). Please enter a different key.`,
         'error'
       );
       return;
@@ -1340,7 +1340,7 @@ async function saveKey() {
   const saveBtn = document.querySelector('#keyModal button[onclick="saveKey()"]');
   if (saveBtn) {
     saveBtn.disabled = true;
-    saveBtn.textContent = isEdit ? 'Saving…' : 'Adding…';
+    saveBtn.textContent = isEdit ? 'SavingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦' : 'AddingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦';
     saveBtn.style.opacity = '0.65';
     saveBtn.style.cursor  = 'not-allowed';
   }
@@ -1355,7 +1355,7 @@ async function saveKey() {
   };
 
   try {
-    _showModalFeedback('Saving…', 'info');
+    _showModalFeedback('SavingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦', 'info');
     const url = isEdit ? `/api/ai-settings/keys/${keyId}` : '/api/ai-settings/keys';
     const r = await fetch(url, {
       method: isEdit ? 'PUT' : 'POST',
@@ -1364,7 +1364,7 @@ async function saveKey() {
     });
     const d = await r.json();
     if (r.status === 503) {
-      _showModalFeedback('⚠ AI service is offline. Check your Render deployment or wait for a cold start.', 'error');
+      _showModalFeedback('ÃƒÂ¢Ã…Â¡Ã‚Â  AI service is offline. Check your Render deployment or wait for a cold start.', 'error');
       _resetSaveBtn();
       return;
     }
@@ -1374,12 +1374,12 @@ async function saveKey() {
       window._sessionKeys = window._sessionKeys || [];
       window._sessionKeys.push({ key: apiKey, name });
     }
-    // Success — keep button disabled, close modal, refresh table
+    // Success ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â keep button disabled, close modal, refresh table
     showToast(isEdit ? 'API key updated.' : 'API key added.', 'success');
     closeKeyModal();
     // Force a backend reload so all workers have the latest key list before we
     // fetch status. Wait 1.5 s after reload so a cold Render worker has time to
-    // warm up — without this delay the subsequent status fetch may hit a worker
+    // warm up ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â without this delay the subsequent status fetch may hit a worker
     // that hasn't processed the reload signal yet and still shows 0 keys.
     try { await fetch('/api/ai-settings/reload', { method: 'POST' }); } catch (_) {}
     await new Promise(r => setTimeout(r, 1500));
@@ -1393,7 +1393,7 @@ async function saveKey() {
 async function testModalKey() {
   const apiKey = document.getElementById('keyModalKey').value.trim();
   if (!apiKey) { _showModalFeedback('Enter an API key first.', 'error'); return; }
-  _showModalFeedback('Testing connection…', 'info');
+  _showModalFeedback('Testing connectionÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦', 'info');
   try {
     const r = await fetch('/api/ai-settings/keys/test', {
       method: 'POST',
@@ -1401,14 +1401,14 @@ async function testModalKey() {
       body: JSON.stringify({ api_key: apiKey }),
     });
     if (r.status === 503) {
-      _showModalFeedback('⚠ AI service is offline. Check your Render deployment or wait for a cold start.', 'error');
+      _showModalFeedback('ÃƒÂ¢Ã…Â¡Ã‚Â  AI service is offline. Check your Render deployment or wait for a cold start.', 'error');
       return;
     }
     const d = await r.json();
     if (d.valid) {
-      _showModalFeedback('✓ ' + (d.message || 'Connection successful!'), 'success');
+      _showModalFeedback('ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ ' + (d.message || 'Connection successful!'), 'success');
     } else {
-      _showModalFeedback('✗ ' + (d.message || 'Connection failed.'), 'error');
+      _showModalFeedback('ÃƒÂ¢Ã…â€œÃ¢â‚¬â€ ' + (d.message || 'Connection failed.'), 'error');
     }
   } catch (e) {
     _showModalFeedback('Test failed: ' + e.message, 'error');
@@ -1416,8 +1416,8 @@ async function testModalKey() {
 }
 
 async function testExistingKey(keyId, accountName) {
-  showToast(`Testing ${accountName}…`, 'info');
-  // For an existing key we need to reload it — tell backend to test itself
+  showToast(`Testing ${accountName}ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦`, 'info');
+  // For an existing key we need to reload it ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â tell backend to test itself
   // We do this by sending an empty api_key, meaning "use the stored one"
   // We actually trigger a direct test through the status refresh (key is valid if active).
   // Since we can't retrieve the plain key to the frontend (security), just show a message.
@@ -1451,7 +1451,7 @@ function toggleKeyVisibility() {
   }
 }
 
-// ── Toggle enable/disable ────────────────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Toggle enable/disable ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 async function toggleKeyStatus(keyId, newStatus, accountName) {
   const label = newStatus === 'disabled' ? 'disable' : 'enable';
@@ -1473,7 +1473,7 @@ async function toggleKeyStatus(keyId, newStatus, accountName) {
   }
 }
 
-// ── Delete modal ─────────────────────────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Delete modal ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 function openDeleteModal(keyId, accountName) {
   document.getElementById('deleteKeyId').value  = keyId;
@@ -1489,7 +1489,7 @@ async function confirmDelete() {
   closeDeleteModal();
 
   // Optimistically remove the key from the local cache and re-render immediately
-  // so the UI feels instant — no waiting for the server round-trip.
+  // so the UI feels instant ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no waiting for the server round-trip.
   _keysCache = _keysCache.filter(k => k.key_id !== keyId);
   renderKeys(_keysCache);
   showToast(`Key "${name}" deleted.`, 'success');
@@ -1500,15 +1500,15 @@ async function confirmDelete() {
     if (!r.ok || !d.success) throw new Error(d.error || 'Delete failed');
     // Background reload to sync state (fire-and-forget, no await delay)
     fetch('/api/ai-settings/reload', { method: 'POST' }).catch(() => {});
-    // Refresh in background after a short pause — doesn't block the user
+    // Refresh in background after a short pause ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â doesn't block the user
     setTimeout(() => refreshAll(), 800);
   } catch (e) {
-    showToast('Delete failed: ' + e.message + ' — refreshing…', 'error');
+    showToast('Delete failed: ' + e.message + ' ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â refreshingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦', 'error');
     await refreshAll(); // re-sync on failure
   }
 }
 
-// ── Rotation settings ─────────────────────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Rotation settings ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 async function saveRotationSettings() {
   const rotation_enabled = document.getElementById('rotEnabled').value === 'true';
@@ -1537,7 +1537,7 @@ async function saveRotationSettings() {
   }
 }
 
-// ── Close modals on overlay click ─────────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Close modals on overlay click ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 document.getElementById('keyModal').addEventListener('click', function(e) {
   if (e.target === this) closeKeyModal();
@@ -1546,7 +1546,7 @@ document.getElementById('deleteModal').addEventListener('click', function(e) {
   if (e.target === this) closeDeleteModal();
 });
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Init ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 document.addEventListener('DOMContentLoaded', function() {
   refreshAll();
