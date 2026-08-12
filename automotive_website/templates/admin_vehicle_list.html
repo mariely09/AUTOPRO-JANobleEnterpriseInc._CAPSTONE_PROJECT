@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -13,7 +13,7 @@
 </head>
 <body class="portal-body" data-page="assets">
 <script>
-// Instant auth guard — blocks bfcache back-navigation after logout
+// Instant auth guard Ã¢â‚¬â€ blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -41,7 +41,7 @@
     <div class="admin-main">
         <div class="admin-header">
             <div>
-                <div class="breadcrumb">Admin Portal › Vehicle Maintenance Management</div>
+                <div class="breadcrumb">Admin Portal Ã¢â‚¬Âº Vehicle Maintenance Management</div>
                 <div class="admin-header-title">Vehicle List</div>
             </div>
             <div style="margin-left:auto;display:flex;align-items:center;gap:0.6rem;">
@@ -54,14 +54,14 @@
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
                     <select id="vehSortSelect" onchange="renderAssetsList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:160px;outline:none;transition:border-color 0.2s ease;">
-                        <option value="plate-asc">Plate A→Z</option>
-                        <option value="plate-desc">Plate Z→A</option>
-                        <option value="owner-asc">Owner A→Z</option>
-                        <option value="owner-desc">Owner Z→A</option>
-                        <option value="pms-asc">Next PMS ↑ Soonest</option>
-                        <option value="pms-desc">Next PMS ↓ Latest</option>
-                        <option value="odo-desc">Odometer ↑ Highest</option>
-                        <option value="odo-asc">Odometer ↓ Lowest</option>
+                        <option value="plate-asc">Plate A?Z</option>
+                        <option value="plate-desc">Plate Z?A</option>
+                        <option value="owner-asc">Owner A?Z</option>
+                        <option value="owner-desc">Owner Z?A</option>
+                        <option value="pms-asc">Next PMS ? Soonest</option>
+                        <option value="pms-desc">Next PMS ? Latest</option>
+                        <option value="odo-desc">Odometer ? Highest</option>
+                        <option value="odo-asc">Odometer ? Lowest</option>
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -128,7 +128,7 @@
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>
 
-<!-- ── View Vehicle Modal ── -->
+<!-- -- View Vehicle Modal -- -->
 <div class="modal" id="assetDetailsModal">
     <div class="modal-content" style="max-width:520px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
         <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
@@ -151,7 +151,7 @@
     </div>
 </div>
 
-<!-- ── Add / Edit Vehicle Modal ── -->
+<!-- -- Add / Edit Vehicle Modal -- -->
 <div class="modal" id="addAssetModal">
     <div class="modal-content" style="max-width:520px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
         <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
@@ -198,10 +198,10 @@
             <!-- Just Serviced Toggle -->
             <label style="display:flex;align-items:center;gap:0.6rem;padding:0.75rem 1rem;background:#f0fff4;border:1.5px solid #9ae6b4;border-radius:10px;cursor:pointer;user-select:none;">
                 <input type="checkbox" id="justServicedCheck" onchange="onJustServicedToggle(this)" style="width:16px;height:16px;accent-color:#16a34a;cursor:pointer;flex-shrink:0;">
-                <span style="font-size:0.85rem;font-weight:700;color:#16a34a;">🔧 Vehicle was just serviced</span>
+                <span style="font-size:0.85rem;font-weight:700;color:#16a34a;">?? Vehicle was just serviced</span>
             </label>
 
-            <!-- Last Service Fields — hidden until checkbox is ticked -->
+            <!-- Last Service Fields Ã¢â‚¬â€ hidden until checkbox is ticked -->
             <div id="lastServiceSection" style="display:none;grid-template-columns:1fr 1fr;gap:0.75rem;">
                 <div class="fl-field">
                     <input type="date" name="lastServiceDate" id="lastServiceDateInput" placeholder=" ">
@@ -230,7 +230,7 @@
 <div id="toast"></div>
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
-/* ── Floating label fields ── */
+/* -- Floating label fields -- */
 .fl-field {
     position: relative;
     width: 100%;
@@ -313,7 +313,7 @@
 <script src="../static/js/admin_firebase.js"></script>
 
 <script src="../static/js/admin_functions.js?v=202607180001"></script>
-<script src="../static/js/admin.js"></script>
+<script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script>
   // Patch renderAssetsList to also update vehicle stat cards and apply sort
@@ -385,14 +385,14 @@
     });
   })();
 
-  // ── Vehicle type filter (from stat cards) ──
+  // -- Vehicle type filter (from stat cards) --
   window._vehTypeFilter = 'all';
   window.vehTypeFilter = function(type) {
     window._vehTypeFilter = type;
     if (typeof renderAssetsList === 'function') renderAssetsList();
   };
 
-  // ── Tab switching ──
+  // -- Tab switching --
   window._vActiveTab = 'active';
   window.vSwitchTab = function(tab, btn) {
     window._vActiveTab = tab;
@@ -414,7 +414,7 @@
     if (tab === 'archive') renderArchivedVehicles();
   };
 
-  // ── Render archived vehicles ──
+  // -- Render archived vehicles --
   window.renderArchivedVehicles = function() {
     var db = firebase.firestore();
     var list = document.getElementById('archivedVehiclesList');
@@ -429,17 +429,17 @@
       }
       var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       function fmtDate(d) {
-        if (!d) return '—';
+        if (!d) return 'Ã¢â‚¬â€';
         var dt = new Date(d + 'T00:00:00');
         if (isNaN(dt)) return d;
         return MONTHS[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
       }
       var rows = snap.docs.map(function(doc) {
         var v = doc.data();
-        var plate = v.plate || v.plateNumber || '—';
-        var type = v.type || '—';
-        var owner = v.owner || '—';
-        var odo = v.odo || (v.odometer ? v.odometer + ' km' : '—');
+        var plate = v.plate || v.plateNumber || 'Ã¢â‚¬â€';
+        var type = v.type || 'Ã¢â‚¬â€';
+        var owner = v.owner || 'Ã¢â‚¬â€';
+        var odo = v.odo || (v.odometer ? v.odometer + ' km' : 'Ã¢â‚¬â€');
         var lastSvc = fmtDate(v.lastSvcDate || v.lastServiceDate || '');
         return '<div class="table-row" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr 120px;align-items:center;opacity:0.85;">'
           + '<div style="font-weight:700;color:#1a202c;">' + plate + '</div>'
@@ -461,7 +461,7 @@
     });
   };
 
-  // ── Restore archived vehicle ──
+  // -- Restore archived vehicle --
   window.restoreVehicle = function(docId, plate) {
     if (!confirm('Restore "' + plate + '" back to the active vehicle list?')) return;
     firebase.firestore().collection('vehicles').doc(docId).update({
@@ -473,7 +473,7 @@
     }).catch(function(err) { showToast('Error: ' + err.message, 'error'); });
   };
 
-  // ── Just Serviced checkbox ──────────────────────────────
+  // -- Just Serviced checkbox ------------------------------
   function onJustServicedToggle(cb) {
     var section = document.getElementById('lastServiceSection');
     var lsdInput = document.getElementById('lastServiceDateInput');
@@ -490,24 +490,24 @@
   }
 
   function onOdometerInput() {
-    // No longer auto-sync to last service odometer — they are independent fields
+    // No longer auto-sync to last service odometer Ã¢â‚¬â€ they are independent fields
   }
 
-  // ── Vehicle modal functions ──
+  // -- Vehicle modal functions --
   var _editingVehicleId = null;
 
   function _vehDetailRow(label, value) {
     return '<div style="display:flex;padding:0.5rem 0;border-bottom:1px solid #f7fafc;">'
       + '<span style="width:150px;flex-shrink:0;font-size:0.78rem;color:#718096;font-weight:500;">' + label + '</span>'
-      + '<span style="font-size:0.85rem;font-weight:600;color:#1a202c;flex:1;">' + (value || '—') + '</span>'
+      + '<span style="font-size:0.85rem;font-weight:600;color:#1a202c;flex:1;">' + (value || 'Ã¢â‚¬â€') + '</span>'
       + '</div>';
   }
 
   function _calcNextPms(lastSvcDate, svcFreq) {
-    if (!lastSvcDate || !svcFreq) return '—';
+    if (!lastSvcDate || !svcFreq) return 'Ã¢â‚¬â€';
     var date = new Date(lastSvcDate);
     var months = parseInt(svcFreq);
-    if (isNaN(date.getTime()) || isNaN(months)) return '—';
+    if (isNaN(date.getTime()) || isNaN(months)) return 'Ã¢â‚¬â€';
     date.setMonth(date.getMonth() + months);
     return date.toISOString().split('T')[0];
   }
@@ -517,8 +517,8 @@
     var asset = assets.find(function(a){ return a.assetNum === assetNum || a.plateNumber === assetNum; });
     if (!asset) return;
 
-    document.getElementById('adPlate').textContent = asset.plateNumber || asset.plate || '—';
-    document.getElementById('adAssetDesc').textContent = asset.assetDescription || asset.desc || asset.type || '—';
+    document.getElementById('adPlate').textContent = asset.plateNumber || asset.plate || 'Ã¢â‚¬â€';
+    document.getElementById('adAssetDesc').textContent = asset.assetDescription || asset.desc || asset.type || 'Ã¢â‚¬â€';
 
     var nextPms = _calcNextPms(asset.lastServiceDate || asset.lastSvcDate, asset.serviceFrequency || asset.svcFreq);
     var statusColors = { 'active':'#38a169','Active':'#38a169','maintenance':'#d69e2e','Under Maintenance':'#d69e2e','completed':'#003087','Completed':'#003087','inactive':'#718096','Overdue':'#e53e3e','PMS Due Soon':'#d69e2e' };
@@ -528,14 +528,14 @@
     var lastSvcDateVal = asset.lastServiceDate || asset.lastSvcDate || '';
 
     // KM Since Last Service
-    var kmSinceVal = '—';
+    var kmSinceVal = 'Ã¢â‚¬â€';
     var lastOdoNum = parseInt(String(lastSvcOdoVal).replace(/[^0-9]/g, '')) || 0;
     if (asset.odometer > 0 && lastOdoNum > 0 && asset.odometer >= lastOdoNum) {
       kmSinceVal = (asset.odometer - lastOdoNum).toLocaleString() + ' km';
     }
 
     function _fmtDate(d) {
-      if (!d) return '—';
+      if (!d) return 'Ã¢â‚¬â€';
       var dt = new Date(d + 'T00:00:00'); // force local time, avoid UTC shift
       if (isNaN(dt.getTime())) return d;
       return dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -546,12 +546,12 @@
       + _vehDetailRow('Description', asset.assetDescription || asset.desc)
       + _vehDetailRow('Vehicle Type', asset.type)
       + _vehDetailRow('Owner Name / Company Name', asset.owner)
-      + _vehDetailRow('Current Odometer', asset.odometer ? asset.odometer.toLocaleString() + ' km' : (asset.odo || '—'))
+      + _vehDetailRow('Current Odometer', asset.odometer ? asset.odometer.toLocaleString() + ' km' : (asset.odo || 'Ã¢â‚¬â€'))
       + _vehDetailRow('Last Service Date', _fmtDate(lastSvcDateVal))
-      + _vehDetailRow('Last Service Odometer', lastSvcOdoVal ? Number(lastSvcOdoVal).toLocaleString() + ' km' : '—')
+      + _vehDetailRow('Last Service Odometer', lastSvcOdoVal ? Number(lastSvcOdoVal).toLocaleString() + ' km' : 'Ã¢â‚¬â€')
       + _vehDetailRow('KM Since Last Service', kmSinceVal)
       + _vehDetailRow('Next PMS Due', _fmtDate(nextPms))
-      + _vehDetailRow('Service Frequency', (asset.svcFreq || asset.serviceFrequency) ? (asset.svcFreq || asset.serviceFrequency) + ' month(s)' : '—');
+      + _vehDetailRow('Service Frequency', (asset.svcFreq || asset.serviceFrequency) ? (asset.svcFreq || asset.serviceFrequency) + ' month(s)' : 'Ã¢â‚¬â€');
 
     document.getElementById('adEditBtn').onclick = function() {
       closeModal('assetDetailsModal');
@@ -601,7 +601,7 @@
     var todayStr = new Date().toISOString().split('T')[0];
     var lsdInput = document.getElementById('lastServiceDateInput');
     if (lsdInput) lsdInput.max = todayStr;
-    // If existing service data — pre-check the box and show the section
+    // If existing service data Ã¢â‚¬â€ pre-check the box and show the section
     var hasServiceData = !!(asset.lastServiceDate || asset.lastSvcDate || asset.lastSvcOdo || asset.lastServiceOdometer);
     var cb = document.getElementById('justServicedCheck');
     var section = document.getElementById('lastServiceSection');
@@ -686,19 +686,19 @@
       function _saveVehicle(extraData) {
         var finalData = Object.assign({}, data, extraData || {});
         if (_savedEditingId) {
-          // ── EDIT MODE ──
+          // -- EDIT MODE --
           var vBtn = document.getElementById('assetSubmitBtn');
-          if (vBtn) { vBtn.disabled = true; vBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Updating…'; }
+          if (vBtn) { vBtn.disabled = true; vBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> UpdatingÃ¢â‚¬Â¦'; }
           db.collection('vehicles').doc(_savedEditingId).update(finalData)
             .then(function() { closeModal('addAssetModal'); showToast('Vehicle updated successfully!', 'success'); })
             .catch(function(err) { showToast('Update failed: ' + err.message, 'error'); })
             .finally(function() { if (vBtn) { vBtn.disabled = false; vBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update'; } });
         } else {
-          // ── ADD MODE ──
+          // -- ADD MODE --
           var vBtn2 = document.getElementById('assetSubmitBtn');
           db.collection('vehicles').where('plate', '==', plate).limit(1).get().then(function(snap) {
             if (!snap.empty) { showToast('A vehicle with this plate already exists.', 'error'); return Promise.reject('duplicate'); }
-            if (vBtn2) { vBtn2.disabled = true; vBtn2.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving…'; }
+            if (vBtn2) { vBtn2.disabled = true; vBtn2.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> SavingÃ¢â‚¬Â¦'; }
             finalData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             finalData.status = 'Active';
             return db.collection('vehicles').add(finalData);
@@ -736,7 +736,7 @@
     });
   });
 
-  // ── Owner name autocomplete (customers only) ─────────────
+  // -- Owner name autocomplete (customers only) -------------
   var _ownerNames = [];
   var _ownerNamesLoaded = false;
 
@@ -800,7 +800,7 @@
     if (typeof _origOpenAddAssetModal === 'function') _origOpenAddAssetModal();
   };
 
-  // ── Plate number formatter: AAA 1234 ─────────────────────
+  // -- Plate number formatter: AAA 1234 ---------------------
   function formatPlateNumber(input) {
     // Store cursor position before we mess with the value
     var raw = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -28,7 +28,7 @@
 </head>
 <body class="portal-body" data-page="profile">
 <script>
-// Instant auth guard — blocks bfcache back-navigation after logout
+// Instant auth guard Ã¢â‚¬â€ blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -95,7 +95,7 @@ if (!firebase.apps.length) {
 </script>
 
 <script>
-// ── Step 1: Detect role from sessionStorage ──────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Step 1: Detect role from sessionStorage Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 var _profileRole = (function() {
     var ap = sessionStorage.getItem('apUser');
     if (ap) { try { var d = JSON.parse(ap); if (d.role === 'admin') return 'admin'; } catch(e){} }
@@ -109,7 +109,7 @@ var _profileRole = (function() {
     return null;
 })();
 
-// ── Step 2: Show the correct layout immediately ──────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Step 2: Show the correct layout immediately Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 if (!_profileRole) {
     window.location.replace('/login.html');
 } else if (_profileRole === 'admin') {
@@ -181,7 +181,7 @@ if (!_profileRole) {
 </script>
 
 <script>
-// ── Step 3: Load profile data from Firebase ──────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Step 3: Load profile data from Firebase Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 var _pEditing = false;
 var _profileUnsubscribe = null;
 
@@ -253,7 +253,7 @@ firebase.auth().onAuthStateChanged(function(user) {
         }, function(err) { console.warn('Profile listener:', err); });
 });
 
-// ── Render profile HTML ──────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Render profile HTML Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function _renderProfile(d) {
     var name        = d.name || 'User';
     var email       = d.email || '';
@@ -379,7 +379,7 @@ function _settingsTile(iconBg, iconColor, svgPath, label, sub, href) {
         + '</a>';
 }
 
-// ── Edit mode ────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Edit mode Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 window.toggleEditMode = function() {
     if (_pEditing) {
         saveProfile();

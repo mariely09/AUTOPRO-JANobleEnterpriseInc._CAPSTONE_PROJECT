@@ -659,11 +659,12 @@ class _AdminDSSState extends State<AdminDSS> {
               });
 
             final filtered = _searchQuery.isEmpty
-                ? items
+                ? items.where((i) => i['priority'] != 'In Stock').toList()
                 : items.where((i) =>
+                    i['priority'] != 'In Stock' && (
                     (i['name'] ?? '').toLowerCase().contains(_searchQuery) ||
                     (i['itemNum'] ?? '').toLowerCase().contains(_searchQuery) ||
-                    (i['group'] ?? '').toLowerCase().contains(_searchQuery)
+                    (i['group'] ?? '').toLowerCase().contains(_searchQuery))
                   ).toList();
 
             // Apply sort
@@ -684,6 +685,7 @@ class _AdminDSSState extends State<AdminDSS> {
   }
 
   Widget _buildStockDSSContent(List<Map<String, String>> items) {
+    // items already excludes 'In Stock' — filtered upstream
     final afterFilter = _stockFilter == 'all'
         ? items
         : items.where((i) => i['priority'] == _stockFilter).toList();
@@ -698,15 +700,15 @@ class _AdminDSSState extends State<AdminDSS> {
             _kpiChipTappable('Out of Stock', '${items.where((i) => i['priority'] == 'Out of Stock').length}', const Color(0xFFe53e3e), Icons.warning_amber_rounded, 'Out of Stock', _stockFilter, (f) => setState(() => _stockFilter = _stockFilter == f ? 'all' : f)),
             const SizedBox(width: 8),
             _kpiChipTappable('Low Stock', '${items.where((i) => i['priority'] == 'Low Stock').length}', const Color(0xFFd69e2e), Icons.trending_down_outlined, 'Low Stock', _stockFilter, (f) => setState(() => _stockFilter = _stockFilter == f ? 'all' : f)),
-            const SizedBox(width: 8),
-            _kpiChipTappable('In Stock', '${items.where((i) => i['priority'] == 'In Stock').length}', const Color(0xFF38a169), Icons.check_circle_outline, 'In Stock', _stockFilter, (f) => setState(() => _stockFilter = _stockFilter == f ? 'all' : f)),
           ]),
         ]),
       ),
       // ── Item list ──
       Expanded(
         child: afterFilter.isEmpty
-          ? const Center(child: Text('No items found.', style: TextStyle(color: Color(0xFF718096))))
+          ? Center(child: Text(
+              _stockFilter == 'all' ? 'No items need attention.' : 'No items match this filter.',
+              style: const TextStyle(color: Color(0xFF718096))))
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: afterFilter.length,

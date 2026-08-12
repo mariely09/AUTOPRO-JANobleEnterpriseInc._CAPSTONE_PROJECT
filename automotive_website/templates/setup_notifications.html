@@ -101,13 +101,13 @@
             border-color: #10b981;
         }
         .document-item.created::before {
-            content: "✓";
+            content: "ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“";
             color: #10b981;
             font-weight: bold;
             font-size: 16px;
         }
         .document-item.pending::before {
-            content: "○";
+            content: "ÃƒÂ¢Ã¢â‚¬â€Ã¢â‚¬Â¹";
             color: #9ca3af;
             font-weight: bold;
             font-size: 16px;
@@ -138,11 +138,11 @@
 </head>
 <body>
     <div class="container">
-        <h1>📬 Setup Notifications</h1>
+        <h1>ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¬ Setup Notifications</h1>
         <p class="subtitle">Create the notifications collection with sample documents</p>
         
         <div class="info">
-            ℹ️ This will create a notifications collection with 6 sample documents for testing push notifications.
+            ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¹ÃƒÂ¯Ã‚Â¸Ã‚Â This will create a notifications collection with 6 sample documents for testing push notifications.
         </div>
 
         <div id="status" class="status" style="display: none;"></div>
@@ -218,7 +218,7 @@
 
                 if (!snapshot.empty) {
                     status.className = 'status success';
-                    status.innerHTML = '✓ Notifications collection already exists!';
+                    status.innerHTML = 'ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ Notifications collection already exists!';
                     btn.disabled = false;
                     return;
                 }
@@ -303,13 +303,13 @@
                 }
 
                 status.className = 'status success';
-                status.innerHTML = `✓ Successfully created notifications collection with ${created} documents!`;
+                status.innerHTML = `ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“ Successfully created notifications collection with ${created} documents!`;
                 btn.disabled = false;
 
             } catch (error) {
                 console.error('Error:', error);
                 status.className = 'status error';
-                status.innerHTML = `✗ Error: ${error.message}`;
+                status.innerHTML = `ÃƒÂ¢Ã…â€œÃ¢â‚¬â€ Error: ${error.message}`;
                 btn.disabled = false;
             }
         };

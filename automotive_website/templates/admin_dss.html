@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -13,7 +13,7 @@
 </head>
 <body class="portal-body" data-page="dss">
 <script>
-// Instant auth guard — blocks bfcache back-navigation after logout
+// Instant auth guard ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -49,7 +49,7 @@
     <div class="admin-main">
         <div class="admin-header">
             <div>
-                <div class="breadcrumb">Admin Portal › Decision Support System</div>
+                <div class="breadcrumb">Admin Portal ÃƒÂ¢Ã¢â€šÂ¬Ã‚Âº Decision Support System</div>
                 <div class="admin-header-title" id="dssPageTitle">Stock Replenishment</div>
             </div>
             <div style="margin-left:auto;position:relative;display:flex;align-items:center;gap:0.5rem;">
@@ -68,8 +68,8 @@
                     <select id="dssSortSelect" onchange="window._dssPage=1;renderDSSTable();" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
                         <option value="stock-asc">Stock (Lowest First)</option>
                         <option value="stock-desc">Stock (Highest First)</option>
-                        <option value="name-asc">Item Name A→Z</option>
-                        <option value="name-desc">Item Name Z→A</option>
+                        <option value="name-asc">Item Name A?Z</option>
+                        <option value="name-desc">Item Name Z?A</option>
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -79,8 +79,8 @@
                     <select id="dssPmsSortSelect" onchange="window._dssPmsPage=1;renderDSSPMSTable();" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
                         <option value="pms-asc">Next PMS Date (Soonest)</option>
                         <option value="pms-desc">Next PMS Date (Latest)</option>
-                        <option value="plate-asc">Plate A→Z</option>
-                        <option value="plate-desc">Plate Z→A</option>
+                        <option value="plate-asc">Plate A?Z</option>
+                        <option value="plate-desc">Plate Z?A</option>
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -91,7 +91,7 @@
 
             <!-- Stock Replenishment Section -->
             <div class="admin-section active" id="dss">
-                <div class="dss-kpi-grid" id="dssKpiGrid">
+                <div class="dss-kpi-grid" id="dssKpiGrid" style="grid-template-columns:repeat(2,1fr);max-width:600px;">
                     <div class="stat-card">
                         <div class="stat-icon" style="background:rgba(229,62,62,0.10);color:#e53e3e;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
                         <div class="stat-number" style="color:#e53e3e;">0</div>
@@ -101,11 +101,6 @@
                         <div class="stat-icon" style="background:rgba(214,158,46,0.10);color:#d69e2e;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div>
                         <div class="stat-number" style="color:#d69e2e;">0</div>
                         <div class="stat-label">Low Stock</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="background:rgba(56,161,105,0.10);color:#38a169;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                        <div class="stat-number" style="color:#38a169;">0</div>
-                        <div class="stat-label">In Stock</div>
                     </div>
                 </div>
                 <div class="dss-filter-bar">
@@ -123,10 +118,6 @@
                             <button class="dss-pill dss-pill--duesoon" onclick="dssSetFilter('low-stock', this)">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
                                 Low Stock
-                            </button>
-                            <button class="dss-pill dss-pill--ontrack" onclick="dssSetFilter('ok', this)">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                In Stock
                             </button>
                         </div>
                     </div>
@@ -157,6 +148,8 @@
 
             <!-- Preventive Maintenance Section -->
             <div class="admin-section" id="dss-pms">
+                <!-- PMS Calendar floating widget ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â only shown on PMS tab -->
+                {% include 'calendarview_widget.html' %}
                 <div class="dss-kpi-grid" id="dssPmsKpiGrid" style="grid-template-columns:repeat(5,1fr);">
                     <div class="stat-card">
                         <div class="stat-icon" style="background:rgba(229,62,62,0.10);color:#e53e3e;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
@@ -255,7 +248,7 @@
 </script>
 <script src="../static/js/admin_firebase.js"></script>
 <script src="../static/js/admin_functions.js?v=202607180001"></script>
-<script src="../static/js/admin.js"></script>
+<script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script>
   function switchDSSSection(section) {
@@ -277,7 +270,7 @@
     if (stockSort) stockSort.style.display = section === 'dss-pms' ? 'none' : 'flex';
     if (pmsSort)   pmsSort.style.display   = section === 'dss-pms' ? 'flex' : 'none';
 
-    // In-page switch: data is already loaded — mark flags so guards pass
+    // In-page switch: data is already loaded ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â mark flags so guards pass
     window._fbDSSLoaded    = true;
     window._fbDSSPMSLoaded = true;
 
@@ -296,7 +289,7 @@
     window.scrollTo(0, 0);
   }
 
-  // Track which section to show — set immediately from hash/data-page
+  // Track which section to show ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â set immediately from hash/data-page
   window._dssPendingSection = document.body.getAttribute('data-page') || 'dss';
 
   // Apply section UI (tabs, title, search) without rendering data yet
@@ -353,8 +346,6 @@
   });
 </script>
 
-<!-- PMS Calendar floating widget -->
-{% include 'calendarview_widget.html' %}
 
 </body>
 </html>

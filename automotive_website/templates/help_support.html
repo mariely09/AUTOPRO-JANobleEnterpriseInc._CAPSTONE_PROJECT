@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -19,7 +19,7 @@
 </head>
 <body class="portal-body" data-page="help_support">
 <script>
-// Instant auth guard — blocks bfcache back-navigation after logout
+// Instant auth guard Ã¢â‚¬â€ blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -38,7 +38,7 @@
   }
 })();
 </script>
-<!-- ── Admin layout ── -->
+<!-- Ã¢â€â‚¬Ã¢â€â‚¬ Admin layout Ã¢â€â‚¬Ã¢â€â‚¬ -->
 <div id="adminWrap" style="flex-direction:column;width:100%;min-height:100vh;" class="admin-dashboard">
     <div id="headerContainer"></div>
     <div class="admin-dashboard-body">
@@ -46,7 +46,7 @@
         <div class="admin-main">
             <div class="admin-header">
                 <div>
-                    <div class="breadcrumb">Admin Portal › My Profile › Help & Support</div>
+                    <div class="breadcrumb">Admin Portal Ã¢â‚¬Âº My Profile Ã¢â‚¬Âº Help & Support</div>
                     <div class="admin-header-title">Help & Support</div>
                 </div>
             </div>
@@ -57,7 +57,7 @@
     </div>
 </div>
 
-<!-- ── Customer / Staff layout ── -->
+<!-- Ã¢â€â‚¬Ã¢â€â‚¬ Customer / Staff layout Ã¢â€â‚¬Ã¢â€â‚¬ -->
 <div id="standaloneWrap" style="flex-direction:column;min-height:100vh;width:100%;">
     <div id="cuHeaderWrap"></div>
     <main style="flex:1;overflow-y:auto;padding:1.5rem 2rem;background:#F7F8FA;width:100%;box-sizing:border-box;">
@@ -109,7 +109,7 @@ var _faqsByRole = {
         { q: 'How do I manage the Item Master?',
           a: 'Go to Item Master under Inventory Management. You can add new items (materials or services), edit existing ones, set commodity group, UOM, cost, and supplier code, and archive items that are no longer in use.' },
         { q: 'How does the Receiving Items workflow work?',
-          a: 'Deliveries go through a 3-step process: (1) Pending — a delivery is created and items are received with actual quantities and condition noted. (2) Awaiting Double Check — admin reviews and verifies the received quantities. (3) Approved — stock is updated automatically. Admin can also approve or reject staff delivery requests marked "For Admin Review".' },
+          a: 'Deliveries go through a 3-step process: (1) Pending Ã¢â‚¬â€ a delivery is created and items are received with actual quantities and condition noted. (2) Awaiting Double Check Ã¢â‚¬â€ admin reviews and verifies the received quantities. (3) Approved Ã¢â‚¬â€ stock is updated automatically. Admin can also approve or reject staff delivery requests marked "For Admin Review".' },
         { q: 'How do I approve or reject a service booking?',
           a: 'Go to Service Bookings under Vehicle Maintenance. You will see all incoming customer booking requests. You can Approve, Reschedule, or Dismiss each request. Approved bookings become available to staff for scheduling.' },
         { q: 'What is the Decision Support System (DSS)?',
@@ -135,7 +135,7 @@ var _faqsByRole = {
         { q: 'What happens when I mark a maintenance record as completed?',
           a: 'Marking a record as Completed automatically deducts the used materials from stock inventory, creates issuance records for each material, and logs stock-out transactions. Make sure all services and materials are entered correctly before completing.' },
         { q: 'How do I handle service bookings?',
-          a: 'Go to the Vehicle tab and open Service Bookings. You can see all admin-approved bookings. On the scheduled date, the "Start Service" button becomes active — tap it to open a pre-filled maintenance form. You can also reschedule or cancel a booking from this screen.' },
+          a: 'Go to the Vehicle tab and open Service Bookings. You can see all admin-approved bookings. On the scheduled date, the "Start Service" button becomes active Ã¢â‚¬â€ tap it to open a pre-filled maintenance form. You can also reschedule or cancel a booking from this screen.' },
         { q: 'How do I change my password?',
           a: 'Go to My Profile, then click Change Password. Enter your current password, then your new password (minimum 6 characters), and confirm it.' },
         { q: 'I forgot my password. What should I do?',
@@ -153,7 +153,7 @@ var _faqsByRole = {
         { q: 'How do I view my service history?',
           a: 'Tap the PMS History tab to see a list of your vehicles. Tap any vehicle to view its full maintenance history, including the service date, mechanic, services rendered, materials used, and total cost.' },
         { q: 'What is the AI Assistant?',
-          a: 'The AI Assistant is the center button at the bottom of the screen. Tap it to open the chat. You can ask it questions about your vehicles — such as which ones are overdue, when the next service is due, or get a summary of your maintenance history. Just type your question in natural language.' },
+          a: 'The AI Assistant is the center button at the bottom of the screen. Tap it to open the chat. You can ask it questions about your vehicles Ã¢â‚¬â€ such as which ones are overdue, when the next service is due, or get a summary of your maintenance history. Just type your question in natural language.' },
         { q: 'How do I change my profile photo?',
           a: 'Go to My Profile and tap your avatar photo at the top. This will open your gallery so you can select a new image.' },
         { q: 'I forgot my password. What should I do?',
@@ -210,7 +210,7 @@ function _buildHTML() {
         + '</a>'
         + '<div class="hs-page-grid">'
 
-        // ── Left column ──
+        // Ã¢â€â‚¬Ã¢â€â‚¬ Left column Ã¢â€â‚¬Ã¢â€â‚¬
         + '<div class="hs-left">'
 
         // Hero
@@ -256,14 +256,14 @@ function _buildHTML() {
         +   '<div>'
         +     '<div class="hs-section-label">Business Hours</div>'
         +     '<div class="hs-card">'
-        +       '<div class="hs-hours-row"><span class="hs-hours-day">Monday – Sunday</span><span class="hs-hours-time">8:00 AM – 5:00 PM</span></div>'
+        +       '<div class="hs-hours-row"><span class="hs-hours-day">Monday Ã¢â‚¬â€œ Sunday</span><span class="hs-hours-time">8:00 AM Ã¢â‚¬â€œ 5:00 PM</span></div>'
         +     '</div>'
         +   '</div>'
 
-        +   '<div class="hs-footer">v1.0.0 • JA Noble Enterprise</div>'
+        +   '<div class="hs-footer">v1.0.0 Ã¢â‚¬Â¢ JA Noble Enterprise</div>'
         + '</div>' // .hs-left
 
-        // ── Right column: FAQs ──
+        // Ã¢â€â‚¬Ã¢â€â‚¬ Right column: FAQs Ã¢â€â‚¬Ã¢â€â‚¬
         + '<div class="hs-right">'
         +   '<div>'
         +     '<div class="hs-section-label">Frequently Asked Questions</div>'

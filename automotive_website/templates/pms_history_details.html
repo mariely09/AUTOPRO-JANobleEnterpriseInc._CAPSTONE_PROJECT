@@ -279,7 +279,7 @@
   const desc = params.get('desc');
   const type = params.get('type') || '';
 
-  // ── Vehicle icon SVG based on type ───────────────────────
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Vehicle icon SVG based on type ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   function vehicleIconSvg(vehicleType, size) {
     const t = (vehicleType || '').toLowerCase();
     const s = size || 24;
@@ -292,7 +292,7 @@
   async function init() {
     if (!plate) {
       document.getElementById('phdMain').innerHTML =
-        '<div class="phd-empty"><div class="phd-empty-icon">⚠️</div><div>No vehicle selected.</div></div>';
+        '<div class="phd-empty"><div class="phd-empty-icon">ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â</div><div>No vehicle selected.</div></div>';
       return;
     }
 
@@ -310,7 +310,7 @@
       // Compute summary
       const totalCost = records.reduce((sum, r) => {
         const raw = r.cost || r.totalCost || '0';
-        const num = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/[₱,]/g, '')) || 0;
+        const num = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/[ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±,]/g, '')) || 0;
         return sum + num;
       }, 0);
 
@@ -321,7 +321,7 @@
         const vData = vSnap.docs[0].data();
         const odo = vData.lastSvcOdo || vData.lastServiceOdometer || '';
         if (odo) lastSvcOdo = String(odo).replace(/[^0-9]/g, '');
-      }      // ── LEFT SIDEBAR ──
+      }      // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ LEFT SIDEBAR ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
       const sidebarHtml = `
         <div class="phd-sidebar">
           <a href="customer_pms_history.html" style="display:inline-flex;align-items:center;gap:0.4rem;font-size:0.82rem;font-weight:700;color:#718096;text-decoration:none;margin-bottom:1.25rem;transition:color .2s;" onmouseover="this.style.color='#E8001C'" onmouseout="this.style.color='#718096'">
@@ -330,7 +330,7 @@
           </a>
           <div class="phd-vehicle-card">
             <div class="phd-vehicle-plate">${plate}</div>
-            <div class="phd-vehicle-desc">${desc || '—'}</div>
+            <div class="phd-vehicle-desc">${desc || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</div>
             <div class="phd-stats">
               <div class="phd-stat-item">
                 <div class="phd-stat-icon" style="background:rgba(0,48,135,0.08);">
@@ -346,7 +346,7 @@
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 </div>
                 <div>
-                  <div class="phd-stat-value">₱${totalCost.toLocaleString('en-PH', {minimumFractionDigits:2})}</div>
+                  <div class="phd-stat-value">ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±${totalCost.toLocaleString('en-PH', {minimumFractionDigits:2})}</div>
                   <div class="phd-stat-label">Total Spent</div>
                 </div>
               </div>
@@ -366,10 +366,10 @@
         </div>
       `;
 
-      // ── RIGHT CONTENT — Records ──
+      // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ RIGHT CONTENT ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Records ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
       let recordsHtml = '';
       if (!records.length) {
-        recordsHtml = '<div class="phd-empty"><div class="phd-empty-icon">📋</div><div>No completed services yet.</div></div>';
+        recordsHtml = '<div class="phd-empty"><div class="phd-empty-icon">ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¹</div><div>No completed services yet.</div></div>';
       } else {
         recordsHtml = `
           <div class="phd-records-header">
@@ -377,13 +377,13 @@
             <span class="phd-records-title">Service Records</span>
           </div>
         ` + records.map((r, idx) => {
-          const costDisplay = r.cost || '—';
+          const costDisplay = r.cost || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
           return `
             <div class="phd-record-card" style="cursor:pointer;" onclick="phdOpenModal(${idx})">
               <div style="padding:14px;display:flex;align-items:center;gap:12px;">
                 <div style="flex:1;min-width:0;">
-                  <div style="font-weight:700;font-size:13px;color:#1a202c;">${r.date || '—'}</div>
-                  <div style="font-size:11px;color:#718096;margin-top:2px;">${r.mechanic || '—'}</div>
+                  <div style="font-weight:700;font-size:13px;color:#1a202c;">${r.date || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</div>
+                  <div style="font-size:11px;color:#718096;margin-top:2px;">${r.mechanic || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</div>
                   ${r.odometer ? `<div style="font-size:10px;color:#718096;margin-top:1px;">${r.odometer} km</div>` : ''}
                 </div>
                 <div style="text-align:right;flex-shrink:0;">
@@ -404,7 +404,7 @@
     } catch (err) {
       console.error('Error loading PMS history:', err);
       document.getElementById('phdMain').innerHTML =
-        `<div class="phd-empty"><div class="phd-empty-icon">⚠️</div><div>Error loading data: ${err.message}</div></div>`;
+        `<div class="phd-empty"><div class="phd-empty-icon">ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â</div><div>Error loading data: ${err.message}</div></div>`;
     }
   }
 
@@ -437,8 +437,8 @@
   <div style="background:white;border-radius:20px;width:100%;max-width:560px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
     <div style="background:#E8001C;padding:20px;display:flex;align-items:center;gap:14px;flex-shrink:0;">
       <div style="flex:1;min-width:0;">
-        <div id="phdModalDate" style="font-size:16px;font-weight:800;color:white;">—</div>
-        <div id="phdModalMechanic" style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:2px;">—</div>
+        <div id="phdModalDate" style="font-size:16px;font-weight:800;color:white;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
+        <div id="phdModalMechanic" style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:2px;">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</div>
       </div>
       <button onclick="phdCloseModal()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">&times;</button>
     </div>
@@ -453,34 +453,34 @@
     const r = window._phdRecords[idx];
     if (!r) return;
 
-    document.getElementById('phdModalDate').textContent = r.date || '—';
-    document.getElementById('phdModalMechanic').textContent = r.mechanic || '—';
+    document.getElementById('phdModalDate').textContent = r.date || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
+    document.getElementById('phdModalMechanic').textContent = r.mechanic || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
 
     const svcRows = (r.svcRows || []).filter(s => s.name);
     const matRows = (r.matRows || []).filter(m => m.name);
     const issues  = (r.issues  || []).filter(i => i && i.toString().trim());
 
     function rowSub(row) {
-      return (parseFloat((row.cost || '0').replace(/[₱,]/g, '')) || 0) * (parseFloat(row.qty) || 1);
+      return (parseFloat((row.cost || '0').replace(/[ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±,]/g, '')) || 0) * (parseFloat(row.qty) || 1);
     }
 
     function detailRow(label, value) {
-      return `<div style="display:flex;padding:6px 0;"><span style="width:130px;font-size:12px;color:#718096;font-weight:500;">${label}</span><span style="font-size:13px;font-weight:600;color:#1a202c;">${value || '—'}</span></div>`;
+      return `<div style="display:flex;padding:6px 0;"><span style="width:130px;font-size:12px;color:#718096;font-weight:500;">${label}</span><span style="font-size:13px;font-weight:600;color:#1a202c;">${value || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</span></div>`;
     }
 
     function itemCard(item, color) {
       const sub = rowSub(item);
       return `<div style="margin-bottom:8px;padding:10px;background:${color}08;border-radius:10px;border:1px solid ${color}20;display:flex;align-items:center;">
-        <div style="flex:1;"><div style="font-weight:600;font-size:12px;">${item.name}</div><div style="font-size:10px;color:#718096;">${item.qty} ${item.uom}  •  ₱${parseFloat((item.cost||'0').replace(/[₱,]/g,'')).toFixed(2)} / unit</div></div>
-        <span style="font-weight:700;font-size:12px;color:${color};">₱${sub.toLocaleString('en-PH',{minimumFractionDigits:2})}</span>
+        <div style="flex:1;"><div style="font-weight:600;font-size:12px;">${item.name}</div><div style="font-size:10px;color:#718096;">${item.qty} ${item.uom}  ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢  ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±${parseFloat((item.cost||'0').replace(/[ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±,]/g,'')).toFixed(2)} / unit</div></div>
+        <span style="font-weight:700;font-size:12px;color:${color};">ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â±${sub.toLocaleString('en-PH',{minimumFractionDigits:2})}</span>
       </div>`;
     }
 
     let html = '';
-    html += detailRow('Service Date', r.date || '—');
-    html += detailRow('Mechanic', r.mechanic || '—');
-    html += detailRow('Odometer', r.odometer ? r.odometer + ' km' : '—');
-    html += detailRow('Total Cost', r.cost || '—');
+    html += detailRow('Service Date', r.date || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â');
+    html += detailRow('Mechanic', r.mechanic || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â');
+    html += detailRow('Odometer', r.odometer ? r.odometer + ' km' : 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â');
+    html += detailRow('Total Cost', r.cost || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â');
     html += `<div style="display:flex;padding:6px 0;"><span style="width:130px;font-size:12px;color:#718096;font-weight:500;">Status</span><span style="background:rgba(22,163,106,0.1);color:#16a34a;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;">Completed</span></div>`;
 
     if (issues.length) {
@@ -502,7 +502,7 @@
     }
 
     html += `<hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">`;
-    html += `<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:600;font-size:13px;color:#4a5568;">Total</span><span style="font-weight:700;font-size:16px;color:#1a202c;">${r.cost || '—'}</span></div>`;
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:600;font-size:13px;color:#4a5568;">Total</span><span style="font-weight:700;font-size:16px;color:#1a202c;">${r.cost || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</span></div>`;
 
     document.getElementById('phdModalBody').innerHTML = html;
     document.getElementById('phdModal').style.display = 'flex';
