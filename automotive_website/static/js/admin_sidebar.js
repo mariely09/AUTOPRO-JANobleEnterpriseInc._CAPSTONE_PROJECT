@@ -131,7 +131,6 @@ const EXPAND_COLLAPSE_PAGES = [
     'admin_dss.html',
     'admin_users.html',
     'admin_domain_management.html',
-    'admin_ai_settings.html',
     'admin_archive.html',
     'profile.html',
     'change_password.html',
