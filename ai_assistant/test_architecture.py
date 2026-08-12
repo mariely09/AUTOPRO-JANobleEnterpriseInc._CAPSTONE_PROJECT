@@ -349,32 +349,11 @@ def ta_10_customer_complex_70b():
 
 
 def ta_11_token_usage_endpoint():
-    """TA-11 — Token usage endpoint returns today's stats."""
-    desc = "Token usage endpoint returns today's statistics"
-    print(f"\n{BOLD}TA-11{RESET}  GET /api/ai-settings/token-usage")
-    try:
-        r = requests.get(f"{AI_BACKEND}/ai-settings/token-usage", timeout=15)
-        _info(f"HTTP {r.status_code}")
-        if r.status_code == 200:
-            d = r.json()
-            _info(f"Date: {d.get('date')} | Total tokens: {d.get('total_tokens')} | "
-                  f"Requests: {d.get('requests')}")
-            has_required = all(k in d for k in
-                               ("date", "input_tokens", "output_tokens",
-                                "total_tokens", "requests", "by_model", "by_role"))
-            if has_required:
-                _pass("Token usage endpoint returns all required fields")
-                record("TA-11", desc, True, f"date={d.get('date')}, total={d.get('total_tokens')}")
-            else:
-                missing = [k for k in ("date","input_tokens","output_tokens",
-                                       "total_tokens","requests","by_model","by_role") if k not in d]
-                _fail(f"Missing fields: {missing}")
-                record("TA-11", desc, False, f"Missing: {missing}")
-        else:
-            _fail(f"HTTP {r.status_code}: {r.text[:100]}")
-            record("TA-11", desc, False, f"HTTP {r.status_code}")
-    except Exception as e:
-        _fail(str(e)); record("TA-11", desc, False, str(e))
+    """TA-11 — Token usage endpoint (REMOVED — AI Settings feature deleted)."""
+    desc = "Token usage endpoint (feature removed)"
+    print(f"\n{BOLD}TA-11{RESET}  Token usage endpoint test (SKIPPED)")
+    _info("AI Settings feature and related endpoints have been removed")
+    record("TA-11", desc, True, "Test skipped - feature removed")
 
 
 def ta_12_customer_isolation():
