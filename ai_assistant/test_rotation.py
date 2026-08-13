@@ -330,7 +330,7 @@ class TestApiKeyManager(unittest.TestCase):
 def run_live_test():
     """
     Live test against the deployed Render backend.
-    Checks /health then /ai-settings/status to confirm keys are loaded.
+    Checks /health to confirm the service is online.
     Override backend URL with AI_BACKEND_URL env var if needed.
     """
     try:
@@ -340,63 +340,20 @@ def run_live_test():
             "AI_BACKEND_URL",
             "https://caltex-autopro-capstone-project.onrender.com"
         ).rstrip("/")
-        token = os.getenv("AI_ADMIN_TOKEN", "caltex-admin-ai-2026")
 
         print("\n── Live service test ──────────────────────────────────")
         print(f"  Backend: {backend_url}")
 
-        # 1. Health check (allows longer timeout for Render cold start)
+        # Health check (allows longer timeout for Render cold start)
         r = requests.get(f"{backend_url}/health", timeout=20)
         if r.status_code != 200:
             print(f"  SKIP: health check returned HTTP {r.status_code}")
             return
 
         print(f"  Health: OK  ({r.json()})")
-
-        # 2. AI settings status
-        r2 = requests.get(
-            f"{backend_url}/ai-settings/status",
-            headers={"X-Admin-Token": token},
-            timeout=15,
-        )
-        if r2.status_code == 403:
-            print("  SKIP: admin token rejected — check AI_ADMIN_TOKEN env var")
-            return
-        r2.raise_for_status()
-        data = r2.json()
-
-        total    = data.get("total_keys", 0)
-        active   = data.get("active_keys", 0)
-        cooldown = data.get("cooldown_keys", 0)
-        disabled = data.get("disabled_keys", 0)
-
         print(f"  Service:       ONLINE")
-        print(f"  Total keys:    {total}")
-        print(f"  Active keys:   {active}")
-        print(f"  Cooling down:  {cooldown}")
-        print(f"  Disabled:      {disabled}")
-        print(f"  Current acct:  {data.get('current_account', '—')}")
-        print(f"  Current key:   {data.get('current_key_masked', '—')}")
-        print(f"  Model:         {data.get('current_model', '—')}")
-        print(f"  Rotation:      {'ON' if data.get('rotation_enabled') else 'OFF'}")
-        print(f"  Cooldown secs: {data.get('cooldown_seconds', '—')}")
-        print(f"  Max retries:   {data.get('max_retries', '—')}")
-
-        keys = data.get("keys", [])
-        if keys:
-            print(f"\n  Keys in Firestore ({len(keys)}):")
-            for k in keys:
-                tag          = " ← CURRENT" if k.get("is_current") else ""
-                cooldown_str = (f"  (cooling {k['cooldown_remaining']}s left)"
-                                if k.get("cooldown_remaining", 0) > 0 else "")
-                print(f"    [{k['status'].upper():10s}] "
-                      f"{k['account_name']:<22s} "
-                      f"{k['api_key_masked']}"
-                      f"{tag}{cooldown_str}")
-        else:
-            print("  No keys in Firestore — AI is using GROQ_API_KEY from .env")
-
         print("\n  PASS: live Render service is reachable and responding correctly")
+        print("\n  NOTE: AI Settings endpoints have been removed from the service")
 
     except requests.exceptions.ConnectionError:
         print("  SKIP: cannot reach the Render backend — check your internet or deployment")

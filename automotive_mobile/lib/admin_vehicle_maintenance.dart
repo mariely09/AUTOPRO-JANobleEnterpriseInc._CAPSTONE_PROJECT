@@ -125,6 +125,8 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
   List<String> _mechanicNames = []; // staff + admin names
   Set<String> _inactiveItemNames = {}; // names of Inactive stock items
   Map<String, int> _stockMap = {};    // name.lower → current stock qty (for dropdown oos badge)
+  // Stable GlobalKeys for _ItemSearchField — keyed by row object identity
+  final _rowKeys = <int, GlobalKey>{};
   bool _lookupLoaded = false;
 
   @override
@@ -1340,8 +1342,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
 
   Widget _svcRow(Map<String, TextEditingController> row, VoidCallback onRemove, StateSetter setModal, List<Map<String, TextEditingController>> allSvcRows, BuildContext ctx) {
     row.putIfAbsent('searchText', () => TextEditingController(text: row['name']!.text));
-    // Stable key so _ItemSearchField State survives setModal rebuilds
-    final svcFieldKey = row.putIfAbsent('_svcKey', () => GlobalKey()) as GlobalKey;
+    final svcFieldKey = _rowKeys.putIfAbsent(identityHashCode(row), () => GlobalKey());
 
     // All service items preserving same-name different-UOM entries
     final serviceItems = _allItems
@@ -1434,8 +1435,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
   Widget _matRow(Map<String, TextEditingController> row, VoidCallback onRemove, StateSetter setModal, BuildContext ctx, List<Map<String, TextEditingController>> allMatRows) {
     row.putIfAbsent('maxStock', () => TextEditingController(text: '99999'));
     row.putIfAbsent('searchText', () => TextEditingController());
-    // Stable key so _ItemSearchField State survives setModal rebuilds
-    final matFieldKey = row.putIfAbsent('_matKey', () => GlobalKey()) as GlobalKey;
+    final matFieldKey = _rowKeys.putIfAbsent(identityHashCode(row) + 1, () => GlobalKey());
 
     // All material items from item master (type == Material), excluding Inactive stock items
     // Use _allItems to preserve items with same name but different UOM

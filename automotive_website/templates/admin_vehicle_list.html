@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -58,10 +58,10 @@
                         <option value="plate-desc">Plate Z→A</option>
                         <option value="owner-asc">Owner A→Z</option>
                         <option value="owner-desc">Owner Z→A</option>
-                        <option value="pms-asc">Next PMS ↑ Soonest</option>
-                        <option value="pms-desc">Next PMS ↓ Latest</option>
-                        <option value="odo-desc">Odometer ↑ Highest</option>
-                        <option value="odo-asc">Odometer ↓ Lowest</option>
+                        <option value="pms-asc">Next PMS → Soonest</option>
+                        <option value="pms-desc">Next PMS → Latest</option>
+                        <option value="odo-desc">Odometer → Highest</option>
+                        <option value="odo-asc">Odometer → Lowest</option>
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -128,7 +128,7 @@
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>
 
-<!-- ── View Vehicle Modal ── -->
+<!-- -- View Vehicle Modal -- -->
 <div class="modal" id="assetDetailsModal">
     <div class="modal-content" style="max-width:520px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
         <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
@@ -151,7 +151,7 @@
     </div>
 </div>
 
-<!-- ── Add / Edit Vehicle Modal ── -->
+<!-- -- Add / Edit Vehicle Modal -- -->
 <div class="modal" id="addAssetModal">
     <div class="modal-content" style="max-width:520px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
         <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
@@ -198,7 +198,7 @@
             <!-- Just Serviced Toggle -->
             <label style="display:flex;align-items:center;gap:0.6rem;padding:0.75rem 1rem;background:#f0fff4;border:1.5px solid #9ae6b4;border-radius:10px;cursor:pointer;user-select:none;">
                 <input type="checkbox" id="justServicedCheck" onchange="onJustServicedToggle(this)" style="width:16px;height:16px;accent-color:#16a34a;cursor:pointer;flex-shrink:0;">
-                <span style="font-size:0.85rem;font-weight:700;color:#16a34a;">🔧 Vehicle was just serviced</span>
+                <span style="font-size:0.85rem;font-weight:700;color:#16a34a;">?? Vehicle was just serviced</span>
             </label>
 
             <!-- Last Service Fields — hidden until checkbox is ticked -->
@@ -230,7 +230,7 @@
 <div id="toast"></div>
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
-/* ── Floating label fields ── */
+/* -- Floating label fields -- */
 .fl-field {
     position: relative;
     width: 100%;
@@ -313,7 +313,7 @@
 <script src="../static/js/admin_firebase.js"></script>
 
 <script src="../static/js/admin_functions.js?v=202607180001"></script>
-<script src="../static/js/admin.js"></script>
+<script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script>
   // Patch renderAssetsList to also update vehicle stat cards and apply sort
@@ -385,14 +385,14 @@
     });
   })();
 
-  // ── Vehicle type filter (from stat cards) ──
+  // -- Vehicle type filter (from stat cards) --
   window._vehTypeFilter = 'all';
   window.vehTypeFilter = function(type) {
     window._vehTypeFilter = type;
     if (typeof renderAssetsList === 'function') renderAssetsList();
   };
 
-  // ── Tab switching ──
+  // -- Tab switching --
   window._vActiveTab = 'active';
   window.vSwitchTab = function(tab, btn) {
     window._vActiveTab = tab;
@@ -414,7 +414,7 @@
     if (tab === 'archive') renderArchivedVehicles();
   };
 
-  // ── Render archived vehicles ──
+  // -- Render archived vehicles --
   window.renderArchivedVehicles = function() {
     var db = firebase.firestore();
     var list = document.getElementById('archivedVehiclesList');
@@ -461,7 +461,7 @@
     });
   };
 
-  // ── Restore archived vehicle ──
+  // -- Restore archived vehicle --
   window.restoreVehicle = function(docId, plate) {
     if (!confirm('Restore "' + plate + '" back to the active vehicle list?')) return;
     firebase.firestore().collection('vehicles').doc(docId).update({
@@ -473,7 +473,7 @@
     }).catch(function(err) { showToast('Error: ' + err.message, 'error'); });
   };
 
-  // ── Just Serviced checkbox ──────────────────────────────
+  // -- Just Serviced checkbox ------------------------------
   function onJustServicedToggle(cb) {
     var section = document.getElementById('lastServiceSection');
     var lsdInput = document.getElementById('lastServiceDateInput');
@@ -493,7 +493,7 @@
     // No longer auto-sync to last service odometer — they are independent fields
   }
 
-  // ── Vehicle modal functions ──
+  // -- Vehicle modal functions --
   var _editingVehicleId = null;
 
   function _vehDetailRow(label, value) {
@@ -686,7 +686,7 @@
       function _saveVehicle(extraData) {
         var finalData = Object.assign({}, data, extraData || {});
         if (_savedEditingId) {
-          // ── EDIT MODE ──
+          // -- EDIT MODE --
           var vBtn = document.getElementById('assetSubmitBtn');
           if (vBtn) { vBtn.disabled = true; vBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Updating…'; }
           db.collection('vehicles').doc(_savedEditingId).update(finalData)
@@ -694,7 +694,7 @@
             .catch(function(err) { showToast('Update failed: ' + err.message, 'error'); })
             .finally(function() { if (vBtn) { vBtn.disabled = false; vBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update'; } });
         } else {
-          // ── ADD MODE ──
+          // -- ADD MODE --
           var vBtn2 = document.getElementById('assetSubmitBtn');
           db.collection('vehicles').where('plate', '==', plate).limit(1).get().then(function(snap) {
             if (!snap.empty) { showToast('A vehicle with this plate already exists.', 'error'); return Promise.reject('duplicate'); }
@@ -736,7 +736,7 @@
     });
   });
 
-  // ── Owner name autocomplete (customers only) ─────────────
+  // -- Owner name autocomplete (customers only) -------------
   var _ownerNames = [];
   var _ownerNamesLoaded = false;
 
@@ -800,7 +800,7 @@
     if (typeof _origOpenAddAssetModal === 'function') _origOpenAddAssetModal();
   };
 
-  // ── Plate number formatter: AAA 1234 ─────────────────────
+  // -- Plate number formatter: AAA 1234 ---------------------
   function formatPlateNumber(input) {
     // Store cursor position before we mess with the value
     var raw = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');

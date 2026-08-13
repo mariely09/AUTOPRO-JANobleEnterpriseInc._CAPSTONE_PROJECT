@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="../static/css/admin.css">
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
-/* ── Floating label fields ── */
+/* ââ€€ââ€€ Floating label fields ââ€€ââ€€ */
 .fl-field {
     position: relative;
     width: 100%;
@@ -148,7 +148,7 @@
 </script>
 <script src="../static/js/admin_firebase.js"></script>
 <script src="../static/js/admin_functions.js?v=202607180001"></script>
-<script src="../static/js/admin.js"></script>
+<script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script>
 var _dmDomains = [
@@ -169,7 +169,7 @@ var _dmItems        = [];   // cached items for current domain
 var _dmEditingDocId = null;
 var _dmUnsubscribe  = null;
 
-// ── SVG icons ──────────────────────────────────────────────
+// ââ€€ââ€€ SVG icons ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
 function _dmIcon(key, color, size) {
   size = size || 22;
   var icons = {
@@ -180,7 +180,7 @@ function _dmIcon(key, color, size) {
   return icons[key] || icons['category'];
 }
 
-// ── Seed defaults if empty ──────────────────────────────────
+// ââ€€ââ€€ Seed defaults if empty ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
 function _dmSeedAll() {
   var db = firebase.firestore();
   _dmDomains.forEach(function(d) {
@@ -199,7 +199,7 @@ function _dmSeedAll() {
   });
 }
 
-// ── Render domain category cards ───────────────────────────
+// ââ€€ââ€€ Render domain category cards ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
 function dmRenderCards() {
   var db = firebase.firestore();
   var container = document.getElementById('dmDomainCards');
@@ -230,7 +230,7 @@ function dmRenderCards() {
   });
 }
 
-// ── Open a domain detail ────────────────────────────────────
+// ââ€€ââ€€ Open a domain detail ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
 function dmOpenDomain(d) {
   _dmCurrentKey   = d.key;
   _dmCurrentLabel = d.label;
@@ -261,7 +261,7 @@ function dmOpenDomain(d) {
     });
 }
 
-// ── Back to list ────────────────────────────────────────────
+// ââ€€ââ€€ Back to list ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
 function dmBack() {
   if (_dmUnsubscribe) { _dmUnsubscribe(); _dmUnsubscribe = null; }
   _dmCurrentKey = null;
@@ -274,7 +274,7 @@ function dmBack() {
   dmRenderCards();
 }
 
-// ── Render items list ───────────────────────────────────────
+// ââ€€ââ€€ Render items list ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
 function dmRenderItems() {
   var q = (document.getElementById('dmSearch').value || '').trim().toLowerCase();
   var filtered = q ? _dmItems.filter(function(i){ return i.name.toLowerCase().includes(q); }) : _dmItems;
@@ -297,7 +297,7 @@ function dmRenderItems() {
   }).join('');
 }
 
-// ── Add modal ───────────────────────────────────────────────
+// ââ€€ââ€€ Add modal ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
 function dmOpenAddModal() {
   _dmEditingDocId = null;
   document.getElementById('dmModalTitle').textContent = 'Add ' + _dmCurrentLabel;
@@ -319,7 +319,7 @@ function dmOpenEditModal(docId, name) {
   setTimeout(function(){ input.focus(); }, 100);
 }
 
-// ── Save item ───────────────────────────────────────────────
+// ââ€€ââ€€ Save item ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
 function dmSaveItem() {
   var name = document.getElementById('dmItemName').value.trim();
   if (!name) { showToast('Please enter a name.', 'error'); return; }
@@ -342,7 +342,7 @@ function dmSaveItem() {
   }
 }
 
-// ── Delete item ─────────────────────────────────────────────
+// ââ€€ââ€€ Delete item ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
 function dmDeleteItem(docId, name) {
   if (!confirm('Are you sure you want to delete "' + name + '"?')) return;
   firebase.firestore().collection('domains').doc(_dmCurrentKey).collection('items').doc(docId).delete()
@@ -350,7 +350,7 @@ function dmDeleteItem(docId, name) {
     .catch(function(e){ showToast('Error: ' + e.message, 'error'); });
 }
 
-// ── Enter key saves ─────────────────────────────────────────
+// ââ€€ââ€€ Enter key saves ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('dmItemName').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); dmSaveItem(); }

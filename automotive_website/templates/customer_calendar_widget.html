@@ -1,4 +1,4 @@
-<!-- ── Customer Calendar Floating Widget ── -->
+<!-- ââ€€ââ€€ Customer Calendar Floating Widget ââ€€ââ€€ -->
 <!-- Include on any customer page. Loads the logged-in customer's own bookings + PMS dates. -->
 
 <!-- FAB -->
@@ -158,7 +158,7 @@
     return '#EAB308';
   }
 
-  // ── Toggle ──────────────────────────────────────────────────
+  // ââ€€ââ€€ Toggle ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
   window.cuCalToggle = function() {
     _open = !_open;
     var panel = document.getElementById('cuCalPanel');
@@ -180,7 +180,7 @@
     }
   });
 
-  // ── Load customer data ──────────────────────────────────────
+  // ââ€€ââ€€ Load customer data ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
   function _loadData() {
     if (typeof firebase === 'undefined') return;
     var user = firebase.auth().currentUser;
@@ -207,7 +207,7 @@
           if (!events[date]) events[date] = [];
           events[date].push({
             type: 'booking',
-            label: d.plate || '—',
+            label: d.plate || 'â€â€',
             services: (d.services || []).join(', '),
             status: d.status || 'Pending',
             time: d.preferredTime || '',
@@ -288,7 +288,7 @@
       .catch(function() { _renderGrid(); });
   }
 
-  // ── Render grid ─────────────────────────────────────────────
+  // ââ€€ââ€€ Render grid ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
   function _renderGrid() {
     var monthEl = document.getElementById('cuCalMonthLabel');
     var yearEl  = document.getElementById('cuCalYearBadge');
@@ -358,7 +358,7 @@
     if (_selDay) _renderDayDetail(_selDay);
   }
 
-  // ── Day detail ───────────────────────────────────────────────
+  // ââ€€ââ€€ Day detail ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
   function _renderDayDetail(key) {
     var evts   = _events[key] || [];
     var detail = document.getElementById('cuCalDayDetail');
@@ -396,7 +396,7 @@
     detail.style.display = 'block';
   }
 
-  // ── Public API ───────────────────────────────────────────────
+  // ââ€€ââ€€ Public API ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
   window.cuCalNav = function(dir) {
     _calMonth += dir;
     if (_calMonth > 11) { _calMonth = 0; _calYear++; }

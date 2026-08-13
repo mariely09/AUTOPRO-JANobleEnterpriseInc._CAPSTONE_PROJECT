@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="../static/css/style.css">
     <link rel="stylesheet" href="../static/css/admin.css">
     <style>
-      /* ── Dashboard chart cards ── */
+      /* -- Dashboard chart cards -- */
       .dash-chart-card {
         background: #fff;
         border-radius: 16px;
@@ -53,7 +53,7 @@
         border-radius: 20px;
       }
 
-      /* ── PMS Calendar ── */
+      /* -- PMS Calendar -- */
       .pms-cal-grid {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
@@ -119,17 +119,17 @@
         flex-shrink: 0;
       }
 
-      /* ── Dashboard responsive ── */
+      /* -- Dashboard responsive -- */
       @media (max-width: 900px) {
-        /* Stats: 5-col → 2-col */
+        /* Stats: 5-col ? 2-col */
         .stats-grid[style*="repeat(5"] {
           grid-template-columns: repeat(2, 1fr) !important;
         }
-        /* Chart rows → single column */
+        /* Chart rows ? single column */
         .dash-row-1, .dash-row-2 {
           grid-template-columns: 1fr !important;
         }
-        /* Issuance/txn stats → 2-col */
+        /* Issuance/txn stats ? 2-col */
         #issuance > div[style*="repeat(3"],
         #inventory-transactions > div[style*="repeat(3"] {
           grid-template-columns: repeat(2, 1fr) !important;
@@ -154,21 +154,21 @@
         .dash-chart-header { flex-wrap: wrap !important; gap: 0.4rem !important; margin-bottom: 0.75rem !important; }
         .dash-chart-title { font-size: 0.82rem !important; }
         .dash-chart-sub { font-size: 0.68rem !important; }
-        /* Chart canvas heights → smaller on mobile */
+        /* Chart canvas heights ? smaller on mobile */
         #servicesBarChart { max-height: 180px !important; }
         #vehicleDonutChart { max-height: 130px !important; }
         #stockLineChart { max-height: 160px !important; }
         #topPartsBarChart { max-height: 160px !important; }
         /* Donut: stack chart + legend vertically */
         .dash-donut-inner { flex-direction: column !important; align-items: center !important; gap: 0.75rem !important; }
-        /* Issuance/txn stats → 1-col */
+        /* Issuance/txn stats ? 1-col */
         #issuance > div[style*="repeat(3"],
         #inventory-transactions > div[style*="repeat(3"] {
           grid-template-columns: 1fr !important;
         }
         /* Data table: horizontal scroll */
         .data-table { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }
-        /* Today's service table columns → simpler grid */
+        /* Today's service table columns ? simpler grid */
         #todayServicesList .table-row { font-size: 0.78rem !important; }
       }
 
@@ -356,7 +356,7 @@
                         </div>
                     </div>
 
-                    <!-- ── Charts Row 1: Bar + Donut ── -->
+                    <!-- -- Charts Row 1: Bar + Donut -- -->
                     <div class="dash-row-1" style="display:grid;grid-template-columns:1.6fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
 
                         <!-- Stacked Bar chart: Services by Type last 7 days -->
@@ -402,7 +402,7 @@
                         </div>
                     </div>
 
-                    <!-- ── Charts Row 2: Line + Top Parts side by side ── -->
+                    <!-- -- Charts Row 2: Line + Top Parts side by side -- -->
                     <div class="dash-row-2" style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
 
                         <!-- Line chart: Stock In vs Stock Out -->
@@ -514,7 +514,7 @@
                             <input type="date" id="issuanceDateFrom" onchange="renderIssuancesList()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
                             <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">To</span>
                             <input type="date" id="issuanceDateTo" onchange="renderIssuancesList()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
-                            <button onclick="document.getElementById('issuanceDateFrom').value='';document.getElementById('issuanceDateTo').value='';renderIssuancesList();" title="Clear date range" style="height:34px;padding:0 0.55rem;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;color:#718096;font-size:0.82rem;" type="button">✕</button>
+                            <button onclick="document.getElementById('issuanceDateFrom').value='';document.getElementById('issuanceDateTo').value='';renderIssuancesList();" title="Clear date range" style="height:34px;padding:0 0.55rem;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;color:#718096;font-size:0.82rem;" type="button">?</button>
                         </div>
                     </div>
                     <div class="data-table">
@@ -580,7 +580,7 @@
                             <input type="date" id="txnDateFrom" onchange="renderInventoryTransactions()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
                             <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">To</span>
                             <input type="date" id="txnDateTo" onchange="renderInventoryTransactions()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
-                            <button onclick="document.getElementById('txnDateFrom').value='';document.getElementById('txnDateTo').value='';renderInventoryTransactions();" title="Clear date range" style="height:34px;padding:0 0.55rem;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;color:#718096;font-size:0.82rem;" type="button">✕</button>
+                            <button onclick="document.getElementById('txnDateFrom').value='';document.getElementById('txnDateTo').value='';renderInventoryTransactions();" title="Clear date range" style="height:34px;padding:0 0.55rem;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;color:#718096;font-size:0.82rem;" type="button">?</button>
                         </div>
                     </div>
                     <div class="data-table">
@@ -600,7 +600,7 @@
     <div class="modal" id="issuanceDetailsModal">
         <div class="modal-content" style="max-width: 640px; padding: 0; border-radius: 20px; overflow: hidden;">
             <div style="background: linear-gradient(135deg, #E31E24 0%, #C41E3A 100%); padding: 1.75rem 2rem; color: white; position: relative; overflow: hidden;">
-                <div style="position: absolute; top: -20px; right: -20px; font-size: 8rem; opacity: 0.06;">📦</div>
+                <div style="position: absolute; top: -20px; right: -20px; font-size: 8rem; opacity: 0.06;">??</div>
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; z-index: 1;">
                     <div>
                         <div style="font-size: 0.72rem; opacity: 0.7; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.4rem;">Issuance Record</div>
@@ -613,15 +613,15 @@
             </div>
             <div style="padding: 1.75rem 2rem; background: #f8fafc; max-height: 65vh; overflow-y: auto;">
                 <div style="background: linear-gradient(135deg, #E31E24, #C41E3A); border-radius: 14px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; color: white;">
-                    <div><div style="font-size: 0.72rem; opacity: 0.85; font-weight: 700; text-transform: uppercase; margin-bottom: 0.3rem;">Subtotal</div><div style="font-size: 2rem; font-weight: 800;" id="idSubtotal">₱0.00</div></div>
+                    <div><div style="font-size: 0.72rem; opacity: 0.85; font-weight: 700; text-transform: uppercase; margin-bottom: 0.3rem;">Subtotal</div><div style="font-size: 2rem; font-weight: 800;" id="idSubtotal">?0.00</div></div>
                     <div style="text-align: right;"><div style="font-size: 0.72rem; opacity: 0.85; font-weight: 700; text-transform: uppercase; margin-bottom: 0.3rem;">Date</div><div style="font-size: 1rem; font-weight: 700;" id="idDate">-</div></div>
                 </div>
                 <div style="background: white; border-radius: 14px; padding: 1.5rem; margin-bottom: 1.25rem; border: 1px solid #e2e8f0;">
-                    <div style="font-size: 0.72rem; font-weight: 700; color: #718096; text-transform: uppercase; margin-bottom: 1.25rem;">📋 Item Details</div>
+                    <div style="font-size: 0.72rem; font-weight: 700; color: #718096; text-transform: uppercase; margin-bottom: 1.25rem;">?? Item Details</div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem;" id="idItemGrid"></div>
                 </div>
                 <div style="background: white; border-radius: 14px; padding: 1.5rem; border: 1px solid #e2e8f0;">
-                    <div style="font-size: 0.72rem; font-weight: 700; color: #718096; text-transform: uppercase; margin-bottom: 1.25rem;">💰 Cost Breakdown</div>
+                    <div style="font-size: 0.72rem; font-weight: 700; color: #718096; text-transform: uppercase; margin-bottom: 1.25rem;">?? Cost Breakdown</div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.85rem;">
                         <div style="background: #f7fafc; border-radius: 10px; padding: 1rem; text-align: center;"><div style="font-size: 0.7rem; color: #718096; font-weight: 700; text-transform: uppercase; margin-bottom: 0.4rem;">Quantity</div><div style="font-size: 1.4rem; font-weight: 800; color: #1a202c;" id="idQty">-</div><div style="font-size: 0.75rem; color: #a0aec0;" id="idUOM">-</div></div>
                         <div style="background: #ebf8ff; border-radius: 10px; padding: 1rem; text-align: center; border-left: 3px solid #3182ce;"><div style="font-size: 0.7rem; color: #2c5282; font-weight: 700; text-transform: uppercase; margin-bottom: 0.4rem;">Unit Cost</div><div style="font-size: 1.2rem; font-weight: 800; color: #2b6cb0;" id="idUnitCost">-</div></div>
@@ -653,7 +653,7 @@
                 <div style="background: #ebf8ff; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #3182ce;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div style="font-weight: 600; color: #2c5282;">Subtotal:</div>
-                        <div style="font-size: 1.5rem; font-weight: bold; color: #2c5282;" id="subtotalDisplay">₱0.00</div>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #2c5282;" id="subtotalDisplay">?0.00</div>
                     </div>
                 </div>
                 <div style="display: flex; gap: 1rem; margin-top: 2rem;">
@@ -689,10 +689,10 @@
     </script>
     <script src="../static/js/admin_firebase.js"></script>
     <script src="../static/js/admin_functions.js?v=202607180001"></script>
-    <script src="../static/js/admin.js"></script>
+    <script src="../static/js/admin.js?v=202608120002"></script>
     <script src="../static/js/admin_sidebar.js"></script>
     <script>
-      // ── Dashboard Charts ─────────────────────────────────────────────────
+      // -- Dashboard Charts -------------------------------------------------
       let _barChart   = null;
       let _donutChart = null;
       let _lineChart  = null;
@@ -719,9 +719,9 @@
         const vehicles     = window._fbVehicles     || [];
         const transactions = window._fbTransactions || [];
 
-        // ════════════════════════════════════════
+        // ----------------------------------------
         // 1. STACKED BAR CHART — Services by Type, last 7 days
-        // ════════════════════════════════════════
+        // ----------------------------------------
         const { labels: barLabels, keys: barKeys } = _last7DayLabels();
 
         // Extract all service type names from svcRows across COMPLETED services only
@@ -860,9 +860,9 @@
           });
         }
 
-        // ════════════════════════════════════════
+        // ----------------------------------------
         // 2. DONUT CHART — Vehicle status
-        // ════════════════════════════════════════
+        // ----------------------------------------
         // Use the same date-math logic as the DSS PMS tab so counts stay in sync.
         let active = 0, dueSoon = 0, overdue = 0, maintenance = 0;
         {
@@ -947,9 +947,9 @@
           ).join('');
         }
 
-        // ════════════════════════════════════════
+        // ----------------------------------------
         // 3. LINE CHART — Stock In vs Stock Out by month
-        // ════════════════════════════════════════
+        // ----------------------------------------
         // Build last 12 months
         const now = new Date();
         const monthLabels = [];
@@ -967,7 +967,7 @@
         const lineSubEl = document.getElementById('stockLineSubLabel');
         if (lineSubEl) lineSubEl.textContent = yearRange;
 
-        // Parse transaction date → month/year
+        // Parse transaction date ? month/year
         // Handles: "Jan 5, 2025" string, Firestore Timestamp (createdAt fallback)
         function _parseTxnDate(t) {
           // Try the date string field first
@@ -1104,9 +1104,9 @@
           });
         }
 
-        // ════════════════════════════════════════
+        // ----------------------------------------
         // 4. BAR CHART — Top 10 Most Used Parts (Current Month)
-        // ════════════════════════════════════════
+        // ----------------------------------------
         const issuances = window._fbIssuances || [];
         const nowDate   = new Date();
         const curMonth  = nowDate.getMonth();
@@ -1573,7 +1573,7 @@
         filtered = filtered.slice().sort(function(a, b) {
           function dateMs(i) { var d = new Date(i.date||''); return isNaN(d.getTime()) ? 0 : d.getTime(); }
           function qty(i) { return parseFloat(i.quantity||i.qty||0)||0; }
-          function cost(i) { return qty(i) * (parseFloat(String(i.unitCost||0).replace(/[₱,]/g,''))||0); }
+          function cost(i) { return qty(i) * (parseFloat(String(i.unitCost||0).replace(/[?,]/g,''))||0); }
           switch (issSortVal) {
             case 'date-asc':  return dateMs(a) - dateMs(b);
             case 'item-asc':  return (a.itemName||'').localeCompare(b.itemName||'');
@@ -1599,7 +1599,7 @@
         var MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         function fmtDate(d) {
           if (!d) return '—';
-          // "Jan 7, 2026" or "January 7, 2026" → "January 7, 2026"
+          // "Jan 7, 2026" or "January 7, 2026" ? "January 7, 2026"
           var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
           if (m1) {
             var abbr = m1[1].slice(0,3);
@@ -1627,8 +1627,8 @@
 
         var rows = filtered.map(function(i) {
           var qty      = parseFloat(i.quantity || i.qty || 0) || 0;
-          var uc       = parseFloat(String(i.unitCost || i.unit_cost || 0).replace(/[₱,]/g,'')) || 0;
-          var subtotal = parseFloat(String(i.subtotal || 0).replace(/[₱,]/g,'')) || (qty * uc);
+          var uc       = parseFloat(String(i.unitCost || i.unit_cost || 0).replace(/[?,]/g,'')) || 0;
+          var subtotal = parseFloat(String(i.subtotal || 0).replace(/[?,]/g,'')) || (qty * uc);
           var plate    = i.plate || i.assetNum || i.assetDesc || '—';
           var assetDesc = i.assetDescription || i.assetDesc || '';
           var plateCell = plate + (assetDesc ? '<br><span style="font-size:7.5px;color:#718096;">' + assetDesc + '</span>' : '');
@@ -1644,8 +1644,8 @@
             i.commodityGroup || '—',
             i.uom || i.unit || '—',
             qty > 0 ? qty : '—',
-            uc > 0 ? '₱' + uc.toLocaleString('en-PH',{minimumFractionDigits:2}) : '—',
-            subtotal > 0 ? '₱' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) : '—'
+            uc > 0 ? '?' + uc.toLocaleString('en-PH',{minimumFractionDigits:2}) : '—',
+            subtotal > 0 ? '?' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) : '—'
           ];
         });
 
@@ -1653,12 +1653,12 @@
           [{ label:'Total', value:filtered.length, color:'#1a202c' }, { label:'Services', value:svcCount, color:'#003087' }, { label:'Materials', value:matCount, color:'#E8001C' }],
           ['Date', 'Plate No.', 'Item No.', 'Description', 'Group', 'UOM', 'Qty', 'Unit Cost', 'Subtotal'],
           rows,
-          { values: [grandTotalQty > 0 ? grandTotalQty : '—', '', '₱' + grandTotalSubtotal.toLocaleString('en-PH',{minimumFractionDigits:2})] },
+          { values: [grandTotalQty > 0 ? grandTotalQty : '—', '', '?' + grandTotalSubtotal.toLocaleString('en-PH',{minimumFractionDigits:2})] },
           { dateRange: issPrintDateRange }
         );
       }
 
-      // ── Styled Excel export helper (mirrors print layout) ──
+      // -- Styled Excel export helper (mirrors print layout) --
       // Uses ExcelJS (loaded via CDN above) to produce a .xlsx with:
       //   • Company header block (name, branch, address + report title)
       //   • Dark header row  (#1a202c fill, white bold text)
@@ -1679,7 +1679,7 @@
         var timeStr  = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         var colCount = headers.length;
 
-        // ── Helper colours (match print layout exactly) ──
+        // -- Helper colours (match print layout exactly) --
         var RED    = 'FFE8001C';
         var DARK   = 'FF1A202C';
         var STRIPE = 'FFF8FAFC';
@@ -1691,7 +1691,7 @@
         var leftCols  = Math.ceil(colCount / 2);
         var rightStart = leftCols + 1;
 
-        // ── Row 1: LEFT — "JA Noble Enterprise Inc."  |  RIGHT — "OFFICIAL REPORT" label ──
+        // -- Row 1: LEFT — "JA Noble Enterprise Inc."  |  RIGHT — "OFFICIAL REPORT" label --
         ws.mergeCells(1, 1,          1, leftCols);
         ws.mergeCells(1, rightStart, 1, colCount);
         var r1L = ws.getCell(1, 1);
@@ -1705,7 +1705,7 @@
         r1R.font      = { name: 'Segoe UI', size: 7, bold: true, color: { argb: LGREY } };
         r1R.alignment = { vertical: 'middle', horizontal: 'right' };
 
-        // ── Row 2: LEFT — "Caltex San Pedro"  |  RIGHT — report title ──
+        // -- Row 2: LEFT — "Caltex San Pedro"  |  RIGHT — report title --
         ws.mergeCells(2, 1,          2, leftCols);
         ws.mergeCells(2, rightStart, 2, colCount);
         var r2L = ws.getCell(2, 1);
@@ -1719,7 +1719,7 @@
         r2R.font      = { name: 'Segoe UI', size: 13, bold: true, color: { argb: DARK } };
         r2R.alignment = { vertical: 'middle', horizontal: 'right' };
 
-        // ── Row 3: LEFT — address  |  RIGHT — Date Range (if any) ──
+        // -- Row 3: LEFT — address  |  RIGHT — Date Range (if any) --
         ws.mergeCells(3, 1,          3, leftCols);
         ws.mergeCells(3, rightStart, 3, colCount);
         var r3L = ws.getCell(3, 1);
@@ -1738,7 +1738,7 @@
         }
         r3R.alignment = { vertical: 'middle', horizontal: 'right' };
 
-        // ── Row 4: LEFT — (empty)  |  RIGHT — "Generated on …" meta ──
+        // -- Row 4: LEFT — (empty)  |  RIGHT — "Generated on …" meta --
         ws.mergeCells(4, 1,          4, leftCols);
         ws.mergeCells(4, rightStart, 4, colCount);
         ws.getRow(4).height = 13;
@@ -1748,7 +1748,7 @@
         r4R.font      = { name: 'Segoe UI', size: 8, color: { argb: GREY } };
         r4R.alignment = { vertical: 'middle', horizontal: 'right' };
 
-        // ── Row 5: red divider — full width solid red fill (ap-header-rule) ──
+        // -- Row 5: red divider — full width solid red fill (ap-header-rule) --
         ws.addRow([]);
         var divRow = ws.getRow(5);
         divRow.height = 3;
@@ -1756,11 +1756,11 @@
           ws.getCell(5, ci).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: RED } };
         }
 
-        // ── Row 6: blank spacer ──
+        // -- Row 6: blank spacer --
         ws.addRow([]);
         ws.getRow(6).height = 6;
 
-        // ── Row 7: Column headers (dark fill, white bold caps) ──
+        // -- Row 7: Column headers (dark fill, white bold caps) --
         var headerRow = ws.addRow(headers);
         headerRow.height = 18;
         headerRow.eachCell(function(cell) {
@@ -1771,7 +1771,7 @@
           cell.border    = { bottom: { style: 'thin', color: { argb: 'FF2D3748' } } };
         });
 
-        // ── Data rows ──
+        // -- Data rows --
         // opts.descColIndex (0-based): column that may contain \n for a two-line cell
         var descColIdx = (opts && opts.descColIndex !== undefined) ? opts.descColIndex : -1;
 
@@ -1785,8 +1785,8 @@
                       .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
             // Only try numeric conversion on non-description columns
             if (ci !== descColIdx) {
-              var n = parseFloat(s.replace(/[₱,]/g, ''));
-              if (!isNaN(n) && s.replace(/[₱,\s]/g,'') !== '' && !/[a-zA-Z]/.test(s.replace(/₱/g,''))) return n;
+              var n = parseFloat(s.replace(/[?,]/g, ''));
+              if (!isNaN(n) && s.replace(/[?,\s]/g,'') !== '' && !/[a-zA-Z]/.test(s.replace(/?/g,''))) return n;
             }
             return s;
           });
@@ -1803,7 +1803,7 @@
             cell.border = { bottom: { style: 'hair', color: { argb: 'FFF0F4F8' } } };
 
             if (colIdx0 === descColIdx && hasTwoLines) {
-              // ── Two-line description cell ──
+              // -- Two-line description cell --
               // Line 1: main action text (bold, dark)   — matches print's bold first line
               // Line 2: vehicle description (smaller, grey) — matches print's grey sub-line
               var lines = String(cleaned[descColIdx] || '').split('\n');
@@ -1819,7 +1819,7 @@
           });
         });
 
-        // ── Totals row (ap-total-bar) ──
+        // -- Totals row (ap-total-bar) --
         // footer.values: array of { value, colIndex } (1-based) OR plain values placed at end
         if (footer && footer.values && footer.values.length) {
           ws.addRow([]);
@@ -1850,7 +1850,7 @@
           });
         }
 
-        // ── Auto column widths ──
+        // -- Auto column widths --
         var colWidths = headers.map(function(h) { return Math.max(String(h).length, 8); });
         rows.forEach(function(rowData) {
           rowData.forEach(function(v, i) {
@@ -1862,7 +1862,7 @@
           ws.getColumn(i + 1).width = Math.min(w + 4, 40);
         });
 
-        // ── Download ──
+        // -- Download --
         var buf  = await wb.xlsx.writeBuffer();
         var blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         var url  = URL.createObjectURL(blob);
@@ -1875,7 +1875,7 @@
         URL.revokeObjectURL(url);
       }
 
-      // ── Export Transactions ──
+      // -- Export Transactions --
       function exportTransactionsExcel() {
         var txns = (window._fbTransactions || []).map(function(t) {
           var itemName = t.item || t.name || '—';
@@ -1896,7 +1896,7 @@
             return (rawMf && rawMf.group) ? rawMf.group : '—';
           })();
 
-          // ── Exact same cleaning as printTransactions ──
+          // -- Exact same cleaning as printTransactions --
           var rawDesc = t.desc || t.description || '';
           var type = (t.type || 'IN').toUpperCase();
           var cleanedDesc = (function(raw) {
@@ -2040,7 +2040,7 @@
         );
       }
 
-      // ── Export Issuances ──
+      // -- Export Issuances --
       function exportIssuancesExcel() {
         var issuances = window.issuances || window._fbIssuances || [];
         var issF = window._issFilter || 'all';
@@ -2085,7 +2085,7 @@
         filtered = filtered.slice().sort(function(a,b){
           function dm(i){ var d=new Date(i.date||''); return isNaN(d)?0:d.getTime(); }
           function qty(i){ return parseFloat(i.quantity||i.qty||0)||0; }
-          function cost(i){ return qty(i)*(parseFloat(String(i.unitCost||0).replace(/[₱,]/g,''))||0); }
+          function cost(i){ return qty(i)*(parseFloat(String(i.unitCost||0).replace(/[?,]/g,''))||0); }
           switch(sortVal){
             case 'date-asc': return dm(a)-dm(b);
             case 'item-asc': return (a.itemName||'').localeCompare(b.itemName||'');
@@ -2131,8 +2131,8 @@
         var grandTotalQty = 0, grandTotalSubtotal = 0;
         var rows = filtered.map(function(i){
           var qty = parseFloat(i.quantity||i.qty||0)||0;
-          var uc  = parseFloat(String(i.unitCost||0).replace(/[₱,]/g,''))||0;
-          var sub = parseFloat(String(i.subtotal||0).replace(/[₱,]/g,'')) || (qty * uc);
+          var uc  = parseFloat(String(i.unitCost||0).replace(/[?,]/g,''))||0;
+          var sub = parseFloat(String(i.subtotal||0).replace(/[?,]/g,'')) || (qty * uc);
           grandTotalQty      += qty;
           grandTotalSubtotal += sub;
           return [
@@ -2168,11 +2168,11 @@
     </script>
 
     <script>
-      // ── Inventory Transactions filter ──
+      // -- Inventory Transactions filter --
       window._txnFilter = 'all';
       window._txnCommodityFilter = '';
 
-      // Month → date range sync helpers
+      // Month ? date range sync helpers
       function _monthToPad(n) { return ('0' + n).slice(-2); }
       window.txnMonthToDateRange = function(val) {
         if (val) {
@@ -2298,7 +2298,7 @@
         }, 400);
       };
 
-      // ── Issuances filter ──
+      // -- Issuances filter --
       window._issFilter = 'all';
       window._issCommodityFilter = '';
 

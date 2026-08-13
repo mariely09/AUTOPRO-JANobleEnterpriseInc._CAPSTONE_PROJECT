@@ -18,7 +18,7 @@
     </style>
 </head>
 <body>
-<h2>🔧 Fix Duplicate Item Numbers</h2>
+<h2>ðŸâ€§ Fix Duplicate Item Numbers</h2>
 <p>This tool scans <code>item_master</code> in Firestore for duplicate <code>num</code> values and re-numbers them sequentially.</p>
 <button id="btnPreview" onclick="previewFix()">1. Preview Duplicates</button>
 <button id="btnFix"     onclick="applyFix()">2. Apply Fix (writes to Firestore)</button>
@@ -71,7 +71,7 @@ async function previewFix() {
             var na = parseInt((a.data.num || '').replace(/[^0-9]/g, '')) || 0;
             var nb = parseInt((b.data.num || '').replace(/[^0-9]/g, '')) || 0;
             if (na !== nb) return na - nb;
-            // same num — keep stable order by docId
+            // same num â€â€ keep stable order by docId
             return a.docId < b.docId ? -1 : 1;
         });
 
@@ -89,7 +89,7 @@ async function previewFix() {
         }
 
         log('\nDuplicate nums found: ' + duplicateNums.join(', '), 'warn');
-        log('─'.repeat(60));
+        log('ââ€€'.repeat(60));
 
         // Find the highest existing number across ALL docs to start renumbering from
         var maxExisting = 0;
@@ -106,10 +106,10 @@ async function previewFix() {
         docs.forEach(function(d) {
             var curNum = (d.data.num || '').trim();
             if (!seen[curNum]) {
-                // First occurrence — keep it as-is
+                // First occurrence â€â€ keep it as-is
                 seen[curNum] = true;
             } else {
-                // Duplicate — assign next sequential number
+                // Duplicate â€â€ assign next sequential number
                 var newNum = String(nextNum).padStart(3, '0');
                 nextNum++;
                 _plan.push({ docId: d.docId, oldNum: curNum, newNum: newNum, name: d.data.name || d.docId });
@@ -127,7 +127,7 @@ async function previewFix() {
             log('    ' + p.oldNum + '  →  ' + p.newNum + '\n', 'warn');
         });
 
-        log('─'.repeat(60));
+        log('ââ€€'.repeat(60));
         log('Click "Apply Fix" to write these changes to Firestore.', 'info');
         document.getElementById('btnFix').style.display = 'inline-block';
 
@@ -140,7 +140,7 @@ async function applyFix() {
     if (_plan.length === 0) { log('Nothing to fix.', 'warn'); return; }
     document.getElementById('btnFix').disabled = true;
     document.getElementById('btnFix').textContent = 'Applying…';
-    log('\n⏳ Applying ' + _plan.length + ' updates...', 'info');
+    log('\nâÂ³ Applying ' + _plan.length + ' updates...', 'info');
 
     var success = 0, fail = 0;
     for (var i = 0; i < _plan.length; i++) {
@@ -150,12 +150,12 @@ async function applyFix() {
             log('  ✅ "' + p.name + '"  ' + p.oldNum + ' → ' + p.newNum, 'ok');
             success++;
         } catch(err) {
-            log('  ❌ "' + p.name + '"  FAILED: ' + err.message, 'error');
+            log('  âÂŒ "' + p.name + '"  FAILED: ' + err.message, 'error');
             fail++;
         }
     }
 
-    log('\n─'.repeat(60));
+    log('\nââ€€'.repeat(60));
     log('Done! ' + success + ' updated, ' + fail + ' failed.', success > 0 ? 'ok' : 'error');
     log('\nYou can now close this page and reload the Item Master.', 'info');
     document.getElementById('btnFix').style.display = 'none';

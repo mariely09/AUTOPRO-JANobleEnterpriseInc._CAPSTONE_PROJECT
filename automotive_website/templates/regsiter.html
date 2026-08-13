@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
   <link rel="stylesheet" href="../static/css/login.css" />
   <style>
-    /* ── Two-column name row ── */
+    /* ââ€€ââ€€ Two-column name row ââ€€ââ€€ */
     .name-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -15,7 +15,7 @@
     }
     .name-row .field-group { display: flex; flex-direction: column; }
 
-    /* ── Sign-in link row ── */
+    /* ââ€€ââ€€ Sign-in link row ââ€€ââ€€ */
     .signin-row {
       text-align: center;
       margin-top: 20px;
@@ -29,7 +29,7 @@
     }
     .signin-row a:hover { text-decoration: underline; }
 
-    /* ── Pending dialog overlay ── */
+    /* ââ€€ââ€€ Pending dialog overlay ââ€€ââ€€ */
     .pending-overlay {
       display: none;
       position: fixed;
@@ -189,7 +189,7 @@
 <!-- Pending approval dialog -->
 <div class="pending-overlay" id="pendingOverlay">
   <div class="pending-box">
-    <div class="pending-icon">⏳</div>
+    <div class="pending-icon">âÂ³</div>
     <div class="pending-title">Registration Submitted!</div>
     <div class="pending-msg">
       Your account is pending admin approval.<br/><br/>
@@ -203,7 +203,7 @@
 <div id="toast"></div>
 
 <script>
-  // ── Helpers ──
+  // ââ€€ââ€€ Helpers ââ€€ââ€€
   function showToast(msg, type = 'error') {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -220,7 +220,7 @@
       : 'Create Account';
   }
 
-  // ── Register ──
+  // ââ€€ââ€€ Register ââ€€ââ€€
   const registerBtn = document.getElementById('registerBtn');
 
   document.getElementById('confirmPassword').addEventListener('keydown', e => {
@@ -257,7 +257,7 @@
       // 2. Update display name
       await cred.user.updateProfile({ displayName: name });
 
-      // 3. Save Firestore doc — status 'pending' until admin approves
+      // 3. Save Firestore doc â€â€ status 'pending' until admin approves
       const db = firebase.firestore();
       await db.collection('users').doc(uid).set({
         uid:       uid,
@@ -282,7 +282,7 @@
         isRead:     false,
       });
 
-      // 4. Sign out — they need to login with their new credentials
+      // 4. Sign out â€â€ they need to login with their new credentials
       await firebase.auth().signOut();
 
       // 5. Show success toast and redirect to login
@@ -302,7 +302,7 @@
 </script>
 
 <script>
-  // ── Toggle password visibility ──
+  // ââ€€ââ€€ Toggle password visibility ââ€€ââ€€
   function setupPasswordToggle(inputId, toggleId) {
     const input = document.getElementById(inputId);
     const toggle = document.getElementById(toggleId);

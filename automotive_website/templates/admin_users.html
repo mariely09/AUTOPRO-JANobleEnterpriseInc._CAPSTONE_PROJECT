@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="../static/css/admin.css">
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
-/* ── Floating label fields ── */
+/* -- Floating label fields -- */
 .fl-field {
     position: relative;
     width: 100%;
@@ -180,7 +180,7 @@
                 </div>
             </div>
 
-            <!-- ── Users Table ── -->
+            <!-- -- Users Table -- -->
             <div id="tabAll">
                 <div class="data-table">
                     <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:40px 2fr 2fr 1.5fr 1fr 1fr 175px;">
@@ -284,7 +284,7 @@
 
 <div id="toast"></div>
 
-<!-- ── Confirm Dialog ── -->
+<!-- -- Confirm Dialog -- -->
 <div id="confirmDialog" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:16px;padding:0;max-width:400px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,0.18);overflow:hidden;">
     <div id="confirmHeader" style="padding:1.1rem 1.4rem;display:flex;align-items:center;gap:0.75rem;">
@@ -320,13 +320,13 @@
 <script src="../static/js/admin_firebase.js"></script>
 
 <script src="../static/js/admin_functions.js?v=202607180001"></script>
-<script src="../static/js/admin.js"></script>
+<script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script>
 var _editingUserId = null;
 var _currentTab = 'all';
 
-// ── User role filter ──
+// -- User role filter --
 window._userFilter = 'all';
 window._statusFilter = 'all';
 window.userSetFilter = function(filter, btn) {
@@ -391,7 +391,7 @@ function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// ── Styled confirm dialog ──
+// -- Styled confirm dialog --
 function showConfirm(opts) {
     // opts: { title, body, icon, iconBg, okLabel, okColor, onOk }
     var dialog     = document.getElementById('confirmDialog');
@@ -402,7 +402,7 @@ function showConfirm(opts) {
     var okBtn      = document.getElementById('confirmOkBtn');
     var cancelBtn  = document.getElementById('confirmCancelBtn');
 
-    iconWrap.textContent      = opts.icon   || '❓';
+    iconWrap.textContent      = opts.icon   || '?';
     iconWrap.style.background = opts.iconBg || '#f0f4ff';
     titleEl.textContent       = opts.title  || 'Confirm';
     bodyEl.innerHTML          = opts.body   || '';
@@ -416,12 +416,12 @@ function showConfirm(opts) {
     cancelBtn.onclick = function() { close(); };
 }
 
-// ── Approve user ──
+// -- Approve user --
 function approveUser(uid, email, name) {
     showConfirm({
         title:   'Approve Account',
         body:    'Approve <strong>' + escHtml(name) + '</strong>?<br/><br/>They will receive an email notification and can sign in immediately.',
-        icon:    '✅',
+        icon:    '?',
         iconBg:  '#f0fff4',
         okLabel: 'Approve',
         okColor: '#38a169',
@@ -430,7 +430,7 @@ function approveUser(uid, email, name) {
             db.collection('users').doc(uid).update({ status: 'Active' })
                 .then(function() {
                     return db.collection('notifications').add({
-                        title:      '✅ Account Approved',
+                        title:      '? Account Approved',
                         message:    name + ' (' + email + ') has been approved and can now sign in.',
                         type:       'success',
                         targetRole: 'admin',
@@ -449,12 +449,12 @@ function approveUser(uid, email, name) {
     });
 }
 
-// ── Reject user (delete from Firestore + Firebase Auth) ──
+// -- Reject user (delete from Firestore + Firebase Auth) --
 function rejectUser(uid, name) {
     showConfirm({
         title:   'Reject & Delete Account',
         body:    'Reject <strong>' + escHtml(name) + '</strong>\'s account?<br/><br/>This will <strong>permanently delete</strong> their account.',
-        icon:    '🗑️',
+        icon:    '???',
         iconBg:  '#fff5f5',
         okLabel: 'Delete Account',
         okColor: '#e53e3e',
@@ -479,7 +479,7 @@ function rejectUser(uid, name) {
     });
 }
 
-// ── Toggle active/inactive (non-pending only) ──
+// -- Toggle active/inactive (non-pending only) --
 function toggleUserStatus(uid, currentStatus) {
     if (currentStatus === 'pending') return;
     var newStatus = currentStatus === 'active' ? 'Inactive' : 'Active';
@@ -494,7 +494,7 @@ function toggleUserStatus(uid, currentStatus) {
         });
 }
 
-// ── Render pending cards ──
+// -- Render pending cards --
 function renderPendingCards(pending) {
     var list = document.getElementById('pendingCardsList');
     if (!list) return;
@@ -606,7 +606,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch('/api/cleanup-orphaned-users', { method: 'POST' })
         .then(function(r) { return r.json(); })
         .then(function(data) {
-            if (data.count > 0) console.log('🧹 Cleaned ' + data.count + ' orphaned user doc(s)');
+            if (data.count > 0) console.log('?? Cleaned ' + data.count + ' orphaned user doc(s)');
         })
         .catch(function() {});
 

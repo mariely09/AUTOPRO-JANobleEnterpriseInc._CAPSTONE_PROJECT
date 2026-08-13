@@ -23,20 +23,20 @@ const _kAiBaseUrl = String.fromEnvironment(
 
 // ── Report types supported by the backend ────────────────────────────────────
 const _kReportTypes = {
-  'inventory':   'Inventory Report',
-  'issuance':    'Issuance Report',
+  'inventory': 'Inventory Report',
+  'issuance': 'Issuance Report',
   'maintenance': 'Maintenance Report',
-  'vehicles':    'Vehicle Fleet Report',
-  'bookings':    'Service Bookings Report',
+  'vehicles': 'Vehicle Fleet Report',
+  'bookings': 'Service Bookings Report',
 };
 
 // ── Report intent keywords (mirrors Flask proxy logic) ───────────────────────
 const _kReportTypeKeywords = {
-  'inventory':   ['inventory', 'stock'],
-  'issuance':    ['issuance', 'issued'],
+  'inventory': ['inventory', 'stock'],
+  'issuance': ['issuance', 'issued'],
   'maintenance': ['maintenance', 'service', 'repair'],
-  'vehicles':    ['vehicle', 'fleet'],
-  'bookings':    ['booking', 'appointment'],
+  'vehicles': ['vehicle', 'fleet'],
+  'bookings': ['booking', 'appointment'],
 };
 
 String? _detectReportIntent(String message) {
@@ -66,17 +66,39 @@ bool _isExcelRequest(String message) {
 String? _extractMonthFromMessage(String message) {
   final lower = message.toLowerCase();
   const monthNames = [
-    'january','february','march','april','may','june',
-    'july','august','september','october','november','december',
+    'january',
+    'february',
+    'march',
+    'april',
+    'may',
+    'june',
+    'july',
+    'august',
+    'september',
+    'october',
+    'november',
+    'december',
   ];
   const monthAbbrs = [
-    'jan','feb','mar','apr','may','jun',
-    'jul','aug','sep','oct','nov','dec',
+    'jan',
+    'feb',
+    'mar',
+    'apr',
+    'may',
+    'jun',
+    'jul',
+    'aug',
+    'sep',
+    'oct',
+    'nov',
+    'dec',
   ];
 
   // "this month" / "current month"
-  if (RegExp(r'\b(this month|current month)\b', caseSensitive: false)
-      .hasMatch(lower)) {
+  if (RegExp(
+    r'\b(this month|current month)\b',
+    caseSensitive: false,
+  ).hasMatch(lower)) {
     final now = DateTime.now();
     return '${monthNames[now.month - 1][0].toUpperCase()}'
         '${monthNames[now.month - 1].substring(1)} ${now.year}';
@@ -140,9 +162,9 @@ class AdminSmartReports extends StatefulWidget {
 }
 
 class _AdminSmartReportsState extends State<AdminSmartReports> {
-  static const _red  = Color(0xFFE8001C);
+  static const _red = Color(0xFFE8001C);
 
-  final _inputCtrl  = TextEditingController();
+  final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
 
   // Messages and session live in the static store — widget rebuild-safe
@@ -150,10 +172,11 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   String? get _sessionId => AdminChatStore.sessionId;
   set _sessionId(String? v) => AdminChatStore.sessionId = v;
 
-  final List<Map<String, String>> _history = []; // legacy — kept for fallback only
-  String _initials = 'AD';  // admin initials shown on user bubble
+  final List<Map<String, String>> _history =
+      []; // legacy — kept for fallback only
+  String _initials = 'AD'; // admin initials shown on user bubble
 
-  bool _loading       = false;
+  bool _loading = false;
   bool get _rateLimited => AdminChatStore.rateLimited;
   set _rateLimited(bool v) => AdminChatStore.rateLimited = v;
   String get _resetIn => AdminChatStore.resetIn;
@@ -168,27 +191,10 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     _loadInitials();
   }
 
-  /// Checks the backend AI key status on startup.
-  /// If at least one key is active (not rate-limited), clears any stale
-  /// _rateLimited flag left over from a previous session.
+  /// Previously checked backend AI key status on startup.
+  /// Removed after AI Settings management feature was deleted.
   Future<void> _checkAiStatus() async {
-    try {
-      final r = await http
-          .get(Uri.parse('$_kAiBaseUrl/ai-settings/status'))
-          .timeout(const Duration(seconds: 15));
-      if (r.statusCode == 200) {
-        final data = jsonDecode(r.body) as Map<String, dynamic>;
-        final activeKeys = (data['active_keys'] as num?)?.toInt() ?? 0;
-        if (activeKeys > 0 && mounted) {
-          setState(() {
-            _rateLimited = false;
-            _resetIn = '';
-          });
-        }
-      }
-    } catch (_) {
-      // Silently ignore — status check is best-effort
-    }
+    // No-op: AI Settings feature has been removed
   }
 
   Future<void> _loadInitials() async {
@@ -196,7 +202,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       final user = firebase_auth.FirebaseAuth.instance.currentUser;
       if (user == null) return;
       final doc = await cloud_firestore.FirebaseFirestore.instance
-          .collection('users').doc(user.uid).get();
+          .collection('users')
+          .doc(user.uid)
+          .get();
       final name = (doc.data()?['name'] as String? ?? '').trim();
       if (name.isNotEmpty) {
         final parts = name.split(' ').where((p) => p.isNotEmpty).toList();
@@ -271,8 +279,11 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       _scrollToBottom();
       final isExcel = _isExcelRequest(text);
       final extractedMonth = _extractMonthFromMessage(text);
-      _showReportConfirm(reportType, isExcel ? 'excel' : 'pdf',
-          preselectedMonth: extractedMonth);
+      _showReportConfirm(
+        reportType,
+        isExcel ? 'excel' : 'pdf',
+        preselectedMonth: extractedMonth,
+      );
       return;
     }
 
@@ -291,8 +302,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             Uri.parse('$_kAiBaseUrl/admin/chat'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
-              'message':    text,
-              'session_id': _sessionId,  // server-side memory key
+              'message': text,
+              'session_id': _sessionId, // server-side memory key
             }),
           )
           .timeout(const Duration(seconds: 120));
@@ -313,14 +324,17 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             _loading = false;
             _rateLimited = true;
             _resetIn = resetIn;
-            _messages.add(_ChatMessage(
-              role: 'ai',
-              text: 'AI Unavailable\n\n'
-                  'The AI service has reached its daily token limit (Groq free tier).\n\n'
-                  'The limit resets in $resetIn.\n\n'
-                  'You cannot send new messages until the quota resets automatically.',
-              isRateLimit: true,
-            ));
+            _messages.add(
+              _ChatMessage(
+                role: 'ai',
+                text:
+                    'AI Unavailable\n\n'
+                    'The AI service has reached its daily token limit (Groq free tier).\n\n'
+                    'The limit resets in $resetIn.\n\n'
+                    'You cannot send new messages until the quota resets automatically.',
+                isRateLimit: true,
+              ),
+            );
           });
           return;
         }
@@ -422,21 +436,27 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       } else {
         setState(() {
           _loading = false;
-          _messages.add(_ChatMessage(
-            role: 'ai',
-            text: 'AI service error (${resp.statusCode}): ${_parseError(resp.body)}',
-          ));
+          _messages.add(
+            _ChatMessage(
+              role: 'ai',
+              text:
+                  'AI service error (${resp.statusCode}): ${_parseError(resp.body)}',
+            ),
+          );
         });
       }
     } on http.ClientException catch (e) {
       setState(() {
         _loading = false;
-        _messages.add(_ChatMessage(
-          role: 'ai',
-          text: 'Cannot reach the AI service.\n\n'
-              'Please check your internet connection and try again.\n\n'
-              'Error: $e',
-        ));
+        _messages.add(
+          _ChatMessage(
+            role: 'ai',
+            text:
+                'Cannot reach the AI service.\n\n'
+                'Please check your internet connection and try again.\n\n'
+                'Error: $e',
+          ),
+        );
       });
     } on Exception catch (e) {
       // Covers TimeoutException and other network errors
@@ -444,10 +464,13 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           e.toString().contains('timed out')) {
         setState(() {
           _loading = false;
-          _messages.add(_ChatMessage(
-            role: 'ai',
-            text: 'Request timed out.\n\nThe AI service did not respond in time. Please check your connection and try again.',
-          ));
+          _messages.add(
+            _ChatMessage(
+              role: 'ai',
+              text:
+                  'Request timed out.\n\nThe AI service did not respond in time. Please check your connection and try again.',
+            ),
+          );
         });
       } else {
         setState(() {
@@ -529,8 +552,11 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
 
   /// Shows a bottom sheet to confirm the report type/format then downloads it.
   /// For issuance reports, also shows an optional month picker.
-  void _showReportConfirm(String reportType, String format,
-      {String? preselectedMonth}) {
+  void _showReportConfirm(
+    String reportType,
+    String format, {
+    String? preselectedMonth,
+  }) {
     final title = _kReportTypes[reportType] ?? 'Report';
 
     // Month filter applies to date-based reports
@@ -539,8 +565,18 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
 
     // Month names / options
     const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     final currentYear = DateTime.now().year;
     final monthOptions = <String>['All Months'];
@@ -551,8 +587,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     }
 
     // Pre-select month extracted from the user message (if valid)
-    String? selectedMonth = (preselectedMonth != null &&
-            monthOptions.contains(preselectedMonth))
+    String? selectedMonth =
+        (preselectedMonth != null && monthOptions.contains(preselectedMonth))
         ? preselectedMonth
         : null;
 
@@ -561,106 +597,148 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => Padding(
           padding: EdgeInsets.fromLTRB(
-              24, 20, 24, 32 + MediaQuery.of(ctx).viewInsets.bottom),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
+            24,
+            20,
+            24,
+            32 + MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
                   color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2)),
-            ),
-            const SizedBox(height: 16),
-            const Text('Download Report',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,
-                    color: Color(0xFF1a202c))),
-            const SizedBox(height: 6),
-            Text(title,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF718096))),
-
-            // Month filter — for issuance, maintenance, and bookings
-            if (supportsMonth) ...[
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Filter by Month (optional)',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade600),
+              const Text(
+                'Download Report',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1a202c),
                 ),
               ),
               const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFe2e8f0)),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    isExpanded: true,
-                    value: selectedMonth ?? 'All Months',
-                    items: monthOptions.map((m) => DropdownMenuItem(
-                      value: m,
-                      child: Text(m, style: const TextStyle(fontSize: 13)),
-                    )).toList(),
-                    onChanged: (v) => setSheet(() {
-                      selectedMonth = (v == 'All Months') ? null : v;
-                    }),
+              Text(
+                title,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
+              ),
+
+              // Month filter — for issuance, maintenance, and bookings
+              if (supportsMonth) ...[
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Filter by Month (optional)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ),
-              ),
-              if (selectedMonth != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Row(children: [
-                    const Icon(Icons.filter_alt_outlined,
-                        size: 13, color: Color(0xFFE8001C)),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Showing records for $selectedMonth only',
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFFE8001C),
-                          fontWeight: FontWeight.w500),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFe2e8f0)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: selectedMonth ?? 'All Months',
+                      items: monthOptions
+                          .map(
+                            (m) => DropdownMenuItem(
+                              value: m,
+                              child: Text(
+                                m,
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) => setSheet(() {
+                        selectedMonth = (v == 'All Months') ? null : v;
+                      }),
                     ),
-                  ]),
+                  ),
                 ),
-            ],
+                if (selectedMonth != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.filter_alt_outlined,
+                          size: 13,
+                          color: Color(0xFFE8001C),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Showing records for $selectedMonth only',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFFE8001C),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
 
-            const SizedBox(height: 20),
-            Row(children: [
-              Expanded(
-                child: _reportFormatBtn(
-                  icon: Icons.picture_as_pdf_outlined,
-                  label: 'PDF',
-                  subtitle: 'Branded report',
-                  selected: format == 'pdf',
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _downloadReport(reportType, 'pdf', month: selectedMonth);
-                  },
-                ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: _reportFormatBtn(
+                      icon: Icons.picture_as_pdf_outlined,
+                      label: 'PDF',
+                      subtitle: 'Branded report',
+                      selected: format == 'pdf',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _downloadReport(
+                          reportType,
+                          'pdf',
+                          month: selectedMonth,
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _reportFormatBtn(
+                      icon: Icons.table_chart_outlined,
+                      label: 'Excel',
+                      subtitle: 'Spreadsheet',
+                      selected: format == 'excel',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _downloadReport(
+                          reportType,
+                          'excel',
+                          month: selectedMonth,
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _reportFormatBtn(
-                  icon: Icons.table_chart_outlined,
-                  label: 'Excel',
-                  subtitle: 'Spreadsheet',
-                  selected: format == 'excel',
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _downloadReport(reportType, 'excel', month: selectedMonth);
-                  },
-                ),
-              ),
-            ]),
-          ]),
+            ],
+          ),
         ),
       ),
     );
@@ -678,24 +756,38 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
         decoration: BoxDecoration(
-          color: selected ? _red.withValues(alpha: 0.06) : const Color(0xFFF7F8FA),
+          color: selected
+              ? _red.withValues(alpha: 0.06)
+              : const Color(0xFFF7F8FA),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-              color: selected ? _red : const Color(0xFFe2e8f0),
-              width: selected ? 1.5 : 1),
+            color: selected ? _red : const Color(0xFFe2e8f0),
+            width: selected ? 1.5 : 1,
+          ),
         ),
-        child: Column(children: [
-          Icon(icon, size: 22, color: selected ? _red : const Color(0xFF4a5568)),
-          const SizedBox(height: 6),
-          Text(label,
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 22,
+              color: selected ? _red : const Color(0xFF4a5568),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
               style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: selected ? _red : const Color(0xFF1a202c))),
-          const SizedBox(height: 2),
-          Text(subtitle,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-        ]),
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: selected ? _red : const Color(0xFF1a202c),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -757,8 +849,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           .timeout(const Duration(seconds: 120));
 
       if (resp.statusCode == 200) {
-        final ext      = format == 'pdf' ? 'pdf' : 'xlsx';
-        final safeName = '$reportType'
+        final ext = format == 'pdf' ? 'pdf' : 'xlsx';
+        final safeName =
+            '$reportType'
             '${month != null ? '_${month.replaceAll(' ', '_')}' : ''}'
             '_report.$ext';
 
@@ -836,18 +929,30 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           children: [
             // AI logo in AppBar title area
             Container(
-              width: 40, height: 40,
+              width: 40,
+              height: 40,
               margin: const EdgeInsets.only(right: 10),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 8)],
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 8,
+                  ),
+                ],
               ),
               child: ClipOval(
                 child: Padding(
                   padding: const EdgeInsets.all(4),
-                  child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.contain),
+                  child: Image.asset(
+                    'assets/img/AI_LOGO.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
             ),
@@ -856,24 +961,36 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('AI Assistant',
-                      style: TextStyle(
-                          color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'AI Assistant',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 2),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 7, height: 7,
+                        width: 7,
+                        height: 7,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: _backendOnline ? const Color(0xFF4ade80) : Colors.orange,
-                          boxShadow: [BoxShadow(
-                            color: _backendOnline
-                                ? const Color(0xFF4ade80).withValues(alpha: 0.8)
-                                : Colors.orange.withValues(alpha: 0.6),
-                            blurRadius: 6,
-                          )],
+                          color: _backendOnline
+                              ? const Color(0xFF4ade80)
+                              : Colors.orange,
+                          boxShadow: [
+                            BoxShadow(
+                              color: _backendOnline
+                                  ? const Color(
+                                      0xFF4ade80,
+                                    ).withValues(alpha: 0.8)
+                                  : Colors.orange.withValues(alpha: 0.6),
+                              blurRadius: 6,
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(width: 5),
@@ -899,7 +1016,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
               onPressed: () {
                 // Clear server-side session memory
                 if (_sessionId != null) {
-                  http.delete(Uri.parse('$_kAiBaseUrl/session/$_sessionId'))
+                  http
+                      .delete(Uri.parse('$_kAiBaseUrl/session/$_sessionId'))
                       .catchError((_) => http.Response('', 200));
                 }
                 setState(() {
@@ -910,133 +1028,163 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             ),
         ],
       ),
-      body: Column(children: [
-        // Offline banner
-        if (!_backendOnline)
-          Container(
-            width: double.infinity,
-            color: const Color(0xFFFFFBEB),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(children: [
-              const Icon(Icons.warning_amber_rounded,
-                  size: 16, color: Color(0xFF975A16)),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Cannot reach AI backend. Check your connection or tap Retry.',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF975A16)),
-                ),
-              ),
-              GestureDetector(
-                onTap: () => _checkBackend(),
-                child: const Text('Retry',
-                    style: TextStyle(
+      body: Column(
+        children: [
+          // Offline banner
+          if (!_backendOnline)
+            Container(
+              width: double.infinity,
+              color: const Color(0xFFFFFBEB),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    size: 16,
+                    color: Color(0xFF975A16),
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Cannot reach AI backend. Check your connection or tap Retry.',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF975A16)),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => _checkBackend(),
+                    child: const Text(
+                      'Retry',
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF975A16))),
-              ),
-            ]),
-          ),
-
-        // Rate-limit banner
-        if (_rateLimited)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFF7ED),
-              border: Border(
-                bottom: BorderSide(color: Color(0xFFFB923C), width: 2),
-              ),
-            ),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Icon(Icons.block, size: 18, color: Color(0xFF9A3412)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'AI unavailable — daily token limit reached',
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF9A3412)),
-                    ),
-                    const SizedBox(height: 3),
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF9A3412), height: 1.5),
-                        children: [
-                          const TextSpan(text: 'Groq free-tier quota is exhausted. Resets in '),
-                          TextSpan(
-                            text: _resetIn,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const TextSpan(text: '. Chat is disabled until then.'),
-                        ],
+                        color: Color(0xFF975A16),
                       ),
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+
+          // Rate-limit banner
+          if (_rateLimited)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFF7ED),
+                border: Border(
+                  bottom: BorderSide(color: Color(0xFFFB923C), width: 2),
                 ),
               ),
-              GestureDetector(
-                onTap: _checkAiStatus,
-                child: const Padding(
-                  padding: EdgeInsets.only(left: 8),
-                  child: Text('Retry',
-                      style: TextStyle(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.block, size: 18, color: Color(0xFF9A3412)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'AI unavailable — daily token limit reached',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF9A3412),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        RichText(
+                          text: TextSpan(
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF9A3412),
+                              height: 1.5,
+                            ),
+                            children: [
+                              const TextSpan(
+                                text:
+                                    'Groq free-tier quota is exhausted. Resets in ',
+                              ),
+                              TextSpan(
+                                text: _resetIn,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const TextSpan(
+                                text: '. Chat is disabled until then.',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _checkAiStatus,
+                    child: const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Text(
+                        'Retry',
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF9A3412))),
-                ),
+                          color: Color(0xFF9A3412),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ]),
+            ),
+
+          // Chat
+          Expanded(
+            child: _messages.isEmpty
+                ? _buildWelcome()
+                : ListView.builder(
+                    controller: _scrollCtrl,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _messages.length + (_loading ? 1 : 0),
+                    itemBuilder: (_, i) {
+                      if (_loading && i == _messages.length) {
+                        return _buildTypingIndicator();
+                      }
+                      return _buildBubble(_messages[i]);
+                    },
+                  ),
           ),
 
-        // Chat
-        Expanded(
-          child: _messages.isEmpty
-              ? _buildWelcome()
-              : ListView.builder(
-                  controller: _scrollCtrl,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _messages.length + (_loading ? 1 : 0),
-                  itemBuilder: (_, i) {
-                    if (_loading && i == _messages.length) {
-                      return _buildTypingIndicator();
-                    }
-                    return _buildBubble(_messages[i]);
-                  },
-                ),
-        ),
-
-        // Input bar
-        SafeArea(
-          child: Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              _AdminFocusInputBar(
-                inputCtrl: _inputCtrl,
-                loading: _loading,
-                rateLimited: _rateLimited,
-                hint: _rateLimited
-                    ? 'AI unavailable — daily limit reached'
-                    : 'Ask about fleet, inventory, reports…',
-                onSend: _sendQuery,
+          // Input bar
+          SafeArea(
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _AdminFocusInputBar(
+                    inputCtrl: _inputCtrl,
+                    loading: _loading,
+                    rateLimited: _rateLimited,
+                    hint: _rateLimited
+                        ? 'AI unavailable — daily limit reached'
+                        : 'Ask about fleet, inventory, reports…',
+                    onSend: _sendQuery,
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Enter to send  ·  Shift+Enter for new line',
+                    style: TextStyle(fontSize: 10, color: Color(0xFFC0C8D4)),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              const Text(
-                'Enter to send  ·  Shift+Enter for new line',
-                style: TextStyle(fontSize: 10, color: Color(0xFFC0C8D4)),
-                textAlign: TextAlign.center,
-              ),
-            ]),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 
@@ -1058,64 +1206,104 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-        // AI logo — transparent circle with image
-        Container(
-          width: 72, height: 72,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFE8001C).withValues(alpha: 0.2), width: 2),
-            boxShadow: [BoxShadow(color: const Color(0xFFE8001C).withValues(alpha: 0.12), blurRadius: 16)],
-          ),
-          child: ClipOval(
-            child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.cover),
-          ),
-        ),
-        const SizedBox(height: 14),
-        const Text(
-          'AI Assistant',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1a202c)),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Ask me about fleet, inventory, maintenance costs, or generate PDF/Excel reports.',
-          style: TextStyle(fontSize: 13, color: Color(0xFF718096), height: 1.5),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 24),
-        ...suggestions.map((s) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: GestureDetector(
-            onTap: () => _sendQuery(s),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFe8edf2), width: 1.5),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4)],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // AI logo — transparent circle with image
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: const Color(0xFFE8001C).withValues(alpha: 0.2),
+                width: 2,
               ),
-              child: Row(children: [
-                Container(
-                  width: 7, height: 7,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE8001C),
-                    shape: BoxShape.circle,
-                  ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFE8001C).withValues(alpha: 0.12),
+                  blurRadius: 16,
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    s,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF4a5568), fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ]),
+              ],
+            ),
+            child: ClipOval(
+              child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.cover),
             ),
           ),
-        )),
-      ]),
+          const SizedBox(height: 14),
+          const Text(
+            'AI Assistant',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1a202c),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Ask me about fleet, inventory, maintenance costs, or generate PDF/Excel reports.',
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF718096),
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ...suggestions.map(
+            (s) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: GestureDetector(
+                onTap: () => _sendQuery(s),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFe8edf2),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE8001C),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          s,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF4a5568),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1126,15 +1314,18 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   Widget _buildTypingIndicator() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        _aiAvatar(),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: _aiBubbleDecoration(),
-          child: const _BouncingDots(),
-        ),
-      ]),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _aiAvatar(),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: _aiBubbleDecoration(),
+            child: const _BouncingDots(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1152,26 +1343,39 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             Flexible(
               child: Container(
                 constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.72),
+                  maxWidth: MediaQuery.of(context).size.width * 0.72,
+                ),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
-                    begin: Alignment.topLeft, end: Alignment.bottomRight),
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   borderRadius: const BorderRadius.only(
-                    topLeft:     Radius.circular(14),
-                    topRight:    Radius.circular(4),
-                    bottomLeft:  Radius.circular(14),
+                    topLeft: Radius.circular(14),
+                    topRight: Radius.circular(4),
+                    bottomLeft: Radius.circular(14),
                     bottomRight: Radius.circular(14),
                   ),
-                  boxShadow: [BoxShadow(
-                    color: const Color(0xFFE8001C).withValues(alpha: 0.22),
-                    blurRadius: 6)],
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFE8001C).withValues(alpha: 0.22),
+                      blurRadius: 6,
+                    ),
+                  ],
                 ),
-                child: Text(msg.text ?? '',
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 13, height: 1.6)),
+                child: Text(
+                  msg.text ?? '',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    height: 1.6,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -1185,67 +1389,102 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     if (msg.isRateLimit) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 12),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _aiAvatar(),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Container(
-              constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.80),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF7ED),
-                borderRadius: const BorderRadius.only(
-                  topLeft:     Radius.circular(4),
-                  topRight:    Radius.circular(14),
-                  bottomLeft:  Radius.circular(14),
-                  bottomRight: Radius.circular(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _aiAvatar(),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.80,
                 ),
-                border: Border.all(color: const Color(0xFFFB923C), width: 1.5),
-                boxShadow: [BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)],
-              ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 9),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEA580C),
-                    borderRadius: BorderRadius.only(
-                      topLeft:  Radius.circular(2),
-                      topRight: Radius.circular(13)),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    topRight: Radius.circular(14),
+                    bottomLeft: Radius.circular(14),
+                    bottomRight: Radius.circular(14),
                   ),
-                  child: const Row(children: [
-                    Icon(Icons.block, color: Colors.white, size: 14),
-                    SizedBox(width: 8),
-                    Text('AI Service Unavailable',
-                        style: TextStyle(color: Colors.white,
-                            fontWeight: FontWeight.bold, fontSize: 12)),
-                  ]),
+                  border: Border.all(
+                    color: const Color(0xFFFB923C),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 6,
+                    ),
+                  ],
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: RichText(text: TextSpan(
-                    style: const TextStyle(fontSize: 12.5,
-                        color: Color(0xFF9A3412), height: 1.55),
-                    children: [
-                      const TextSpan(
-                          text: 'Daily token limit reached.\n\n',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      const TextSpan(text: 'Resets in '),
-                      TextSpan(
-                        text: _resetIn.isNotEmpty ? _resetIn : 'some time',
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                      const TextSpan(
-                          text: '. You cannot send messages until then.'),
-                    ],
-                  )),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 9,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEA580C),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(2),
+                          topRight: Radius.circular(13),
+                        ),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.block, color: Colors.white, size: 14),
+                          SizedBox(width: 8),
+                          Text(
+                            'AI Service Unavailable',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: Color(0xFF9A3412),
+                            height: 1.55,
+                          ),
+                          children: [
+                            const TextSpan(
+                              text: 'Daily token limit reached.\n\n',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const TextSpan(text: 'Resets in '),
+                            TextSpan(
+                              text: _resetIn.isNotEmpty
+                                  ? _resetIn
+                                  : 'some time',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const TextSpan(
+                              text: '. You cannot send messages until then.',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ]),
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       );
     }
 
@@ -1302,11 +1541,14 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   // ── Avatar helpers ─────────────────────────────────────────────────────────
 
   Widget _aiAvatar() => Container(
-    width: 32, height: 32,
+    width: 32,
+    height: 32,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
       border: Border.all(color: const Color(0xFFe2e8f0), width: 1.5),
-      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4)],
+      boxShadow: [
+        BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4),
+      ],
     ),
     child: ClipOval(
       child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.cover),
@@ -1314,31 +1556,47 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   );
 
   Widget _userAvatar() => Container(
-    width: 30, height: 30,
+    width: 30,
+    height: 30,
     decoration: const BoxDecoration(
       gradient: LinearGradient(
         colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
-        begin: Alignment.topLeft, end: Alignment.bottomRight),
-      shape: BoxShape.circle),
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      shape: BoxShape.circle,
+    ),
     child: Center(
       child: Text(
         _initials,
         style: const TextStyle(
-            color: Colors.white, fontSize: 10,
-            fontWeight: FontWeight.w700))));
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ),
+  );
 
   BoxDecoration _aiBubbleDecoration() => BoxDecoration(
     color: Colors.white,
     borderRadius: const BorderRadius.only(
-      topLeft:     Radius.circular(4),
-      topRight:    Radius.circular(16),
-      bottomLeft:  Radius.circular(16),
+      topLeft: Radius.circular(4),
+      topRight: Radius.circular(16),
+      bottomLeft: Radius.circular(16),
       bottomRight: Radius.circular(16),
     ),
-    boxShadow: [BoxShadow(
-      color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)]);
+    boxShadow: [
+      BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6),
+    ],
+  );
 
-  Widget _actionBtn(IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _actionBtn(
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1347,14 +1605,21 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           color: color,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, color: Colors.white, size: 13),
-          const SizedBox(width: 5),
-          Text(label,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 13),
+            const SizedBox(width: 5),
+            Text(
+              label,
               style: const TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.bold,
-                  color: Colors.white)),
-        ]),
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1399,51 +1664,79 @@ class _AdminFocusInputBarState extends State<_AdminFocusInputBar> {
           width: 1.5,
         ),
         boxShadow: _focused
-            ? [BoxShadow(color: const Color(0xFFE8001C).withValues(alpha: 0.08), blurRadius: 8)]
+            ? [
+                BoxShadow(
+                  color: const Color(0xFFE8001C).withValues(alpha: 0.08),
+                  blurRadius: 8,
+                ),
+              ]
             : [],
       ),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Expanded(
-          child: TextField(
-            controller: widget.inputCtrl,
-            maxLines: 4,
-            minLines: 1,
-            enabled: canSend,
-            decoration: InputDecoration(
-              hintText: widget.hint,
-              hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: TextField(
+              controller: widget.inputCtrl,
+              maxLines: 4,
+              minLines: 1,
+              enabled: canSend,
+              decoration: InputDecoration(
+                hintText: widget.hint,
+                hintStyle: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF718096),
+                ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 6),
+              ),
+              style: const TextStyle(fontSize: 13, color: Color(0xFF1a202c)),
+              onTap: () => setState(() => _focused = true),
+              onEditingComplete: () => setState(() => _focused = false),
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) {
+                widget.onSend();
+              },
             ),
-            style: const TextStyle(fontSize: 13, color: Color(0xFF1a202c)),
-            onTap: () => setState(() => _focused = true),
-            onEditingComplete: () => setState(() => _focused = false),
-            textInputAction: TextInputAction.send,
-            onSubmitted: (_) { widget.onSend(); },
           ),
-        ),
-        const SizedBox(width: 6),
-        GestureDetector(
-          onTap: canSend ? () => widget.onSend() : null,
-          child: Container(
-            width: 34, height: 34,
-            decoration: BoxDecoration(
-              gradient: canSend
-                  ? const LinearGradient(
-                      colors: [Color(0xFFE8001C), Color(0xFFC0001A)],
-                      begin: Alignment.topLeft, end: Alignment.bottomRight)
-                  : null,
-              color: canSend ? null : Colors.grey.shade300,
-              shape: BoxShape.circle,
-              boxShadow: canSend
-                  ? [BoxShadow(color: const Color(0xFFE8001C).withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 3))]
-                  : [],
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: canSend ? () => widget.onSend() : null,
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                gradient: canSend
+                    ? const LinearGradient(
+                        colors: [Color(0xFFE8001C), Color(0xFFC0001A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                color: canSend ? null : Colors.grey.shade300,
+                shape: BoxShape.circle,
+                boxShadow: canSend
+                    ? [
+                        BoxShadow(
+                          color: const Color(
+                            0xFFE8001C,
+                          ).withValues(alpha: 0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ]
+                    : [],
+              ),
+              child: const Icon(
+                Icons.send_rounded,
+                color: Colors.white,
+                size: 16,
+              ),
             ),
-            child: const Icon(Icons.send_rounded, color: Colors.white, size: 16),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -1464,15 +1757,22 @@ class _BouncingDotsState extends State<_BouncingDots>
   @override
   void initState() {
     super.initState();
-    _ctrls = List.generate(3, (i) => AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true));
-    _anims = List.generate(3, (i) => Tween<double>(begin: 0, end: -5)
-        .animate(CurvedAnimation(
+    _ctrls = List.generate(
+      3,
+      (i) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 900),
+      )..repeat(reverse: true),
+    );
+    _anims = List.generate(
+      3,
+      (i) => Tween<double>(begin: 0, end: -5).animate(
+        CurvedAnimation(
           parent: _ctrls[i],
-          curve: Interval(i * 0.15, i * 0.15 + 0.6,
-              curve: Curves.easeInOut))));
+          curve: Interval(i * 0.15, i * 0.15 + 0.6, curve: Curves.easeInOut),
+        ),
+      ),
+    );
     // Stagger start
     for (int i = 1; i < 3; i++) {
       Future.delayed(Duration(milliseconds: i * 135), () {
@@ -1491,23 +1791,28 @@ class _BouncingDotsState extends State<_BouncingDots>
 
   @override
   Widget build(BuildContext context) {
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      for (int i = 0; i < 3; i++) ...[
-        if (i > 0) const SizedBox(width: 4),
-        AnimatedBuilder(
-          animation: _anims[i],
-          builder: (_, _) => Transform.translate(
-            offset: Offset(0, _anims[i].value),
-            child: Container(
-              width: 6, height: 6,
-              decoration: const BoxDecoration(
-                color: Color(0xFFA0AEC0),
-                shape: BoxShape.circle),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < 3; i++) ...[
+          if (i > 0) const SizedBox(width: 4),
+          AnimatedBuilder(
+            animation: _anims[i],
+            builder: (_, _) => Transform.translate(
+              offset: Offset(0, _anims[i].value),
+              child: Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFA0AEC0),
+                  shape: BoxShape.circle,
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ],
-    ]);
+    );
   }
 }
 

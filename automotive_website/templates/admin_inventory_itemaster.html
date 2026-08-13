@@ -13,7 +13,7 @@
 </head>
 <body class="portal-body" data-page="item-master">
 <script>
-// Instant auth guard — blocks bfcache back-navigation after logout
+// Instant auth guard â€â€ blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -219,7 +219,7 @@
 <!-- Item Master Details Modal -->
 <div class="modal" id="itemMasterDetailsModal">
     <div class="modal-content" style="max-width:520px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;">
-        <!-- Colored header — red for Material, blue for Service -->
+        <!-- Colored header â€â€ red for Material, blue for Service -->
         <div id="imDetailHeader" style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;position:relative;overflow:hidden;flex-shrink:0;">
             <button onclick="closeModal('itemMasterDetailsModal')" style="position:absolute;top:0.85rem;right:0.85rem;background:rgba(255,255,255,0.2);border:none;color:white;width:30px;height:30px;border-radius:50%;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;">&times;</button>
             <div style="display:flex;align-items:center;gap:0.85rem;position:relative;z-index:1;">
@@ -277,7 +277,7 @@
             <div style="background:white;border-radius:12px;padding:1.1rem;border:1px solid #e2e8f0;">
                 <label style="font-size:0.75rem;font-weight:700;color:#4a5568;text-transform:uppercase;display:block;margin-bottom:0.5rem;">Or Enter Code Manually</label>
                 <input type="text" id="itemMasterScanInput" placeholder="Enter barcode or QR code..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.9rem;font-size:0.9rem;outline:none;box-sizing:border-box;">
-                <button class="btn-primary" style="width:100%;margin-top:0.65rem;" onclick="searchItemMasterByScan()">🔍 Search Item</button>
+                <button class="btn-primary" style="width:100%;margin-top:0.65rem;" onclick="searchItemMasterByScan()">ðŸâ€Â Search Item</button>
             </div>
         </div>
     </div>
@@ -313,7 +313,7 @@
 
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
-/* ── Floating label field — Flutter OutlineInputBorder equivalent ── */
+/* ââ€€ââ€€ Floating label field â€â€ Flutter OutlineInputBorder equivalent ââ€€ââ€€ */
 .fl-field {
     position: relative;
     width: 100%;
@@ -395,16 +395,16 @@
 </script>
 <script src="../static/js/admin_firebase.js"></script>
 <script src="../static/js/admin_functions.js?v=202607180001"></script>
-<script src="../static/js/admin.js"></script>
+<script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script src="../static/js/print_layout_header.js"></script>
 <script src="../static/js/excel_export.js"></script>
 <script>
-  // ── Item Master filter ──
+  // ââ€€ââ€€ Item Master filter ââ€€ââ€€
   window._imFilter = 'all';
   window._imCommodityFilter = '';
 
-  // ── Live duplicate name check on Item Name field ──
+  // ââ€€ââ€€ Live duplicate name check on Item Name field ââ€€ââ€€
   // Only blocks duplicate if BOTH name AND uom match an existing item
   window.imCheckDuplicateName = function(input) {
     var val = (input.value || '').trim().toLowerCase();
@@ -515,7 +515,7 @@
     });
   })();
 
-  // ── Print Item Master ──
+  // ââ€€ââ€€ Print Item Master ââ€€ââ€€
   window.printItemMaster = function() {
     var items = window.itemMaster || [];
 
@@ -540,7 +540,7 @@
         return (i.commodityGroup||'') === cgFilter;
       });
     }
-    // Sort same as table — respects active sort selection
+    // Sort same as table â€â€ respects active sort selection
     var imSortVal = (document.getElementById('imSortSelect') || {}).value || 'num-asc';
     filtered = filtered.slice().sort(function(a, b) {
       function numPart(s) { return parseInt((s||'').replace(/[^0-9]/g,'')) || 0; }
@@ -562,12 +562,12 @@
 
     var rows = filtered.map(function(i) {
       return [
-        i.itemNum || '—',
-        i.itemName || '—',
-        i.description || '—',
-        i.commodityGroup || '—',
-        i.uom || '—',
-        i.itemType || '—',
+        i.itemNum || 'â€â€',
+        i.itemName || 'â€â€',
+        i.description || 'â€â€',
+        i.commodityGroup || 'â€â€',
+        i.uom || 'â€â€',
+        i.itemType || 'â€â€',
         '₱' + (parseFloat(String(i.cost||0).replace(/[₱,]/g,''))||0).toLocaleString('en-PH',{minimumFractionDigits:2})
       ];
     });
@@ -584,7 +584,7 @@
     );
   };
 
-  // ── Export Item Master to Excel ──
+  // ââ€€ââ€€ Export Item Master to Excel ââ€€ââ€€
   window.exportItemMasterExcel = function() {
     var items = window.itemMaster || [];
 
@@ -633,12 +633,12 @@
 
     var rows = filtered.map(function(i) {
       return [
-        i.itemNum || '—',
-        i.itemName || '—',
-        i.description || '—',
-        i.commodityGroup || '—',
-        i.uom || '—',
-        i.itemType || '—',
+        i.itemNum || 'â€â€',
+        i.itemName || 'â€â€',
+        i.description || 'â€â€',
+        i.commodityGroup || 'â€â€',
+        i.uom || 'â€â€',
+        i.itemType || 'â€â€',
         (parseFloat(String(i.cost||0).replace(/[^0-9.]/g,''))||0)
       ];
     });
@@ -651,7 +651,7 @@
     );
   };
 
-  // ── Generate & Show Barcode from view modal ──
+  // ââ€€ââ€€ Generate & Show Barcode from view modal ââ€€ââ€€
   window._imCurrentViewItem = null; // set by viewItemMasterDetails
 
   window.imGenerateAndShowBarcode = function() {
