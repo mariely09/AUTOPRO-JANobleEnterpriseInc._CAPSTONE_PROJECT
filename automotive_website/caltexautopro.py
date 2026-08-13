@@ -760,6 +760,45 @@ def _ai_backend_available() -> bool:
         return False
 
 
+def _sanitise_admin_reply(reply: str) -> str:
+    """
+    Strip any leaked report_payload JSON that the LLM included without the
+    proper fenced-block wrapper.  This prevents raw JSON from appearing in
+    the chat bubble when the regex in ai_chat() doesn't match.
+
+    Also converts a reply that is ONLY a bare JSON object (starts with '{')
+    into a plain conversational fallback message.
+    """
+    import re as _re2, json as _json2
+
+    if not reply:
+        return reply
+
+    # 1. Remove fenced report_payload blocks (should already be caught above,
+    #    but handles edge-cases where the fence label has extra whitespace).
+    cleaned = _re2.sub(r'```report_payload[\s\S]*?```', '', reply, flags=_re2.DOTALL).strip()
+
+    # 2. Remove bare JSON objects that contain "report_type" — these are
+    #    unfenced report_payload blobs the LLM leaked into its reply.
+    cleaned = _re2.sub(
+        r'\{[^{}]*"report_type"[^{}]*\}',
+        '',
+        cleaned,
+        flags=_re2.DOTALL,
+    ).strip()
+
+    # 3. If what's left is still just a JSON object, replace entirely.
+    if cleaned.startswith('{') and cleaned.endswith('}'):
+        try:
+            obj = _json2.loads(cleaned)
+            if 'report_type' in obj:
+                return "I've noted your report request. Please use the Download button above to generate and download the report."
+        except Exception:
+            pass
+
+    return cleaned or reply
+
+
 @app.route('/api/ai-chat', methods=['POST'])
 def ai_chat():
     """Proxy AI chat to ai_assistant FastAPI service with session memory.
@@ -974,7 +1013,7 @@ def ai_chat():
 
         return jsonify({
             'success':      True,
-            'answer':       payload.get('reply', ''),
+            'answer':       _sanitise_admin_reply(payload.get('reply', '')),
             'session_id':   payload.get('session_id', ''),
             'rate_limited': payload.get('rate_limited', False),
             'reset_in':     payload.get('reset_in', ''),
@@ -1582,10 +1621,6 @@ def send_reschedule_email():
 def _offline_response():
     return jsonify({'success': False,
                     'error': 'AI service offline. Start it with ai_assistant\\start.bat'}), 503
-
-
-
-        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/setup_notifications.html')
