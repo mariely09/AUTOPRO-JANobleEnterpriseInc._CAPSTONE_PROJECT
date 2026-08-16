@@ -90,6 +90,9 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
           return status == 'Approved' || status == 'Cancelled';
         }).toList();
 
+        // Auto-cancel past-due bookings (fire-and-forget)
+        _autoCancelPastDue(allDocs);
+
         // Compute counts
         final approved = allBookings.where((d) => d['status'] == 'Approved' && !_isRescheduled(d)).length;
         final rescheduled = allBookings.where((d) => d['status'] == 'Approved' && _isRescheduled(d)).length;
@@ -156,6 +159,45 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
     final previousDate = data['previousDate'] as String? ?? '';
     final preferredDate = data['preferredDate'] as String? ?? '';
     return previousDate.isNotEmpty && previousDate != preferredDate;
+  }
+
+  /// Auto-cancels any Approved booking whose preferredDate is in the past.
+  void _autoCancelPastDue(List<QueryDocumentSnapshot> docs) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final db = FirebaseFirestore.instance;
+
+    for (final doc in docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      if ((data['status'] as String? ?? '') != 'Approved') continue;
+      final prefDate = data['preferredDate'] as String? ?? '';
+      if (prefDate.isEmpty) continue;
+      final prefDateTime = DateTime.tryParse(prefDate);
+      if (prefDateTime == null) continue;
+      // Only cancel if the entire scheduled day has passed
+      if (!prefDateTime.isBefore(today)) continue;
+
+      // Past-due — auto-cancel (fire-and-forget)
+      db.collection('service_bookings').doc(doc.id).update({
+        'status': 'Cancelled',
+        'cancelledAt': FieldValue.serverTimestamp(),
+        'cancelledBy': 'system',
+        'cancellationReason': 'No-show / Service date passed',
+      }).then((_) {
+        final customerId = data['customerId'] as String? ?? '';
+        final plate = data['plate'] as String? ?? '';
+        if (customerId.isNotEmpty) {
+          db.collection('notifications').add({
+            'title': '❌ Booking Auto-Cancelled',
+            'message': 'Your booking for $plate on ${_formatDate(prefDate)} was automatically cancelled because the scheduled date has passed.',
+            'type': 'warning',
+            'targetRole': '', 'targetUid': customerId,
+            'createdAt': FieldValue.serverTimestamp(),
+            'readBy': <String, bool>{}, 'isRead': false,
+          });
+        }
+      }).catchError((_) {}); // silent — will retry on next snapshot
+    }
   }
 
   Widget _buildCard(String docId, Map<String, dynamic> data) {

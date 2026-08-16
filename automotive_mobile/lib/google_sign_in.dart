@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'admin_rag_ai.dart';
 import 'customer_smart_ai.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,13 +9,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 
-// ── EmailJS config (same as forgot_password.dart) ─────────────────────────
+// ── EmailJS config (same as forgot_password.dart — proven to work on Android) ──
 const _kEmailjsServiceId  = 'service_i906b4o';
 const _kEmailjsTemplateId = 'template_6kkir1s';
 const _kEmailjsPublicKey  = 'DqRrjCkUnf9w2L_sv';
 
 class GoogleSignInHelper {
-  static final _googleSignIn = GoogleSignIn();
+  // Web client ID (type 3) from google-services.json — required for Android
+  static final _googleSignIn = GoogleSignIn(
+    serverClientId: '930140433367-k0ccsrel2fs31rs5dce4iqmquakgke04.apps.googleusercontent.com',
+  );
   static final _auth         = FirebaseAuth.instance;
   static final _firestore    = FirebaseFirestore.instance;
 
@@ -22,24 +26,49 @@ class GoogleSignInHelper {
   /// Signs in with Google, sends OTP to user's email, shows OTP dialog,
   /// verifies, then returns the user's role from Firestore.
   static Future<String?> signInWithGoogle(BuildContext context) async {
-    // Always show account picker
-    await _googleSignIn.signOut();
+    // Always show account picker — silently ignore if no previous session
+    try { await _googleSignIn.signOut(); } catch (_) {}
 
-    final googleUser = await _googleSignIn.signIn();
-    if (googleUser == null) return null; // cancelled
+    // ── Step 1: Google account picker ────────────────────────────────────
+    GoogleSignInAccount? googleUser;
+    try {
+      googleUser = await _googleSignIn.signIn();
+    } on PlatformException catch (e) {
+      debugPrint('⚠️ GoogleSignIn.signIn PlatformException: ${e.code} — ${e.message}');
+      _throwReadableGoogleError(e);
+    }
+    if (googleUser == null) return null; // user cancelled
 
-    final googleAuth = await googleUser.authentication;
+    // ── Step 2: Exchange for Firebase credential ──────────────────────────
+    late GoogleSignInAuthentication googleAuth;
+    try {
+      googleAuth = await googleUser.authentication;
+    } on PlatformException catch (e) {
+      debugPrint('⚠️ googleUser.authentication PlatformException: ${e.code} — ${e.message}');
+      _throwReadableGoogleError(e);
+    }
+
     final credential = GoogleAuthProvider.credential(
       accessToken: googleAuth.accessToken,
       idToken:     googleAuth.idToken,
     );
 
-    final cred = await _auth.signInWithCredential(credential);
+    late UserCredential cred;
+    try {
+      cred = await _auth.signInWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      debugPrint('⚠️ signInWithCredential FirebaseAuthException: ${e.code} — ${e.message}');
+      throw Exception(_firebaseAuthMessage(e));
+    } on PlatformException catch (e) {
+      debugPrint('⚠️ signInWithCredential PlatformException: ${e.code} — ${e.message}');
+      _throwReadableGoogleError(e);
+    }
+
     final uid   = cred.user!.uid;
     final email = cred.user!.email ?? '';
     final name  = cred.user!.displayName ?? '';
 
-    // Lookup user in Firestore
+    // ── Step 3: Firestore lookup ──────────────────────────────────────────
     final userData = await _getUser(uid: uid, email: email);
 
     // Status checks
@@ -53,10 +82,10 @@ class GoogleSignInHelper {
       throw Exception('Your account is pending admin approval. You will be notified by email once approved.');
     }
 
-    // ── Send OTP via server (dedicated endpoint — not the reset-password template) ──
+    // ── Step 4: Send OTP via Flask backend ───────────────────────────────
     await _sendOtp(email: email, name: (userData['name'] as String?) ?? name);
 
-    // ── Show OTP dialog ────────────────────────────────────────────────────
+    // ── Step 5: Show OTP dialog ───────────────────────────────────────────
     if (!context.mounted) return null;
     final verified = await showDialog<bool>(
       context: context,
@@ -73,12 +102,55 @@ class GoogleSignInHelper {
     return (userData['role'] as String?) ?? 'customer';
   }
 
-  // ── Send OTP via EmailJS (no server needed — works on physical devices) ────
+  // ── Translate PlatformException codes to user-friendly messages ───────────
+  static Never _throwReadableGoogleError(PlatformException e) {
+    switch (e.code) {
+      case 'sign_in_failed':
+        // Most common: network issue or mis-configured OAuth client
+        throw Exception(
+          'Google sign-in failed. Please check your internet connection and try again.\n'
+          '(Detail: ${e.message ?? e.code})',
+        );
+      case 'network_error':
+        throw Exception('Network error. Please check your internet connection.');
+      case 'sign_in_canceled':
+      case 'sign_in_cancelled':
+        throw Exception('sign_in_canceled'); // caller checks for this and stays silent
+      case 'access_denied':
+        throw Exception('Access was denied. Please try again and grant the required permissions.');
+      default:
+        throw Exception(
+          'Google sign-in error (${e.code}): ${e.message ?? 'Unknown error'}',
+        );
+    }
+  }
+
+  // ── Translate FirebaseAuthException to user-friendly message ─────────────
+  static String _firebaseAuthMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'account-exists-with-different-credential':
+        return 'An account already exists with this email using a different sign-in method. Please sign in with email and password instead.';
+      case 'invalid-credential':
+        return 'Google credential is invalid or has expired. Please try again.';
+      case 'user-disabled':
+        return 'This account has been disabled. Please contact the administrator.';
+      case 'network-request-failed':
+        return 'Network error. Please check your internet connection.';
+      default:
+        return e.message ?? 'Firebase authentication failed (${e.code}).';
+    }
+  }
+
+  // ── Send OTP directly via EmailJS — same as forgot_password.dart ────────────
+  // The Flask server on Render is unreliable (cold starts / 404s).
+  // Direct EmailJS with the 'origin' header works on Android — proven by
+  // forgot_password.dart which uses the same approach successfully.
   static Future<void> _sendOtp({required String email, required String name}) async {
     final otp    = (100000 + Random.secure().nextInt(900000)).toString();
-    final expiry = DateTime.now().toUtc().add(const Duration(minutes: 5)).toIso8601String();
+    final expiry = DateTime.now().toUtc()
+        .add(const Duration(minutes: 5)).toIso8601String();
 
-    // Store OTP in Firestore for verification
+    // Store OTP in Firestore for later verification
     await FirebaseFirestore.instance
         .collection('otp_requests')
         .doc(email)
@@ -89,7 +161,7 @@ class GoogleSignInHelper {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
-    // Send via EmailJS (instant, no server needed)
+    // Send email via EmailJS
     final res = await http.post(
       Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
       headers: {
@@ -101,27 +173,28 @@ class GoogleSignInHelper {
         'template_id': _kEmailjsTemplateId,
         'user_id':     _kEmailjsPublicKey,
         'template_params': {
-          'to_email':      email,
-          'to_name':       name.isNotEmpty ? name : email,
-          'email':         email,
-          'otp_code':      otp,
-          'otp':           otp,
+          'to_email':       email,
+          'to_name':        name.isNotEmpty ? name : email,
+          'email':          email,
+          'otp_code':       otp,
+          'otp':            otp,
           'expiry_minutes': '5',
-          // Purpose: Sign-In Verification
-          'email_title':   'Sign-In Verification — Caltex AutoPro',
-          'email_heading': 'Sign-In Verification',
-          'email_intro':   'Someone is signing in to your Caltex AutoPro account using Google.\nUse the code below to verify your identity.',
-          'steps_heading': 'Verify your sign-in:',
+          'email_title':    'Sign-In Verification — Caltex AutoPro',
+          'email_heading':  'Sign-In Verification',
+          'email_intro':    'Someone is signing in to your Caltex AutoPro account using Google.\nUse the code below to verify your identity.',
+          'steps_heading':  'Verify your sign-in:',
           'step1_icon':  '📲', 'step1_title': 'Enter the code',      'step1_desc': 'Enter the 6-digit code in the verification screen.',
           'step2_icon':  '✅', 'step2_title': 'Access your account',  'step2_desc': 'Once verified, you will be signed in to your dashboard.',
           'step3_icon':  '🔒', 'step3_title': 'Stay secure',          'step3_desc': 'Never share this code. We will never ask for it.',
-          'footer_note': 'If you did not attempt to sign in, please secure your account immediately.',
+          'footer_note':     'If you did not attempt to sign in, please secure your account immediately.',
         },
       }),
-    ).timeout(const Duration(seconds: 15));
+    ).timeout(const Duration(seconds: 20));
+
+    debugPrint('EmailJS OTP → ${res.statusCode}: ${res.body}');
 
     if (res.statusCode != 200) {
-      throw Exception('Failed to send OTP (EmailJS ${res.statusCode})');
+      throw Exception('Failed to send OTP email (${res.statusCode}). Please try again.');
     }
   }
 
@@ -142,8 +215,8 @@ class GoogleSignInHelper {
         .get();
     if (snap.docs.isNotEmpty) {
       final data = snap.docs.first.data();
-      // Migrate to UID-keyed doc
-      await _firestore.collection('users').doc(uid).set(data);
+      // Migrate to UID-keyed doc (merge to preserve any extra fields)
+      await _firestore.collection('users').doc(uid).set(data, SetOptions(merge: true));
       return data;
     }
 
@@ -194,6 +267,7 @@ class _OtpDialogState extends State<_OtpDialog> {
       List.generate(6, (_) => FocusNode());
 
   bool _loading  = false;
+  bool _verified = false; // prevent double-trigger from auto-submit
   String? _error;
 
   @override
@@ -207,6 +281,7 @@ class _OtpDialogState extends State<_OtpDialog> {
 
   // ── Verify OTP against Firestore ──────────────────────────────────────────
   Future<void> _verify() async {
+    if (_loading || _verified) return; // prevent double-trigger
     final entered = _entered;
     if (entered.length < 6) {
       setState(() => _error = 'Please enter the 6-digit code.');
@@ -246,18 +321,20 @@ class _OtpDialogState extends State<_OtpDialog> {
       }
 
       await snap.reference.delete();
+      _verified = true;
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       setState(() { _loading = false; _error = 'Verification failed: $e'; });
     }
   }
 
-  // ── Resend OTP ─────────────────────────────────────────────────────────────
+  // ── Resend OTP — same direct EmailJS as initial send ─────────────────────
   Future<void> _resend() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() { _loading = true; _error = null; _verified = false; });
     try {
       final otp    = (100000 + Random.secure().nextInt(900000)).toString();
-      final expiry = DateTime.now().toUtc().add(const Duration(minutes: 5)).toIso8601String();
+      final expiry = DateTime.now().toUtc()
+          .add(const Duration(minutes: 5)).toIso8601String();
 
       await FirebaseFirestore.instance
           .collection('otp_requests')
@@ -269,7 +346,7 @@ class _OtpDialogState extends State<_OtpDialog> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      await http.post(
+      final res = await http.post(
         Uri.parse('https://api.emailjs.com/api/v1.0/email/send'),
         headers: {
           'Content-Type': 'application/json',
@@ -286,18 +363,21 @@ class _OtpDialogState extends State<_OtpDialog> {
             'otp_code':       otp,
             'otp':            otp,
             'expiry_minutes': '5',
-            // Purpose: Sign-In Verification
-            'email_title':   'Sign-In Verification — Caltex AutoPro',
-            'email_heading': 'Sign-In Verification',
-            'email_intro':   'Someone is signing in to your Caltex AutoPro account using Google.\nUse the code below to verify your identity.',
-            'steps_heading': 'Verify your sign-in:',
+            'email_title':    'Sign-In Verification — Caltex AutoPro',
+            'email_heading':  'Sign-In Verification',
+            'email_intro':    'Someone is signing in to your Caltex AutoPro account using Google.\nUse the code below to verify your identity.',
+            'steps_heading':  'Verify your sign-in:',
             'step1_icon':  '📲', 'step1_title': 'Enter the code',      'step1_desc': 'Enter the 6-digit code in the verification screen.',
             'step2_icon':  '✅', 'step2_title': 'Access your account',  'step2_desc': 'Once verified, you will be signed in to your dashboard.',
             'step3_icon':  '🔒', 'step3_title': 'Stay secure',          'step3_desc': 'Never share this code. We will never ask for it.',
-            'footer_note': 'If you did not attempt to sign in, please secure your account immediately.',
+            'footer_note':     'If you did not attempt to sign in, please secure your account immediately.',
           },
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 20));
+
+      if (res.statusCode != 200) {
+        throw Exception('EmailJS error ${res.statusCode}');
+      }
 
       for (final c in _ctrls) c.clear();
       _foci[0].requestFocus();
@@ -310,7 +390,11 @@ class _OtpDialogState extends State<_OtpDialog> {
         ));
       }
     } catch (e) {
-      setState(() { _loading = false; _error = 'Failed to resend. Please try again.'; });
+      setState(() {
+        _loading = false;
+        _error = 'Failed to resend. Please try again.';
+      });
+      debugPrint('Resend error: $e');
     }
   }
 
@@ -415,7 +499,7 @@ class _OtpDialogState extends State<_OtpDialog> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
-                  disabledBackgroundColor: _red.withOpacity(0.5)),
+                  disabledBackgroundColor: _red.withValues(alpha: 0.5)),
                 child: _loading
                     ? const SizedBox(width: 20, height: 20,
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))

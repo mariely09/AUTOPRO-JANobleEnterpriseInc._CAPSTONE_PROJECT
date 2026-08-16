@@ -14,19 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "930140433367-4kurnipn8rqol1t8m8gqg7sqmf189ovo.apps.googleusercontent.com",
+          "client_id": "930140433367-ddag0scuv7l1thl574i05p12560v6ifb.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.automotive_mobile",
-            "certificate_hash": "7f33a050ce64e233465b2fcd68409ecf72729708"
-          }
-        },
-        {
-          "client_id": "930140433367-c6o8t35ce7njj482ivpreet0u98ptt7r.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.automotive_mobile",
-            "certificate_hash": "b3dddea5b5d41330886429edd79416b5fa9bd88a"
+            "certificate_hash": "833c8716433fb9f535b3adcc582a3c03ad0f69ca"
           }
         },
         {

@@ -184,7 +184,8 @@ class _UserProfileState extends State<UserProfile> {
                   padding: const EdgeInsets.fromLTRB(20, 36, 20, 32),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [_red, Color(0xFFC41E3A)],
+                      colors: [Color(0xFF1a202c), Color(0xFF2d3748), _red],
+                      stops: [0.0, 0.6, 1.0],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -392,7 +393,7 @@ class _UserProfileState extends State<UserProfile> {
         child: Row(children: [
           Container(width: 36, height: 36,
             decoration: BoxDecoration(color: const Color(0xFFF0F4FF), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, size: 18, color: _red)),
+            child: Icon(icon, size: 18, color: const Color(0xFF1a202c))),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
@@ -430,7 +431,7 @@ class _UserProfileState extends State<UserProfile> {
           child: Row(children: [
             Container(width: 36, height: 36,
               decoration: BoxDecoration(color: const Color(0xFFF0F4FF), borderRadius: BorderRadius.circular(10)),
-              child: Icon(icon, size: 18, color: _blue)),
+              child: Icon(icon, size: 18, color: const Color(0xFF1a202c))),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1a202c))),

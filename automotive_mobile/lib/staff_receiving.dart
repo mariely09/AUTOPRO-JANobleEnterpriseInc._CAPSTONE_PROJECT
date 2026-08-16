@@ -56,6 +56,22 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
     return d;
   }
 
+  /// Formats a Firestore Timestamp or ISO string to a readable date.
+  /// Used for Order Date (createdAt) which is stored as a Timestamp.
+  String _fmtOrderDate(dynamic raw) {
+    if (raw == null) return '—';
+    DateTime? dt;
+    if (raw is Timestamp) {
+      dt = raw.toDate();
+    } else if (raw is String && raw.isNotEmpty) {
+      dt = DateTime.tryParse(raw);
+    } else if (raw is Map && raw['seconds'] != null) {
+      dt = DateTime.fromMillisecondsSinceEpoch((raw['seconds'] as int) * 1000);
+    }
+    if (dt == null) return '—';
+    return '${_months[dt.month - 1]} ${dt.day}, ${dt.year}';
+  }
+
   Color _statusColor(String s) {
     switch (s) {
       case 'Pending':               return const Color(0xFF718096);
@@ -549,6 +565,8 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       const Text('DELIVERY INFO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF4a5568), letterSpacing: 0.5)),
                       const SizedBox(height: 10),
+                      if (_fmtOrderDate(d['createdAt']) != '—')
+                        _ivInfoRow('Order Date', _fmtOrderDate(d['createdAt'])),
                       if ((item['receivedAt'] as String? ?? (d['receivedAt'] is String ? d['receivedAt'] as String : '')).isNotEmpty)
                         _ivInfoRow('Received Date', _fmt(item['receivedAt'] as String? ?? (d['receivedAt'] is String ? d['receivedAt'] as String : ''))),
                       if ((d['receivedBy'] as String? ?? '').isNotEmpty)

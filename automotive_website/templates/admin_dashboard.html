@@ -366,9 +366,17 @@
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                                 </div>
                                 <div style="flex:1;min-width:0;">
-                                    <div class="dash-chart-title">Services by Type — Last 7 Days</div>
-                                    <div class="dash-chart-sub">Completed service types per day</div>
+                                    <div class="dash-chart-title">Services by Type</div>
+                                    <div class="dash-chart-sub" id="barChartSub">Completed service types per day</div>
                                 </div>
+                                <select id="barChartRangeSelect" onchange="renderDashboardCharts()"
+                                    style="padding:4px 28px 4px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.78rem;font-family:inherit;color:#4a5568;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;outline:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'10\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23a0aec0\' stroke-width=\'2.5\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 8px center;flex-shrink:0;">
+                                    <option value="7">Last 7 Days</option>
+                                    <option value="today">Today</option>
+                                    <option value="14">Last 14 Days</option>
+                                    <option value="30">Last 30 Days</option>
+                                    <option value="thismonth">This Month</option>
+                                </select>
                                 <div id="barChartTotal" class="dash-chart-badge" style="background:#fff5f5;color:#E8001C;flex-shrink:0;"></div>
                             </div>
                             <!-- Dynamic legend populated by JS -->
@@ -719,10 +727,40 @@
         const vehicles     = window._fbVehicles     || [];
         const transactions = window._fbTransactions || [];
 
-        // ----------------------------------------
-        // 1. STACKED BAR CHART — Services by Type, last 7 days
-        // ----------------------------------------
-        const { labels: barLabels, keys: barKeys } = _last7DayLabels();
+        // ── Resolve selected range ────────────────────────────────────────
+        const rangeVal = (document.getElementById('barChartRangeSelect') || {}).value || '7';
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let barLabels = [], barKeys = [];
+
+        if (rangeVal === 'today') {
+          const label = MONTHS[today.getMonth()] + ' ' + today.getDate();
+          barLabels = [label];
+          barKeys   = [label + ', ' + today.getFullYear()];
+        } else if (rangeVal === 'thismonth') {
+          const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+          for (let d = 1; d <= daysInMonth; d++) {
+            const dt = new Date(today.getFullYear(), today.getMonth(), d);
+            const label = MONTHS[dt.getMonth()] + ' ' + dt.getDate();
+            barLabels.push(label);
+            barKeys.push(label + ', ' + dt.getFullYear());
+          }
+        } else {
+          const days = parseInt(rangeVal) || 7;
+          for (let i = days - 1; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const label = MONTHS[d.getMonth()] + ' ' + d.getDate();
+            barLabels.push(label);
+            barKeys.push(label + ', ' + d.getFullYear());
+          }
+        }
+
+        // Update subtitle
+        const subLabels = { 'today': 'Today only', '7': 'Last 7 days', '14': 'Last 14 days', '30': 'Last 30 days', 'thismonth': 'This month' };
+        const subEl = document.getElementById('barChartSub');
+        if (subEl) subEl.textContent = (subLabels[rangeVal] || 'Last 7 days') + ' · Completed services';
 
         // Extract all service type names from svcRows across COMPLETED services only
         const completedServices = services.filter(s => (s.status || '').toLowerCase() === 'completed');

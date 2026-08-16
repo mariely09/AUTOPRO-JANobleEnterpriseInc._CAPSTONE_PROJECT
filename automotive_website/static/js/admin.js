@@ -239,17 +239,44 @@ window._adminNotifClick = function(i) {
     const all = window._adminNotifAll || [];
     const n = all[i];
     if (!n) return;
-    // Mark Firestore notification as read
-    if (n._docId) {
-        const uid = (firebase.auth().currentUser || {}).uid;
-        if (uid) {
-            firebase.firestore().collection('notifications').doc(n._docId)
-                .update({ [`readBy.${uid}`]: true }).catch(() => {});
-        }
-    }
+
+    // ── Determine redirect URL first ──
+    const title = (n.title || '').toLowerCase();
+    const msg   = (n.msg   || '').toLowerCase();
+    let url = null;
+
+    if (title.includes('pms') || title.includes('preventive') || msg.includes('pms'))
+        url = 'admin_dss.html#dss-pms';
+    else if (title.includes('out of stock') || title.includes('low stock') || title.includes('stock'))
+        url = 'admin_dss.html';
+    else if (title.includes('booking') || title.includes('rescheduled') || msg.includes('booking'))
+        url = 'admin_service_bookings.html';
+    else if (title.includes('service') || title.includes('maintenance') || msg.includes('service'))
+        url = 'admin_vehicle_maintenance.html';
+    else if (title.includes('receiving') || title.includes('delivery') || msg.includes('delivery'))
+        url = 'admin_receiving.html';
+    else if (title.includes('user') || msg.includes('account'))
+        url = 'admin_users.html';
+    else if (title.includes('vehicle') || msg.includes('vehicle') || msg.includes('plate'))
+        url = 'admin_vehicle_list.html';
+
+    // Close panel immediately
+    document.getElementById('adminNotifPanel').style.display = 'none';
+
+    // Mark as read in Firestore, then navigate
+    const uid = (firebase.auth().currentUser || {}).uid;
+    const markRead = (n._docId && uid)
+        ? firebase.firestore().collection('notifications').doc(n._docId)
+            .update({ ['readBy.' + uid]: true }).catch(function(){})
+        : Promise.resolve();
+
     // Run local action
     if (n.action) n.action();
-    document.getElementById('adminNotifPanel').style.display = 'none';
+
+    // Navigate after marking read
+    if (url) {
+        markRead.then(function() { window.location.href = url; });
+    }
 };
 
 window._adminDeleteNotif = function(docId) {
@@ -424,14 +451,14 @@ window.renderDSS = function () {
 function renderDSSKpis() {
     const el = document.getElementById('dssKpiGrid');
     if (!el) return;
-    // Enforce 2-column layout (In Stock removed)
-    el.style.gridTemplateColumns = 'repeat(2, 1fr)';
-    el.style.maxWidth = '600px';
     const d = _dssData;
     const outOfStock = d.filter(function (x) { return x.priority === 0; }).length;
     const lowStock   = d.filter(function (x) { return x.priority === 1; }).length;
+    const total      = outOfStock + lowStock;
 
     el.innerHTML = [
+        { svg: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>',
+          label: 'Total Items', val: total, color: '#003087', bg: 'rgba(0,48,135,0.10)', filter: 'all', idx: 0 },
         { svg: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
           label: 'Out of Stock', val: outOfStock, color: '#e53e3e', bg: 'rgba(229,62,62,0.10)', filter: 'critical', idx: 1 },
         { svg: '<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>',

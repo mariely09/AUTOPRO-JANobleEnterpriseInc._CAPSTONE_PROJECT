@@ -91,7 +91,12 @@
 
             <!-- Stock Replenishment Section -->
             <div class="admin-section active" id="dss">
-                <div class="dss-kpi-grid" id="dssKpiGrid" style="grid-template-columns:repeat(2,1fr);max-width:600px;">
+                <div id="dssKpiGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(0,48,135,0.10);color:#003087;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+                        <div class="stat-number" style="color:#003087;" id="dssStatTotal">0</div>
+                        <div class="stat-label">Total Items</div>
+                    </div>
                     <div class="stat-card">
                         <div class="stat-icon" style="background:rgba(229,62,62,0.10);color:#e53e3e;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
                         <div class="stat-number" style="color:#e53e3e;">0</div>

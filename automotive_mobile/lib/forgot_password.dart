@@ -237,8 +237,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _backBtn(),
       const SizedBox(height: 24),
-      _stepIcon(Icons.lock_reset_outlined, _red.withOpacity(0.1), _red),
-      const SizedBox(height: 16),
       const Center(child: Text('Forgot Password',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1a202c)))),
       const SizedBox(height: 6),
@@ -272,8 +270,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         for (final c in _otpCtrls) c.clear();
       })),
       const SizedBox(height: 24),
-      _stepIcon(Icons.mark_email_read_outlined, Colors.blue.shade50, Colors.blue.shade600),
-      const SizedBox(height: 16),
       const Center(child: Text('Enter OTP',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1a202c)))),
       const SizedBox(height: 6),
@@ -336,12 +332,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget _buildSuccessStep() {
     return Column(children: [
       const SizedBox(height: 16),
-      Container(
-        width: 72, height: 72,
-        decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(20)),
-        child: Icon(Icons.mark_email_read_outlined, color: Colors.green.shade600, size: 38),
-      ),
-      const SizedBox(height: 20),
       const Text('Check Your Email',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1a202c))),
       const SizedBox(height: 10),
@@ -420,14 +410,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   // ── Shared widgets ────────────────────────────────────────────────────────
-
-  Widget _stepIcon(IconData icon, Color bg, Color color) {
-    return Center(child: Container(
-      width: 64, height: 64,
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(18)),
-      child: Icon(icon, color: color, size: 32),
-    ));
-  }
 
   Widget _backBtn({VoidCallback? onTap}) {
     return GestureDetector(

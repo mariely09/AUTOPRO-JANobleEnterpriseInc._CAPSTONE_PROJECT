@@ -278,7 +278,7 @@ const GoogleSignInModule = {
 
       // OTP correct — store session and redirect
       _gsHideOtpOverlay();
-      this.storeUserSession(this._pendingUser, this._pendingUserData);
+      await this.storeUserSession(this._pendingUser, this._pendingUserData);
 
       // Check mustChangePassword
       if (this._pendingUserData.mustChangePassword) {
@@ -340,22 +340,34 @@ const GoogleSignInModule = {
     throw new Error('User account not found. Please contact the administrator.');
   },
 
-  storeUserSession: function(googleUser, userData) {
+  storeUserSession: async function(googleUser, userData) {
+    // Fetch companyName from Firestore if not already in userData
+    let companyName = userData.companyName || '';
+    if (!companyName) {
+      try {
+        const doc = await firebase.firestore().collection('users').doc(googleUser.uid).get();
+        if (doc.exists) companyName = doc.data().companyName || '';
+      } catch(_) {}
+    }
     const sessionData = {
-      uid:      googleUser.uid,
-      email:    googleUser.email,
+      uid:         googleUser.uid,
+      email:       googleUser.email,
       // Use Firestore name first — fall back to Google display name only if Firestore has none
-      name:     (userData.name || '').trim() || (googleUser.displayName || '').trim() || googleUser.email,
-      role:     userData.role || 'customer',
-      photoUrl: googleUser.photoURL || userData.photoUrl || '',
+      name:        (userData.name || '').trim() || (googleUser.displayName || '').trim() || googleUser.email,
+      role:        userData.role || 'customer',
+      photoUrl:    googleUser.photoURL || userData.photoUrl || '',
+      companyName: companyName,
     };
-    if (sessionData.role === 'admin')  sessionStorage.setItem('apUser', JSON.stringify(sessionData));
-    else if (sessionData.role === 'staff') sessionStorage.setItem('spUser', JSON.stringify(sessionData));
-    else sessionStorage.setItem('cpUser', JSON.stringify(sessionData));
+    if (sessionData.role === 'admin')       sessionStorage.setItem('apUser', JSON.stringify(sessionData));
+    else if (sessionData.role === 'staff')  sessionStorage.setItem('spUser', JSON.stringify(sessionData));
+    else                                    sessionStorage.setItem('cpUser', JSON.stringify(sessionData));
   },
 
   redirectByRole: function(role) {
     const map = { admin:'admin_dashboard.html', staff:'staff_dashboard.html', customer:'customer_dashboard.html' };
+    // Required by all dashboard auth guards: _loggedIn must be newer than _loggedOut
+    localStorage.setItem('_loggedIn', Date.now().toString());
+    localStorage.removeItem('_loggedOut');
     setTimeout(() => { window.location.href = map[role] || 'customer_dashboard.html'; }, 100);
   },
 

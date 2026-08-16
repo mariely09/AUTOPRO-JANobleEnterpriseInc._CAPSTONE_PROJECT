@@ -196,22 +196,25 @@
         return;
       }
 
-      // Get user name from Firestore (authenticated)
+      // Get user name + companyName from Firestore — always fetch to ensure
+      // companyName is resolved (Google sign-in sessions may lack companyName)
       let userName = cpUser.name || '';
       let companyName = cpUser.companyName || '';
-      if (!userName) {
+      try {
         const userDoc = await db.collection('users').doc(user.uid).get();
         if (userDoc.exists) {
-          userName = userDoc.data().name || '';
-          companyName = userDoc.data().companyName || '';
+          if (!userName) userName = userDoc.data().name || '';
+          companyName = userDoc.data().companyName || companyName;
         }
-      }
+      } catch(e) { console.warn('UID lookup failed:', e); }
       if (!userName && cpUser.email) {
-        const snap = await db.collection('users').where('email', '==', cpUser.email).limit(1).get();
-        if (!snap.empty) {
-          userName = snap.docs[0].data().name || '';
-          companyName = snap.docs[0].data().companyName || '';
-        }
+        try {
+          const snap = await db.collection('users').where('email', '==', cpUser.email).limit(1).get();
+          if (!snap.empty) {
+            if (!userName) userName = snap.docs[0].data().name || '';
+            if (!companyName) companyName = snap.docs[0].data().companyName || '';
+          }
+        } catch(e) { console.warn('Email lookup failed:', e); }
       }
 
       _userName = userName;

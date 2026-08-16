@@ -681,6 +681,41 @@
     s('sbStatCancelled', cancelled);
   }
 
+  // ── Auto-cancel past-due bookings ────────────────────────────────────────
+  // Runs on every snapshot. Cancels any Approved booking whose preferredDate
+  // has already passed and was never started (still Approved).
+  function _autoCancelPastDue(docs) {
+    var now = new Date();
+    var todayKey = now.getFullYear() + '-'
+      + String(now.getMonth() + 1).padStart(2, '0') + '-'
+      + String(now.getDate()).padStart(2, '0');
+
+    docs.forEach(function(r) {
+      if (r.status !== 'Approved') return;
+      if (!r.preferredDate || r.preferredDate >= todayKey) return;
+
+      // Past-due — auto-cancel
+      db.collection('service_bookings').doc(r.id).update({
+        status: 'Cancelled',
+        cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
+        cancelledBy: 'system',
+        cancellationReason: 'No-show / Service date passed',
+      }).then(function() {
+        // Notify customer
+        if (r.customerId) {
+          db.collection('notifications').add({
+            title: '❌ Booking Auto-Cancelled',
+            message: 'Your booking for ' + (r.plate || '') + ' on ' + _formatDate(r.preferredDate) + ' was automatically cancelled because the scheduled date has passed.',
+            type: 'warning',
+            targetRole: '', targetUid: r.customerId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            readBy: {}, isRead: false,
+          });
+        }
+      }).catch(function() {}); // silent — will retry on next snapshot
+    });
+  }
+
   // Real-time listener on service_bookings
   db.collection('service_bookings')
     .orderBy('createdAt', 'desc')
@@ -691,6 +726,7 @@
         data.createdAt = data.createdAt || null;
         return data;
       });
+      _autoCancelPastDue(_allDocs);
       _updateStats();
       renderRescheduleList();
     }, function() {
@@ -700,6 +736,7 @@
           data.id = d.id;
           return data;
         });
+        _autoCancelPastDue(_allDocs);
         _updateStats();
         renderRescheduleList();
       });

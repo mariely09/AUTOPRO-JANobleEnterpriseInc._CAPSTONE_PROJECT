@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,6 +6,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'alert_prefs.dart';
+import 'admin_service_bookings.dart';
+import 'admin_vehicle_maintenance.dart';
+import 'admin_receiving.dart';
+import 'admin_vehicles_list.dart';
+import 'admin_dss.dart';
+import 'admin_users.dart';
+import 'customer_mybookings.dart';
+import 'customer_dashboard.dart';
+import 'staff_service_bookings.dart';
 
 enum NotificationRole { admin, staff, customer }
 
@@ -109,7 +118,7 @@ class NotifBadge extends StatelessWidget {
 
 // ── OneSignal credentials ──
 const _kOneSignalAppId  = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
-const _kOneSignalApiKey = 'os_v7_app_yt4cvr2f1hkhvh5ldu4k637i51snjeyuythen3fd61ae1yhnprpy6kbxvn9kjd1pqdhygsqmlrouas4kfuydft32nkgj5flbra3oo5q';
+const _kOneSignalApiKey = 'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
 
 /// Sends a push notification via the OneSignal REST API.
 /// Uses `include_aliases` with `external_id` (set via OneSignal.login(uid)).
@@ -629,6 +638,56 @@ class _AppNotificationsState extends State<AppNotifications> {
         .update({'readBy.$uid': true});
   }
 
+  /// Mark as read then navigate to the relevant screen based on notification title.
+  Future<void> _markReadAndNavigate(String docId, String title, String message) async {
+    // Mark read first (fire-and-forget is fine here — UI updates immediately)
+    _markRead(docId);
+
+    final t = title.toLowerCase();
+    final m = message.toLowerCase();
+
+    Widget? screen;
+
+    if (widget.role == NotificationRole.customer) {
+      if (t.contains('booking') || t.contains('rescheduled') || m.contains('booking')) {
+        screen = const CustomerMyBookings();
+      } else if (t.contains('pms') || t.contains('service') || m.contains('pms')) {
+        screen = const CustomerDashboard();
+      }
+    } else if (widget.role == NotificationRole.staff) {
+      if (t.contains('pms') || m.contains('pms')) {
+        screen = const AdminDSS(initialTab: 1); // tab 1 = PMS scheduling
+      } else if (t.contains('booking') || m.contains('booking')) {
+        screen = const AdminServiceBookings();
+      } else if (t.contains('service') || t.contains('maintenance')) {
+        screen = const AdminVehicleMaintenance();
+      } else if (t.contains('receiving') || t.contains('delivery')) {
+        screen = const AdminReceiving();
+      }
+    } else {
+      // admin
+      if (t.contains('pms') || m.contains('pms')) {
+        screen = const AdminDSS(initialTab: 1); // tab 1 = PMS scheduling
+      } else if (t.contains('stock')) {
+        screen = const AdminDSS(initialTab: 0); // tab 0 = Stock replenishment
+      } else if (t.contains('booking') || m.contains('booking')) {
+        screen = const AdminServiceBookings();
+      } else if (t.contains('service') || t.contains('maintenance')) {
+        screen = const AdminVehicleMaintenance();
+      } else if (t.contains('receiving') || t.contains('delivery')) {
+        screen = const AdminReceiving();
+      } else if (t.contains('user') || m.contains('account')) {
+        screen = const AdminUsers();
+      } else if (t.contains('vehicle') || m.contains('plate')) {
+        screen = const AdminVehiclesList();
+      }
+    }
+
+    if (screen != null && mounted) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => screen!));
+    }
+  }
+
   Future<void> _markAllRead(List<QueryDocumentSnapshot> docs) async {
     final uid = _uid;
     if (uid == null) return;
@@ -942,7 +1001,7 @@ class _AppNotificationsState extends State<AppNotifications> {
                                 if (_isSelecting) {
                                   _toggleSelect(doc.id);
                                 } else {
-                                  _markRead(doc.id);
+                                  _markReadAndNavigate(doc.id, title, message);
                                 }
                               },
                               onLongPress: () => _toggleSelect(doc.id),

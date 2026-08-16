@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -312,7 +312,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     // 2. OneSignal push notification
     const oneSignalAppId = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
     const oneSignalApiKey =
-        'os_v7_app_yt4cvr2f1hkhvh5ldu4k637i51snjeyuythen3fd61ae1yhnprpy6kbxvn9kjd1pqdhygsqmlrouas4kfuydft32nkgj5flbra3oo5q';
+        'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
     try {
       await http.post(
         Uri.parse('https://onesignal.com/api/v1/notifications'),

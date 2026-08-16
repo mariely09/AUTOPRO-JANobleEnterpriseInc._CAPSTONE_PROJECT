@@ -58,20 +58,24 @@
     _userName = cpUser.name || '';
     let _companyName = cpUser.companyName || '';
 
-    if (!_userName) {
-      // Fetch from Firestore (authenticated)
+    // Always fetch from Firestore to ensure companyName is resolved
+    // (Google sign-in sessions may have name but not companyName)
+    try {
       const userDoc = await db.collection('users').doc(user.uid).get();
       if (userDoc.exists) {
-        _userName = userDoc.data().name || '';
-        _companyName = userDoc.data().companyName || '';
+        if (!_userName) _userName = userDoc.data().name || '';
+        _companyName = userDoc.data().companyName || _companyName;
       }
-    }
+    } catch(e) { console.warn('Firestore UID lookup failed:', e); }
+
     if (!_userName && cpUser.email) {
-      const snap = await db.collection('users').where('email', '==', cpUser.email).limit(1).get();
-      if (!snap.empty) {
-        _userName = snap.docs[0].data().name || '';
-        _companyName = snap.docs[0].data().companyName || '';
-      }
+      try {
+        const snap = await db.collection('users').where('email', '==', cpUser.email).limit(1).get();
+        if (!snap.empty) {
+          if (!_userName) _userName = snap.docs[0].data().name || '';
+          if (!_companyName) _companyName = snap.docs[0].data().companyName || '';
+        }
+      } catch(e) { console.warn('Firestore email lookup failed:', e); }
     }
 
     // Store companyName so vehicle filter can use it

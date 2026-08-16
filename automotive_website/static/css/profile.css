@@ -172,7 +172,7 @@ body, body.portal-body {
     overflow: hidden;
 }
 .profile-hero-banner {
-    background: linear-gradient(135deg, #E8001C 0%, #C41E3A 100%);
+    background: linear-gradient(135deg, #1a202c 0%, #2d3748 60%, #E8001C 100%);
     padding: 2rem 1.5rem 2.5rem;
 }
 .profile-avatar-lg {

@@ -15,7 +15,7 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
   static const _red  = Color(0xFFE8001C);
   static const _blue = Color(0xFF003087);
 
-  String _statusFilter = 'all'; // 'all', 'Pending', 'Approved', 'Rescheduled', 'Cancelled'
+  String _statusFilter = 'Approved'; // default: show Approved; tap chip to filter by Rescheduled/Cancelled, tap again to reset
 
   static const _months = [
     'January','February','March','April','May','June',
@@ -44,7 +44,7 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
     final isActive = _statusFilter == filter;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _statusFilter = _statusFilter == filter ? 'all' : filter),
+        onTap: () => setState(() => _statusFilter = _statusFilter == filter ? 'Approved' : filter),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
           decoration: BoxDecoration(
@@ -284,11 +284,13 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
                 const SizedBox(height: 18),
 
                 // Reason label
-                const Text('Reason for cancellation',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
-                const SizedBox(height: 4),
-                const Text('Optional — helps us improve our service.',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                RichText(text: const TextSpan(
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1a202c)),
+                  children: [
+                    TextSpan(text: 'Reason for cancellation'),
+                    TextSpan(text: ' *', style: TextStyle(color: Color(0xFFE8001C))),
+                  ],
+                )),
                 const SizedBox(height: 10),
 
                 // Dropdown
@@ -339,6 +341,17 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
                   const SizedBox(width: 12),
                   Expanded(child: ElevatedButton(
                     onPressed: () {
+                      if (reason == null || reason!.isEmpty) {
+                        setSheet(() {}); // trigger rebuild to show error
+                        ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please select a reason for cancellation.'),
+                            backgroundColor: Colors.redAccent,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        return;
+                      }
                       confirmed = true;
                       Navigator.pop(sheetCtx);
                     },
@@ -494,6 +507,14 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
                     _divider(),
                     _detailRow(Icons.info_outline, 'Status',
                         ss.label, ss.color),
+                    // Show cancellation reason if cancelled
+                    if ((status == 'cancelled' || status == 'rejected') &&
+                        (data['cancellationReason'] as String? ?? '').trim().isNotEmpty) ...[
+                      _divider(),
+                      _detailRow(Icons.cancel_outlined, 'Cancellation Reason',
+                          (data['cancellationReason'] as String).trim(),
+                          const Color(0xFFE8001C)),
+                    ],
                     if (notes.isNotEmpty) ...[
                       _divider(),
                       _detailRow(Icons.notes_outlined, 'Notes',
@@ -690,9 +711,8 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
             }
           }
 
-          // Apply status filter
+          // Apply status filter — Approved is the default view
           final filteredDocs = docs.where((doc) {
-            if (_statusFilter == 'all') return true;
             final d = doc.data() as Map<String, dynamic>;
             final status = (d['status'] as String? ?? '').toLowerCase();
             final prevDate = d['previousDate'] as String? ?? '';
@@ -702,7 +722,7 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
               case 'Approved':    return status == 'approved' && !isResched;
               case 'Rescheduled': return status == 'approved' && isResched;
               case 'Cancelled':   return status == 'cancelled' || status == 'rejected';
-              default:            return true;
+              default:            return status == 'approved' && !isResched; // fallback to Approved
             }
           }).toList();
 
@@ -721,7 +741,7 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
               Expanded(
                 child: Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.build_circle_outlined, size: 52, color: Colors.grey.shade300),
+                    Icon(Icons.calendar_month_outlined, size: 52, color: Colors.grey.shade300),
                     const SizedBox(height: 12),
                     const Text('No bookings yet.', style: TextStyle(fontSize: 14, color: Color(0xFF718096))),
                     const SizedBox(height: 4),
@@ -749,9 +769,13 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
               child: filteredDocs.isEmpty
                   ? Center(
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.build_circle_outlined, size: 44, color: Colors.grey.shade300),
+                        Icon(Icons.calendar_month_outlined, size: 44, color: Colors.grey.shade300),
                         const SizedBox(height: 10),
-                        Text('No $_statusFilter bookings.', style: const TextStyle(fontSize: 13, color: Color(0xFF718096))),
+                        Text(
+                          _statusFilter == 'Approved' ? 'No approved bookings.'
+                          : _statusFilter == 'Rescheduled' ? 'No rescheduled bookings.'
+                          : 'No cancelled bookings.',
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF718096))),
                       ]),
                     )
                   : ListView.separated(

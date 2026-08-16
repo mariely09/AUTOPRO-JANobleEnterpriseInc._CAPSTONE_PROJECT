@@ -201,12 +201,61 @@
 
     window._cuMarkRead = function (docId, idx) {
         if (!_cuUid || !docId) return;
-        firebase.firestore().collection('notifications').doc(docId)
+
+        var n = _cuNotifs[idx] || {};
+        var title = (n.title || '').toLowerCase();
+        var msg   = (n.message || '').toLowerCase();
+        var role  = window._notifRole
+                 || (sessionStorage.getItem('apUser') ? 'admin'
+                   : sessionStorage.getItem('spUser') ? 'staff' : 'customer');
+
+        // Determine redirect URL
+        var url = null;
+        if (role === 'admin') {
+            if (title.includes('pms') || msg.includes('pms'))
+                url = 'admin_dss.html#dss-pms';
+            else if (title.includes('stock') || msg.includes('stock'))
+                url = 'admin_dss.html';
+            else if (title.includes('booking') || msg.includes('booking'))
+                url = 'admin_service_bookings.html';
+            else if (title.includes('service') || title.includes('maintenance'))
+                url = 'admin_vehicle_maintenance.html';
+            else if (title.includes('receiving') || title.includes('delivery'))
+                url = 'admin_receiving.html';
+            else if (title.includes('vehicle') || msg.includes('plate'))
+                url = 'admin_vehicle_list.html';
+        } else if (role === 'staff') {
+            if (title.includes('pms') || msg.includes('pms'))
+                url = 'admin_dss.html#dss-pms';
+            else if (title.includes('booking') || msg.includes('booking'))
+                url = 'admin_service_bookings.html';
+            else if (title.includes('service') || title.includes('maintenance'))
+                url = 'admin_vehicle_maintenance.html';
+            else if (title.includes('receiving') || title.includes('delivery'))
+                url = 'admin_receiving.html';
+        } else {
+            if (title.includes('booking') || title.includes('rescheduled') || msg.includes('booking'))
+                url = 'customer_my_bookings.html';
+            else if (title.includes('pms') || title.includes('service') || msg.includes('pms'))
+                url = 'customer_dashboard.html';
+        }
+
+        // Close the panel
+        var panel = document.getElementById('cuNotifPanel');
+        if (panel) panel.style.display = 'none';
+
+        // Mark as read in Firestore, then navigate
+        var _a;
+        var markRead = firebase.firestore().collection('notifications').doc(docId)
             .update((_a = {}, _a['readBy.' + _cuUid] = true, _a))
             .catch(function () {});
+
         if (_cuNotifs[idx]) _cuNotifs[idx].read = true;
         _renderNotifPanel();
-        var _a;
+
+        if (url) {
+            markRead.then(function() { window.location.href = url; });
+        }
     };
 
     window._cuDeleteNotif = function (docId) {

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -37,9 +37,8 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
   bool _lowStock = true;
 
   // ── Booking alert preferences ──────────────────────────────
-  bool _bookingConfirmed    = true;  // customer
   bool _bookingReminder     = true;  // customer
-  bool _bookingStatusChange = true;  // customer
+  bool _vehicleUnderMaint   = true;  // customer — notifies when vehicle goes Under Maintenance
   bool _newBookingRequest   = true;  // staff & admin
   bool _bookingCancellation = true;  // staff & admin
 
@@ -73,9 +72,8 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
       // Inventory
       _lowStock       = data['lowStock']       as bool? ?? true;
       // Booking
-      _bookingConfirmed    = data['bookingConfirmed']    as bool? ?? true;
       _bookingReminder     = data['bookingReminder']     as bool? ?? true;
-      _bookingStatusChange = data['bookingStatusChange'] as bool? ?? true;
+      _vehicleUnderMaint   = data['vehicleUnderMaint']   as bool? ?? true;
       _newBookingRequest   = data['newBookingRequest']   as bool? ?? true;
       _bookingCancellation = data['bookingCancellation'] as bool? ?? true;
       _loading = false;
@@ -106,9 +104,8 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
         // Inventory — admin only
         if (isAdmin) 'lowStock': _lowStock,
         // Booking — customer
-        if (isCustomer) 'bookingConfirmed':    _bookingConfirmed,
         if (isCustomer) 'bookingReminder':     _bookingReminder,
-        if (isCustomer) 'bookingStatusChange': _bookingStatusChange,
+        if (isCustomer) 'vehicleUnderMaint':   _vehicleUnderMaint,
         // Booking — staff & admin
         if (isStaffOrAdmin) 'newBookingRequest':   _newBookingRequest,
         if (isStaffOrAdmin) 'bookingCancellation': _bookingCancellation,
@@ -127,7 +124,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
             SizedBox(width: 8),
             Text('Alert preferences saved!'),
           ]),
-          backgroundColor: Colors.green,
+          backgroundColor: _red,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ));
@@ -190,7 +187,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                   ),
                   _channelTile(
                     icon: Icons.email_outlined,
-                    color: _blue,
+                    color: _red,
                     title: 'Email Notifications',
                     sub: 'Send alerts to your registered email address',
                     value: _emailEnabled,
@@ -206,7 +203,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                 _alertCard([
                   _alertTile(
                     icon: Icons.error_outline,
-                    color: Colors.red,
+                    color: _red,
                     title: 'PMS Overdue',
                     sub: 'Notify when a vehicle is overdue for maintenance',
                     value: _pmsOverdue,
@@ -222,7 +219,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                   ),
                   _alertTile(
                     icon: Icons.calendar_today_outlined,
-                    color: Colors.orange,
+                    color: _red,
                     title: 'PMS Due This Week',
                     sub: 'Notify when PMS is due within 7 days',
                     value: _pmsDueThisWeek,
@@ -230,7 +227,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                   ),
                   _alertTile(
                     icon: Icons.schedule_outlined,
-                    color: Colors.amber.shade700,
+                    color: _red,
                     title: 'PMS Due Soon',
                     sub: 'Notify when PMS is due within 14 days',
                     value: _pmsDueSoon,
@@ -247,7 +244,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                   _alertCard([
                     _alertTile(
                       icon: Icons.build_outlined,
-                      color: Colors.green,
+                      color: _red,
                       title: 'Service Updates',
                       sub: 'Notify on service status changes',
                       value: _serviceUpdate,
@@ -255,7 +252,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                     ),
                     _alertTile(
                       icon: Icons.assignment_outlined,
-                      color: _blue,
+                      color: _red,
                       title: 'New Assignment',
                       sub: 'Notify when a service is assigned to you',
                       value: _newAssignment,
@@ -273,7 +270,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                   _alertCard([
                     _alertTile(
                       icon: Icons.inventory_2_outlined,
-                      color: Colors.orange,
+                      color: _red,
                       title: 'Low Stock',
                       sub: 'Notify when stock falls below minimum level',
                       value: _lowStock,
@@ -290,28 +287,20 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                 if (isCustomer)
                   _alertCard([
                     _alertTile(
-                      icon: Icons.check_circle_outline,
-                      color: Colors.green,
-                      title: 'Booking Confirmed',
-                      sub: 'Notify when your service booking is confirmed',
-                      value: _bookingConfirmed,
-                      onChanged: (v) => setState(() => _bookingConfirmed = v),
-                    ),
-                    _alertTile(
                       icon: Icons.notifications_outlined,
-                      color: Colors.amber.shade700,
+                      color: _red,
                       title: 'Booking Reminder',
                       sub: 'Remind you a day before your scheduled service',
                       value: _bookingReminder,
                       onChanged: (v) => setState(() => _bookingReminder = v),
                     ),
                     _alertTile(
-                      icon: Icons.update_outlined,
-                      color: _blue,
-                      title: 'Booking Status Change',
-                      sub: 'Notify on any update to your booking status',
-                      value: _bookingStatusChange,
-                      onChanged: (v) => setState(() => _bookingStatusChange = v),
+                      icon: Icons.build_circle_outlined,
+                      color: _red,
+                      title: 'Booking Status Update',
+                      sub: 'Notify when your vehicle service status changes (Under Maintenance, Completed)',
+                      value: _vehicleUnderMaint,
+                      onChanged: (v) => setState(() => _vehicleUnderMaint = v),
                       isLast: true,
                     ),
                   ]),
@@ -319,7 +308,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                   _alertCard([
                     _alertTile(
                       icon: Icons.event_available_outlined,
-                      color: _blue,
+                      color: _red,
                       title: 'New Booking Request',
                       sub: 'Notify when a new service booking is submitted',
                       value: _newBookingRequest,
@@ -327,7 +316,7 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
                     ),
                     _alertTile(
                       icon: Icons.event_busy_outlined,
-                      color: Colors.red,
+                      color: _red,
                       title: 'Booking Cancellation',
                       sub: 'Notify when a customer cancels their booking',
                       value: _bookingCancellation,

@@ -2,12 +2,33 @@
 
 body {
   font-family: 'Segoe UI', sans-serif;
-  background: #f0f2f5;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
+  background-color: #1a202c;
+  position: relative;
+  isolation: isolate;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url("../img/CALTEX_BACKGROUND.jpg");
+  background-size: cover;
+  background-position: center;
+  opacity: 0.32;
+  z-index: -2;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(26,32,44,0.78) 0%, rgba(45,55,72,0.68) 60%, rgba(232,0,28,0.68) 100%);
+  z-index: -1;
 }
 
 /* ── Card ── */
@@ -199,7 +220,6 @@ label {
 @media (max-width: 640px) {
   body {
     padding: 0;
-    background: #fff;
     align-items: flex-start;
   }
   .card {

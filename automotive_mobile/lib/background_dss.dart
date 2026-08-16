@@ -1,4 +1,4 @@
-/// background_dss.dart
+﻿/// background_dss.dart
 ///
 /// Runs entirely in a background isolate (via workmanager).
 /// NO Flutter widgets, NO BuildContext — only Dart + Firebase + HTTP.
@@ -18,7 +18,7 @@ import 'firebase_options.dart';
 // ── OneSignal credentials ──
 const _kOneSignalAppId  = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
 const _kOneSignalApiKey =
-    'os_v7_app_yt4cvr2f1hkhvh5ldu4k637i51snjeyuythen3fd61ae1yhnprpy6kbxvn9kjd1pqdhygsqmlrouas4kfuydft32nkgj5flbra3oo5q';
+    'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
 
 // ── Flask server base URL (email relay) ───────────────────────────────────
 // Override with FLASK_BASE_URL env if needed; default matches local dev + prod.

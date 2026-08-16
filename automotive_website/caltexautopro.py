@@ -85,6 +85,12 @@ SMTP_USER     = 'caltexautopro2026@gmail.com'
 SMTP_PASSWORD = os.environ.get('SMTP_APP_PASSWORD', 'kvvp uflz pbdc rcyv')
 SMTP_FROM     = 'JA Noble Enterprise Inc <caltexautopro2026@gmail.com>'
 
+@app.route('/health', methods=['GET'])
+def health():
+    """Liveness ping — used by mobile app to warm up Render cold starts."""
+    return jsonify({'ok': True, 'status': 'healthy'}), 200
+
+
 @app.route('/api/send-google-otp', methods=['POST'])
 def send_google_otp():
     """Send a Google Sign-In OTP email via EmailJS (same template as mobile app)."""
@@ -1582,10 +1588,6 @@ def send_reschedule_email():
 def _offline_response():
     return jsonify({'success': False,
                     'error': 'AI service offline. Start it with ai_assistant\\start.bat'}), 503
-
-
-
-        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/setup_notifications.html')
