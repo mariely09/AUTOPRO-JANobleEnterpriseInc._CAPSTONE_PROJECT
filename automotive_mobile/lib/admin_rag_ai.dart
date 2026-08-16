@@ -309,9 +309,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           .timeout(const Duration(seconds: 120));
 
       if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body) as Map<String, dynamic>;
-        final reply = (data['reply'] as String? ?? '').trim();
-        final answer = reply.isNotEmpty ? reply : 'No response generated.';
+        final data   = jsonDecode(resp.body) as Map<String, dynamic>;
+        final rawReply  = (data['reply'] as String? ?? '').trim();
 
         // Persist session_id for continuity across turns
         if (data['session_id'] != null) {
@@ -340,6 +339,96 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           return;
         }
 
+        // ── Parse report_payload block from the raw reply ──────────────────
+        // The FastAPI backend embeds a ```report_payload {...} ``` block when
+        // it detects a report request. We parse it here (mirroring Flask proxy
+        // logic) so we can show a proper download button instead of raw JSON.
+        final rpMatch = RegExp(
+          r'```report_payload\s*\n(.*?)\n```',
+          dotAll: true,
+        ).firstMatch(rawReply);
+
+        if (rpMatch != null) {
+          try {
+            final rpJson = jsonDecode(rpMatch.group(1)!.trim()) as Map<String, dynamic>;
+            if (rpJson['report_type'] != null) {
+              // Strip the JSON block from the visible reply text
+              final cleanReply = rawReply
+                  .replaceAll(RegExp(r'\n?```report_payload\s*\n.*?\n```', dotAll: true), '')
+                  .trim();
+
+              final rawFilters = Map<String, dynamic>.from(
+                  (rpJson['filters'] as Map<String, dynamic>?) ?? {});
+              final reportMonth     = rawFilters.remove('month') as String?;
+              final reportStartDate = rawFilters.remove('start_date') as String?;
+              final reportEndDate   = rawFilters.remove('end_date') as String?;
+              final reportType      = rpJson['report_type'] as String;
+              final rawFmt          = ((rpJson['format'] as String?) ?? 'pdf')
+                  .toLowerCase()
+                  .replaceAll('xlsx', 'excel');
+
+              // ── Future-date guard ────────────────────────────────────────
+              bool isFuture = false;
+              if (reportMonth != null) {
+                final mMatch = RegExp(r'([A-Za-z]+)\s+(\d{4})').firstMatch(reportMonth);
+                if (mMatch != null) {
+                  const monthNames = [
+                    'january','february','march','april','may','june',
+                    'july','august','september','october','november','december',
+                  ];
+                  final mIdx = monthNames.indexOf(mMatch.group(1)!.toLowerCase());
+                  final yr   = int.tryParse(mMatch.group(2)!) ?? 0;
+                  final now  = DateTime.now();
+                  if (mIdx >= 0) {
+                    final mo = mIdx + 1;
+                    isFuture = yr > now.year || (yr == now.year && mo > now.month);
+                  }
+                }
+              }
+
+              if (isFuture) {
+                final label = reportMonth ?? 'the requested period';
+                setState(() {
+                  _loading = false;
+                  _messages.add(_ChatMessage(
+                    role: 'ai',
+                    text: 'No records found for **$label** — that date range is in the future. '
+                        'Reports can only be generated for dates with existing historical data.',
+                  ));
+                });
+                _scrollToBottom();
+                return;
+              }
+
+              final displayReply = cleanReply.isNotEmpty
+                  ? cleanReply
+                  : 'Your ${_kReportTypes[reportType] ?? reportType} is ready.';
+
+              setState(() {
+                _loading = false;
+                _messages.add(_ChatMessage(
+                  role: 'ai',
+                  text: displayReply,
+                  reportReady: true,
+                  reportType: reportType,
+                  reportFormat: rawFmt,
+                  reportMonth: reportMonth,
+                  reportStartDate: reportStartDate,
+                  reportEndDate: reportEndDate,
+                  reportFilters: rawFilters,
+                  reportLabel: _kReportTypes[reportType] ?? reportType,
+                ));
+              });
+              _scrollToBottom();
+              return;
+            }
+          } catch (_) {
+            // JSON parse failed — fall through to normal reply rendering
+          }
+        }
+
+        // ── Normal reply (no report_payload) ───────────────────────────────
+        final answer = rawReply.isNotEmpty ? rawReply : 'No response generated.';
         setState(() {
           _loading = false;
           _messages.add(_ChatMessage(role: 'ai', text: answer));
@@ -400,6 +489,63 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     } catch (_) {
       return body.length > 120 ? '${body.substring(0, 120)}…' : body;
     }
+  }
+
+  // ── Report-ready download buttons ─────────────────────────────────────────
+  // Renders PDF / Excel / both buttons based on the format in the message.
+  // Tapping a button calls _downloadReport which streams the file and updates
+  // the message in-place with Open + Share actions.
+
+  Widget _buildReportDownloadButtons(_ChatMessage msg) {
+    final fmt        = (msg.reportFormat ?? 'pdf').toLowerCase();
+    final label      = msg.reportLabel ?? (msg.reportType ?? 'Report');
+    final monthLabel = msg.reportMonth != null ? ' (${msg.reportMonth})' : '';
+
+    Widget _dlBtn(String format, bool primary) {
+      final fmtLabel = format.toUpperCase();
+      return GestureDetector(
+        onTap: () => _downloadReport(
+          msg.reportType!,
+          format,
+          month: msg.reportMonth,
+          startDate: msg.reportStartDate,
+          endDate: msg.reportEndDate,
+          msgRef: msg,
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: primary ? _red : const Color(0xFFF7F8FA),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: primary ? _red : const Color(0xFFe2e8f0),
+              width: primary ? 0 : 1.5,
+            ),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(
+              format == 'pdf' ? Icons.picture_as_pdf_outlined : Icons.table_chart_outlined,
+              color: primary ? Colors.white : const Color(0xFF4a5568),
+              size: 13,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              '↓ Download $fmtLabel$monthLabel',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: primary ? Colors.white : const Color(0xFF4a5568),
+              ),
+            ),
+          ]),
+        ),
+      );
+    }
+
+    return Wrap(spacing: 8, runSpacing: 6, children: [
+      if (fmt == 'pdf' || fmt == 'both') _dlBtn('pdf', true),
+      if (fmt == 'excel' || fmt == 'both') _dlBtn('excel', fmt != 'both'),
+    ]);
   }
 
   // ── Report generation ──────────────────────────────────────────────────────
@@ -650,32 +796,54 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     String reportType,
     String format, {
     String? month,
+    String? startDate,
+    String? endDate,
+    _ChatMessage? msgRef,
   }) async {
-    final typeName = _kReportTypes[reportType] ?? reportType;
-    final fmtLabel = format.toUpperCase();
+    final typeName   = _kReportTypes[reportType] ?? reportType;
+    final fmtLabel   = format.toUpperCase();
     final monthLabel = month != null ? ' ($month)' : '';
 
-    // Show progress in chat
+    // If triggered from an inline report-ready button (msgRef != null), replace
+    // that message with a "Generating…" placeholder so the user sees progress.
+    // Otherwise (bottom-sheet flow) append a new placeholder.
+    // We compute the target index BEFORE setState so we can use it in async callbacks.
+    final int targetIdx;
+    if (msgRef != null) {
+      final idx = _messages.indexOf(msgRef);
+      targetIdx = idx >= 0 ? idx : _messages.length; // will append if -1
+    } else {
+      targetIdx = _messages.length; // will append
+    }
+
     setState(() {
-      _messages.add(
-        _ChatMessage(
-          role: 'ai',
-          text: 'Generating $typeName$monthLabel ($fmtLabel)…',
-        ),
-      );
       _loading = true;
+      final placeholder = _ChatMessage(
+        role: 'ai',
+        text: 'Generating $typeName$monthLabel ($fmtLabel)…',
+      );
+      if (targetIdx < _messages.length) {
+        _messages[targetIdx] = placeholder;
+      } else {
+        _messages.add(placeholder);
+      }
     });
     _scrollToBottom();
 
     try {
-      // Build URL — append month param when provided
-      final uri = Uri.parse(
-        '$_kAiBaseUrl/admin/report'
-        '?report_type=$reportType'
-        '&format=$format'
-        '${month != null ? '&month=${Uri.encodeComponent(month)}' : ''}',
-      );
+      // Build URL with all available date filters
+      final queryParams = StringBuffer()
+        ..write('?report_type=$reportType')
+        ..write('&format=$format');
+      if (month != null) queryParams.write('&month=${Uri.encodeComponent(month)}');
+      if (startDate != null) {
+        queryParams.write('&start_date=${Uri.encodeComponent(startDate)}');
+      }
+      if (endDate != null) {
+        queryParams.write('&end_date=${Uri.encodeComponent(endDate)}');
+      }
 
+      final uri = Uri.parse('$_kAiBaseUrl/admin/report$queryParams');
       final resp = await http
           .post(uri, headers: {'Content-Type': 'application/json'})
           .timeout(const Duration(seconds: 120));
@@ -687,42 +855,59 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             '${month != null ? '_${month.replaceAll(' ', '_')}' : ''}'
             '_report.$ext';
 
-        // Save to temp dir and open with system viewer
-        final dir = await getTemporaryDirectory();
+        final dir  = await getTemporaryDirectory();
         final file = File('${dir.path}/$safeName');
         await file.writeAsBytes(resp.bodyBytes);
 
         setState(() {
           _loading = false;
-          _messages.removeLast(); // remove the "Generating…" message
-          _messages.add(
-            _ChatMessage(
-              role: 'ai',
-              text: '$typeName$monthLabel downloaded successfully.',
-              reportFile: file,
-              reportFormat: format,
-              reportLabel: typeName,
-            ),
+          final idx = targetIdx >= 0 && targetIdx < _messages.length
+              ? targetIdx
+              : _messages.length - 1;
+          _messages[idx] = _ChatMessage(
+            role: 'ai',
+            text: '$typeName$monthLabel downloaded successfully.',
+            reportFile: file,
+            reportFormat: format,
+            reportLabel: typeName,
           );
         });
         _scrollToBottom();
-
-        // Auto-open the file
         await OpenFile.open(file.path);
       } else {
-        throw Exception(
-          'Server error ${resp.statusCode}: ${_parseError(resp.body)}',
-        );
+        // Distinguish "no records found" (400) from other errors so we show
+        // a clean informational message without a download button.
+        final errMsg      = _parseError(resp.body);
+        final isNoRecords = resp.statusCode == 400 &&
+            (errMsg.toLowerCase().contains('no record') ||
+             errMsg.toLowerCase().contains('no data') ||
+             errMsg.toLowerCase().contains('not found'));
+
+        setState(() {
+          _loading = false;
+          final idx = targetIdx >= 0 && targetIdx < _messages.length
+              ? targetIdx
+              : _messages.length - 1;
+          _messages[idx] = _ChatMessage(
+            role: 'ai',
+            text: isNoRecords
+                ? 'No records found for $typeName$monthLabel. '
+                  'The report cannot be generated because no matching data exists for this period.'
+                : 'Failed to generate $typeName$monthLabel '
+                  '(${resp.statusCode}): $errMsg',
+          );
+        });
+        _scrollToBottom();
       }
     } catch (e) {
       setState(() {
         _loading = false;
-        _messages.removeLast();
-        _messages.add(
-          _ChatMessage(
-            role: 'ai',
-            text: 'Failed to generate $typeName$monthLabel: $e',
-          ),
+        final idx = targetIdx >= 0 && targetIdx < _messages.length
+            ? targetIdx
+            : _messages.length - 1;
+        _messages[idx] = _ChatMessage(
+          role: 'ai',
+          text: 'Failed to generate $typeName$monthLabel: $e',
         );
       });
       _scrollToBottom();
@@ -1306,78 +1491,50 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     // ── Normal AI bubble ─────────────────────────────────────
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          _aiAvatar(),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.76,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-              decoration: _aiBubbleDecoration(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SelectableText(
-                    msg.text ?? '',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF1a202c),
-                      height: 1.6,
-                    ),
-                  ),
-                  if (msg.reportFile != null) ...[
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        _actionBtn(
-                          Icons.folder_open_outlined,
-                          'Open',
-                          const Color(0xFFE8001C),
-                          () async {
-                            await OpenFile.open(msg.reportFile!.path);
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        _actionBtn(
-                          Icons.share_outlined,
-                          'Share',
-                          const Color(0xFF003087),
-                          () async {
-                            await Printing.sharePdf(
-                              bytes: await msg.reportFile!.readAsBytes(),
-                              filename: msg.reportFile!.path.split('/').last,
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (msg.reportFile == null &&
-                      (msg.text ?? '').length > 80) ...[
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        for (final entry in _kReportTypes.entries)
-                          _tinyChip(
-                            '${entry.value.replaceAll(' Report', '')} PDF',
-                            () =>
-                                _downloadReport(entry.key, 'pdf', month: null),
-                          ),
-                      ],
-                    ),
-                  ],
+      child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        _aiAvatar(),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Container(
+            constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.76),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 13, vertical: 10),
+            decoration: _aiBubbleDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SelectableText(
+                  msg.text ?? '',
+                  style: const TextStyle(
+                      fontSize: 13, color: Color(0xFF1a202c), height: 1.6),
+                ),
+                // ── Downloaded report: Open + Share buttons ──────────────
+                if (msg.reportFile != null) ...[
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    _actionBtn(Icons.folder_open_outlined, 'Open', const Color(0xFFE8001C), () async {
+                      await OpenFile.open(msg.reportFile!.path);
+                    }),
+                    const SizedBox(width: 8),
+                    _actionBtn(Icons.share_outlined, 'Share', const Color(0xFF003087), () async {
+                      await Printing.sharePdf(
+                        bytes: await msg.reportFile!.readAsBytes(),
+                        filename: msg.reportFile!.path.split('/').last,
+                      );
+                    }),
+                  ]),
                 ],
-              ),
+                // ── Report-ready from AI: Download PDF / Excel buttons ───
+                if (msg.reportReady && msg.reportType != null) ...[
+                  const SizedBox(height: 10),
+                  _buildReportDownloadButtons(msg),
+                ],
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 
@@ -1467,27 +1624,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     );
   }
 
-  Widget _tinyChip(String label, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF7F8FA),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFe2e8f0)),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 10,
-            color: Color(0xFF4a5568),
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 // ── Focused input bar — matches admin/website wrapped input style ─────────────
@@ -1690,6 +1826,14 @@ class _ChatMessage {
   final String? reportLabel;
   final bool isRateLimit;
 
+  // Fields for AI-detected report-ready messages (from report_payload parsing)
+  final bool reportReady;
+  final String? reportType;
+  final String? reportMonth;
+  final String? reportStartDate;
+  final String? reportEndDate;
+  final Map<String, dynamic>? reportFilters;
+
   _ChatMessage({
     required this.role,
     this.text,
@@ -1697,5 +1841,11 @@ class _ChatMessage {
     this.reportFormat,
     this.reportLabel,
     this.isRateLimit = false,
+    this.reportReady = false,
+    this.reportType,
+    this.reportMonth,
+    this.reportStartDate,
+    this.reportEndDate,
+    this.reportFilters,
   });
 }

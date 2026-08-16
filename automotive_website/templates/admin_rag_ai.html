@@ -498,8 +498,18 @@ window.ragAiSend = function(preset) {
       btnHtml += '<div id="' + errId + '" style="font-size:11px;margin-top:4px;"></div>';
       _ragAppend('ai', answer + btnHtml);
     } else if (data.answer) {
+      // Strip any leaked report_payload JSON block the LLM may have included
+      // without the fenced-block wrapper (defensive sanitisation).
+      var cleanAnswer = data.answer
+        .replace(/```report_payload[\s\S]*?```/g, '')
+        .replace(/\{[\s\S]*?"report_type"[\s\S]*?\}/g, '')
+        .trim();
+      if (!cleanAnswer) {
+        // Entire reply was just the JSON blob — replace with a friendly message
+        cleanAnswer = "I've prepared your report. Please start the AI backend to generate and download it.";
+      }
       // Render the AI answer with lightweight markdown formatting
-      _ragAppend('ai', _ragMarkdown(data.answer));
+      _ragAppend('ai', _ragMarkdown(cleanAnswer));
     } else {
       // AI returned success but no answer — use local fallback
       var result = _ragProcess(text);
@@ -728,6 +738,23 @@ function _ragProcess(query) {
   function tbl(h,r){if(!r.length)return '<em style="color:#718096;font-size:11px;">No records found.</em>';return '<table><thead><tr>'+h.map(function(x){return '<th>'+_ragEsc(x)+'</th>';}).join('')+'</tr></thead><tbody>'+r.map(function(row){return '<tr>'+row.map(function(c){return '<td>'+c+'</td>';}).join('')+'</tr>';}).join('')+'</tbody></table>';}
   function ret(html){return {html:html};}
 
+  // ── Report intent — requires live AI backend, not available in local mode ──
+  var isReportRequest = /\b(generate|create|make|export|download|print)\b.*\b(report|pdf|excel)\b|\b(pdf|excel)\s+report\b|\breport\s+(pdf|excel)\b/i.test(q);
+  if (isReportRequest) {
+    return ret('Report generation requires the AI backend to be online. The AI service is currently unreachable — please try again in a moment, or start the backend manually.');
+  }
+
+  // ── Out-of-scope / general knowledge ─────────────────────────────────────
+  var outOfScope = ['capital of','weather','news','who won','world cup','sport','movie','music','recipe','translate','currency','bitcoin','crypto','stock market','population','who is','what country'];
+  if (outOfScope.some(function(k){return q.includes(k);})) {
+    return ret('I can only answer questions related to the Automotive Service and Inventory Management System.');
+  }
+
+  // ── Symbols / garbage only ────────────────────────────────────────────────
+  var meaningful = (query.match(/[a-zA-Z0-9]/g)||[]).length;
+  if (meaningful < 2) {
+    return ret("I didn't quite catch that. Could you rephrase your question about the fleet, inventory, or services?");
+  }
   // Fleet summary
   if(q.includes('fleet summary')||q.includes('summary')||q.includes('overview')){
     var tot=assets.length,ov=assets.filter(isOverdue).length,mt=assets.filter(isMaint).length,ds=assets.filter(isDueSoon).length,ac=assets.filter(isActive).length,ls=inventory.filter(isLowStock).length;

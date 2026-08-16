@@ -1,1 +1,6 @@
 caltex-autopro-1e664-firebase-adminsdk-fbsvc-07b4fc625e.json
+.env
+*.env
+venv/
+__pycache__/
+*.pyc
