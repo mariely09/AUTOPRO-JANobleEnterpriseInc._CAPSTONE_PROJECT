@@ -329,13 +329,12 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   // offline banner so the user can manually retry.
 
   Future<void> _checkBackend({bool silent = false}) async {
-    // Only reset to offline if the caller explicitly requests it (manual retry)
     if (!silent && mounted) setState(() => _backendOnline = false);
     for (int attempt = 1; attempt <= 3; attempt++) {
       try {
         final r = await http
             .get(Uri.parse('$_kAiBaseUrl/health'))
-            .timeout(const Duration(seconds: 20));
+            .timeout(const Duration(seconds: 60)); // 60s covers Render cold-start (~30–50s)
         if (r.statusCode == 200) {
           if (mounted) setState(() => _backendOnline = true);
           return;
@@ -345,8 +344,15 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         if (attempt < 3) await Future.delayed(const Duration(seconds: 5));
       }
     }
-    // All attempts failed — only mark offline if this was a manual (non-silent) retry
-    if (!silent && mounted) setState(() => _backendOnline = false);
+    // All attempts failed — if silent (startup), schedule a delayed re-check
+    // so the dot corrects itself once Render finishes waking up
+    if (silent) {
+      Future.delayed(const Duration(seconds: 60), () {
+        if (mounted) _checkBackend(silent: false);
+      });
+    } else {
+      if (mounted) setState(() => _backendOnline = false);
+    }
   }
 
   // ── History drawer ─────────────────────────────────────────────────────────

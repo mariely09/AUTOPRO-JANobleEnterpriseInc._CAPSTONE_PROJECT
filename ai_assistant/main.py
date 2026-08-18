@@ -828,10 +828,10 @@ def _customer_direct_lookup(message: str, customer_uid: str,
 
     # ── My vehicles ───────────────────────────────────────────────────────────
     if re.search(
-        r"\b(my\s+(vehicles?|cars?|fleet|truck|van|suv)"
+        r"(my\s+(vehicles?|cars?|fleet|truck|van|suv)"
         r"|list\s+(my\s+)?(vehicles?|cars?|fleet)"
         r"|show\s+(my\s+)?(vehicles?|cars?|fleet)"
-        r"|how\s+many\s+(vehicles?|cars?)\s+(do\s+i|i\s+have))\b",
+        r"|how\s+many\s+(vehicles?|cars?)\s+(do\s+i|i\s+have))",
         msg_l,
     ):
         result = get_my_vehicles(customer_uid=customer_uid, customer_name=customer_name)

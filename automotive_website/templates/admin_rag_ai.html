@@ -483,23 +483,32 @@ function _ragWatch() {
     if (v > 0 || i > 0 || s > 0 || attempts >= 15) {
       clearInterval(iv);
       _ragReady = true;
-      // Check RAG AI engine health
-      fetch('/api/ai-health').then(function(r){return r.json();}).then(function(d){
-        var dot = document.getElementById('ragAiDot');
-        var txt = document.getElementById('ragAiStatus');
-        if (d.online) {
-          if (dot) dot.style.background = '#4ade80';
-          if (txt) { txt.textContent = 'Online · RAG AI'; }
-        } else {
+      // Check RAG AI engine health — 60s timeout covers Render cold-start (~30–50s)
+      (function _checkRagHealth(isRetry) {
+        var ctrl = new AbortController();
+        var timer = setTimeout(function(){ ctrl.abort(); }, 60000);
+        fetch('/api/ai-health', { signal: ctrl.signal })
+        .then(function(r){ clearTimeout(timer); return r.json(); })
+        .then(function(d){
+          var dot = document.getElementById('ragAiDot');
+          var txt = document.getElementById('ragAiStatus');
+          if (d.online) {
+            if (dot) dot.style.background = '#4ade80';
+            if (txt) { txt.textContent = 'Online · RAG AI'; }
+          } else {
+            if (dot) dot.style.background = '#d69e2e';
+            if (txt) { txt.textContent = 'Online · Local mode'; }
+          }
+        }).catch(function(){
+          clearTimeout(timer);
+          var dot = document.getElementById('ragAiDot');
+          var txt = document.getElementById('ragAiStatus');
           if (dot) dot.style.background = '#d69e2e';
           if (txt) { txt.textContent = 'Online · Local mode'; }
-        }
-      }).catch(function(){
-        var dot = document.getElementById('ragAiDot');
-        var txt = document.getElementById('ragAiStatus');
-        if (dot) dot.style.background = '#d69e2e';
-        if (txt) { txt.textContent = 'Online · Local mode'; }
-      });
+          // Retry once after 60 s — Render may still be waking up
+          if (!isRetry) setTimeout(function(){ _checkRagHealth(true); }, 60000);
+        });
+      })(false);
     }
   }, 600);
 }

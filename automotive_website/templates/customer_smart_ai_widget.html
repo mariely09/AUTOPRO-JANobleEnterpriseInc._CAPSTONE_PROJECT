@@ -308,6 +308,8 @@
   let _chatHistory = [];
   let _sessionId   = null;
   let _rateLimited = false;
+  // Persistent reference so getElementById still works after the node is detached
+  const _welcomeNode = document.getElementById('aiWelcome');
   let _currentUid  = null;
   let _isSending   = false;   // guard: prevents double-send
 
@@ -399,7 +401,7 @@
       _chatHistory = session.messages.slice();
       _sessionId   = (session.id && !session.id.startsWith('local_')) ? session.id : null;
       // Render
-      var welcome = document.getElementById('aiWelcome');
+      var welcome = _welcomeNode;
       if (welcome) welcome.style.display = 'none';
       _chatHistory.forEach(function(m) { _addBubble(m.text, m.role); });
       // Scroll to bottom after restoring
@@ -489,7 +491,7 @@
     _chatHistory = session.messages.slice();
     _sessionId = (!session.id.startsWith('local_')) ? session.id : null;
     var msgs = document.getElementById('aiMessages');
-    var welcome = document.getElementById('aiWelcome');
+    var welcome = _welcomeNode;
     if (welcome && welcome.parentNode === msgs) msgs.removeChild(welcome);
     msgs.innerHTML = '';
     // Re-attach welcome (hidden) so it stays in the DOM
@@ -1011,22 +1013,35 @@
   });
 
   // Check AI health + update status dot
-  fetch('/api/ai-health').then(r => r.json()).then(d => {
-    const dot = document.getElementById('aiStatusDot');
-    const txt = document.getElementById('aiStatusText');
-    if (d.online) {
-      if (dot) { dot.style.background = '#4ade80'; dot.style.boxShadow = '0 0 6px rgba(74,222,128,0.8)'; }
-      if (txt) txt.textContent = 'Online';
-    } else {
-      if (dot) { dot.style.background = '#d69e2e'; dot.style.boxShadow = '0 0 6px rgba(214,158,46,0.8)'; }
-      if (txt) txt.textContent = 'Local mode';
-    }
-  }).catch(() => {
-    const dot = document.getElementById('aiStatusDot');
-    const txt = document.getElementById('aiStatusText');
-    if (dot) { dot.style.background = '#d69e2e'; dot.style.boxShadow = '0 0 6px rgba(214,158,46,0.8)'; }
-    if (txt) txt.textContent = 'Local mode';
-  });
+  // Uses a 60-second timeout (covers Render free-tier cold-start of ~30–50s).
+  // On failure, retries once after 60 s so the dot self-corrects once Render wakes.
+  function _checkAiHealth(isRetry) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 60000);
+    fetch('/api/ai-health', { signal: ctrl.signal })
+      .then(r => { clearTimeout(timer); return r.json(); })
+      .then(d => {
+        const dot = document.getElementById('aiStatusDot');
+        const txt = document.getElementById('aiStatusText');
+        if (d.online) {
+          if (dot) { dot.style.background = '#4ade80'; dot.style.boxShadow = '0 0 6px rgba(74,222,128,0.8)'; }
+          if (txt) txt.textContent = 'Online';
+        } else {
+          if (dot) { dot.style.background = '#d69e2e'; dot.style.boxShadow = '0 0 6px rgba(214,158,46,0.8)'; }
+          if (txt) txt.textContent = 'Local mode';
+        }
+      })
+      .catch(() => {
+        clearTimeout(timer);
+        const dot = document.getElementById('aiStatusDot');
+        const txt = document.getElementById('aiStatusText');
+        if (dot) { dot.style.background = '#d69e2e'; dot.style.boxShadow = '0 0 6px rgba(214,158,46,0.8)'; }
+        if (txt) txt.textContent = 'Local mode';
+        // Retry once after 60 s — Render may still be spinning up
+        if (!isRetry) setTimeout(() => _checkAiHealth(true), 60000);
+      });
+  }
+  _checkAiHealth(false);
 
   fetch('customer_header.html').then(r => r.text()).then(html => {
     document.getElementById('customerHeader').innerHTML = html;

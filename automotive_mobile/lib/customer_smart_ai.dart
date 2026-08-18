@@ -425,7 +425,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
       try {
         final r = await http
             .get(Uri.parse('$_kCustAiBaseUrl/health'))
-            .timeout(const Duration(seconds: 20));
+            .timeout(const Duration(seconds: 60)); // 60s covers Render cold-start (~30–50s)
         if (r.statusCode == 200) {
           if (mounted) setState(() => _backendOnline = true);
           return;
@@ -434,7 +434,15 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         if (attempt < 3) await Future.delayed(const Duration(seconds: 5));
       }
     }
-    if (!silent && mounted) setState(() => _backendOnline = false);
+    // All attempts failed — if silent (startup), schedule a delayed re-check
+    // so the dot corrects itself once Render finishes waking up
+    if (silent) {
+      Future.delayed(const Duration(seconds: 60), () {
+        if (mounted) _checkBackend(silent: false);
+      });
+    } else {
+      if (mounted) setState(() => _backendOnline = false);
+    }
   }
 
   void _scrollToBottom() {

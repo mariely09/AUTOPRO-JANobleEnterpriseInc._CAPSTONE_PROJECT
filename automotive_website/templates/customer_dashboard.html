@@ -309,7 +309,7 @@ function _aiRestoreSession(uid) {
         if (session.id && session.id.indexOf('w_') !== 0) _aiSessionId = session.id;
         // Render messages
         var msgs = document.getElementById('aiMessages');
-        var welcome = document.getElementById('aiWelcome');
+        var welcome = _aiWelcomeNode || document.getElementById('aiWelcome');
         if (welcome && welcome.parentNode === msgs) msgs.removeChild(welcome);
         else if (welcome) welcome.style.display = 'none';
         document.getElementById('aiChips').style.display = 'none';
@@ -381,7 +381,7 @@ window.aiLoadSession = function(sid) {
     var session=null; for(var i=0;i<sessions.length;i++){if(sessions[i].id===sid){session=sessions[i];break;}}
     if(!session||!session.messages||!session.messages.length) return;
     var msgs=document.getElementById('aiMessages');
-    var welcome=document.getElementById('aiWelcome');
+    var welcome=_aiWelcomeNode||document.getElementById('aiWelcome');
     if(welcome&&welcome.parentNode===msgs) msgs.removeChild(welcome);
     msgs.innerHTML='';
     document.getElementById('aiChips').style.display='none';
@@ -431,10 +431,18 @@ function _updateFabIcon(open) {
     }
 }
 
+// ── Keep a persistent reference to the welcome node so getElementById
+// continues to work after it is detached from the DOM by aiSend/restore.
+// Captured immediately — the inline script runs after the DOM node exists.
+var _aiWelcomeNode = document.getElementById('aiWelcome');
+
 // ── Rebuild welcome (used by new chat + delete all) ───────────────────────
 function _aiRebuildWelcome() {
+    // Use the persistent reference — getElementById fails on detached nodes
+    if (!_aiWelcomeNode) _aiWelcomeNode = document.getElementById('aiWelcome');
     var msgs = document.getElementById('aiMessages');
-    var welcome = document.getElementById('aiWelcome');
+    var welcome = _aiWelcomeNode;
+    // Detach first so the innerHTML wipe doesn't destroy it
     if (welcome && welcome.parentNode === msgs) msgs.removeChild(welcome);
     msgs.innerHTML = '';
     if (welcome) {
@@ -620,7 +628,7 @@ window.aiSend = async function(preset) {
 
     // Physically remove the welcome block so bubbles are the only content
     var msgs = document.getElementById('aiMessages');
-    var welcome = document.getElementById('aiWelcome');
+    var welcome = _aiWelcomeNode || document.getElementById('aiWelcome');
     if (welcome && welcome.parentNode === msgs) {
         msgs.removeChild(welcome);
     } else if (welcome) {
@@ -696,8 +704,12 @@ window.aiNewChat = function() {
 };
 
 // ── Check AI health ───────────────────────────────────────────────────────
-function _aiCheckHealth() {
-    fetch('/api/ai-health').then(function(r){return r.json();}).then(function(d){
+function _aiCheckHealth(isRetry) {
+    var ctrl = new AbortController();
+    var timer = setTimeout(function(){ ctrl.abort(); }, 60000); // 60s — covers Render cold-start
+    fetch('/api/ai-health', { signal: ctrl.signal })
+    .then(function(r){ clearTimeout(timer); return r.json(); })
+    .then(function(d){
         var dot=document.getElementById('aiStatusDot'), txt=document.getElementById('aiStatusTxt');
         if(d.online){
             if(dot){dot.style.background='#4ade80';dot.style.boxShadow='0 0 6px rgba(74,222,128,0.8)';}
@@ -707,9 +719,12 @@ function _aiCheckHealth() {
             if(txt) txt.textContent='Local mode';
         }
     }).catch(function(){
+        clearTimeout(timer);
         var dot=document.getElementById('aiStatusDot'),txt=document.getElementById('aiStatusTxt');
         if(dot){dot.style.background='#d69e2e';dot.style.boxShadow='0 0 6px rgba(214,158,46,0.8)';}
         if(txt) txt.textContent='Local mode';
+        // If this was the first attempt, retry once after 60 s — Render may still be waking up
+        if (!isRetry) setTimeout(function(){ _aiCheckHealth(true); }, 60000);
     });
 }
 
