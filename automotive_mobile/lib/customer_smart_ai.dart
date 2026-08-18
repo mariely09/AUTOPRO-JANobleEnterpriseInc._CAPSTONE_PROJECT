@@ -194,9 +194,20 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   @override
   void initState() {
     super.initState();
+    _eagerRestoreSession();   // restore messages ASAP — skips the welcome flash
     _loadIdentity();
     _checkBackend(silent: true);
     _checkAiStatus();
+  }
+
+  /// Eagerly restore messages from SharedPreferences before identity loads.
+  /// This prevents the loading spinner from showing when re-opening the chat
+  /// with existing history — the conversation appears immediately.
+  Future<void> _eagerRestoreSession() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || CustomerChatStore.messages.isNotEmpty) return;
+    final restored = await CustomerChatStore.restoreActiveSession(user.uid);
+    if (restored && mounted) setState(() {});
   }
 
   /// Checks the backend AI key status on startup.
@@ -286,7 +297,9 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
       _vehicleCount = seenIds.length;
     }
 
-    // Restore active session from SharedPreferences
+    // Restore active session from SharedPreferences BEFORE setting _dataLoaded,
+    // so the first visible state after loading already shows the conversation
+    // instead of briefly flashing the welcome/default screen.
     if (_messages.isEmpty) {
       await CustomerChatStore.restoreActiveSession(user.uid);
     }
@@ -301,6 +314,8 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         _tokenLimitReached  = limitReached;
         _tokensRemaining    = remaining;
       });
+      // Scroll to bottom after restoring conversation
+      if (_messages.isNotEmpty) _scrollToBottom();
     }
   }
 
@@ -394,6 +409,12 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     if (mounted) {
       setState(() {
         CustomerChatStore.clear();
+      });
+      // Scroll to top so the welcome screen is fully visible
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollCtrl.hasClients) {
+          _scrollCtrl.jumpTo(0);
+        }
       });
     }
   }
@@ -535,14 +556,13 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         }
 
       } else {
-        final err = _parseError(resp.body);
         if (mounted) {
           setState(() {
             _loading = false;
             _messages.add(
               _ChatMsg(
                 role: 'ai',
-                text: 'AI service error (${resp.statusCode}): $err',
+                text: "I'm having trouble processing your request right now. Please try again in a moment, or contact us at caltexautopro2026@gmail.com if the issue persists.",
               ),
             );
           });
@@ -856,7 +876,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
 
               // ── Chat / Welcome ──────────────────────────────────────────
               Expanded(
-                child: !_dataLoaded
+                child: !_dataLoaded && _messages.isEmpty
                     ? const Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -1115,15 +1135,9 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         : 'Hi $first! No vehicles are registered under your account yet.';
 
     final suggestions = [
-      'List all my registered vehicles',
-      'Give me a fleet summary',
-      'Which of my vehicles are under maintenance?',
-      'Which vehicles have PMS overdue?',
-      'Which vehicles have PMS due soon?',
       'Show my complete service history',
-      'Show my upcoming and past bookings',
+      'List all my registered vehicles',
       'What services do you offer and what are the prices?',
-      'How much would a change oil and brake cleaning cost?',
     ];
 
     return SingleChildScrollView(

@@ -271,7 +271,10 @@ def admin_chat(req: ChatRequest):
                 session_id=session_id,
             )
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        return ChatResponse(
+            reply="I'm having trouble processing your request right now. Please try again in a moment.",
+            session_id=session_id,
+        )
 
 
 def _format_admin_db_reply(message: str, result: dict) -> str:

@@ -256,22 +256,16 @@
 </div>
 
 <div class="ai-messages" id="aiMessages">
-    <div class="ai-welcome" id="aiWelcome">
+    <div class="ai-welcome" id="aiWelcome" style="display:none;">
         <div class="ai-welcome-icon">
             <img src="../static/img/AI_LOGO.png" width="72" height="72" style="object-fit:cover;display:block;" alt="AI Assistant" />
         </div>
         <div class="ai-welcome-title">AI Assistant</div>
         <div class="ai-welcome-sub" id="aiWelcomeSub">Ask me anything about your vehicles — PMS status, maintenance history, bookings, and more.</div>
         <div class="ai-suggestions" id="aiSuggestions">
-            <button class="ai-suggest-pill" data-q="List all my registered vehicles">List all my registered vehicles</button>
-            <button class="ai-suggest-pill" data-q="Give me a fleet summary">Give me a fleet summary</button>
-            <button class="ai-suggest-pill" data-q="Which of my vehicles are under maintenance?">Which of my vehicles are under maintenance?</button>
-            <button class="ai-suggest-pill" data-q="Which vehicles have PMS overdue?">Which vehicles have PMS overdue?</button>
-            <button class="ai-suggest-pill" data-q="Which vehicles have PMS due soon?">Which vehicles have PMS due soon?</button>
-            <button class="ai-suggest-pill" data-q="Show my upcoming and past bookings">Show my upcoming and past bookings</button>
             <button class="ai-suggest-pill" data-q="Show my complete service history">Show my complete service history</button>
+            <button class="ai-suggest-pill" data-q="List all my registered vehicles">List all my registered vehicles</button>
             <button class="ai-suggest-pill" data-q="What services do you offer and what are the prices?">What services do you offer and what are the prices?</button>
-            <button class="ai-suggest-pill" data-q="How much would a change oil and brake cleaning cost?">How much would a change oil and brake cleaning cost?</button>
         </div>
     </div>
 </div>
@@ -997,8 +991,13 @@
     if (user) {
       _currentUid = user.uid;
       loadData(user).then(function() {
-        // Restore the active session AFTER data loads so avatars/initials render correctly
-        _restoreActiveSession(user.uid);
+        // Try to restore the active session first.
+        // If nothing to restore, show the welcome screen.
+        var restored = _restoreActiveSession(user.uid);
+        if (!restored) {
+          var welcome = document.getElementById('aiWelcome');
+          if (welcome) welcome.style.display = '';
+        }
         // Save any messages that were queued before auth resolved
         if (_chatHistory.length) _saveChat();
         // Check customer daily token limit on load

@@ -610,8 +610,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           _messages.add(
             _ChatMessage(
               role: 'ai',
-              text:
-                  'AI service error (${resp.statusCode}): ${_parseError(resp.body)}',
+              text: "I'm having trouble processing your request right now. Please try again in a moment.",
             ),
           );
         });
