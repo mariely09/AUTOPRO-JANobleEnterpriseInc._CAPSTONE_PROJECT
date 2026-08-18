@@ -252,10 +252,6 @@
         <button class="ai-hdr-btn" id="historyBtn" onclick="openHistory()" title="Chat history" aria-label="Chat history">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </button>
-        <!-- Clear button — only shown when chat has messages -->
-        <button class="ai-hdr-btn" id="clearBtn" onclick="clearChat()" title="Clear chat" aria-label="Clear chat" style="display:none;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-        </button>
     </div>
 </div>
 
@@ -411,7 +407,6 @@
       // Render
       var welcome = document.getElementById('aiWelcome');
       if (welcome) welcome.style.display = 'none';
-      var cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'flex';
       _chatHistory.forEach(function(m) { _addBubble(m.text, m.role); });
       // Scroll to bottom after restoring
       var msgs = document.getElementById('aiMessages');
@@ -430,6 +425,8 @@
 
   // ── History drawer ────────────────────────────────────────────────────────
   window.openHistory = function() {
+    // Save current chat first so it appears in the history list
+    if (_chatHistory.length) _saveChat();
     _renderHistoryList();
     document.getElementById('aiHistoryDrawer').classList.add('open');
     document.getElementById('aiHistoryOverlay').classList.add('show');
@@ -448,7 +445,6 @@
     _chatHistory = [];
     _setRateLimited(false);
     _rebuildWelcome();
-    var cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'none';
     closeHistory();
   };
 
@@ -504,7 +500,6 @@
     msgs.innerHTML = '';
     // Re-attach welcome (hidden) so it stays in the DOM
     if (welcome) { welcome.style.display = 'none'; msgs.appendChild(welcome); }
-    var cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'flex';
     _chatHistory.forEach(function(m) { _addBubble(m.text, m.role); });
     setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 60);
     // Persist restored session as active
@@ -512,7 +507,7 @@
     closeHistory();
   };
 
-  // ── Rebuild the welcome screen safely (used by clearChat + deleteAllChats) ──
+  // ── Rebuild the welcome screen safely (used by newChat + deleteAllChats) ──
   function _rebuildWelcome() {
     var msgs    = document.getElementById('aiMessages');
     var welcome = document.getElementById('aiWelcome');
@@ -917,7 +912,6 @@
     // ── Hide welcome, show clear button ──────────────────────────────────
     const welcome = document.getElementById('aiWelcome');
     if (welcome) welcome.style.display = 'none';
-    const cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'flex';
 
     _addBubbleAndSave(text, 'user');
     if (input) { input.value = ''; input.style.height = 'auto'; }
@@ -997,20 +991,6 @@
     _setRateLimited(false);
     _chatHistory = [];
     _rebuildWelcome();
-    var cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'none';
-  };
-
-  window.clearChat = function () {
-    // Persist current chat to history before clearing
-    if (_chatHistory.length) _saveChat();
-    // Clear server-side memory for this session
-    if (_sessionId) { fetch('/api/ai-session/' + _sessionId, {method:'DELETE'}).catch(function(){}); _sessionId = null; }
-    // Remove the active-slot so tab-switch after clear doesn't restore it
-    if (_currentUid) localStorage.removeItem(_activeKey(_currentUid));
-    _setRateLimited(false);
-    _chatHistory = [];
-    _rebuildWelcome();
-    var cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'none';
   };
 
   firebase.auth().onAuthStateChanged((user) => {

@@ -208,6 +208,10 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
 
   @override
   void dispose() {
+    // Save chat on widget dispose (navigation away)
+    if (_customerUid.isNotEmpty && CustomerChatStore.messages.isNotEmpty) {
+      CustomerChatStore.saveChat(_customerUid);
+    }
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();

@@ -89,7 +89,7 @@ def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        raise
+        return {"error": "DB_ERROR", "message": str(e)}
 
     vehicles = []
     seen_ids = set()
@@ -119,7 +119,7 @@ def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
         })
 
     try:
-        # ── Pass 1: query by ownerId (Firebase UID) — most reliable ──────────
+        # ── Pass 1: query by ownerId (Firebase UID) ───────────────────────────
         for doc in db.collection("vehicles").where(
                 filter=FieldFilter("ownerId", "==", customer_uid)).stream():
             _add_vehicle(doc)
@@ -129,29 +129,30 @@ def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
                 filter=FieldFilter("owner", "==", customer_name)).stream():
             _add_vehicle(doc)
 
-        # ── Pass 2b: query by company name (if different from personal name) ──
+        # ── Pass 2b: query by company name (if different) ─────────────────────
         if company_name and company_name.lower() != customer_name.lower():
             for doc in db.collection("vehicles").where(
                     filter=FieldFilter("owner", "==", company_name)).stream():
                 _add_vehicle(doc)
 
-        # ── Pass 3: case-insensitive full scan (always run to catch mismatches) ─
-        # This catches vehicles where the stored name has different capitalisation
-        name_lower    = customer_name.lower()
-        company_lower = company_name.lower() if company_name else ""
-        for doc in db.collection("vehicles").stream():
-            if doc.id in seen_ids:
-                continue
-            d = doc.to_dict()
-            stored = (d.get("owner", "") or "").lower().strip()
-            if stored and (stored == name_lower or
-                           (company_lower and stored == company_lower)):
-                _add_vehicle(doc)
+        # ── Pass 3: case-insensitive full scan — only if passes 1+2 found nothing ──
+        # (avoids full collection scans on every request; only triggers on mismatch)
+        if not vehicles and customer_name:
+            name_lower    = customer_name.lower()
+            company_lower = company_name.lower() if company_name else ""
+            for doc in db.collection("vehicles").stream():
+                if doc.id in seen_ids:
+                    continue
+                d = doc.to_dict()
+                stored = (d.get("owner", "") or "").lower().strip()
+                if stored and (stored == name_lower or
+                               (company_lower and stored == company_lower)):
+                    _add_vehicle(doc)
 
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        raise
+        return {"error": "DB_ERROR", "message": str(e)}
 
     from collections import Counter
     status_counts = Counter(v["status"] for v in vehicles)
@@ -205,15 +206,16 @@ def get_my_service_history(customer_uid: str, customer_name: str,
                 p = doc.to_dict().get("plate", "")
                 if p:
                     plate_set.add(p)
-        # Always run case-insensitive scan to catch capitalisation mismatches
-        for doc in db.collection("vehicles").stream():
-            d = doc.to_dict()
-            stored = (d.get("owner", "") or "").lower().strip()
-            if stored and (stored == name_lower or
-                           (company_lower and stored == company_lower)):
-                p = d.get("plate", "")
-                if p:
-                    plate_set.add(p)
+        # Full scan only when the indexed queries found nothing
+        if not plate_set and customer_name:
+            for doc in db.collection("vehicles").stream():
+                d = doc.to_dict()
+                stored = (d.get("owner", "") or "").lower().strip()
+                if stored and (stored == name_lower or
+                               (company_lower and stored == company_lower)):
+                    p = d.get("plate", "")
+                    if p:
+                        plate_set.add(p)
         plate_list = list(plate_set)
 
         if not plate_list:
@@ -266,7 +268,7 @@ def get_my_service_history(customer_uid: str, customer_name: str,
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        raise
+        return {"error": "DB_ERROR", "message": str(e)}
 
 
 def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
@@ -353,15 +355,16 @@ def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
                     filter=FieldFilter("owner", "==", company_name)).stream():
                 _process_doc(doc)
 
-        # ── Pass 3: case-insensitive full scan (always run) ───────────────────
-        for doc in db.collection("vehicles").stream():
-            if doc.id in seen_ids:
-                continue
-            d = doc.to_dict()
-            stored = (d.get("owner", "") or "").lower().strip()
-            if stored and (stored == name_lower or
-                           (company_lower and stored == company_lower)):
-                _process_doc(doc)
+        # ── Pass 3: case-insensitive full scan — only when passes 1+2 found nothing ──
+        if not vehicles and customer_name:
+            for doc in db.collection("vehicles").stream():
+                if doc.id in seen_ids:
+                    continue
+                d = doc.to_dict()
+                stored = (d.get("owner", "") or "").lower().strip()
+                if stored and (stored == name_lower or
+                               (company_lower and stored == company_lower)):
+                    _process_doc(doc)
 
         overdue  = [v for v in vehicles if v["urgency"] == "Overdue"]
         due_soon = [v for v in vehicles if v["urgency"] in ("Due This Week", "Due Soon")]
@@ -376,7 +379,7 @@ def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        raise
+        return {"error": "DB_ERROR", "message": str(e)}
 
 
 def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
@@ -433,15 +436,16 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
                     filter=FieldFilter("customerName", "==", company_name)).stream():
                 _add_booking(doc)
 
-        # Pass 3: case-insensitive scan (always run to catch mismatches)
-        for doc in db.collection("service_bookings").stream():
-            if doc.id in seen_b_ids:
-                continue
-            d = doc.to_dict()
-            stored = (d.get("customerName", "") or "").lower().strip()
-            if stored and (stored == name_lower or
-                           (company_lower and stored == company_lower)):
-                _add_booking(doc)
+        # Pass 3: case-insensitive scan — only when passes 1+2 found nothing
+        if not bookings and customer_name:
+            for doc in db.collection("service_bookings").stream():
+                if doc.id in seen_b_ids:
+                    continue
+                d = doc.to_dict()
+                stored = (d.get("customerName", "") or "").lower().strip()
+                if stored and (stored == name_lower or
+                               (company_lower and stored == company_lower)):
+                    _add_booking(doc)
 
         bookings.sort(key=lambda b: b["date"], reverse=True)
         pending   = [b for b in bookings if (b["status"] or "").lower() == "pending"]
@@ -457,7 +461,7 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        raise
+        return {"error": "DB_ERROR", "message": str(e)}
 
 
 def get_service_prices(customer_uid: str, customer_name: str,
@@ -493,7 +497,7 @@ def get_service_prices(customer_uid: str, customer_name: str,
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        raise
+        return {"error": "DB_ERROR", "message": str(e)}
 
 
 def estimate_service_cost(customer_uid: str, customer_name: str,
@@ -551,7 +555,7 @@ def estimate_service_cost(customer_uid: str, customer_name: str,
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        raise
+        return {"error": "DB_ERROR", "message": str(e)}
 
 
 # ── Tool schemas (OpenAI / Groq format) ──────────────────────────────────────

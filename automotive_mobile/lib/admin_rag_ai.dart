@@ -212,6 +212,29 @@ class AdminChatStore {
       await prefs.remove(_activeKey(uid));
     } catch (_) {}
   }
+
+  /// Restore the most recent active session into in-memory messages.
+  /// Returns true if a session was restored.
+  static Future<bool> restoreActiveSession(String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw   = prefs.getString(_activeKey(uid));
+      if (raw == null) return false;
+      final entry = jsonDecode(raw) as Map<String, dynamic>;
+      final msgs  = (entry['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      if (msgs.isEmpty) return false;
+      messages.clear();
+      for (final m in msgs) {
+        messages.add(_ChatMessage(
+          role: m['role'] as String? ?? 'ai',
+          text: m['text'] as String? ?? '',
+        ));
+      }
+      final sid = entry['id'] as String?;
+      sessionId = (sid != null && !sid.startsWith('local_')) ? sid : null;
+      return true;
+    } catch (_) { return false; }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -281,11 +304,20 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             : parts[0][0].toUpperCase();
         if (mounted) setState(() => _initials = ini);
       }
+      // Restore active session if in-memory store is empty (cold start)
+      if (AdminChatStore.messages.isEmpty) {
+        final restored = await AdminChatStore.restoreActiveSession(user.uid);
+        if (restored && mounted) setState(() {}); // rebuild to show restored messages
+      }
     } catch (_) {}
   }
 
   @override
   void dispose() {
+    // Save chat on widget dispose (tab switch, navigation away)
+    if (_currentUid.isNotEmpty && AdminChatStore.messages.isNotEmpty) {
+      AdminChatStore.saveChat(_currentUid);
+    }
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
