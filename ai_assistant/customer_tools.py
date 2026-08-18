@@ -94,57 +94,60 @@ def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
     vehicles = []
     seen_ids = set()
 
+    # ── Resolve company name from Firestore user profile ─────────────────────
+    company_name = ""
     try:
-        # ── Primary: query by ownerId (Firebase UID) — most reliable ─────────
+        user_doc = db.collection("users").document(customer_uid).get()
+        if user_doc.exists:
+            company_name = user_doc.to_dict().get("companyName", "") or ""
+    except Exception:
+        pass
+
+    def _add_vehicle(doc):
+        if doc.id in seen_ids:
+            return
+        seen_ids.add(doc.id)
+        d = doc.to_dict()
+        vehicles.append({
+            "plate":       d.get("plate", ""),
+            "desc":        d.get("desc", "") or d.get("assetDescription", ""),
+            "type":        d.get("type", ""),
+            "status":      d.get("status", "Active"),
+            "lastSvcDate": d.get("lastSvcDate", "") or d.get("lastServiceDate", ""),
+            "svcFreq":     d.get("svcFreq", "") or str(d.get("serviceFrequency", "")),
+            "odo":         d.get("odo", ""),
+        })
+
+    try:
+        # ── Pass 1: query by ownerId (Firebase UID) — most reliable ──────────
         for doc in db.collection("vehicles").where(
                 filter=FieldFilter("ownerId", "==", customer_uid)).stream():
-            if doc.id not in seen_ids:
-                seen_ids.add(doc.id)
-                d = doc.to_dict()
-                vehicles.append({
-                    "plate":       d.get("plate", ""),
-                    "desc":        d.get("desc", "") or d.get("assetDescription", ""),
-                    "type":        d.get("type", ""),
-                    "status":      d.get("status", "Active"),
-                    "lastSvcDate": d.get("lastSvcDate", "") or d.get("lastServiceDate", ""),
-                    "svcFreq":     d.get("svcFreq", "") or str(d.get("serviceFrequency", "")),
-                    "odo":         d.get("odo", ""),
-                })
+            _add_vehicle(doc)
 
-        # ── Fallback: query by owner name (for older docs without ownerId) ────
+        # ── Pass 2a: query by exact owner name ────────────────────────────────
         for doc in db.collection("vehicles").where(
                 filter=FieldFilter("owner", "==", customer_name)).stream():
-            if doc.id not in seen_ids:
-                seen_ids.add(doc.id)
-                d = doc.to_dict()
-                vehicles.append({
-                    "plate":       d.get("plate", ""),
-                    "desc":        d.get("desc", "") or d.get("assetDescription", ""),
-                    "type":        d.get("type", ""),
-                    "status":      d.get("status", "Active"),
-                    "lastSvcDate": d.get("lastSvcDate", "") or d.get("lastServiceDate", ""),
-                    "svcFreq":     d.get("svcFreq", "") or str(d.get("serviceFrequency", "")),
-                    "odo":         d.get("odo", ""),
-                })
+            _add_vehicle(doc)
 
-        # ── Last resort: case-insensitive scan (handles capitalisation mismatch) ──
-        if not vehicles and customer_name:
-            name_lower = customer_name.lower()
-            for doc in db.collection("vehicles").stream():
-                if doc.id in seen_ids:
-                    continue
-                d = doc.to_dict()
-                if (d.get("owner", "") or "").lower() == name_lower:
-                    seen_ids.add(doc.id)
-                    vehicles.append({
-                        "plate":       d.get("plate", ""),
-                        "desc":        d.get("desc", "") or d.get("assetDescription", ""),
-                        "type":        d.get("type", ""),
-                        "status":      d.get("status", "Active"),
-                        "lastSvcDate": d.get("lastSvcDate", "") or d.get("lastServiceDate", ""),
-                        "svcFreq":     d.get("svcFreq", "") or str(d.get("serviceFrequency", "")),
-                        "odo":         d.get("odo", ""),
-                    })
+        # ── Pass 2b: query by company name (if different from personal name) ──
+        if company_name and company_name.lower() != customer_name.lower():
+            for doc in db.collection("vehicles").where(
+                    filter=FieldFilter("owner", "==", company_name)).stream():
+                _add_vehicle(doc)
+
+        # ── Pass 3: case-insensitive full scan (always run to catch mismatches) ─
+        # This catches vehicles where the stored name has different capitalisation
+        name_lower    = customer_name.lower()
+        company_lower = company_name.lower() if company_name else ""
+        for doc in db.collection("vehicles").stream():
+            if doc.id in seen_ids:
+                continue
+            d = doc.to_dict()
+            stored = (d.get("owner", "") or "").lower().strip()
+            if stored and (stored == name_lower or
+                           (company_lower and stored == company_lower)):
+                _add_vehicle(doc)
+
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
@@ -172,7 +175,19 @@ def get_my_service_history(customer_uid: str, customer_name: str,
     try:
         db = get_db()
 
-        # ── Get this customer's plates (by UID first, then by name) ──────────
+        # ── Resolve company name ──────────────────────────────────────────────
+        company_name = ""
+        try:
+            user_doc = db.collection("users").document(customer_uid).get()
+            if user_doc.exists:
+                company_name = user_doc.to_dict().get("companyName", "") or ""
+        except Exception:
+            pass
+
+        name_lower    = customer_name.lower()
+        company_lower = company_name.lower() if company_name else ""
+
+        # ── Get this customer's plates ────────────────────────────────────────
         plate_set = set()
         for doc in db.collection("vehicles").where(
                 filter=FieldFilter("ownerId", "==", customer_uid)).stream():
@@ -184,15 +199,21 @@ def get_my_service_history(customer_uid: str, customer_name: str,
             p = doc.to_dict().get("plate", "")
             if p:
                 plate_set.add(p)
-        # ── Last resort: case-insensitive scan if still empty ─────────────────
-        if not plate_set and customer_name:
-            name_lower = customer_name.lower()
-            for doc in db.collection("vehicles").stream():
-                d = doc.to_dict()
-                if (d.get("owner", "") or "").lower() == name_lower:
-                    p = d.get("plate", "")
-                    if p:
-                        plate_set.add(p)
+        if company_name and company_name.lower() != customer_name.lower():
+            for doc in db.collection("vehicles").where(
+                    filter=FieldFilter("owner", "==", company_name)).stream():
+                p = doc.to_dict().get("plate", "")
+                if p:
+                    plate_set.add(p)
+        # Always run case-insensitive scan to catch capitalisation mismatches
+        for doc in db.collection("vehicles").stream():
+            d = doc.to_dict()
+            stored = (d.get("owner", "") or "").lower().strip()
+            if stored and (stored == name_lower or
+                           (company_lower and stored == company_lower)):
+                p = d.get("plate", "")
+                if p:
+                    plate_set.add(p)
         plate_list = list(plate_set)
 
         if not plate_list:
@@ -259,6 +280,18 @@ def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
         vehicles = []
         seen_ids = set()
 
+        # ── Resolve company name ──────────────────────────────────────────────
+        company_name = ""
+        try:
+            user_doc = db.collection("users").document(customer_uid).get()
+            if user_doc.exists:
+                company_name = user_doc.to_dict().get("companyName", "") or ""
+        except Exception:
+            pass
+
+        name_lower    = customer_name.lower()
+        company_lower = company_name.lower() if company_name else ""
+
         def _process_doc(doc):
             if doc.id in seen_ids:
                 return
@@ -304,23 +337,31 @@ def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
                 "urgency":     urgency,
             })
 
-        # ── Primary: query by ownerId ─────────────────────────────────────────
+        # ── Pass 1: query by ownerId ──────────────────────────────────────────
         for doc in db.collection("vehicles").where(
                 filter=FieldFilter("ownerId", "==", customer_uid)).stream():
             _process_doc(doc)
 
-        # ── Fallback: query by owner name ─────────────────────────────────────
+        # ── Pass 2a: query by exact owner name ────────────────────────────────
         for doc in db.collection("vehicles").where(
                 filter=FieldFilter("owner", "==", customer_name)).stream():
             _process_doc(doc)
 
-        # ── Last resort: case-insensitive scan ────────────────────────────────
-        if not vehicles and customer_name:
-            name_lower = customer_name.lower()
-            for doc in db.collection("vehicles").stream():
-                d_raw = doc.to_dict()
-                if (d_raw.get("owner", "") or "").lower() == name_lower:
-                    _process_doc(doc)
+        # ── Pass 2b: query by company name ────────────────────────────────────
+        if company_name and company_name.lower() != customer_name.lower():
+            for doc in db.collection("vehicles").where(
+                    filter=FieldFilter("owner", "==", company_name)).stream():
+                _process_doc(doc)
+
+        # ── Pass 3: case-insensitive full scan (always run) ───────────────────
+        for doc in db.collection("vehicles").stream():
+            if doc.id in seen_ids:
+                continue
+            d = doc.to_dict()
+            stored = (d.get("owner", "") or "").lower().strip()
+            if stored and (stored == name_lower or
+                           (company_lower and stored == company_lower)):
+                _process_doc(doc)
 
         overdue  = [v for v in vehicles if v["urgency"] == "Overdue"]
         due_soon = [v for v in vehicles if v["urgency"] in ("Due This Week", "Due Soon")]
@@ -345,11 +386,26 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
 
     try:
         db = get_db()
-        bookings = []
 
-        # Primary filter: by customerId (Firebase UID)
-        for doc in db.collection("service_bookings").where(
-                filter=FieldFilter("customerId", "==", customer_uid)).stream():
+        # ── Resolve company name ──────────────────────────────────────────────
+        company_name = ""
+        try:
+            user_doc = db.collection("users").document(customer_uid).get()
+            if user_doc.exists:
+                company_name = user_doc.to_dict().get("companyName", "") or ""
+        except Exception:
+            pass
+
+        name_lower    = customer_name.lower()
+        company_lower = company_name.lower() if company_name else ""
+
+        bookings  = []
+        seen_b_ids = set()
+
+        def _add_booking(doc):
+            if doc.id in seen_b_ids:
+                return
+            seen_b_ids.add(doc.id)
             d = doc.to_dict()
             svcs = d.get("services", [])
             bookings.append({
@@ -361,37 +417,31 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
                 "status":   d.get("status", ""),
             })
 
-        # Fallback: by customerName (for older bookings that may not have customerId)
-        if not bookings:
-            for doc in db.collection("service_bookings").where(
-                    filter=FieldFilter("customerName", "==", customer_name)).stream():
-                d = doc.to_dict()
-                svcs = d.get("services", [])
-                bookings.append({
-                    "date":     d.get("preferredDate", ""),
-                    "time":     d.get("preferredTime", ""),
-                    "plate":    d.get("plate", ""),
-                    "vehicle":  d.get("vehicleDesc", ""),
-                    "services": ", ".join(svcs) if isinstance(svcs, list) else str(svcs),
-                    "status":   d.get("status", ""),
-                })
+        # Pass 1: by customerId (Firebase UID) — most reliable
+        for doc in db.collection("service_bookings").where(
+                filter=FieldFilter("customerId", "==", customer_uid)).stream():
+            _add_booking(doc)
 
-        # Last resort: case-insensitive customerName scan
-        if not bookings and customer_name:
-            name_lower = customer_name.lower()
-            for doc in db.collection("service_bookings").stream():
-                d = doc.to_dict()
-                stored_name = (d.get("customerName", "") or "").lower()
-                if stored_name == name_lower:
-                    svcs = d.get("services", [])
-                    bookings.append({
-                        "date":     d.get("preferredDate", ""),
-                        "time":     d.get("preferredTime", ""),
-                        "plate":    d.get("plate", ""),
-                        "vehicle":  d.get("vehicleDesc", ""),
-                        "services": ", ".join(svcs) if isinstance(svcs, list) else str(svcs),
-                        "status":   d.get("status", ""),
-                    })
+        # Pass 2a: by exact customerName
+        for doc in db.collection("service_bookings").where(
+                filter=FieldFilter("customerName", "==", customer_name)).stream():
+            _add_booking(doc)
+
+        # Pass 2b: by company name
+        if company_name and company_name.lower() != customer_name.lower():
+            for doc in db.collection("service_bookings").where(
+                    filter=FieldFilter("customerName", "==", company_name)).stream():
+                _add_booking(doc)
+
+        # Pass 3: case-insensitive scan (always run to catch mismatches)
+        for doc in db.collection("service_bookings").stream():
+            if doc.id in seen_b_ids:
+                continue
+            d = doc.to_dict()
+            stored = (d.get("customerName", "") or "").lower().strip()
+            if stored and (stored == name_lower or
+                           (company_lower and stored == company_lower)):
+                _add_booking(doc)
 
         bookings.sort(key=lambda b: b["date"], reverse=True)
         pending   = [b for b in bookings if (b["status"] or "").lower() == "pending"]

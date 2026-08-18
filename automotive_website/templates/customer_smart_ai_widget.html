@@ -111,7 +111,7 @@
         /* ── AI Header (matches admin panel header) ── */
         .ai-panel-header {
             background:linear-gradient(135deg,#c62828 0%,#E8001C 60%,#ff5252 100%);
-            padding:14px 12px;display:flex;align-items:center;gap:10px;flex-shrink:0;
+            padding:12px 10px;display:flex;align-items:center;gap:6px;flex-shrink:0;
             position:relative;overflow:visible;z-index:10;
         }
         .ai-panel-header::before {
@@ -146,25 +146,12 @@
         .ai-hdr-dot { width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;box-shadow:0 0 6px rgba(74,222,128,0.8); }
         .ai-hdr-status-text { font-size:10.5px;color:rgba(255,255,255,0.8); }
         .ai-hdr-btn {
-            width:32px;height:32px;background:rgba(255,255,255,0.15);
-            border:1px solid rgba(255,255,255,0.25);color:white;border-radius:9px;
+            width:30px;height:30px;background:rgba(255,255,255,0.15);
+            border:1px solid rgba(255,255,255,0.25);color:white;border-radius:8px;
             cursor:pointer;display:flex;align-items:center;justify-content:center;
-            transition:background .18s;flex-shrink:0;position:relative;z-index:1;
+            transition:background .18s;flex-shrink:0;
         }
         .ai-hdr-btn:hover { background:rgba(255,255,255,0.28); }
-        /* Tooltip for header buttons */
-        .ai-hdr-tip-wrap { position:relative;z-index:20; }
-        .ai-hdr-tip {
-            position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);
-            background:rgba(20,20,20,0.92);color:#fff;font-size:10.5px;font-weight:600;
-            padding:4px 9px;border-radius:6px;white-space:nowrap;pointer-events:none;
-            opacity:0;visibility:hidden;transition:opacity .18s ease;z-index:9999;
-        }
-        .ai-hdr-tip::after {
-            content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
-            border:4px solid transparent;border-top-color:rgba(20,20,20,0.92);
-        }
-        .ai-hdr-tip-wrap:hover .ai-hdr-tip { opacity:1;visibility:visible; }
 
         /* ── History drawer ── */
         #aiHistoryDrawer {
@@ -240,34 +227,35 @@
 <div class="ai-panel-header">
     <!-- Subtle shine overlay -->
     <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.1) 0%,transparent 65%);pointer-events:none;"></div>
-    <!-- Bot avatar — matches admin version exactly -->
+    <!-- Bot avatar -->
     <div style="position:relative;flex-shrink:0;">
-        <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,0.4);flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.15);background:white;display:flex;align-items:center;justify-content:center;">
-            <img src="../static/img/AI_LOGO.png" style="width:30px;height:30px;object-fit:contain;display:block;" alt="AI Assistant" />
+        <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,0.4);flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.15);background:white;display:flex;align-items:center;justify-content:center;">
+            <img src="../static/img/AI_LOGO.png" style="width:28px;height:28px;object-fit:contain;display:block;" alt="AI Assistant" />
         </div>
-        <span id="aiHdrOnlineDot" style="display:none;position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid white;box-shadow:0 0 5px rgba(74,222,128,0.8);"></span>
+        <span id="aiHdrOnlineDot" style="display:none;position:absolute;bottom:1px;right:1px;width:9px;height:9px;border-radius:50%;background:#4ade80;border:2px solid white;box-shadow:0 0 5px rgba(74,222,128,0.8);"></span>
     </div>
     <!-- Title + status -->
     <div style="flex:1;min-width:0;position:relative;z-index:1;">
-        <div style="color:#fff;font-size:13.5px;font-weight:700;">AI Assistant</div>
-        <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
-            <span id="aiStatusDot" style="width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;box-shadow:0 0 6px rgba(74,222,128,0.8);"></span>
-            <span id="aiStatusText" style="font-size:10.5px;color:rgba(255,255,255,0.8);">Online</span>
+        <div style="color:#fff;font-size:13px;font-weight:700;">AI Assistant</div>
+        <div style="display:flex;align-items:center;gap:4px;margin-top:1px;">
+            <span id="aiStatusDot" style="width:6px;height:6px;border-radius:50%;background:#4ade80;flex-shrink:0;box-shadow:0 0 6px rgba(74,222,128,0.8);"></span>
+            <span id="aiStatusText" style="font-size:10px;color:rgba(255,255,255,0.8);">Online</span>
         </div>
     </div>
-    <!-- History button -->
-    <div class="ai-hdr-tip-wrap">
-        <button class="ai-hdr-btn" id="historyBtn" onclick="openHistory()" aria-label="Chat history">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <!-- Button group: all buttons together, tight spacing -->
+    <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+        <!-- New Chat button -->
+        <button class="ai-hdr-btn" id="newChatBtn" onclick="newChat()" title="New chat" aria-label="New chat">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-        <div class="ai-hdr-tip">Chat history</div>
-    </div>
-    <!-- Clear button -->
-    <div class="ai-hdr-tip-wrap" id="clearBtnWrap" style="display:none;">
-        <button class="ai-hdr-btn" id="clearBtn" onclick="clearChat()" aria-label="Clear chat">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        <!-- History button -->
+        <button class="ai-hdr-btn" id="historyBtn" onclick="openHistory()" title="Chat history" aria-label="Chat history">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </button>
-        <div class="ai-hdr-tip">Clear chat</div>
+        <!-- Clear button — only shown when chat has messages -->
+        <button class="ai-hdr-btn" id="clearBtn" onclick="clearChat()" title="Clear chat" aria-label="Clear chat" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
     </div>
 </div>
 
@@ -332,6 +320,30 @@
   let _rateLimited = false;
   let _currentUid  = null;
   let _isSending   = false;   // guard: prevents double-send
+
+  // ── Per-customer daily token limit ─────────────────────────────────────────
+  // Customers are limited to 2 000 tokens per day to prevent abuse.
+  // Usage is tracked in localStorage under 'ai_cust_tokens_{uid}_{date}'.
+  const _CUSTOMER_DAILY_TOKEN_LIMIT = 2000;
+
+  function _tokenDateKey(uid) {
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    return 'ai_cust_tokens_' + uid + '_' + today;
+  }
+  function _getUsedTokens(uid) {
+    try { return parseInt(localStorage.getItem(_tokenDateKey(uid)) || '0', 10) || 0; }
+    catch(e) { return 0; }
+  }
+  function _addUsedTokens(uid, n) {
+    try { localStorage.setItem(_tokenDateKey(uid), String(_getUsedTokens(uid) + n)); }
+    catch(e) {}
+  }
+  function _isTokenLimitReached(uid) {
+    return _getUsedTokens(uid) >= _CUSTOMER_DAILY_TOKEN_LIMIT;
+  }
+  function _tokenLimitRemaining(uid) {
+    return Math.max(0, _CUSTOMER_DAILY_TOKEN_LIMIT - _getUsedTokens(uid));
+  }
 
   // ── Send button enable/disable based on input content ───────────────────────
   function _updateSendBtn() {
@@ -399,7 +411,7 @@
       // Render
       var welcome = document.getElementById('aiWelcome');
       if (welcome) welcome.style.display = 'none';
-      var cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'flex';
+      var cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'flex';
       _chatHistory.forEach(function(m) { _addBubble(m.text, m.role); });
       // Scroll to bottom after restoring
       var msgs = document.getElementById('aiMessages');
@@ -436,7 +448,7 @@
     _chatHistory = [];
     _setRateLimited(false);
     _rebuildWelcome();
-    var cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'none';
+    var cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'none';
     closeHistory();
   };
 
@@ -492,7 +504,7 @@
     msgs.innerHTML = '';
     // Re-attach welcome (hidden) so it stays in the DOM
     if (welcome) { welcome.style.display = 'none'; msgs.appendChild(welcome); }
-    var cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'flex';
+    var cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'flex';
     _chatHistory.forEach(function(m) { _addBubble(m.text, m.role); });
     setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 60);
     // Persist restored session as active
@@ -549,6 +561,46 @@
     });
   });
 
+  // ── Customer token limit banner ───────────────────────────────────────────
+  function _showCustomerTokenLimitBanner(uid) {
+    if (document.getElementById('aiTokenLimitBanner')) return; // already shown
+    const remaining = _tokenLimitRemaining(uid);
+    const used      = _getUsedTokens(uid);
+    const input     = document.getElementById('aiInput');
+    const sendBtn   = document.getElementById('aiSendBtn') || document.querySelector('.ai-send');
+    if (input)   { input.disabled = true; input.placeholder = 'Daily message limit reached — resets tomorrow'; }
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.45'; sendBtn.style.cursor = 'not-allowed'; }
+    const b = document.createElement('div');
+    b.id = 'aiTokenLimitBanner';
+    b.style.cssText =
+      'background:#fff7ed;border-top:2px solid #fb923c;padding:12px 18px;' +
+      'font-size:12.5px;color:#9a3412;flex-shrink:0;display:flex;align-items:flex-start;gap:10px;line-height:1.55;';
+    b.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#9a3412" style="flex-shrink:0;margin-top:2px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
+      '<div><strong style="display:block;font-size:13px;margin-bottom:2px;">Daily message limit reached</strong>' +
+      'You\'ve used your <strong>' + _CUSTOMER_DAILY_TOKEN_LIMIT + '</strong>-token daily allowance. ' +
+      'Your quota resets at <strong>midnight tonight</strong>. You can still view your chat history.</div>';
+    const inputBar = document.querySelector('.ai-input-bar');
+    if (inputBar) inputBar.parentNode.insertBefore(b, inputBar);
+    // Block _updateSendBtn from re-enabling the button
+    _rateLimited = true;
+  }
+
+  function _showTokenLowWarning(uid) {
+    if (document.getElementById('aiTokenLowWarn')) return;
+    const remaining = _tokenLimitRemaining(uid);
+    const w = document.createElement('div');
+    w.id = 'aiTokenLowWarn';
+    w.style.cssText =
+      'background:#fffbeb;border-top:1.5px solid #fcd34d;padding:8px 18px;' +
+      'font-size:11.5px;color:#92400e;flex-shrink:0;display:flex;align-items:center;gap:8px;';
+    w.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="#92400e" style="flex-shrink:0;"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>' +
+      '<span>You\'re running low — approximately <strong>' + remaining + '</strong> tokens remaining today.</span>';
+    const inputBar = document.querySelector('.ai-input-bar');
+    if (inputBar) inputBar.parentNode.insertBefore(w, inputBar);
+  }
+
   function _setRateLimited(limited, resetIn) {
     _rateLimited = limited;
     const input   = document.getElementById('aiInput');
@@ -591,35 +643,62 @@
       // ── Store the resolved name for use in API calls ──────────────────
       if (userName) _resolvedCustomerName = userName;
 
-      // ── Query vehicles by ownerId (Firebase UID) first, fallback to owner name ──
+      // ── Also resolve company name from user profile ───────────────────
+      let userCompanyName = '';
+      const userDoc2 = await db.collection('users').doc(user.uid).get();
+      if (userDoc2.exists) {
+        const uData = userDoc2.data();
+        if (!_resolvedCustomerName) _resolvedCustomerName = uData.name || '';
+        userCompanyName = uData.companyName || '';
+      }
+
+      // ── Query vehicles: 4-pass approach matching backend customer_tools ──
+      // Pass 1: ownerId == user.uid
+      // Pass 2a: owner == exact name
+      // Pass 2b: owner == company name (if different)
+      // Pass 3: case-insensitive full scan (always run — catches capitalisation mismatches)
       const seenVehicleIds = new Set();
-      // Primary: ownerId == user.uid
+
       const vSnapById = await db.collection('vehicles').where('ownerId', '==', user.uid).get();
       vSnapById.docs.forEach(d => {
         seenVehicleIds.add(d.id);
         _myVehicles.push({ id: d.id, ...d.data() });
       });
-      // Fallback: owner name match (case-insensitive for display, exact for Firestore)
-      // Try exact match first, then case-insensitive fallback
-      const vSnapByName = await db.collection('vehicles').where('owner', '==', _resolvedCustomerName).get();
-      vSnapByName.docs.forEach(d => {
-        if (!seenVehicleIds.has(d.id)) {
-          seenVehicleIds.add(d.id);
-          _myVehicles.push({ id: d.id, ...d.data() });
-        }
-      });
-      // If still no vehicles, try case-insensitive scan (handles capitalisation mismatch)
-      if (!_myVehicles.length && _resolvedCustomerName) {
-        const vAll = await db.collection('vehicles').get();
-        vAll.docs.forEach(d => {
-          const v = d.data();
-          if (!seenVehicleIds.has(d.id) &&
-              (v.owner || '').toLowerCase() === _resolvedCustomerName.toLowerCase()) {
+
+      if (_resolvedCustomerName) {
+        const vSnapByName = await db.collection('vehicles').where('owner', '==', _resolvedCustomerName).get();
+        vSnapByName.docs.forEach(d => {
+          if (!seenVehicleIds.has(d.id)) {
             seenVehicleIds.add(d.id);
-            _myVehicles.push({ id: d.id, ...v });
+            _myVehicles.push({ id: d.id, ...d.data() });
           }
         });
       }
+
+      if (userCompanyName && userCompanyName.toLowerCase() !== (_resolvedCustomerName || '').toLowerCase()) {
+        const vSnapByCompany = await db.collection('vehicles').where('owner', '==', userCompanyName).get();
+        vSnapByCompany.docs.forEach(d => {
+          if (!seenVehicleIds.has(d.id)) {
+            seenVehicleIds.add(d.id);
+            _myVehicles.push({ id: d.id, ...d.data() });
+          }
+        });
+      }
+
+      // Pass 3: always-run case-insensitive scan (catches stored name with different capitalisation)
+      const nameLower    = (_resolvedCustomerName || '').toLowerCase();
+      const companyLower = (userCompanyName || '').toLowerCase();
+      const vAll = await db.collection('vehicles').get();
+      vAll.docs.forEach(d => {
+        if (seenVehicleIds.has(d.id)) return;
+        const v = d.data();
+        const stored = (v.owner || '').toLowerCase().trim();
+        if (stored && ((nameLower && stored === nameLower) ||
+                       (companyLower && stored === companyLower))) {
+          seenVehicleIds.add(d.id);
+          _myVehicles.push({ id: d.id, ...v });
+        }
+      });
       if (_resolvedCustomerName) {
         const parts = _resolvedCustomerName.trim().split(' ').filter(Boolean);
         _customerInitials = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : parts[0][0].toUpperCase();
@@ -827,12 +906,18 @@
     if (_rateLimited) return;
     if (_isSending) return;   // prevent double-send
 
+    // ── Customer daily token limit check ─────────────────────────────────
+    if (_currentUid && _isTokenLimitReached(_currentUid)) {
+      _showCustomerTokenLimitBanner(_currentUid);
+      return;
+    }
+
     _isSending = true;
 
     // ── Hide welcome, show clear button ──────────────────────────────────
     const welcome = document.getElementById('aiWelcome');
     if (welcome) welcome.style.display = 'none';
-    const cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'flex';
+    const cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'flex';
 
     _addBubbleAndSave(text, 'user');
     if (input) { input.value = ''; input.style.height = 'auto'; }
@@ -876,6 +961,17 @@
       } else if (data.answer) {
         if (data.session_id) { _sessionId = data.session_id; }
         _addBubbleAndSave(data.answer, 'bot');
+        // Track tokens used: estimate ~1 token per 4 chars (user msg + reply)
+        if (_currentUid) {
+          const approxTokens = Math.ceil((text.length + data.answer.length) / 4);
+          _addUsedTokens(_currentUid, approxTokens);
+          // Show warning when nearing or at limit
+          if (_isTokenLimitReached(_currentUid)) {
+            _showCustomerTokenLimitBanner(_currentUid);
+          } else if (_tokenLimitRemaining(_currentUid) < 400) {
+            _showTokenLowWarning(_currentUid);
+          }
+        }
       } else if (data.offline || !data.success) {
         _addBubbleAndSave(_localFallback(text), 'bot');
       } else {
@@ -890,6 +986,20 @@
     _updateSendBtn();
   };
 
+  // ── New Chat — saves current session to history then opens a blank chat ──
+  window.newChat = function () {
+    // Save current chat to history first (so it appears in the drawer)
+    if (_chatHistory.length) _saveChat();
+    // Clear server-side session memory
+    if (_sessionId) { fetch('/api/ai-session/' + _sessionId, {method:'DELETE'}).catch(function(){}); _sessionId = null; }
+    // Remove active slot so this blank session doesn't inherit the old one
+    if (_currentUid) localStorage.removeItem(_activeKey(_currentUid));
+    _setRateLimited(false);
+    _chatHistory = [];
+    _rebuildWelcome();
+    var cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'none';
+  };
+
   window.clearChat = function () {
     // Persist current chat to history before clearing
     if (_chatHistory.length) _saveChat();
@@ -900,7 +1010,7 @@
     _setRateLimited(false);
     _chatHistory = [];
     _rebuildWelcome();
-    var cb = document.getElementById('clearBtnWrap'); if (cb) cb.style.display = 'none';
+    var cb = document.getElementById('clearBtn'); if (cb) cb.style.display = 'none';
   };
 
   firebase.auth().onAuthStateChanged((user) => {
@@ -911,6 +1021,10 @@
         _restoreActiveSession(user.uid);
         // Save any messages that were queued before auth resolved
         if (_chatHistory.length) _saveChat();
+        // Check customer daily token limit on load
+        if (_isTokenLimitReached(user.uid)) {
+          _showCustomerTokenLimitBanner(user.uid);
+        }
       });
     } else {
       window.location.href = 'login.html';

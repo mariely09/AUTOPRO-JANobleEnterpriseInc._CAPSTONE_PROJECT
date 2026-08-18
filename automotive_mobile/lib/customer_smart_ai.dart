@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Base URL of the ai_assistant FastAPI service.
@@ -12,8 +13,13 @@ const _kCustAiBaseUrl = String.fromEnvironment(
   defaultValue: 'https://caltex-autopro-capstone-project.onrender.com',
 );
 
+// ── Per-customer daily token limit ────────────────────────────────────────────
+// Customers are limited to 2 000 tokens per day to prevent abuse.
+const _kCustomerDailyTokenLimit = 2000;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Static chat store — survives page navigation (cleared on logout/refresh/delete)
+// History sessions are persisted to SharedPreferences keyed by Firebase UID.
 // ─────────────────────────────────────────────────────────────────────────────
 class CustomerChatStore {
   static final List<_ChatMsg> messages = [];
@@ -21,11 +27,121 @@ class CustomerChatStore {
   static bool rateLimited = false;
   static String resetIn = '';
 
+  // SharedPreferences key helpers
+  static String _activeKey(String uid)  => 'cust_ai_active_$uid';
+  static String _storageKey(String uid) => 'cust_ai_chat_$uid';
+  static String _tokenKey(String uid)   {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    return 'cust_ai_tokens_${uid}_$today';
+  }
+
   static void clear() {
     messages.clear();
     sessionId = null;
     rateLimited = false;
     resetIn = '';
+  }
+
+  /// Persist current in-memory messages as the active session + upsert into
+  /// the history list.
+  static Future<void> saveChat(String uid) async {
+    if (messages.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final sid   = sessionId ?? 'local_$uid';
+      final entry = {
+        'id': sid,
+        'ts': DateTime.now().millisecondsSinceEpoch,
+        'messages': messages.map((m) => {
+          'role': m.role,
+          'text': m.text,
+        }).toList(),
+      };
+      // Active slot
+      await prefs.setString(_activeKey(uid), jsonEncode(entry));
+      // History list — upsert by sid
+      final all = await loadAllSessions(uid);
+      final idx = all.indexWhere((s) => s['id'] == sid);
+      if (idx >= 0) all[idx] = entry; else all.insert(0, entry);
+      final trimmed = all.length > 50 ? all.sublist(0, 50) : all;
+      await prefs.setString(_storageKey(uid), jsonEncode(trimmed));
+    } catch (_) {}
+  }
+
+  /// Load all saved sessions for [uid] sorted newest first.
+  static Future<List<Map<String, dynamic>>> loadAllSessions(String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw   = prefs.getString(_storageKey(uid));
+      if (raw == null) return [];
+      final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+      list.sort((a, b) =>
+          ((b['ts'] as int?) ?? 0).compareTo((a['ts'] as int?) ?? 0));
+      return list;
+    } catch (_) { return []; }
+  }
+
+  /// Restore the most recent active session into in-memory messages.
+  /// Returns true if a session was restored.
+  static Future<bool> restoreActiveSession(String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw   = prefs.getString(_activeKey(uid));
+      if (raw == null) return false;
+      final entry = jsonDecode(raw) as Map<String, dynamic>;
+      final msgs  = (entry['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      if (msgs.isEmpty) return false;
+      messages.clear();
+      for (final m in msgs) {
+        messages.add(_ChatMsg(
+          role: m['role'] as String? ?? 'ai',
+          text: m['text'] as String? ?? '',
+        ));
+      }
+      final sid = entry['id'] as String?;
+      sessionId = (sid != null && !sid.startsWith('local_')) ? sid : null;
+      return true;
+    } catch (_) { return false; }
+  }
+
+  static Future<void> clearAllHistory(String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_storageKey(uid));
+      await prefs.remove(_activeKey(uid));
+    } catch (_) {}
+  }
+
+  static Future<void> clearActiveSlot(String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_activeKey(uid));
+    } catch (_) {}
+  }
+
+  // ── Token tracking ────────────────────────────────────────────────────────
+  static Future<int> getUsedTokens(String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getInt(_tokenKey(uid)) ?? 0;
+    } catch (_) { return 0; }
+  }
+
+  static Future<void> addTokens(String uid, int n) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final current = prefs.getInt(_tokenKey(uid)) ?? 0;
+      await prefs.setInt(_tokenKey(uid), current + n);
+    } catch (_) {}
+  }
+
+  static Future<bool> isTokenLimitReached(String uid) async {
+    return (await getUsedTokens(uid)) >= _kCustomerDailyTokenLimit;
+  }
+
+  static Future<int> tokenLimitRemaining(String uid) async {
+    final used = await getUsedTokens(uid);
+    return (_kCustomerDailyTokenLimit - used).clamp(0, _kCustomerDailyTokenLimit);
   }
 }
 
@@ -58,6 +174,13 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   int _vehicleCount = 0;
 
   bool _dataLoaded = false;
+  bool _tokenLimitReached = false;
+  int  _tokensRemaining   = _kCustomerDailyTokenLimit;
+
+  // ── History drawer state ───────────────────────────────────────────────────
+  bool _historyOpen = false;
+  List<Map<String, dynamic>> _historySessions = [];
+
   bool _loading = false;
   bool _backendOnline = true;
   bool get _rateLimited => CustomerChatStore.rateLimited;
@@ -107,25 +230,168 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
       _initials = parts.length >= 2
           ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
           : parts[0][0].toUpperCase();
+    }
 
-      // Query by ownerId (Firebase UID) — most reliable
+    // ── Resolve company name ──────────────────────────────────────────────
+    final companyName = doc.data()?['companyName'] as String? ?? '';
+
+    if (name.isNotEmpty || companyName.isNotEmpty) {
+      final nameLower    = name.toLowerCase();
+      final companyLower = companyName.toLowerCase();
+      final seenIds = <String>{};
+
+      // Pass 1: ownerId == user.uid
       final snapById = await FirebaseFirestore.instance
           .collection('vehicles')
           .where('ownerId', isEqualTo: _customerUid)
           .get();
-      // Fallback: query by owner name for older documents
-      final snapByName = await FirebaseFirestore.instance
+      for (final d in snapById.docs) seenIds.add(d.id);
+
+      // Pass 2a: owner == exact name
+      if (name.isNotEmpty) {
+        final snapByName = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .where('owner', isEqualTo: name)
+            .get();
+        for (final d in snapByName.docs) seenIds.add(d.id);
+      }
+
+      // Pass 2b: owner == company name (if different)
+      if (companyName.isNotEmpty && companyLower != nameLower) {
+        final snapByCompany = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .where('owner', isEqualTo: companyName)
+            .get();
+        for (final d in snapByCompany.docs) seenIds.add(d.id);
+      }
+
+      // Pass 3: case-insensitive scan — always run to catch capitalisation mismatches
+      final allVehicles = await FirebaseFirestore.instance
           .collection('vehicles')
-          .where('owner', isEqualTo: name)
           .get();
-      // Deduplicate by doc ID
-      final seenIds = <String>{};
-      for (final doc in snapById.docs) seenIds.add(doc.id);
-      for (final doc in snapByName.docs) seenIds.add(doc.id);
+      for (final d in allVehicles.docs) {
+        if (seenIds.contains(d.id)) continue;
+        final stored = ((d.data()['owner'] as String?) ?? '').toLowerCase().trim();
+        if (stored.isNotEmpty &&
+            ((nameLower.isNotEmpty && stored == nameLower) ||
+             (companyLower.isNotEmpty && stored == companyLower))) {
+          seenIds.add(d.id);
+        }
+      }
+
       _vehicleCount = seenIds.length;
     }
 
-    if (mounted) setState(() => _dataLoaded = true);
+    // Restore active session from SharedPreferences
+    if (_messages.isEmpty) {
+      await CustomerChatStore.restoreActiveSession(user.uid);
+    }
+
+    // Check daily token limit
+    final limitReached = await CustomerChatStore.isTokenLimitReached(user.uid);
+    final remaining    = await CustomerChatStore.tokenLimitRemaining(user.uid);
+
+    if (mounted) {
+      setState(() {
+        _dataLoaded         = true;
+        _tokenLimitReached  = limitReached;
+        _tokensRemaining    = remaining;
+      });
+    }
+  }
+
+  // ── History drawer ─────────────────────────────────────────────────────────
+
+  Future<void> _openHistory() async {
+    if (_customerUid.isEmpty) return;
+    // Save current chat before opening history
+    if (_messages.isNotEmpty) await CustomerChatStore.saveChat(_customerUid);
+    final sessions = await CustomerChatStore.loadAllSessions(_customerUid);
+    if (mounted) setState(() { _historySessions = sessions; _historyOpen = true; });
+  }
+
+  void _closeHistory() {
+    if (mounted) setState(() => _historyOpen = false);
+  }
+
+  Future<void> _loadHistorySession(Map<String, dynamic> session) async {
+    final msgs = (session['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    if (msgs.isEmpty) return;
+    CustomerChatStore.sessionId = (session['id'] as String?)?.startsWith('local_') == false
+        ? session['id'] as String?
+        : null;
+    setState(() {
+      CustomerChatStore.messages.clear();
+      for (final m in msgs) {
+        CustomerChatStore.messages.add(_ChatMsg(
+          role: m['role'] as String? ?? 'ai',
+          text: m['text'] as String? ?? '',
+        ));
+      }
+      _historyOpen = false;
+    });
+    _scrollToBottom();
+  }
+
+  Future<void> _deleteAllHistory() async {
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete All Chats',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: const Text('Delete all chat history? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel',
+                style: TextStyle(color: Color(0xFF718096))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE8001C),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete All',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (_customerUid.isNotEmpty) {
+      await CustomerChatStore.clearAllHistory(_customerUid);
+      if (_sessionId != null) {
+        http.delete(Uri.parse('$_kCustAiBaseUrl/session/$_sessionId'))
+            .catchError((_) => http.Response('', 200));
+      }
+      CustomerChatStore.clear();
+    }
+    if (!mounted) return;
+    setState(() { _historySessions = []; _historyOpen = false; });
+  }
+
+  // ── New Chat ───────────────────────────────────────────────────────────────
+
+  Future<void> _newChat() async {
+    // Save current session to history before clearing
+    if (_customerUid.isNotEmpty && _messages.isNotEmpty) {
+      await CustomerChatStore.saveChat(_customerUid);
+      await CustomerChatStore.clearActiveSlot(_customerUid);
+    }
+    // Clear server-side session memory
+    if (_sessionId != null) {
+      http.delete(Uri.parse('$_kCustAiBaseUrl/session/$_sessionId'))
+          .catchError((_) => http.Response('', 200));
+    }
+    if (mounted) {
+      setState(() {
+        CustomerChatStore.clear();
+      });
+    }
   }
 
   Future<void> _checkBackend({bool silent = false}) async {
@@ -165,13 +431,25 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     final text = (preset ?? _inputCtrl.text).trim();
     if (text.isEmpty || _loading || _rateLimited) return;
 
+    // ── Customer daily token limit check ─────────────────────────────────
+    if (_tokenLimitReached) return;
+    if (_customerUid.isNotEmpty) {
+      final limitHit = await CustomerChatStore.isTokenLimitReached(_customerUid);
+      if (limitHit) {
+        if (mounted) setState(() => _tokenLimitReached = true);
+        return;
+      }
+    }
+
     if (!_dataLoaded) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Still loading your profile, please wait…'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Still loading your profile, please wait…'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
       return;
     }
 
@@ -181,6 +459,9 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
       _loading = true;
     });
     _scrollToBottom();
+
+    // Save user message immediately
+    if (_customerUid.isNotEmpty) await CustomerChatStore.saveChat(_customerUid);
 
     try {
       final resp = await http
@@ -222,6 +503,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               );
             });
           }
+          if (_customerUid.isNotEmpty) await CustomerChatStore.saveChat(_customerUid);
           return;
         }
 
@@ -231,6 +513,23 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
             _messages.add(_ChatMsg(role: 'ai', text: answer));
           });
         }
+
+        // ── Track token usage (estimate ~1 token per 4 chars) ─────────────
+        if (_customerUid.isNotEmpty) {
+          final approxTokens = ((text.length + answer.length) / 4).ceil();
+          await CustomerChatStore.addTokens(_customerUid, approxTokens);
+          final limitHit  = await CustomerChatStore.isTokenLimitReached(_customerUid);
+          final remaining = await CustomerChatStore.tokenLimitRemaining(_customerUid);
+          if (mounted) {
+            setState(() {
+              _tokenLimitReached = limitHit;
+              _tokensRemaining   = remaining;
+            });
+          }
+          // Persist after AI reply
+          await CustomerChatStore.saveChat(_customerUid);
+        }
+
       } else {
         final err = _parseError(resp.body);
         if (mounted) {
@@ -244,6 +543,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
             );
           });
         }
+        if (_customerUid.isNotEmpty) await CustomerChatStore.saveChat(_customerUid);
       }
     } on http.ClientException catch (e) {
       if (mounted) {
@@ -357,9 +657,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                           boxShadow: [
                             BoxShadow(
                               color: _backendOnline
-                                  ? const Color(
-                                      0xFF4ade80,
-                                    ).withValues(alpha: 0.8)
+                                  ? const Color(0xFF4ade80).withValues(alpha: 0.8)
                                   : Colors.orange.withValues(alpha: 0.6),
                               blurRadius: 6,
                             ),
@@ -382,15 +680,31 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           ],
         ),
         actions: [
+          // New Chat button
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.white),
+            tooltip: 'New chat',
+            onPressed: _newChat,
+          ),
+          // History button
+          IconButton(
+            icon: const Icon(Icons.history, color: Colors.white),
+            tooltip: 'Chat history',
+            onPressed: _openHistory,
+          ),
           if (_messages.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.white),
               tooltip: 'Clear chat',
-              onPressed: () {
+              onPressed: () async {
                 if (_sessionId != null) {
                   http
                       .delete(Uri.parse('$_kCustAiBaseUrl/session/$_sessionId'))
                       .catchError((_) => http.Response('', 200));
+                }
+                if (_customerUid.isNotEmpty) {
+                  await CustomerChatStore.saveChat(_customerUid);
+                  await CustomerChatStore.clearActiveSlot(_customerUid);
                 }
                 setState(() {
                   CustomerChatStore.clear();
@@ -399,173 +713,388 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
             ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // ── Offline banner ───────────────────────────────────────────────
-          if (!_backendOnline && _dataLoaded)
-            Container(
-              width: double.infinity,
-              color: const Color(0xFFFFFBEB),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.warning_amber_rounded,
-                    size: 14,
-                    color: Color(0xFF975A16),
-                  ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Cannot reach AI backend. Tap Retry.',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF975A16)),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => _checkBackend(),
-                    child: const Text(
-                      'Retry',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF975A16),
+          // ── Main chat column ──────────────────────────────────────────────
+          Column(
+            children: [
+              // ── Offline banner ──────────────────────────────────────────
+              if (!_backendOnline && _dataLoaded)
+                Container(
+                  width: double.infinity,
+                  color: const Color(0xFFFFFBEB),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, size: 14,
+                          color: Color(0xFF975A16)),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Cannot reach AI backend. Tap Retry.',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF975A16)),
+                        ),
                       ),
-                    ),
+                      GestureDetector(
+                        onTap: () => _checkBackend(),
+                        child: const Text('Retry',
+                            style: TextStyle(fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF975A16))),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
 
-          // ── Rate-limit banner ────────────────────────────────────────────
-          if (_rateLimited)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF7ED),
-                border: Border(
-                  bottom: BorderSide(color: Color(0xFFFB923C), width: 2),
+              // ── Groq rate-limit banner ──────────────────────────────────
+              if (_rateLimited)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFF7ED),
+                    border: Border(bottom: BorderSide(color: Color(0xFFFB923C), width: 2)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.block, size: 18, color: Color(0xFF9A3412)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: RichText(
+                          text: TextSpan(
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF9A3412), height: 1.5),
+                            children: [
+                              const TextSpan(
+                                text: 'AI unavailable — daily token limit reached\n',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                              ),
+                              const TextSpan(text: 'Groq free-tier quota is exhausted. Resets in '),
+                              TextSpan(text: _resetIn,
+                                  style: const TextStyle(fontWeight: FontWeight.bold)),
+                              const TextSpan(text: '. Chat is disabled until then.'),
+                            ],
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _checkAiStatus,
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Text('Retry',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold,
+                                  color: Color(0xFF9A3412))),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // ── Customer daily token-limit banner ───────────────────────
+              if (_tokenLimitReached)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFF7ED),
+                    border: Border(bottom: BorderSide(color: Color(0xFFFB923C), width: 2)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.block, size: 18, color: Color(0xFF9A3412)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: RichText(
+                          text: TextSpan(
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF9A3412), height: 1.5),
+                            children: [
+                              const TextSpan(
+                                text: 'Daily message limit reached\n',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                              ),
+                              TextSpan(
+                                text: "You've used your $_kCustomerDailyTokenLimit-token daily allowance. "
+                                    'Your quota resets at midnight tonight. '
+                                    'You can still view your chat history.',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // ── Low-token warning (< 400 remaining) ────────────────────
+              if (!_tokenLimitReached && _tokensRemaining < 400 && _tokensRemaining > 0)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFFBEB),
+                    border: Border(bottom: BorderSide(color: Color(0xFFFCD34D), width: 1.5)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, size: 14,
+                          color: Color(0xFF92400E)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Running low — ~$_tokensRemaining tokens remaining today.',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF92400E)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // ── Chat / Welcome ──────────────────────────────────────────
+              Expanded(
+                child: !_dataLoaded
+                    ? const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(color: _red),
+                            SizedBox(height: 12),
+                            Text('Loading your profile…',
+                                style: TextStyle(color: Color(0xFF718096), fontSize: 13)),
+                          ],
+                        ),
+                      )
+                    : _messages.isEmpty
+                    ? _buildWelcome()
+                    : ListView.builder(
+                        controller: _scrollCtrl,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _messages.length + (_loading ? 1 : 0),
+                        itemBuilder: (_, i) {
+                          if (_loading && i == _messages.length)
+                            return _buildTypingIndicator();
+                          return _buildBubble(_messages[i]);
+                        },
+                      ),
+              ),
+
+              // ── Input bar ───────────────────────────────────────────────
+              SafeArea(
+                child: Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _FocusInputBar(
+                        inputCtrl: _inputCtrl,
+                        loading: _loading,
+                        rateLimited: _rateLimited || _tokenLimitReached,
+                        hint: _tokenLimitReached
+                            ? 'Daily message limit reached — resets tomorrow'
+                            : _rateLimited
+                            ? 'AI unavailable — daily limit reached'
+                            : 'Ask about your vehicles, bookings, or services…',
+                        onSend: _send,
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Enter to send  ·  Shift+Enter for new line',
+                        style: TextStyle(fontSize: 10, color: Color(0xFFC0C8D4)),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.block, size: 18, color: Color(0xFF9A3412)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF9A3412),
-                          height: 1.5,
-                        ),
-                        children: [
-                          const TextSpan(
-                            text:
-                                'AI unavailable — daily token limit reached\n',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12.5,
-                            ),
-                          ),
-                          const TextSpan(
-                            text:
-                                'Groq free-tier quota is exhausted. Resets in ',
-                          ),
-                          TextSpan(
-                            text: _resetIn,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const TextSpan(
-                            text: '. Chat is disabled until then.',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _checkAiStatus,
-                    child: const Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: Text(
-                        'Retry',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF9A3412),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          // ── Chat / Welcome ───────────────────────────────────────────────
-          Expanded(
-            child: !_dataLoaded
-                ? const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircularProgressIndicator(color: _red),
-                        SizedBox(height: 12),
-                        Text(
-                          'Loading your profile…',
-                          style: TextStyle(
-                            color: Color(0xFF718096),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : _messages.isEmpty
-                ? _buildWelcome()
-                : ListView.builder(
-                    controller: _scrollCtrl,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length + (_loading ? 1 : 0),
-                    itemBuilder: (_, i) {
-                      if (_loading && i == _messages.length)
-                        return _buildTypingIndicator();
-                      return _buildBubble(_messages[i]);
-                    },
-                  ),
+            ],
           ),
 
-          // ── Input bar ────────────────────────────────────────────────────
-          SafeArea(
-            child: Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _FocusInputBar(
-                    inputCtrl: _inputCtrl,
-                    loading: _loading,
-                    rateLimited: _rateLimited,
-                    hint: _rateLimited
-                        ? 'AI unavailable — daily limit reached'
-                        : 'Ask about your vehicles, bookings, or services…',
-                    onSend: _send,
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Enter to send  ·  Shift+Enter for new line',
-                    style: TextStyle(fontSize: 10, color: Color(0xFFC0C8D4)),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+          // ── History overlay ───────────────────────────────────────────────
+          if (_historyOpen)
+            GestureDetector(
+              onTap: _closeHistory,
+              child: Container(color: Colors.black.withValues(alpha: 0.35)),
             ),
+
+          // ── History drawer (slides in from right) ─────────────────────────
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeInOut,
+            top: 0,
+            bottom: 0,
+            right: _historyOpen ? 0 : -340,
+            child: _buildHistoryDrawer(),
           ),
         ],
       ),
     );
   }
+
+  // ── History drawer widget ──────────────────────────────────────────────────
+  Widget _buildHistoryDrawer() {
+    final today     = DateTime.now();
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    String dayLabel(DateTime d) {
+      if (d.year == today.year && d.month == today.month && d.day == today.day) {
+        return 'Today';
+      }
+      if (d.year == yesterday.year && d.month == yesterday.month && d.day == yesterday.day) {
+        return 'Yesterday';
+      }
+      return '${_monthAbbr(d.month)} ${d.day}, ${d.year}';
+    }
+
+    return Material(
+      elevation: 8,
+      child: Container(
+        width: 300,
+        color: Colors.white,
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 48, 16, 14),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFc62828), Color(0xFFE8001C)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.history, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text('Chat History',
+                        style: TextStyle(color: Colors.white, fontSize: 14,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                  GestureDetector(
+                    onTap: _closeHistory,
+                    child: Container(
+                      width: 28, height: 28,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 18),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Delete all button
+            GestureDetector(
+              onTap: _deleteAllHistory,
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF5F5),
+                  border: Border.all(color: const Color(0xFFFCA5A5), width: 1.5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.delete_outline, color: Color(0xFFDC2626), size: 14),
+                    SizedBox(width: 8),
+                    Text('Delete All Chats',
+                        style: TextStyle(color: Color(0xFFDC2626), fontSize: 12,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ),
+            // Session list
+            Expanded(
+              child: _historySessions.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text('No chat history yet.\nStart a conversation!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                      itemCount: _historySessions.length,
+                      itemBuilder: (_, i) {
+                        final s   = _historySessions[i];
+                        final ts  = DateTime.fromMillisecondsSinceEpoch((s['ts'] as int?) ?? 0);
+                        final day = dayLabel(ts);
+                        final showLabel = i == 0 ||
+                            dayLabel(DateTime.fromMillisecondsSinceEpoch(
+                                (_historySessions[i - 1]['ts'] as int?) ?? 0)) != day;
+                        final msgs = (s['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                        final firstUser = msgs.firstWhere(
+                            (m) => m['role'] == 'user',
+                            orElse: () => {'text': '(empty)'});
+                        final preview = firstUser['text'] as String? ?? '(empty)';
+                        final time = '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}';
+                        final isActive = s['id'] == (CustomerChatStore.sessionId ?? 'local_$_customerUid');
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (showLabel)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 10, bottom: 6),
+                                child: Text(day.toUpperCase(),
+                                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700,
+                                        color: Color(0xFF94A3B8), letterSpacing: 0.6)),
+                              ),
+                            GestureDetector(
+                              onTap: () => _loadHistorySession(s),
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 7),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isActive
+                                      ? const Color(0xFFFFF0F0)
+                                      : const Color(0xFFF8F9FB),
+                                  border: Border.all(
+                                      color: isActive
+                                          ? const Color(0xFFE8001C)
+                                          : const Color(0xFFE8EDF2),
+                                      width: 1.5),
+                                  borderRadius: BorderRadius.circular(11),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      preview.length > 60
+                                          ? '${preview.substring(0, 60)}…'
+                                          : preview,
+                                      style: const TextStyle(fontSize: 12,
+                                          color: Color(0xFF1A202C), fontWeight: FontWeight.w500),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text('$time · ${msgs.length} message${msgs.length != 1 ? 's' : ''}',
+                                        style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8))),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _monthAbbr(int m) => const [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ][m - 1];
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Welcome screen

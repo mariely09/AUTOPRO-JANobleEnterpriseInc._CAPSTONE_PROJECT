@@ -2,6 +2,38 @@
 <!-- Include this file in admin pages that need the AI chatbot -->
 <!-- Requires: window.assets, window.inventory, window.serviceTransactions from admin_firebase.js -->
 
+<!-- History overlay + drawer (mirrors customer widget) -->
+<div id="ragHistoryOverlay" onclick="ragCloseHistory()"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:1202;opacity:0;pointer-events:none;transition:opacity .25s;"></div>
+<div id="ragHistoryDrawer"
+  style="position:fixed;top:0;right:-340px;width:320px;height:100%;z-index:1203;
+         background:white;box-shadow:-4px 0 24px rgba(0,0,0,0.13);
+         transition:right .28s cubic-bezier(.4,0,.2,1);
+         display:flex;flex-direction:column;overflow:hidden;">
+  <!-- Drawer header -->
+  <div style="background:linear-gradient(135deg,#c62828,#E8001C);padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+    <div style="flex:1;color:#fff;font-size:14px;font-weight:700;">Chat History</div>
+    <button onclick="ragCloseHistory()"
+      style="width:28px;height:28px;background:rgba(255,255,255,0.18);border:none;color:white;border-radius:8px;cursor:pointer;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .15s;"
+      onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.18)'">×</button>
+  </div>
+  <!-- Delete all button -->
+  <button onclick="ragDeleteAllHistory()"
+    style="margin:12px 14px 0;padding:9px 14px;background:#fff5f5;border:1.5px solid #fca5a5;
+           border-radius:10px;color:#dc2626;font-size:12px;font-weight:600;cursor:pointer;
+           font-family:inherit;display:flex;align-items:center;gap:8px;transition:all .18s;width:calc(100% - 28px);"
+    onmouseover="this.style.background='#fee2e2';this.style.borderColor='#E8001C'"
+    onmouseout="this.style.background='#fff5f5';this.style.borderColor='#fca5a5'">
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    Delete All Chats
+  </button>
+  <!-- Session list -->
+  <div id="ragHistoryList" style="flex:1;overflow-y:auto;padding:12px 14px;">
+    <div style="text-align:center;padding:40px 20px;color:#94a3b8;font-size:13px;">No chat history yet.</div>
+  </div>
+</div>
+
 <!-- Floating toggle button -->
 <div id="ragAiFabWrap" style="position:fixed;bottom:2rem;right:2rem;z-index:1200;display:inline-flex;">
   <div style="position:relative;display:inline-flex;">
@@ -36,54 +68,64 @@
          animation:ragAiSlideIn 0.28s cubic-bezier(.34,1.56,.64,1);">
 
   <!-- Panel header -->
-  <div id="ragAiHeader" style="background:linear-gradient(135deg,#c62828 0%,#E8001C 60%,#ff5252 100%);padding:14px 12px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:relative;overflow:visible;">
+  <div id="ragAiHeader" style="background:linear-gradient(135deg,#c62828 0%,#E8001C 60%,#ff5252 100%);padding:12px 10px;display:flex;align-items:center;gap:6px;flex-shrink:0;position:relative;overflow:visible;">
     <!-- Subtle shine overlay -->
     <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.1) 0%,transparent 65%);pointer-events:none;border-radius:22px 22px 0 0;"></div>
     <!-- Avatar — transparent bg, image fills circle -->
     <div style="position:relative;flex-shrink:0;">
-      <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,0.4);flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.15);background:white;display:flex;align-items:center;justify-content:center;">
-        <img src="../static/img/AI_LOGO.png" style="width:36px;height:36px;object-fit:contain;display:block;" alt="AI">
+      <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,0.4);flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.15);background:white;display:flex;align-items:center;justify-content:center;">
+        <img src="../static/img/AI_LOGO.png" style="width:30px;height:30px;object-fit:contain;display:block;" alt="AI">
       </div>
       <!-- Online dot on avatar -->
-      <span id="ragHeaderOnlineDot" style="display:none;position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid white;box-shadow:0 0 5px rgba(74,222,128,0.8);"></span>
+      <span id="ragHeaderOnlineDot" style="display:none;position:absolute;bottom:1px;right:1px;width:9px;height:9px;border-radius:50%;background:#4ade80;border:2px solid white;box-shadow:0 0 5px rgba(74,222,128,0.8);"></span>
     </div>
     <!-- Title -->
     <div style="flex:1;min-width:0;">
-      <div style="color:#fff;font-size:13.5px;font-weight:700;">AI Assistant</div>
-      <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
-        <span id="ragAiDot" style="width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;box-shadow:0 0 6px rgba(74,222,128,0.8);"></span>
-        <span id="ragAiStatus" style="font-size:10.5px;color:rgba(255,255,255,0.8);">Online · AI Assistant</span>
+      <div style="color:#fff;font-size:13px;font-weight:700;">AI Assistant</div>
+      <div style="display:flex;align-items:center;gap:4px;margin-top:1px;">
+        <span id="ragAiDot" style="width:6px;height:6px;border-radius:50%;background:#4ade80;flex-shrink:0;box-shadow:0 0 6px rgba(74,222,128,0.8);"></span>
+        <span id="ragAiStatus" style="font-size:10px;color:rgba(255,255,255,0.8);">Online · AI Assistant</span>
       </div>
     </div>
-    <!-- Clear icon button with tooltip -->
-    <div style="position:relative;z-index:20;" id="ragClearWrap">
-      <button onclick="ragAiClear()" id="ragClearBtn"
-        title="Clear chat"
-        style="width:32px;height:32px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);
-               color:white;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-               transition:background .18s;"
-        onmouseover="this.style.background='rgba(255,255,255,0.28)';document.getElementById('ragClearTip').style.opacity='1';document.getElementById('ragClearTip').style.visibility='visible';"
-        onmouseout="this.style.background='rgba(255,255,255,0.15)';document.getElementById('ragClearTip').style.opacity='0';document.getElementById('ragClearTip').style.visibility='hidden';">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Button group: New Chat + History + Clear + Close -->
+    <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+      <!-- New Chat button -->
+      <button onclick="ragNewChat()" id="ragNewChatBtn" title="New chat"
+        style="width:30px;height:30px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);
+               color:white;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+               flex-shrink:0;transition:background .18s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.28)'"
+        onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <!-- History button -->
+      <button onclick="ragOpenHistory()" id="ragHistoryBtn" title="Chat history"
+        style="width:30px;height:30px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);
+               color:white;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+               flex-shrink:0;transition:background .18s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.28)'"
+        onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </button>
+      <!-- Clear button -->
+      <button onclick="ragAiClear()" id="ragClearBtn" title="Clear chat"
+        style="width:30px;height:30px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);
+               color:white;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+               flex-shrink:0;transition:background .18s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.28)'"
+        onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
         </svg>
       </button>
-      <!-- Tooltip — above the button so it's never clipped -->
-      <div id="ragClearTip" style="position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);
-           background:rgba(30,30,30,0.88);color:#fff;font-size:10.5px;font-weight:600;
-           padding:4px 9px;border-radius:6px;white-space:nowrap;pointer-events:none;
-           opacity:0;visibility:hidden;transition:opacity .18s ease;z-index:100;">Clear chat
-        <div style="position:absolute;top:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:rgba(30,30,30,0.88);"></div>
-      </div>
+      <!-- Close button -->
+      <button onclick="ragAiToggle()" title="Close"
+        style="width:30px;height:30px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);
+               color:white;border-radius:8px;cursor:pointer;font-size:17px;line-height:1;
+               display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .18s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.28)'"
+        onmouseout="this.style.background='rgba(255,255,255,0.15)'">×</button>
     </div>
-    <!-- Close button -->
-    <button onclick="ragAiToggle()"
-      style="width:32px;height:32px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);
-             color:white;border-radius:9px;cursor:pointer;font-size:18px;line-height:1;
-             display:flex;align-items:center;justify-content:center;flex-shrink:0;
-             transition:background .18s;"
-      onmouseover="this.style.background='rgba(255,255,255,0.28)'"
-      onmouseout="this.style.background='rgba(255,255,255,0.15)'">×</button>
   </div>
 
   <!-- Messages area -->
@@ -190,8 +232,19 @@
 #ragAiChat::-webkit-scrollbar-thumb { background:#d1d5db;border-radius:4px; }
 #ragAiChat::-webkit-scrollbar-thumb:hover { background:#9ca3af; }
 
-/* ── Rate-limit banner ── */
-.rag-rate-banner { background:#fff7ed;border-bottom:2px solid #fb923c;padding:10px 14px;font-size:11.5px;color:#9a3412;display:flex;align-items:flex-start;gap:8px;flex-shrink:0;line-height:1.55; }
+/* ── History drawer ── */
+#ragHistoryDrawer::-webkit-scrollbar { width:3px; }
+#ragHistoryList::-webkit-scrollbar { width:3px; }
+#ragHistoryList::-webkit-scrollbar-thumb { background:#e2e8f0;border-radius:3px; }
+.rag-hist-day  { font-size:10.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin:10px 0 6px; }
+.rag-hist-item {
+  background:#f8f9fb;border:1.5px solid #e8edf2;border-radius:11px;
+  padding:10px 12px;margin-bottom:7px;cursor:pointer;transition:all .15s;
+}
+.rag-hist-item:hover,.rag-hist-item.active { background:#fff0f0;border-color:#E8001C; }
+.rag-hist-preview { font-size:12px;color:#1a202c;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px; }
+.rag-hist-time   { font-size:10.5px;color:#94a3b8;margin-top:3px; }
+
 </style>
 
 <script>
@@ -203,6 +256,130 @@ var _ragInitials = 'AD';
 var _ragReady = false;
 var _ragSessionId = null;  // server-side session key — sent back on each request
 var _ragRateLimited = false;
+var _ragCurrentUid  = null; // Firebase UID — set after auth resolves
+
+// ── localStorage history helpers ──────────────────────────────────────────
+function _ragActiveKey(uid)  { return 'rag_ai_active_'  + uid; }
+function _ragStorageKey(uid) { return 'rag_ai_chat_'    + uid; }
+
+function _ragLoadAllSessions(uid) {
+  try { var r = localStorage.getItem(_ragStorageKey(uid)); return r ? JSON.parse(r) : []; }
+  catch(e) { return []; }
+}
+
+function _ragSaveChat() {
+  if (!_ragCurrentUid) return;
+  var chat = document.getElementById('ragAiChat');
+  if (!chat) return;
+  var msgs = [];
+  chat.querySelectorAll('.rag-row').forEach(function(row) {
+    var isUser = row.classList.contains('user');
+    var bub = row.querySelector('.rag-bub');
+    if (!bub) return;
+    msgs.push({ role: isUser ? 'user' : 'ai', text: bub.innerText || bub.textContent || '' });
+  });
+  if (!msgs.length) return;
+  try {
+    var sid = _ragSessionId || ('local_' + _ragCurrentUid);
+    var entry = { id: sid, ts: Date.now(), messages: msgs };
+    localStorage.setItem(_ragActiveKey(_ragCurrentUid), JSON.stringify(entry));
+    var all = _ragLoadAllSessions(_ragCurrentUid);
+    var idx = all.findIndex(function(s){ return s.id === sid; });
+    if (idx >= 0) all[idx] = entry; else all.unshift(entry);
+    if (all.length > 50) all = all.slice(0, 50);
+    localStorage.setItem(_ragStorageKey(_ragCurrentUid), JSON.stringify(all));
+  } catch(e) {}
+}
+
+function _ragEscHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').slice(0,80);
+}
+
+function _ragRenderHistoryList() {
+  var list = document.getElementById('ragHistoryList');
+  if (!list) return;
+  var sessions = _ragCurrentUid ? _ragLoadAllSessions(_ragCurrentUid) : [];
+  sessions = sessions.filter(function(s){ return s.messages && s.messages.length > 0; });
+  if (!sessions.length) {
+    list.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#94a3b8;font-size:13px;">No chat history yet.<br>Start a conversation!</div>';
+    return;
+  }
+  var html = '';
+  var today = new Date(); var todayStr = today.toDateString();
+  var yest  = new Date(today); yest.setDate(today.getDate()-1); var yestStr = yest.toDateString();
+  var lastLabel = '';
+  sessions.forEach(function(s) {
+    var d = new Date(s.ts);
+    var label = d.toDateString() === todayStr ? 'Today'
+      : d.toDateString() === yestStr ? 'Yesterday'
+      : d.toLocaleDateString('en-PH', {month:'short',day:'numeric',year:'numeric'});
+    if (label !== lastLabel) { html += '<div class="rag-hist-day">'+label+'</div>'; lastLabel = label; }
+    var firstUser = s.messages.find(function(m){ return m.role === 'user'; });
+    var preview = firstUser ? firstUser.text : '(empty)';
+    var time = d.toLocaleTimeString('en-PH', {hour:'2-digit',minute:'2-digit'});
+    var isActive = s.id === (_ragSessionId || ('local_' + _ragCurrentUid));
+    html += '<div class="rag-hist-item'+(isActive?' active':'')+'" data-sid="'+_ragEscHtml(s.id)+'">'
+          + '<div class="rag-hist-preview">'+_ragEscHtml(preview)+'</div>'
+          + '<div class="rag-hist-time">'+time+' &nbsp;·&nbsp; '+s.messages.length+' message'+(s.messages.length!==1?'s':'')+'</div>'
+          + '</div>';
+  });
+  list.innerHTML = html;
+  list.querySelectorAll('.rag-hist-item[data-sid]').forEach(function(el) {
+    el.addEventListener('click', function() { _ragLoadSession(el.getAttribute('data-sid')); });
+  });
+}
+
+function _ragLoadSession(sid) {
+  var sessions = _ragCurrentUid ? _ragLoadAllSessions(_ragCurrentUid) : [];
+  var session  = sessions.find(function(s){ return s.id === sid; });
+  if (!session || !session.messages || !session.messages.length) return;
+  _ragSessionId = (!session.id.startsWith('local_')) ? session.id : null;
+  var chat = document.getElementById('ragAiChat');
+  var wb   = document.getElementById('ragWelcomeBlock');
+  if (wb) wb.remove();
+  chat.innerHTML = '';
+  session.messages.forEach(function(m) {
+    _ragAppend(m.role === 'user' ? 'user' : 'ai',
+               m.role === 'user' ? _ragEsc(m.text) : _ragMarkdown(m.text));
+  });
+  setTimeout(function(){ chat.scrollTop = chat.scrollHeight; }, 60);
+  _ragSaveChat();
+  ragCloseHistory();
+}
+
+window.ragOpenHistory = function() {
+  _ragRenderHistoryList();
+  var drawer  = document.getElementById('ragHistoryDrawer');
+  var overlay = document.getElementById('ragHistoryOverlay');
+  if (drawer)  drawer.style.right = '0';
+  if (overlay) { overlay.style.display = 'block'; overlay.style.opacity = '1'; overlay.style.pointerEvents = 'auto'; }
+};
+
+window.ragCloseHistory = function() {
+  var drawer  = document.getElementById('ragHistoryDrawer');
+  var overlay = document.getElementById('ragHistoryOverlay');
+  if (drawer)  drawer.style.right = '-340px';
+  if (overlay) { overlay.style.opacity = '0'; overlay.style.pointerEvents = 'none';
+    setTimeout(function(){ overlay.style.display = 'none'; }, 260); }
+};
+
+window.ragDeleteAllHistory = function() {
+  if (!confirm('Delete all chat history? This cannot be undone.')) return;
+  if (_ragCurrentUid) {
+    localStorage.removeItem(_ragStorageKey(_ragCurrentUid));
+    localStorage.removeItem(_ragActiveKey(_ragCurrentUid));
+  }
+  if (_ragSessionId) {
+    fetch('/api/ai-session/' + _ragSessionId, { method: 'DELETE' }).catch(function(){});
+    _ragSessionId = null;
+  }
+  _ragRenderHistoryList();
+};
+
+window.addEventListener('pagehide', function() { _ragSaveChat(); });
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'hidden') _ragSaveChat();
+});
 
 // ── Rate-limit helpers ────────────────────────────────────────────────────
 function _ragSetRateLimited(limited, resetIn) {
@@ -268,10 +445,11 @@ window.ragAiToggle = function() {
   }
 };
 
-// Get admin initials
+// Get admin initials + set UID for history
 if (typeof firebase !== 'undefined') {
   firebase.auth().onAuthStateChanged(function(user) {
     if (!user) return;
+    _ragCurrentUid = user.uid;
     firebase.firestore().collection('users').doc(user.uid).get().then(function(doc) {
       if (!doc.exists) return;
       var name = doc.data().name || '';
@@ -425,6 +603,7 @@ window.ragAiSend = function(preset) {
         'Resets in <strong>' + resetMsg + '</strong>.<br>' +
         'You cannot send new messages until the quota resets automatically.</div>' +
         '</div>');
+      _ragSaveChat();
       return;
     }
 
@@ -497,6 +676,7 @@ window.ragAiSend = function(preset) {
       btnHtml += '</div>';
       btnHtml += '<div id="' + errId + '" style="font-size:11px;margin-top:4px;"></div>';
       _ragAppend('ai', answer + btnHtml);
+      _ragSaveChat();
     } else if (data.answer) {
       // Strip any leaked report_payload JSON block the LLM may have included
       // without the fenced-block wrapper (defensive sanitisation).
@@ -510,10 +690,12 @@ window.ragAiSend = function(preset) {
       }
       // Render the AI answer with lightweight markdown formatting
       _ragAppend('ai', _ragMarkdown(cleanAnswer));
+      _ragSaveChat();
     } else {
       // AI returned success but no answer — use local fallback
       var result = _ragProcess(text);
       _ragAppend('ai', result.html);
+      _ragSaveChat();
     }
   })
   .catch(function(err) {
@@ -522,15 +704,36 @@ window.ragAiSend = function(preset) {
     _ragAppend('ai', '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:7px 11px;font-size:11px;color:#9a3412;margin-bottom:6px;"><strong>AI backend unreachable</strong> — using local data mode.</div>');
     var result = _ragProcess(text);
     _ragAppend('ai', result.html);
+    _ragSaveChat();
   });
 };
 
-window.ragAiClear = function() {
+window.ragNewChat = function() {
+  // Save current session to history before starting fresh
+  _ragSaveChat();
   // Clear server-side session memory
   if (_ragSessionId) {
     fetch('/api/ai-session/' + _ragSessionId, { method: 'DELETE' }).catch(function(){});
     _ragSessionId = null;
   }
+  // Remove active slot so re-opening doesn't restore the old session
+  if (_ragCurrentUid) localStorage.removeItem(_ragActiveKey(_ragCurrentUid));
+  _ragSetRateLimited(false);
+  document.getElementById('ragAiChat').innerHTML = '';
+  document.getElementById('ragAiChips').style.display = 'none';
+  _ragShowWelcome();
+};
+
+window.ragAiClear = function() {
+  // Save current session to history before clearing so it's accessible in the drawer
+  _ragSaveChat();
+  // Clear server-side session memory
+  if (_ragSessionId) {
+    fetch('/api/ai-session/' + _ragSessionId, { method: 'DELETE' }).catch(function(){});
+    _ragSessionId = null;
+  }
+  // Remove active slot so re-opening doesn't restore the cleared session
+  if (_ragCurrentUid) localStorage.removeItem(_ragActiveKey(_ragCurrentUid));
   _ragSetRateLimited(false);
   document.getElementById('ragAiChat').innerHTML='';
   document.getElementById('ragAiChips').style.display='none';
