@@ -623,6 +623,28 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
         )
         return direct
 
+    # ── Step 1b: out-of-scope pre-check (0 LLM tokens) ───────────────────────
+    # Block admin/inventory/report queries and other off-topic messages before
+    # reaching the LLM — this prevents 500 errors from bad Groq calls.
+    _OUT_OF_SCOPE_RE = re.compile(
+        r"\b(inventory|stock\s+level|stock\s+status|reorder|issuance|"
+        r"supplier|delivery|deliveries|warehouse|purchase\s+order|"
+        r"generate\s+(a\s+)?(report|pdf|excel|summary)|"
+        r"inventory\s+report|maintenance\s+report|service\s+report|"
+        r"all\s+(customers?|users?|accounts?)|"
+        r"other\s+customer|another\s+customer|"
+        r"(weather|news|sports|politics|geography|math|coding|programming|"
+        r"calculate|formula|recipe|joke|game|movie|music))\b",
+        re.IGNORECASE,
+    )
+    if _OUT_OF_SCOPE_RE.search(message):
+        return {
+            "reply": "I can only answer questions related to your vehicles, service history, bookings, and service pricing for the Caltex AutoPro system.",
+            "tool_calls": [],
+            "model": "none",
+            "intent": intent,
+        }
+
     # ── Step 2: select model ──────────────────────────────────────────────────
     chosen_model = (settings.GROQ_MODEL_SECONDARY
                     if intent == COMPLEX_ANALYSIS
@@ -810,8 +832,20 @@ def _customer_direct_lookup(message: str, customer_uid: str,
         msg_l,
     ):
         result = get_my_vehicles(customer_uid=customer_uid, customer_name=customer_name)
+        if result.get("error") == "QUOTA_EXCEEDED":
+            return {
+                "reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.",
+                "tool_calls": [{"tool": "get_my_vehicles", "args": {}, "result": result}],
+                "model": "none",
+                "intent": intent,
+            }
         if result.get("error"):
-            return None
+            return {
+                "reply": "I'm having trouble retrieving your vehicles right now. Please try again in a moment.",
+                "tool_calls": [{"tool": "get_my_vehicles", "args": {}, "result": result}],
+                "model": "none",
+                "intent": intent,
+            }
         total = result.get("total_vehicles", 0)
         if total == 0:
             reply = "You don't have any registered vehicles on file yet."
@@ -850,8 +884,20 @@ def _customer_direct_lookup(message: str, customer_uid: str,
         msg_l,
     ):
         result = get_my_service_history(customer_uid=customer_uid, customer_name=customer_name)
+        if result.get("error") == "QUOTA_EXCEEDED":
+            return {
+                "reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.",
+                "tool_calls": [{"tool": "get_my_service_history", "args": {}, "result": result}],
+                "model": "none",
+                "intent": intent,
+            }
         if result.get("error"):
-            return None
+            return {
+                "reply": "I'm having trouble retrieving your service history right now. Please try again in a moment.",
+                "tool_calls": [{"tool": "get_my_service_history", "args": {}, "result": result}],
+                "model": "none",
+                "intent": intent,
+            }
         total = result.get("total_jobs", 0)
         if total == 0:
             reply = ("It looks like you don't have any completed service records on file yet. "
@@ -887,8 +933,20 @@ def _customer_direct_lookup(message: str, customer_uid: str,
         msg_l,
     ):
         result = get_my_bookings(customer_uid=customer_uid, customer_name=customer_name)
+        if result.get("error") == "QUOTA_EXCEEDED":
+            return {
+                "reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.",
+                "tool_calls": [{"tool": "get_my_bookings", "args": {}, "result": result}],
+                "model": "none",
+                "intent": intent,
+            }
         if result.get("error"):
-            return None
+            return {
+                "reply": "I'm having trouble retrieving your bookings right now. Please try again in a moment.",
+                "tool_calls": [{"tool": "get_my_bookings", "args": {}, "result": result}],
+                "model": "none",
+                "intent": intent,
+            }
         total = result.get("total", 0)
         if total == 0:
             reply = "You don't have any service bookings on file."
@@ -915,22 +973,85 @@ def _customer_direct_lookup(message: str, customer_uid: str,
             "intent": intent,
         }
 
-    # ── Service prices (count query only — "how many services do you offer") ──
-    if re.search(r"\bhow\s+many\s+services?\b", msg_l):
-        result = get_service_prices(customer_uid=customer_uid, customer_name=customer_name)
-        if result.get("error"):
-            return None
-        total = result.get("total_services", 0)
-        reply = (
-            f"We offer **{total}** service(s). Ask me about a specific service "
-            f"to get its price, or say 'list all services' for the full catalog."
-        ) if total else (
-            "I wasn't able to find pricing information in our system. "
-            "Please contact us at caltexautopro2026@gmail.com for current rates."
+    # ── Service prices (full pricing lookup — by name or all) ─────────────────
+    if re.search(
+        r"\b(how\s+much\s+(is|for|does|would)|price\s+of|cost\s+of|"
+        r"how\s+much.*service|service\s+price|pricing|"
+        r"how\s+much\s+does|how\s+much\s+would|estimate.*cost|cost.*estimate|"
+        r"how\s+many\s+services?|list\s+(all\s+)?services?|"
+        r"services?\s+(offered|available|you\s+offer)|what\s+services?)\b",
+        msg_l,
+    ):
+        # Try to extract a specific service keyword from the message
+        import re as _re2
+        _svc_kw = None
+        _kw_match = _re2.search(
+            r"how\s+much\s+(?:is|for|does)?\s+(?:a\s+|an\s+|the\s+)?(.+?)(?:\s+(?:service|cost|price|fee))?\s*\??$",
+            msg_l,
         )
+        if _kw_match:
+            _candidate = _kw_match.group(1).strip()
+            # Only use as keyword if it looks like a service name (not a generic word)
+            if len(_candidate) >= 3 and _candidate not in (
+                "service", "services", "price", "prices", "cost", "costs", "it", "that"
+            ):
+                _svc_kw = _candidate
+
+        result = get_service_prices(
+            customer_uid=customer_uid,
+            customer_name=customer_name,
+            service_name=_svc_kw,
+        )
+        if result.get("error") == "QUOTA_EXCEEDED":
+            return {
+                "reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.",
+                "tool_calls": [{"tool": "get_service_prices", "args": {}, "result": result}],
+                "model": "none",
+                "intent": intent,
+            }
+        if result.get("error"):
+            return {
+                "reply": (
+                    "I wasn't able to retrieve service pricing right now. "
+                    "Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."
+                ),
+                "tool_calls": [{"tool": "get_service_prices", "args": {}, "result": result}],
+                "model": "none",
+                "intent": intent,
+            }
+        services = result.get("services", [])
+        total    = result.get("total_services", 0)
+        if total == 0:
+            if _svc_kw:
+                reply = (
+                    f"I couldn't find a service matching **\"{_svc_kw}\"** in our catalog. "
+                    f"You can ask me to *list all services* to see everything we offer, "
+                    f"or contact us at caltexautopro2026@gmail.com for details."
+                )
+            else:
+                reply = (
+                    "I wasn't able to find pricing information in our system at the moment. "
+                    "Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."
+                )
+        elif _svc_kw and len(services) <= 5:
+            # Specific service lookup — show inline results
+            lines = [f"- **{s['name']}**: {s['cost']}" for s in services]
+            reply = (
+                f"Here's the pricing for services matching **\"{_svc_kw}\"**:\n\n"
+                + "\n".join(lines)
+            )
+        else:
+            # Full catalog or many results
+            shown = services[:20]
+            lines = [f"- **{s['name']}**: {s['cost']}" for s in shown]
+            tail  = f"\n\n*Showing {len(shown)} of {total} services.*" if total > 20 else ""
+            reply = (
+                f"Here are our available services and prices ({total} total):\n\n"
+                + "\n".join(lines) + tail
+            )
         return {
             "reply": reply,
-            "tool_calls": [{"tool": "get_service_prices", "args": {}, "result": result}],
+            "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}],
             "model": "none",
             "intent": intent,
         }
@@ -1049,7 +1170,11 @@ def customer_chat_endpoint(req: CustomerChatRequest):
                 session_id=session_id,
             )
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return a friendly message instead of a 500 error
+        return ChatResponse(
+            reply="I'm having trouble processing your request right now. Please try again in a moment, or contact us at caltexautopro2026@gmail.com if the issue persists.",
+            session_id=session_id,
+        )
 
 
 # ── Shared helpers ────────────────────────────────────────────────────────────

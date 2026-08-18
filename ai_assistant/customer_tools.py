@@ -135,9 +135,9 @@ def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
                     filter=FieldFilter("owner", "==", company_name)).stream():
                 _add_vehicle(doc)
 
-        # ── Pass 3: case-insensitive full scan — only if passes 1+2 found nothing ──
-        # (avoids full collection scans on every request; only triggers on mismatch)
-        if not vehicles and customer_name:
+        # ── Pass 3: case-insensitive full scan — always run as supplemental pass ──
+        # (catches vehicles where owner field has different casing or minor mismatch)
+        if customer_name:
             name_lower    = customer_name.lower()
             company_lower = company_name.lower() if company_name else ""
             for doc in db.collection("vehicles").stream():
@@ -206,14 +206,17 @@ def get_my_service_history(customer_uid: str, customer_name: str,
                 p = doc.to_dict().get("plate", "")
                 if p:
                     plate_set.add(p)
-        # Full scan only when the indexed queries found nothing
-        if not plate_set and customer_name:
+        # Full scan as supplemental pass — catches mismatched owner fields
+        if customer_name:
             for doc in db.collection("vehicles").stream():
                 d = doc.to_dict()
+                # Skip if already found via ownerId / exact owner query
+                p = d.get("plate", "")
+                if p and p in plate_set:
+                    continue
                 stored = (d.get("owner", "") or "").lower().strip()
                 if stored and (stored == name_lower or
                                (company_lower and stored == company_lower)):
-                    p = d.get("plate", "")
                     if p:
                         plate_set.add(p)
         plate_list = list(plate_set)
@@ -239,7 +242,7 @@ def get_my_service_history(customer_uid: str, customer_name: str,
                     filter=FieldFilter("plate", "in", chunk)).stream():
                 d = doc.to_dict()
                 # Only show completed jobs to the customer
-                if (d.get("status") or "").lower() != "completed":
+                if (d.get("status") or "").strip().lower() != "completed":
                     continue
                 cost = _strip_currency(d.get("cost", 0))
                 jobs.append({
@@ -263,7 +266,7 @@ def get_my_service_history(customer_uid: str, customer_name: str,
             "plate":      plate or "all vehicles",
             "total_jobs": len(jobs),
             "total_cost": _fmt_cost(total_cost),
-            "jobs":       jobs[:20],   # cap at 20 most recent
+            "jobs":       jobs,   # return all jobs; display layer caps at 10/20
         }
     except Exception as e:
         if _is_firestore_quota(e):
@@ -355,8 +358,8 @@ def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
                     filter=FieldFilter("owner", "==", company_name)).stream():
                 _process_doc(doc)
 
-        # ── Pass 3: case-insensitive full scan — only when passes 1+2 found nothing ──
-        if not vehicles and customer_name:
+        # ── Pass 3: case-insensitive full scan — always run as supplemental pass ──
+        if customer_name:
             for doc in db.collection("vehicles").stream():
                 if doc.id in seen_ids:
                     continue
