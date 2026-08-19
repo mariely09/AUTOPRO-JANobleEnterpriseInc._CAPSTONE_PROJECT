@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,7 +12,6 @@ import 'customer_mybookings.dart';
 import 'profile.dart';
 import 'notifications.dart';
 import 'customer_bottomnavbar.dart';
-import 'customer_calendar_floating.dart';
 
 class CustomerDashboard extends StatefulWidget {
   const CustomerDashboard({super.key});
@@ -26,9 +27,19 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
   String _initials = '?';
   String? _photoUrl;
   String _userName = '';
+  String _firstName = '';
   String _companyName = '';
   IconData _fleetNavIcon = Icons.directions_car_outlined;
   bool _iconComputed = false;
+
+  // Cache so photo is available immediately on re-entry (no flicker)
+  static String?    _cachedPhotoUrl;
+  static String     _cachedInitials  = '?';
+  static String     _cachedName      = '';
+  static String     _cachedCompany   = '';
+  static Uint8List? _cachedImageBytes;
+
+  StreamSubscription<DocumentSnapshot>? _userSub;
 
   // ── Live clock ──
   late DateTime _now;
@@ -41,9 +52,83 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
-    _loadInitials();
-    // Run PMS status refresh once on load — uses a one-shot .get(), not the stream
+    // Apply cache instantly — no async gap
+    if (_cachedName.isNotEmpty || _cachedPhotoUrl != null) {
+      _initials    = _cachedInitials;
+      _photoUrl    = _cachedPhotoUrl;
+      _userName    = _cachedName;
+      _companyName = _cachedCompany;
+      if (_cachedPhotoUrl != null && _cachedImageBytes == null) {
+        _cachedImageBytes = _decodeBase64Photo(_cachedPhotoUrl!);
+      }
+    }
+    _subscribeToUser();
     Future.delayed(const Duration(seconds: 2), _runOnceStatusRefresh);
+    // Init inline calendar
+    final now = DateTime.now();
+    _calYear  = now.year;
+    _calMonth = now.month;
+    _loadCalendarData();
+    _loadServices();
+  }
+
+  void _subscribeToUser() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    _userSub = FirebaseFirestore.instance
+        .collection('users').doc(uid)
+        .snapshots()
+        .listen((doc) {
+      if (!mounted) return;
+      final data        = doc.data() ?? {};
+      final name        = data['name']        as String? ?? '';
+      final firstName   = data['firstName']   as String? ?? '';
+      final companyName = data['companyName'] as String? ?? '';
+      final photo       = data['photoUrl']    as String?;
+      String ini = '?';
+      if (name.isNotEmpty) {
+        final parts = name.trim().split(' ');
+        ini = parts.length >= 2
+            ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+            : parts[0][0].toUpperCase();
+      }
+      // Decode base64 once here — not on every build()
+      if (photo != null && photo != _cachedPhotoUrl) {
+        _cachedImageBytes = _decodeBase64Photo(photo);
+      } else if (photo == null) {
+        _cachedImageBytes = null;
+      }
+      _cachedInitials = ini;
+      _cachedPhotoUrl = photo;
+      _cachedName     = name;
+      _cachedCompany  = companyName;
+      final nameChanged = name != _userName;
+      if (mounted) setState(() {
+        _initials    = ini;
+        _photoUrl    = photo;
+        _userName    = name;
+        _firstName   = firstName.isNotEmpty ? firstName : name.split(' ').first;
+        _companyName = companyName;
+      });
+      // Reload calendar/agenda when user name first resolves or changes
+      if (nameChanged && name.isNotEmpty) {
+        _loadCalendarData();
+        _loadRecentTransactions(name);
+      }
+    });
+  }
+
+  // Keep for back-compat
+  Future<void> _loadInitials() async {}
+
+  static Uint8List? _decodeBase64Photo(String url) {
+    if (url.startsWith('data:image')) {
+      final comma = url.indexOf(',');
+      if (comma != -1) {
+        try { return base64Decode(url.substring(comma + 1)); } catch (_) {}
+      }
+    }
+    return null;
   }
 
   Future<void> _runOnceStatusRefresh() async {
@@ -56,32 +141,17 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
 
   @override
   void dispose() {
+    _userSub?.cancel();
     _clockTimer.cancel();
     super.dispose();
   }
 
-  Future<void> _loadInitials() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    final data = doc.data() ?? {};
-    final name = data['name'] as String? ?? '';
-    final companyName = data['companyName'] as String? ?? '';
-    final photo = data['photoUrl'] as String?;
-    if (name.isEmpty && photo == null) return;
-    String ini = '?';
-    if (name.isNotEmpty) {
-      final parts = name.trim().split(' ');
-      ini = parts.length >= 2
-          ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
-          : parts[0][0].toUpperCase();
+  /// Returns the correct ImageProvider — uses pre-decoded bytes to avoid per-frame decoding.
+  ImageProvider _avatarProvider(String url) {
+    if (_cachedImageBytes != null && url.startsWith('data:image')) {
+      return MemoryImage(_cachedImageBytes!);
     }
-    if (mounted) setState(() {
-      _initials = ini;
-      _photoUrl = photo;
-      _userName = name;
-      _companyName = companyName;
-    });
+    return NetworkImage(url);
   }
 
   // nav items moved to CustomerBottomNavBar
@@ -90,32 +160,71 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: _buildTopBar(),
-      body: Stack(children: [
-        _buildBody(),
-        // ── Floating calendar overlay (always visible) ──
-        const CustomerCalendarFloating(),
-      ]),
+      floatingActionButton: Tooltip(
+        message: 'AI Assistant',
+        child: FloatingActionButton(
+          heroTag: 'customer_dashboard_fab',
+          onPressed: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const CustomerSmartAI())),
+          backgroundColor: Colors.white,
+          shape: const CircleBorder(),
+          elevation: 6,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              ClipOval(
+                child: Image.asset(
+                  'assets/img/AI_LOGO.png',
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _red, width: 2.5),
+                ),
+              ),
+              // Green online dot — bottom-right
+              Positioned(
+                bottom: 3,
+                right: 3,
+                child: Container(
+                  width: 11,
+                  height: 11,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF22c55e),
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [BoxShadow(
+                      color: const Color(0xFF22c55e).withOpacity(0.7),
+                      blurRadius: 5,
+                    )],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      body: _buildBody(),
       bottomNavigationBar: CustomerBottomNavBar(
         currentIndex: _currentIndex,
         onTap: (i) {
           if (i == 1) {
-            // My Bookings opens as a full separate screen (no dashboard bottom nav)
             Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const CustomerMyBookings()));
           } else if (i == 2) {
-            // AI Assistant opens as a full separate screen (no app header / bottom nav)
-            Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const CustomerSmartAI()));
-          } else if (i == 3) {
-            // PMS History opens as a full separate screen (no bottom nav)
             Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const CustomerPmsScreen()));
-          } else if (i == 4) {
-            // Profile opens as a full screen then refreshes initials
+          } else if (i == 3) {
             Navigator.push(context,
                 MaterialPageRoute(
-                    builder: (_) =>
-                        const UserProfile(role: UserRole.customer)))
+                    builder: (_) => const UserProfile(role: UserRole.customer)))
                 .then((_) => _loadInitials());
           } else {
             setState(() => _currentIndex = i);
@@ -126,9 +235,20 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
   }
 
   PreferredSizeWidget _buildTopBar() {
+    final h = DateTime.now().hour;
+    final greet = h < 12 ? 'Good morning,' : h < 17 ? 'Good afternoon,' : 'Good evening,';
+    final first = _firstName.isNotEmpty
+        ? _firstName
+        : _userName.isNotEmpty
+            ? _userName.split(' ').first
+            : 'Guest';
+
     return AppBar(
-      backgroundColor: _red,
+      backgroundColor: Colors.white,
       elevation: 0,
+      shadowColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      toolbarHeight: 68,
       automaticallyImplyLeading: false,
       title: Row(
         children: [
@@ -137,29 +257,53 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
               MaterialPageRoute(builder: (_) => const UserProfile(role: UserRole.customer)))
               .then((_) => _loadInitials()),
             child: CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.white24,
-              backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
-              child: _photoUrl == null
-                  ? Text(_initials, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold))
-                  : null,
+              radius: 24,
+              backgroundColor: const Color(0xFFf0f4f8),
+              backgroundImage: _photoUrl != null ? _avatarProvider(_photoUrl!) : null,
+              onBackgroundImageError: _photoUrl != null ? (_, __) {} : null,
+              child: Text(_initials,
+                style: TextStyle(
+                  color: (_photoUrl != null && _cachedImageBytes != null)
+                      ? Colors.transparent
+                      : const Color(0xFF1a202c),
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                )),
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(child: Text(_userName.isNotEmpty ? _userName : 'My Vehicles',
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
-            overflow: TextOverflow.ellipsis)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(greet, style: const TextStyle(
+                  color: Color(0xFF718096),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  height: 1.2,
+                )),
+                Text(first, style: const TextStyle(
+                  color: Color(0xFF1a202c),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  height: 1.1,
+                )),
+              ],
+            ),
+          ),
         ],
       ),
       actions: [
         Padding(
-          padding: const EdgeInsets.only(right: 4),
+          padding: const EdgeInsets.only(right: 12),
           child: NotifBadge(
             role: NotificationRole.customer,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppNotifications(role: NotificationRole.customer))),
+            iconColor: const Color(0xFF1a202c),
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+                builder: (_) => const AppNotifications(role: NotificationRole.customer))),
           ),
         ),
-        const SizedBox(width: 8),
       ],
     );
   }
@@ -174,12 +318,31 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
 
   // ── MY VEHICLES ──
   Widget _buildVehicles() {
-    // Use _userName already loaded by _loadInitials — no FutureBuilder needed
     if (_userName.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      // Show card with zeros while user data loads
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _buildWelcomeCard(),
+          const SizedBox(height: 16),
+          _buildInlineCalendar(),
+          const SizedBox(height: 16),
+          const Text('My Vehicles', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+          const SizedBox(height: 40),
+          const Center(child: CircularProgressIndicator()),
+        ]),
+      );
     }
 
-    return StreamBuilder<QuerySnapshot>(
+    return RefreshIndicator(
+      color: _red,
+      onRefresh: () async {
+        _statusRefreshDone = false; // allow re-check on manual refresh
+        await _loadCalendarData();
+        final snap = await FirebaseFirestore.instance.collection('vehicles').get();
+        await _refreshVehicleStatuses(snap.docs, _userName);
+      },
+      child: StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('vehicles').snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
@@ -212,12 +375,6 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
               };
             }).toList();
 
-            final maint    = vehicles.where((v) => v['status'] == 'Under Maintenance').length;
-            final overdue  = vehicles.where((v) => v['status'] == 'Overdue').length;
-            final dueWeek  = vehicles.where((v) => v['status'] == 'Due This Week').length;
-            final dueToday = vehicles.where((v) => v['status'] == 'Due Today').length;
-            final active   = vehicles.where((v) => v['status'] == 'On Track' || v['status'] == 'Scheduled').length;
-
             // Update nav icon based on fleet type (only once when vehicles first load)
             if (!_iconComputed && vehicles.isNotEmpty) {
               _iconComputed = true;
@@ -227,106 +384,211 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _buildWelcomeCard(),
-                GridView.count(
-                  crossAxisCount: 2, shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.4,
-                  children: [
-                    _miniStat('Total Vehicles',  '${vehicles.length}', _fleetIcon(vehicles),           _red),
-                    _miniStat('Active',           '$active',            Icons.check_circle_outline,     Colors.green),
-                    _miniStat('Maintenance',      '$maint',             Icons.build_outlined,           Colors.orange),
-                    _miniStat('PMS Overdue',      '$overdue',           Icons.warning_amber_outlined,   Colors.red),
-                    _miniStat('Due This Week',    '$dueWeek',           Icons.event_available_outlined, const Color(0xFFdd6b20)),
-                    _miniStat('Due Today',        '$dueToday',          Icons.today_outlined,           const Color(0xFF0033A0)),
-                  ],
+                _buildWelcomeCard(
+                  active:       vehicles.where((v) {
+                    final s = (v['status'] ?? '').toLowerCase();
+                    return s != 'overdue' && s != 'due today' && s != 'due this week' && s != 'due soon' && s != 'under maintenance';
+                  }).length,
+                  dueToday:     vehicles.where((v) => (v['status'] ?? '').toLowerCase() == 'due today').length,
+                  dueThisWeek:  vehicles.where((v) => (v['status'] ?? '').toLowerCase() == 'due this week').length,
+                  maintenance:  vehicles.where((v) => (v['status'] ?? '').toLowerCase() == 'under maintenance').length,
                 ),
-                const SizedBox(height: 20),
-                // ── My Vehicles label ──
-                const Text('My Vehicles', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
-                const SizedBox(height: 12),
-                if (vehicles.isEmpty)
-                  const Center(child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Text('No vehicles registered under your name.', style: TextStyle(color: Color(0xFF718096))),
-                  ))
-                else
-                  ...vehicles.map((v) => _vehicleCard(v)),
+                const SizedBox(height: 16),
+                // ── Services carousel ──
+                _buildServicesCarousel(),
+                const SizedBox(height: 16),
+                // ── Inline calendar ──
+                _buildInlineCalendar(),
+                const SizedBox(height: 16),
+                // ── My Vehicles overview ──
+                _buildVehiclesOverview(vehicles),
+                const SizedBox(height: 16),
+                // ── Recent Service Transactions ──
+                _buildRecentTransactions(vehicles),
+                const SizedBox(height: 24),
               ]),
             );
       },
+    ),
     );
   }
 
-  Widget _buildWelcomeCard() {
-    const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  Widget _buildWelcomeCard({int active = 0, int dueToday = 0, int dueThisWeek = 0, int maintenance = 0}) {
+    const dayNames   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-    final hour = _now.hour;
-    final greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-    final greetIcon = hour < 12 ? '☀️' : hour < 17 ? '🌤️' : '🌙';
-    final dayName   = dayNames[_now.weekday % 7];
-    final monthName = monthNames[_now.month - 1];
-    final dateStr   = '$dayName, $monthName ${_now.day}, ${_now.year}';
-
-    final h12 = _now.hour % 12 == 0 ? 12 : _now.hour % 12;
-    final ampm = _now.hour < 12 ? 'AM' : 'PM';
-    final timeStr = '${h12.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}:${_now.second.toString().padLeft(2, '0')} $ampm';
+    final day  = dayNames[_now.weekday % 7];
+    final mon  = monthNames[_now.month - 1];
+    final dayNum = '${_now.day}';
+    final date = '$day, $mon $dayNum';
 
     return Container(
       width: double.infinity,
+      height: 180,
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFE8001C), Color(0xFFa50014)],
+          colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
+          stops: [0.0, 0.55, 1.0],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Color(0x40E8001C), blurRadius: 12, offset: Offset(0, 4))],
-      ),
-      child: Row(children: [
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('$greetIcon $greeting${_userName.isNotEmpty ? ', ${_userName.split(' ').first}' : ''}!',
-            style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          Text(dateStr, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-        ])),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
-          child: Text(timeStr,
-            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
-        ),
-      ]),
-    );
-  }
-
-  Widget _miniStat(String label, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: const Color(0x40E8001C), blurRadius: 18, offset: const Offset(0, 6)),
+        ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            width: 34, height: 34,
-            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: color, size: 18),
+          // ── Date row ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // ── Left: today's message ──
+                Expanded(
+                  child: Builder(builder: (ctx) {
+                    // Check if any event falls on today
+                    final todayKey = '${_now.year}-${_now.month.toString().padLeft(2,'0')}-${_now.day.toString().padLeft(2,'0')}';
+                    final todayEvents = _calEvents[todayKey] ?? [];
+                    final hasPms     = todayEvents.any((e) => e['type'] == 'pms');
+                    final hasBooking = todayEvents.any((e) => e['type'] == 'booking');
+
+                    final String icon;
+                    final String line1;
+                    final String line2;
+
+                    if (hasPms && hasBooking) {
+                      icon  = '🚗';
+                      line1 = 'PMS & service booked';
+                      line2 = 'You have scheduled activities today.';
+                    } else if (hasPms) {
+                      icon  = '🔧';
+                      line1 = 'PMS due today';
+                      line2 = 'Your vehicle needs attention today.';
+                    } else if (hasBooking) {
+                      icon  = '📅';
+                      line1 = 'Service scheduled today';
+                      line2 = 'Your appointment is ready. Drive safe!';
+                    } else {
+                      icon  = '✅';
+                      line1 = 'All clear today';
+                      line2 = 'No scheduled services for today.';
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(children: [
+                          Text(icon, style: const TextStyle(fontSize: 16)),
+                          const SizedBox(width: 6),
+                          Text(line1, style: TextStyle(
+                            color: (hasPms || hasBooking)
+                                ? const Color(0xFFfcd34d)
+                                : Colors.white70,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          )),
+                        ]),
+                        const SizedBox(height: 4),
+                        Text(line2, style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 11,
+                          height: 1.4,
+                        )),
+                      ],
+                    );
+                  }),
+                ),
+                const SizedBox(width: 12),
+                // ── Right: square date box ──
+                Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white24, width: 1),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('$mon ${_now.year}',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.3,
+                        )),
+                      const SizedBox(height: 2),
+                      Text(dayNum,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 40,
+                          fontWeight: FontWeight.w900,
+                          height: 1,
+                        )),
+                      const SizedBox(height: 2),
+                      Text(day,
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1,
+                        )),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 6),
-          FittedBox(fit: BoxFit.scaleDown, child: Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color))),
-          Text(label, style: const TextStyle(fontSize: 9, color: Color(0xFF718096)), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+
+          // ── Stats row pinned to bottom ──
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                child: Container(height: 1, color: Colors.white12),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+                child: Row(children: [
+                  _inlineStatItem('Active',       '$active',      const Color(0xFF86efac)),
+                  _dividerLine(),
+                  _inlineStatItem('Due Today',    '$dueToday',    const Color(0xFF93c5fd)),
+                  _dividerLine(),
+                  _inlineStatItem('Due This Week', '$dueThisWeek', const Color(0xFFfcd34d)),
+                  _dividerLine(),
+                  _inlineStatItem('Maintenance', '$maintenance', const Color(0xFFfcd34d)),
+                ]),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
+
+  Widget _inlineStatItem(String label, String value, Color color) {
+    return Expanded(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(value, style: TextStyle(
+          color: color, fontSize: 20, fontWeight: FontWeight.w800, height: 1)),
+        const SizedBox(height: 2),
+        Text(label, style: TextStyle(
+          color: color.withOpacity(0.7), fontSize: 9, fontWeight: FontWeight.w600)),
+      ]),
+    );
+  }
+
+  Widget _dividerLine() => Container(
+    width: 1, height: 28, color: Colors.white12,
+    margin: const EdgeInsets.symmetric(horizontal: 4),
+  );
 
   Widget _vehicleIcon(String type, {double size = 26, Color color = _red}) {
     final t = type.toLowerCase();
@@ -345,6 +607,273 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     if (allTruck) return Icons.local_shipping_outlined;
     if (allCar)   return Icons.directions_car_outlined;
     return Icons.commute_outlined; // mixed fleet
+  }
+
+  Widget _buildRecentTransactions(List<Map<String, String>> vehicles) {
+    if (vehicles.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Recent Services',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+                GestureDetector(
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const CustomerPmsScreen())),
+                  child: const Text('See all →',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFE8001C))),
+                ),
+              ],
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: Divider(height: 1),
+          ),
+
+          // ── Body ──
+          if (_txnsLoading)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_recentTxns.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: Text('No completed services yet.',
+                  style: TextStyle(color: Color(0xFF718096), fontSize: 12))),
+            )
+          else
+            Column(
+              children: _recentTxns.asMap().entries.map((entry) {
+                final i    = entry.key;
+                final data = entry.value;
+                final plate   = data['plate']  as String? ?? '—';
+                final desc    = data['desc']   as String? ?? data['vehicleDesc'] as String? ?? '';
+                final date    = data['date']   as String? ?? data['serviceDate'] as String? ?? '';
+                // Try svcRows first (list of {name, qty, uom} maps), then services list, then serviceType
+                final svcRows = data['svcRows'] as List? ?? [];
+                final svcNames = svcRows
+                    .where((r) => r is Map && (r['name'] as String? ?? '').isNotEmpty)
+                    .map((r) => r['name'] as String)
+                    .toList();
+                final svcs    = (data['services'] as List?)?.cast<String>() ?? [];
+                final svcText = svcNames.isNotEmpty
+                    ? svcNames.join(', ')
+                    : svcs.isNotEmpty
+                        ? svcs.join(', ')
+                        : (data['serviceType'] as String? ?? data['type'] as String? ?? 'Service');
+                final isLast  = i == _recentTxns.length - 1;
+
+                return Column(children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(children: [
+                      Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8001C).withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.build_outlined,
+                            color: Color(0xFFE8001C), size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(svcText,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1a202c)),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 2),
+                          Text('$plate${desc.isNotEmpty ? ' · $desc' : ''}',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ],
+                      )),
+                      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text('Completed',
+                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.green)),
+                        ),
+                        if (date.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(date, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+                        ],
+                      ]),
+                    ]),
+                  ),
+                  if (!isLast) const Divider(height: 1, indent: 68, endIndent: 16),
+                ]);
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVehiclesOverview(List<Map<String, String>> vehicles) {
+    if (vehicles.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+        ),
+        child: const Center(child: Text('No vehicles registered under your name.',
+            style: TextStyle(color: Color(0xFF718096)))),
+      );
+    }
+
+    // Status color + label helpers
+    Color _sColor(String s) {
+      switch (s.toLowerCase()) {
+        case 'overdue':          return const Color(0xFFE8001C);
+        case 'due today':        return const Color(0xFF0033A0);
+        case 'due this week':    return const Color(0xFFdd6b20);
+        case 'due soon':         return Colors.orange;
+        case 'under maintenance':return Colors.orange;
+        default:                 return Colors.green;
+      }
+    }
+    String _sLabel(String s) {
+      switch (s.toLowerCase()) {
+        case 'overdue':           return 'Overdue';
+        case 'due today':         return 'Due Today';
+        case 'due this week':     return 'Due This Week';
+        case 'due soon':          return 'Due Soon';
+        case 'under maintenance': return 'Maintenance';
+        default:                  return 'Active';
+      }
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('My Vehicles',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+                Text('${vehicles.length} vehicle${vehicles.length != 1 ? 's' : ''}',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF718096))),
+              ],
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: Divider(height: 1),
+          ),
+
+          // ── Body: list + donut ──
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // ── Vehicle list ──
+                Expanded(
+                  child: Column(
+                    children: vehicles.map((v) {
+                      final color = _sColor(v['status'] ?? '');
+                      final label = _sLabel(v['status'] ?? '');
+                      final isTruck = (v['type'] ?? '').toLowerCase().contains('truck');
+                      return GestureDetector(
+                        onTap: () => _showVehicleHistory(v),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(children: [
+                            Container(
+                              width: 36, height: 36,
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                isTruck ? Icons.local_shipping_outlined : Icons.directions_car_outlined,
+                                color: color, size: 18),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(v['plate']!,
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+                                Text(v['desc']!,
+                                  style: const TextStyle(fontSize: 10, color: Color(0xFF718096)),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                              ],
+                            )),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(label,
+                                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color)),
+                            ),
+                          ]),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+                const SizedBox(width: 16),
+
+                // ── Donut chart ──
+                SizedBox(
+                  width: 90,
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        width: 80,
+                        height: 80,
+                        child: CustomPaint(
+                          painter: _DonutPainter(vehicles),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text('Fleet Status',
+                        style: TextStyle(fontSize: 10, color: Color(0xFF718096), fontWeight: FontWeight.w500),
+                        textAlign: TextAlign.center),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _vehicleCard(Map<String, String> v) {
@@ -779,6 +1308,517 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
   bool _refreshing = false;
   bool _statusRefreshDone = false; // only run once per session
 
+  // ── Inline calendar state ──
+  late int _calYear;
+  late int _calMonth;
+  String? _calSelectedDay;
+  Map<String, List<Map<String, dynamic>>> _calEvents = {};
+  bool _calLoading = true;
+  static const _calMonths = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  static const _calDow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // ── Services carousel state ──
+  List<Map<String, String>> _services = [];
+  bool _servicesLoading = true;
+
+  // ── Recent transactions cache ──
+  List<Map<String, dynamic>> _recentTxns = [];
+  bool _txnsLoading = true;
+
+  Future<void> _loadServices() async {
+    try {
+      // Fetch all items and filter client-side to avoid case/missing-field issues
+      final snap = await FirebaseFirestore.instance
+          .collection('item_master')
+          .get();
+      final list = snap.docs
+          .map((d) {
+            final data = d.data();
+            return <String, String>{
+              'id':    d.id,
+              'name':  data['name']  as String? ?? '',
+              'group': data['group'] as String? ?? '',
+              'uom':   data['uom']   as String? ?? '',
+              'cost':  (data['cost'] ?? '').toString(),
+              'type':  data['type']  as String? ?? '',
+            };
+          })
+          .where((s) =>
+              s['name']!.isNotEmpty &&
+              s['type']!.toLowerCase() == 'service')
+          .toList();
+      debugPrint('🔧 Services loaded: ${list.length} items');
+      if (mounted) setState(() { _services = list; _servicesLoading = false; });
+    } catch (e) {
+      debugPrint('❌ Services load error: $e');
+      if (mounted) setState(() => _servicesLoading = false);
+    }
+  }
+
+  Future<void> _loadRecentTransactions(String userName) async {
+    try {
+      // Fetch customer's vehicle plates first
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final uname = (userDoc.data()?['name'] as String? ?? '').toLowerCase();
+      final cname = (userDoc.data()?['companyName'] as String? ?? '').toLowerCase();
+
+      final vSnap = await FirebaseFirestore.instance.collection('vehicles').get();
+      final plates = vSnap.docs.where((d) {
+        final owner = (d.data()['owner'] as String? ?? '').toLowerCase();
+        return owner == uname || (cname.isNotEmpty && owner == cname);
+      }).map((d) => (d.data()['plate'] as String? ?? '').toLowerCase()).where((p) => p.isNotEmpty).toSet();
+
+      if (plates.isEmpty) {
+        if (mounted) setState(() => _txnsLoading = false);
+        return;
+      }
+
+      final snap = await FirebaseFirestore.instance
+          .collection('maintenance')
+          .where('status', isEqualTo: 'Completed')
+          .get();
+
+      final filtered = snap.docs.where((d) {
+        final plate = (d.data()['plate'] as String? ?? '').toLowerCase();
+        return plates.contains(plate);
+      }).map((d) => <String, dynamic>{...d.data(), '_id': d.id}).toList();
+
+      // Sort by createdAt descending client-side
+      filtered.sort((a, b) {
+        final aTs = a['createdAt'];
+        final bTs = b['createdAt'];
+        if (aTs is Timestamp && bTs is Timestamp) return bTs.compareTo(aTs);
+        return 0;
+      });
+
+      if (mounted) setState(() {
+        _recentTxns  = filtered.take(5).toList();
+        _txnsLoading = false;
+      });
+    } catch (e) {
+      debugPrint('❌ Transactions load error: $e');
+      if (mounted) setState(() => _txnsLoading = false);
+    }
+  }
+
+  Widget _buildServicesCarousel() {
+    if (_servicesLoading) {
+      return const SizedBox(
+        height: 120,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_services.isEmpty) {
+      return const SizedBox(
+        height: 60,
+        child: Center(
+          child: Text('No services available.',
+            style: TextStyle(color: Color(0xFF718096), fontSize: 12)),
+        ),
+      );
+    }
+
+    // Color palettes that cycle per card
+    final palettes = [
+      [const Color(0xFFE8001C), const Color(0xFFFF6B6B)],  // red
+      [const Color(0xFF003087), const Color(0xFF4A90E2)],  // blue
+      [const Color(0xFF1a8a4a), const Color(0xFF48c878)],  // green
+      [const Color(0xFF7c3aed), const Color(0xFFa78bfa)],  // purple
+      [const Color(0xFFd97706), const Color(0xFFfbbf24)],  // amber
+    ];
+
+    final serviceIcons = <String, IconData>{
+      'oil':     Icons.opacity_outlined,
+      'tire':    Icons.tire_repair_outlined,
+      'brake':   Icons.disc_full_outlined,
+      'battery': Icons.battery_charging_full_outlined,
+      'air':     Icons.air_outlined,
+      'wash':    Icons.local_car_wash_outlined,
+      'check':   Icons.check_circle_outline,
+      'lube':    Icons.water_drop_outlined,
+      'engine':  Icons.settings_outlined,
+      'filter':  Icons.filter_alt_outlined,
+      'align':   Icons.linear_scale_outlined,
+      'wiper':   Icons.water_outlined,
+      'light':   Icons.lightbulb_outline,
+      'belt':    Icons.link_outlined,
+      'fluid':   Icons.water_drop_outlined,
+    };
+
+    IconData _iconFor(String name) {
+      final n = name.toLowerCase();
+      for (final k in serviceIcons.keys) {
+        if (n.contains(k)) return serviceIcons[k]!;
+      }
+      return Icons.build_outlined;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Our Services',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+            GestureDetector(
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => CustomerBookService(preselectedVehicleId: ''))),
+              child: const Text('Book Now →',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFE8001C))),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 130,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _services.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, i) {
+              final s      = _services[i];
+              final colors = palettes[i % palettes.length];
+              final icon   = _iconFor(s['name']!);
+
+              return Container(
+                  width: 155,
+                  padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [colors[0].withOpacity(0.12), colors[1].withOpacity(0.06)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: colors[0].withOpacity(0.15), width: 1),
+                  ),
+                  child: Stack(
+                    children: [
+                      // ── Big ghost vehicle icon ──
+                      Positioned(
+                        right: -6,
+                        bottom: -6,
+                        child: Icon(
+                          _fleetNavIcon == Icons.local_shipping_outlined
+                              ? Icons.local_shipping_outlined
+                              : Icons.directions_car_outlined,
+                          size: 72,
+                          color: colors[0].withOpacity(0.13)),
+                      ),
+                      // ── Content ──
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Badge icon
+                          Container(
+                            width: 34, height: 34,
+                            decoration: BoxDecoration(
+                              color: colors[0],
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [BoxShadow(
+                                color: colors[0].withOpacity(0.35),
+                                blurRadius: 8, offset: const Offset(0, 3))],
+                            ),
+                            child: Icon(icon, size: 17, color: Colors.white),
+                          ),
+                          const Spacer(),
+                          // Service name
+                          Text(s['name']!,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: colors[0],
+                              height: 1.2,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          // Group label
+                          Text(s['group']!.isNotEmpty ? s['group']! : 'Auto Service',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF718096),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _loadCalendarData() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) { if (mounted) setState(() => _calLoading = false); return; }
+    final db    = FirebaseFirestore.instance;
+    final today = DateTime.now();
+    final todayM = DateTime(today.year, today.month, today.day);
+    final events = <String, List<Map<String, dynamic>>>{};
+
+    // ── Bookings ──
+    final bookSnap = await db.collection('service_bookings')
+        .where('customerId', isEqualTo: uid).get();
+    for (final doc in bookSnap.docs) {
+      final data   = doc.data();
+      final date   = data['preferredDate'] as String? ?? '';
+      final status = (data['status'] as String? ?? '').toLowerCase();
+      if (date.isEmpty) continue;
+      if (['completed','in progress','dismissed','cancelled','rejected'].contains(status)) continue;
+      final due = DateTime.tryParse(date);
+      if (due == null) continue;
+      final days = DateTime(due.year, due.month, due.day).difference(todayM).inDays;
+      events.putIfAbsent(date, () => []);
+      events[date]!.add({
+        'type': 'booking', 'plate': data['plate'] ?? '—',
+        'desc': data['vehicleDesc'] as String? ?? data['desc'] as String? ?? '',
+        'services': (data['services'] as List?)?.cast<String>().join(', ') ?? '',
+        'status': data['status'] ?? '', 'time': data['preferredTime'] ?? '',
+        'daysUntil': days, 'urgency': 'booking',
+      });
+    }
+
+    // ── PMS due dates ──
+    final userDoc     = await db.collection('users').doc(uid).get();
+    final userName    = (userDoc.data()?['name']        as String? ?? '').toLowerCase();
+    final companyName = (userDoc.data()?['companyName'] as String? ?? '').toLowerCase();
+    if (userName.isNotEmpty) {
+      final vSnap = await db.collection('vehicles').get();
+      for (final doc in vSnap.docs) {
+        final data  = doc.data();
+        final owner = (data['owner'] as String? ?? '').toLowerCase();
+        if (owner != userName && (companyName.isEmpty || owner != companyName)) continue;
+        final plate   = data['plate']      as String? ?? '';
+        final lastSvc = data['lastSvcDate'] as String? ?? '';
+        final freq    = int.tryParse(data['svcFreq']?.toString() ?? '');
+        if (lastSvc.isEmpty || freq == null || plate.isEmpty) continue;
+        final lastDate = DateTime.tryParse(lastSvc);
+        if (lastDate == null) continue;
+        final next  = DateTime(lastDate.year, lastDate.month + freq, lastDate.day);
+        final days  = DateTime(next.year, next.month, next.day).difference(todayM).inDays;
+        final key   = '${next.year}-${next.month.toString().padLeft(2,'0')}-${next.day.toString().padLeft(2,'0')}';
+        final urgency = days < 0 ? 'overdue' : days == 0 ? 'today' : days <= 7 ? 'week' : 'upcoming';
+        events.putIfAbsent(key, () => []);
+        events[key]!.add({'type':'pms','plate':plate,'desc':data['desc'] as String? ?? '','daysUntil':days,'urgency':urgency,'vehicleId':doc.id});
+      }
+    }
+
+    if (mounted) setState(() { _calEvents = events; _calLoading = false; });
+  }
+
+  Color _calUrgencyColor(String urgency) {
+    switch (urgency) {
+      case 'overdue' : return const Color(0xFFE8001C);
+      case 'today'   : return const Color(0xFF0033A0);
+      case 'week'    : return const Color(0xFFed8936);
+      case 'booking' : return const Color(0xFF7c3aed);
+      default        : return const Color(0xFFEAB308);
+    }
+  }
+
+  Widget _buildInlineCalendar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12, offset: const Offset(0, 4))],
+      ),
+      child: Column(children: [
+        // ── Header ──
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
+              stops: [0.0, 0.55, 1.0],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Row(children: [
+            const Icon(Icons.calendar_month_outlined, color: Colors.white70, size: 15),
+            const SizedBox(width: 8),
+            const Text('My Calendar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white70, letterSpacing: 0.4)),
+            const Spacer(),
+            // Month nav
+            GestureDetector(
+              onTap: () => setState(() {
+                _calMonth--; if (_calMonth < 1) { _calMonth = 12; _calYear--; } _calSelectedDay = null;
+              }),
+              child: Container(width: 26, height: 26,
+                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(6)),
+                child: const Icon(Icons.chevron_left, size: 18, color: Colors.white)),
+            ),
+            const SizedBox(width: 8),
+            Text('${_calMonths[_calMonth - 1]} $_calYear',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white)),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => setState(() {
+                _calMonth++; if (_calMonth > 12) { _calMonth = 1; _calYear++; } _calSelectedDay = null;
+              }),
+              child: Container(width: 26, height: 26,
+                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(6)),
+                child: const Icon(Icons.chevron_right, size: 18, color: Colors.white)),
+            ),
+          ]),
+        ),
+
+        if (_calLoading)
+          const SizedBox(height: 120, child: Center(child: CircularProgressIndicator()))
+        else ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 4),
+            child: _buildCalGrid(),
+          ),
+          if (_calSelectedDay != null) _buildCalDayDetail(),
+          // Legend
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+            child: Wrap(spacing: 12, runSpacing: 4, children: [
+              _calLegend(const Color(0xFFE8001C), 'Overdue'),
+              _calLegend(const Color(0xFFed8936), 'This Week'),
+              _calLegend(const Color(0xFFEAB308), 'Upcoming'),
+              _calLegend(const Color(0xFF0033A0), 'Today'),
+              _calLegend(const Color(0xFF7c3aed), 'Booked'),
+            ]),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  Widget _calLegend(Color color, String label) => Row(mainAxisSize: MainAxisSize.min, children: [
+    Container(width: 7, height: 7, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+    const SizedBox(width: 4),
+    Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF4a5568))),
+  ]);
+
+  Widget _buildCalGrid() {
+    final now      = DateTime.now();
+    final todayKey = '${now.year}-${now.month.toString().padLeft(2,'0')}-${now.day.toString().padLeft(2,'0')}';
+    final firstDay = DateTime(_calYear, _calMonth, 1);
+    final offset   = firstDay.weekday % 7;
+    final daysInM  = DateTime(_calYear, _calMonth + 1, 0).day;
+    final prevDays = DateTime(_calYear, _calMonth, 0).day;
+    final cells    = <Widget>[];
+
+    for (final d in _calDow) {
+      cells.add(Center(child: Text(d, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFa0aec0)))));
+    }
+    for (int i = offset - 1; i >= 0; i--) {
+      cells.add(_calEmptyCell('${prevDays - i}'));
+    }
+    for (int d = 1; d <= daysInM; d++) {
+      final key      = '$_calYear-${_calMonth.toString().padLeft(2,'0')}-${d.toString().padLeft(2,'0')}';
+      final evts     = _calEvents[key] ?? [];
+      final isToday  = key == todayKey;
+      final isSel    = key == _calSelectedDay;
+      cells.add(GestureDetector(
+        onTap: evts.isNotEmpty ? () => setState(() => _calSelectedDay = isSel ? null : key) : null,
+        child: Container(
+          decoration: BoxDecoration(
+            color: isSel ? const Color(0xFFebf8ff) : isToday ? const Color(0xFFf0fdfa) : const Color(0xFFF7F8FA),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: isSel ? const Color(0xFF003087) : isToday ? const Color(0xFF0033A0) : Colors.transparent,
+              width: 1.5),
+          ),
+          padding: const EdgeInsets.all(2),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Text('$d', style: TextStyle(
+              fontSize: 11, fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
+              color: isToday ? const Color(0xFF0033A0) : const Color(0xFF4a5568))),
+            if (evts.isNotEmpty) ...[
+              const SizedBox(height: 1),
+              Wrap(spacing: 2, runSpacing: 1, alignment: WrapAlignment.center,
+                children: evts.take(3).map((e) => Container(
+                  width: 5, height: 5,
+                  decoration: BoxDecoration(
+                    color: _calUrgencyColor(e['urgency'] as String? ?? 'upcoming'),
+                    borderRadius: BorderRadius.circular(1.5)),
+                )).toList()),
+            ],
+          ]),
+        ),
+      ));
+    }
+    final trailing = (offset + daysInM) % 7;
+    if (trailing != 0) for (int d = 1; d <= 7 - trailing; d++) cells.add(_calEmptyCell('$d'));
+
+    return GridView.count(
+      crossAxisCount: 7, shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 3, crossAxisSpacing: 3, childAspectRatio: 1.1,
+      children: cells,
+    );
+  }
+
+  Widget _calEmptyCell(String t) => Container(
+    decoration: BoxDecoration(color: const Color(0xFFF7F8FA), borderRadius: BorderRadius.circular(5)),
+    child: Center(child: Text(t, style: TextStyle(fontSize: 11, color: Colors.grey.shade300))),
+  );
+
+  Widget _buildCalDayDetail() {
+    final evts = _calEvents[_calSelectedDay] ?? [];
+    if (evts.isEmpty) return const SizedBox.shrink();
+    final parts = _calSelectedDay!.split('-');
+    final title = '${_calMonths[int.parse(parts[1]) - 1]} ${int.parse(parts[2])}, ${parts[0]}';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FA),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFe2e8f0)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        Text(title, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF718096), letterSpacing: 0.3)),
+        const SizedBox(height: 6),
+        ...evts.map((e) {
+          final color     = _calUrgencyColor(e['urgency'] as String? ?? 'upcoming');
+          final days      = e['daysUntil'] as int;
+          final isBooking = e['type'] == 'booking';
+          final label     = isBooking
+              ? (days < 0 ? 'Past' : days == 0 ? 'Today' : 'In $days day${days != 1 ? 's' : ''}')
+              : (days < 0 ? '${-days}d overdue' : days == 0 ? 'Due Today' : 'In $days day${days != 1 ? 's' : ''}');
+          return Container(
+            margin: const EdgeInsets.only(bottom: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFe2e8f0))),
+            child: Row(children: [
+              Container(width: 8, height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(width: 8),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(e['plate'] as String? ?? '—', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+                if (isBooking && (e['services'] as String? ?? '').isNotEmpty)
+                  Text(e['services'] as String, style: const TextStyle(fontSize: 10, color: Color(0xFF718096)), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ])),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
+              ),
+            ]),
+          );
+        }),
+      ]),
+    );
+  }
+
   Future<void> _refreshVehicleStatuses(List<QueryDocumentSnapshot> docs, String userName) async {
     if (_refreshing || _statusRefreshDone) return;
     _refreshing = true;
@@ -1010,6 +2050,69 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     ]);
   }
 
+}
+
+// ── Donut chart painter for vehicle fleet status ─────────────────────────
+class _DonutPainter extends CustomPainter {
+  final List<Map<String, String>> vehicles;
+  const _DonutPainter(this.vehicles);
+
+  Color _sColor(String s) {
+    switch (s.toLowerCase()) {
+      case 'overdue':           return const Color(0xFFE8001C);
+      case 'due today':         return const Color(0xFF0033A0);
+      case 'due this week':     return const Color(0xFFdd6b20);
+      case 'due soon':          return Colors.orange;
+      case 'under maintenance': return Colors.orange;
+      default:                  return Colors.green;
+    }
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final total = vehicles.length;
+    if (total == 0) return;
+
+    // Count by status
+    final counts = <Color, int>{};
+    for (final v in vehicles) {
+      final c = _sColor(v['status'] ?? '');
+      counts[c] = (counts[c] ?? 0) + 1;
+    }
+
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final radius = (size.width / 2) - 8;
+    const strokeW = 14.0;
+    const gap = 0.04; // radians gap between segments
+
+    final rect = Rect.fromCircle(center: Offset(cx, cy), radius: radius);
+    double startAngle = -3.14159 / 2;
+
+    for (final entry in counts.entries) {
+      final sweep = (entry.value / total) * (2 * 3.14159) - gap;
+      final paint = Paint()
+        ..color = entry.key
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeW
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(rect, startAngle, sweep, false, paint);
+      startAngle += sweep + gap;
+    }
+
+    // Center text
+    final tp = TextPainter(
+      text: TextSpan(
+        text: '$total',
+        style: const TextStyle(color: Color(0xFF1a202c), fontSize: 20, fontWeight: FontWeight.w800),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2));
+  }
+
+  @override
+  bool shouldRepaint(_DonutPainter old) => old.vehicles != vehicles;
 }
 
 // ── PMS Reschedule Request Widget ────────────────────────────

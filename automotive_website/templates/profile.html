@@ -245,10 +245,11 @@ firebase.auth().onAuthStateChanged(function(user) {
                 _renderProfile({ name: name, email: email, role: role, photoUrl: photoUrl, companyName: companyName });
             }
 
-            // Sync sessionStorage
+            // Sync sessionStorage — include photoUrl so it persists across refreshes
             var key = _profileRole === 'admin' ? 'apUser' : _profileRole === 'staff' ? 'spUser' : 'cpUser';
             var s2 = JSON.parse(sessionStorage.getItem(key) || '{}');
             s2.name = name; s2.email = email; s2.companyName = companyName;
+            if (photoUrl) s2.photoUrl = photoUrl;
             sessionStorage.setItem(key, JSON.stringify(s2));
         }, function(err) { console.warn('Profile listener:', err); });
 });
@@ -275,7 +276,21 @@ function _renderProfile(d) {
 
     var avatarHtml = photoUrl
         ? '<img src="' + _esc(photoUrl) + '" alt="avatar" style="width:100%;height:100%;object-fit:cover;">'
-        : initials;
+        : '<span style="font-size:1.6rem;font-weight:800;color:#fff;">' + initials + '</span>';
+
+    // Clickable avatar wrapper with camera badge
+    var avatarClickable = '<div onclick="triggerAvatarUpload()" title="Change photo"'
+        + ' style="position:relative;display:inline-block;cursor:pointer;align-self:center;">'
+        +   '<div class="profile-avatar-lg" style="margin:0 auto;">' + avatarHtml + '</div>'
+        +   '<div style="position:absolute;bottom:2px;right:2px;width:24px;height:24px;background:#fff;border-radius:50%;'
+        +        'display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.22);'
+        +        'border:2px solid #fff;">'
+        +     '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
+        +       '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>'
+        +       '<circle cx="12" cy="13" r="4"/>'
+        +     '</svg>'
+        +   '</div>'
+        + '</div>';
 
     var pageHeader = (_profileRole !== 'admin')
         ? '<div class="pf-page-header"><div><div class="pf-page-title">My Profile</div><div class="pf-page-sub">Manage your account information</div></div></div>'
@@ -287,7 +302,7 @@ function _renderProfile(d) {
         // Left hero card
         + '<div class="profile-hero-card">'
         +   '<div class="profile-hero-banner">'
-        +     '<div class="profile-avatar-lg">' + avatarHtml + '</div>'
+        +     avatarClickable
         +     '<div class="profile-hero-name">' + _esc(name) + '</div>'
         +     '<div class="profile-hero-role-badge"><span>' + _esc(roleLabel) + '</span></div>'
         +   '</div>'
@@ -477,6 +492,7 @@ window.saveProfile = function() {
             var key = _profileRole === 'admin' ? 'apUser' : _profileRole === 'staff' ? 'spUser' : 'cpUser';
             var s = JSON.parse(sessionStorage.getItem(key) || '{}');
             s.name = name; s.email = email;
+            // Preserve photoUrl — don't wipe it on a name/email save
             sessionStorage.setItem(key, JSON.stringify(s));
 
             _pEditing = false;
@@ -537,6 +553,63 @@ function _showToast(msg, type) {
     t.className = 'toast-visible toast-' + (type || 'success');
     clearTimeout(window._toastTimer);
     window._toastTimer = setTimeout(function() { t.className = ''; }, 3000);
+}
+</script>
+<!-- Hidden file input for avatar upload -->
+<input type="file" id="avatarFileInput" accept="image/*" style="display:none;"
+    onchange="handleAvatarUpload(this)">
+
+<script>
+// ── Avatar upload ────────────────────────────────────────────
+window.triggerAvatarUpload = function() {
+    document.getElementById('avatarFileInput').click();
+};
+
+window.handleAvatarUpload = function(input) {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var uid = window._profileUid;
+    if (!uid) { _showToast('Not authenticated.', 'error'); return; }
+
+    // Validate type & size (max 700 KB to stay under Firestore 1MB doc limit)
+    if (!file.type.startsWith('image/')) { _showToast('Please select an image file.', 'error'); return; }
+    if (file.size > 700 * 1024) { _showToast('Image must be smaller than 700 KB. Please crop or resize it first.', 'error'); return; }
+
+    _showToast('Saving photo...', 'info');
+
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var base64String = e.target.result; // already "data:image/...;base64,..."
+
+        // Instant local preview
+        _setAvatarSrc(base64String);
+
+        // Save directly to Firestore — no Storage needed
+        firebase.firestore().collection('users').doc(uid)
+            .update({ photoUrl: base64String })
+            .then(function() {
+                // Sync sessionStorage
+                var key = _profileRole === 'admin' ? 'apUser' : _profileRole === 'staff' ? 'spUser' : 'cpUser';
+                var s = JSON.parse(sessionStorage.getItem(key) || '{}');
+                s.photoUrl = base64String;
+                sessionStorage.setItem(key, JSON.stringify(s));
+                _showToast('Profile photo updated!', 'success');
+            })
+            .catch(function(err) {
+                _showToast('Save failed: ' + err.message, 'error');
+            });
+    };
+    reader.onerror = function() { _showToast('Failed to read image file.', 'error'); };
+    reader.readAsDataURL(file); // produces base64 data URI directly
+
+    // Reset so same file can be re-selected
+    input.value = '';
+};
+
+function _setAvatarSrc(src) {
+    // Hero card avatar (left panel)
+    var heroAvatar = document.querySelector('.profile-avatar-lg');
+    if (heroAvatar) heroAvatar.innerHTML = '<img src="' + src + '" alt="avatar" style="width:100%;height:100%;object-fit:cover;">';
 }
 </script>
 </body>

@@ -200,20 +200,40 @@ function bindHeaderControls() {
 
                 // Then update from Firestore
                 firebase.firestore().collection('users').doc(user.uid).get().then(doc => {
-                    const name = (doc.exists && doc.data().name) ? doc.data().name : sessName || user.email || '';
+                    const name     = (doc.exists && doc.data().name)     ? doc.data().name     : sessName || user.email || '';
+                    const photoUrl = (doc.exists && doc.data().photoUrl) ? doc.data().photoUrl : '';
                     if (!name) return;
-                    const parts = name.trim().split(' ').filter(Boolean);
+                    const parts    = name.trim().split(' ').filter(Boolean);
                     const initials = parts.length >= 2
                         ? (parts[0][0] + parts[1][0]).toUpperCase()
                         : parts[0].slice(0, 2).toUpperCase();
-                    if (avatar) avatar.textContent = initials;
+
+                    // Helper: set avatar to photo or fallback to initials text
+                    function applyAvatar(el, ini, photo) {
+                        if (!el) return;
+                        if (photo) {
+                            el.innerHTML = '<img src="' + photo + '" alt="avatar" '
+                                + 'style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+                        } else {
+                            el.textContent = ini;
+                        }
+                    }
+
+                    applyAvatar(avatar, initials, photoUrl);
                     if (nameEl) nameEl.textContent  = name;
                     if (topbarName) topbarName.textContent = name;
+
                     // Also update sidebar
-                    const sidebarNameEl = document.getElementById('sidebarName');
+                    const sidebarNameEl   = document.getElementById('sidebarName');
                     const sidebarAvatarEl = document.getElementById('sidebarAvatar');
                     if (sidebarNameEl) sidebarNameEl.textContent = name;
-                    if (sidebarAvatarEl) sidebarAvatarEl.textContent = initials;
+                    applyAvatar(sidebarAvatarEl, initials, photoUrl);
+
+                    // Sync photoUrl to sessionStorage
+                    var sess2 = JSON.parse(sessionStorage.getItem('apUser') || '{}');
+                    if (photoUrl) sess2.photoUrl = photoUrl;
+                    sess2.name = name;
+                    sessionStorage.setItem('apUser', JSON.stringify(sess2));
                 }).catch(() => {});
             }
         });

@@ -2470,6 +2470,7 @@ function renderUsersList() {
             return (u.name||'').toLowerCase().includes(q)
                 || (u.username||'').toLowerCase().includes(q)
                 || (u.email||'').toLowerCase().includes(q)
+                || (u.phoneNumber||'').toLowerCase().includes(q)
                 || (u.companyName||'').toLowerCase().includes(q);
         });
     }
@@ -2519,11 +2520,12 @@ function renderUsersList() {
         var statusBadge = '<span style="background:'+statusColor+'20;color:'+statusColor+';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">'+statusLabel+'</span>';
         var roleLabel = (u.role||'');
         roleLabel = roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1);
-        return '<div class="table-row" style="grid-template-columns:40px 2fr 2fr 1.5fr 1fr 1fr 175px;">'
+        return '<div class="table-row" style="grid-template-columns:40px 2fr 2fr 1.5fr 1.2fr 1fr 1fr 175px;">'
             + '<div style="color:#a0aec0;font-size:0.85rem;">' + (idx+1) + '</div>'
             + '<div><strong>' + (u.name||'—') + '</strong></div>'
             + '<div style="color:#718096;font-size:0.85rem;">' + (u.email||'—') + '</div>'
             + '<div style="color:#4a5568;font-size:0.85rem;">' + (u.companyName||'—') + '</div>'
+            + '<div style="color:#4a5568;font-size:0.85rem;">' + (u.phoneNumber||'—') + '</div>'
             + '<div><span style="background:'+roleColor+'20;color:'+roleColor+';padding:0.2rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:700;">' + roleLabel + '</span></div>'
             + '<div>' + statusBadge + '</div>'
             + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.25rem;">'
