@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart' as cloud_firestore;
 
@@ -136,6 +137,7 @@ String? _extractMonthFromMessage(String message) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Static chat store — survives page navigation (cleared on logout/refresh/delete)
+// History sessions are persisted to SharedPreferences keyed by Firebase UID.
 // ─────────────────────────────────────────────────────────────────────────────
 class AdminChatStore {
   static final List<_ChatMessage> messages = [];
@@ -143,11 +145,95 @@ class AdminChatStore {
   static bool rateLimited = false;
   static String resetIn = '';
 
+  // SharedPreferences key helpers
+  static String _activeKey(String uid)  => 'rag_ai_active_$uid';
+  static String _storageKey(String uid) => 'rag_ai_chat_$uid';
+
   static void clear() {
     messages.clear();
     sessionId = null;
     rateLimited = false;
     resetIn = '';
+  }
+
+  /// Persist current in-memory messages as the active session + upsert into
+  /// the history list. Call after every AI reply and on clear/page-exit.
+  static Future<void> saveChat(String uid) async {
+    if (messages.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final sid   = sessionId ?? 'local_$uid';
+      final entry = {
+        'id': sid,
+        'ts': DateTime.now().millisecondsSinceEpoch,
+        'messages': messages.map((m) => {
+          'role': m.role,
+          'text': m.text ?? '',
+        }).toList(),
+      };
+      // Active slot
+      prefs.setString(_activeKey(uid), jsonEncode(entry));
+      // History list — upsert by sid
+      final all = await loadAllSessions(uid);
+      final idx = all.indexWhere((s) => s['id'] == sid);
+      if (idx >= 0) all[idx] = entry; else all.insert(0, entry);
+      final trimmed = all.length > 50 ? all.sublist(0, 50) : all;
+      prefs.setString(_storageKey(uid), jsonEncode(trimmed));
+    } catch (_) {}
+  }
+
+  /// Load all saved sessions for [uid] sorted newest first.
+  static Future<List<Map<String, dynamic>>> loadAllSessions(String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw   = prefs.getString(_storageKey(uid));
+      if (raw == null) return [];
+      final list = (jsonDecode(raw) as List)
+          .cast<Map<String, dynamic>>();
+      list.sort((a, b) =>
+          ((b['ts'] as int?) ?? 0).compareTo((a['ts'] as int?) ?? 0));
+      return list;
+    } catch (_) { return []; }
+  }
+
+  /// Clear all persisted history for [uid].
+  static Future<void> clearAllHistory(String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_storageKey(uid));
+      await prefs.remove(_activeKey(uid));
+    } catch (_) {}
+  }
+
+  /// Remove the active slot so a cleared session isn't restored on next open.
+  static Future<void> clearActiveSlot(String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_activeKey(uid));
+    } catch (_) {}
+  }
+
+  /// Restore the most recent active session into in-memory messages.
+  /// Returns true if a session was restored.
+  static Future<bool> restoreActiveSession(String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw   = prefs.getString(_activeKey(uid));
+      if (raw == null) return false;
+      final entry = jsonDecode(raw) as Map<String, dynamic>;
+      final msgs  = (entry['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      if (msgs.isEmpty) return false;
+      messages.clear();
+      for (final m in msgs) {
+        messages.add(_ChatMessage(
+          role: m['role'] as String? ?? 'ai',
+          text: m['text'] as String? ?? '',
+        ));
+      }
+      final sid = entry['id'] as String?;
+      sessionId = (sid != null && !sid.startsWith('local_')) ? sid : null;
+      return true;
+    } catch (_) { return false; }
   }
 }
 
@@ -164,7 +250,7 @@ class AdminSmartReports extends StatefulWidget {
 class _AdminSmartReportsState extends State<AdminSmartReports> {
   static const _red = Color(0xFFE8001C);
 
-  final _inputCtrl = TextEditingController();
+  final _inputCtrl  = TextEditingController();
   final _scrollCtrl = ScrollController();
 
   // Messages and session live in the static store — widget rebuild-safe
@@ -172,9 +258,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   String? get _sessionId => AdminChatStore.sessionId;
   set _sessionId(String? v) => AdminChatStore.sessionId = v;
 
-  final List<Map<String, String>> _history =
-      []; // legacy — kept for fallback only
+  final List<Map<String, String>> _history = []; // legacy — kept for fallback only
   String _initials = 'AD'; // admin initials shown on user bubble
+  String _currentUid = ''; // Firebase UID for history persistence
 
   bool _loading = false;
   bool get _rateLimited => AdminChatStore.rateLimited;
@@ -182,6 +268,10 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   String get _resetIn => AdminChatStore.resetIn;
   set _resetIn(String v) => AdminChatStore.resetIn = v;
   bool _backendOnline = true;
+
+  // ── History drawer state ───────────────────────────────────────────────────
+  bool _historyOpen = false;
+  List<Map<String, dynamic>> _historySessions = [];
 
   @override
   void initState() {
@@ -201,6 +291,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     try {
       final user = firebase_auth.FirebaseAuth.instance.currentUser;
       if (user == null) return;
+      if (mounted) setState(() => _currentUid = user.uid);
       final doc = await cloud_firestore.FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -213,11 +304,20 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             : parts[0][0].toUpperCase();
         if (mounted) setState(() => _initials = ini);
       }
+      // Restore active session if in-memory store is empty (cold start)
+      if (AdminChatStore.messages.isEmpty) {
+        final restored = await AdminChatStore.restoreActiveSession(user.uid);
+        if (restored && mounted) setState(() {}); // rebuild to show restored messages
+      }
     } catch (_) {}
   }
 
   @override
   void dispose() {
+    // Save chat on widget dispose (tab switch, navigation away)
+    if (_currentUid.isNotEmpty && AdminChatStore.messages.isNotEmpty) {
+      AdminChatStore.saveChat(_currentUid);
+    }
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -229,13 +329,12 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   // offline banner so the user can manually retry.
 
   Future<void> _checkBackend({bool silent = false}) async {
-    // Only reset to offline if the caller explicitly requests it (manual retry)
     if (!silent && mounted) setState(() => _backendOnline = false);
     for (int attempt = 1; attempt <= 3; attempt++) {
       try {
         final r = await http
             .get(Uri.parse('$_kAiBaseUrl/health'))
-            .timeout(const Duration(seconds: 20));
+            .timeout(const Duration(seconds: 60)); // 60s covers Render cold-start (~30–50s)
         if (r.statusCode == 200) {
           if (mounted) setState(() => _backendOnline = true);
           return;
@@ -245,8 +344,86 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         if (attempt < 3) await Future.delayed(const Duration(seconds: 5));
       }
     }
-    // All attempts failed — only mark offline if this was a manual (non-silent) retry
-    if (!silent && mounted) setState(() => _backendOnline = false);
+    // All attempts failed — if silent (startup), schedule a delayed re-check
+    // so the dot corrects itself once Render finishes waking up
+    if (silent) {
+      Future.delayed(const Duration(seconds: 60), () {
+        if (mounted) _checkBackend(silent: false);
+      });
+    } else {
+      if (mounted) setState(() => _backendOnline = false);
+    }
+  }
+
+  // ── History drawer ─────────────────────────────────────────────────────────
+
+  Future<void> _openHistory() async {
+    if (_currentUid.isEmpty) return;
+    final sessions = await AdminChatStore.loadAllSessions(_currentUid);
+    if (mounted) setState(() { _historySessions = sessions; _historyOpen = true; });
+  }
+
+  void _closeHistory() {
+    if (mounted) setState(() => _historyOpen = false);
+  }
+
+  Future<void> _loadSession(Map<String, dynamic> session) async {
+    final msgs = (session['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    if (msgs.isEmpty) return;
+    AdminChatStore.sessionId = (session['id'] as String?)?.startsWith('local_') == false
+        ? session['id'] as String?
+        : null;
+    setState(() {
+      AdminChatStore.messages.clear();
+      for (final m in msgs) {
+        AdminChatStore.messages.add(_ChatMessage(
+          role: m['role'] as String? ?? 'ai',
+          text: m['text'] as String? ?? '',
+        ));
+      }
+      _historyOpen = false;
+    });
+    _scrollToBottom();
+  }
+
+  Future<void> _deleteAllHistory() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete All Chats',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: const Text('Delete all chat history? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel',
+                style: TextStyle(color: Color(0xFF718096))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE8001C),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete All',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (_currentUid.isNotEmpty) {
+      await AdminChatStore.clearAllHistory(_currentUid);
+      // Also clear server session
+      if (_sessionId != null) {
+        http.delete(Uri.parse('$_kAiBaseUrl/session/$_sessionId'))
+            .catchError((_) => http.Response('', 200));
+      }
+      AdminChatStore.clear();
+    }
+    if (mounted) setState(() { _historySessions = []; _historyOpen = false; });
   }
 
   // ── Scroll ─────────────────────────────────────────────────────────────────
@@ -439,8 +616,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           _messages.add(
             _ChatMessage(
               role: 'ai',
-              text:
-                  'AI service error (${resp.statusCode}): ${_parseError(resp.body)}',
+              text: "I'm having trouble processing your request right now. Please try again in a moment.",
             ),
           );
         });
@@ -480,6 +656,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       }
     }
     _scrollToBottom();
+    // Persist the exchange to history after every turn
+    if (_currentUid.isNotEmpty) AdminChatStore.saveChat(_currentUid);
   }
 
   String _parseError(String body) {
@@ -498,7 +676,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
 
   Widget _buildReportDownloadButtons(_ChatMessage msg) {
     final fmt        = (msg.reportFormat ?? 'pdf').toLowerCase();
-    final label      = msg.reportLabel ?? (msg.reportType ?? 'Report');
     final monthLabel = msg.reportMonth != null ? ' (${msg.reportMonth})' : '';
 
     Widget _dlBtn(String format, bool primary) {
@@ -1009,11 +1186,46 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           ],
         ),
         actions: [
+          // New Chat button
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.white),
+            tooltip: 'New chat',
+            onPressed: () async {
+              // Save current session to history before starting a new one
+              if (_currentUid.isNotEmpty && _messages.isNotEmpty) {
+                await AdminChatStore.saveChat(_currentUid);
+                await AdminChatStore.clearActiveSlot(_currentUid);
+              }
+              // Clear server-side session memory
+              if (_sessionId != null) {
+                http
+                    .delete(Uri.parse('$_kAiBaseUrl/session/$_sessionId'))
+                    .catchError((_) => http.Response('', 200));
+              }
+              if (mounted) {
+                setState(() {
+                  AdminChatStore.clear();
+                  _history.clear();
+                });
+              }
+            },
+          ),
+          // History button — always visible
+          IconButton(
+            icon: const Icon(Icons.history, color: Colors.white),
+            tooltip: 'Chat history',
+            onPressed: _openHistory,
+          ),
           if (_messages.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.white),
               tooltip: 'Clear chat',
-              onPressed: () {
+              onPressed: () async {
+                // Save current session to history before clearing
+                if (_currentUid.isNotEmpty) {
+                  await AdminChatStore.saveChat(_currentUid);
+                  await AdminChatStore.clearActiveSlot(_currentUid);
+                }
                 // Clear server-side session memory
                 if (_sessionId != null) {
                   http
@@ -1028,7 +1240,10 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             ),
         ],
       ),
-      body: Column(
+      body: Stack(
+        children: [
+          // ── Main chat column ──────────────────────────────────────────────
+          Column(
         children: [
           // Offline banner
           if (!_backendOnline)
@@ -1183,6 +1398,155 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
               ),
             ),
           ),
+        ],
+      ),
+
+          // ── History drawer overlay ────────────────────────────────────────
+          if (_historyOpen) ...[
+            // Scrim
+            GestureDetector(
+              onTap: _closeHistory,
+              child: Container(color: Colors.black.withValues(alpha: 0.25)),
+            ),
+            // Drawer panel — slides in from the right
+            Positioned(
+              top: 0, right: 0, bottom: 0,
+              width: 300,
+              child: Material(
+                elevation: 8,
+                child: Column(children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFFc62828), Color(0xFFE8001C)],
+                        begin: Alignment.centerLeft, end: Alignment.centerRight,
+                      ),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.history, color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text('Chat History',
+                            style: TextStyle(color: Colors.white,
+                                fontSize: 14, fontWeight: FontWeight.bold)),
+                      ),
+                      GestureDetector(
+                        onTap: _closeHistory,
+                        child: Container(
+                          width: 28, height: 28,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.close, color: Colors.white, size: 16),
+                        ),
+                      ),
+                    ]),
+                  ),
+                  // Delete all button
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                    child: GestureDetector(
+                      onTap: _deleteAllHistory,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 9),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF5F5),
+                          border: Border.all(color: const Color(0xFFFCA5A5)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(children: [
+                          const Icon(Icons.delete_outline,
+                              size: 14, color: Color(0xFFDC2626)),
+                          const SizedBox(width: 8),
+                          const Text('Delete All Chats',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFDC2626))),
+                        ]),
+                      ),
+                    ),
+                  ),
+                  // Session list
+                  Expanded(
+                    child: _historySessions.isEmpty
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Text(
+                                'No chat history yet.\nStart a conversation!',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontSize: 13, color: Color(0xFF94A3B8)),
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                            itemCount: _historySessions.length,
+                            itemBuilder: (_, i) {
+                              final s = _historySessions[i];
+                              final ts = s['ts'] as int? ?? 0;
+                              final d  = DateTime.fromMillisecondsSinceEpoch(ts);
+                              final msgs = (s['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                              final firstUser = msgs.firstWhere(
+                                  (m) => m['role'] == 'user',
+                                  orElse: () => {'text': '(empty)'});
+                              final preview = (firstUser['text'] as String? ?? '');
+                              final time = '${d.hour.toString().padLeft(2,'0')}:${d.minute.toString().padLeft(2,'0')}';
+                              final isActive = s['id'] == (AdminChatStore.sessionId ?? 'local_$_currentUid');
+                              return GestureDetector(
+                                onTap: () => _loadSession(s),
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 7),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: isActive
+                                        ? const Color(0xFFFFF0F0)
+                                        : const Color(0xFFF8F9FB),
+                                    border: Border.all(
+                                        color: isActive
+                                            ? const Color(0xFFE8001C)
+                                            : const Color(0xFFE8EDF2),
+                                        width: 1.5),
+                                    borderRadius: BorderRadius.circular(11),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        preview.length > 55
+                                            ? '${preview.substring(0, 55)}…'
+                                            : preview,
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: Color(0xFF1A202C)),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        '$time  ·  ${msgs.length} message${msgs.length != 1 ? 's' : ''}',
+                                        style: const TextStyle(
+                                            fontSize: 10.5,
+                                            color: Color(0xFF94A3B8)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ]),
+              ),
+            ),
+          ],
         ],
       ),
     );
