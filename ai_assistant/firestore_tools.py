@@ -178,30 +178,71 @@ def get_item_catalog(item_type: str | None = None, group: str | None = None) -> 
 
 # ── Maintenance jobs (joins vehicles by plate) ────────────────────────────────
 
-def get_maintenance_jobs(status: str | None = None, plate: str | None = None) -> dict:
+def get_maintenance_jobs(status: str | None = None,
+                        plate:  str | None = None,
+                        owner:  str | None = None) -> dict:
     """
     List maintenance jobs. Resolves plate → vehicle description and owner.
     Also expands embedded svcRows/matRows into readable line items.
+
+    Filters:
+      status — e.g. 'Completed', 'In Progress'
+      plate  — specific vehicle plate number
+      owner  — customer / owner name; resolves ALL plates for that owner first,
+               then queries maintenance by those plates.  Supports case-insensitive
+               matching so the admin can ask "show history for john dela cruz".
     """
     db = get_db()
     vehicle_by_plate = _build_vehicle_lookup_by_plate(db)
 
-    query = db.collection("maintenance")
-    if status:
-        query = query.where(filter=FieldFilter("status", "==", status))
-    if plate:
-        query = query.where(filter=FieldFilter("plate", "==", plate))
+    # ── Resolve plates when filtering by owner name ───────────────────────────
+    owner_plates: list | None = None
+    if owner:
+        owner_lower = owner.lower().strip()
+        owner_plates = [
+            p for p, v in vehicle_by_plate.items()
+            if (v.get("owner") or "").lower().strip() == owner_lower
+        ]
+        if not owner_plates:
+            # No vehicles found for this owner — return empty result immediately
+            return {
+                "filter_status": status or "all statuses",
+                "filter_plate":  plate or "all vehicles",
+                "filter_owner":  owner,
+                "total_jobs":    0,
+                "total_cost":    0.0,
+                "jobs":          [],
+                "note":          f"No vehicles found for owner '{owner}'.",
+            }
+
+    # ── Build maintenance query ───────────────────────────────────────────────
+    if owner_plates:
+        # Firestore 'in' max 10 — chunk the plate list
+        raw_jobs = []
+        for i in range(0, len(owner_plates), 10):
+            chunk = owner_plates[i:i + 10]
+            q = db.collection("maintenance").where(
+                filter=FieldFilter("plate", "in", chunk))
+            if status:
+                q = q.where(filter=FieldFilter("status", "==", status))
+            raw_jobs.extend(q.stream())
+    else:
+        query = db.collection("maintenance")
+        if status:
+            query = query.where(filter=FieldFilter("status", "==", status))
+        if plate:
+            query = query.where(filter=FieldFilter("plate", "==", plate))
+        raw_jobs = list(query.stream())
 
     jobs = []
     total_cost = 0.0
-    for doc in query.stream():
-        d = doc.to_dict()
+    for doc in raw_jobs:
+        d         = doc.to_dict()
         job_plate = d.get("plate", "")
         vehicle   = vehicle_by_plate.get(job_plate, {})
         cost      = _strip_currency(d.get("cost", 0))
         total_cost += cost
 
-        # Flatten embedded service and material rows
         svc_rows = [
             f"{r.get('name','')} x{r.get('qty','')} {r.get('uom','')} @ ₱{r.get('cost','')}"
             for r in (d.get("svcRows") or [])
@@ -228,6 +269,7 @@ def get_maintenance_jobs(status: str | None = None, plate: str | None = None) ->
     return {
         "filter_status": status or "all statuses",
         "filter_plate":  plate or "all vehicles",
+        "filter_owner":  owner or "all owners",
         "total_jobs":    len(jobs),
         "total_cost":    round(total_cost, 2),
         "jobs":          jobs[:20],
@@ -410,16 +452,29 @@ def get_deliveries(status: str | None = None) -> dict:
 
 # ── Vehicles ──────────────────────────────────────────────────────────────────
 
-def get_vehicles(status: str | None = None) -> dict:
-    """List registered fleet vehicles."""
-    db = get_db()
+def get_vehicles(status: str | None = None, owner: str | None = None) -> dict:
+    """
+    List registered fleet vehicles.
+
+    Filters:
+      status — vehicle PMS status (e.g. 'Active', 'Overdue')
+      owner  — customer / owner name (case-insensitive match on the `owner` field)
+    """
+    db    = get_db()
     query = db.collection("vehicles")
     if status:
         query = query.where(filter=FieldFilter("status", "==", status))
 
-    vehicles = []
+    vehicles   = []
+    owner_lower = owner.lower().strip() if owner else None
+
     for doc in query.stream():
         d = doc.to_dict()
+        # Apply owner filter (case-insensitive) in Python — no composite index needed
+        if owner_lower:
+            stored = (d.get("owner", "") or "").lower().strip()
+            if stored != owner_lower:
+                continue
         vehicles.append({
             "plate":       d.get("plate", ""),
             "desc":        d.get("desc", ""),
@@ -438,6 +493,7 @@ def get_vehicles(status: str | None = None) -> dict:
 
     return {
         "filter_status":  status or "all statuses",
+        "filter_owner":   owner  or "all owners",
         "total_vehicles": len(vehicles),
         "by_status":      dict(by_status),
         "vehicles":       vehicles,
@@ -512,12 +568,32 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "get_maintenance_jobs",
-            "description": "List maintenance/service jobs with vehicle details (resolved from plate), services performed, and materials used. Filter by status or plate.",
+            "description": (
+                "List maintenance/service jobs with vehicle details (resolved from plate), "
+                "services performed, and materials used. "
+                "Filter by status, plate, or owner name. "
+                "Use owner to get ALL service history for a specific customer — "
+                "the tool resolves all plates belonging to that owner automatically."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "status": {"type": "string", "description": "Job status (e.g. 'Completed', 'In Progress'). Only include when filtering."},
-                    "plate":  {"type": "string", "description": "Vehicle plate number. Only include when filtering by vehicle."},
+                    "status": {
+                        "type": "string",
+                        "description": "Job status (e.g. 'Completed', 'In Progress'). Only include when filtering.",
+                    },
+                    "plate": {
+                        "type": "string",
+                        "description": "Vehicle plate number. Only include when filtering by a specific vehicle.",
+                    },
+                    "owner": {
+                        "type": "string",
+                        "description": (
+                            "Owner / customer name to filter by. "
+                            "Returns jobs for ALL vehicles registered under this owner. "
+                            "Use when admin asks about a specific customer's service history."
+                        ),
+                    },
                 },
                 "required": [], "additionalProperties": False,
             },
@@ -578,11 +654,25 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "get_vehicles",
-            "description": "List registered fleet vehicles with owner, status, last service date, and odometer. Filter by status.",
+            "description": (
+                "List registered fleet vehicles with owner, status, last service date, "
+                "and odometer. Filter by status and/or owner name. "
+                "Use owner to see all vehicles belonging to a specific customer."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "status": {"type": "string", "description": "Vehicle status. Only include when filtering."},
+                    "status": {
+                        "type": "string",
+                        "description": "Vehicle PMS status. Only include when filtering.",
+                    },
+                    "owner": {
+                        "type": "string",
+                        "description": (
+                            "Owner / customer name to filter by (case-insensitive). "
+                            "Only include when the admin asks about a specific customer's vehicles."
+                        ),
+                    },
                 },
                 "required": [], "additionalProperties": False,
             },

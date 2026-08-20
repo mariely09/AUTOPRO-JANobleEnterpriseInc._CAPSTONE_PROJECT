@@ -1,46 +1,51 @@
 """
 Customer AI tools — strictly scoped to the logged-in customer's own data.
 
-Rules enforced here (never trust the LLM alone):
-  - Every vehicle query filters by owner == customer_name (the name stored on
-    the vehicle document).  ownerId is NOT used — vehicles are keyed by name.
-  - Every maintenance/service-history query first resolves the customer's
-    plate numbers via the owner-name vehicle query, then queries maintenance
-    by plate IN [plates].
-  - Every booking query filters by customerId == customer_uid (bookings store
-    the Firebase UID).
-  - Pricing / catalog queries are public (no customer PII exposed).
-  - NO admin data: no stock levels, no issuances, no deliveries, no other users.
+Vehicle lookup strategy (applied consistently across ALL functions):
+  Pass 1 — Firestore query: owner == customer_name        (exact, indexed)
+  Pass 2 — Firestore query: owner == companyName          (exact, only if
+                                                           company differs)
+  Pass 3 — Case-insensitive full scan over vehicles,      (always runs,
+            skipping already-found doc IDs                 catches casing
+                                                           mismatches from
+                                                           manual admin input)
 
-All functions receive `customer_uid` and `customer_name` so Firestore
-filtering happens server-side, not post-fetch.
+Service history lookup strategy:
+  Step 1 — Resolve ALL plate numbers owned by this customer using the
+            3-pass vehicle lookup above.
+  Step 2 — Query maintenance WHERE plate IN [resolved plates]
+  Step 3 — Keep only status == "Completed" records.
 
-PRIVACY GUARD: `customer_name` and `customer_uid` are injected by the backend
-from the authenticated Firebase session — the LLM cannot override these values
-through its function arguments.  Any argument named differently is ignored.
+Booking lookup:
+  Pass 1 — customerId == customer_uid  (UID-based, most reliable)
+  Pass 2 — customerName == customer_name / companyName
+  Pass 3 — Case-insensitive scan (last resort)
+
+Privacy rules (enforced here, never delegated to the LLM):
+  - NO data from other customers.
+  - NO admin-only data: inventory, stock, issuances, deliveries.
+  - customer_uid and customer_name are injected server-side from the
+    authenticated Firebase session — the LLM cannot override them.
 """
+import logging
 import re
 from datetime import datetime
 from firestore_client import get_db
 from google.cloud.firestore_v1.base_query import FieldFilter
-try:
-    from google.api_core.exceptions import ResourceExhausted as _ResourceExhausted
-except ImportError:
-    _ResourceExhausted = None
+
+logger = logging.getLogger(__name__)
 
 
 # ── Firestore quota guard ─────────────────────────────────────────────────────
 
 def _is_firestore_quota(exc: Exception) -> bool:
-    """Return True if the exception is a Firestore free-tier quota error."""
     msg = str(exc).lower()
     return (
-        "quota exceeded" in msg
+        "quota exceeded"     in msg
         or "resource_exhausted" in msg
-        or "resourceexhausted" in msg
-        or "429" in msg
+        or "resourceexhausted"  in msg
+        or "429"                in msg
     )
-
 
 def _quota_error() -> dict:
     return {
@@ -52,14 +57,16 @@ def _quota_error() -> dict:
     }
 
 
-# ── Privacy helpers ───────────────────────────────────────────────────────────
+# ── Privacy / error helpers ───────────────────────────────────────────────────
 
 def _privacy_error() -> dict:
-    """Standard response when a tool detects an out-of-scope data access attempt."""
     return {
-        "error": "ACCESS_DENIED",
+        "error":   "ACCESS_DENIED",
         "message": "I can only show information for your own account.",
     }
+
+def _db_error(exc: Exception) -> dict:
+    return {"error": "DB_ERROR", "message": str(exc)}
 
 
 # ── Currency helpers ──────────────────────────────────────────────────────────
@@ -75,61 +82,79 @@ def _strip_currency(value) -> float:
             return 0.0
     return 0.0
 
-
 def _fmt_cost(value) -> str:
     amount = _strip_currency(value)
     return f"₱{amount:,.2f}" if amount else "—"
 
 
-# ── Shared: resolve plates owned by a customer ────────────────────────────────
+# ── Shared helpers ────────────────────────────────────────────────────────────
 
-def _get_customer_plates(db, customer_name: str, company_name: str = "") -> set:
+def _resolve_company_name(db, customer_uid: str) -> str:
+    """Look up the customer's companyName from their users document."""
+    try:
+        doc = db.collection("users").document(customer_uid).get()
+        if doc.exists:
+            return doc.to_dict().get("companyName", "") or ""
+    except Exception:
+        pass
+    return ""
+
+
+def _iter_customer_vehicles(db, customer_name: str, company_name: str):
     """
-    Return the set of plate numbers for vehicles whose `owner` field matches
-    customer_name (or company_name).
+    Yield Firestore vehicle documents that belong to this customer.
 
-    Strategy:
-      Pass 1 — exact match on owner == customer_name  (Firestore index query)
-      Pass 2 — exact match on owner == company_name   (only if company differs)
-      Pass 3 — case-insensitive full scan              (last resort, only when
-                                                        passes 1+2 found nothing)
+    Pass 1 — owner == customer_name  (exact Firestore query)
+    Pass 2 — owner == company_name   (exact, only when company differs)
+    Pass 3 — case-insensitive full collection scan, skipping already-yielded
+             doc IDs.  Runs ALWAYS so casing mismatches from manual admin
+             input are caught (e.g. "JOHN DELA CRUZ" vs "John Dela Cruz").
     """
-    plate_set: set = set()
-    seen_ids:  set = set()
+    seen: set = set()
+    name_lower    = customer_name.lower().strip()
+    company_lower = company_name.lower().strip() if company_name else ""
 
-    def _collect(doc):
-        if doc.id in seen_ids:
-            return
-        seen_ids.add(doc.id)
-        p = doc.to_dict().get("plate", "")
-        if p:
-            plate_set.add(p)
-
-    # Pass 1: exact owner name
+    # Pass 1: exact match on owner == customer_name
     for doc in db.collection("vehicles").where(
             filter=FieldFilter("owner", "==", customer_name)).stream():
-        _collect(doc)
+        if doc.id not in seen:
+            seen.add(doc.id)
+            yield doc
 
-    # Pass 2: company name (when it differs from the display name)
-    if company_name and company_name.lower() != customer_name.lower():
+    # Pass 2: exact match on owner == company_name (when it differs)
+    if company_name and company_lower != name_lower:
         for doc in db.collection("vehicles").where(
                 filter=FieldFilter("owner", "==", company_name)).stream():
-            _collect(doc)
+            if doc.id not in seen:
+                seen.add(doc.id)
+                yield doc
 
-    # Pass 3: case-insensitive full scan — only if nothing found yet
-    if not plate_set and customer_name:
-        name_lower    = customer_name.lower()
-        company_lower = company_name.lower() if company_name else ""
-        for doc in db.collection("vehicles").stream():
-            if doc.id in seen_ids:
-                continue
-            d = doc.to_dict()
-            stored = (d.get("owner", "") or "").lower().strip()
-            if stored and (stored == name_lower or
-                           (company_lower and stored == company_lower)):
-                _collect(doc)
+    # Pass 3: case-insensitive full scan — catches any casing/spacing mismatch
+    for doc in db.collection("vehicles").stream():
+        if doc.id in seen:
+            continue
+        stored = (doc.to_dict().get("owner", "") or "").lower().strip()
+        if stored and (stored == name_lower or
+                       (company_lower and stored == company_lower)):
+            seen.add(doc.id)
+            yield doc
 
-    return plate_set
+
+def _get_customer_plates(db, customer_name: str, company_name: str) -> list:
+    """
+    Return a list of plate numbers for all vehicles owned by this customer.
+    Uses _iter_customer_vehicles — same 3-pass strategy.
+    """
+    plates = []
+    for doc in _iter_customer_vehicles(db, customer_name, company_name):
+        p = doc.to_dict().get("plate", "")
+        if p:
+            plates.append(p)
+    logger.info(
+        "_get_customer_plates: owner=%r company=%r → plates=%s",
+        customer_name, company_name, plates,
+    )
+    return plates
 
 
 # ── Customer tools ────────────────────────────────────────────────────────────
@@ -137,88 +162,45 @@ def _get_customer_plates(db, customer_name: str, company_name: str = "") -> set:
 def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
     """
     Return all vehicles whose `owner` field matches this customer's name,
-    together with their current PMS status.
-
-    Lookup order:
-      1. owner == customer_name  (exact, Firestore query)
-      2. owner == companyName    (exact, if user has a company name on file)
-      3. Case-insensitive full scan (last resort, only when 1+2 returned nothing)
+    with their current PMS status.
     """
     if not customer_name:
         return _privacy_error()
+    logger.info("get_my_vehicles: uid=%s name=%r", customer_uid, customer_name)
 
     try:
-        db = get_db()
-    except Exception as e:
-        if _is_firestore_quota(e):
-            return _quota_error()
-        return {"error": "DB_ERROR", "message": str(e)}
+        db           = get_db()
+        company_name = _resolve_company_name(db, customer_uid)
+        vehicles     = []
 
-    # Resolve optional company name from user profile
-    company_name = ""
-    try:
-        user_doc = db.collection("users").document(customer_uid).get()
-        if user_doc.exists:
-            company_name = user_doc.to_dict().get("companyName", "") or ""
-    except Exception:
-        pass  # non-fatal — proceed without company name
+        for doc in _iter_customer_vehicles(db, customer_name, company_name):
+            d = doc.to_dict()
+            vehicles.append({
+                "plate":       d.get("plate", ""),
+                "desc":        d.get("desc", "") or d.get("assetDescription", ""),
+                "type":        d.get("type", ""),
+                "status":      d.get("status", "Active"),
+                "lastSvcDate": d.get("lastSvcDate", "") or d.get("lastServiceDate", ""),
+                "svcFreq":     d.get("svcFreq", "") or str(d.get("serviceFrequency", "")),
+                "odo":         d.get("odo", ""),
+            })
 
-    vehicles  = []
-    seen_ids  = set()
+        logger.info("get_my_vehicles: found %d vehicle(s) for %r", len(vehicles), customer_name)
 
-    def _add_vehicle(doc):
-        if doc.id in seen_ids:
-            return
-        seen_ids.add(doc.id)
-        d = doc.to_dict()
-        vehicles.append({
-            "plate":       d.get("plate", ""),
-            "desc":        d.get("desc", "") or d.get("assetDescription", ""),
-            "type":        d.get("type", ""),
-            "status":      d.get("status", "Active"),
-            "lastSvcDate": d.get("lastSvcDate", "") or d.get("lastServiceDate", ""),
-            "svcFreq":     d.get("svcFreq", "") or str(d.get("serviceFrequency", "")),
-            "odo":         d.get("odo", ""),
-        })
-
-    try:
-        # Pass 1: exact match on owner == customer_name
-        for doc in db.collection("vehicles").where(
-                filter=FieldFilter("owner", "==", customer_name)).stream():
-            _add_vehicle(doc)
-
-        # Pass 2: exact match on owner == company_name (if different)
-        if company_name and company_name.lower() != customer_name.lower():
-            for doc in db.collection("vehicles").where(
-                    filter=FieldFilter("owner", "==", company_name)).stream():
-                _add_vehicle(doc)
-
-        # Pass 3: case-insensitive full scan — only when passes 1+2 found nothing
-        if not vehicles and customer_name:
-            name_lower    = customer_name.lower()
-            company_lower = company_name.lower() if company_name else ""
-            for doc in db.collection("vehicles").stream():
-                if doc.id in seen_ids:
-                    continue
-                d = doc.to_dict()
-                stored = (d.get("owner", "") or "").lower().strip()
-                if stored and (stored == name_lower or
-                               (company_lower and stored == company_lower)):
-                    _add_vehicle(doc)
+        from collections import Counter
+        status_counts = Counter(v["status"] for v in vehicles)
+        return {
+            "owner":          customer_name,
+            "total_vehicles": len(vehicles),
+            "status_summary": dict(status_counts),
+            "vehicles":       vehicles,
+        }
 
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        return {"error": "DB_ERROR", "message": str(e)}
-
-    from collections import Counter
-    status_counts = Counter(v["status"] for v in vehicles)
-    return {
-        "owner":          customer_name,
-        "total_vehicles": len(vehicles),
-        "status_summary": dict(status_counts),
-        "vehicles":       vehicles,
-    }
+        logger.exception("get_my_vehicles error")
+        return _db_error(e)
 
 
 def get_my_service_history(customer_uid: str, customer_name: str,
@@ -226,33 +208,25 @@ def get_my_service_history(customer_uid: str, customer_name: str,
     """
     Return completed maintenance jobs for this customer's vehicles.
 
-    Step 1 — Resolve plates: query vehicles where owner == customer_name
-             (same logic as get_my_vehicles).
-    Step 2 — Query maintenance where plate IN [resolved plates].
-    Step 3 — Filter to status == 'Completed' only.
+    Step 1: resolve all plates belonging to the customer via owner-name lookup.
+    Step 2: query maintenance WHERE plate IN [those plates].
+    Step 3: keep only status == 'Completed'.
 
-    Optionally filter to a single plate via the `plate` argument.
+    If `plate` is given, restrict to that single plate only.
     """
     if not customer_name:
         return _privacy_error()
+    logger.info("get_my_service_history: uid=%s name=%r plate=%r",
+                customer_uid, customer_name, plate)
 
     try:
-        db = get_db()
+        db           = get_db()
+        company_name = _resolve_company_name(db, customer_uid)
 
-        # Resolve optional company name
-        company_name = ""
-        try:
-            user_doc = db.collection("users").document(customer_uid).get()
-            if user_doc.exists:
-                company_name = user_doc.to_dict().get("companyName", "") or ""
-        except Exception:
-            pass
+        # Step 1 — resolve plates by owner name
+        all_plates = _get_customer_plates(db, customer_name, company_name)
 
-        # Step 1: get all plates belonging to this customer (by owner name)
-        plate_set = _get_customer_plates(db, customer_name, company_name)
-        plate_list = list(plate_set)
-
-        if not plate_list:
+        if not all_plates:
             return {
                 "owner":      customer_name,
                 "plate":      plate or "all vehicles",
@@ -261,10 +235,10 @@ def get_my_service_history(customer_uid: str, customer_name: str,
                 "jobs":       [],
             }
 
-        # Narrow to a specific plate if the caller requested one
+        # Narrow to a specific plate when requested
         if plate:
-            plate_list = [p for p in plate_list if p.upper() == plate.upper()]
-            if not plate_list:
+            target_plates = [p for p in all_plates if p.upper() == plate.upper()]
+            if not target_plates:
                 return {
                     "owner":      customer_name,
                     "plate":      plate,
@@ -273,16 +247,18 @@ def get_my_service_history(customer_uid: str, customer_name: str,
                     "jobs":       [],
                     "note":       f"No vehicle with plate {plate} found under your account.",
                 }
+        else:
+            target_plates = all_plates
 
-        # Step 2: query maintenance by plate (Firestore 'in' max 10 — chunk)
+        # Step 2 — query maintenance by plate (Firestore 'in' max 10 — chunk)
         jobs = []
-        for i in range(0, len(plate_list), 10):
-            chunk = plate_list[i:i + 10]
+        for i in range(0, len(target_plates), 10):
+            chunk = target_plates[i:i + 10]
             for doc in db.collection("maintenance").where(
                     filter=FieldFilter("plate", "in", chunk)).stream():
                 d = doc.to_dict()
 
-                # Step 3: only completed jobs visible to customers
+                # Step 3 — customers only see completed jobs
                 if (d.get("status") or "").strip().lower() != "completed":
                     continue
 
@@ -303,54 +279,41 @@ def get_my_service_history(customer_uid: str, customer_name: str,
         jobs.sort(key=lambda j: j["date"], reverse=True)
         total_cost = sum(j["cost_raw"] for j in jobs)
 
+        logger.info("get_my_service_history: %d completed job(s) for %r plates=%s",
+                    len(jobs), customer_name, target_plates)
         return {
             "owner":      customer_name,
             "plate":      plate or "all vehicles",
             "total_jobs": len(jobs),
             "total_cost": _fmt_cost(total_cost),
-            "jobs":       jobs,   # display layer caps at 10
+            "jobs":       jobs,
         }
 
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        return {"error": "DB_ERROR", "message": str(e)}
+        logger.exception("get_my_service_history error")
+        return _db_error(e)
 
 
 def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
     """
     Return PMS schedule status for each of this customer's vehicles.
-
-    Vehicles are resolved by owner == customer_name (same as get_my_vehicles).
+    Vehicles are resolved by owner name using the same 3-pass strategy.
     """
     if not customer_name:
         return _privacy_error()
 
     try:
-        db = get_db()
-        now      = datetime.now()
-        vehicles = []
-        seen_ids = set()
+        db           = get_db()
+        company_name = _resolve_company_name(db, customer_uid)
+        now          = datetime.now()
+        vehicles     = []
 
-        # Resolve optional company name
-        company_name = ""
-        try:
-            user_doc = db.collection("users").document(customer_uid).get()
-            if user_doc.exists:
-                company_name = user_doc.to_dict().get("companyName", "") or ""
-        except Exception:
-            pass
-
-        name_lower    = customer_name.lower()
-        company_lower = company_name.lower() if company_name else ""
-
-        def _process_doc(doc):
-            if doc.id in seen_ids:
-                return
-            seen_ids.add(doc.id)
-            d         = doc.to_dict()
-            last_svc  = d.get("lastSvcDate", "") or d.get("lastServiceDate", "")
-            svc_freq  = d.get("svcFreq", "") or str(d.get("serviceFrequency", ""))
+        for doc in _iter_customer_vehicles(db, customer_name, company_name):
+            d        = doc.to_dict()
+            last_svc = d.get("lastSvcDate", "") or d.get("lastServiceDate", "")
+            svc_freq = d.get("svcFreq", "") or str(d.get("serviceFrequency", ""))
 
             next_pms   = ""
             days_until = None
@@ -387,28 +350,6 @@ def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
                 "urgency":     urgency,
             })
 
-        # Pass 1: exact match on owner == customer_name
-        for doc in db.collection("vehicles").where(
-                filter=FieldFilter("owner", "==", customer_name)).stream():
-            _process_doc(doc)
-
-        # Pass 2: exact match on owner == company_name (if different)
-        if company_name and company_name.lower() != customer_name.lower():
-            for doc in db.collection("vehicles").where(
-                    filter=FieldFilter("owner", "==", company_name)).stream():
-                _process_doc(doc)
-
-        # Pass 3: case-insensitive full scan — only when passes 1+2 found nothing
-        if not vehicles and customer_name:
-            for doc in db.collection("vehicles").stream():
-                if doc.id in seen_ids:
-                    continue
-                d = doc.to_dict()
-                stored = (d.get("owner", "") or "").lower().strip()
-                if stored and (stored == name_lower or
-                               (company_lower and stored == company_lower)):
-                    _process_doc(doc)
-
         overdue  = [v for v in vehicles if v["urgency"] == "Overdue"]
         due_soon = [v for v in vehicles if v["urgency"] in ("Due This Week", "Due Soon")]
 
@@ -423,39 +364,31 @@ def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        return {"error": "DB_ERROR", "message": str(e)}
+        logger.exception("get_my_pms_status error")
+        return _db_error(e)
 
 
 def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
     """
     Return this customer's service bookings (all statuses).
 
-    Bookings store customerId (Firebase UID) as the primary key, so Pass 1
-    uses customerId == customer_uid.  Passes 2+3 fall back to customerName
-    matching for older records that may not have the UID set.
+    Pass 1: customerId == customer_uid  (UID — most reliable)
+    Pass 2: customerName == customer_name / companyName
+    Pass 3: case-insensitive scan (last resort, only when 1+2 found nothing)
     """
     if not customer_name:
         return _privacy_error()
 
     try:
-        db = get_db()
-
-        # Resolve optional company name
-        company_name = ""
-        try:
-            user_doc = db.collection("users").document(customer_uid).get()
-            if user_doc.exists:
-                company_name = user_doc.to_dict().get("companyName", "") or ""
-        except Exception:
-            pass
-
-        name_lower    = customer_name.lower()
+        db           = get_db()
+        company_name = _resolve_company_name(db, customer_uid)
+        name_lower   = customer_name.lower()
         company_lower = company_name.lower() if company_name else ""
 
         bookings   = []
         seen_b_ids = set()
 
-        def _add_booking(doc):
+        def _add(doc):
             if doc.id in seen_b_ids:
                 return
             seen_b_ids.add(doc.id)
@@ -470,32 +403,31 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
                 "status":   d.get("status", ""),
             })
 
-        # Pass 1: by customerId (Firebase UID) — most reliable
+        # Pass 1: by Firebase UID
         for doc in db.collection("service_bookings").where(
                 filter=FieldFilter("customerId", "==", customer_uid)).stream():
-            _add_booking(doc)
+            _add(doc)
 
-        # Pass 2a: by exact customerName
+        # Pass 2a: exact customerName
         for doc in db.collection("service_bookings").where(
                 filter=FieldFilter("customerName", "==", customer_name)).stream():
-            _add_booking(doc)
+            _add(doc)
 
-        # Pass 2b: by company name (if different)
-        if company_name and company_name.lower() != customer_name.lower():
+        # Pass 2b: company name
+        if company_name and company_lower != name_lower:
             for doc in db.collection("service_bookings").where(
                     filter=FieldFilter("customerName", "==", company_name)).stream():
-                _add_booking(doc)
+                _add(doc)
 
-        # Pass 3: case-insensitive scan — only when passes 1+2 found nothing
+        # Pass 3: case-insensitive scan — only when nothing found yet
         if not bookings and customer_name:
             for doc in db.collection("service_bookings").stream():
                 if doc.id in seen_b_ids:
                     continue
-                d = doc.to_dict()
-                stored = (d.get("customerName", "") or "").lower().strip()
+                stored = (doc.to_dict().get("customerName", "") or "").lower().strip()
                 if stored and (stored == name_lower or
                                (company_lower and stored == company_lower)):
-                    _add_booking(doc)
+                    _add(doc)
 
         bookings.sort(key=lambda b: b["date"], reverse=True)
         pending   = [b for b in bookings if (b["status"] or "").lower() == "pending"]
@@ -513,18 +445,18 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        return {"error": "DB_ERROR", "message": str(e)}
+        logger.exception("get_my_bookings error")
+        return _db_error(e)
 
 
 def get_service_prices(customer_uid: str, customer_name: str,
                        service_name: str | None = None, **_) -> dict:
     """
-    Return the list of services and their prices from the item catalog.
-    Public information — any authenticated customer can view it.
-    Optionally filter by service name keyword.
+    Return services and prices from the item catalog.
+    Public information — any authenticated customer may view it.
     """
     try:
-        db = get_db()
+        db       = get_db()
         services = []
         for doc in db.collection("item_master").where(
                 filter=FieldFilter("type", "==", "Service")).stream():
@@ -550,22 +482,16 @@ def get_service_prices(customer_uid: str, customer_name: str,
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        return {"error": "DB_ERROR", "message": str(e)}
+        return _db_error(e)
 
 
 def estimate_service_cost(customer_uid: str, customer_name: str,
                           service_names: list[str], **_) -> dict:
     """
-    Estimate the total cost for one or more services by name.
-    Used when a customer asks 'how much would a change oil + brake cleaning cost?'
+    Estimate combined cost for one or more named services.
     """
     try:
-        db = get_db()
-        matched   = []
-        unmatched = []
-        total     = 0.0
-
-        # Load all services once
+        db      = get_db()
         catalog = {}
         for doc in db.collection("item_master").where(
                 filter=FieldFilter("type", "==", "Service")).stream():
@@ -576,11 +502,14 @@ def estimate_service_cost(customer_uid: str, customer_name: str,
                 "uom":  d.get("uom", ""),
             }
 
+        matched   = []
+        unmatched = []
+        total     = 0.0
+
         for svc in service_names:
             key  = svc.lower().strip()
             item = catalog.get(key)
             if not item:
-                # fuzzy fallback — partial name match
                 for k, v in catalog.items():
                     if key in k or k in key:
                         item = v
@@ -610,13 +539,12 @@ def estimate_service_cost(customer_uid: str, customer_name: str,
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        return {"error": "DB_ERROR", "message": str(e)}
+        return _db_error(e)
 
 
 # ── Tool schemas (OpenAI / Groq format) ──────────────────────────────────────
-# NOTE: customer_uid and customer_name are NOT listed as parameters here —
-# they are injected server-side from the authenticated session so the LLM
-# cannot attempt to pass a different customer's identity.
+# customer_uid and customer_name are NOT listed as parameters — they are
+# injected server-side so the LLM cannot substitute a different customer.
 
 CUSTOMER_TOOL_SCHEMAS = [
     {
@@ -627,10 +555,9 @@ CUSTOMER_TOOL_SCHEMAS = [
                 "Return all vehicles registered under the logged-in customer's name, "
                 "including their current PMS status (Active, Overdue, Due Soon, Under Maintenance). "
                 "ALWAYS use this tool when the customer asks about THEIR OWN vehicles — "
-                "regardless of whether they say 'all my vehicles', 'my fleet', 'my cars', "
-                "'list my vehicles', 'show all my vehicles', 'list all my registered vehicles', "
-                "'how many vehicles do I have', 'fleet summary', or similar. "
-                "The word 'all' combined with 'my' always means this customer's own vehicles only."
+                "regardless of phrasing: 'all my vehicles', 'my fleet', 'my cars', "
+                "'list my vehicles', 'show all my vehicles', 'how many vehicles do I have', "
+                "'fleet summary', etc."
             ),
             "parameters": {
                 "type": "object",
@@ -645,11 +572,12 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "get_my_service_history",
             "description": (
-                "Return the completed maintenance/service history for the customer's vehicles. "
-                "Shows job date, services performed, cost per job, and total spent. "
+                "Return all completed maintenance/service records for the customer's vehicles. "
+                "Shows job date, plate, services performed, materials used, cost per job, "
+                "and total amount spent across all vehicles. "
                 "Use for: 'service history', 'past services', 'how much have I spent', "
-                "'maintenance records', 'show my service history', 'show my pms history', "
-                "'my past pms', 'completed maintenance', 'service records'. "
+                "'maintenance records', 'show my service history', 'pms history', "
+                "'completed maintenance', 'service records per car'. "
                 "Optionally filter by a specific plate number."
             ),
             "parameters": {
@@ -657,7 +585,7 @@ CUSTOMER_TOOL_SCHEMAS = [
                 "properties": {
                     "plate": {
                         "type": "string",
-                        "description": "Specific plate number to filter by. Omit for all vehicles.",
+                        "description": "Specific plate number to filter by. Omit to get history for all vehicles.",
                     },
                 },
                 "required": [],
@@ -672,7 +600,7 @@ CUSTOMER_TOOL_SCHEMAS = [
             "description": (
                 "Return the Preventive Maintenance Schedule (PMS) status for each of the "
                 "customer's vehicles: last service date, next PMS due date, days until due "
-                "(negative = overdue). "
+                "(negative means overdue). "
                 "Use for: 'when is my next PMS', 'which cars are overdue', "
                 "'PMS schedule', 'maintenance due', 'due soon'."
             ),
@@ -708,19 +636,16 @@ CUSTOMER_TOOL_SCHEMAS = [
             "name": "get_service_prices",
             "description": (
                 "Return the list of available services and their prices from the shop catalog. "
-                "Public information — any customer can ask about pricing. "
+                "Public — any customer can view. "
                 "Use for: 'how much is a change oil', 'list of services', 'service prices', "
-                "'what services do you offer', 'Oil Change price', 'how much is [service name]'."
+                "'what services do you offer', 'how much is [service name]'."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": (
-                            "Keyword to filter services by name. "
-                            "E.g. 'oil change', 'brake'. Omit to list all services."
-                        ),
+                        "description": "Keyword to filter services. E.g. 'oil change', 'brake'. Omit to list all.",
                     },
                 },
                 "required": [],
@@ -733,11 +658,10 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "estimate_service_cost",
             "description": (
-                "Estimate the total cost for one or more named services. "
+                "Estimate the combined cost for one or more named services. "
                 "Use when the customer asks: "
                 "'how much would a change oil and brake cleaning cost?', "
-                "'estimate the cost for change ATF and change coolant', "
-                "'if I get X and Y, how much total?'."
+                "'estimate the cost for X and Y', 'if I get X and Y how much total?'."
             ),
             "parameters": {
                 "type": "object",
@@ -745,7 +669,7 @@ CUSTOMER_TOOL_SCHEMAS = [
                     "service_names": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "List of service names to estimate the combined cost for.",
+                        "description": "List of service names to estimate combined cost for.",
                     },
                 },
                 "required": ["service_names"],
