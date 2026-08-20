@@ -599,8 +599,13 @@ def get_service_prices(customer_uid: str, customer_name: str,
 
 
 def estimate_service_cost(customer_uid: str, customer_name: str,
-                          service_names: list[str], **_) -> dict:
+                          service_names: list[str] | None = None, **_) -> dict:
     """Estimate combined cost for one or more named services."""
+    if not service_names:
+        return {
+            "error": "NO_SERVICES",
+            "message": "Please specify at least one service name to estimate the cost.",
+        }
     try:
         db      = get_db()
         catalog = {}
