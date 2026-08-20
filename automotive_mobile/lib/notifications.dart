@@ -23,8 +23,14 @@ enum NotificationRole { admin, staff, customer }
 class NotifBadge extends StatelessWidget {
   final NotificationRole role;
   final VoidCallback onTap;
+  final Color iconColor;
 
-  const NotifBadge({super.key, required this.role, required this.onTap});
+  const NotifBadge({
+    super.key,
+    required this.role,
+    required this.onTap,
+    this.iconColor = Colors.white,
+  });
 
   String get _roleString {
     switch (role) {
@@ -83,7 +89,7 @@ class NotifBadge extends StatelessWidget {
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    const Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
+                    Icon(Icons.notifications_outlined, color: iconColor, size: 24),
                     if (unread > 0)
                       Positioned(
                         top: -4, right: -4,

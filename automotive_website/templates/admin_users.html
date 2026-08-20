@@ -183,8 +183,8 @@
             <!-- -- Users Table -- -->
             <div id="tabAll">
                 <div class="data-table">
-                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:40px 2fr 2fr 1.5fr 1fr 1fr 175px;">
-                        <div>#</div><div>Full Name</div><div>Email</div><div>Company Name</div><div>Role</div><div>Status</div><div>Actions</div>
+                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:40px 2fr 2fr 1.5fr 1.2fr 1fr 1fr 175px;">
+                        <div>#</div><div>Full Name</div><div>Email</div><div>Company Name</div><div>Phone</div><div>Role</div><div>Status</div><div>Actions</div>
                     </div>
                     <div id="userCardsList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading users...</div></div>
                 </div>
@@ -248,6 +248,29 @@
             <div class="fl-field">
                 <input type="email" name="email" required placeholder=" ">
                 <label>Email *</label>
+            </div>
+            <div class="fl-field has-value" id="phoneNumberField">
+                <input type="tel" name="phoneNumber" id="phoneNumberInput" value="+63" maxlength="13"
+                    oninput="
+                        var pos = this.selectionStart;
+                        var raw = this.value;
+                        if (!raw.startsWith('+63')) raw = '+63';
+                        var digits = raw.slice(3).replace(/\D/g,'').slice(0,10);
+                        this.value = '+63' + digits;
+                        var newPos = Math.max(3, pos);
+                        this.setSelectionRange(newPos, newPos);
+                    "
+                    onkeydown="
+                        var start = this.selectionStart;
+                        var end = this.selectionEnd;
+                        if ((event.key==='Backspace'||event.key==='Delete') && start <= 3 && end <= 3) {
+                            event.preventDefault();
+                        }
+                    "
+                    onclick="
+                        if (this.selectionStart < 3) this.setSelectionRange(3, 3);
+                    ">
+                <label>Phone Number</label>
             </div>
             <div class="fl-field has-value">
                 <select name="role" required onchange="document.getElementById('companyNameField').style.display = this.value === 'customer' ? 'block' : 'none';">
@@ -525,6 +548,9 @@ function openAddUserModal() {
     _editingUserId = null;
     document.getElementById('userModalTitle').textContent = 'Add User';
     document.getElementById('addUserForm').reset();
+    // Reset phone field to default +63 prefix
+    var ph = document.getElementById('phoneNumberInput');
+    if (ph) ph.value = '+63';
     // Reset button to Save state
     var c = document.getElementById('userSubmitContent');
     if (c) c.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
@@ -552,10 +578,13 @@ function viewUser(userId) {
     var statusColor = statusLower === 'active' ? '#38a169' : '#718096';
     var statusLabel = statusLower === 'active' ? 'Active' : 'Inactive';
 
-    // Build info items — only include company name if it has a value
+    // Build info items — only include company name / phone if they have a value
     var infoItems = [
         ['Email', '<span style="word-break:break-all;">' + escHtml(u.email||'—') + '</span>'],
     ];
+    if ((u.phoneNumber||'').trim()) {
+        infoItems.push(['Phone', '<span style="font-weight:700;color:#1a202c;">' + escHtml(u.phoneNumber) + '</span>']);
+    }
     if ((u.companyName||'').trim()) {
         infoItems.push(['Company Name', '<span style="font-weight:700;color:#1a202c;">' + escHtml(u.companyName) + '</span>']);
     }
@@ -580,11 +609,14 @@ function editUser(userId) {
     _editingUserId = userId;
     document.getElementById('userModalTitle').textContent = 'Edit User';
     var form = document.getElementById('addUserForm');
-    // Split name into first/last
-    var nameParts = (u.name || '').split(' ');
-    form.elements.firstName.value = nameParts[0] || '';
-    form.elements.lastName.value  = nameParts.slice(1).join(' ') || '';
+    // Use stored firstName/lastName fields directly — don't split name
+    form.elements.firstName.value = u.firstName || (u.name || '').split(' ')[0] || '';
+    form.elements.lastName.value  = u.lastName  || (u.name || '').split(' ').slice(1).join(' ') || '';
     form.elements.email.value = u.email || '';
+    // Ensure stored value always displays with +63 prefix
+    var phone = u.phoneNumber || '';
+    if (phone && !phone.startsWith('+63')) phone = '+63' + phone.replace(/\D/g,'');
+    form.elements.phoneNumber.value = phone;
     form.elements.role.value = (u.role||'staff').toLowerCase();
     // Show/hide company name field based on role
     var companyField = document.getElementById('companyNameField');
@@ -638,6 +670,15 @@ document.addEventListener('DOMContentLoaded', function() {
         var fullName  = (firstName + ' ' + lastName).trim();
         var email     = form.elements.email.value.trim();
         var role      = form.elements.role.value;
+        var rawPhone  = (form.elements.phoneNumber ? form.elements.phoneNumber.value.trim() : '');
+        // +63 alone (no digits typed) = empty; otherwise normalise to +63XXXXXXXXXX
+        var phoneNumber = '';
+        if (rawPhone && rawPhone !== '+63') {
+            var digits = rawPhone.replace(/\D/g,'');
+            if (digits.length === 12) phoneNumber = '+' + digits;        // already has 63 prefix
+            else if (digits.length === 10) phoneNumber = '+63' + digits; // bare 10-digit
+            else phoneNumber = rawPhone; // keep as-is if unusual
+        }
         var companyName = (form.elements.companyName ? form.elements.companyName.value.trim() : '');
         if (!firstName || !lastName || !email) { showToast('Please fill all required fields.', 'error'); return; }
 
@@ -657,6 +698,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 name:      fullName,
                 email:     email,
                 role:      role,
+                phoneNumber: phoneNumber,
                 companyName: role === 'customer' ? companyName : ''
             });
 
@@ -715,6 +757,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             name:      fullName,
                             email:     email,
                             role:      role,
+                            phoneNumber: phoneNumber,
                             companyName: role === 'customer' ? companyName : '',
                             status:    'Active',
                             mustChangePassword: true,

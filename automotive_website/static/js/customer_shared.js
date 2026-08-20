@@ -340,19 +340,33 @@
 
         // Also update avatar initials from Firebase Auth
         firebase.auth().currentUser && db.collection('users').doc(uid).get().then(function (doc) {
-            var name = (doc.exists && doc.data().name) || '';
+            var name     = (doc.exists && doc.data().name)     || '';
+            var photoUrl = (doc.exists && doc.data().photoUrl) || '';
             if (name) {
                 var parts = name.trim().split(' ').filter(Boolean);
                 var ini   = parts.length >= 2
                     ? (parts[0][0] + parts[1][0]).toUpperCase()
                     : parts[0][0].toUpperCase();
                 var avatarEl = document.getElementById('cuAvatar');
-                if (avatarEl) avatarEl.textContent = ini;
+                if (avatarEl) {
+                    if (photoUrl) {
+                        avatarEl.innerHTML = '<img src="' + photoUrl + '" alt="avatar" '
+                            + 'style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+                    } else {
+                        avatarEl.textContent = ini;
+                    }
+                }
                 // Pre-fill avatar menu name
                 var nameEl = document.getElementById('cuAvatarName');
                 if (nameEl) nameEl.textContent = name;
                 // Update page title
                 if (window._cuUpdateTitleWithName) window._cuUpdateTitleWithName(name);
+                // Sync photoUrl to sessionStorage
+                var sessKey = sessionStorage.getItem('cpUser') ? 'cpUser' : 'spUser';
+                var s = JSON.parse(sessionStorage.getItem(sessKey) || '{}');
+                if (photoUrl) s.photoUrl = photoUrl;
+                s.name = name;
+                sessionStorage.setItem(sessKey, JSON.stringify(s));
             }
         }).catch(function () {});
 

@@ -350,12 +350,16 @@
       window._fbUsers = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
       window.users = window._fbUsers.map((u, idx) => ({
         id: u._id,
+        firstName: u.firstName || '',
+        lastName:  u.lastName  || '',
         name: u.name || '',
         username: u.username || u.email?.split('@')[0] || '',
         email: u.email || '',
         role: u.role || 'customer',
         status: u.status || 'active',
         companyName: u.companyName || '',
+        phoneNumber: u.phoneNumber || '',
+        mustChangePassword: u.mustChangePassword || false,
         createdAt: u.createdAt || '',
         photoUrl: u.photoUrl || '',
       }));

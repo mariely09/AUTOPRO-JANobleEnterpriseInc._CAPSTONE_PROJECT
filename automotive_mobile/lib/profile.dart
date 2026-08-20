@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'login.dart';
 import 'change_password.dart';
@@ -125,8 +125,20 @@ class _UserProfileState extends State<UserProfile> {
     _origName = newName; // keep in sync after save
   }
 
-  String get _initials {
-    final name = _nameCtrl.text.trim();
+  /// Returns the correct ImageProvider for both base64 data URIs and https URLs.
+  ImageProvider _photoImageProvider(String url) {
+    if (url.startsWith('data:image')) {
+      // Strip the data URI prefix and decode Base64
+      final comma = url.indexOf(',');
+      if (comma != -1) {
+        final b64 = url.substring(comma + 1);
+        return MemoryImage(base64Decode(b64));
+      }
+    }
+    return NetworkImage(url);
+  }
+
+  String get _initials {    final name = _nameCtrl.text.trim();
     if (name.isEmpty) return '?';
     final parts = name.split(' ');
     if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
@@ -135,23 +147,87 @@ class _UserProfileState extends State<UserProfile> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    // Pick at low quality — further compression applied below
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50,
+      maxWidth: 400,
+      maxHeight: 400,
+    );
     if (picked == null) return;
-    final file = File(picked.path);
-    setState(() => _avatarImage = file);
 
-    // Upload to Firebase Storage
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
+
+    // Show uploading indicator
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Row(children: [
+          SizedBox(width: 16, height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+          SizedBox(width: 10),
+          Text('Saving photo...'),
+        ]),
+        backgroundColor: Color(0xFF2d3748),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 60),
+      ));
+    }
+
     try {
-      final ref = FirebaseStorage.instance.ref().child('avatars/$uid.jpg');
-      await ref.putFile(file);
-      final url = await ref.getDownloadURL();
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({'photoUrl': url});
-      if (mounted) setState(() => _photoUrl = url);
+      // Read and encode to Base64
+      final file = File(picked.path);
+      final bytes = await file.readAsBytes();
+
+      // Firestore document limit is 1 MB — enforce max size
+      if (bytes.length > 900 * 1024) {
+        throw Exception(
+          'Image is too large (${(bytes.length / 1024).toStringAsFixed(0)} KB). '
+          'Please choose a smaller image or crop it first.',
+        );
+      }
+
+      final base64String = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      debugPrint('📸 Base64 size: ${base64String.length} chars');
+
+      // Show instant local preview
+      if (mounted) setState(() => _avatarImage = file);
+
+      // Save directly to Firestore — no Storage needed
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .update({'photoUrl': base64String});
+      debugPrint('💾 Saved photoUrl (base64) to Firestore');
+
+      if (mounted) {
+        setState(() => _photoUrl = base64String);
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Row(children: [
+            Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+            SizedBox(width: 8),
+            Text('Profile photo updated successfully!'),
+          ]),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 3),
+        ));
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.red));
+      debugPrint('❌ Photo save error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 5),
+        ));
+      }
     }
   }
 
@@ -192,23 +268,46 @@ class _UserProfileState extends State<UserProfile> {
                   ),
                   child: Column(children: [
                     GestureDetector(
-                      onTap: null,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 12)],
-                        ),
-                        child: CircleAvatar(
-                          radius: 44,
-                          backgroundColor: Colors.white24,
-                          backgroundImage: _photoUrl != null
-                              ? NetworkImage(_photoUrl!)
-                              : null,
-                          child: _photoUrl == null
-                              ? Text(_initials, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold))
-                              : null,
-                        ),
+                      onTap: _pickImage,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 12)],
+                            ),
+                            child: CircleAvatar(
+                              radius: 44,
+                              backgroundColor: Colors.white24,
+                              backgroundImage: _avatarImage != null
+                                  ? FileImage(_avatarImage!) as ImageProvider
+                                  : _photoUrl != null
+                                      ? _photoImageProvider(_photoUrl!)
+                                      : null,
+                              child: (_avatarImage == null && _photoUrl == null)
+                                  ? Text(_initials, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold))
+                                  : null,
+                            ),
+                          ),
+                          // Camera overlay badge
+                          Positioned(
+                            bottom: 2,
+                            right: 2,
+                            child: Container(
+                              width: 26,
+                              height: 26,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 1.5),
+                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 4)],
+                              ),
+                              child: const Icon(Icons.camera_alt, size: 14, color: Color(0xFFE8001C)),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 14),

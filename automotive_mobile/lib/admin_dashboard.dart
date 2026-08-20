@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -35,27 +38,87 @@ class _AdminDashboardState extends State<AdminDashboard> {
   String? _photoUrl;
   String _userName = '';
 
+  // Cache so photo is available immediately on re-entry (no flicker)
+  static String?    _cachedPhotoUrl;
+  static String     _cachedInitials  = '?';
+  static String     _cachedName      = '';
+  static Uint8List? _cachedImageBytes; // decoded once, reused every build
+
+  StreamSubscription<DocumentSnapshot>? _userSub;
+
   @override
   void initState() {
     super.initState();
-    _loadInitials();
+    // Apply cache instantly — no async gap
+    if (_cachedName.isNotEmpty || _cachedPhotoUrl != null) {
+      _initials = _cachedInitials;
+      _photoUrl = _cachedPhotoUrl;
+      _userName = _cachedName;
+      // Ensure bytes are decoded if cache exists but bytes were cleared
+      if (_cachedPhotoUrl != null && _cachedImageBytes == null) {
+        _cachedImageBytes = _decodeBase64Photo(_cachedPhotoUrl!);
+      }
+    }
+    _subscribeToUser();
   }
 
-  Future<void> _loadInitials() async {
+  @override
+  void dispose() {
+    _userSub?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToUser() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    final data = doc.data() ?? {};
-    final name = data['name'] as String? ?? '';
-    final photo = data['photoUrl'] as String?;
-    String ini = '?';
-    if (name.isNotEmpty) {
-      final parts = name.trim().split(' ');
-      ini = parts.length >= 2
-          ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
-          : parts[0][0].toUpperCase();
+    _userSub = FirebaseFirestore.instance
+        .collection('users').doc(uid)
+        .snapshots()
+        .listen((doc) {
+      if (!mounted) return;
+      final data = doc.data() ?? {};
+      final name  = data['name']     as String? ?? '';
+      final photo = data['photoUrl'] as String?;
+      String ini = '?';
+      if (name.isNotEmpty) {
+        final parts = name.trim().split(' ');
+        ini = parts.length >= 2
+            ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+            : parts[0][0].toUpperCase();
+      }
+      // Decode base64 once here — not on every build()
+      if (photo != null && photo != _cachedPhotoUrl) {
+        _cachedImageBytes = _decodeBase64Photo(photo);
+      } else if (photo == null) {
+        _cachedImageBytes = null;
+      }
+      _cachedInitials = ini;
+      _cachedPhotoUrl = photo;
+      _cachedName     = name;
+      if (mounted) setState(() { _initials = ini; _photoUrl = photo; _userName = name; });
+    });
+  }
+
+  /// Decode base64 once. Returns null for regular https:// URLs.
+  static Uint8List? _decodeBase64Photo(String url) {
+    if (url.startsWith('data:image')) {
+      final comma = url.indexOf(',');
+      if (comma != -1) {
+        try { return base64Decode(url.substring(comma + 1)); } catch (_) {}
+      }
     }
-    if (mounted) setState(() { _initials = ini; _photoUrl = photo; _userName = name; });
+    return null;
+  }
+
+  // Keep for back-compat
+  Future<void> _loadInitials() async {}
+
+  /// Returns the correct ImageProvider — uses pre-decoded bytes to avoid per-frame decoding.
+  ImageProvider _avatarProvider(String url) {
+    if (_cachedImageBytes != null && url.startsWith('data:image')) {
+      return MemoryImage(_cachedImageBytes!);
+    }
+    return NetworkImage(url);
   }
 
   final _navItems = const [
@@ -153,10 +216,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UserProfile(role: UserRole.admin)))
               .then((_) => _loadInitials()),
           child: CircleAvatar(radius: 18, backgroundColor: Colors.white24,
-            backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
-            child: _photoUrl == null
-                ? Text(_initials, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold))
-                : null),
+            backgroundImage: _photoUrl != null ? _avatarProvider(_photoUrl!) : null,
+            onBackgroundImageError: _photoUrl != null ? (_, __) {} : null,
+            child: Text(_initials,
+              style: TextStyle(
+                color: (_photoUrl != null && _cachedImageBytes != null)
+                    ? Colors.transparent
+                    : Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ))),
         ),
         const SizedBox(width: 10),
         Expanded(child: Text(displayTitle,

@@ -1,6 +1,7 @@
 ﻿import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -15,6 +16,32 @@ const _ejsWelcomeTemplateId = 'template_ovrow3w';
 // ── OneSignal credentials ──
 const _kOneSignalAppId  = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
 const _kOneSignalApiKey = 'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
+
+// ── Formatter that keeps "+63" prefix and allows only digits after it ──
+class _Ph63Formatter extends TextInputFormatter {
+  static const _prefix = '+63';
+
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    // Always ensure prefix is present
+    String text = newValue.text;
+    if (!text.startsWith(_prefix)) {
+      // strip any non-digit after prefix was deleted, keep only digits and re-add prefix
+      final digits = text.replaceAll(RegExp(r'\D'), '');
+      text = _prefix + digits;
+    }
+    // Keep only digits after the prefix, max 10
+    final after = text.substring(_prefix.length).replaceAll(RegExp(r'\D'), '');
+    final clamped = after.length > 10 ? after.substring(0, 10) : after;
+    final result = _prefix + clamped;
+    final offset = result.length.clamp(_prefix.length, result.length);
+    return TextEditingValue(
+      text: result,
+      selection: TextSelection.collapsed(offset: offset),
+    );
+  }
+}
 
 class AdminUsers extends StatefulWidget {
   const AdminUsers({super.key});
@@ -226,12 +253,15 @@ class _AdminUsersState extends State<AdminUsers> {
             final data = d.data() as Map<String, dynamic>;
             return {
               'uid': d.id,
+              'firstName': data['firstName'] as String? ?? '',
+              'lastName':  data['lastName']  as String? ?? '',
               'name': data['name'] as String? ?? '—',
               'username': data['username'] as String? ?? '—',
               'email': data['email'] as String? ?? '—',
               'role': data['role'] as String? ?? '—',
               'status': data['status'] as String? ?? 'Active',
               'companyName': data['companyName'] as String? ?? '',
+              'phoneNumber': data['phoneNumber'] as String? ?? '',
             };
           }).toList();
 
@@ -241,6 +271,7 @@ class _AdminUsersState extends State<AdminUsers> {
                   u['name']!.toLowerCase().contains(_searchQuery) ||
                   u['username']!.toLowerCase().contains(_searchQuery) ||
                   u['role']!.toLowerCase().contains(_searchQuery) ||
+                  u['phoneNumber']!.toLowerCase().contains(_searchQuery) ||
                   u['companyName']!.toLowerCase().contains(_searchQuery)).toList();
 
           final total = users.length;
@@ -682,6 +713,8 @@ class _AdminUsersState extends State<AdminUsers> {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 _detailRow('Full Name', u['name']!),
                 _detailRow('Email', u['email']!),
+                if ((u['phoneNumber'] ?? '').isNotEmpty)
+                  _detailRow('Phone', u['phoneNumber']!),
                 if ((u['companyName'] ?? '').isNotEmpty)
                   _detailRow('Company Name', u['companyName']!),
                 _detailRow('Role', _roleLabel(u['role']!)),
@@ -713,13 +746,25 @@ class _AdminUsersState extends State<AdminUsers> {
 
   void _showAddUserModal({Map<String, String>? user}) {
     final isEdit = user != null;
-    // Split existing name into first/last for edit mode
-    final existingName  = user?['name'] ?? '';
-    final nameParts     = existingName.split(' ');
-    final firstNameCtrl = TextEditingController(text: nameParts.isNotEmpty ? nameParts.first : '');
-    final lastNameCtrl  = TextEditingController(text: nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '');
+    // Use stored firstName/lastName directly — don't split name
+    final firstNameCtrl = TextEditingController(
+      text: isEdit
+          ? (user!['firstName']!.isNotEmpty ? user['firstName']! : user['name']!.split(' ').first)
+          : '');
+    final lastNameCtrl = TextEditingController(
+      text: isEdit
+          ? (user['lastName']!.isNotEmpty ? user['lastName']! : user['name']!.split(' ').skip(1).join(' '))
+          : '');
     final emailCtrl     = TextEditingController(text: user?['email'] ?? '');
     final companyNameCtrl = TextEditingController(text: user?['companyName'] ?? '');
+    // Controller holds the full value including +63 prefix
+    final rawPhone = user?['phoneNumber'] ?? '';
+    final phoneInitial = rawPhone.startsWith('+63')
+        ? rawPhone
+        : rawPhone.isNotEmpty
+            ? '+63${rawPhone.replaceAll(RegExp(r'\D'), '')}'
+            : '+63';
+    final phoneNumberCtrl = TextEditingController(text: phoneInitial);
     String selectedRole   = isEdit
         ? (user!['role']![0].toUpperCase() + user['role']!.substring(1))
         : 'Staff';
@@ -801,6 +846,15 @@ class _AdminUsersState extends State<AdminUsers> {
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
                         labelText: 'Email *',
+                        border: OutlineInputBorder())),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: phoneNumberCtrl,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [_Ph63Formatter()],
+                    decoration: const InputDecoration(
+                        labelText: 'Phone Number',
+                        hintText: '+63XXXXXXXXXX',
                         border: OutlineInputBorder())),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
@@ -891,6 +945,7 @@ class _AdminUsersState extends State<AdminUsers> {
                               'email':     newEmail,
                               'role':      selectedRole.toLowerCase(),
                               'status':    selectedStatus,
+                              'phoneNumber': phoneNumberCtrl.text.trim() == '+63' ? '' : phoneNumberCtrl.text.trim(),
                               'companyName': selectedRole.toLowerCase() == 'customer' ? companyNameCtrl.text.trim() : '',
                             });
 
@@ -1003,6 +1058,7 @@ class _AdminUsersState extends State<AdminUsers> {
                                 'email':              emailCtrl.text.trim(),
                                 'role':               selectedRole.toLowerCase(),
                                 'status':             selectedStatus,
+                              'phoneNumber':        phoneNumberCtrl.text.trim() == '+63' ? '' : phoneNumberCtrl.text.trim(),
                                 'companyName':        selectedRole.toLowerCase() == 'customer' ? companyNameCtrl.text.trim() : '',
                                 'mustChangePassword': true,
                                 'createdAt':          FieldValue.serverTimestamp(),
