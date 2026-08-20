@@ -360,12 +360,38 @@
 
     try {
       const dateFormatted = new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      await db.collection('maintenance').add({
-        plate, mechanic, date: dateFormatted, desc, status,
+
+      // ── Resolve vehicleId + ownerId from the vehicle document ────────────
+      // ownerId is authoritative from vehicle — never trust a client value.
+      let resolvedVehicleId = '';
+      let resolvedOwnerId   = '';
+      try {
+        let vSnap = await db.collection('vehicles').where('plateNumber', '==', plate).limit(1).get();
+        if (vSnap.empty) {
+          vSnap = await db.collection('vehicles').where('plate', '==', plate).limit(1).get();
+        }
+        if (!vSnap.empty) {
+          resolvedVehicleId = vSnap.docs[0].id;
+          resolvedOwnerId   = vSnap.docs[0].data().ownerId || '';
+        }
+      } catch (_) { /* non-fatal — migration script fills gaps */ }
+
+      const record = {
+        plateNumber: plate,   // canonical
+        plate,                // legacy alias
+        mechanic,
+        date: dateFormatted,
+        desc,
+        status,
+        cost,
         totalCost: cost,
         createdBy: spUser.name || 'Staff',
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
+      };
+      if (resolvedVehicleId) record.vehicleId = resolvedVehicleId;
+      if (resolvedOwnerId)   record.ownerId   = resolvedOwnerId;
+
+      await db.collection('maintenance').add(record);
       sfCloseNewServiceModal();
       showToast('Service saved successfully.', 'success');
     } catch (e) {
@@ -393,11 +419,41 @@
     try {
       const snap = await db.collection('vehicles').get();
       const assetNum = `AST-${String(snap.size + 1).padStart(3, '0')}`;
-      await db.collection('vehicles').add({
-        assetNum, plate, desc, owner, odometer: odo,
-        status: 'Good',
+
+      // Resolve ownerId from owner name so AI can use UID-based lookup
+      let ownerId = '';
+      try {
+        let ownerSnap = await db.collection('users')
+          .where('name', '==', owner)
+          .where('role', '==', 'customer')
+          .limit(1).get();
+        if (ownerSnap.empty) {
+          ownerSnap = await db.collection('users')
+            .where('companyName', '==', owner)
+            .where('role', '==', 'customer')
+            .limit(1).get();
+        }
+        if (!ownerSnap.empty) ownerId = ownerSnap.docs[0].id;
+      } catch (_) { /* non-fatal */ }
+
+      const vehicleData = {
+        assetNum,
+        // ── Canonical field names ─────────────────────────────
+        plateNumber: plate,
+        description: desc,
+        owner,
+        odometer: odo,
+        // ── Legacy aliases (kept for backward compatibility) ──
+        plate,
+        desc,
+        odo: odo ? `${odo} km` : '',
+        // ── Status ────────────────────────────────────────────
+        status: 'Active',
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
+      };
+      if (ownerId) vehicleData.ownerId = ownerId;
+
+      await db.collection('vehicles').add(vehicleData);
       sfCloseAddVehicleModal();
       showToast('Vehicle added successfully.', 'success');
     } catch (e) {

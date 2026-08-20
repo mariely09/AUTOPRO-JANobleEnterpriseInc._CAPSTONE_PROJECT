@@ -560,22 +560,24 @@
       var lastSvcOdo  = form.elements.lastServiceOdometer.value ? parseInt(form.elements.lastServiceOdometer.value) : null;      var svcFreq = form.elements.serviceFrequency.value;
       var ownerName = form.elements.ownerName.value.trim();
       var data = {
-        plate: plate,
-        desc: form.elements.assetDescription.value.trim(),
-        type: form.elements.assetType.value,
-        owner: ownerName,
-        odo: form.elements.currentOdometer.value ? form.elements.currentOdometer.value + ' km' : '',
-        lastSvcDate: lastSvcDate,
-        lastServiceDate: lastSvcDate,
-        lastSvcOdo: lastSvcOdo !== null ? lastSvcOdo : '',
+        // ── Canonical field names ──────────────────────────────────────────
+        plateNumber:         plate,
+        description:         form.elements.assetDescription.value.trim(),
+        type:                form.elements.assetType.value,
+        owner:               ownerName,
+        odometer:            parseInt(form.elements.currentOdometer.value) || 0,
+        lastServiceDate:     lastSvcDate,
         lastServiceOdometer: lastSvcOdo !== null ? lastSvcOdo : '',
-        svcFreq: svcFreq,
+        serviceFrequency:    parseInt(svcFreq) || null,
+        // ── Legacy aliases kept for backward compatibility ─────────────────
+        plate:               plate,
+        desc:                form.elements.assetDescription.value.trim(),
+        assetDescription:    form.elements.assetDescription.value.trim(),
+        odo:                 form.elements.currentOdometer.value ? form.elements.currentOdometer.value + ' km' : '',
+        lastSvcDate:         lastSvcDate,
+        lastSvcOdo:          lastSvcOdo !== null ? lastSvcOdo : '',
+        svcFreq:             svcFreq,
       };
-      // Also keep legacy fields for compatibility
-      data.plateNumber = data.plate;
-      data.assetDescription = data.desc;
-      data.odometer = parseInt(form.elements.currentOdometer.value) || 0;
-      data.serviceFrequency = parseInt(svcFreq) || null;
       if (lastSvcDate && svcFreq) {
         var d = new Date(lastSvcDate);
         d.setMonth(d.getMonth() + parseInt(svcFreq));

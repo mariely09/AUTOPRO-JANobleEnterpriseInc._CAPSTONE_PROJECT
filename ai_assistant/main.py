@@ -879,10 +879,12 @@ def _customer_direct_lookup(message: str, customer_uid: str,
             "intent": intent,
         }
 
-    # ── My service history (latest / last service) ────────────────────────────
+    # ── My service history — grouped by vehicle ───────────────────────────────
     if re.search(
         r"\b(my\s+service\s+history|my\s+(pms|maintenance)\s+history"
         r"|past\s+services?|service\s+records?|completed\s+services?"
+        r"|service\s+history\s+per\s+(car|vehicle|plate)"
+        r"|show\s+(all\s+)?my\s+service"
         r"|when\s+(was|is)\s+(my\s+)?(last|latest)\s+(service|oil|maintenance|pms))\b",
         msg_l,
     ):
@@ -901,25 +903,51 @@ def _customer_direct_lookup(message: str, customer_uid: str,
                 "model": "none",
                 "intent": intent,
             }
-        total = result.get("total_jobs", 0)
+        total   = result.get("total_jobs", 0)
+        total_c = result.get("total_cost", "₱0.00")
         if total == 0:
             reply = ("It looks like you don't have any completed service records on file yet. "
                      "Once your first service is completed at our shop, it will appear here!")
         else:
-            jobs     = result.get("jobs", [])
-            shown    = jobs[:10]
-            total_c  = result.get("total_cost", "₱0.00")
-            header   = f"Here's your service history! You have **{total}** completed record(s) with a total spend of **{total_c}**.\n\n"
-            lines    = []
-            for i, j in enumerate(shown, 1):
-                svcs = ", ".join(j.get("services", [])) or "—"
-                lines.append(
-                    f"**{i}. {j.get('date','')} — {j.get('plate','')}**\n"
-                    f"Services: {svcs}\nCost: {j.get('cost','—')}"
+            by_vehicle = result.get("by_vehicle", {})
+            if by_vehicle and len(by_vehicle) > 1:
+                # Multiple vehicles — group reply by plate
+                header = (
+                    f"Here's your complete service history across "
+                    f"**{len(by_vehicle)} vehicle(s)** — "
+                    f"**{total}** completed record(s), total spend **{total_c}**.\n\n"
                 )
-            body  = "\n\n".join(lines)
-            tail  = f"\n\n*Showing your 10 most recent records.*" if total > 10 else ""
-            reply = header + body + tail
+                sections = []
+                for plate_key, plate_jobs in by_vehicle.items():
+                    plate_total = sum(j.get("cost_raw", 0) for j in plate_jobs)
+                    plate_cost  = f"₱{plate_total:,.2f}" if plate_total else "—"
+                    section = f"**{plate_key}** — {len(plate_jobs)} record(s), subtotal {plate_cost}\n"
+                    job_lines = []
+                    for j in plate_jobs[:10]:  # cap per-vehicle at 10 lines
+                        svcs = ", ".join(j.get("services", [])) or "—"
+                        job_lines.append(
+                            f"  • {j.get('date','')} | {svcs} | {j.get('cost','—')}"
+                        )
+                    section += "\n".join(job_lines)
+                    if len(plate_jobs) > 10:
+                        section += f"\n  *(+{len(plate_jobs)-10} more records)*"
+                    sections.append(section)
+                reply = header + "\n\n".join(sections)
+            else:
+                # Single vehicle or flat list — original numbered format
+                jobs  = result.get("jobs", [])
+                shown = jobs[:10]
+                header = f"Here's your service history! You have **{total}** completed record(s) with a total spend of **{total_c}**.\n\n"
+                lines  = []
+                for i, j in enumerate(shown, 1):
+                    svcs = ", ".join(j.get("services", [])) or "—"
+                    lines.append(
+                        f"**{i}. {j.get('date','')} — {j.get('plate','')}**\n"
+                        f"Services: {svcs}\nCost: {j.get('cost','—')}"
+                    )
+                body  = "\n\n".join(lines)
+                tail  = "\n\n*Showing your 10 most recent records.*" if total > 10 else ""
+                reply = header + body + tail
         return {
             "reply": reply,
             "tool_calls": [{"tool": "get_my_service_history", "args": {}, "result": result}],

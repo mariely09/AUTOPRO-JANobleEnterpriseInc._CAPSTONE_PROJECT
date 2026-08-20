@@ -141,10 +141,21 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
     final uSnap = await FirebaseFirestore.instance.collection('users')
         .where('role', isEqualTo: 'staff').get();
     if (!mounted) return;
-    _vehicleMap = {
-      for (final d in vSnap.docs)
-        (d['plate'] as String? ?? ''): d.data()
-    };
+    _vehicleMap = {};
+    for (final d in vSnap.docs) {
+      final data = d.data();
+      final plateNumber = (data['plateNumber'] as String? ?? '').trim().toUpperCase();
+      final plateLegacy = (data['plate']       as String? ?? '').trim().toUpperCase();
+      final entry = <String, dynamic>{
+        ...data,
+        '_docId':  d.id,
+        'ownerId': data['ownerId'] ?? '',
+      };
+      if (plateNumber.isNotEmpty) _vehicleMap[plateNumber] = entry;
+      if (plateLegacy.isNotEmpty && plateLegacy != plateNumber) {
+        _vehicleMap[plateLegacy] = entry;
+      }
+    }
     _itemMasterMap = {
       for (final d in iSnap.docs)
         (d['name'] as String? ?? ''): d.data()
@@ -1263,19 +1274,58 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                             }
                           }
 
-                          final svcId = isEdit ? service['id'] as String : await _nextSvcId();
+                          final svcId      = isEdit ? service['id'] as String : await _nextSvcId();
+                          final plateUpper = plateCtrl.text.trim().toUpperCase();
+
+                          // ── Resolve vehicleId + ownerId from the vehicle ──
+                          String resolvedVehicleId = '';
+                          String resolvedOwnerId   = '';
+
+                          if (isEdit) {
+                            resolvedVehicleId = (service['vehicleId'] as String? ?? '').trim();
+                            resolvedOwnerId   = (service['ownerId']   as String? ?? '').trim();
+                          }
+
+                          try {
+                            var vSnap = await FirebaseFirestore.instance
+                                .collection('vehicles')
+                                .where('plateNumber', isEqualTo: plateUpper)
+                                .limit(1).get();
+                            if (vSnap.docs.isEmpty) {
+                              vSnap = await FirebaseFirestore.instance
+                                  .collection('vehicles')
+                                  .where('plate', isEqualTo: plateUpper)
+                                  .limit(1).get();
+                            }
+                            if (vSnap.docs.isNotEmpty) {
+                              final vDoc  = vSnap.docs.first;
+                              final vData = vDoc.data() as Map<String, dynamic>;
+                              resolvedVehicleId = vDoc.id;
+                              final vehicleOwnerId = (vData['ownerId'] as String? ?? '').trim();
+                              if (vehicleOwnerId.isNotEmpty) {
+                                resolvedOwnerId = vehicleOwnerId;
+                              }
+                            }
+                          } catch (_) {}
+
                           final data = <String, dynamic>{
-                            'id': svcId,
-                            'plate': plateCtrl.text.trim().toUpperCase(),
-                            'desc': foundVehicle?['desc'] as String? ?? '',
+                            'id':      svcId,
+                            // ── Relational keys (authoritative) ─────────────
+                            if (resolvedVehicleId.isNotEmpty) 'vehicleId': resolvedVehicleId,
+                            if (resolvedOwnerId.isNotEmpty)   'ownerId':   resolvedOwnerId,
+                            // ── Plate (display / historical snapshot) ───────
+                            'plateNumber': plateUpper,
+                            'plate':       plateUpper,
+                            // ── Rest of record ───────────────────────────────
+                            'desc':     foundVehicle?['desc'] as String? ?? '',
                             'mechanic': mechanicCtrl.text.trim(),
-                            'date': dateCtrl.text.trim(),
+                            'date':     dateCtrl.text.trim(),
                             'odometer': odoValue,
-                            'cost': _fmtMoney(totalCost()),
-                            'status': isEdit ? service['status'] as String : 'Ongoing',
-                            'issues': selectedIssues,
-                            'svcRows': svcRows.map((r) => {'name': r['name']!.text, 'qty': r['qty']!.text, 'uom': r['uom']!.text, 'cost': r['cost']!.text}).toList(),
-                            'matRows': matRows.map((r) => {'name': r['name']!.text, 'qty': r['qty']!.text, 'uom': r['uom']!.text, 'cost': r['cost']!.text}).toList(),
+                            'cost':     _fmtMoney(totalCost()),
+                            'status':   isEdit ? service['status'] as String : 'Ongoing',
+                            'issues':   selectedIssues,
+                            'svcRows':  svcRows.map((r) => {'name': r['name']!.text, 'qty': r['qty']!.text, 'uom': r['uom']!.text, 'cost': r['cost']!.text}).toList(),
+                            'matRows':  matRows.map((r) => {'name': r['name']!.text, 'qty': r['qty']!.text, 'uom': r['uom']!.text, 'cost': r['cost']!.text}).toList(),
                             if (bookingId != null && bookingId.isNotEmpty) 'bookingId': bookingId,
                           };
                           try {
@@ -1288,8 +1338,7 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                                   backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                               }
-                              // Background: update odometer (non-blocking)
-                              _updateVehicleOdometer(plateCtrl.text.trim().toUpperCase(), odoValue);
+                              _updateVehicleOdometer(plateUpper, odoValue);
                             } else {
                               data['createdAt'] = FieldValue.serverTimestamp();
                               await SyncStatusNotifier.instance.trackWrite(() => _db.add(data));
@@ -1300,15 +1349,21 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                                   backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
                               }
-                              // Background: update odometer + vehicle status (non-blocking)
                               () async {
-                                await _updateVehicleOdometer(plateCtrl.text.trim().toUpperCase(), odoValue);
-                                final pSnap = await FirebaseFirestore.instance
-                                    .collection('vehicles')
-                                    .where('plate', isEqualTo: plateCtrl.text.trim().toUpperCase())
-                                    .limit(1).get();
-                                if (pSnap.docs.isNotEmpty) {
-                                  await pSnap.docs.first.reference.update({'status': 'Under Maintenance'});
+                                await _updateVehicleOdometer(plateUpper, odoValue);
+                                if (resolvedVehicleId.isNotEmpty) {
+                                  await FirebaseFirestore.instance
+                                      .collection('vehicles')
+                                      .doc(resolvedVehicleId)
+                                      .update({'status': 'Under Maintenance'});
+                                } else {
+                                  final pSnap = await FirebaseFirestore.instance
+                                      .collection('vehicles')
+                                      .where('plate', isEqualTo: plateUpper)
+                                      .limit(1).get();
+                                  if (pSnap.docs.isNotEmpty) {
+                                    await pSnap.docs.first.reference.update({'status': 'Under Maintenance'});
+                                  }
                                 }
                               }();
                             }
@@ -1660,27 +1715,35 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
 
 
   /// Updates the vehicle's odometer fields in Firestore immediately when a
-  /// maintenance record is saved (Pending status), so the odo column stays current.
+  /// maintenance record is saved, so the odo column stays current.
+  /// Prefers vehicleId direct lookup; falls back to plate-based scan.
   Future<void> _updateVehicleOdometer(String plate, int odoValue) async {
     if (plate.isEmpty || odoValue <= 0) return;
     try {
-      final vSnap = await FirebaseFirestore.instance
+      // Prefer direct doc update using cached vehicleId from _vehicleMap
+      final vehicleEntry = _vehicleMap[plate.toUpperCase()];
+      final vehicleDocId = vehicleEntry?['_docId'] as String? ?? '';
+      if (vehicleDocId.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('vehicles')
+            .doc(vehicleDocId)
+            .update({'odometer': odoValue, 'odo': '$odoValue km'});
+        return;
+      }
+      // Fallback: query by plateNumber (canonical) then plate (legacy)
+      QuerySnapshot vSnap = await FirebaseFirestore.instance
           .collection('vehicles')
-          .where('plate', isEqualTo: plate)
+          .where('plateNumber', isEqualTo: plate.toUpperCase())
           .limit(1)
           .get();
       if (vSnap.docs.isEmpty) {
-        // Try case-insensitive fallback
-        final all = await FirebaseFirestore.instance.collection('vehicles').get();
-        final match = all.docs.where((d) =>
-            (d['plate'] as String? ?? '').toUpperCase() == plate.toUpperCase()).toList();
-        if (match.isNotEmpty) {
-          await match.first.reference.update({
-            'odometer': odoValue,
-            'odo': '$odoValue km',
-          });
-        }
-      } else {
+        vSnap = await FirebaseFirestore.instance
+            .collection('vehicles')
+            .where('plate', isEqualTo: plate.toUpperCase())
+            .limit(1)
+            .get();
+      }
+      if (vSnap.docs.isNotEmpty) {
         await vSnap.docs.first.reference.update({
           'odometer': odoValue,
           'odo': '$odoValue km',
