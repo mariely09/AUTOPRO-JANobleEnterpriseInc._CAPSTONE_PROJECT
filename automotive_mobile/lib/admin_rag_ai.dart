@@ -611,49 +611,41 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           _messages.add(_ChatMessage(role: 'ai', text: answer));
         });
       } else {
+        // Non-200 response — try to extract a friendly reply from the body first
+        String errorMsg = "I'm having trouble processing your request right now. Please try again in a moment.";
+        try {
+          final errData = jsonDecode(resp.body) as Map<String, dynamic>;
+          final bodyReply = (errData['reply'] as String? ?? errData['detail'] as String? ?? '').trim();
+          if (bodyReply.isNotEmpty && !bodyReply.contains('Error') && !bodyReply.contains('500') && !bodyReply.contains('503')) {
+            errorMsg = bodyReply;
+          }
+        } catch (_) {}
         setState(() {
           _loading = false;
-          _messages.add(
-            _ChatMessage(
-              role: 'ai',
-              text: "I'm having trouble processing your request right now. Please try again in a moment.",
-            ),
-          );
+          _messages.add(_ChatMessage(role: 'ai', text: errorMsg));
         });
       }
-    } on http.ClientException catch (e) {
+    } on http.ClientException catch (_) {
       setState(() {
         _loading = false;
         _messages.add(
           _ChatMessage(
             role: 'ai',
-            text:
-                'Cannot reach the AI service.\n\n'
-                'Please check your internet connection and try again.\n\n'
-                'Error: $e',
+            text: 'Cannot reach the AI service. Please check your internet connection and try again.',
           ),
         );
       });
     } on Exception catch (e) {
       // Covers TimeoutException and other network errors
-      if (e.toString().contains('TimeoutException') ||
-          e.toString().contains('timed out')) {
-        setState(() {
-          _loading = false;
-          _messages.add(
-            _ChatMessage(
-              role: 'ai',
-              text:
-                  'Request timed out.\n\nThe AI service did not respond in time. Please check your connection and try again.',
-            ),
-          );
-        });
-      } else {
-        setState(() {
-          _loading = false;
-          _messages.add(_ChatMessage(role: 'ai', text: 'Unexpected error: $e'));
-        });
-      }
+      setState(() {
+        _loading = false;
+        _messages.add(_ChatMessage(
+          role: 'ai',
+          text: e.toString().contains('TimeoutException') || e.toString().contains('timed out')
+              ? 'The request took too long. Please check your connection and try again.'
+              : "I'm having trouble processing your request right now. Please try again in a moment.",
+        ));
+      });
     }
     _scrollToBottom();
     // Persist the exchange to history after every turn
