@@ -97,13 +97,13 @@ class NotifBadge extends StatelessWidget {
                           padding: const EdgeInsets.all(2),
                           constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                           decoration: const BoxDecoration(
-                            color: Colors.amber,
+                            color: Color(0xFFE8001C),
                             shape: BoxShape.circle,
                           ),
                           child: Text(
                             unread > 99 ? '99+' : '$unread',
                             style: const TextStyle(
-                              color: Colors.black,
+                              color: Colors.white,
                               fontSize: 9,
                               fontWeight: FontWeight.bold,
                             ),

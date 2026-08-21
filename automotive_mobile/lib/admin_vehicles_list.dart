@@ -612,17 +612,66 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                       onPressed: saving ? null : () async {
                         if (plateCtrl.text.trim().isEmpty) return;
                         setModal(() => saving = true);
+                        // ── Resolve ownerId from owner name ──────────────
+                        String? resolvedOwnerId;
+                        final ownerName = ownerCtrl.text.trim();
+                        if (ownerName.isNotEmpty) {
+                          try {
+                            var ownerSnap = await FirebaseFirestore.instance
+                                .collection('users')
+                                .where('name', isEqualTo: ownerName)
+                                .where('role', isEqualTo: 'customer')
+                                .limit(1)
+                                .get();
+                            if (ownerSnap.docs.isEmpty) {
+                              ownerSnap = await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .where('companyName', isEqualTo: ownerName)
+                                  .where('role', isEqualTo: 'customer')
+                                  .limit(1)
+                                  .get();
+                            }
+                            if (ownerSnap.docs.isNotEmpty) {
+                              resolvedOwnerId = ownerSnap.docs.first.id;
+                            }
+                          } catch (_) {
+                            // Non-fatal — vehicle still saves; migration script covers it.
+                          }
+                        }
+
+                        // Canonical field names — write BOTH canonical and
+                        // legacy short names so older app code continues to work
+                        // until the entire fleet is migrated.
+                        final plateUpper  = plateCtrl.text.trim().toUpperCase();
+                        final lastSvcDate = lastSvcDateCtrl.text.trim();
+                        final svcFreqRaw  = svcFreqCtrl.text.trim();
+                        final svcFreqInt  = int.tryParse(svcFreqRaw);
+                        final odoRaw      = odoCtrl.text.trim();
+                        final odoInt      = int.tryParse(odoRaw);
+                        final lastSvcOdoInt = int.tryParse(
+                            lastSvcOdoCtrl.text.trim().replaceAll(RegExp(r'[^0-9]'), ''));
+
                         final data = <String, dynamic>{
-                          'plate': plateCtrl.text.trim().toUpperCase(),
-                          'desc': descCtrl.text.trim(),
-                          'owner': ownerCtrl.text.trim(),
-                          'odo': odoCtrl.text.trim().isNotEmpty ? '${odoCtrl.text.trim()} km' : '',
-                          'lastSvcOdo': lastSvcOdoCtrl.text.trim(),
-                          'lastSvcDate': lastSvcDateCtrl.text.trim(),
-                          'svcFreq': svcFreqCtrl.text.trim(),
+                          // ── Canonical fields ──────────────────────────────
+                          'plateNumber': plateUpper,
+                          'description': descCtrl.text.trim(),
+                          'owner': ownerName,
+                          'odometer': odoInt ?? 0,
+                          'lastServiceDate': lastSvcDate,
+                          'lastServiceOdometer': lastSvcOdoInt ?? 0,
+                          'serviceFrequency': svcFreqInt ?? 0,
                           'type': selectedType ?? '',
-                          // Only recompute status on add; preserve existing status on edit
-                          if (!isEdit) 'status': _computeStatus(lastSvcDateCtrl.text.trim(), svcFreqCtrl.text.trim()),
+                          // ── Legacy aliases (kept for backward compatibility) ──
+                          'plate': plateUpper,
+                          'desc': descCtrl.text.trim(),
+                          'odo': odoRaw.isNotEmpty ? '$odoRaw km' : '',
+                          'lastSvcDate': lastSvcDate,
+                          'lastSvcOdo': lastSvcOdoCtrl.text.trim(),
+                          'svcFreq': svcFreqRaw,
+                          // ── Status ────────────────────────────────────────
+                          if (!isEdit) 'status': _computeStatus(lastSvcDate, svcFreqRaw),
+                          // ── ownerId (authoritative customer link) ─────────
+                          if (resolvedOwnerId != null) 'ownerId': resolvedOwnerId,
                         };
                         try {
                           if (isEdit) {

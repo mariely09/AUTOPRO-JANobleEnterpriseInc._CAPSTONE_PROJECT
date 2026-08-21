@@ -564,28 +564,31 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         }
 
       } else {
+        // Non-200 response — try to extract a friendly reply from the body first
+        String errorMsg = "I'm having trouble processing your request right now. Please try again in a moment, or contact us at caltexautopro2026@gmail.com if the issue persists.";
+        try {
+          final errData = jsonDecode(resp.body) as Map<String, dynamic>;
+          final bodyReply = (errData['reply'] as String? ?? errData['detail'] as String? ?? '').trim();
+          if (bodyReply.isNotEmpty && !bodyReply.contains('Error') && !bodyReply.contains('500') && !bodyReply.contains('503')) {
+            errorMsg = bodyReply;
+          }
+        } catch (_) {}
         if (mounted) {
           setState(() {
             _loading = false;
-            _messages.add(
-              _ChatMsg(
-                role: 'ai',
-                text: "I'm having trouble processing your request right now. Please try again in a moment, or contact us at caltexautopro2026@gmail.com if the issue persists.",
-              ),
-            );
+            _messages.add(_ChatMsg(role: 'ai', text: errorMsg));
           });
         }
         if (_customerUid.isNotEmpty) await CustomerChatStore.saveChat(_customerUid);
       }
-    } on http.ClientException catch (e) {
+    } on http.ClientException catch (_) {
       if (mounted) {
         setState(() {
           _loading = false;
           _messages.add(
             _ChatMsg(
               role: 'ai',
-              text:
-                  'Cannot reach the AI service.\n\nPlease check your internet connection.\n\nError: $e',
+              text: 'Cannot reach the AI service. Please check your internet connection and try again.',
             ),
           );
         });
@@ -597,11 +600,9 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           _messages.add(
             _ChatMsg(
               role: 'ai',
-              text:
-                  e.toString().contains('Timeout') ||
-                      e.toString().contains('timed out')
-                  ? 'Request timed out. Please check your connection and try again.'
-                  : 'Unexpected error: $e',
+              text: e.toString().contains('Timeout') || e.toString().contains('timed out')
+                  ? 'The request took too long. Please check your connection and try again.'
+                  : "I'm having trouble processing your request right now. Please try again in a moment.",
             ),
           );
         });

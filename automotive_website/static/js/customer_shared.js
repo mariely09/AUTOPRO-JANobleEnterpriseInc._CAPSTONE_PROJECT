@@ -10,13 +10,56 @@
         else document.addEventListener('DOMContentLoaded', fn);
     }
 
-    // ── Active tab highlight ────────────────────────────────
-    // Runs immediately and again after header is injected
+    // ── Sidebar toggle ──────────────────────────────────────
+    // Desktop: toggles .expanded (icon-only ↔ full labels)
+    // Mobile:  toggles .open (hidden ↔ slide-in drawer)
+    window.cuToggleSidebar = function () {
+        var sb = document.getElementById('cuSidebar');
+        var ov = document.getElementById('cuSidebarOverlay');
+        if (!sb) return;
+        var isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+            var open = sb.classList.toggle('open');
+            if (ov) ov.classList.toggle('active', open);
+        } else {
+            sb.classList.toggle('expanded');
+            // Persist preference
+            try { localStorage.setItem('cuSbExpanded', sb.classList.contains('expanded') ? '1' : '0'); } catch(e) {}
+        }
+    };
+    window.cuCloseSidebar = function () {
+        var sb = document.getElementById('cuSidebar');
+        var ov = document.getElementById('cuSidebarOverlay');
+        if (sb) { sb.classList.remove('open'); }
+        if (ov) ov.classList.remove('active');
+    };
+
+    // Restore expanded state on load
+    ready(function () {
+        try {
+            if (localStorage.getItem('cuSbExpanded') === '1') {
+                var sb = document.getElementById('cuSidebar');
+                if (sb && window.innerWidth > 768) sb.classList.add('expanded');
+            }
+        } catch(e) {}
+    });
+
+    // ── Active tab / sidebar link highlight ────────────────
+    // Runs immediately and again after header/sidebar is injected
     function setActiveTab() {
         const page = document.body.getAttribute('data-page');
         if (!page) return;
+        // Sidebar links (new icon-only sidebar)
+        document.querySelectorAll('.cu-sb-link[data-page]').forEach(function (link) {
+            link.classList.toggle('active', link.getAttribute('data-page') === page);
+        });
+        // Legacy tab bar (kept for compatibility)
         document.querySelectorAll('.cu-tab[data-page]').forEach(function (tab) {
             tab.classList.toggle('active', tab.getAttribute('data-page') === page);
+        });
+        // Old sidebar links
+        document.querySelectorAll('.cu-sidebar-link[data-page]').forEach(function (link) {
+            link.classList.toggle('active', link.getAttribute('data-page') === page);
         });
     }
     ready(setActiveTab);
@@ -342,6 +385,7 @@
         firebase.auth().currentUser && db.collection('users').doc(uid).get().then(function (doc) {
             var name     = (doc.exists && doc.data().name)     || '';
             var photoUrl = (doc.exists && doc.data().photoUrl) || '';
+            var email    = (doc.exists && doc.data().email)    || (firebase.auth().currentUser && firebase.auth().currentUser.email) || '';
             if (name) {
                 var parts = name.trim().split(' ').filter(Boolean);
                 var ini   = parts.length >= 2
@@ -356,7 +400,13 @@
                         avatarEl.textContent = ini;
                     }
                 }
-                // Pre-fill avatar menu name
+                // Show full name in sidebar
+                var headerNameEl = document.getElementById('cuHeaderName');
+                if (headerNameEl) headerNameEl.textContent = name;
+                // Show email below name in sidebar (cuGreetLine repurposed)
+                var greetEl = document.getElementById('cuGreetLine');
+                if (greetEl) greetEl.textContent = email;
+                // Pre-fill avatar menu name (full name)
                 var nameEl = document.getElementById('cuAvatarName');
                 if (nameEl) nameEl.textContent = name;
                 // Update page title
@@ -395,12 +445,55 @@
         });
     });
 
-    // Re-run active tab after header is injected (MutationObserver)
+    // ── Page title in topbar — set from data-page attribute ──────────────
+    var _pageTitles = {
+        'dashboard':       'Dashboard',
+        'my-bookings':     'My Bookings',
+        'pms':             'PMS History',
+        'pms-details':     'PMS History',
+        'book-service':    'Book Service',
+        'profile':         'My Profile',
+        'notifications':   'Notifications',
+        'help':            'Help & Support',
+        'change-password': 'Change Password',
+        'smart-ai':        'AI Assistant',
+    };
+    function setPageTitle() {
+        var page = document.body.getAttribute('data-page') || '';
+        var el = document.getElementById('cuPageTitle');
+        if (el) el.textContent = _pageTitles[page] || '';
+    }
+    window.setPageTitle = setPageTitle;
+    // cuGreetLine in the sidebar is repurposed to show the email.
+    // setGreeting() is kept for any page that still needs it but does nothing
+    // if the email has already been populated by _initCuNotifs.
+    function setGreeting() {
+        var el = document.getElementById('cuGreetLine');
+        if (!el) return;
+        // Only set greeting if email hasn't been populated yet
+        if (el.textContent && el.textContent.indexOf('@') !== -1) return;
+        var h = new Date().getHours();
+        el.textContent = h < 12 ? 'Good morning,' : h < 17 ? 'Good afternoon,' : 'Good evening,';
+    }
+    window.setGreeting = setGreeting; // expose so header-fetch callbacks can call it
+
+    // Re-run active tab + greeting after header/sidebar is injected (MutationObserver)
+    // Watches #customerHeader, #cuHeaderWrap, and #customerSidebar
+    // childList-only (no subtree) so only the initial innerHTML injection triggers it.
     ready(function () {
-        var headerEl = document.getElementById('customerHeader');
-        if (!headerEl) return;
-        var obs = new MutationObserver(function () { setActiveTab(); });
-        obs.observe(headerEl, { childList: true, subtree: true });
+        function _observeHeader(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var obs = new MutationObserver(function () {
+                setActiveTab();
+                setGreeting();
+                setPageTitle();
+            });
+            obs.observe(el, { childList: true });
+        }
+        _observeHeader('customerHeader');
+        _observeHeader('cuHeaderWrap');
+        _observeHeader('customerSidebar');
     });
 
     // ── Dynamic page title: "Welcome, Full Name" ────────────

@@ -55,7 +55,7 @@ class PmsHistoryDetails extends StatelessWidget {
               SliverAppBar(
                 expandedHeight: 200,
                 pinned: true,
-                backgroundColor: _red,
+                backgroundColor: const Color(0xFF1a202c),
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                   onPressed: () => Navigator.pop(context),
@@ -67,7 +67,8 @@ class PmsHistoryDetails extends StatelessWidget {
                   background: Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
+                        colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
+                        stops: [0.0, 0.55, 1.0],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -122,7 +123,7 @@ class PmsHistoryDetails extends StatelessWidget {
                           Icons.payments_outlined,
                           '₱${totalCost.toStringAsFixed(2)}',
                           'Total Spent',
-                          _red,
+                          const Color(0xFF1a202c),
                         )),
                         if (lastSvcOdo.isNotEmpty) ...[
                           const SizedBox(width: 8),
@@ -360,7 +361,7 @@ class _ServiceRecordCard extends StatelessWidget {
                 const Divider(),
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   const Text('Total', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF4a5568))),
-                  Text(data['cost'] as String? ?? '—', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _red)),
+                  Text(data['cost'] as String? ?? '—', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1a202c))),
                 ]),
               ]),
             ),
