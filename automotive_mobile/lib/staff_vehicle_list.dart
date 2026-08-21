@@ -551,16 +551,66 @@ class _StaffVehicleListState extends State<StaffVehicleList> {
                         onPressed: saving ? null : () async {
                           if (plateCtrl.text.trim().isEmpty) return;
                           setModal(() => saving = true);
+
+                          // ── Resolve ownerId from owner name ──────────────
+                          String? resolvedOwnerId;
+                          final ownerName = ownerCtrl.text.trim();
+                          if (ownerName.isNotEmpty) {
+                            try {
+                              var ownerSnap = await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .where('name', isEqualTo: ownerName)
+                                  .where('role', isEqualTo: 'customer')
+                                  .limit(1)
+                                  .get();
+                              if (ownerSnap.docs.isEmpty) {
+                                ownerSnap = await FirebaseFirestore.instance
+                                    .collection('users')
+                                    .where('companyName', isEqualTo: ownerName)
+                                    .where('role', isEqualTo: 'customer')
+                                    .limit(1)
+                                    .get();
+                              }
+                              if (ownerSnap.docs.isNotEmpty) {
+                                resolvedOwnerId = ownerSnap.docs.first.id;
+                              }
+                            } catch (_) {
+                              // Non-fatal — migration script covers it.
+                            }
+                          }
+
+                          final plateUpper   = plateCtrl.text.trim().toUpperCase();
+                          final lastSvcDate  = lastSvcDateCtrl.text.trim();
+                          final svcFreqRaw   = svcFreqCtrl.text.trim();
+                          final svcFreqInt   = int.tryParse(svcFreqRaw);
+                          final odoRaw       = odoCtrl.text.trim();
+                          final odoInt       = int.tryParse(odoRaw);
+                          final lastSvcOdoInt = int.tryParse(
+                              lastSvcOdoCtrl.text.trim().replaceAll(RegExp(r'[^0-9]'), ''));
+
+                          // Write BOTH canonical and legacy short names so
+                          // all existing app code paths continue to work.
                           final data = <String, dynamic>{
-                            'plate': plateCtrl.text.trim().toUpperCase(),
-                            'desc': descCtrl.text.trim(),
-                            'owner': ownerCtrl.text.trim(),
-                            'odo': odoCtrl.text.trim().isNotEmpty ? '${odoCtrl.text.trim()} km' : '',
-                            'lastSvcOdo': lastSvcOdoCtrl.text.trim(),
-                            'lastSvcDate': lastSvcDateCtrl.text.trim(),
-                            'svcFreq': svcFreqCtrl.text.trim(),
+                            // ── Canonical ─────────────────────────────────
+                            'plateNumber': plateUpper,
+                            'description': descCtrl.text.trim(),
+                            'owner': ownerName,
+                            'odometer': odoInt ?? 0,
+                            'lastServiceDate': lastSvcDate,
+                            'lastServiceOdometer': lastSvcOdoInt ?? 0,
+                            'serviceFrequency': svcFreqInt ?? 0,
                             'type': selectedType ?? '',
-                            if (!isEdit) 'status': _computeStatus(lastSvcDateCtrl.text.trim(), svcFreqCtrl.text.trim()),
+                            // ── Legacy aliases ─────────────────────────────
+                            'plate': plateUpper,
+                            'desc': descCtrl.text.trim(),
+                            'odo': odoRaw.isNotEmpty ? '$odoRaw km' : '',
+                            'lastSvcDate': lastSvcDate,
+                            'lastSvcOdo': lastSvcOdoCtrl.text.trim(),
+                            'svcFreq': svcFreqRaw,
+                            // ── Status ──────────────────────────────────────
+                            if (!isEdit) 'status': _computeStatus(lastSvcDate, svcFreqRaw),
+                            // ── ownerId (authoritative customer link) ──────
+                            if (resolvedOwnerId != null) 'ownerId': resolvedOwnerId,
                           };
                           try {
                             if (isEdit) {
@@ -581,10 +631,14 @@ class _StaffVehicleListState extends State<StaffVehicleList> {
                                 );
                               }
                             } else {
-                              final existing = await _db
-                                  .where('plate', isEqualTo: plateCtrl.text.trim().toUpperCase())
+                              // Check for duplicate plate (check both field names)
+                              final existingByPlate = await _db
+                                  .where('plateNumber', isEqualTo: plateUpper)
                                   .limit(1).get();
-                              if (existing.docs.isNotEmpty) {
+                              final existingByLegacy = existingByPlate.docs.isEmpty
+                                  ? await _db.where('plate', isEqualTo: plateUpper).limit(1).get()
+                                  : existingByPlate;
+                              if (existingByLegacy.docs.isNotEmpty) {
                                 setModal(() => saving = false);
                                 if (sheetCtx.mounted) ScaffoldMessenger.of(sheetCtx).showSnackBar(
                                   const SnackBar(

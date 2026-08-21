@@ -54,11 +54,18 @@ _DB_LOOKUP = re.compile(
     r"(low\s+stock|reorder|running\s+low|out\s+of\s+stock)|"
     r"(pending|completed|in[\s-]?progress)\s+(booking|maintenance|service|repair|job)|"
     r"(service|maintenance)\s+(booking|appointment)s?\s*(list|status|today|this\s+week)?|"
-    r"(stock\s+level|inventory\s+list|current\s+stock|stock\s+status)|"
+    r"(stock\s+level[s]?|inventory\s+list|current\s+stock|stock\s+status)|"
     r"(list|show|all)\s+(deliveries|delivery|vehicles?|fleet|stock)|"
     r"pms\s+(status|schedule|due|overdue)|"
     r"(vehicle|car)\s+(status|list|registered|active|inactive)|"
-    r"(booking|appointment)\s+(status|list|pending|confirmed|completed)"
+    r"(booking|appointment)\s+(status|list|pending|confirmed|completed)|"
+    # ── Service pricing queries ───────────────────────────────────────────────
+    r"how\s+much\s+(is|for|does|would|are)|"
+    r"(price|cost|rate|fee)\s+(of|for)\s+\w|"
+    r"(service\s+price[s]?|service\s+rate[s]?|service\s+cost[s]?|pricing)|"
+    r"(list|show|what|get)\s+(all\s+)?services?\b|"
+    r"services?\s+(offered|available|you\s+offer|list)|"
+    r"estimate\s+(the\s+)?cost|cost\s+estimate"
     r")\b",
     re.IGNORECASE,
 )

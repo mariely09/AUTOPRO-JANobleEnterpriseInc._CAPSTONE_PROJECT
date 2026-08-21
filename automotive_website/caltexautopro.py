@@ -880,9 +880,35 @@ def ai_chat():
         except _requests_lib.exceptions.Timeout:
             return jsonify({'success': False, 'offline': True, 'cold_start': True,
                             'answer': 'The AI service is starting up (cold start). Please try again in a few seconds.'}), 503
-        except Exception as e:
-            return jsonify({'success': False, 'offline': True,
-                            'answer': f'AI service error: {e}'}), 503
+        except _requests_lib.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response is not None else 0
+            # Try to get a structured reply from the FastAPI response body first
+            try:
+                body = e.response.json() if e.response is not None else {}
+                ai_reply = body.get('reply', '') or body.get('detail', '')
+            except Exception:
+                ai_reply = ''
+            if ai_reply:
+                # FastAPI returned a friendly reply — surface it directly
+                return jsonify({
+                    'success': True,
+                    'answer': ai_reply,
+                    'session_id': '',
+                    'tool_calls': [],
+                })
+            if status == 503:
+                msg = 'The AI service is temporarily unavailable. Please try again in a moment.'
+            elif status == 429:
+                msg = 'The AI service has reached its usage limit. Please try again later.'
+            else:
+                msg = 'The AI service could not process your request right now. Please try again in a moment.'
+            return jsonify({'success': False, 'offline': True, 'answer': msg}), 503
+        except Exception:
+            return jsonify({
+                'success': False,
+                'offline': True,
+                'answer': "I'm having trouble reaching the AI service right now. Please try again in a moment.",
+            }), 503
 
     # ── Admin chat ────────────────────────────────────────────────────────────
     if user_type != 'admin':
@@ -1042,11 +1068,33 @@ def ai_chat():
             'cold_start': True,
             'answer': 'The AI service is starting up (cold start). Please try again in a few seconds.',
         }), 503
-    except Exception as e:
+    except _requests_lib.exceptions.HTTPError as e:
+        status = e.response.status_code if e.response is not None else 0
+        # Try to get a structured reply from the FastAPI response body first
+        try:
+            body = e.response.json() if e.response is not None else {}
+            ai_reply = body.get('reply', '') or body.get('detail', '')
+        except Exception:
+            ai_reply = ''
+        if ai_reply:
+            return jsonify({
+                'success': True,
+                'answer': ai_reply,
+                'session_id': '',
+                'tool_calls': [],
+            })
+        if status == 503:
+            msg = 'The AI service is temporarily unavailable. Please try again in a moment.'
+        elif status == 429:
+            msg = 'The AI service has reached its usage limit. Please try again later.'
+        else:
+            msg = 'The AI service could not process your request right now. Please try again in a moment.'
+        return jsonify({'success': False, 'offline': True, 'answer': msg}), 503
+    except Exception:
         return jsonify({
             'success': False,
             'offline': True,
-            'answer': f'AI service error: {e}',
+            'answer': "I'm having trouble reaching the AI service right now. Please try again in a moment.",
         }), 503
 
 
