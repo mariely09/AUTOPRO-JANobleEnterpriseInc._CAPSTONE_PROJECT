@@ -908,9 +908,16 @@ window.ragDownloadReport = function(reportId, format) {
   .then(function(res) {
     if (!res.ok) {
       return res.json().then(function(e) {
-        throw new Error(e.error || 'Report generation failed');
-      }).catch(function() {
-        throw new Error('Report generation failed (status ' + res.status + ')');
+        var errMsg = e.error || 'Report generation failed';
+        var errObj = new Error(errMsg);
+        errObj.status = res.status;
+        throw errObj;
+      }).catch(function(thrown) {
+        // Re-throw if already an Error with our message attached
+        if (thrown && thrown.status) throw thrown;
+        var errObj = new Error('Report generation failed (status ' + res.status + ')');
+        errObj.status = res.status;
+        throw errObj;
       });
     }
     return res.blob();
@@ -956,7 +963,7 @@ window.ragDownloadReport = function(reportId, format) {
     });
   })
   .catch(function(err) {
-    // ── Restore buttons and show inline error ──────────────────────────────
+    // ── Restore buttons ────────────────────────────────────────────────────
     ['pdf','excel'].forEach(function(f) {
       var b = document.getElementById(reportId + '_' + f);
       if (b) {
@@ -966,14 +973,29 @@ window.ragDownloadReport = function(reportId, format) {
       }
     });
     if (btn) {
-      // Restore original label
       var origLabel = format.toUpperCase();
       var filterLabel = '';
       if (startDate || endDate) filterLabel = ' (' + (startDate||'—') + ' to ' + (endDate||'—') + ')';
       else if (month) filterLabel = ' (' + month + ')';
       btn.innerHTML = '&#x2193; Download ' + origLabel + filterLabel;
     }
-    if (errSlot) errSlot.innerHTML = '<span style="color:#E8001C;font-size:11px;">' + err.message + '</span>';
+    // ── Show contextual error message ─────────────────────────────────────
+    var msg = err.message || 'Report generation failed.';
+    var isQuota = /quota|resource_exhausted|429/i.test(msg);
+    var isNoRecords = /no record|no data|not found/i.test(msg);
+    var errHtml;
+    if (isQuota) {
+      errHtml = '<div style="background:#fff7ed;border:1.5px solid #fb923c;border-radius:8px;padding:7px 10px;margin-top:6px;">'
+        + '<div style="font-size:11.5px;font-weight:700;color:#9a3412;margin-bottom:2px;">Firestore Quota Limit Reached</div>'
+        + '<div style="font-size:11px;color:#7c3a1e;line-height:1.5;">The database is temporarily unavailable (Firestore free-tier daily read limit). '
+        + 'Please wait a few minutes before trying again.</div>'
+        + '</div>';
+    } else if (isNoRecords) {
+      errHtml = '<span style="color:#718096;font-size:11px;">' + _ragEsc(msg) + '</span>';
+    } else {
+      errHtml = '<span style="color:#E8001C;font-size:11px;">' + _ragEsc(msg) + '</span>';
+    }
+    if (errSlot) errSlot.innerHTML = errHtml;
   })
   .finally(function() {
     window._ragDownloading = false;

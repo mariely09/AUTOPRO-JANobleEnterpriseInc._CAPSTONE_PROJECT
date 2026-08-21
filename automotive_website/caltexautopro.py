@@ -1226,8 +1226,8 @@ def ai_generate_report():
             _requests_lib.exceptions.Timeout):
         return jsonify({
             'success': False,
-            'error': 'The AI service is still starting up (Render cold start). '
-                     'Please wait 30–60 seconds and try again.'
+            'error': 'Cannot reach the AI service. It may be starting up (Render cold start) — '
+                     'please wait 30–60 seconds and try again.'
         }), 503
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

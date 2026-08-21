@@ -16,9 +16,45 @@ Supported report types:
 import io
 import os
 import re as _re
+import time
 from datetime import datetime
+from threading import Lock
 
 from firestore_client import get_db
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Firestore read cache
+#  Caches the raw list of dicts from each collection for _CACHE_TTL seconds.
+#  This prevents quota exhaustion when multiple reports are generated in quick
+#  succession (e.g. preview + PDF fetch = 2 full collection reads per request).
+# ─────────────────────────────────────────────────────────────────────────────
+_CACHE_TTL = 300  # 5 minutes
+_cache: dict[str, tuple[float, list]] = {}   # collection → (timestamp, rows)
+_cache_lock = Lock()
+
+
+def _cached_stream(collection: str) -> list[dict]:
+    """Return cached documents for *collection*, refreshing if stale."""
+    now = time.monotonic()
+    with _cache_lock:
+        entry = _cache.get(collection)
+        if entry and (now - entry[0]) < _CACHE_TTL:
+            return entry[1]
+    # Fetch outside the lock so we don't block other threads for the full RPC
+    db = get_db()
+    rows = [doc.to_dict() for doc in db.collection(collection).stream()]
+    with _cache_lock:
+        _cache[collection] = (time.monotonic(), rows)
+    return rows
+
+
+def invalidate_cache(collection: str | None = None) -> None:
+    """Evict one or all collection caches (useful after writes)."""
+    with _cache_lock:
+        if collection:
+            _cache.pop(collection, None)
+        else:
+            _cache.clear()
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Helpers
@@ -172,10 +208,8 @@ def _fetch_inventory(filters: dict | None = None):
                   out_of_stock (bool), stock_between ([min, max])
     """
     f = filters or {}
-    db = get_db()
     rows = []
-    for doc in db.collection("stock_inventory").stream():
-        d = doc.to_dict()
+    for d in _cached_stream("stock_inventory"):
         stock   = d.get("stock", 0)
         min_lvl = d.get("min", 0)
         max_lvl = d.get("max", 0)
@@ -239,10 +273,8 @@ def _fetch_issuances(month: str | None = None,
     filters keys: plate, maintenance_id, item_name, group, item_type
     """
     f = filters or {}
-    db = get_db()
     rows = []
-    for doc in db.collection("issuances").stream():
-        d = doc.to_dict()
+    for d in _cached_stream("issuances"):
         raw_date = d.get("date", "")
         row = {
             "date":          raw_date,
@@ -306,22 +338,19 @@ def _fetch_maintenance(month: str | None = None,
     filters keys: status, plate, mechanic, customer (matches vehicle owner via plate lookup)
     """
     f = filters or {}
-    db = get_db()
 
     # Build owner→plate lookup only when customer filter is active
     customer_plates: set[str] = set()
     if f.get("customer"):
         cname = f["customer"].lower()
-        for doc in db.collection("vehicles").stream():
-            d = doc.to_dict()
+        for d in _cached_stream("vehicles"):
             if (d.get("owner") or "").lower() == cname:
                 p = d.get("plate", "")
                 if p:
                     customer_plates.add(p.upper())
 
     rows = []
-    for doc in db.collection("maintenance").stream():
-        d = doc.to_dict()
+    for d in _cached_stream("maintenance"):
         row = {
             "id":       d.get("id", doc.id),
             "plate":    d.get("plate", ""),
@@ -376,7 +405,6 @@ def _fetch_vehicles(filters: dict | None = None,
     vehicle_type supports plural forms: Trucks→Truck, SUVs→SUV, Sedans→Sedan, Vans→Van
     """
     f = filters or {}
-    db = get_db()
 
     # Resolve date range — month overridden by explicit start/end
     _start_dt: datetime | None = None
@@ -408,8 +436,7 @@ def _fetch_vehicles(filters: dict | None = None,
         _vtype_singular = None
 
     rows = []
-    for doc in db.collection("vehicles").stream():
-        d = doc.to_dict()
+    for d in _cached_stream("vehicles"):
         row = {
             "plate":       d.get("plate", ""),
             "desc":        d.get("desc", ""),
@@ -461,10 +488,8 @@ def _fetch_bookings(month: str | None = None,
     filters keys: status, customer, service
     """
     f = filters or {}
-    db = get_db()
     rows = []
-    for doc in db.collection("service_bookings").stream():
-        d = doc.to_dict()
+    for d in _cached_stream("service_bookings"):
         svcs = d.get("services", [])
         svc_str = ", ".join(svcs) if isinstance(svcs, list) else str(svcs)
         row = {
@@ -636,7 +661,8 @@ def _rgb(t): return tuple(v / 255 for v in t)
 
 def generate_pdf(report_type: str, month: str | None = None,
                  start_date: str | None = None, end_date: str | None = None,
-                 filters: dict | None = None) -> bytes:
+                 filters: dict | None = None,
+                 prefetched_data: list | None = None) -> bytes:
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.units import mm
     from reportlab.lib import colors
@@ -650,15 +676,15 @@ def generate_pdf(report_type: str, month: str | None = None,
     cfg     = REPORT_CONFIG[report_type]
     fetcher = cfg["fetcher"]
     _date_supported = {"issuance", "maintenance", "bookings", "vehicles"}
-    if report_type in _date_supported:
+    if prefetched_data is not None:
+        data = prefetched_data
+    elif report_type in _date_supported:
         data = fetcher(month=month, start_date=start_date, end_date=end_date,
                        filters=filters)
     else:
         data = fetcher(filters=filters)
     columns = cfg["columns"]
     mapper  = cfg["mapper"]
-
-    # ── Page setup — mirror website: @page { margin: 8mm } ───────────────────
     # Use landscape for wide tables (>7 columns or sum of proportions warrants it)
     _col_weights = cfg["col_widths_pdf"]   # relative weights only; actual widths computed below
     _wide = len(columns) > 6 or sum(_col_weights) > 450
@@ -882,7 +908,8 @@ def generate_pdf(report_type: str, month: str | None = None,
 
 def generate_excel(report_type: str, month: str | None = None,
                    start_date: str | None = None, end_date: str | None = None,
-                   filters: dict | None = None) -> bytes:
+                   filters: dict | None = None,
+                   prefetched_data: list | None = None) -> bytes:
     from openpyxl import Workbook
     from openpyxl.styles import (
         Font, PatternFill, Alignment, Border, Side, GradientFill,
@@ -892,7 +919,9 @@ def generate_excel(report_type: str, month: str | None = None,
     cfg     = REPORT_CONFIG[report_type]
     fetcher = cfg["fetcher"]
     _date_supported = {"issuance", "maintenance", "bookings", "vehicles"}
-    if report_type in _date_supported:
+    if prefetched_data is not None:
+        data = prefetched_data
+    elif report_type in _date_supported:
         data = fetcher(month=month, start_date=start_date, end_date=end_date,
                        filters=filters)
     else:
@@ -1169,10 +1198,12 @@ def build_report(report_type: str, file_format: str,
     if fmt == "pdf":
         return generate_pdf(report_type, month=month,
                             start_date=start_date, end_date=end_date,
-                            filters=filters or None)
+                            filters=filters or None,
+                            prefetched_data=preview)
     elif fmt in ("excel", "xlsx"):
         return generate_excel(report_type, month=month,
                               start_date=start_date, end_date=end_date,
-                              filters=filters or None)
+                              filters=filters or None,
+                              prefetched_data=preview)
     else:
         raise ValueError(f"Unknown format '{file_format}'. Use: pdf or excel")

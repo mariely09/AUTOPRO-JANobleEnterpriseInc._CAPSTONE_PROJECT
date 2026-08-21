@@ -1063,17 +1063,24 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             (errMsg.toLowerCase().contains('no record') ||
              errMsg.toLowerCase().contains('no data')   ||
              errMsg.toLowerCase().contains('not found'));
-        final isColdStart = resp.statusCode == 503;
+        final isQuota  = resp.statusCode == 503 &&
+            (errMsg.toLowerCase().contains('quota') ||
+             errMsg.toLowerCase().contains('resource_exhausted') ||
+             errMsg.toLowerCase().contains('429'));
+        final isColdStart = resp.statusCode == 503 && !isQuota;
 
         _setError(
           isNoRecords
               ? 'No records found for $typeName$monthLabel. '
                 'The report cannot be generated because no matching data exists for this period.'
-              : isColdStart
-                  ? 'The AI service is warming up (Render cold start). '
-                    'Please wait 30–60 seconds and try again.'
-                  : 'Failed to generate $typeName$monthLabel '
-                    '(${resp.statusCode}): $errMsg',
+              : isQuota
+                  ? 'Firestore quota limit reached (free-tier). '
+                    'The database is temporarily unavailable — please wait a few minutes and try again.'
+                  : isColdStart
+                      ? 'The AI service is warming up (Render cold start). '
+                        'Please wait 30–60 seconds and try again.'
+                      : 'Failed to generate $typeName$monthLabel '
+                        '(${resp.statusCode}): $errMsg',
         );
       }
     } on SocketException {
