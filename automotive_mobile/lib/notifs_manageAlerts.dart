@@ -146,8 +146,18 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        backgroundColor: _red,
+        backgroundColor: const Color(0xFF1a202c),
         elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
+              stops: [0.0, 0.55, 1.0],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text('Manage Alerts',
           style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),

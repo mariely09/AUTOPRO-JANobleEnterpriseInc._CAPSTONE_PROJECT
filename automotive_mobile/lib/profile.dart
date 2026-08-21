@@ -252,95 +252,100 @@ class _UserProfileState extends State<UserProfile> {
     final isStandalone = widget.role != UserRole.customer;
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
-      appBar: AppBar(
-        backgroundColor: _red,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('Profile',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-        leading: isStandalone
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.pop(context),
-              ),
-        automaticallyImplyLeading: isStandalone,
-      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Column(children: [
-                // ???? Hero header ????
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 36, 20, 32),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF1a202c), Color(0xFF2d3748), _red],
-                      stops: [0.0, 0.6, 1.0],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Column(children: [
-                    GestureDetector(
-                      onTap: _pickImage,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 3),
-                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 12)],
-                            ),
-                            child: CircleAvatar(
-                              radius: 44,
-                              backgroundColor: Colors.white24,
-                              backgroundImage: _avatarImage != null
-                                  ? FileImage(_avatarImage!) as ImageProvider
-                                  : _photoUrl != null
-                                      ? _photoImageProvider(_photoUrl!)
-                                      : null,
-                              child: (_avatarImage == null && _photoUrl == null)
-                                  ? Text(_initials, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold))
-                                  : null,
-                            ),
-                          ),
-                          // Camera overlay badge
-                          Positioned(
-                            bottom: 2,
-                            right: 2,
-                            child: Container(
-                              width: 26,
-                              height: 26,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 1.5),
-                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 4)],
+          : CustomScrollView(
+              slivers: [
+                // ── SliverAppBar with hero header inside ──
+                SliverAppBar(
+                  expandedHeight: 260,
+                  pinned: true,
+                  backgroundColor: const Color(0xFF1a202c),
+                  automaticallyImplyLeading: false,
+                  leading: (!isStandalone)
+                      ? IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        )
+                      : null,
+                  title: const Text('Profile',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF1a202c), Color(0xFF2d3748), _red],
+                          stops: [0.0, 0.6, 1.0],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: SafeArea(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 44),
+                            GestureDetector(
+                              onTap: _pickImage,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 3),
+                                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 12)],
+                                    ),
+                                    child: CircleAvatar(
+                                      radius: 44,
+                                      backgroundColor: Colors.white24,
+                                      backgroundImage: _avatarImage != null
+                                          ? FileImage(_avatarImage!) as ImageProvider
+                                          : _photoUrl != null
+                                              ? _photoImageProvider(_photoUrl!)
+                                              : null,
+                                      child: (_avatarImage == null && _photoUrl == null)
+                                          ? Text(_initials, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold))
+                                          : null,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    bottom: 2, right: 2,
+                                    child: Container(
+                                      width: 26, height: 26,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.white, width: 1.5),
+                                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 4)],
+                                      ),
+                                      child: const Icon(Icons.camera_alt, size: 14, color: Color(0xFFE8001C)),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              child: const Icon(Icons.camera_alt, size: 14, color: Color(0xFFE8001C)),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 12),
+                            Text('${_firstNameCtrl.text} ${_lastNameCtrl.text}'.trim(),
+                              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(20)),
+                              child: Text(_roleCtrl.text, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    Text('${_firstNameCtrl.text} ${_lastNameCtrl.text}'.trim(),
-                      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(20)),
-                      child: Text(_roleCtrl.text, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-                    ),
-                  ]),
+                  ),
                 ),
 
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(children: [
+                // ── Body content as sliver ──
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(children: [
                     // ???? Account Info ????
                     _sectionLabel('ACCOUNT INFORMATION'),
                     const SizedBox(height: 8),
@@ -515,8 +520,9 @@ class _UserProfileState extends State<UserProfile> {
                     const SizedBox(height: 8),
                   ]),
                 ),
-              ]),
-            ),
+              ),  // SliverToBoxAdapter
+            ],    // slivers
+          ),      // CustomScrollView
     );
   }
 
