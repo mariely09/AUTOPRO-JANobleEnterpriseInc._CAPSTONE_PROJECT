@@ -680,15 +680,32 @@ window.ragAiSend = function(preset) {
     }
 
     if (data.offline || !data.success) {
-      if (data.cold_start) {
-        var coldText = 'AI service is warming up (Render cold start). Please wait a few seconds and send your message again.';
-        _ragMessages.push({ role: 'ai', text: coldText });
+      // ── Check if this is a report intent — show retry UI instead of offline fallback ──
+      var _isRptOffline = /\b(generate|create|make|export|download|print)\b.*\b(report|pdf|excel)\b|\b(pdf|excel)\s+report\b|\breport\s+(pdf|excel)\b/i.test(text);
+      if (_isRptOffline || data.cold_start) {
+        var _offlineRptBtnId = 'ragRetryBtn_' + Date.now();
+        var _offlineRptQuery = text;
+        var _offlineMsg = data.cold_start
+          ? 'The AI service is warming up (cold start — typically 30–60 s on Render\'s free tier). Please wait a moment then try again.'
+          : 'The AI backend is currently offline. Report generation requires the live backend.';
+        var _offlineTitle = data.cold_start ? 'AI Warming Up' : 'AI Backend Offline';
+        var _offlineBorderColor = data.cold_start ? '#bee3f8' : '#fb923c';
+        var _offlineBgColor = data.cold_start ? '#ebf8ff' : '#fff7ed';
+        var _offlineTextColor = data.cold_start ? '#2b6cb0' : '#9a3412';
+        _ragMessages.push({ role: 'ai', text: _offlineTitle + ' — ' + _offlineMsg });
         _ragAppend('ai',
-          '<div style="background:#ebf8ff;border:1px solid #bee3f8;border-radius:8px;padding:9px 12px;font-size:11.5px;color:#2b6cb0;">' +
-          '&#x26A0; <strong>AI service is warming up</strong> (Render cold start).<br>' +
-          'Please wait a few seconds and <strong>send your message again</strong>.' +
+          '<div style="background:' + _offlineBgColor + ';border:1.5px solid ' + _offlineBorderColor + ';border-radius:10px;padding:10px 13px;">' +
+          '<div style="font-size:12.5px;font-weight:700;color:' + _offlineTextColor + ';margin-bottom:4px;display:flex;align-items:center;gap:6px;">' +
+          '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="' + _offlineTextColor + '"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
+          _ragEsc(_offlineTitle) + '</div>' +
+          '<div style="font-size:11.5px;color:' + _offlineTextColor + ';line-height:1.6;margin-bottom:8px;">' + _ragEsc(_offlineMsg) + '</div>' +
+          '<button id="' + _offlineRptBtnId + '" style="background:#E8001C;color:white;border:none;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">&#x21BA; Try Again</button>' +
           '</div>'
         );
+        setTimeout(function() {
+          var btn = document.getElementById(_offlineRptBtnId);
+          if (btn) btn.addEventListener('click', function() { window.ragAiSend(_offlineRptQuery); });
+        }, 0);
       } else {
         var offlineText = 'AI backend offline — using local data mode.';
         _ragAppend('ai', '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:7px 11px;font-size:11px;color:#9a3412;margin-bottom:6px;"><strong>AI backend offline</strong> — using local data mode.</div>');
@@ -766,10 +783,32 @@ window.ragAiSend = function(preset) {
   })
   .catch(function(err) {
     _ragRemoveTyping();
-    _ragAppend('ai', '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:7px 11px;font-size:11px;color:#9a3412;margin-bottom:6px;"><strong>AI backend unreachable</strong> — using local data mode.</div>');
-    var result = _ragProcess(text);
-    _ragMessages.push({ role: 'ai', text: result.text || '' });
-    _ragAppend('ai', result.html);
+    var _isCatchRpt = /\b(generate|create|make|export|download|print)\b.*\b(report|pdf|excel)\b|\b(pdf|excel)\s+report\b|\breport\s+(pdf|excel)\b/i.test(text);
+    if (_isCatchRpt) {
+      var _catchRptBtnId = 'ragRetryBtn_' + Date.now();
+      var _catchRptQuery = text;
+      _ragMessages.push({ role: 'ai', text: 'AI backend unreachable — report generation requires the live backend.' });
+      _ragAppend('ai',
+        '<div style="background:#fff7ed;border:1.5px solid #fb923c;border-radius:10px;padding:10px 13px;">' +
+        '<div style="font-size:12.5px;font-weight:700;color:#9a3412;margin-bottom:4px;display:flex;align-items:center;gap:6px;">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="#9a3412"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
+        'AI Backend Unreachable</div>' +
+        '<div style="font-size:11.5px;color:#7c3a1e;line-height:1.6;margin-bottom:8px;">' +
+        'Report generation requires the live AI backend. The service may be warming up — cold starts on Render\'s free tier take ~30–60 s.' +
+        '</div>' +
+        '<button id="' + _catchRptBtnId + '" style="background:#E8001C;color:white;border:none;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">&#x21BA; Try Again</button>' +
+        '</div>'
+      );
+      setTimeout(function() {
+        var btn = document.getElementById(_catchRptBtnId);
+        if (btn) btn.addEventListener('click', function() { window.ragAiSend(_catchRptQuery); });
+      }, 0);
+    } else {
+      _ragAppend('ai', '<div style="background:#fff7ed;border:1px solid #fb923c;border-radius:8px;padding:7px 11px;font-size:11px;color:#9a3412;margin-bottom:6px;"><strong>AI backend unreachable</strong> — using local data mode.</div>');
+      var result = _ragProcess(text);
+      _ragMessages.push({ role: 'ai', text: result.text || '' });
+      _ragAppend('ai', result.html);
+    }
     _ragSaveChat();
   });
 };
@@ -1014,7 +1053,27 @@ function _ragProcess(query) {
   // ── Report intent — requires live AI backend, not available in local mode ──
   var isReportRequest = /\b(generate|create|make|export|download|print)\b.*\b(report|pdf|excel)\b|\b(pdf|excel)\s+report\b|\breport\s+(pdf|excel)\b/i.test(q);
   if (isReportRequest) {
-    return ret('Report generation requires the AI backend to be online. The AI service is currently unreachable — please try again in a moment, or start the backend manually.');
+    var _retryQuery = query;
+    var _retryBtnId = 'ragRetryBtn_' + Date.now();
+    setTimeout(function() {
+      var btn = document.getElementById(_retryBtnId);
+      if (btn) {
+        btn.addEventListener('click', function() {
+          window.ragAiSend(_retryQuery);
+        });
+      }
+    }, 0);
+    return ret(
+      '<div style="background:#fff7ed;border:1.5px solid #fb923c;border-radius:10px;padding:10px 13px;">' +
+      '<div style="font-size:12.5px;font-weight:700;color:#9a3412;margin-bottom:4px;display:flex;align-items:center;gap:6px;">' +
+      '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="#9a3412"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
+      'AI Backend Unreachable</div>' +
+      '<div style="font-size:11.5px;color:#7c3a1e;line-height:1.6;margin-bottom:8px;">' +
+      'Report generation requires the live AI backend. The service may be warming up (cold start takes ~30–60 s on Render\'s free tier).' +
+      '</div>' +
+      '<button id="' + _retryBtnId + '" style="background:#E8001C;color:white;border:none;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">&#x21BA; Try Again</button>' +
+      '</div>'
+    );
   }
 
   // ── Out-of-scope / general knowledge ─────────────────────────────────────
