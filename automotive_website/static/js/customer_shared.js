@@ -462,7 +462,9 @@
         'profile':         'My Profile',
         'notifications':   'Notifications',
         'help':            'Help & Support',
+        'help_support':    'Help & Support',
         'change-password': 'Change Password',
+        'change_password': 'Change Password',
         'smart-ai':        'AI Assistant',
     };
     function setPageTitle() {
