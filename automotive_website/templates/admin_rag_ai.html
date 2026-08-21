@@ -36,24 +36,26 @@
 
 <!-- Floating toggle button -->
 <div id="ragAiFabWrap" style="position:fixed;bottom:2rem;right:2rem;z-index:1200;display:inline-flex;">
-  <div style="position:relative;display:inline-flex;">
+  <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;">
+    <!-- Animated pulse rings -->
+    <span id="ragPulseOuter" style="position:absolute;width:58px;height:58px;border-radius:50%;border:2px solid #22c55e;opacity:0;animation:ragRingPulse 1.8s ease-out infinite;pointer-events:none;"></span>
+    <span id="ragPulseInner" style="position:absolute;width:58px;height:58px;border-radius:50%;border:1.5px solid #22c55e;opacity:0;animation:ragRingPulse 1.8s ease-out 0.45s infinite;pointer-events:none;"></span>
     <button id="ragAiToggleBtn" onclick="ragAiToggle()"
       title="AI Assistant"
-      style="width:58px;height:58px;border-radius:50%;border:2.5px solid #E8001C;cursor:pointer;
+      style="width:58px;height:58px;border-radius:50%;border:2.5px solid #22c55e;cursor:pointer;
              background:white;
-             box-shadow:0 4px 20px rgba(232,0,28,0.22),0 0 0 0 rgba(232,0,28,0.2);
+             box-shadow:0 4px 20px rgba(34,197,94,0.25),0 0 0 0 rgba(34,197,94,0.15);
              display:flex;align-items:center;justify-content:center;
-             transition:all 0.25s ease;padding:3px;overflow:hidden;
-             animation:ragFabPulse 2.8s ease-in-out infinite;">
+             transition:all 0.25s ease;padding:3px;overflow:hidden;position:relative;z-index:1;">
       <img id="ragFabAiImg" src="../static/img/AI_LOGO.png"
            style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">
     </button>
-    <!-- Green online indicator dot on FAB -->
+    <!-- Status indicator dot on FAB -->
     <span id="ragFabOnlineDot"
       style="position:absolute;bottom:3px;right:3px;width:13px;height:13px;
              border-radius:50%;background:#22c55e;border:2.5px solid white;
-             box-shadow:0 0 6px rgba(34,197,94,0.7);z-index:1;
-             transition:background 0.3s;"></span>
+             box-shadow:0 0 6px rgba(34,197,94,0.7);z-index:2;
+             transition:background 0.3s,box-shadow 0.3s;"></span>
   </div>
 </div>
 
@@ -72,12 +74,12 @@
     <!-- Subtle shine overlay -->
     <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.1) 0%,transparent 65%);pointer-events:none;border-radius:22px 22px 0 0;"></div>
     <!-- Avatar — transparent bg, image fills circle -->
-    <div style="position:relative;flex-shrink:0;">
-      <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,0.4);flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.15);background:white;display:flex;align-items:center;justify-content:center;">
+    <div style="position:relative;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+      <div id="ragHdrAvatarRing" style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:2.5px solid #22c55e;flex-shrink:0;box-shadow:0 0 8px rgba(34,197,94,0.45),0 2px 8px rgba(0,0,0,0.15);background:white;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;transition:border-color 0.3s,box-shadow 0.3s;">
         <img src="../static/img/AI_LOGO.png" style="width:30px;height:30px;object-fit:contain;display:block;" alt="AI">
       </div>
       <!-- Online dot on avatar -->
-      <span id="ragHeaderOnlineDot" style="display:none;position:absolute;bottom:1px;right:1px;width:9px;height:9px;border-radius:50%;background:#4ade80;border:2px solid white;box-shadow:0 0 5px rgba(74,222,128,0.8);"></span>
+      <span id="ragHeaderOnlineDot" style="position:absolute;bottom:1px;right:1px;width:9px;height:9px;border-radius:50%;background:#22c55e;border:2px solid white;box-shadow:0 0 5px rgba(34,197,94,0.8);z-index:2;transition:background 0.3s,box-shadow 0.3s;"></span>
     </div>
     <!-- Title -->
     <div style="flex:1;min-width:0;">
@@ -145,7 +147,7 @@
 
 <style>
 @keyframes ragAiSlideIn { from{opacity:0;transform:translateY(16px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
-@keyframes ragFabPulse  { 0%,100%{box-shadow:0 4px 20px rgba(232,0,28,0.22),0 0 0 0 rgba(232,0,28,0.15)} 50%{box-shadow:0 4px 20px rgba(232,0,28,0.22),0 0 0 8px rgba(232,0,28,0)} }
+@keyframes ragRingPulse { 0%{transform:scale(1);opacity:0.55} 100%{transform:scale(1.65);opacity:0} }
 @keyframes ragBounce    { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
 @keyframes ragSpin      { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
@@ -439,21 +441,28 @@ window.ragAiToggle = function() {
   var dot = document.getElementById('ragFabOnlineDot');
   if (btn) {
     if (!isOpen) {
-      // Now opening — show X, hide dot
+      // Now opening — show X, hide dot and pulse rings
       btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
       btn.style.background = 'linear-gradient(135deg,#E8001C,#c0001a)';
       btn.style.border = 'none';
       btn.style.overflow = 'visible';
       btn.style.padding = '0';
       if (dot) dot.style.display = 'none';
+      var pulseOuter = document.getElementById('ragPulseOuter');
+      var pulseInner = document.getElementById('ragPulseInner');
+      if (pulseOuter) pulseOuter.style.display = 'none';
+      if (pulseInner) pulseInner.style.display = 'none';
     } else {
-      // Now closing — show AI image with red border, restore dot
+      // Now closing — show AI image with status-colored border, restore dot and pulse rings
       btn.innerHTML = '<img id="ragFabAiImg" src="../static/img/AI_LOGO.png" style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">';
       btn.style.background = 'white';
-      btn.style.border = '2.5px solid #E8001C';
       btn.style.overflow = 'hidden';
       btn.style.padding = '3px';
       if (dot) dot.style.display = 'block';
+      var pulseOuter = document.getElementById('ragPulseOuter');
+      var pulseInner = document.getElementById('ragPulseInner');
+      if (pulseOuter) pulseOuter.style.display = '';
+      if (pulseInner) pulseInner.style.display = '';
     }
   }
 };
@@ -490,21 +499,51 @@ function _ragWatch() {
         fetch('/api/ai-health', { signal: ctrl.signal })
         .then(function(r){ clearTimeout(timer); return r.json(); })
         .then(function(d){
-          var dot = document.getElementById('ragAiDot');
-          var txt = document.getElementById('ragAiStatus');
+          var dot        = document.getElementById('ragAiDot');
+          var txt        = document.getElementById('ragAiStatus');
+          var fabBtn     = document.getElementById('ragAiToggleBtn');
+          var fabDot     = document.getElementById('ragFabOnlineDot');
+          var pulseOuter = document.getElementById('ragPulseOuter');
+          var pulseInner = document.getElementById('ragPulseInner');
+          var hdrRing    = document.getElementById('ragHdrAvatarRing');
+          var hdrDot     = document.getElementById('ragHeaderOnlineDot');
           if (d.online) {
             if (dot) dot.style.background = '#4ade80';
             if (txt) { txt.textContent = 'Online · RAG AI'; }
+            if (fabBtn) fabBtn.style.borderColor = '#22c55e';
+            if (fabDot) { fabDot.style.background = '#22c55e'; fabDot.style.boxShadow = '0 0 6px rgba(34,197,94,0.7)'; }
+            if (pulseOuter) { pulseOuter.style.borderColor = '#22c55e'; }
+            if (pulseInner) { pulseInner.style.borderColor = '#22c55e'; }
+            if (hdrRing) { hdrRing.style.borderColor = '#22c55e'; hdrRing.style.boxShadow = '0 0 8px rgba(34,197,94,0.45),0 2px 8px rgba(0,0,0,0.15)'; }
+            if (hdrDot) { hdrDot.style.background = '#22c55e'; hdrDot.style.boxShadow = '0 0 5px rgba(34,197,94,0.8)'; }
           } else {
-            if (dot) dot.style.background = '#d69e2e';
-            if (txt) { txt.textContent = 'Online · Local mode'; }
+            if (dot) dot.style.background = '#f97316';
+            if (txt) { txt.textContent = 'Local mode'; }
+            if (fabBtn) fabBtn.style.borderColor = '#f97316';
+            if (fabDot) { fabDot.style.background = '#f97316'; fabDot.style.boxShadow = '0 0 6px rgba(249,115,22,0.7)'; }
+            if (pulseOuter) { pulseOuter.style.borderColor = '#f97316'; }
+            if (pulseInner) { pulseInner.style.borderColor = '#f97316'; }
+            if (hdrRing) { hdrRing.style.borderColor = '#f97316'; hdrRing.style.boxShadow = '0 0 8px rgba(249,115,22,0.45),0 2px 8px rgba(0,0,0,0.15)'; }
+            if (hdrDot) { hdrDot.style.background = '#f97316'; hdrDot.style.boxShadow = '0 0 5px rgba(249,115,22,0.8)'; }
           }
         }).catch(function(){
           clearTimeout(timer);
-          var dot = document.getElementById('ragAiDot');
-          var txt = document.getElementById('ragAiStatus');
-          if (dot) dot.style.background = '#d69e2e';
-          if (txt) { txt.textContent = 'Online · Local mode'; }
+          var dot        = document.getElementById('ragAiDot');
+          var txt        = document.getElementById('ragAiStatus');
+          var fabBtn     = document.getElementById('ragAiToggleBtn');
+          var fabDot     = document.getElementById('ragFabOnlineDot');
+          var pulseOuter = document.getElementById('ragPulseOuter');
+          var pulseInner = document.getElementById('ragPulseInner');
+          var hdrRing    = document.getElementById('ragHdrAvatarRing');
+          var hdrDot     = document.getElementById('ragHeaderOnlineDot');
+          if (dot) dot.style.background = '#f97316';
+          if (txt) { txt.textContent = 'Local mode'; }
+          if (fabBtn) fabBtn.style.borderColor = '#f97316';
+          if (fabDot) { fabDot.style.background = '#f97316'; fabDot.style.boxShadow = '0 0 6px rgba(249,115,22,0.7)'; }
+          if (pulseOuter) { pulseOuter.style.borderColor = '#f97316'; }
+          if (pulseInner) { pulseInner.style.borderColor = '#f97316'; }
+          if (hdrRing) { hdrRing.style.borderColor = '#f97316'; hdrRing.style.boxShadow = '0 0 8px rgba(249,115,22,0.45),0 2px 8px rgba(0,0,0,0.15)'; }
+          if (hdrDot) { hdrDot.style.background = '#f97316'; hdrDot.style.boxShadow = '0 0 5px rgba(249,115,22,0.8)'; }
           // Retry once after 60 s — Render may still be waking up
           if (!isRetry) setTimeout(function(){ _checkRagHealth(true); }, 60000);
         });

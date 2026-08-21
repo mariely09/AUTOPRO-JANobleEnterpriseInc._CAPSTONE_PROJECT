@@ -973,16 +973,12 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     final fmtLabel   = format.toUpperCase();
     final monthLabel = month != null ? ' ($month)' : '';
 
-    // If triggered from an inline report-ready button (msgRef != null), replace
-    // that message with a "Generating…" placeholder so the user sees progress.
-    // Otherwise (bottom-sheet flow) append a new placeholder.
-    // We compute the target index BEFORE setState so we can use it in async callbacks.
     final int targetIdx;
     if (msgRef != null) {
       final idx = _messages.indexOf(msgRef);
-      targetIdx = idx >= 0 ? idx : _messages.length; // will append if -1
+      targetIdx = idx >= 0 ? idx : _messages.length;
     } else {
-      targetIdx = _messages.length; // will append
+      targetIdx = _messages.length;
     }
 
     setState(() {
@@ -999,28 +995,47 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     });
     _scrollToBottom();
 
-    try {
-      // Build URL with all available date filters
-      final queryParams = StringBuffer()
-        ..write('?report_type=$reportType')
-        ..write('&format=$format');
-      if (month != null) queryParams.write('&month=${Uri.encodeComponent(month)}');
-      if (startDate != null) {
-        queryParams.write('&start_date=${Uri.encodeComponent(startDate)}');
-      }
-      if (endDate != null) {
-        queryParams.write('&end_date=${Uri.encodeComponent(endDate)}');
-      }
+    // Build query params
+    final queryParams = StringBuffer()
+      ..write('?report_type=$reportType')
+      ..write('&format=$format');
+    if (month != null) queryParams.write('&month=${Uri.encodeComponent(month)}');
+    if (startDate != null) queryParams.write('&start_date=${Uri.encodeComponent(startDate)}');
+    if (endDate != null)   queryParams.write('&end_date=${Uri.encodeComponent(endDate)}');
 
-      final uri = Uri.parse('$_kAiBaseUrl/admin/report$queryParams');
-      final resp = await http
-          .post(uri, headers: {'Content-Type': 'application/json'})
-          .timeout(const Duration(seconds: 120));
+    final uri = Uri.parse('$_kAiBaseUrl/admin/report$queryParams');
+
+    Future<http.Response> _attempt() =>
+        http.post(uri, headers: {'Content-Type': 'application/json'})
+            .timeout(const Duration(seconds: 120));
+
+    void _setError(String text) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        final idx = targetIdx < _messages.length ? targetIdx : _messages.length - 1;
+        _messages[idx] = _ChatMessage(role: 'ai', text: text);
+      });
+      _scrollToBottom();
+    }
+
+    try {
+      http.Response resp;
+      try {
+        resp = await _attempt();
+      } on SocketException {
+        // Backend is cold-starting — warm it up then retry once
+        try {
+          await http.get(Uri.parse('$_kAiBaseUrl/health'))
+              .timeout(const Duration(seconds: 60));
+        } catch (_) {}
+        await Future.delayed(const Duration(seconds: 2));
+        resp = await _attempt();
+      }
 
       if (resp.statusCode == 200) {
-        final ext = format == 'pdf' ? 'pdf' : 'xlsx';
-        final safeName =
-            '$reportType'
+        final ext      = format == 'pdf' ? 'pdf' : 'xlsx';
+        final safeName = '$reportType'
             '${month != null ? '_${month.replaceAll(' ', '_')}' : ''}'
             '_report.$ext';
 
@@ -1028,11 +1043,10 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         final file = File('${dir.path}/$safeName');
         await file.writeAsBytes(resp.bodyBytes);
 
+        if (!mounted) return;
         setState(() {
           _loading = false;
-          final idx = targetIdx >= 0 && targetIdx < _messages.length
-              ? targetIdx
-              : _messages.length - 1;
+          final idx = targetIdx < _messages.length ? targetIdx : _messages.length - 1;
           _messages[idx] = _ChatMessage(
             role: 'ai',
             text: '$typeName$monthLabel downloaded successfully.',
@@ -1044,42 +1058,38 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         _scrollToBottom();
         await OpenFile.open(file.path);
       } else {
-        // Distinguish "no records found" (400) from other errors so we show
-        // a clean informational message without a download button.
         final errMsg      = _parseError(resp.body);
         final isNoRecords = resp.statusCode == 400 &&
             (errMsg.toLowerCase().contains('no record') ||
-             errMsg.toLowerCase().contains('no data') ||
+             errMsg.toLowerCase().contains('no data')   ||
              errMsg.toLowerCase().contains('not found'));
+        final isColdStart = resp.statusCode == 503;
 
-        setState(() {
-          _loading = false;
-          final idx = targetIdx >= 0 && targetIdx < _messages.length
-              ? targetIdx
-              : _messages.length - 1;
-          _messages[idx] = _ChatMessage(
-            role: 'ai',
-            text: isNoRecords
-                ? 'No records found for $typeName$monthLabel. '
-                  'The report cannot be generated because no matching data exists for this period.'
-                : 'Failed to generate $typeName$monthLabel '
-                  '(${resp.statusCode}): $errMsg',
-          );
-        });
-        _scrollToBottom();
-      }
-    } catch (e) {
-      setState(() {
-        _loading = false;
-        final idx = targetIdx >= 0 && targetIdx < _messages.length
-            ? targetIdx
-            : _messages.length - 1;
-        _messages[idx] = _ChatMessage(
-          role: 'ai',
-          text: 'Failed to generate $typeName$monthLabel: $e',
+        _setError(
+          isNoRecords
+              ? 'No records found for $typeName$monthLabel. '
+                'The report cannot be generated because no matching data exists for this period.'
+              : isColdStart
+                  ? 'The AI service is warming up (Render cold start). '
+                    'Please wait 30–60 seconds and try again.'
+                  : 'Failed to generate $typeName$monthLabel '
+                    '(${resp.statusCode}): $errMsg',
         );
-      });
-      _scrollToBottom();
+      }
+    } on SocketException {
+      _setError(
+        'Cannot reach the AI service. '
+        'It may be starting up — please wait 30–60 seconds and try again.',
+      );
+    } catch (e) {
+      final msg = e.toString();
+      final isTimeout = msg.contains('TimeoutException') || msg.contains('timed out');
+      _setError(
+        isTimeout
+            ? 'The AI service took too long to respond. It may still be warming up — '
+              'please try again in a moment.'
+            : 'Failed to generate $typeName$monthLabel: $msg',
+      );
     }
   }
 
@@ -1105,13 +1115,19 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 shape: BoxShape.circle,
                 color: Colors.white,
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  width: 2,
+                  color: _backendOnline
+                      ? const Color(0xFF4ade80)
+                      : const Color(0xFFF97316),
+                  width: 2.5,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
+                    color: (_backendOnline
+                            ? const Color(0xFF4ade80)
+                            : const Color(0xFFF97316))
+                        .withValues(alpha: 0.5),
                     blurRadius: 8,
+                    spreadRadius: 1,
                   ),
                 ],
               ),
@@ -1156,7 +1172,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                                   ? const Color(
                                       0xFF4ade80,
                                     ).withValues(alpha: 0.8)
-                                  : Colors.orange.withValues(alpha: 0.6),
+                                  : const Color(0xFFF97316).withValues(alpha: 0.6),
                               blurRadius: 6,
                             ),
                           ],
@@ -1164,7 +1180,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        _backendOnline ? 'Online' : 'Offline',
+                        _backendOnline ? 'Online' : 'Local',
                         style: TextStyle(
                           fontSize: 10.5,
                           color: Colors.white.withValues(alpha: 0.8),

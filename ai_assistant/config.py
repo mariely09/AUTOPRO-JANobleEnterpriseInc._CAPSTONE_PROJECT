@@ -32,13 +32,12 @@ class Settings:
         return _reload_env_key("GROQ_API_KEY")
 
     # ── Model routing ─────────────────────────────────────────────────────────
-    # PRIMARY (default): Llama 3.1 8B Instant — fast, cheap, handles the
-    # vast majority of requests (DB phrasing, simple Q&A, general knowledge).
-    GROQ_MODEL_PRIMARY: str = os.getenv("GROQ_MODEL_PRIMARY", "llama-3.1-8b-instant")
+    # PRIMARY (default): Qwen3.6 27B — fast, replaces deprecated llama-3.1-8b-instant.
+    GROQ_MODEL_PRIMARY: str = os.getenv("GROQ_MODEL_PRIMARY", "qwen/qwen3.6-27b")
 
-    # SECONDARY: Llama 3.3 70B Versatile — reserved for genuinely complex
-    # reasoning (multi-source analysis, prioritisation, complex recommendations).
-    GROQ_MODEL_SECONDARY: str = os.getenv("GROQ_MODEL_SECONDARY", "llama-3.3-70b-versatile")
+    # SECONDARY: Qwen3 32B — reserved for complex reasoning tasks.
+    # Replaces deprecated llama-3.3-70b-versatile.
+    GROQ_MODEL_SECONDARY: str = os.getenv("GROQ_MODEL_SECONDARY", "qwen/qwen3-32b")
 
     # Legacy alias — kept so any code that still reads GROQ_MODEL still works.
     # Points to PRIMARY so unrouted calls default to the cheaper model.

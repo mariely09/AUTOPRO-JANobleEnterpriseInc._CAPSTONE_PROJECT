@@ -642,13 +642,19 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                 shape: BoxShape.circle,
                 color: Colors.white,
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  width: 2,
+                  color: _backendOnline
+                      ? const Color(0xFF4ade80)
+                      : const Color(0xFFF97316),
+                  width: 2.5,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
+                    color: (_backendOnline
+                            ? const Color(0xFF4ade80)
+                            : const Color(0xFFF97316))
+                        .withValues(alpha: 0.5),
                     blurRadius: 8,
+                    spreadRadius: 1,
                   ),
                 ],
               ),
@@ -686,12 +692,12 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                           shape: BoxShape.circle,
                           color: _backendOnline
                               ? const Color(0xFF4ade80)
-                              : Colors.orange,
+                              : const Color(0xFFF97316),
                           boxShadow: [
                             BoxShadow(
                               color: _backendOnline
                                   ? const Color(0xFF4ade80).withValues(alpha: 0.8)
-                                  : Colors.orange.withValues(alpha: 0.6),
+                                  : const Color(0xFFF97316).withValues(alpha: 0.6),
                               blurRadius: 6,
                             ),
                           ],
@@ -699,7 +705,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        _backendOnline ? 'Online' : 'Offline',
+                        _backendOnline ? 'Online' : 'Local',
                         style: TextStyle(
                           fontSize: 10.5,
                           color: Colors.white.withValues(alpha: 0.8),

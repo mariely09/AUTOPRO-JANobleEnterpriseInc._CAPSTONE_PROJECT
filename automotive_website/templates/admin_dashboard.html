@@ -1824,7 +1824,7 @@
             // Only try numeric conversion on non-description columns
             if (ci !== descColIdx) {
               var n = parseFloat(s.replace(/[?,]/g, ''));
-              if (!isNaN(n) && s.replace(/[?,\s]/g,'') !== '' && !/[a-zA-Z]/.test(s.replace(/?/g,''))) return n;
+              if (!isNaN(n) && s.replace(/[?,\s]/g,'') !== '' && !/[a-zA-Z]/.test(s.replace(/\?/g,''))) return n;
             }
             return s;
           });

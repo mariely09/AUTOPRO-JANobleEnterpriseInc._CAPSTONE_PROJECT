@@ -116,16 +116,20 @@ def _is_invalid_key(exc: Exception) -> bool:
         or "invalid_api_key" in exc_str
         or "revoked" in exc_str
         or "unauthorized" in exc_str
+        or "model_not_found" in exc_str
+        or "does not exist" in exc_str
+        or "no access to it" in exc_str
     )
 
 
 def _invalid_key_reply() -> dict:
-    """Build a structured response for an invalid/revoked API key."""
+    """Build a structured response for an invalid/revoked API key or missing model."""
     return {
         "rate_limited": False,
         "reply": (
-            "⚠️ The AI service is currently unavailable due to a configuration issue.\n\n"
-            "Please contact the system administrator to update the API key."
+            "The AI service is currently unavailable due to a configuration issue "
+            "(invalid API key or unsupported model). "
+            "Please contact the system administrator."
         ),
     }
 
@@ -682,6 +686,16 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                 "The AI service has reached its daily usage limit (Groq free tier). "
                 "Please try again later."
             ) from exc
+        except Exception as exc:
+            _s = str(exc).lower()
+            if ("model_not_found" in _s or "does not exist" in _s
+                    or "404" in _s or "no access to it" in _s):
+                raise _IKE(
+                    f"The AI model '{chosen_model}' is no longer available on Groq. "
+                    "Please update GROQ_MODEL_PRIMARY in the Render environment "
+                    "variables to a currently supported model."
+                ) from exc
+            raise
 
     def _strip_null(raw: str) -> dict:
         if not raw or not raw.strip():

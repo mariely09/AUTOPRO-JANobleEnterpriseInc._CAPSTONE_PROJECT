@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login.dart';
@@ -20,7 +21,13 @@ class CustomerDashboard extends StatefulWidget {
   State<CustomerDashboard> createState() => _CustomerDashboardState();
 }
 
-class _CustomerDashboardState extends State<CustomerDashboard> {
+const _kCustDashAiBaseUrl = String.fromEnvironment(
+  'AI_BACKEND_URL',
+  defaultValue: 'https://caltex-autopro-capstone-project.onrender.com',
+);
+
+class _CustomerDashboardState extends State<CustomerDashboard>
+    with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   static const _red = Color(0xFFE8001C);
   static const _bg = Color(0xFFF7F8FA);
@@ -31,6 +38,10 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
   String _companyName = '';
   IconData _fleetNavIcon = Icons.directions_car_outlined;
   bool _iconComputed = false;
+
+  // ── AI status ──
+  bool _backendOnline = true;
+  late final AnimationController _fabPulseCtrl;
 
   // Cache so photo is available immediately on re-entry (no flicker)
   static String?    _cachedPhotoUrl;
@@ -48,6 +59,11 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
   @override
   void initState() {
     super.initState();
+    _fabPulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+    _checkBackend(silent: true);
     _now = DateTime.now();
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
@@ -141,9 +157,33 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
 
   @override
   void dispose() {
+    _fabPulseCtrl.dispose();
     _userSub?.cancel();
     _clockTimer.cancel();
     super.dispose();
+  }
+
+  Future<void> _checkBackend({bool silent = false}) async {
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        final r = await http
+            .get(Uri.parse('$_kCustDashAiBaseUrl/health'))
+            .timeout(const Duration(seconds: 60));
+        if (r.statusCode == 200) {
+          if (mounted) setState(() => _backendOnline = true);
+          return;
+        }
+      } catch (_) {
+        if (attempt < 3) await Future.delayed(const Duration(seconds: 5));
+      }
+    }
+    if (silent) {
+      Future.delayed(const Duration(seconds: 60), () {
+        if (mounted) _checkBackend(silent: false);
+      });
+    } else {
+      if (mounted) setState(() => _backendOnline = false);
+    }
   }
 
   /// Returns the correct ImageProvider — uses pre-decoded bytes to avoid per-frame decoding.
@@ -160,53 +200,126 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: _buildTopBar(),
-      floatingActionButton: Tooltip(
-        message: 'AI Assistant',
-        child: FloatingActionButton(
-          heroTag: 'customer_dashboard_fab',
-          onPressed: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const CustomerSmartAI())),
-          backgroundColor: Colors.white,
-          shape: const CircleBorder(),
-          elevation: 6,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              ClipOval(
-                child: Image.asset(
-                  'assets/img/AI_LOGO.png',
-                  width: 44,
-                  height: 44,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: _red, width: 2.5),
-                ),
-              ),
-              // Green online dot — bottom-right
-              Positioned(
-                bottom: 3,
-                right: 3,
-                child: Container(
-                  width: 11,
-                  height: 11,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFF22c55e),
-                    border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: [BoxShadow(
-                      color: const Color(0xFF22c55e).withOpacity(0.7),
-                      blurRadius: 5,
-                    )],
+      floatingActionButton: AnimatedBuilder(
+        animation: _fabPulseCtrl,
+        builder: (context, child) {
+          final statusColor = _backendOnline
+              ? const Color(0xFF22c55e)
+              : const Color(0xFFF97316);
+          return SizedBox(
+            width: 90,
+            height: 90,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                // Outer pulse ring
+                Opacity(
+                  opacity: (1.0 - _fabPulseCtrl.value).clamp(0.0, 0.3),
+                  child: Container(
+                    width: 58 + 26 * _fabPulseCtrl.value,
+                    height: 58 + 26 * _fabPulseCtrl.value,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: statusColor.withOpacity(0.25),
+                    ),
                   ),
                 ),
+                // Inner pulse ring
+                Opacity(
+                  opacity: (1.0 - _fabPulseCtrl.value).clamp(0.0, 0.45),
+                  child: Container(
+                    width: 58 + 13 * _fabPulseCtrl.value,
+                    height: 58 + 13 * _fabPulseCtrl.value,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: statusColor.withOpacity(0.2),
+                    ),
+                  ),
+                ),
+                child!,
+              ],
+            ),
+          );
+        },
+        child: GestureDetector(
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const CustomerSmartAI())),
+          child: Material(
+            color: Colors.transparent,
+            elevation: 6,
+            shape: const CircleBorder(),
+            child: Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                border: Border.all(
+                  color: _backendOnline
+                      ? const Color(0xFF22c55e)
+                      : const Color(0xFFF97316),
+                  width: 3,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: (_backendOnline
+                            ? const Color(0xFF22c55e)
+                            : const Color(0xFFF97316))
+                        .withOpacity(0.35),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
-            ],
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // AI logo
+                  ClipOval(
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Image.asset(
+                        'assets/img/AI_LOGO.png',
+                        width: 46,
+                        height: 46,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                  // Status dot — bottom-right
+                  Positioned(
+                    bottom: 3,
+                    right: 3,
+                    child: Container(
+                      width: 13,
+                      height: 13,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _backendOnline
+                            ? const Color(0xFF22c55e)
+                            : const Color(0xFFF97316),
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (_backendOnline
+                                    ? const Color(0xFF22c55e)
+                                    : const Color(0xFFF97316))
+                                .withOpacity(0.8),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
