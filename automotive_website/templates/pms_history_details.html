@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -7,248 +7,55 @@
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
     <link rel="stylesheet" href="../static/css/customer_dashboard.css">
     <style>
-        
-        /* Layout */
         .phd-layout {
             display: grid;
             grid-template-columns: 320px 1fr;
             gap: 24px;
             padding: 24px 32px;
         }
-        
-        /* Left sidebar - vehicle info */
-        .phd-sidebar {
-            position: sticky;
-            top: 24px;
-            align-self: start;
-        }
+        .phd-sidebar { position: sticky; top: 24px; align-self: start; }
         .phd-vehicle-card {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-            border: 1.5px solid #e2e8f0;
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 55%, #E8001C 100%);
+            border-radius: 16px; padding: 20px;
+            box-shadow: 0 4px 16px rgba(232,0,28,0.25); border: none;
         }
-        .phd-vehicle-plate {
-            font-size: 20px;
-            font-weight: 800;
-            color: #1a202c;
-            margin-bottom: 4px;
-        }
-        .phd-vehicle-desc {
-            font-size: 13px;
-            color: #718096;
-            margin-bottom: 16px;
-        }
-        .phd-stats {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+        .phd-vehicle-plate { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+        .phd-vehicle-desc  { font-size: 13px; color: rgba(255,255,255,0.65); margin-bottom: 16px; }
+        .phd-stats { display: flex; flex-direction: column; gap: 10px; }
         .phd-stat-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            display: flex; align-items: center; gap: 12px;
             padding: 12px 14px;
-            background: #f7f8fa;
+            background: rgba(255,255,255,0.1);
             border-radius: 12px;
-            border: 1px solid #f0f4f8;
+            border: 1px solid rgba(255,255,255,0.12);
         }
-        .phd-stat-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        .phd-stat-value {
-            font-size: 16px;
-            font-weight: 700;
-            color: #1a202c;
-        }
-        .phd-stat-label {
-            font-size: 11px;
-            color: #718096;
-        }
-        .phd-back-btn {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 16px;
-            padding: 10px 16px;
-            background: #f7f8fa;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 13px;
-            font-weight: 600;
-            color: #4a5568;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all .15s;
-            width: 100%;
-            justify-content: center;
-        }
-        .phd-back-btn:hover {
-            background: #E8001C;
-            border-color: #E8001C;
-            color: white;
-        }
-        
-        /* Right content - records */
-        .phd-records {
-            min-width: 0;
-        }
-        .phd-records-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-        .phd-records-title {
-            font-size: 16px;
-            font-weight: 700;
-            color: #1a202c;
-        }
-        .phd-records-count {
-            font-size: 12px;
-            color: #718096;
-            background: #f7f8fa;
-            padding: 3px 10px;
-            border-radius: 20px;
-        }
-
-        /* Record card */
+        .phd-stat-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: rgba(255,255,255,0.15); }
+        .phd-stat-value { font-size: 16px; font-weight: 700; color: #fff; }
+        .phd-stat-label { font-size: 11px; color: rgba(255,255,255,0.6); }
+        .phd-records { min-width: 0; }
+        .phd-records-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+        .phd-records-title  { font-size: 16px; font-weight: 700; color: #1a202c; }
         .phd-record-card {
-            background: white;
-            border-radius: 14px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            margin-bottom: 14px;
-            overflow: hidden;
-            border: 1px solid #f0f4f8;
+            background: white; border-radius: 14px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08); margin-bottom: 14px;
+            overflow: hidden; border: 1px solid #f0f4f8;
             transition: box-shadow .15s, transform .15s;
         }
-        .phd-record-card:hover {
-            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-            transform: translateY(-1px);
-        }
-        .phd-record-header {
-            background: #f7f8fa;
-            padding: 12px 14px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid #f0f4f8;
-        }
-        .phd-record-date {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            font-weight: 600;
-            color: #1a202c;
-        }
-        .phd-record-status {
-            background: #f0fdf4;
-            color: #16a34a;
-            font-size: 10px;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 20px;
-        }
-        .phd-record-body {
-            padding: 14px;
-        }
-        .phd-mechanic {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 12px;
-            color: #718096;
-            margin-bottom: 10px;
-        }
-        .phd-section-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            margin-top: 10px;
-        }
-        .phd-section-label:first-child { margin-top: 0; }
-        .phd-line-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            color: #1a202c;
-            margin-bottom: 6px;
-        }
-        .phd-dot {
-            width: 4px;
-            height: 4px;
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
-        .phd-divider {
-            border: none;
-            border-top: 1px solid #e2e8f0;
-            margin: 12px 0;
-        }
-        .phd-total {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .phd-total-label {
-            font-size: 13px;
-            font-weight: 600;
-            color: #4a5568;
-        }
-        .phd-total-value {
-            font-size: 15px;
-            font-weight: 700;
-            color: #1a202c;
-        }
-        
-        /* Empty state */
-        .phd-empty {
-            text-align: center;
-            padding: 60px 20px;
-            color: #718096;
-        }
-        .phd-empty-icon {
-            font-size: 48px;
-            margin-bottom: 12px;
-        }
-        
-        /* Loading */
-        .phd-loading {
-            text-align: center;
-            padding: 40px 20px;
-            color: #718096;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Mobile responsive */
+        .phd-record-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.12); transform: translateY(-1px); }
+        .phd-empty { text-align: center; padding: 60px 20px; color: #718096; }
+        .phd-loading { text-align: center; padding: 40px 20px; color: #718096; display: flex; align-items: center; justify-content: center; }
         @media (max-width: 768px) {
-            .phd-layout {
-                grid-template-columns: 1fr;
-                padding: 16px;
-                gap: 16px;
-            }
-            .phd-sidebar {
-                position: static;
-            }
+            .phd-layout { grid-template-columns: 1fr; padding: 16px; gap: 16px; }
+            .phd-sidebar { position: static; }
         }
     </style>
 </head>
 <body data-page="pms-details">
 
+<!-- Sidebar (loaded dynamically) -->
+<div id="customerSidebar"></div>
+
+<div class="cu-page-shell">
 <!-- Header (loaded dynamically) -->
 <div id="customerHeader"></div>
 
@@ -276,10 +83,9 @@
   const db = firebase.firestore();
   const params = new URLSearchParams(window.location.search);
   const plate = params.get('plate');
-  const desc = params.get('desc');
-  const type = params.get('type') || '';
+  const desc  = params.get('desc');
+  const type  = params.get('type') || '';
 
-  // ââ€€ââ€€ Vehicle icon SVG based on type ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
   function vehicleIconSvg(vehicleType, size) {
     const t = (vehicleType || '').toLowerCase();
     const s = size || 24;
@@ -291,13 +97,12 @@
 
   async function init() {
     if (!plate) {
-      document.getElementById('phdMain').innerHTML =
-        '<div class="phd-empty"><div class="phd-empty-icon">⚠ï¸Â</div><div>No vehicle selected.</div></div>';
+      document.getElementById('phdMain').innerHTML = '<div class="phd-empty"><div style="font-size:48px;margin-bottom:12px;">&#128269;</div><div>No vehicle selected.</div></div>';
       return;
     }
 
     try {
-      // Load maintenance records for this plate
+      // Load completed maintenance records for this plate
       const snap = await db.collection('maintenance')
         .where('plate', '==', plate)
         .where('status', '==', 'Completed')
@@ -307,10 +112,11 @@
         .map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
-      // Compute summary
+      // Compute total cost
       const totalCost = records.reduce((sum, r) => {
         const raw = r.cost || r.totalCost || '0';
-        const num = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/[₱,]/g, '')) || 0;
+        const num = typeof raw === 'number' ? raw
+          : parseFloat(String(raw).replace(/[^0-9.]/g, '')) || 0;
         return sum + num;
       }, 0);
 
@@ -321,20 +127,22 @@
         const vData = vSnap.docs[0].data();
         const odo = vData.lastSvcOdo || vData.lastServiceOdometer || '';
         if (odo) lastSvcOdo = String(odo).replace(/[^0-9]/g, '');
-      }      // ââ€€ââ€€ LEFT SIDEBAR ââ€€ââ€€
+      }
+
+      // â”€â”€ LEFT SIDEBAR â”€â”€
       const sidebarHtml = `
         <div class="phd-sidebar">
-          <a href="customer_pms_history.html" style="display:inline-flex;align-items:center;gap:0.4rem;font-size:0.82rem;font-weight:700;color:#718096;text-decoration:none;margin-bottom:1.25rem;transition:color .2s;" onmouseover="this.style.color='#E8001C'" onmouseout="this.style.color='#718096'">
+          <a href="customer_pms_history.html" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#718096;text-decoration:none;margin-bottom:16px;transition:color .2s;" onmouseover="this.style.color='#E8001C'" onmouseout="this.style.color='#718096'">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Back to PMS History
           </a>
           <div class="phd-vehicle-card">
             <div class="phd-vehicle-plate">${plate}</div>
-            <div class="phd-vehicle-desc">${desc || 'â€â€'}</div>
+            <div class="phd-vehicle-desc">${desc || '&#8212;'}</div>
             <div class="phd-stats">
               <div class="phd-stat-item">
                 <div class="phd-stat-icon" style="background:rgba(0,48,135,0.08);">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#003087" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 </div>
                 <div>
                   <div class="phd-stat-value">${records.length}</div>
@@ -343,51 +151,46 @@
               </div>
               <div class="phd-stat-item">
                 <div class="phd-stat-icon" style="background:rgba(232,0,28,0.08);">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 </div>
                 <div>
-                  <div class="phd-stat-value">₱${totalCost.toLocaleString('en-PH', {minimumFractionDigits:2})}</div>
+                  <div class="phd-stat-value">&#x20B1;${totalCost.toLocaleString('en-PH', {minimumFractionDigits:2})}</div>
                   <div class="phd-stat-label">Total Spent</div>
                 </div>
               </div>
               ${lastSvcOdo ? `
               <div class="phd-stat-item">
                 <div class="phd-stat-icon" style="background:rgba(13,148,136,0.08);">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 </div>
                 <div>
                   <div class="phd-stat-value">${parseInt(lastSvcOdo).toLocaleString()} km</div>
                   <div class="phd-stat-label">Last Service Odometer</div>
                 </div>
-              </div>
-              ` : ''}
+              </div>` : ''}
             </div>
           </div>
         </div>
       `;
 
-      // ââ€€ââ€€ RIGHT CONTENT â€â€ Records ââ€€ââ€€
+      // â”€â”€ RIGHT CONTENT â€” Records â”€â”€
       let recordsHtml = '';
       if (!records.length) {
-        recordsHtml = '<div class="phd-empty"><div class="phd-empty-icon">📋</div><div>No completed services yet.</div></div>';
+        recordsHtml = '<div class="phd-empty"><div style="font-size:48px;margin-bottom:12px;">&#128269;</div><div>No completed services yet.</div></div>';
       } else {
-        recordsHtml = `
-          <div class="phd-records-header">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
-            <span class="phd-records-title">Service Records</span>
-          </div>
-        ` + records.map((r, idx) => {
-          const costDisplay = r.cost || 'â€â€';
+        recordsHtml = `` + records.map((r, idx) => {
+          const costRaw = r.cost || r.totalCost || '';
+          const costDisplay = costRaw ? costRaw : '&#8212;';
           return `
             <div class="phd-record-card" style="cursor:pointer;" onclick="phdOpenModal(${idx})">
               <div style="padding:14px;display:flex;align-items:center;gap:12px;">
                 <div style="flex:1;min-width:0;">
-                  <div style="font-weight:700;font-size:13px;color:#1a202c;">${r.date || 'â€â€'}</div>
-                  <div style="font-size:11px;color:#718096;margin-top:2px;">${r.mechanic || 'â€â€'}</div>
+                  <div style="font-weight:700;font-size:13px;color:#1a202c;">${r.date || '&#8212;'}</div>
+                  <div style="font-size:11px;color:#718096;margin-top:2px;">${r.mechanic || '&#8212;'}</div>
                   ${r.odometer ? `<div style="font-size:10px;color:#718096;margin-top:1px;">${r.odometer} km</div>` : ''}
                 </div>
                 <div style="text-align:right;flex-shrink:0;">
-                  <div style="font-weight:700;font-size:14px;color:#E8001C;">${costDisplay}</div>
+                  <div style="font-weight:700;font-size:14px;color:#1a202c;">${costDisplay}</div>
                   <span style="background:rgba(22,163,106,0.1);color:#16a34a;font-size:9px;font-weight:600;padding:2px 8px;border-radius:20px;">Completed</span>
                 </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
@@ -397,39 +200,42 @@
       }
 
       document.getElementById('phdMain').innerHTML = sidebarHtml + `<div class="phd-records">${recordsHtml}</div>`;
-
-      // Store records for modal access
       window._phdRecords = records;
 
     } catch (err) {
       console.error('Error loading PMS history:', err);
       document.getElementById('phdMain').innerHTML =
-        `<div class="phd-empty"><div class="phd-empty-icon">⚠ï¸Â</div><div>Error loading data: ${err.message}</div></div>`;
+        `<div class="phd-empty"><div style="font-size:48px;margin-bottom:12px;">&#9888;</div><div>Error loading data: ${err.message}</div></div>`;
     }
   }
 
-  // Wait for Firebase Auth before loading data
   firebase.auth().onAuthStateChanged((user) => {
-    if (user) {
-      init();
-    } else {
-      window.location.href = 'login.html';
-    }
+    if (user) init();
+    else window.location.href = 'login.html';
   });
 </script>
 <script src="../static/js/customer_shared.js"></script>
 <script>
-  fetch('customer_header.html').then(r => r.text()).then(html => {
-    document.getElementById('customerHeader').innerHTML = html;
+  (function() {
     var sess = JSON.parse(sessionStorage.getItem('cpUser') || '{}');
-    if (sess.name) {
-      var parts = sess.name.trim().split(' ').filter(Boolean);
-      var ini = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : (parts[0]?parts[0][0].toUpperCase():'CU');
-      var av = document.getElementById('cuAvatar'); if(av) av.textContent = ini;
-      var hn = document.getElementById('cuHeaderName'); if(hn) hn.textContent = sess.name;
-      var mn = document.getElementById('cuAvatarName'); if(mn) mn.textContent = sess.name;
-    }
-  });
+    var name = sess.name || '';
+    var parts = name.trim().split(' ').filter(Boolean);
+    var ini = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : (parts[0]?parts[0][0].toUpperCase():'CU');
+    fetch('customer_sidebar.html').then(r => r.text()).then(html => {
+      document.getElementById('customerSidebar').innerHTML = html;
+      if (typeof setGreeting === 'function') setGreeting();
+      if (typeof setActiveTab === 'function') setActiveTab();
+      if (name) {
+        var av = document.getElementById('cuAvatar'); if(av) av.textContent = ini;
+        var hn = document.getElementById('cuHeaderName'); if(hn) hn.textContent = name;
+        var ge = document.getElementById('cuGreetLine'); if(ge && !ge.textContent) ge.textContent = sess.email || '';
+        var mn = document.getElementById('cuAvatarName'); if(mn) mn.textContent = name;
+      }
+    });
+    fetch('customer_header.html').then(r => r.text()).then(html => {
+      document.getElementById('customerHeader').innerHTML = html;
+    });
+  })();
 </script>
 
 <!-- View Modal -->
@@ -437,8 +243,8 @@
   <div style="background:white;border-radius:20px;width:100%;max-width:560px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
     <div style="background:#E8001C;padding:20px;display:flex;align-items:center;gap:14px;flex-shrink:0;">
       <div style="flex:1;min-width:0;">
-        <div id="phdModalDate" style="font-size:16px;font-weight:800;color:white;">â€â€</div>
-        <div id="phdModalMechanic" style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:2px;">â€â€</div>
+        <div id="phdModalDate" style="font-size:16px;font-weight:800;color:white;">&#8212;</div>
+        <div id="phdModalMechanic" style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:2px;">&#8212;</div>
       </div>
       <button onclick="phdCloseModal()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">&times;</button>
     </div>
@@ -453,56 +259,60 @@
     const r = window._phdRecords[idx];
     if (!r) return;
 
-    document.getElementById('phdModalDate').textContent = r.date || 'â€â€';
-    document.getElementById('phdModalMechanic').textContent = r.mechanic || 'â€â€';
+    document.getElementById('phdModalDate').textContent     = r.date     || '&#8212;';
+    document.getElementById('phdModalMechanic').textContent = r.mechanic || '&#8212;';
 
     const svcRows = (r.svcRows || []).filter(s => s.name);
     const matRows = (r.matRows || []).filter(m => m.name);
-    const issues  = (r.issues  || []).filter(i => i && i.toString().trim());
+    const issues  = (r.issues  || []).filter(i => i && String(i).trim());
 
+    function parseCost(val) {
+      if (typeof val === 'number') return val;
+      return parseFloat(String(val || '0').replace(/[^0-9.]/g, '')) || 0;
+    }
     function rowSub(row) {
-      return (parseFloat((row.cost || '0').replace(/[₱,]/g, '')) || 0) * (parseFloat(row.qty) || 1);
+      return parseCost(row.cost) * (parseFloat(row.qty) || 1);
     }
-
     function detailRow(label, value) {
-      return `<div style="display:flex;padding:6px 0;"><span style="width:130px;font-size:12px;color:#718096;font-weight:500;">${label}</span><span style="font-size:13px;font-weight:600;color:#1a202c;">${value || 'â€â€'}</span></div>`;
+      return `<div style="display:flex;padding:6px 0;"><span style="width:130px;font-size:12px;color:#718096;font-weight:500;">${label}</span><span style="font-size:13px;font-weight:600;color:#1a202c;">${value || '&#8212;'}</span></div>`;
     }
-
     function itemCard(item, color) {
       const sub = rowSub(item);
-      return `<div style="margin-bottom:8px;padding:10px;background:${color}08;border-radius:10px;border:1px solid ${color}20;display:flex;align-items:center;">
-        <div style="flex:1;"><div style="font-weight:600;font-size:12px;">${item.name}</div><div style="font-size:10px;color:#718096;">${item.qty} ${item.uom}  •  ₱${parseFloat((item.cost||'0').replace(/[₱,]/g,'')).toFixed(2)} / unit</div></div>
-        <span style="font-weight:700;font-size:12px;color:${color};">₱${sub.toLocaleString('en-PH',{minimumFractionDigits:2})}</span>
+      const unitCost = parseCost(item.cost).toFixed(2);
+      return `<div style="margin-bottom:8px;padding:10px;background:${color}18;border-radius:10px;border:1px solid ${color}30;display:flex;align-items:center;">
+        <div style="flex:1;"><div style="font-weight:600;font-size:12px;">${item.name}${item.uom ? ' <span style="font-weight:400;color:#718096;">('+item.uom+')</span>' : ''}</div>
+        <div style="font-size:10px;color:#718096;">${item.qty} &middot; &#x20B1;${unitCost} / unit</div></div>
+        <span style="font-weight:700;font-size:12px;color:${color};">&#x20B1;${sub.toLocaleString('en-PH',{minimumFractionDigits:2})}</span>
       </div>`;
     }
 
     let html = '';
-    html += detailRow('Service Date', r.date || 'â€â€');
-    html += detailRow('Mechanic', r.mechanic || 'â€â€');
-    html += detailRow('Odometer', r.odometer ? r.odometer + ' km' : 'â€â€');
-    html += detailRow('Total Cost', r.cost || 'â€â€');
+    html += detailRow('Service Date', r.date);
+    html += detailRow('Mechanic', r.mechanic);
+    html += detailRow('Odometer', r.odometer ? r.odometer + ' km' : '');
+    html += detailRow('Total Cost', r.cost || r.totalCost);
     html += `<div style="display:flex;padding:6px 0;"><span style="width:130px;font-size:12px;color:#718096;font-weight:500;">Status</span><span style="background:rgba(22,163,106,0.1);color:#16a34a;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;">Completed</span></div>`;
 
     if (issues.length) {
-      html += `<div style="margin-top:16px;font-size:12px;font-weight:700;color:#4a5568;">Vehicle Issues Reported</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">`;
+      html += `<div style="margin-top:16px;font-size:12px;font-weight:700;color:#4a5568;">Vehicle Issues Reported</div>`;
+      html += `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">`;
       html += issues.map(i => `<span style="background:#fff5f5;border:1.5px solid #fed7d7;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#E8001C;">${i}</span>`).join('');
       html += `</div>`;
     }
-
     if (svcRows.length) {
-      html += `<div style="margin-top:16px;font-size:12px;font-weight:700;color:#2b6cb0;">Services Rendered</div><div style="margin-top:8px;">`;
-      html += svcRows.map(s => itemCard(s, '#2b6cb0')).join('');
-      html += `</div>`;
+      html += `<div style="margin-top:16px;font-size:12px;font-weight:700;color:#2b6cb0;">Services Rendered</div>`;
+      html += `<div style="margin-top:8px;">${svcRows.map(s => itemCard(s, '#2b6cb0')).join('')}</div>`;
     }
-
     if (matRows.length) {
-      html += `<div style="margin-top:16px;font-size:12px;font-weight:700;color:#0d9488;">Materials Used</div><div style="margin-top:8px;">`;
-      html += matRows.map(m => itemCard(m, '#0d9488')).join('');
-      html += `</div>`;
+      html += `<div style="margin-top:16px;font-size:12px;font-weight:700;color:#0d9488;">Materials Used</div>`;
+      html += `<div style="margin-top:8px;">${matRows.map(m => itemCard(m, '#0d9488')).join('')}</div>`;
     }
 
     html += `<hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">`;
-    html += `<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:600;font-size:13px;color:#4a5568;">Total</span><span style="font-weight:700;font-size:16px;color:#1a202c;">${r.cost || 'â€â€'}</span></div>`;
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-weight:600;font-size:13px;color:#4a5568;">Total</span>
+      <span style="font-weight:700;font-size:16px;color:#1a202c;">${r.cost || r.totalCost || '&#8212;'}</span>
+    </div>`;
 
     document.getElementById('phdModalBody').innerHTML = html;
     document.getElementById('phdModal').style.display = 'flex';
@@ -516,5 +326,9 @@
     if (e.key === 'Escape') phdCloseModal();
   });
 </script>
+</div><!-- /.cu-page-shell -->
 </body>
 </html>
+
+
+

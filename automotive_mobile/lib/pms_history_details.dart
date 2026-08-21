@@ -53,89 +53,83 @@ class PmsHistoryDetails extends StatelessWidget {
             slivers: [
               // ── App Bar ──
               SliverAppBar(
-                expandedHeight: 200,
+                expandedHeight: 240,
                 pinned: true,
-                backgroundColor: _red,
+                backgroundColor: const Color(0xFF1a202c),
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                   onPressed: () => Navigator.pop(context),
                 ),
-                // Only show plate in the toolbar when collapsed
                 title: _CollapsedTitle(plate: plate),
                 flexibleSpace: FlexibleSpaceBar(
-                  // No title here — avoids the overlap
-                  background: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: SafeArea(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(height: 44),
-                          Text(plate,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1)),
-                          const SizedBox(height: 4),
-                          Text(desc,
-                              style: const TextStyle(
-                                  color: Colors.white70, fontSize: 13)),
-                        ],
-                      ),
-                    ),
+                  background: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('vehicles')
+                        .where('plate', isEqualTo: plate)
+                        .limit(1)
+                        .snapshots(),
+                    builder: (context, vSnap) {
+                      final vData = vSnap.data?.docs.isNotEmpty == true
+                          ? vSnap.data!.docs.first.data() as Map<String, dynamic>
+                          : <String, dynamic>{};
+                      final lastSvcOdo = vData['lastSvcOdo']?.toString().replaceAll(RegExp(r'[^0-9]'), '') ?? '';
+                      final showOdo = lastSvcOdo.isNotEmpty && lastSvcOdo != '0';
+                      return Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
+                            stops: [0.0, 0.55, 1.0],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: SafeArea(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(height: 44),
+                              Text(plate,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1)),
+                              const SizedBox(height: 4),
+                              Text(desc,
+                                  style: const TextStyle(
+                                      color: Colors.white70, fontSize: 13)),
+                              const SizedBox(height: 16),
+                              // ── Stats row inside the header ──
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Row(children: [
+                                  Expanded(child: _headerStat(
+                                    Icons.receipt_long_outlined,
+                                    '${docs.length}',
+                                    'Service${docs.length != 1 ? 's' : ''}',
+                                  )),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: _headerStat(
+                                    Icons.payments_outlined,
+                                    '₱${totalCost.toStringAsFixed(2)}',
+                                    'Total Spent',
+                                  )),
+                                  if (showOdo) ...[
+                                    const SizedBox(width: 8),
+                                    Expanded(child: _headerStat(
+                                      Icons.speed_outlined,
+                                      '${int.tryParse(lastSvcOdo) ?? lastSvcOdo} km',
+                                      'Last Svc Odo',
+                                    )),
+                                  ],
+                                ]),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                ),
-              ),
-
-              // ── Summary strip ──
-              SliverToBoxAdapter(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('vehicles')
-                      .where('plate', isEqualTo: plate)
-                      .limit(1)
-                      .snapshots(),
-                  builder: (context, vSnap) {
-                    final vData = vSnap.data?.docs.isNotEmpty == true
-                        ? vSnap.data!.docs.first.data() as Map<String, dynamic>
-                        : <String, dynamic>{};
-                    final lastSvcOdo = vData['lastSvcOdo']?.toString().replaceAll(RegExp(r'[^0-9]'), '') ?? '';
-                    return Container(
-                      color: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      child: Row(children: [
-                        Expanded(child: _summaryChip(
-                          Icons.receipt_long_outlined,
-                          '${docs.length}',
-                          'Service${docs.length != 1 ? 's' : ''}',
-                          const Color(0xFF003087),
-                        )),
-                        const SizedBox(width: 8),
-                        Expanded(child: _summaryChip(
-                          Icons.payments_outlined,
-                          '₱${totalCost.toStringAsFixed(2)}',
-                          'Total Spent',
-                          _red,
-                        )),
-                        if (lastSvcOdo.isNotEmpty) ...[
-                          const SizedBox(width: 8),
-                          Expanded(child: _summaryChip(
-                            Icons.speed_outlined,
-                            '${int.tryParse(lastSvcOdo) ?? lastSvcOdo} km',
-                            'Last Svc Odo',
-                            const Color(0xFF0d9488),
-                          )),
-                        ],
-                      ]),
-                    );
-                  },
                 ),
               ),
 
@@ -186,38 +180,38 @@ class PmsHistoryDetails extends StatelessWidget {
     );
   }
 
-  Widget _summaryChip(
-      IconData icon, String value, String label, Color color) {
+  // Header stat — white translucent, matches website phd-stat-item style
+  Widget _headerStat(IconData icon, String value, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.06),
+        color: Colors.white.withOpacity(0.10),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.15)),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
       ),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(
           width: 28, height: 28,
           decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: Colors.white.withOpacity(0.15),
               borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, color: color, size: 14),
+          child: Icon(icon, color: Colors.white.withOpacity(0.85), size: 14),
         ),
         const SizedBox(height: 6),
         FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(value,
               maxLines: 1,
-              style: TextStyle(
+              style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
-                  color: color)),
+                  color: Colors.white)),
         ),
         Text(label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-                fontSize: 9, color: Color(0xFF718096))),
+            style: TextStyle(
+                fontSize: 9, color: Colors.white.withOpacity(0.65))),
       ]),
     );
   }
@@ -236,6 +230,9 @@ class _ServiceRecordCard extends StatelessWidget {
     final mechanic = data['mechanic'] as String? ?? '—';
     final date = data['date'] as String? ?? '—';
     final odometer = data['odometer'];
+    final odoStr = odometer != null && odometer.toString().replaceAll(RegExp(r'[^0-9]'), '') != '0' && odometer.toString().isNotEmpty
+        ? '${odometer} km'
+        : null;
 
     return GestureDetector(
       onTap: () => _showDetails(context),
@@ -244,14 +241,14 @@ class _ServiceRecordCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: Offset(0, 4))],
         ),
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(date, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1a202c))),
             Text(mechanic, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-            if (odometer != null)
-              Text('$odometer km', style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+            if (odoStr != null)
+              Text(odoStr, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(cost, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1a202c))),
@@ -314,7 +311,13 @@ class _ServiceRecordCard extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 _detailRow('Service Date', data['date'] as String? ?? '—'),
                 _detailRow('Mechanic', data['mechanic'] as String? ?? '—'),
-                _detailRow('Odometer', data['odometer'] != null ? '${data['odometer']} km' : '—'),
+                _detailRow('Odometer', () {
+                  final odo = data['odometer'];
+                  if (odo == null) return '—';
+                  final digits = odo.toString().replaceAll(RegExp(r'[^0-9]'), '');
+                  if (digits.isEmpty || digits == '0') return '—';
+                  return '$odo km';
+                }()),
                 _detailRow('Total Cost', data['cost'] as String? ?? '—'),
                 Row(children: [
                   const SizedBox(width: 110, child: Text('Status', style: TextStyle(fontSize: 12, color: Color(0xFF718096), fontWeight: FontWeight.w500))),
@@ -360,7 +363,7 @@ class _ServiceRecordCard extends StatelessWidget {
                 const Divider(),
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   const Text('Total', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF4a5568))),
-                  Text(data['cost'] as String? ?? '—', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _red)),
+                  Text(data['cost'] as String? ?? '—', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1a202c))),
                 ]),
               ]),
             ),
@@ -394,8 +397,20 @@ class _ServiceRecordCard extends StatelessWidget {
       ),
       child: Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(item['name'] as String? ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-          Text('${item['qty']} ${item['uom']}  •  ₱${unitCost.toStringAsFixed(2)} / unit', style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Color(0xFF1a202c)),
+              children: [
+                TextSpan(text: item['name'] as String? ?? ''),
+                if ((item['uom'] as String? ?? '').isNotEmpty)
+                  TextSpan(
+                    text: ' (${item['uom']})',
+                    style: const TextStyle(fontWeight: FontWeight.w400, color: Color(0xFF718096)),
+                  ),
+              ],
+            ),
+          ),
+          Text('${item['qty']}  •  ₱${unitCost.toStringAsFixed(2)} / unit', style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
         ])),
         Text('₱${subtotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: color)),
       ]),

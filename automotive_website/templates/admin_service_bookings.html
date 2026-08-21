@@ -433,20 +433,30 @@
 
   window.startServiceFromBooking = function(bookingId, plate, servicesEncoded, preferredDate, customerName) {
     if (!confirm('Are you sure you want to start the service for "' + plate + '"?')) return;
-    db.collection('service_bookings').doc(bookingId).update({ status: 'In Progress' })
-      .then(function() {
+    var bookingRef = db.collection('service_bookings').doc(bookingId);
+    bookingRef.get().then(function(doc) {
+      var customerId = doc.exists ? (doc.data().customerId || '') : '';
+      return bookingRef.update({ status: 'Under Maintenance' }).then(function() {
+        // Notify customer — in-app
+        if (customerId) {
+          db.collection('notifications').add({
+            title: '🔧 Vehicle Under Maintenance',
+            message: 'Your vehicle ' + plate + ' is now under maintenance. We will notify you once it is completed.',
+            type: 'info',
+            targetRole: '', targetUid: customerId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
+          });
+          // Email notification
+          if (typeof sendAlertEmail === 'function') {
+            sendAlertEmail({ title: '🔧 Vehicle Under Maintenance', message: 'Your vehicle ' + plate + ' is now under maintenance.', type: 'info', targetUid: customerId });
+          }
+        }
         var services = [];
         try { services = JSON.parse(decodeURIComponent(servicesEncoded)); } catch(e) {}
-        var params = {
-          bookingId: bookingId,
-          plate: plate,
-          services: services,
-          date: preferredDate,
-          customer: customerName
-        };
+        var params = { bookingId: bookingId, plate: plate, services: services, date: preferredDate, customer: customerName };
         window.location.href = 'admin_vehicle_maintenance.html#startService=' + encodeURIComponent(JSON.stringify(params));
-      })
-      .catch(function(err) { showToast('Error: ' + err.message, 'error'); });
+      });
+    }).catch(function(err) { showToast('Error: ' + err.message, 'error'); });
   };
 
   window.rescheduleBooking = function(docId, plate, currentDate, customerId, customerName) {

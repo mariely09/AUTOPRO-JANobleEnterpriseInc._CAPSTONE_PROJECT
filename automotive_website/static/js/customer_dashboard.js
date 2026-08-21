@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   'use strict';
 
   // ── Auth guard ──────────────────────────────────────────
@@ -89,7 +89,12 @@
     const initials = _userName.split(' ').filter(Boolean).map(p => p[0]).join('').toUpperCase().slice(0, 2) || 'CU';
     document.getElementById('cuAvatar').textContent = initials;
     const headerNameEl = document.getElementById('cuHeaderName');
-    if (headerNameEl) headerNameEl.textContent = _userName || 'Customer';
+    // Show first name only — matches mobile _buildTopBar first-name logic
+    const firstName = (_userName || 'Customer').trim().split(/\s+/)[0];
+    if (headerNameEl) headerNameEl.textContent = firstName;
+    // Set first name in banner greeting
+    const bannerNameEl = document.getElementById('cuBannerName');
+    if (bannerNameEl) bannerNameEl.textContent = firstName + '!';
     loadVehicles();
   }
 
@@ -108,6 +113,8 @@
 
       updateStats();
       renderVehicles();
+      // Load recent services once after vehicles are known
+      loadRecentServices();
     });
   }
 
@@ -175,64 +182,75 @@
 
   function updateStats() {
     const statuses = _vehicles.map(v => computeStatus(v));
-    document.getElementById('cuTotalVehicles').textContent = _vehicles.length;
-    document.getElementById('cuTotalVehiclesIcon').innerHTML = fleetIconSvg(_vehicles, 20);
-    document.getElementById('cuActive').textContent       = statuses.filter(s => s === 'On Track' || s === 'Scheduled').length;
-    document.getElementById('cuMaintenance').textContent  = statuses.filter(s => s === 'Under Maintenance').length;
-    document.getElementById('cuOverdue').textContent      = statuses.filter(s => s === 'Overdue').length;
-    document.getElementById('cuDueThisWeek').textContent  = statuses.filter(s => s === 'Due This Week').length;
-    document.getElementById('cuDueSoon').textContent      = statuses.filter(s => s === 'Due Today').length;
+    const overdue     = statuses.filter(s => s === 'Overdue').length;
+    const dueToday    = statuses.filter(s => s === 'Due Today').length;
+    const dueThisWeek = statuses.filter(s => s === 'Due This Week').length;
+    const maintenance = statuses.filter(s => s === 'Under Maintenance').length;
+
+    document.getElementById('cuTotalVehicles').textContent  = _vehicles.length;
+    document.getElementById('cuActive').textContent         = statuses.filter(s => s === 'On Track' || s === 'Scheduled').length;
+    document.getElementById('cuMaintenance').textContent    = maintenance;
+    document.getElementById('cuOverdue').textContent        = overdue;
+    document.getElementById('cuDueThisWeek').textContent    = dueThisWeek;
+    document.getElementById('cuDueSoon').textContent        = dueToday;
+
   }
 
   function statusStyle(status) {
     switch (status) {
-      case 'Overdue':           return { color: '#E8001C',  bg: 'rgba(232,0,28,0.08)',   label: 'Overdue' };
-      case 'Due Today':         return { color: '#0033A0',  bg: 'rgba(0,51,160,0.08)',    label: 'Due Today' };
-      case 'Due This Week':     return { color: '#dd6b20',  bg: 'rgba(221,107,32,0.08)', label: 'Due This Week' };
-      case 'Due Soon':          return { color: '#d97706',  bg: 'rgba(217,119,6,0.08)',  label: 'Due Soon' };
-      case 'Under Maintenance': return { color: '#ea580c',  bg: 'rgba(234,88,12,0.08)',  label: 'Under Maintenance' };
-      default:                  return { color: '#16a34a',  bg: 'rgba(22,163,74,0.08)',  label: 'Active' }; // On Track + Scheduled
+      case 'Overdue':           return { color: '#E8001C',  bg: '#FFF5F5',  label: 'Overdue' };
+      case 'Due Today':         return { color: '#0033A0',  bg: '#EEF2FF',  label: 'Due Today' };
+      case 'Due This Week':     return { color: '#dd6b20',  bg: '#FFFBEB',  label: 'Due This Week' };
+      case 'Due Soon':          return { color: '#d97706',  bg: '#FFF8E1',  label: 'Due Soon' };
+      case 'Under Maintenance': return { color: '#ea580c',  bg: '#FFF8E1',  label: 'Under Maintenance' };
+      default:                  return { color: '#16a34a',  bg: '#F0FFF4',  label: 'Active' };
     }
   }
 
   function renderVehicles() {
     const el = document.getElementById('cuVehiclesList');
+
+    // Update vehicle count in header
+    const countEl = document.getElementById('cuVehiclesCount');
+    if (countEl) countEl.textContent = _vehicles.length + ' vehicle' + (_vehicles.length !== 1 ? 's' : '');
+
     if (!_vehicles.length) {
       el.innerHTML = '<div class="cu-empty">No vehicles registered under your name.</div>';
       return;
     }
 
-    el.innerHTML = `<div class="cu-vehicles-grid">${_vehicles.map(v => {
-      const status = computeStatus(v);
-      const { color, bg, label } = statusStyle(status);
+    // ── SVGs for car / truck ──────────────────────────────────────────
+    function vehicleSvg(isTruck, color) {
+      const path = isTruck
+        ? '<rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>'
+        : '<path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1l2-4h10l2 4h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/>';
+      return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+    }
 
-      return `
-        <div class="cu-vehicle-card" onclick="cuShowVehicle('${v.id}')">
-          <div class="cu-vehicle-card-header">
-            <div style="flex:1;min-width:0;">
-              <div class="cu-vehicle-plate">${v.plate || '—'}</div>
-              <div class="cu-vehicle-desc">${v.desc || '—'}</div>
-            </div>
-            <span class="cu-vehicle-status-badge" style="background:${bg};color:${color};">${label}</span>
-          </div>
-          <div class="cu-vehicle-card-body">
-            <div class="cu-vehicle-meta-row">
-              <div class="cu-vehicle-meta-item">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 5v5l3 3"/></svg>
-                <span>${v.odo ? String(v.odo).replace(/\s*km$/i, '') + ' km' : '—'}</span>
-              </div>
-              <div class="cu-vehicle-meta-item">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <span>${v.lastSvcDate ? fmtDateLong(v.lastSvcDate) : '—'}</span>
-              </div>
-            </div>
-          </div>
-          <div class="cu-vehicle-card-footer">
-            <span>View details</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-        </div>`;
-    }).join('')}</div>`;
+    // ── Build the compact vehicle rows ───────────────────────────────
+    const rowsHtml = _vehicles.map(v => {
+      const status   = computeStatus(v);
+      const { color, bg, label } = statusStyle(status);
+      const isTruck  = (v.type || '').toLowerCase().includes('truck');
+      const iconBg   = '#1a35601A'; // always dark tint for icon bg
+
+      return `<div class="cu-vov-row" onclick="cuShowVehicle('${v.id}')">
+        <div class="cu-vov-icon" style="background:${iconBg};">
+          ${vehicleSvg(isTruck, '#1a3560')}
+        </div>
+        <div class="cu-vov-info">
+          <div class="cu-vov-plate">${v.plate || '—'}</div>
+          <div class="cu-vov-desc">${v.desc || '—'}</div>
+        </div>
+        <span class="cu-vov-badge" style="background:${color}1A;color:${color};">${label}</span>
+        <button class="cu-vov-view-btn" onclick="event.stopPropagation();cuShowVehicle('${v.id}')">View</button>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="cu-vov-body">
+        <div class="cu-vov-list">${rowsHtml}</div>
+      </div>`;
   }
 
   // ── Vehicle modal ─────────────────────────────────────────
@@ -366,10 +384,10 @@
     }
 
     document.getElementById('cuModalDetails').innerHTML = `
-      ${detailRow('#718096', 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 5v5l3 3', 'Last Service Odometer', v.lastSvcOdo ? Number(String(v.lastSvcOdo).replace(/[^0-9]/g, '')).toLocaleString() + ' km' : '—')}
-      ${detailRow('#2b6cb0', 'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18', 'Last Service', v.lastSvcDate ? fmtDateLong(v.lastSvcDate) : '—')}
-      ${detailRow(color, 'M8 6l4-4 4 4M8 18l4 4 4-4M4 12h16', 'Next PMS Due', fmtDateLong(nextPms))}
-      ${detailRow(color, 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', 'Status', `<span style="background:${bg};color:${color};padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLabel}</span>`)}
+      ${detailRow('#1a3560', 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 5v5l3 3', 'Last Service Odometer', v.lastSvcOdo ? Number(String(v.lastSvcOdo).replace(/[^0-9]/g, '')).toLocaleString() + ' km' : '—')}
+      ${detailRow('#1a3560', 'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18', 'Last Service', v.lastSvcDate ? fmtDateLong(v.lastSvcDate) : '—')}
+      ${detailRow('#1a3560', 'M8 6l4-4 4 4M8 18l4 4 4-4M4 12h16', 'Next PMS Due', fmtDateLong(nextPms))}
+      ${detailRow('#1a3560', 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', 'Status', `<span style="background:${bg};color:${color};padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLabel}</span>`)}
       ${overdueSection}
     `;
 
@@ -440,6 +458,99 @@
   document.getElementById('cuVehicleModal').addEventListener('click', function (e) {
     if (e.target === this) cuCloseModal();
   });
+
+  // ── Recent Services ─────────────────────────────────────
+  async function loadRecentServices() {
+    const el = document.getElementById('cuRecentServices');
+    if (!el) return;
+    try {
+      const user    = auth.currentUser;
+      if (!user) return;
+      const db      = firebase.firestore();
+
+      // Get user's vehicle plates
+      const userDoc  = await db.collection('users').doc(user.uid).get();
+      const uData    = userDoc.exists ? userDoc.data() : {};
+      const uName    = (uData.name        || '').toLowerCase();
+      const cName    = (uData.companyName || '').toLowerCase();
+
+      const vSnap = await db.collection('vehicles').get();
+      const plates = new Set(
+        vSnap.docs
+          .filter(d => {
+            const owner = (d.data().owner || '').toLowerCase();
+            return owner === uName || (cName && owner === cName);
+          })
+          .map(d => (d.data().plate || '').toLowerCase())
+          .filter(Boolean)
+      );
+
+      if (!plates.size) {
+        el.innerHTML = '<div class="cu-recent-empty">No completed services yet.</div>';
+        return;
+      }
+
+      // Fetch completed maintenance records
+      const mSnap = await db.collection('maintenance').where('status', '==', 'Completed').get();
+      let records = mSnap.docs
+        .filter(d => plates.has((d.data().plate || '').toLowerCase()))
+        .map(d => ({ id: d.id, ...d.data() }));
+
+      // Sort by createdAt descending
+      records.sort((a, b) => {
+        const aTs = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+        const bTs = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+        return bTs - aTs;
+      });
+      records = records.slice(0, 5);
+
+      if (!records.length) {
+        el.innerHTML = '<div class="cu-recent-empty">No completed services yet.</div>';
+        return;
+      }
+
+      const buildIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a3560" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
+
+      el.innerHTML = records.map((r, i) => {
+        const plate   = r.plate || '—';
+        const desc    = r.desc  || r.vehicleDesc || '';
+        const dateStr = r.serviceDate || r.date || (r.createdAt && r.createdAt.toDate ? _fmtDateShort(r.createdAt.toDate()) : '');
+
+        // Service name: svcRows[] → services[] → serviceType/type
+        const svcRows  = Array.isArray(r.svcRows) ? r.svcRows : [];
+        const svcNames = svcRows.filter(x => x && x.name).map(x => x.name);
+        const svcs     = Array.isArray(r.services) ? r.services : [];
+        const svcText  = svcNames.length ? svcNames.join(', ')
+                       : svcs.length     ? svcs.join(', ')
+                       : (r.serviceType || r.type || 'Service');
+
+        const isLast = i === records.length - 1;
+        return `<div class="cu-recent-row">
+          <div class="cu-recent-icon">${buildIcon}</div>
+          <div style="flex:1;min-width:0;">
+            <div class="cu-recent-svc">${_escR(svcText)}</div>
+            <div class="cu-recent-plate">${_escR(plate)}${desc ? ' · ' + _escR(desc) : ''}</div>
+          </div>
+          ${dateStr ? `<div class="cu-recent-date" style="flex-shrink:0;margin:0 16px;white-space:nowrap;text-align:center;">${_escR(dateStr)}</div>` : ''}
+          <div style="flex-shrink:0;">
+            <div class="cu-recent-badge">Completed</div>
+          </div>
+        </div>${!isLast ? '<div class="cu-recent-row-divider"></div>' : ''}`;
+      }).join('');
+
+    } catch(e) {
+      console.error('Recent services error:', e);
+      const el2 = document.getElementById('cuRecentServices');
+      if (el2) el2.innerHTML = '<div class="cu-recent-empty">Unable to load recent services.</div>';
+    }
+  }
+
+  function _fmtDateShort(d) {
+    if (!d) return '';
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+  }
+  function _escR(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   // ── Helpers ──────────────────────────────────────────────
   window.cuShowNotifications = function () { /* future */ };
@@ -580,5 +691,6 @@
   };
 
 })();
+
 
 

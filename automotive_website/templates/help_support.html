@@ -13,13 +13,13 @@
     <link rel="stylesheet" href="../static/css/customer_dashboard.css">
     <link rel="stylesheet" href="../static/css/help_support.css">
     <style>
-        body { background:#F7F8FA !important; display:block !important; align-items:unset !important; justify-content:unset !important; min-height:100vh; margin:0; padding:0; }
+        body { background:#F7F8FA !important; display:flex !important; align-items:unset !important; justify-content:unset !important; min-height:100vh; margin:0; padding:0; flex-direction:row; }
         #adminWrap, #standaloneWrap { display:none; }
     </style>
 </head>
 <body class="portal-body" data-page="help_support">
 <script>
-// Instant auth guard — blocks bfcache back-navigation after logout
+// Instant auth guard ??blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -38,7 +38,7 @@
   }
 })();
 </script>
-<!-- ── Admin layout ── -->
+<!-- ?? Admin layout ?? -->
 <div id="adminWrap" style="flex-direction:column;width:100%;min-height:100vh;" class="admin-dashboard">
     <div id="headerContainer"></div>
     <div class="admin-dashboard-body">
@@ -46,7 +46,7 @@
         <div class="admin-main">
             <div class="admin-header">
                 <div>
-                    <div class="breadcrumb">Admin Portal › My Profile › Help & Support</div>
+                    <div class="breadcrumb">Admin Portal ??My Profile ??Help & Support</div>
                     <div class="admin-header-title">Help & Support</div>
                 </div>
             </div>
@@ -57,12 +57,15 @@
     </div>
 </div>
 
-<!-- ── Customer / Staff layout ── -->
-<div id="standaloneWrap" style="flex-direction:column;min-height:100vh;width:100%;">
+<!-- ?? Customer / Staff layout ?? -->
+<div id="standaloneWrap" style="flex-direction:row;min-height:100vh;width:100%;">
+    <div id="customerSidebar"></div>
+    <div class="cu-page-shell" style="flex:1;min-width:0;">
     <div id="cuHeaderWrap"></div>
     <main style="flex:1;overflow-y:auto;padding:1.5rem 2rem;background:#F7F8FA;width:100%;box-sizing:border-box;">
         <div id="hsContent2"></div>
     </main>
+    </div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -109,7 +112,7 @@ var _faqsByRole = {
         { q: 'How do I manage the Item Master?',
           a: 'Go to Item Master under Inventory Management. You can add new items (materials or services), edit existing ones, set commodity group, UOM, cost, and supplier code, and archive items that are no longer in use.' },
         { q: 'How does the Receiving Items workflow work?',
-          a: 'Deliveries go through a 3-step process: (1) Pending — a delivery is created and items are received with actual quantities and condition noted. (2) Awaiting Double Check — admin reviews and verifies the received quantities. (3) Approved — stock is updated automatically. Admin can also approve or reject staff delivery requests marked "For Admin Review".' },
+          a: 'Deliveries go through a 3-step process: (1) Pending ??a delivery is created and items are received with actual quantities and condition noted. (2) Awaiting Double Check ??admin reviews and verifies the received quantities. (3) Approved ??stock is updated automatically. Admin can also approve or reject staff delivery requests marked "For Admin Review".' },
         { q: 'How do I approve or reject a service booking?',
           a: 'Go to Service Bookings under Vehicle Maintenance. You will see all incoming customer booking requests. You can Approve, Reschedule, or Dismiss each request. Approved bookings become available to staff for scheduling.' },
         { q: 'What is the Decision Support System (DSS)?',
@@ -135,7 +138,7 @@ var _faqsByRole = {
         { q: 'What happens when I mark a maintenance record as completed?',
           a: 'Marking a record as Completed automatically deducts the used materials from stock inventory, creates issuance records for each material, and logs stock-out transactions. Make sure all services and materials are entered correctly before completing.' },
         { q: 'How do I handle service bookings?',
-          a: 'Go to the Vehicle tab and open Service Bookings. You can see all admin-approved bookings. On the scheduled date, the "Start Service" button becomes active — tap it to open a pre-filled maintenance form. You can also reschedule or cancel a booking from this screen.' },
+          a: 'Go to the Vehicle tab and open Service Bookings. You can see all admin-approved bookings. On the scheduled date, the "Start Service" button becomes active ??tap it to open a pre-filled maintenance form. You can also reschedule or cancel a booking from this screen.' },
         { q: 'How do I change my password?',
           a: 'Go to My Profile, then click Change Password. Enter your current password, then your new password (minimum 6 characters), and confirm it.' },
         { q: 'I forgot my password. What should I do?',
@@ -153,7 +156,7 @@ var _faqsByRole = {
         { q: 'How do I view my service history?',
           a: 'Tap the PMS History tab to see a list of your vehicles. Tap any vehicle to view its full maintenance history, including the service date, mechanic, services rendered, materials used, and total cost.' },
         { q: 'What is the AI Assistant?',
-          a: 'The AI Assistant is the center button at the bottom of the screen. Tap it to open the chat. You can ask it questions about your vehicles — such as which ones are overdue, when the next service is due, or get a summary of your maintenance history. Just type your question in natural language.' },
+          a: 'The AI Assistant is the center button at the bottom of the screen. Tap it to open the chat. You can ask it questions about your vehicles ??such as which ones are overdue, when the next service is due, or get a summary of your maintenance history. Just type your question in natural language.' },
         { q: 'How do I change my profile photo?',
           a: 'Go to My Profile and tap your avatar photo at the top. This will open your gallery so you can select a new image.' },
         { q: 'I forgot my password. What should I do?',
@@ -166,18 +169,24 @@ var _faqsByRole = {
         document.getElementById('adminWrap').style.display = 'flex';
     } else {
         document.getElementById('standaloneWrap').style.display = 'flex';
+        var sessKey = _hsRole === 'staff' ? 'spUser' : 'cpUser';
+        var sess = JSON.parse(sessionStorage.getItem(sessKey) || '{}');
+        var name = sess.name || '';
+        var parts = name.trim().split(' ').filter(Boolean);
+        var ini = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : (parts[0]?parts[0][0].toUpperCase():'CU');
+        fetch('customer_sidebar.html').then(function (r) { return r.text(); }).then(function (html) {
+            document.getElementById('customerSidebar').innerHTML = html;
+            if (typeof setGreeting === 'function') setGreeting();
+            if (typeof setActiveTab === 'function') setActiveTab();
+            if (name) {
+                var av = document.getElementById('cuAvatar'); if (av) av.textContent = ini;
+                var nm = document.getElementById('cuAvatarName'); if (nm) nm.textContent = name;
+                var hn = document.getElementById('cuHeaderName'); if (hn) hn.textContent = name;
+                var ge = document.getElementById('cuGreetLine'); if(ge && !ge.textContent) ge.textContent = sess.email || '';
+            }
+        });
         fetch('customer_header.html').then(function (r) { return r.text(); }).then(function (html) {
             document.getElementById('cuHeaderWrap').innerHTML = html;
-            if (typeof setActiveTab === 'function') setActiveTab();
-            var sessKey = _hsRole === 'staff' ? 'spUser' : 'cpUser';
-            var sess = JSON.parse(sessionStorage.getItem(sessKey) || '{}');
-            if (sess.name) {
-                var parts = sess.name.trim().split(' ').filter(Boolean);
-                var ini = parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : parts[0][0].toUpperCase();
-                var av = document.getElementById('cuAvatar'); if (av) av.textContent = ini;
-                var nm = document.getElementById('cuAvatarName'); if (nm) nm.textContent = sess.name;
-                var hn = document.getElementById('cuHeaderName'); if (hn) hn.textContent = sess.name;
-            }
         });
     }
     var target = _hsRole === 'admin' ? document.getElementById('hsContent') : document.getElementById('hsContent2');
@@ -195,7 +204,7 @@ function _buildHTML() {
         return '<div class="hs-faq-item">'
             + '<div class="hs-faq-q" onclick="toggleFaq(' + i + ')" id="faqQ' + i + '">'
             +   '<div class="hs-faq-q-icon">'
-            +     '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+            +     '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1a202c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
             +   '</div>'
             +   '<span class="hs-faq-q-text" id="faqQT' + i + '">' + _escHs(f.q) + '</span>'
             +   '<svg class="hs-faq-chevron" id="faqChev' + i + '" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'
@@ -210,7 +219,7 @@ function _buildHTML() {
         + '</a>'
         + '<div class="hs-page-grid">'
 
-        // ── Left column ──
+        // ?? Left column ??
         + '<div class="hs-left">'
 
         // Hero
@@ -227,24 +236,24 @@ function _buildHTML() {
         +     '<div class="hs-section-label">Contact Us</div>'
         +     '<div class="hs-card">'
         +       '<a class="hs-contact-tile" href="tel:+639123456789">'
-        +         '<div class="hs-contact-icon" style="background:rgba(56,161,105,0.1);">'
-        +           '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>'
+        +         '<div class="hs-contact-icon" style="background:rgba(0,0,0,0.05);">'
+        +           '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a202c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>'
         +         '</div>'
         +         '<div><div class="hs-contact-label">Call Us</div><div class="hs-contact-value">+63 912 345 6789</div></div>'
         +         '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
         +       '</a>'
         +       '<div class="hs-contact-divider"></div>'
         +       '<a class="hs-contact-tile" href="mailto:janobleenterprisesinc@gmail.com">'
-        +         '<div class="hs-contact-icon" style="background:rgba(0,48,135,0.1);">'
-        +           '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#003087" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>'
+        +         '<div class="hs-contact-icon" style="background:rgba(0,0,0,0.05);">'
+        +           '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a202c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>'
         +         '</div>'
         +         '<div><div class="hs-contact-label">Email Support</div><div class="hs-contact-value">janobleenterprisesinc@gmail.com</div></div>'
         +         '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
         +       '</a>'
         +       '<div class="hs-contact-divider"></div>'
         +       '<a class="hs-contact-tile" href="https://www.google.com/maps/search/?api=1&query=102+National+Highway+Bgy+Landayan+4023+San+Pedro+Laguna+Philippines" target="_blank" rel="noopener">'
-        +         '<div class="hs-contact-icon" style="background:rgba(232,0,28,0.1);">'
-        +           '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+        +         '<div class="hs-contact-icon" style="background:rgba(0,0,0,0.05);">'
+        +           '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a202c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
         +         '</div>'
         +         '<div><div class="hs-contact-label">Visit Us</div><div class="hs-contact-value">102 National Highway, Brgy. Landayan, San Pedro, Laguna</div></div>'
         +         '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
@@ -256,14 +265,14 @@ function _buildHTML() {
         +   '<div>'
         +     '<div class="hs-section-label">Business Hours</div>'
         +     '<div class="hs-card">'
-        +       '<div class="hs-hours-row"><span class="hs-hours-day">Monday – Sunday</span><span class="hs-hours-time">8:00 AM – 5:00 PM</span></div>'
+        +       '<div class="hs-hours-row"><span class="hs-hours-day">Monday &ndash; Sunday</span><span class="hs-hours-time">8:00 AM &ndash; 5:00 PM</span></div>'
         +     '</div>'
         +   '</div>'
 
-        +   '<div class="hs-footer">v1.0.0 • JA Noble Enterprise</div>'
+        +   '' // footer removed
         + '</div>' // .hs-left
 
-        // ── Right column: FAQs ──
+        // ?? Right column: FAQs ??
         + '<div class="hs-right">'
         +   '<div>'
         +     '<div class="hs-section-label">Frequently Asked Questions</div>'

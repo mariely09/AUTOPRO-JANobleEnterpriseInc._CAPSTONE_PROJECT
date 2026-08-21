@@ -13,7 +13,7 @@
         .ph-vehicle-card {
             background: #fff;
             border-radius: 16px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.10);
             margin-bottom: 14px;
             padding: 16px;
             display: flex;
@@ -22,7 +22,7 @@
             cursor: pointer;
             transition: transform .2s, box-shadow .2s;
         }
-        .ph-vehicle-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.09); }
+        .ph-vehicle-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.14); }
         .ph-vehicle-icon {
             width: 46px; height: 46px;
             background: rgba(232,0,28,0.08);
@@ -99,7 +99,7 @@
 </head>
 <body data-page="pms">
 <script>
-// Instant auth guard â€â€ blocks bfcache back-navigation after logout
+// Instant auth guard 璽?珍Ｔ? blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -119,14 +119,16 @@
 })();
 </script>
 
+<!-- Sidebar (loaded dynamically) -->
+<div id="customerSidebar"></div>
+
+<div class="cu-page-shell">
 <!-- Header (loaded dynamically) -->
 <div id="customerHeader"></div>
 
 <!-- Main -->
 <main class="cu-main">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
-        <span style="font-size:16px;font-weight:700;color:#1a202c;white-space:nowrap;">PMS History</span>
         <div style="position:relative;margin-left:auto;min-width:220px;max-width:320px;flex:1;">
             <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input
@@ -196,7 +198,7 @@
         return;
       }
 
-      // Get user name + companyName from Firestore — always fetch to ensure
+      // Get user name + companyName from Firestore ??always fetch to ensure
       // companyName is resolved (Google sign-in sessions may lack companyName)
       let userName = cpUser.name || '';
       let companyName = cpUser.companyName || '';
@@ -262,10 +264,11 @@
         const records = _allRecords.filter(r => r.plate === v.plate);
         const totalCost = records.reduce((sum, r) => {
           const raw = r.cost || r.totalCost || '0';
-          const num = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/[₱,]/g, '')) || 0;
+          const num = typeof raw === 'number' ? raw
+            : parseFloat(String(raw).replace(/[^0-9.]/g, '')) || 0;
           return sum + num;
         }, 0);
-        const detailsUrl = `pms_history_details.html?plate=${encodeURIComponent(v.plate)}&desc=${encodeURIComponent(v.desc || '')}&type=${encodeURIComponent(v.type || '')}`;
+        const detailsUrl = `pms_history_details.html?plate=${encodeURIComponent(v.plate)}&desc=${encodeURIComponent(v.desc || '—')}&type=${encodeURIComponent(v.type || '')}`;
         return {
           plate: (v.plate || '').toLowerCase(),
           desc:  (v.desc  || '').toLowerCase(),
@@ -273,7 +276,7 @@
             <div class="ph-vehicle-card" onclick="window.location.href='${detailsUrl}'">
               <div style="flex:1;">
                 <div class="ph-plate">${v.plate}</div>
-                <div class="ph-desc">${v.desc || 'â€â€'}</div>
+                <div class="ph-desc">${v.desc || '—'}</div>
                 <div class="ph-records">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   ${records.length} service record${records.length !== 1 ? 's' : ''}
@@ -330,17 +333,27 @@
 
 </script>
 <script>
-  fetch('customer_header.html').then(r => r.text()).then(html => {
-    document.getElementById('customerHeader').innerHTML = html;
+  (function() {
     var sess = JSON.parse(sessionStorage.getItem('cpUser') || '{}');
-    if (sess.name) {
-      var parts = sess.name.trim().split(' ').filter(Boolean);
-      var ini = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : (parts[0]?parts[0][0].toUpperCase():'CU');
-      var av = document.getElementById('cuAvatar'); if(av) av.textContent = ini;
-      var hn = document.getElementById('cuHeaderName'); if(hn) hn.textContent = sess.name;
-      var mn = document.getElementById('cuAvatarName'); if(mn) mn.textContent = sess.name;
-    }
-  });
+    var name = sess.name || '';
+    var parts = name.trim().split(' ').filter(Boolean);
+    var ini = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : (parts[0]?parts[0][0].toUpperCase():'CU');
+    fetch('customer_sidebar.html').then(r => r.text()).then(html => {
+      document.getElementById('customerSidebar').innerHTML = html;
+      if (typeof setGreeting === 'function') setGreeting();
+      if (typeof setActiveTab === 'function') setActiveTab();
+      if (name) {
+        var av = document.getElementById('cuAvatar'); if(av) av.textContent = ini;
+        var hn = document.getElementById('cuHeaderName'); if(hn) hn.textContent = name;
+      var ge = document.getElementById('cuGreetLine'); if(ge && !ge.textContent) ge.textContent = sess.email || '';
+        var mn = document.getElementById('cuAvatarName'); if(mn) mn.textContent = name;
+      }
+    });
+    fetch('customer_header.html').then(r => r.text()).then(html => {
+      document.getElementById('customerHeader').innerHTML = html;
+    });
+  })();
 </script>
+</div><!-- /.cu-page-shell -->
 </body>
 </html>

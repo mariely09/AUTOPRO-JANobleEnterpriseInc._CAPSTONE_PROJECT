@@ -35,6 +35,7 @@ class _CustomerDashboardState extends State<CustomerDashboard>
   String? _photoUrl;
   String _userName = '';
   String _firstName = '';
+  String _userEmail = '';
   String _companyName = '';
   IconData _fleetNavIcon = Icons.directions_car_outlined;
   bool _iconComputed = false;
@@ -47,6 +48,7 @@ class _CustomerDashboardState extends State<CustomerDashboard>
   static String?    _cachedPhotoUrl;
   static String     _cachedInitials  = '?';
   static String     _cachedName      = '';
+  static String     _cachedEmail     = '';
   static String     _cachedCompany   = '';
   static Uint8List? _cachedImageBytes;
 
@@ -55,6 +57,9 @@ class _CustomerDashboardState extends State<CustomerDashboard>
   // ── Live clock ──
   late DateTime _now;
   late final Timer _clockTimer;
+
+  // ── Services auto-advance ──
+  Timer? _svcTimer;
 
   @override
   void initState() {
@@ -73,6 +78,7 @@ class _CustomerDashboardState extends State<CustomerDashboard>
       _initials    = _cachedInitials;
       _photoUrl    = _cachedPhotoUrl;
       _userName    = _cachedName;
+      _userEmail   = _cachedEmail;
       _companyName = _cachedCompany;
       if (_cachedPhotoUrl != null && _cachedImageBytes == null) {
         _cachedImageBytes = _decodeBase64Photo(_cachedPhotoUrl!);
@@ -86,6 +92,12 @@ class _CustomerDashboardState extends State<CustomerDashboard>
     _calMonth = now.month;
     _loadCalendarData();
     _loadServices();
+    // Auto-advance services carousel every 4 seconds (same as website)
+    _svcTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted && _services.isNotEmpty) {
+        setState(() => _svcIndex = (_svcIndex + 1) % _services.length);
+      }
+    });
   }
 
   void _subscribeToUser() {
@@ -101,6 +113,11 @@ class _CustomerDashboardState extends State<CustomerDashboard>
       final firstName   = data['firstName']   as String? ?? '';
       final companyName = data['companyName'] as String? ?? '';
       final photo       = data['photoUrl']    as String?;
+      // Prefer Firestore-stored email; fall back to FirebaseAuth if missing
+      final email       = (data['email'] as String? ?? '').isNotEmpty
+                          ? data['email'] as String
+                          : FirebaseAuth.instance.currentUser?.email ?? '';
+      debugPrint('🔍 email from Firestore: ${data['email']} | FirebaseAuth: ${FirebaseAuth.instance.currentUser?.email} | resolved: $email');
       String ini = '?';
       if (name.isNotEmpty) {
         final parts = name.trim().split(' ');
@@ -117,12 +134,14 @@ class _CustomerDashboardState extends State<CustomerDashboard>
       _cachedInitials = ini;
       _cachedPhotoUrl = photo;
       _cachedName     = name;
+      _cachedEmail    = email;
       _cachedCompany  = companyName;
       final nameChanged = name != _userName;
       if (mounted) setState(() {
         _initials    = ini;
         _photoUrl    = photo;
         _userName    = name;
+        _userEmail   = email;
         _firstName   = firstName.isNotEmpty ? firstName : name.split(' ').first;
         _companyName = companyName;
       });
@@ -160,6 +179,7 @@ class _CustomerDashboardState extends State<CustomerDashboard>
     _fabPulseCtrl.dispose();
     _userSub?.cancel();
     _clockTimer.cancel();
+    _svcTimer?.cancel();
     super.dispose();
   }
 
@@ -348,20 +368,15 @@ class _CustomerDashboardState extends State<CustomerDashboard>
   }
 
   PreferredSizeWidget _buildTopBar() {
-    final h = DateTime.now().hour;
-    final greet = h < 12 ? 'Good morning,' : h < 17 ? 'Good afternoon,' : 'Good evening,';
-    final first = _firstName.isNotEmpty
-        ? _firstName
-        : _userName.isNotEmpty
-            ? _userName.split(' ').first
-            : 'Guest';
+    final fullName = _userName.isNotEmpty ? _userName : 'Guest';
+    final email    = _userEmail.isNotEmpty ? _userEmail : '';
 
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 0,
       shadowColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
-      toolbarHeight: 68,
+      toolbarHeight: 72,
       automaticallyImplyLeading: false,
       title: Row(
         children: [
@@ -390,18 +405,22 @@ class _CustomerDashboardState extends State<CustomerDashboard>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(greet, style: const TextStyle(
-                  color: Color(0xFF718096),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
+                Text(fullName, style: const TextStyle(
+                  color: Color(0xFF1a202c),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
                   height: 1.2,
                 )),
-                Text(first, style: const TextStyle(
-                  color: Color(0xFF1a202c),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  height: 1.1,
-                )),
+                if (email.isNotEmpty)
+                  Text(email,
+                    style: const TextStyle(
+                      color: Color(0xFFa0aec0),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      height: 1.2,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
@@ -412,7 +431,7 @@ class _CustomerDashboardState extends State<CustomerDashboard>
           padding: const EdgeInsets.only(right: 12),
           child: NotifBadge(
             role: NotificationRole.customer,
-            iconColor: const Color(0xFF1a202c),
+            iconColor: const Color(0xFF1a3560),
             onTap: () => Navigator.push(context, MaterialPageRoute(
                 builder: (_) => const AppNotifications(role: NotificationRole.customer))),
           ),
@@ -533,11 +552,17 @@ class _CustomerDashboardState extends State<CustomerDashboard>
     final day  = dayNames[_now.weekday % 7];
     final mon  = monthNames[_now.month - 1];
     final dayNum = '${_now.day}';
-    final date = '$day, $mon $dayNum';
+
+    final h = _now.hour;
+    final greet = h < 12 ? 'Good morning,' : h < 17 ? 'Good afternoon,' : 'Good evening,';
+    final first = _firstName.isNotEmpty
+        ? _firstName
+        : _userName.isNotEmpty
+            ? _userName.split(' ').first
+            : 'Guest';
 
     return Container(
       width: double.infinity,
-      height: 180,
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -552,75 +577,39 @@ class _CustomerDashboardState extends State<CustomerDashboard>
         ],
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Date row ──
+          // ── Greeting row ──
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // ── Left: today's message ──
+                // ── Left: greeting + first name ──
                 Expanded(
-                  child: Builder(builder: (ctx) {
-                    // Check if any event falls on today
-                    final todayKey = '${_now.year}-${_now.month.toString().padLeft(2,'0')}-${_now.day.toString().padLeft(2,'0')}';
-                    final todayEvents = _calEvents[todayKey] ?? [];
-                    final hasPms     = todayEvents.any((e) => e['type'] == 'pms');
-                    final hasBooking = todayEvents.any((e) => e['type'] == 'booking');
-
-                    final String icon;
-                    final String line1;
-                    final String line2;
-
-                    if (hasPms && hasBooking) {
-                      icon  = '🚗';
-                      line1 = 'PMS & service booked';
-                      line2 = 'You have scheduled activities today.';
-                    } else if (hasPms) {
-                      icon  = '🔧';
-                      line1 = 'PMS due today';
-                      line2 = 'Your vehicle needs attention today.';
-                    } else if (hasBooking) {
-                      icon  = '📅';
-                      line1 = 'Service scheduled today';
-                      line2 = 'Your appointment is ready. Drive safe!';
-                    } else {
-                      icon  = '✅';
-                      line1 = 'All clear today';
-                      line2 = 'No scheduled services for today.';
-                    }
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(children: [
-                          Text(icon, style: const TextStyle(fontSize: 16)),
-                          const SizedBox(width: 6),
-                          Text(line1, style: TextStyle(
-                            color: (hasPms || hasBooking)
-                                ? const Color(0xFFfcd34d)
-                                : Colors.white70,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          )),
-                        ]),
-                        const SizedBox(height: 4),
-                        Text(line2, style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 11,
-                          height: 1.4,
-                        )),
-                      ],
-                    );
-                  }),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(greet, style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        height: 1.2,
+                      )),
+                      Text(first, style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w900,
+                        height: 1.1,
+                      )),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 12),
                 // ── Right: square date box ──
                 Container(
-                  width: 90,
-                  height: 90,
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(16),
@@ -632,7 +621,7 @@ class _CustomerDashboardState extends State<CustomerDashboard>
                       Text('$mon ${_now.year}',
                         style: const TextStyle(
                           color: Colors.white70,
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.3,
                         )),
@@ -640,7 +629,7 @@ class _CustomerDashboardState extends State<CustomerDashboard>
                       Text(dayNum,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 40,
+                          fontSize: 34,
                           fontWeight: FontWeight.w900,
                           height: 1,
                         )),
@@ -648,7 +637,7 @@ class _CustomerDashboardState extends State<CustomerDashboard>
                       Text(day,
                         style: const TextStyle(
                           color: Colors.white54,
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 1,
                         )),
@@ -659,12 +648,68 @@ class _CustomerDashboardState extends State<CustomerDashboard>
             ),
           ),
 
+          // ── Today's message row ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: Builder(builder: (ctx) {
+              final todayKey = '${_now.year}-${_now.month.toString().padLeft(2,'0')}-${_now.day.toString().padLeft(2,'0')}';
+              final todayEvents = _calEvents[todayKey] ?? [];
+              final hasPms     = todayEvents.any((e) => e['type'] == 'pms');
+              final hasBooking = todayEvents.any((e) => e['type'] == 'booking');
+
+              final String icon;
+              final String line1;
+              final String line2;
+
+              if (hasPms && hasBooking) {
+                icon  = '🚗';
+                line1 = 'PMS & service booked';
+                line2 = 'You have scheduled activities today.';
+              } else if (hasPms) {
+                icon  = '🔧';
+                line1 = 'PMS due today';
+                line2 = 'Your vehicle needs attention today.';
+              } else if (hasBooking) {
+                icon  = '📅';
+                line1 = 'Service scheduled today';
+                line2 = 'Your appointment is ready. Drive safe!';
+              } else {
+                icon  = '✅';
+                line1 = 'All clear today';
+                line2 = 'No scheduled services for today.';
+              }
+
+              return Row(children: [
+                Text(icon, style: const TextStyle(fontSize: 14)),
+                const SizedBox(width: 6),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(line1, style: TextStyle(
+                      color: (hasPms || hasBooking)
+                          ? const Color(0xFFfcd34d)
+                          : Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    )),
+                    Text(line2, style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 10,
+                      height: 1.4,
+                    )),
+                  ],
+                )),
+              ]);
+            }),
+          ),
+
           // ── Stats row pinned to bottom ──
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                 child: Container(height: 1, color: Colors.white12),
               ),
               Padding(
@@ -735,8 +780,13 @@ class _CustomerDashboardState extends State<CustomerDashboard>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Header ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              border: Border(bottom: BorderSide(color: Color(0xFFe2e8f0), width: 1)),
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -751,11 +801,6 @@ class _CustomerDashboardState extends State<CustomerDashboard>
               ],
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: Divider(height: 1),
-          ),
-
           // ── Body ──
           if (_txnsLoading)
             const Padding(
@@ -797,11 +842,11 @@ class _CustomerDashboardState extends State<CustomerDashboard>
                       Container(
                         width: 40, height: 40,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8001C).withOpacity(0.08),
+                          color: const Color(0xFF1a3560).withOpacity(0.08),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(Icons.build_outlined,
-                            color: Color(0xFFE8001C), size: 18),
+                            color: Color(0xFF1a3560), size: 18),
                       ),
                       const SizedBox(width: 12),
                       Expanded(child: Column(
@@ -888,8 +933,13 @@ class _CustomerDashboardState extends State<CustomerDashboard>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Header ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              border: Border(bottom: BorderSide(color: Color(0xFFe2e8f0), width: 1)),
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -899,10 +949,6 @@ class _CustomerDashboardState extends State<CustomerDashboard>
                   style: const TextStyle(fontSize: 12, color: Color(0xFF718096))),
               ],
             ),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: Divider(height: 1),
           ),
 
           // ── Body: list + donut ──
@@ -926,12 +972,12 @@ class _CustomerDashboardState extends State<CustomerDashboard>
                             Container(
                               width: 36, height: 36,
                               decoration: BoxDecoration(
-                                color: color.withOpacity(0.1),
+                                color: const Color(0xFF1a3560).withOpacity(0.08),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
                                 isTruck ? Icons.local_shipping_outlined : Icons.directions_car_outlined,
-                                color: color, size: 18),
+                                color: const Color(0xFF1a3560), size: 18),
                             ),
                             const SizedBox(width: 10),
                             Expanded(child: Column(
@@ -953,32 +999,24 @@ class _CustomerDashboardState extends State<CustomerDashboard>
                               child: Text(label,
                                 style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color)),
                             ),
+                            const SizedBox(width: 6),
+                            GestureDetector(
+                              onTap: () => _showVehicleHistory(v),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.transparent,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: const Color(0xFFE8001C), width: 1),
+                                ),
+                                child: const Text('View',
+                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFE8001C))),
+                              ),
+                            ),
                           ]),
                         ),
                       );
                     }).toList(),
-                  ),
-                ),
-
-                const SizedBox(width: 16),
-
-                // ── Donut chart ──
-                SizedBox(
-                  width: 90,
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: 80,
-                        height: 80,
-                        child: CustomPaint(
-                          painter: _DonutPainter(vehicles),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text('Fleet Status',
-                        style: TextStyle(fontSize: 10, color: Color(0xFF718096), fontWeight: FontWeight.w500),
-                        textAlign: TextAlign.center),
-                    ],
                   ),
                 ),
               ],
@@ -1190,13 +1228,13 @@ class _CustomerDashboardState extends State<CustomerDashboard>
                     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16),
                       boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]),
                     child: Column(children: [
-                      _detailRow(Icons.speed_outlined, 'Last Service Odometer', v['lastSvcOdo']!.isNotEmpty && v['lastSvcOdo'] != '0' ? '${int.tryParse(v['lastSvcOdo']!.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0} km' : '—', const Color(0xFF718096)),
+                      _detailRow(Icons.speed_outlined, 'Last Service Odometer', v['lastSvcOdo']!.isNotEmpty && v['lastSvcOdo'] != '0' ? '${int.tryParse(v['lastSvcOdo']!.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0} km' : '—', const Color(0xFF1a3560)),
                       _divider(),
-                      _detailRow(Icons.calendar_today_outlined, 'Last Service', lastSvcDate.isNotEmpty ? _fmtDateLong(lastSvcDate) : '—', const Color(0xFF2b6cb0)),
+                      _detailRow(Icons.calendar_today_outlined, 'Last Service', lastSvcDate.isNotEmpty ? _fmtDateLong(lastSvcDate) : '—', const Color(0xFF1a3560)),
                       _divider(),
-                      _detailRow(Icons.event_outlined, 'Next PMS Due', _fmtDateLong(nextPms), statusColor),
+                      _detailRow(Icons.event_outlined, 'Next PMS Due', _fmtDateLong(nextPms), const Color(0xFF1a3560)),
                       _divider(),
-                      _detailRow(Icons.info_outline, 'Status', statusLabel, statusColor),
+                      _detailRow(Icons.info_outline, 'Status', statusLabel, const Color(0xFF1a3560)),
                     ]),
                   ),
                   const SizedBox(height: 16),
@@ -1433,6 +1471,7 @@ class _CustomerDashboardState extends State<CustomerDashboard>
   // ── Services carousel state ──
   List<Map<String, String>> _services = [];
   bool _servicesLoading = true;
+  int _svcIndex = 0; // current card index for single-card viewer
 
   // ── Recent transactions cache ──
   List<Map<String, dynamic>> _recentTxns = [];
@@ -1518,29 +1557,38 @@ class _CustomerDashboardState extends State<CustomerDashboard>
 
   Widget _buildServicesCarousel() {
     if (_servicesLoading) {
-      return const SizedBox(
-        height: 120,
-        child: Center(child: CircularProgressIndicator()),
+      return Container(
+        height: 180,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
+            stops: [0.0, 0.55, 1.0],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)),
       );
     }
     if (_services.isEmpty) {
-      return const SizedBox(
-        height: 60,
-        child: Center(
-          child: Text('No services available.',
-            style: TextStyle(color: Color(0xFF718096), fontSize: 12)),
+      return Container(
+        height: 180,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
+            stops: [0.0, 0.55, 1.0],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
         ),
+        child: const Center(
+          child: Text('No services available.',
+            style: TextStyle(color: Colors.white54, fontSize: 13))),
       );
     }
-
-    // Color palettes that cycle per card
-    final palettes = [
-      [const Color(0xFFE8001C), const Color(0xFFFF6B6B)],  // red
-      [const Color(0xFF003087), const Color(0xFF4A90E2)],  // blue
-      [const Color(0xFF1a8a4a), const Color(0xFF48c878)],  // green
-      [const Color(0xFF7c3aed), const Color(0xFFa78bfa)],  // purple
-      [const Color(0xFFd97706), const Color(0xFFfbbf24)],  // amber
-    ];
 
     final serviceIcons = <String, IconData>{
       'oil':     Icons.opacity_outlined,
@@ -1560,7 +1608,7 @@ class _CustomerDashboardState extends State<CustomerDashboard>
       'fluid':   Icons.water_drop_outlined,
     };
 
-    IconData _iconFor(String name) {
+    IconData iconFor(String name) {
       final n = name.toLowerCase();
       for (final k in serviceIcons.keys) {
         if (n.contains(k)) return serviceIcons[k]!;
@@ -1568,104 +1616,151 @@ class _CustomerDashboardState extends State<CustomerDashboard>
       return Icons.build_outlined;
     }
 
+    final s    = _services[_svcIndex % _services.length];
+    final icon = iconFor(s['name']!);
+    final total = _services.length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('Our Services',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
-            GestureDetector(
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => CustomerBookService(preselectedVehicleId: ''))),
-              child: const Text('Book Now →',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFE8001C))),
-            ),
-          ],
-        ),
+        // ── Section header ──
+        const Text('Our Services',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 130,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _services.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, i) {
-              final s      = _services[i];
-              final colors = palettes[i % palettes.length];
-              final icon   = _iconFor(s['name']!);
 
-              return Container(
-                  width: 155,
-                  padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [colors[0].withOpacity(0.12), colors[1].withOpacity(0.06)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: colors[0].withOpacity(0.15), width: 1),
-                  ),
-                  child: Stack(
+        // ── Single card ──
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (child, anim) => FadeTransition(
+            opacity: anim,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.08, 0),
+                end: Offset.zero,
+              ).animate(anim),
+              child: child,
+            ),
+          ),
+          child: Container(
+            key: ValueKey(_svcIndex),
+            height: 210,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Colors.white, Color(0xFFFFECEC), Color(0xFFFFD6D6)],
+                stops: [0.0, 0.55, 1.0],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.all(Radius.circular(20)),
+              border: Border.all(color: const Color(0xFFFFCCCC), width: 1),
+              boxShadow: [
+                BoxShadow(color: const Color(0xFFE8001C).withOpacity(0.12), blurRadius: 14, offset: const Offset(0, 5)),
+              ],
+            ),
+            child: Stack(
+              children: [
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Big ghost vehicle icon ──
-                      Positioned(
-                        right: -6,
-                        bottom: -6,
-                        child: Icon(
-                          _fleetNavIcon == Icons.local_shipping_outlined
-                              ? Icons.local_shipping_outlined
-                              : Icons.directions_car_outlined,
-                          size: 72,
-                          color: colors[0].withOpacity(0.13)),
-                      ),
-                      // ── Content ──
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // Icon badge + service name
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          // Badge icon
                           Container(
-                            width: 34, height: 34,
+                            width: 38, height: 38,
                             decoration: BoxDecoration(
-                              color: colors[0],
+                              color: const Color(0xFFE8001C).withOpacity(0.12),
                               borderRadius: BorderRadius.circular(10),
-                              boxShadow: [BoxShadow(
-                                color: colors[0].withOpacity(0.35),
-                                blurRadius: 8, offset: const Offset(0, 3))],
                             ),
-                            child: Icon(icon, size: 17, color: Colors.white),
+                            child: Icon(icon, size: 18,
+                              color: const Color(0xFFE8001C)),
                           ),
-                          const Spacer(),
-                          // Service name
-                          Text(s['name']!,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: colors[0],
-                              height: 1.2,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(s['name']!,
+                              style: const TextStyle(
+                                color: Color(0xFF1a202c),
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                height: 1.2,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
-                          // Group label
-                          Text(s['group']!.isNotEmpty ? s['group']! : 'Auto Service',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF718096),
+                        ],
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // Car illustration
+                      Expanded(
+                        child: CustomPaint(
+                          painter: const _SvcCarPainter(),
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // Book Now + Next buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => Navigator.push(context,
+                                MaterialPageRoute(
+                                  builder: (_) => CustomerBookService(preselectedVehicleId: ''))),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8001C),
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                child: const Text('Book Now',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  )),
+                              ),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
+                          if (total > 1) ...[
+                            const SizedBox(width: 10),
+                            GestureDetector(
+                              onTap: () {
+                                _svcTimer?.cancel();
+                                setState(() => _svcIndex = (_svcIndex + 1) % total);
+                                // Restart auto-advance after manual tap
+                                _svcTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+                                  if (mounted && _services.isNotEmpty) {
+                                    setState(() => _svcIndex = (_svcIndex + 1) % _services.length);
+                                  }
+                                });
+                              },
+                              child: Container(
+                                width: 38, height: 38,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8001C).withOpacity(0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.chevron_right,
+                                  color: Color(0xFFE8001C), size: 22),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],
                   ),
-                );
-            },
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -1688,7 +1783,7 @@ class _CustomerDashboardState extends State<CustomerDashboard>
       final date   = data['preferredDate'] as String? ?? '';
       final status = (data['status'] as String? ?? '').toLowerCase();
       if (date.isEmpty) continue;
-      if (['completed','in progress','dismissed','cancelled','rejected'].contains(status)) continue;
+      if (['completed','under maintenance','dismissed','cancelled','rejected'].contains(status)) continue;
       final due = DateTime.tryParse(date);
       if (due == null) continue;
       final days = DateTime(due.year, due.month, due.day).difference(todayM).inDays;
@@ -1752,18 +1847,14 @@ class _CustomerDashboardState extends State<CustomerDashboard>
         Container(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
-              stops: [0.0, 0.55, 1.0],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            border: Border(bottom: BorderSide(color: Color(0xFFe2e8f0), width: 1)),
           ),
           child: Row(children: [
-            const Icon(Icons.calendar_month_outlined, color: Colors.white70, size: 15),
+            const Icon(Icons.calendar_month_outlined, color: Color(0xFFE8001C), size: 15),
             const SizedBox(width: 8),
-            const Text('My Calendar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white70, letterSpacing: 0.4)),
+            const Text('My Calendar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1a202c), letterSpacing: 0.4)),
             const Spacer(),
             // Month nav
             GestureDetector(
@@ -1771,20 +1862,20 @@ class _CustomerDashboardState extends State<CustomerDashboard>
                 _calMonth--; if (_calMonth < 1) { _calMonth = 12; _calYear--; } _calSelectedDay = null;
               }),
               child: Container(width: 26, height: 26,
-                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(6)),
-                child: const Icon(Icons.chevron_left, size: 18, color: Colors.white)),
+                decoration: BoxDecoration(color: const Color(0xFFf0f4f8), borderRadius: BorderRadius.circular(6)),
+                child: const Icon(Icons.chevron_left, size: 18, color: Color(0xFF4a5568))),
             ),
             const SizedBox(width: 8),
             Text('${_calMonths[_calMonth - 1]} $_calYear',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white)),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF1a202c))),
             const SizedBox(width: 8),
             GestureDetector(
               onTap: () => setState(() {
                 _calMonth++; if (_calMonth > 12) { _calMonth = 1; _calYear++; } _calSelectedDay = null;
               }),
               child: Container(width: 26, height: 26,
-                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(6)),
-                child: const Icon(Icons.chevron_right, size: 18, color: Colors.white)),
+                decoration: BoxDecoration(color: const Color(0xFFf0f4f8), borderRadius: BorderRadius.circular(6)),
+                child: const Icon(Icons.chevron_right, size: 18, color: Color(0xFF4a5568))),
             ),
           ]),
         ),
@@ -2165,69 +2256,6 @@ class _CustomerDashboardState extends State<CustomerDashboard>
 
 }
 
-// ── Donut chart painter for vehicle fleet status ─────────────────────────
-class _DonutPainter extends CustomPainter {
-  final List<Map<String, String>> vehicles;
-  const _DonutPainter(this.vehicles);
-
-  Color _sColor(String s) {
-    switch (s.toLowerCase()) {
-      case 'overdue':           return const Color(0xFFE8001C);
-      case 'due today':         return const Color(0xFF0033A0);
-      case 'due this week':     return const Color(0xFFdd6b20);
-      case 'due soon':          return Colors.orange;
-      case 'under maintenance': return Colors.orange;
-      default:                  return Colors.green;
-    }
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final total = vehicles.length;
-    if (total == 0) return;
-
-    // Count by status
-    final counts = <Color, int>{};
-    for (final v in vehicles) {
-      final c = _sColor(v['status'] ?? '');
-      counts[c] = (counts[c] ?? 0) + 1;
-    }
-
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final radius = (size.width / 2) - 8;
-    const strokeW = 14.0;
-    const gap = 0.04; // radians gap between segments
-
-    final rect = Rect.fromCircle(center: Offset(cx, cy), radius: radius);
-    double startAngle = -3.14159 / 2;
-
-    for (final entry in counts.entries) {
-      final sweep = (entry.value / total) * (2 * 3.14159) - gap;
-      final paint = Paint()
-        ..color = entry.key
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeW
-        ..strokeCap = StrokeCap.round;
-      canvas.drawArc(rect, startAngle, sweep, false, paint);
-      startAngle += sweep + gap;
-    }
-
-    // Center text
-    final tp = TextPainter(
-      text: TextSpan(
-        text: '$total',
-        style: const TextStyle(color: Color(0xFF1a202c), fontSize: 20, fontWeight: FontWeight.w800),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2));
-  }
-
-  @override
-  bool shouldRepaint(_DonutPainter old) => old.vehicles != vehicles;
-}
-
 // ── PMS Reschedule Request Widget ────────────────────────────
 class _RescheduleWidget extends StatefulWidget {
   final String vehicleId;
@@ -2404,4 +2432,108 @@ class _RescheduleWidgetState extends State<_RescheduleWidget> {
       ]),
     );
   }
+}
+
+// ── Service card car illustration painter ────────────────────────────────
+class _SvcCarPainter extends CustomPainter {
+  const _SvcCarPainter();
+
+  void _drawRRect(Canvas c, double x, double y, double w, double h, double r,
+      {Color? fill, Color? stroke, double lw = 1}) {
+    final rr = RRect.fromLTRBR(x, y, x + w, y + h, Radius.circular(r));
+    if (fill != null) c.drawRRect(rr, Paint()..color = fill);
+    if (stroke != null) {
+      c.drawRRect(rr, Paint()
+        ..color = stroke
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = lw);
+    }
+  }
+
+  void _wheel(Canvas c, double cx, double cy, double r) {
+    // outer
+    c.drawCircle(Offset(cx, cy), r,
+        Paint()..color = const Color(0xFFE8001C));
+    c.drawCircle(Offset(cx, cy), r,
+        Paint()
+          ..color = Colors.white.withOpacity(0.5)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5);
+    // hub
+    c.drawCircle(Offset(cx, cy), r * 0.4,
+        Paint()..color = Colors.white.withOpacity(0.6));
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w  = size.width;
+    final h  = size.height;
+    final gY = h * 0.82;
+
+    final cw = w * 0.52;
+    final cx = w * 0.50;
+    final ch = cw * 0.40;
+
+    // shadow
+    final sg = RadialGradient(colors: [
+      Colors.black.withOpacity(0.18),
+      Colors.transparent,
+    ]);
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(cx, gY + 3), width: cw * 0.88, height: 12),
+      Paint()..shader = sg.createShader(Rect.fromCircle(center: Offset(cx, gY + 3), radius: cw * 0.45)),
+    );
+
+    // body
+    final bodyGrad = LinearGradient(
+      colors: [const Color(0xFFFFCCCC), const Color(0xFFFFB3B3)],
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+    ).createShader(Rect.fromLTWH(cx - cw * 0.5, gY - ch, cw, ch));
+    _drawRRect(canvas, cx - cw * 0.5, gY - ch * 0.52, cw, ch * 0.52, 10,
+        fill: const Color(0xFFFFCCCC),
+        stroke: const Color(0xFFE8001C).withOpacity(0.25), lw: 1.4);
+    // repaint body with gradient
+    canvas.drawRRect(
+      RRect.fromLTRBR(cx - cw * 0.5, gY - ch * 0.52, cx + cw * 0.5, gY, const Radius.circular(10)),
+      Paint()..shader = bodyGrad,
+    );
+
+    // cabin path
+    final cabinPath = Path()
+      ..moveTo(cx - cw * 0.30, gY - ch * 0.52)
+      ..quadraticBezierTo(cx - cw * 0.18, gY - ch * 0.96, cx - cw * 0.04, gY - ch * 0.98)
+      ..lineTo(cx + cw * 0.19, gY - ch * 0.98)
+      ..quadraticBezierTo(cx + cw * 0.30, gY - ch * 0.94, cx + cw * 0.34, gY - ch * 0.52)
+      ..close();
+
+    final cabGrad = LinearGradient(
+      colors: [const Color(0xFFFFB3B3), const Color(0xFFFF9999)],
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+    ).createShader(Rect.fromLTWH(cx - cw * 0.35, gY - ch, cw * 0.65, ch));
+
+    canvas.drawPath(cabinPath, Paint()..shader = cabGrad);
+    canvas.drawPath(cabinPath, Paint()
+      ..color = const Color(0xFFE8001C).withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2);
+
+    // windshield tint
+    canvas.drawPath(cabinPath, Paint()..color = Colors.white.withOpacity(0.35));
+
+    // headlight (right)
+    _drawRRect(canvas, cx + cw * 0.44, gY - ch * 0.32, 12, 7, 3,
+        fill: const Color(0xFFFEF9C3));
+    // tail-light (left)
+    _drawRRect(canvas, cx - cw * 0.50, gY - ch * 0.32, 9, 7, 3,
+        fill: const Color(0xFFE8001C).withOpacity(0.55));
+
+    // wheels
+    _wheel(canvas, cx - cw * 0.30, gY + 1, cw * 0.13);
+    _wheel(canvas, cx + cw * 0.26, gY + 1, cw * 0.13);
+  }
+
+  @override
+  bool shouldRepaint(_SvcCarPainter old) => false;
 }

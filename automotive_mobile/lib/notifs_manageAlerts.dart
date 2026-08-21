@@ -146,8 +146,18 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        backgroundColor: _red,
+        backgroundColor: const Color(0xFF1a202c),
         elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
+              stops: [0.0, 0.55, 1.0],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text('Manage Alerts',
           style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -385,9 +395,9 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
           Container(
             width: 42, height: 42,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: const Color(0xFFF1F3F5),
               borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, size: 20, color: color),
+            child: Icon(icon, size: 20, color: const Color(0xFF1a202c)),
           ),
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -419,9 +429,9 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
           Container(
             width: 38, height: 38,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: const Color(0xFFF1F3F5),
               borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, size: 18, color: color),
+            child: Icon(icon, size: 18, color: const Color(0xFF1a202c)),
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
