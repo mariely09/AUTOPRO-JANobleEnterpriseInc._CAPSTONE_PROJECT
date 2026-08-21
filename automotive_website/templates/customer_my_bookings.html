@@ -445,7 +445,7 @@ firebase.auth().onAuthStateChanged(function(user) {
       // Keep all (including cancelled) aa? filter client-side
       _allDocs = snap.docs.filter(function(doc) {
         var st = (doc.data().status || '').toLowerCase();
-        return st !== 'in progress' && st !== 'completed';
+        return st !== 'under maintenance' && st !== 'completed';
       }).sort(function(a,b) {
         var at = a.data().createdAt ? a.data().createdAt.toMillis() : 0;
         var bt = b.data().createdAt ? b.data().createdAt.toMillis() : 0;

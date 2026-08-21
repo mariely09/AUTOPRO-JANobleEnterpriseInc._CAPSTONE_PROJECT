@@ -1422,7 +1422,26 @@ window._svcViewDetails = function(docId) {
 
           // Also update linked service booking to "Completed" if exists
           if (s.bookingId) {
-            db.collection('service_bookings').doc(s.bookingId).update({ status: 'Completed' }).catch(function() {});
+            db.collection('service_bookings').doc(s.bookingId).get().then(function(bDoc) {
+              var bData = bDoc.exists ? bDoc.data() : {};
+              var customerId = bData.customerId || '';
+              bDoc.ref.update({ status: 'Completed' }).then(function() {
+                // Notify customer — in-app
+                if (customerId) {
+                  db.collection('notifications').add({
+                    title: '✅ Service Completed',
+                    message: 'Your vehicle ' + plate + ' has been serviced and is now ready. Thank you for choosing AutoPro!',
+                    type: 'success',
+                    targetRole: '', targetUid: customerId,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
+                  });
+                  // Email notification
+                  if (typeof sendAlertEmail === 'function') {
+                    sendAlertEmail({ title: '✅ Service Completed', message: 'Your vehicle ' + plate + ' has been serviced and is now ready.', type: 'success', targetUid: customerId });
+                  }
+                }
+              }).catch(function() {});
+            }).catch(function() {});
           }
         });
         }); // end byNamePromise.then
@@ -1549,6 +1568,24 @@ function svcSave() {
             } else {
               db.collection('vehicles').where('plate', '==', plate).limit(1).get().then(function(vSnap) {
                 if (!vSnap.empty) vSnap.docs[0].ref.update({ status: 'Under Maintenance' });
+              }).catch(function() {});
+            }
+            // Notify customer — in-app + email
+            if (window._svcFromBookingId) {
+              db.collection('service_bookings').doc(window._svcFromBookingId).get().then(function(bDoc) {
+                var customerId = bDoc.exists ? (bDoc.data().customerId || '') : '';
+                if (customerId) {
+                  db.collection('notifications').add({
+                    title: '🔧 Vehicle Under Maintenance',
+                    message: 'Your vehicle ' + plate + ' is now under maintenance. We will notify you once the service is completed.',
+                    type: 'info',
+                    targetRole: '', targetUid: customerId,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
+                  });
+                  if (typeof sendAlertEmail === 'function') {
+                    sendAlertEmail({ title: '🔧 Vehicle Under Maintenance', message: 'Your vehicle ' + plate + ' is now under maintenance.', type: 'info', targetUid: customerId });
+                  }
+                }
               }).catch(function() {});
             }
             closeModal('svcAddModal');

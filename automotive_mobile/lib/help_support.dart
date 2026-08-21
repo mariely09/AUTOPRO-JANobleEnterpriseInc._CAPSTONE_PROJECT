@@ -189,7 +189,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [_red, Color(0xFFC41E3A)],
+                  colors: [Color(0xFF1a202c), Color(0xFF2d3748), _red],
+                  stops: [0.0, 0.6, 1.0],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -261,13 +262,13 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                                 width: 32,
                                 height: 32,
                                 decoration: BoxDecoration(
-                                  color: _red.withOpacity(0.08),
+                                  color: const Color(0xFFF1F3F5),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
                                   Icons.help_outline,
                                   size: 16,
-                                  color: _red,
+                                  color: Color(0xFF1a202c),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -331,7 +332,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 children: [
                   _contactTile(
                     icon: Icons.phone_outlined,
-                    color: Colors.green,
+                    color: const Color(0xFF1a202c),
                     label: 'Call Us',
                     value: '+63 912 345 6789',
                     onTap: () => _launch('tel:+639123456789'),
@@ -339,7 +340,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   const Divider(height: 1, indent: 66),
                   _contactTile(
                     icon: Icons.email_outlined,
-                    color: _blue,
+                    color: const Color(0xFF1a202c),
                     label: 'Email Support',
                     value: 'janobleenterprisesinc@gmail.com',
                     onTap: () =>
@@ -348,7 +349,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   const Divider(height: 1, indent: 66),
                   _contactTile(
                     icon: Icons.location_on_outlined,
-                    color: _red,
+                    color: const Color(0xFF1a202c),
                     label: 'Visit Us',
                     value:
                         '102 National Highway, Brgy. Landayan, San Pedro, Laguna',
@@ -427,7 +428,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: const Color(0xFFF1F3F5),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, size: 18, color: color),

@@ -1380,7 +1380,7 @@ function _loadCalendarData() {
 
     // ── Bookings ──
     db.collection('service_bookings').where('customerId','==',uid).get().then(function(snap) {
-        var skip = ['completed','in progress','dismissed','cancelled','rejected'];
+        var skip = ['completed','under maintenance','dismissed','cancelled','rejected'];
         snap.docs.forEach(function(doc) {
             var data   = doc.data();
             var date   = data.preferredDate || '';

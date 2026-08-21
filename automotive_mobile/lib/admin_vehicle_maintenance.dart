@@ -689,6 +689,35 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                         if (bookingId != null && bookingId.isNotEmpty) {
                           await FirebaseFirestore.instance.collection('service_bookings').doc(bookingId).update({'status': 'Completed'}).catchError((_) {});
                         }
+
+                        // Notify customer — Completed
+                        String customerUid = mainData2['ownerId'] as String? ?? '';
+                        if (customerUid.isEmpty && bookingId != null && bookingId.isNotEmpty) {
+                          final bDoc = await FirebaseFirestore.instance.collection('service_bookings').doc(bookingId).get();
+                          customerUid = (bDoc.data()?['customerId'] as String?) ?? '';
+                        }
+                        if (customerUid.isEmpty) {
+                          // Fallback: look up vehicle owner
+                          final plate2 = (s['plate'] as String).trim().toUpperCase();
+                          var vFall = await FirebaseFirestore.instance.collection('vehicles').where('plateNumber', isEqualTo: plate2).limit(1).get();
+                          if (vFall.docs.isEmpty) vFall = await FirebaseFirestore.instance.collection('vehicles').where('plate', isEqualTo: plate2).limit(1).get();
+                          if (vFall.docs.isNotEmpty) customerUid = (vFall.docs.first.data()['ownerId'] as String?) ?? '';
+                        }
+                        if (customerUid.isNotEmpty) {
+                          final alertSnap = await FirebaseFirestore.instance
+                              .collection('users').doc(customerUid).collection('settings').doc('alerts').get();
+                          final prefs = alertSnap.data() ?? {};
+                          final inAppOn = prefs['vehicleUnderMaint'] != false;
+                          if (inAppOn) {
+                            await FirebaseFirestore.instance.collection('notifications').add({
+                              'title': '✅ Service Completed',
+                              'message': 'Your vehicle ${(s['plate'] as String).trim().toUpperCase()} has been serviced and is ready for pickup.',
+                              'type': 'success',
+                              'targetRole': '', 'targetUid': customerUid,
+                              'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
+                            });
+                          }
+                        }
                         }(); // end background lambda
                       },
                       icon: const Icon(Icons.done_all, size: 16),
@@ -1363,6 +1392,27 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                                       .limit(1).get();
                                   if (pSnap.docs.isNotEmpty) {
                                     await pSnap.docs.first.reference.update({'status': 'Under Maintenance'});
+                                  }
+                                }
+                                // Notify customer — Under Maintenance
+                                String maintCustomerUid = resolvedOwnerId;
+                                if (maintCustomerUid.isEmpty && bookingId != null && bookingId.isNotEmpty) {
+                                  final bDoc = await FirebaseFirestore.instance.collection('service_bookings').doc(bookingId).get();
+                                  maintCustomerUid = (bDoc.data()?['customerId'] as String?) ?? '';
+                                }
+                                if (maintCustomerUid.isNotEmpty) {
+                                  final alertSnap = await FirebaseFirestore.instance
+                                      .collection('users').doc(maintCustomerUid).collection('settings').doc('alerts').get();
+                                  final prefs = alertSnap.data() ?? {};
+                                  final inAppOn = prefs['vehicleUnderMaint'] != false;
+                                  if (inAppOn) {
+                                    await FirebaseFirestore.instance.collection('notifications').add({
+                                      'title': '🔧 Vehicle Under Maintenance',
+                                      'message': 'Your vehicle $plateUpper is now under maintenance. We will notify you once the service is completed.',
+                                      'type': 'info',
+                                      'targetRole': '', 'targetUid': maintCustomerUid,
+                                      'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
+                                    });
                                   }
                                 }
                               }();

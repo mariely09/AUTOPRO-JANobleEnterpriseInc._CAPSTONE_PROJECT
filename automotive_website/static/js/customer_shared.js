@@ -48,6 +48,13 @@
     // Runs immediately and again after header/sidebar is injected
     function setActiveTab() {
         const page = document.body.getAttribute('data-page');
+        // Restore sidebar expanded state after inject
+        try {
+            if (localStorage.getItem('cuSbExpanded') === '1') {
+                var sb = document.getElementById('cuSidebar');
+                if (sb && window.innerWidth > 768) sb.classList.add('expanded');
+            }
+        } catch(e) {}
         if (!page) return;
         // Sidebar links (new icon-only sidebar)
         document.querySelectorAll('.cu-sb-link[data-page]').forEach(function (link) {
