@@ -867,12 +867,22 @@ class _AppNotificationsState extends State<AppNotifications> {
               return Scaffold(
                 backgroundColor: const Color(0xFFF7F8FA),
                 appBar: AppBar(
-                  backgroundColor: _red,
-                  elevation: 0,
-                  iconTheme: const IconThemeData(color: Colors.white),
-                  title: const Text('Notifications',
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                backgroundColor: const Color(0xFF1a202c),
+                elevation: 0,
+                flexibleSpace: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
+                      stops: [0.0, 0.55, 1.0],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
                 ),
+                iconTheme: const IconThemeData(color: Colors.white),
+                title: const Text('Notifications',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
                 body: const Center(child: CircularProgressIndicator()),
               );
             }
@@ -903,8 +913,18 @@ class _AppNotificationsState extends State<AppNotifications> {
               appBar: _isSelecting
                   // ── Selection mode AppBar ──
                   ? AppBar(
-                      backgroundColor: _red,
+                      backgroundColor: const Color(0xFF1a202c),
                       elevation: 0,
+                      flexibleSpace: Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
+                            stops: [0.0, 0.55, 1.0],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                      ),
                       leading: IconButton(
                         icon: const Icon(Icons.close, color: Colors.white),
                         onPressed: _clearSelection,
@@ -938,8 +958,18 @@ class _AppNotificationsState extends State<AppNotifications> {
                     )
                   // ── Normal AppBar ──
                   : AppBar(
-                      backgroundColor: _red,
+                      backgroundColor: const Color(0xFF1a202c),
                       elevation: 0,
+                      flexibleSpace: Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
+                            stops: [0.0, 0.55, 1.0],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                      ),
                       iconTheme: const IconThemeData(color: Colors.white),
                       title: const Text('Notifications',
                           style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -1052,12 +1082,12 @@ class _AppNotificationsState extends State<AppNotifications> {
                                         child: Container(
                                           width: 36, height: 36,
                                           decoration: BoxDecoration(
-                                            color: _red.withOpacity(0.1),
+                                            color: const Color(0xFF1a3560).withOpacity(0.08),
                                             borderRadius: BorderRadius.circular(10),
                                           ),
                                           child: const Icon(
                                             Icons.notifications_outlined,
-                                            color: _red,
+                                            color: Color(0xFF1a3560),
                                             size: 20,
                                           ),
                                         ),

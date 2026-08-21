@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   'use strict';
 
   // ── Auth guard ──────────────────────────────────────────
@@ -194,33 +194,6 @@
     document.getElementById('cuDueThisWeek').textContent    = dueThisWeek;
     document.getElementById('cuDueSoon').textContent        = dueToday;
 
-    // Update banner greeting to match mobile _buildWelcomeCard status logic
-    const iconEl  = document.getElementById('cuBannerIcon');
-    const line1El = document.getElementById('cuBannerLine1');
-    const line2El = document.getElementById('cuBannerLine2');
-    if (iconEl && line1El && line2El) {
-      if (overdue > 0) {
-        iconEl.textContent  = '⚠️';
-        line1El.textContent = 'PMS Overdue';
-        line2El.textContent = overdue + ' vehicle' + (overdue !== 1 ? 's need' : ' needs') + ' immediate attention.';
-        line1El.style.color = '#fca5a5';
-      } else if (dueToday > 0) {
-        iconEl.textContent  = '🔧';
-        line1El.textContent = 'PMS due today';
-        line2El.textContent = 'Your vehicle needs attention today.';
-        line1El.style.color = '#fcd34d';
-      } else if (dueThisWeek > 0) {
-        iconEl.textContent  = '📅';
-        line1El.textContent = 'Due this week';
-        line2El.textContent = dueThisWeek + ' vehicle' + (dueThisWeek !== 1 ? 's are' : ' is') + ' due for PMS this week.';
-        line1El.style.color = '#fcd34d';
-      } else {
-        iconEl.textContent  = '✅';
-        line1El.textContent = 'All clear today';
-        line2El.textContent = 'No scheduled services for today.';
-        line1El.style.color = '#86efac';
-      }
-    }
   }
 
   function statusStyle(status) {
@@ -259,73 +232,25 @@
       const status   = computeStatus(v);
       const { color, bg, label } = statusStyle(status);
       const isTruck  = (v.type || '').toLowerCase().includes('truck');
-      // bg at 10% opacity matches mobile color.withOpacity(0.1)
-      const iconBg   = color + '1A'; // hex 1A ≈ 10% opacity
+      const iconBg   = '#1a35601A'; // always dark tint for icon bg
 
       return `<div class="cu-vov-row" onclick="cuShowVehicle('${v.id}')">
         <div class="cu-vov-icon" style="background:${iconBg};">
-          ${vehicleSvg(isTruck, color)}
+          ${vehicleSvg(isTruck, '#1a3560')}
         </div>
         <div class="cu-vov-info">
           <div class="cu-vov-plate">${v.plate || '—'}</div>
           <div class="cu-vov-desc">${v.desc || '—'}</div>
         </div>
-        <span class="cu-vov-badge" style="background:${iconBg};color:${color};">${label}</span>
+        <span class="cu-vov-badge" style="background:${color}1A;color:${color};">${label}</span>
+        <button class="cu-vov-view-btn" onclick="event.stopPropagation();cuShowVehicle('${v.id}')">View</button>
       </div>`;
     }).join('');
 
     el.innerHTML = `
       <div class="cu-vov-body">
         <div class="cu-vov-list">${rowsHtml}</div>
-        <div class="cu-vov-donut-wrap">
-          <canvas id="cuDonutCanvas" width="80" height="80"></canvas>
-          <div class="cu-vov-donut-label">Fleet Status</div>
-        </div>
       </div>`;
-
-    // Draw donut chart
-    _drawDonut();
-  }
-
-  // ── Donut chart — mirrors _DonutPainter exactly ───────────────────
-  function _drawDonut() {
-    const canvas = document.getElementById('cuDonutCanvas');
-    if (!canvas) return;
-    const ctx    = canvas.getContext('2d');
-    const total  = _vehicles.length;
-    if (!total)  return;
-
-    // Count by color
-    const colorMap = {};
-    _vehicles.forEach(v => {
-      const status = computeStatus(v);
-      const { color } = statusStyle(status);
-      colorMap[color] = (colorMap[color] || 0) + 1;
-    });
-
-    const cx = 40, cy = 40, radius = 32, strokeW = 14, gap = 0.04;
-    const TAU = 2 * Math.PI;
-    let startAngle = -Math.PI / 2;
-
-    ctx.clearRect(0, 0, 80, 80);
-
-    Object.entries(colorMap).forEach(([color, count]) => {
-      const sweep = (count / total) * TAU - gap;
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, startAngle, startAngle + sweep);
-      ctx.strokeStyle = color;
-      ctx.lineWidth   = strokeW;
-      ctx.lineCap     = 'round';
-      ctx.stroke();
-      startAngle += sweep + gap;
-    });
-
-    // Center total count
-    ctx.fillStyle = '#1a202c';
-    ctx.font      = 'bold 20px "Segoe UI", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(total), cx, cy);
   }
 
   // ── Vehicle modal ─────────────────────────────────────────
@@ -459,10 +384,10 @@
     }
 
     document.getElementById('cuModalDetails').innerHTML = `
-      ${detailRow('#718096', 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 5v5l3 3', 'Last Service Odometer', v.lastSvcOdo ? Number(String(v.lastSvcOdo).replace(/[^0-9]/g, '')).toLocaleString() + ' km' : '—')}
-      ${detailRow('#2b6cb0', 'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18', 'Last Service', v.lastSvcDate ? fmtDateLong(v.lastSvcDate) : '—')}
-      ${detailRow(color, 'M8 6l4-4 4 4M8 18l4 4 4-4M4 12h16', 'Next PMS Due', fmtDateLong(nextPms))}
-      ${detailRow(color, 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', 'Status', `<span style="background:${bg};color:${color};padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLabel}</span>`)}
+      ${detailRow('#1a3560', 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 5v5l3 3', 'Last Service Odometer', v.lastSvcOdo ? Number(String(v.lastSvcOdo).replace(/[^0-9]/g, '')).toLocaleString() + ' km' : '—')}
+      ${detailRow('#1a3560', 'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18', 'Last Service', v.lastSvcDate ? fmtDateLong(v.lastSvcDate) : '—')}
+      ${detailRow('#1a3560', 'M8 6l4-4 4 4M8 18l4 4 4-4M4 12h16', 'Next PMS Due', fmtDateLong(nextPms))}
+      ${detailRow('#1a3560', 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', 'Status', `<span style="background:${bg};color:${color};padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:700;">${statusLabel}</span>`)}
       ${overdueSection}
     `;
 
@@ -584,7 +509,7 @@
         return;
       }
 
-      const buildIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
+      const buildIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a3560" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
 
       el.innerHTML = records.map((r, i) => {
         const plate   = r.plate || '—';
@@ -766,5 +691,6 @@
   };
 
 })();
+
 
 

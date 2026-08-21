@@ -181,7 +181,7 @@
         <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
             <div id="svcModalIconWrap" style="display:none;"></div>
             <div style="flex:1;"><div id="svcModalTitle" style="color:white;font-size:1rem;font-weight:700;">New Service</div></div>
-            <button onclick="closeModal('svcAddModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+            <button onclick="svcCancelAddModal()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
         </div>
         <div style="padding:1.25rem 1.5rem;overflow-y:auto;overflow-x:hidden;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
             <div class="fl-field" style="position:relative;">
@@ -246,7 +246,7 @@
             </div>
         </div>
         <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
-            <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('svcAddModal')">Cancel</button>
+            <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="svcCancelAddModal()">Cancel</button>
             <button type="button" class="btn-primary" style="flex:1;display:flex;align-items:center;justify-content:center;gap:0.4rem;" id="svcSubmitBtn" onclick="svcSave()">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                 Save
@@ -726,7 +726,19 @@ function svcAddSvcRow(name, qty, uom, cost) {
     }, 150);
   });
 
-  if (name) svcSvcApply(div, name, uom, cost);
+  if (name) {
+    // If uom/cost not provided, look them up from the item master (e.g. when pre-filling from a booking)
+    if ((uom === undefined || uom === null || uom === '') && (cost === undefined || cost === null || cost === '')) {
+      var _found = _svcServiceItems.find(function(i) {
+        return (i.itemName || '').toLowerCase() === name.toLowerCase();
+      });
+      if (_found) {
+        uom  = _found.uom  || '';
+        cost = _found.cost || 0;
+      }
+    }
+    svcSvcApply(div, name, uom, cost);
+  }
 }
 
 function svcSvcLookup(input) {
@@ -898,6 +910,17 @@ function svcAddMatRow(name, qty, uom, cost) {
   });
 
   if (name) {
+    // If uom/cost not provided, look them up from the item master (e.g. when pre-filling from a booking)
+    if ((uom === undefined || uom === null || uom === '') && (cost === undefined || cost === null || cost === '')) {
+      var _foundMat = _svcMaterialItems.find(function(i) {
+        return (i.itemName || '').toLowerCase() === name.toLowerCase();
+      });
+      if (_foundMat) {
+        uom  = _foundMat.uom  || '';
+        cost = _foundMat.cost || 0;
+        if (!_lookupItemNum) _lookupItemNum = _foundMat.itemNum || '';
+      }
+    }
     div.querySelector('.svc-mat-search').value = name;
     svcMatApply(div, name, uom, cost, null, _lookupItemNum);
   }
@@ -1123,6 +1146,23 @@ function svcMatClear(btn) {
   row.querySelector('.svc-row-cost').value  = '';
   _floatLabel(searchWrap.querySelector('label'), '');
   svcCalcTotal();
+}
+
+// Cancel the add/edit modal — reverts booking to "Approved" if opened from a booking
+function svcCancelAddModal() {
+  var bookingId = window._svcFromBookingId || '';
+  window._svcFromBookingId = '';
+  if (bookingId) {
+    firebase.firestore().collection('service_bookings').doc(bookingId)
+      .update({ status: 'Approved' })
+      .catch(function() {})
+      .finally(function() {
+        closeModal('svcAddModal');
+        window.location.href = 'admin_service_bookings.html';
+      });
+  } else {
+    closeModal('svcAddModal');
+  }
 }
 
 function svcOpenAddModal() {

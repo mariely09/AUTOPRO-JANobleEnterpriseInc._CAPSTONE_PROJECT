@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -129,7 +129,7 @@
         if (odo) lastSvcOdo = String(odo).replace(/[^0-9]/g, '');
       }
 
-      // ── LEFT SIDEBAR ──
+      // â”€â”€ LEFT SIDEBAR â”€â”€
       const sidebarHtml = `
         <div class="phd-sidebar">
           <a href="customer_pms_history.html" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#718096;text-decoration:none;margin-bottom:16px;transition:color .2s;" onmouseover="this.style.color='#E8001C'" onmouseout="this.style.color='#718096'">
@@ -173,7 +173,7 @@
         </div>
       `;
 
-      // ── RIGHT CONTENT — Records ──
+      // â”€â”€ RIGHT CONTENT â€” Records â”€â”€
       let recordsHtml = '';
       if (!records.length) {
         recordsHtml = '<div class="phd-empty"><div style="font-size:48px;margin-bottom:12px;">&#128269;</div><div>No completed services yet.</div></div>';
@@ -280,8 +280,8 @@
       const sub = rowSub(item);
       const unitCost = parseCost(item.cost).toFixed(2);
       return `<div style="margin-bottom:8px;padding:10px;background:${color}18;border-radius:10px;border:1px solid ${color}30;display:flex;align-items:center;">
-        <div style="flex:1;"><div style="font-weight:600;font-size:12px;">${item.name}</div>
-        <div style="font-size:10px;color:#718096;">${item.qty} ${item.uom} &middot; &#x20B1;${unitCost} / unit</div></div>
+        <div style="flex:1;"><div style="font-weight:600;font-size:12px;">${item.name}${item.uom ? ' <span style="font-weight:400;color:#718096;">('+item.uom+')</span>' : ''}</div>
+        <div style="font-size:10px;color:#718096;">${item.qty} &middot; &#x20B1;${unitCost} / unit</div></div>
         <span style="font-weight:700;font-size:12px;color:${color};">&#x20B1;${sub.toLocaleString('en-PH',{minimumFractionDigits:2})}</span>
       </div>`;
     }
@@ -329,3 +329,6 @@
 </div><!-- /.cu-page-shell -->
 </body>
 </html>
+
+
+

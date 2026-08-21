@@ -24,13 +24,14 @@ a { text-decoration: none; }
   position: sticky;
   top: 0;
   z-index: 100;
-  background: #E8001C;
+  background: linear-gradient(135deg, #ffffff 0%, #FFECEC 55%, #FFD6D6 100%);
+  border-bottom: 1px solid #FFCCCC;
   padding: 0 5%;
   height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 2px 12px rgba(232,0,28,0.25);
+  box-shadow: 0 2px 12px rgba(232,0,28,0.10);
 }
 
 .nav-brand {
@@ -71,27 +72,27 @@ a { text-decoration: none; }
 }
 
 .nav-btn-outline {
-  color: #fff;
+  color: #E8001C;
   padding: 7px 20px;
   border-radius: 30px;
   font-size: 14px;
   font-weight: 600;
-  border: 1.5px solid rgba(255,255,255,0.6);
-  transition: background .2s;
+  border: 1.5px solid #E8001C;
+  transition: background .2s, color .2s;
 }
-.nav-btn-outline:hover { background: rgba(255,255,255,0.12); }
+.nav-btn-outline:hover { background: #E8001C; color: #fff; }
 
 .nav-btn {
-  background: rgba(255,255,255,0.15);
+  background: #E8001C;
   color: #fff;
   padding: 8px 22px;
   border-radius: 30px;
   font-size: 14px;
   font-weight: 600;
-  border: 1.5px solid rgba(255,255,255,0.35);
+  border: 1.5px solid #E8001C;
   transition: background .2s;
 }
-.nav-btn:hover { background: rgba(255,255,255,0.25); }
+.nav-btn:hover { background: #c8001a; }
 
 /* ── Hero ── */
 .hero {
@@ -243,7 +244,7 @@ a { text-decoration: none; }
 
 /* ── Sections shared ── */
 .features, .roles { padding: 100px 5%; background: var(--bg); }
-.roles { background: var(--white); }
+.roles { background: linear-gradient(135deg, #ffffff 0%, #FFECEC 55%, #FFD6D6 100%); border-top: 1px solid #FFCCCC; border-bottom: 1px solid #FFCCCC; }
 
 .features-inner { max-width: 1100px; margin: 0 auto; }
 
@@ -343,7 +344,8 @@ a { text-decoration: none; }
 
 /* ── CTA ── */
 .cta {
-  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #FFECEC 55%, #FFD6D6 100%);
+  border-top: 1px solid #FFCCCC;
   padding: 100px 5%;
   text-align: center;
 }
@@ -360,13 +362,13 @@ a { text-decoration: none; }
 .cta h2 {
   font-size: clamp(1.6rem, 3vw, 2.4rem);
   font-weight: 800;
-  color: #fff;
+  color: #1a202c;
   margin-bottom: 12px;
 }
 
 .cta p {
   font-size: 15px;
-  color: rgba(255,255,255,0.65);
+  color: #718096;
   margin-bottom: 32px;
 }
 

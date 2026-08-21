@@ -70,6 +70,15 @@
         .mb-badge.cancelled   { background:rgba(232,0,28,0.1);     color:#E8001C; }
         .mb-badge.completed   { background:rgba(0,48,135,0.08);    color:#003087; }
 
+        /* Pagination */
+        .ap-pagination { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-top:1px solid #e2e8f0; background:#f8fafc; border-radius:0 0 14px 14px; flex-wrap:wrap; gap:8px; }
+        .ap-pagination-info { font-size:12px; color:#718096; font-weight:500; }
+        .ap-pagination-btns { display:flex; align-items:center; gap:4px; }
+        .ap-page-btn { min-width:32px; height:32px; padding:0 8px; border:1.5px solid #e2e8f0; border-radius:8px; background:white; color:#4a5568; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; display:inline-flex; align-items:center; justify-content:center; }
+        .ap-page-btn:hover:not(:disabled) { background:#f0f4f8; border-color:#cbd5e0; }
+        .ap-page-btn.active { background:#E8001C; border-color:#E8001C; color:white; }
+        .ap-page-btn:disabled { opacity:.4; cursor:not-allowed; }
+
         /* aa?aa? Modal aa?aa? */
         .mb-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px); z-index:800; align-items:center; justify-content:center; padding:20px; }
         .mb-modal-overlay.active { display:flex; }
@@ -242,8 +251,18 @@ var _bookings = {};
 var _allDocs  = [];
 var _mbFilter = 'all';
 
+// ── Pagination state ──────────────────────────────────────────
+var _mbPage = 1;
+var _MB_PER_PAGE = 10;
+
+function _mbGoPage(page) {
+  _mbPage = page;
+  _mbRender();
+}
+
 window.mbSetFilter = function(filter) {
   _mbFilter = filter;
+  _mbPage   = 1; // reset to first page on filter change
   // Update stat cards
   ['approved','rescheduled','cancelled'].forEach(function(f) {
     var card = document.getElementById('mbStat_' + f);
@@ -283,7 +302,8 @@ function _mbRender() {
     return;
   }
 
-  var rows = '';
+  // Build row HTML strings array
+  var rows = [];
   filtered.forEach(function(doc) {
     var d  = doc.data();
     var id = doc.id;
@@ -306,7 +326,7 @@ function _mbRender() {
 
     var services = (d.services || []).join(', ') || '—';
 
-    rows += '<tr onclick="mbOpenModal(\'' + id + '\')">'
+    rows.push('<tr onclick="mbOpenModal(\'' + id + '\')">'
       + '<td class="mb-td">'
       +   '<div class="mb-td-plate">' + _esc(d.plate || '—') + '</div>'
       +   '<div class="mb-td-desc">'  + _esc(d.vehicleDesc || '') + '</div>'
@@ -322,8 +342,40 @@ function _mbRender() {
       + '</td>'
       + '<td><span class="mb-badge ' + badgeClass + '">' + _esc(badgeLabel) + '</span></td>'
       + '<td class="mb-td-action"><a onclick="event.stopPropagation();mbOpenModal(\'' + id + '\')">View <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></a></td>'
-      + '</tr>';
+      + '</tr>');
   });
+
+  // Pagination
+  var total      = rows.length;
+  var totalPages = Math.ceil(total / _MB_PER_PAGE);
+  if (_mbPage > totalPages) _mbPage = totalPages;
+  if (_mbPage < 1)          _mbPage = 1;
+  var start    = (_mbPage - 1) * _MB_PER_PAGE;
+  var end      = Math.min(start + _MB_PER_PAGE, total);
+  var pageRows = rows.slice(start, end);
+
+  var from = start + 1, to = end;
+  var info = 'Showing ' + from + '–' + to + ' of ' + total;
+
+  var btns = '';
+  btns += '<button class="ap-page-btn" onclick="_mbGoPage(' + (_mbPage-1) + ')" ' + (_mbPage <= 1 ? 'disabled' : '') + '>'
+        + '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'
+        + '</button>';
+
+  var pStart = Math.max(1, _mbPage - 2);
+  var pEnd   = Math.min(totalPages, pStart + 4);
+  if (pEnd - pStart < 4) pStart = Math.max(1, pEnd - 4);
+  for (var p = pStart; p <= pEnd; p++) {
+    btns += '<button class="ap-page-btn' + (p === _mbPage ? ' active' : '') + '" onclick="_mbGoPage(' + p + ')">' + p + '</button>';
+  }
+
+  btns += '<button class="ap-page-btn" onclick="_mbGoPage(' + (_mbPage+1) + ')" ' + (_mbPage >= totalPages ? 'disabled' : '') + '>'
+        + '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
+        + '</button>';
+
+  var pagination = total > _MB_PER_PAGE
+    ? '<div class="ap-pagination"><span class="ap-pagination-info">' + info + '</span><div class="ap-pagination-btns">' + btns + '</div></div>'
+    : '';
 
   list.innerHTML = '<div class="mb-table-card">'
     + '<div class="mb-table-wrap">'
@@ -336,8 +388,10 @@ function _mbRender() {
     + '<th>Status</th>'
     + '<th></th>'
     + '</tr></thead>'
-    + '<tbody>' + rows + '</tbody>'
-    + '</table></div></div>';
+    + '<tbody>' + pageRows.join('') + '</tbody>'
+    + '</table></div>'
+    + pagination
+    + '</div>';
 }
 
 // aa?aa? Modal aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?
