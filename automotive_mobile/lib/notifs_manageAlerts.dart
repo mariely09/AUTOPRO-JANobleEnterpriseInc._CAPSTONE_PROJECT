@@ -385,9 +385,9 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
           Container(
             width: 42, height: 42,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: const Color(0xFFF1F3F5),
               borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, size: 20, color: color),
+            child: Icon(icon, size: 20, color: const Color(0xFF1a202c)),
           ),
           const SizedBox(width: 14),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -419,9 +419,9 @@ class _ManageAlertsScreenState extends State<ManageAlertsScreen> {
           Container(
             width: 38, height: 38,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: const Color(0xFFF1F3F5),
               borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, size: 18, color: color),
+            child: Icon(icon, size: 18, color: const Color(0xFF1a202c)),
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

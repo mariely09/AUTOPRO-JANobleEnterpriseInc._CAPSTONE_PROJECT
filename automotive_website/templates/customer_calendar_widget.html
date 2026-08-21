@@ -199,7 +199,7 @@
         snap.forEach(function(doc) {
           var d    = doc.data();
           var st   = (d.status || '').toLowerCase();
-          if (st === 'completed' || st === 'in progress' || st === 'dismissed' || st === 'cancelled' || st === 'rejected') return;
+          if (st === 'completed' || st === 'under maintenance' || st === 'dismissed' || st === 'cancelled' || st === 'rejected') return;
           var date = d.preferredDate || '';
           if (!date) return;
           var due  = new Date(date + 'T00:00:00');

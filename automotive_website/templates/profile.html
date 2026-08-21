@@ -30,7 +30,7 @@
 </head>
 <body class="portal-body" data-page="profile">
 <script>
-// Instant auth guard — blocks bfcache back-navigation after logout
+// Instant auth guard ??blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -100,7 +100,7 @@ if (!firebase.apps.length) {
 </script>
 
 <script>
-// ── Step 1: Detect role from sessionStorage ──────────────────
+// ?? Step 1: Detect role from sessionStorage ??????????????????
 var _profileRole = (function() {
     var ap = sessionStorage.getItem('apUser');
     if (ap) { try { var d = JSON.parse(ap); if (d.role === 'admin') return 'admin'; } catch(e){} }
@@ -114,7 +114,7 @@ var _profileRole = (function() {
     return null;
 })();
 
-// ── Step 2: Show the correct layout immediately ──────────────
+// ?? Step 2: Show the correct layout immediately ??????????????
 if (!_profileRole) {
     window.location.replace('/login.html');
 } else if (_profileRole === 'admin') {
@@ -197,7 +197,7 @@ if (!_profileRole) {
 </script>
 
 <script>
-// ── Step 3: Load profile data from Firebase ──────────────────
+// ?? Step 3: Load profile data from Firebase ??????????????????
 var _pEditing = false;
 var _profileUnsubscribe = null;
 
@@ -236,11 +236,14 @@ firebase.auth().onAuthStateChanged(function(user) {
     var sess = JSON.parse(sessionStorage.getItem(sessKey) || '{}');
     if (sess.name || sess.email) {
         _renderProfile({
-            name:        sess.name        || 'User',
-            email:       sess.email       || user.email || '',
-            role:        sess.role        || _profileRole,
-            photoUrl:    sess.photoUrl    || null,
-            companyName: sess.companyName || '',
+            name:          sess.name        || 'User',
+            email:         sess.email       || user.email || '',
+            role:          sess.role        || _profileRole,
+            photoUrl:      sess.photoUrl    || null,
+            companyName:   sess.companyName || '',
+            phoneNumber:   sess.phoneNumber || '',
+            firstName:     sess.firstName   || '',
+            lastName:      sess.lastName    || '',
         });
     }
 
@@ -258,25 +261,29 @@ firebase.auth().onAuthStateChanged(function(user) {
             var companyName = data.companyName || '';
 
             if (!_pEditing) {
-                _renderProfile({ name: name, email: email, role: role, photoUrl: photoUrl, companyName: companyName });
+                _renderProfile({ name: name, email: email, role: role, photoUrl: photoUrl, companyName: companyName, phoneNumber: data.phoneNumber || '', firstName: data.firstName || '', lastName: data.lastName || '' });
             }
 
-            // Sync sessionStorage — include photoUrl so it persists across refreshes
+            // Sync sessionStorage ??include photoUrl so it persists across refreshes
             var key = _profileRole === 'admin' ? 'apUser' : _profileRole === 'staff' ? 'spUser' : 'cpUser';
             var s2 = JSON.parse(sessionStorage.getItem(key) || '{}');
             s2.name = name; s2.email = email; s2.companyName = companyName;
+            if (data.phoneNumber) s2.phoneNumber = data.phoneNumber;
             if (photoUrl) s2.photoUrl = photoUrl;
             sessionStorage.setItem(key, JSON.stringify(s2));
         }, function(err) { console.warn('Profile listener:', err); });
 });
 
-// ── Render profile HTML ──────────────────────────────────────
+// ?? Render profile HTML ??????????????????????????????????????
 function _renderProfile(d) {
     var name        = d.name || 'User';
     var email       = d.email || '';
     var role        = d.role || _profileRole;
+    var firstName   = d.firstName   || (name.split(' ')[0] || '');
+    var lastName    = d.lastName    || (name.split(' ').slice(1).join(' ') || '');
     var photoUrl    = d.photoUrl;
     var companyName = d.companyName || '';
+    var phone = d.phoneNumber || '';
 
     var parts    = name.trim().split(' ').filter(Boolean);
     var initials = parts.length >= 2
@@ -323,6 +330,7 @@ function _renderProfile(d) {
         +   '<div class="profile-info-list">'
         +     _infoRow('rgba(0,48,135,0.08)', '#1a202c', '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>', 'Full Name', '<span id="pDisplayName">' + _esc(name) + '</span>')
         +     _infoRow('rgba(26,32,44,0.06)', '#1a202c', '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>', 'Email', _esc(email))
+        +     (phone ? _infoRow('rgba(26,32,44,0.06)', '#1a202c', '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4a2 2 0 0 1 1.99-2.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l.92-.87a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>', 'Phone Number', _esc(phone)) : '')
         +     _infoRow('rgba(26,32,44,0.06)', '#1a202c', '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>', 'Role', '<span style="color:' + roleColor + ';font-weight:700;">' + _esc(roleLabel) + '</span>')
         +   '</div>'
         + '</div>'
@@ -344,8 +352,10 @@ function _renderProfile(d) {
         +         '<span>Cancel</span>'
         +       '</button>'
         +     '</div>'
-        +     _infoEditTile('person', 'Full Name', 'pFieldName', _esc(name), false, false)
+        +     _infoEditTile('person', 'First Name', 'pFieldFirstName', _esc(firstName), false, false)
+        +     _infoEditTile('person', 'Last Name',  'pFieldLastName',  _esc(lastName),  false, false)
         +     _infoEditTile('email', 'Email', 'pFieldEmail', _esc(email), false, false)
+        +     _infoEditTile('phone', 'Phone Number', 'pFieldPhone', _esc(phone), false, false)
         +     (role === 'customer' && companyName ? _infoEditTile('company', 'Company Name', 'pFieldCompany', _esc(companyName), false, false) : '')
         +     _infoEditTile('role', 'Role', 'pFieldRole', _esc(roleLabel), true, true)
         +   '</div>'
@@ -385,6 +395,7 @@ function _infoEditTile(type, label, fieldId, value, isLast, readOnly) {
     var icons = {
         person: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
         email:  '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',
+        phone:  '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4a2 2 0 0 1 1.99-2.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l.92-.87a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
         company:'<path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/>',
         role:   '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
     };
@@ -408,27 +419,31 @@ function _settingsTile(iconBg, iconColor, svgPath, label, sub, href) {
         + '</a>';
 }
 
-// ── Edit mode ────────────────────────────────────────────────
+// ?? Edit mode ????????????????????????????????????????????????
 window.toggleEditMode = function() {
     if (_pEditing) {
         saveProfile();
     } else {
         _pEditing = true;
         // Store originals for cancel
-        var nameView  = document.getElementById('view_pFieldName');
+        var nameView  = document.getElementById('view_pFieldFirstName');
         var emailView = document.getElementById('view_pFieldEmail');
-        window._pOrigName  = nameView  ? nameView.textContent  : '';
-        window._pOrigEmail = emailView ? emailView.textContent : '';
+        window._pOrigFirstName = nameView  ? nameView.textContent  : '';
+        window._pOrigEmail     = emailView ? emailView.textContent : '';
+        var lastNameView = document.getElementById('view_pFieldLastName');
+        window._pOrigLastName  = lastNameView ? lastNameView.textContent : '';
         var companyView = document.getElementById('view_pFieldCompany');
         window._pOrigCompany = companyView ? companyView.textContent : '';
+        var phoneView = document.getElementById('view_pFieldPhone');
+        window._pOrigPhone = phoneView ? phoneView.textContent : '';
 
-        ['pFieldName', 'pFieldEmail', 'pFieldCompany'].forEach(function(id) {
+        ['pFieldFirstName', 'pFieldLastName', 'pFieldEmail', 'pFieldPhone', 'pFieldCompany'].forEach(function(id) {
             var view = document.getElementById('view_' + id);
             var input = document.getElementById(id);
             if (view) view.style.display = 'none';
             if (input) input.style.display = 'block';
         });
-        var ni = document.getElementById('pFieldName');
+        var ni = document.getElementById('pFieldFirstName');
         if (ni) ni.focus();
         var lbl = document.getElementById('pEditBtnLabel');
         var icon = document.getElementById('pEditBtnIcon');
@@ -442,14 +457,18 @@ window.toggleEditMode = function() {
 window.cancelEditMode = function() {
     _pEditing = false;
     // Restore original values
-    var nameInput  = document.getElementById('pFieldName');
+    var firstNameInput = document.getElementById('pFieldFirstName');
+    var lastNameInput  = document.getElementById('pFieldLastName');
     var emailInput = document.getElementById('pFieldEmail');
     var companyInput = document.getElementById('pFieldCompany');
-    if (nameInput)    nameInput.value    = window._pOrigName    || '';
-    if (emailInput)   emailInput.value   = window._pOrigEmail   || '';
-    if (companyInput) companyInput.value  = window._pOrigCompany || '';
+    var phoneInput = document.getElementById('pFieldPhone');
+    if (firstNameInput) firstNameInput.value = window._pOrigFirstName || '';
+    if (lastNameInput)  lastNameInput.value  = window._pOrigLastName  || '';
+    if (emailInput)     emailInput.value     = window._pOrigEmail     || '';
+    if (companyInput)   companyInput.value   = window._pOrigCompany   || '';
+    if (phoneInput)     phoneInput.value     = window._pOrigPhone     || '';
 
-    ['pFieldName', 'pFieldEmail', 'pFieldCompany'].forEach(function(id) {
+    ['pFieldFirstName', 'pFieldLastName', 'pFieldEmail', 'pFieldPhone', 'pFieldCompany'].forEach(function(id) {
         var view = document.getElementById('view_' + id);
         var input = document.getElementById(id);
         if (view) view.style.display = 'block';
@@ -465,14 +484,20 @@ window.cancelEditMode = function() {
 
 window.saveProfile = function() {
     var uid = window._profileUid;
-    var nameEl  = document.getElementById('pFieldName');
-    var emailEl = document.getElementById('pFieldEmail');
-    var companyEl = document.getElementById('pFieldCompany');
-    var name  = nameEl  ? nameEl.value.trim()  : '';
-    var email = emailEl ? emailEl.value.trim() : '';
-    var companyName = companyEl ? companyEl.value.trim() : '';
+    var firstNameEl = document.getElementById('pFieldFirstName');
+    var lastNameEl  = document.getElementById('pFieldLastName');
+    var emailEl     = document.getElementById('pFieldEmail');
+    var companyEl   = document.getElementById('pFieldCompany');
+    var phoneEl     = document.getElementById('pFieldPhone');
+    var firstName     = firstNameEl ? firstNameEl.value.trim() : '';
+    var lastName      = lastNameEl  ? lastNameEl.value.trim()  : '';
+    var name          = (firstName + ' ' + lastName).trim();
+    var email         = emailEl ? emailEl.value.trim() : '';
+    var companyName   = companyEl ? companyEl.value.trim() : '';
+    var phone         = phoneEl   ? phoneEl.value.trim()   : '';
 
-    if (!name)  { _showToast('Name cannot be empty.', 'error'); return; }
+    if (!firstName) { _showToast('First name cannot be empty.', 'error'); return; }
+    if (!lastName)  { _showToast('Last name cannot be empty.',  'error'); return; }
     if (!email) { _showToast('Email cannot be empty.', 'error'); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { _showToast('Invalid email.', 'error'); return; }
 
@@ -482,17 +507,20 @@ window.saveProfile = function() {
     if (lbl) lbl.textContent = 'Saving...';
 
     var user = firebase.auth().currentUser;
-    var updateData = { name: name, email: email };
+    var updateData = { name: name, firstName: firstName, lastName: lastName, email: email };
     if (_profileRole === 'customer') updateData.companyName = companyName;
+    if (phone) updateData.phoneNumber = phone;
     firebase.firestore().collection('users').doc(uid).update(updateData)
         .then(function() { return user.updateEmail(email); })
         .then(function() {
             // Update owner field on all vehicles belonging to this customer
-            if (_profileRole === 'customer' && window._pOrigName && window._pOrigName !== name) {
+            if (_profileRole === 'customer' && window._pOrigFirstName !== undefined) {
+                var oldName = ((window._pOrigFirstName || '') + ' ' + (window._pOrigLastName || '')).trim();
+                if (oldName && oldName.toLowerCase() !== name.toLowerCase()) {
                 var db = firebase.firestore();
                 db.collection('vehicles').get().then(function(snap) {
                     var batch = db.batch();
-                    var oldNameLower = window._pOrigName.toLowerCase();
+                    var oldNameLower = oldName.toLowerCase();
                     snap.docs.forEach(function(doc) {
                         var owner = (doc.data().owner || '').toLowerCase();
                         if (owner === oldNameLower) {
@@ -501,21 +529,26 @@ window.saveProfile = function() {
                     });
                     return batch.commit();
                 }).catch(function(err) { console.warn('Vehicle owner update failed:', err); });
+                }
             }
 
             var key = _profileRole === 'admin' ? 'apUser' : _profileRole === 'staff' ? 'spUser' : 'cpUser';
             var s = JSON.parse(sessionStorage.getItem(key) || '{}');
             s.name = name; s.email = email;
+            s.firstName = firstName; s.lastName = lastName;
+            if (phone) s.phoneNumber = phone;
             // Preserve photoUrl — don't wipe it on a name/email save
             sessionStorage.setItem(key, JSON.stringify(s));
 
             _pEditing = false;
-            ['pFieldName', 'pFieldEmail', 'pFieldCompany'].forEach(function(id) {
+            ['pFieldFirstName', 'pFieldLastName', 'pFieldEmail', 'pFieldPhone', 'pFieldCompany'].forEach(function(id) {
                 var view = document.getElementById('view_' + id);
                 var input = document.getElementById(id);
                 if (view) {
-                    if (id === 'pFieldName') view.textContent = name;
+                    if (id === 'pFieldFirstName') view.textContent = firstName;
+                    else if (id === 'pFieldLastName') view.textContent = lastName;
                     else if (id === 'pFieldEmail') view.textContent = email;
+                    else if (id === 'pFieldPhone') view.textContent = phone;
                     else if (id === 'pFieldCompany') view.textContent = companyName;
                     view.style.display = 'block';
                 }
@@ -538,6 +571,28 @@ window.saveProfile = function() {
             var cancelBtn = document.getElementById('pCancelBtn');
             if (cancelBtn) cancelBtn.style.display = 'none';
             _showToast('Profile updated successfully!', 'success');
+
+            // Notify admins — only for customer role
+            if (_profileRole === 'customer') {
+                var db = firebase.firestore();
+                var user2 = firebase.auth().currentUser;
+                var notifMsg = name + ' updated their profile.'
+                    + ' Email: ' + email
+                    + (phone ? ' | Phone: ' + phone : '');
+                // In-app notification for admin
+                db.collection('notifications').add({
+                    title: 'Profile Updated',
+                    message: notifMsg,
+                    type: 'info',
+                    targetRole: 'admin', targetUid: '',
+                    readBy: {}, isRead: false,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                }).catch(function() {});
+                // Email notification via Flask
+                if (typeof sendAlertEmail === 'function') {
+                    sendAlertEmail({ title: 'Profile Updated', message: notifMsg, type: 'info', targetRole: 'admin' });
+                }
+            }
         })
         .catch(function(err) {
             var msg = err.code === 'auth/requires-recent-login' ? 'Please log out and log back in before changing your email.'
@@ -574,7 +629,7 @@ function _showToast(msg, type) {
     onchange="handleAvatarUpload(this)">
 
 <script>
-// ── Avatar upload ────────────────────────────────────────────
+// ?? Avatar upload ????????????????????????????????????????????
 window.triggerAvatarUpload = function() {
     document.getElementById('avatarFileInput').click();
 };
@@ -598,7 +653,7 @@ window.handleAvatarUpload = function(input) {
         // Instant local preview
         _setAvatarSrc(base64String);
 
-        // Save directly to Firestore — no Storage needed
+        // Save directly to Firestore ??no Storage needed
         firebase.firestore().collection('users').doc(uid)
             .update({ photoUrl: base64String })
             .then(function() {

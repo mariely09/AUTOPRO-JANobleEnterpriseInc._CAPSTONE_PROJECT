@@ -322,7 +322,7 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
           Text('Are you sure you want to start the service for $plate?',
               style: const TextStyle(fontSize: 14, color: Color(0xFF1a202c))),
           const SizedBox(height: 6),
-          const Text('This will mark the booking as In Progress and open the maintenance form.',
+          const Text('This will mark the booking as Under Maintenance and open the maintenance form.',
               style: TextStyle(fontSize: 12, color: Color(0xFF718096))),
         ]),
         actions: [
@@ -345,8 +345,21 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
 
     if (confirmed != true || !mounted) return;
 
-    // Update booking status to "In Progress"
-    await FirebaseFirestore.instance.collection('service_bookings').doc(docId).update({'status': 'In Progress'});
+    // Update booking status to "Under Maintenance"
+    await FirebaseFirestore.instance.collection('service_bookings').doc(docId).update({'status': 'Under Maintenance'});
+
+    // Notify customer — in-app + check vehicleUnderMaint pref
+    final bData = (await FirebaseFirestore.instance.collection('service_bookings').doc(docId).get()).data() ?? {};
+    final customerId = bData['customerId'] as String? ?? '';
+    if (customerId.isNotEmpty) {
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'title': '🔧 Vehicle Under Maintenance',
+        'message': 'Your vehicle $plate is now under maintenance. We will notify you once the service is completed.',
+        'type': 'info',
+        'targetRole': '', 'targetUid': customerId,
+        'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
+      });
+    }
 
     if (mounted) {
       // Navigate to Vehicle Maintenance with booking data auto-filled

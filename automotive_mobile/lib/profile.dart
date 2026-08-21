@@ -36,10 +36,12 @@ class _UserProfileState extends State<UserProfile> {
   String _origName  = '';
   String _origEmail = '';
 
-  final _nameCtrl  = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _roleCtrl  = TextEditingController();
-  final _companyCtrl = TextEditingController();
+  final _firstNameCtrl = TextEditingController();
+  final _lastNameCtrl  = TextEditingController();
+  final _emailCtrl     = TextEditingController();
+  final _roleCtrl      = TextEditingController();
+  final _companyCtrl   = TextEditingController();
+  final _phoneCtrl     = TextEditingController();
 
   StreamSubscription<DocumentSnapshot>? _profileSub;
 
@@ -52,10 +54,12 @@ class _UserProfileState extends State<UserProfile> {
   @override
   void dispose() {
     _profileSub?.cancel();
-    _nameCtrl.dispose();
+    _firstNameCtrl.dispose();
+    _lastNameCtrl.dispose();
     _emailCtrl.dispose();
     _roleCtrl.dispose();
     _companyCtrl.dispose();
+    _phoneCtrl.dispose();
     super.dispose();
   }
 
@@ -75,9 +79,15 @@ class _UserProfileState extends State<UserProfile> {
       // Don't overwrite fields the user is actively editing
       if (!_editingInfo) {
         setState(() {
-          _nameCtrl.text  = data['name']  as String? ?? _nameCtrl.text;
+          _firstNameCtrl.text = data['firstName'] as String? ??
+              (_firstNameCtrl.text.isNotEmpty ? _firstNameCtrl.text
+               : (data['name'] as String? ?? '').split(' ').first);
+          _lastNameCtrl.text  = data['lastName']  as String? ??
+              (_lastNameCtrl.text.isNotEmpty ? _lastNameCtrl.text
+               : (data['name'] as String? ?? '').split(' ').skip(1).join(' '));
           _emailCtrl.text = data['email'] as String? ?? _emailCtrl.text;
           _companyCtrl.text = data['companyName'] as String? ?? _companyCtrl.text;
+          _phoneCtrl.text = data['phoneNumber'] as String? ?? _phoneCtrl.text;
           _roleCtrl.text  = role.isEmpty ? _roleCtrl.text
               : role[0].toUpperCase() + role.substring(1);
           _photoUrl       = data['photoUrl'] as String? ?? _photoUrl;
@@ -100,13 +110,18 @@ class _UserProfileState extends State<UserProfile> {
   Future<void> _saveUserData() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    final newName  = _nameCtrl.text.trim();
-    final newEmail = _emailCtrl.text.trim();
+    final firstName = _firstNameCtrl.text.trim();
+    final lastName  = _lastNameCtrl.text.trim();
+    final newName   = '$firstName $lastName'.trim();
+    final newEmail  = _emailCtrl.text.trim();
     final db = FirebaseFirestore.instance;
 
     await db.collection('users').doc(uid).update({
-      'name': newName,
-      'email': newEmail,
+      'firstName': firstName,
+      'lastName':  lastName,
+      'name':      newName,
+      'email':     newEmail,
+      if (_phoneCtrl.text.trim().isNotEmpty) 'phoneNumber': _phoneCtrl.text.trim(),
       if (widget.role == UserRole.customer) 'companyName': _companyCtrl.text.trim(),
     });
 
@@ -122,7 +137,7 @@ class _UserProfileState extends State<UserProfile> {
       }
       await batch.commit();
     }
-    _origName = newName; // keep in sync after save
+    _origName = newName;
   }
 
   /// Returns the correct ImageProvider for both base64 data URIs and https URLs.
@@ -138,16 +153,17 @@ class _UserProfileState extends State<UserProfile> {
     return NetworkImage(url);
   }
 
-  String get _initials {    final name = _nameCtrl.text.trim();
-    if (name.isEmpty) return '?';
-    final parts = name.split(' ');
-    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    return name[0].toUpperCase();
+  String get _initials {
+    final first = _firstNameCtrl.text.trim();
+    final last  = _lastNameCtrl.text.trim();
+    if (first.isEmpty && last.isEmpty) return '?';
+    if (last.isEmpty) return first[0].toUpperCase();
+    return '${first[0]}${last[0]}'.toUpperCase();
   }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    // Pick at low quality — further compression applied below
+    // Pick at low quality ??further compression applied below
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 50,
@@ -180,7 +196,7 @@ class _UserProfileState extends State<UserProfile> {
       final file = File(picked.path);
       final bytes = await file.readAsBytes();
 
-      // Firestore document limit is 1 MB — enforce max size
+      // Firestore document limit is 1 MB ??enforce max size
       if (bytes.length > 900 * 1024) {
         throw Exception(
           'Image is too large (${(bytes.length / 1024).toStringAsFixed(0)} KB). '
@@ -189,17 +205,17 @@ class _UserProfileState extends State<UserProfile> {
       }
 
       final base64String = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-      debugPrint('📸 Base64 size: ${base64String.length} chars');
+      debugPrint('???Base64 size: ${base64String.length} chars');
 
       // Show instant local preview
       if (mounted) setState(() => _avatarImage = file);
 
-      // Save directly to Firestore — no Storage needed
+      // Save directly to Firestore ??no Storage needed
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
           .update({'photoUrl': base64String});
-      debugPrint('💾 Saved photoUrl (base64) to Firestore');
+      debugPrint('???Saved photoUrl (base64) to Firestore');
 
       if (mounted) {
         setState(() => _photoUrl = base64String);
@@ -217,7 +233,7 @@ class _UserProfileState extends State<UserProfile> {
         ));
       }
     } catch (e) {
-      debugPrint('❌ Photo save error: $e');
+      debugPrint('??Photo save error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -254,7 +270,7 @@ class _UserProfileState extends State<UserProfile> {
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Column(children: [
-                // ── Hero header ──
+                // ???? Hero header ????
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 36, 20, 32),
@@ -311,7 +327,7 @@ class _UserProfileState extends State<UserProfile> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    Text(_nameCtrl.text,
+                    Text('${_firstNameCtrl.text} ${_lastNameCtrl.text}'.trim(),
                       style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
                     const SizedBox(height: 4),
                     Container(
@@ -325,7 +341,7 @@ class _UserProfileState extends State<UserProfile> {
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(children: [
-                    // ── Account Info ──
+                    // ???? Account Info ????
                     _sectionLabel('ACCOUNT INFORMATION'),
                     const SizedBox(height: 8),
                     Container(
@@ -342,6 +358,26 @@ class _UserProfileState extends State<UserProfile> {
                                 if (_editingInfo) {
                                   try {
                                     await _saveUserData();
+
+                                    // Notify admins on profile update (customer only)
+                                    if (widget.role == UserRole.customer) {
+                                      final fullName = '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim();
+                                      final phone = _phoneCtrl.text.trim();
+                                      final notifMsg = '$fullName updated their profile.'
+                                          ' Email: ${_emailCtrl.text.trim()}'
+                                          '${phone.isNotEmpty ? ' | Phone: $phone' : ''}';
+                                      await FirebaseFirestore.instance.collection('notifications').add({
+                                        'title': 'Profile Updated',
+                                        'message': notifMsg,
+                                        'type': 'info',
+                                        'targetRole': 'admin',
+                                        'targetUid': '',
+                                        'readBy': {},
+                                        'isRead': false,
+                                        'createdAt': FieldValue.serverTimestamp(),
+                                      });
+                                    }
+
                                     if (mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                         content: const Row(children: [
@@ -367,7 +403,7 @@ class _UserProfileState extends State<UserProfile> {
                                   setState(() => _editingInfo = false);
                                 } else {
                                   // Store originals before entering edit mode
-                                  _origName  = _nameCtrl.text.trim();
+                                  _origName  = '${_firstNameCtrl.text} ${_lastNameCtrl.text}'.trim();
                                   _origEmail = _emailCtrl.text.trim();
                                   setState(() => _editingInfo = true);
                                 }
@@ -380,7 +416,9 @@ class _UserProfileState extends State<UserProfile> {
                               TextButton.icon(
                                 onPressed: () {
                                   // Restore originals
-                                  _nameCtrl.text  = _origName;
+                                  final parts = _origName.split(' ');
+                                  _firstNameCtrl.text = parts.isNotEmpty ? parts.first : '';
+                                  _lastNameCtrl.text  = parts.length > 1 ? parts.skip(1).join(' ') : '';
                                   _emailCtrl.text = _origEmail;
                                   setState(() => _editingInfo = false);
                                 },
@@ -391,8 +429,10 @@ class _UserProfileState extends State<UserProfile> {
                             ]),
                           ]),
                         ),
-                        _editableTile(Icons.person_outline, 'Full Name', _nameCtrl),
+                        _editableTile(Icons.person_outline, 'First Name', _firstNameCtrl),
+                        _editableTile(Icons.person_outline, 'Last Name',  _lastNameCtrl),
                         _editableTile(Icons.email_outlined, 'Email', _emailCtrl),
+                        _editableTile(Icons.phone_outlined, 'Phone Number', _phoneCtrl),
                         if (widget.role == UserRole.customer && _companyCtrl.text.isNotEmpty)
                           _editableTile(Icons.business_outlined, 'Company Name', _companyCtrl),
                         _editableTile(Icons.shield_outlined, 'Role', _roleCtrl, isLast: true, readOnly: true),
@@ -400,7 +440,7 @@ class _UserProfileState extends State<UserProfile> {
                     ),
                     const SizedBox(height: 16),
 
-                    // ── Settings ──
+                    // ???? Settings ????
                     _sectionLabel('SETTINGS'),
                     const SizedBox(height: 8),
                     _actionCard([
@@ -435,7 +475,7 @@ class _UserProfileState extends State<UserProfile> {
                     ]),
                     const SizedBox(height: 20),
 
-                    // ── Logout ──
+                    // ???? Logout ????
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -452,7 +492,7 @@ class _UserProfileState extends State<UserProfile> {
                     ),
                     const SizedBox(height: 16),
                     
-                    // ── Policy Links ──
+                    // ???? Policy Links ????
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -462,7 +502,7 @@ class _UserProfileState extends State<UserProfile> {
                           child: const Text('Privacy Policy',
                             style: TextStyle(fontSize: 12, color: Color(0xFF718096), fontWeight: FontWeight.w600)),
                         ),
-                        const Text('  •  ', style: TextStyle(fontSize: 12, color: Color(0xFFa0aec0))),
+                        const Text('  ?? ', style: TextStyle(fontSize: 12, color: Color(0xFFa0aec0))),
                         TextButton(
                           onPressed: () => Navigator.push(context,
                             MaterialPageRoute(builder: (_) => const TermsConditionsScreen())),

@@ -1670,7 +1670,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
       final date   = data['preferredDate'] as String? ?? '';
       final status = (data['status'] as String? ?? '').toLowerCase();
       if (date.isEmpty) continue;
-      if (['completed','in progress','dismissed','cancelled','rejected'].contains(status)) continue;
+      if (['completed','under maintenance','dismissed','cancelled','rejected'].contains(status)) continue;
       final due = DateTime.tryParse(date);
       if (due == null) continue;
       final days = DateTime(due.year, due.month, due.day).difference(todayM).inDays;

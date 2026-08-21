@@ -330,7 +330,7 @@ class _StaffServiceBookingsBodyState extends State<StaffServiceBookingsBody> {
           Text('Are you sure you want to start the service for $plate?',
               style: const TextStyle(fontSize: 14, color: Color(0xFF1a202c))),
           const SizedBox(height: 6),
-          const Text('This will mark the booking as In Progress and open the maintenance form.',
+          const Text('This will mark the booking as Under Maintenance and open the maintenance form.',
               style: TextStyle(fontSize: 12, color: Color(0xFF718096))),
         ]),
         actions: [
@@ -356,7 +356,21 @@ class _StaffServiceBookingsBodyState extends State<StaffServiceBookingsBody> {
     await FirebaseFirestore.instance
         .collection('service_bookings')
         .doc(docId)
-        .update({'status': 'In Progress'});
+        .update({'status': 'Under Maintenance'});
+
+    // Notify customer — in-app
+    final bSnap = await FirebaseFirestore.instance.collection('service_bookings').doc(docId).get();
+    final bData = bSnap.data() ?? {};
+    final customerId = bData['customerId'] as String? ?? '';
+    if (customerId.isNotEmpty) {
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'title': '🔧 Vehicle Under Maintenance',
+        'message': 'Your vehicle $plate is now under maintenance. We will notify you once the service is completed.',
+        'type': 'info',
+        'targetRole': '', 'targetUid': customerId,
+        'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
+      });
+    }
 
     if (mounted) {
       Navigator.push(context, MaterialPageRoute(
