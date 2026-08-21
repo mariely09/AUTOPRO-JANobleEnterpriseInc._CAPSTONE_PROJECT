@@ -510,11 +510,14 @@ body {
 .cu-vov-plate { font-size: 13px; font-weight: 700; color: #1a202c; transition: color .12s; }
 .cu-vov-desc  { font-size: 10px; color: #718096; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cu-vov-badge { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
-
-/* Donut column */
-.cu-vov-donut-wrap  { width: 90px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-#cuDonutCanvas      { display: block; }
-.cu-vov-donut-label { font-size: 10px; font-weight: 500; color: #718096; text-align: center; }
+.cu-vov-view-btn {
+  flex-shrink: 0; margin-left: 6px;
+  background: transparent; color: #E8001C; border: 1px solid #E8001C; border-radius: 20px;
+  padding: 3px 10px; font-size: 9px; font-weight: 700;
+  cursor: pointer; font-family: inherit; white-space: nowrap;
+  transition: background .15s, color .15s;
+}
+.cu-vov-view-btn:hover { background: #E8001C; color: #fff; }
 
 /* keep old class names alive so the modal still works */
 .cu-vehicles-grid        { display: flex; flex-direction: column; }
@@ -563,7 +566,7 @@ body {
 }
 .cu-recent-icon {
   width: 40px; height: 40px; border-radius: 12px;
-  background: rgba(232,0,28,0.08);
+  background: rgba(26,53,96,0.08);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   color: #E8001C;

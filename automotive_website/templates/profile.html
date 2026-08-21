@@ -182,10 +182,16 @@ if (!_profileRole) {
         .then(function(r) { return r.text(); })
         .then(function(html) {
             document.getElementById('cuHeaderWrap').innerHTML = html;
+            // Set page title after header is injected
+            if (typeof setPageTitle === 'function') setPageTitle();
         });
-    // Load customer shared JS
+    // Load customer shared JS — handles notifications, page title, sidebar active state
     var cs = document.createElement('script');
     cs.src = '../static/js/customer_shared.js';
+    cs.onload = function() {
+        if (typeof setPageTitle === 'function') setPageTitle();
+        if (typeof setActiveTab === 'function') setActiveTab();
+    };
     document.body.appendChild(cs);
 }
 </script>
@@ -309,9 +315,7 @@ function _renderProfile(d) {
         +   '</div>'
         + '</div>';
 
-    var pageHeader = (_profileRole !== 'admin')
-        ? '<div class="pf-page-header"><div><div class="pf-page-title">My Profile</div><div class="pf-page-sub">Manage your account information</div></div></div>'
-        : '';
+    var pageHeader = '';
 
     var html = pageHeader
         + '<div class="profile-grid">'

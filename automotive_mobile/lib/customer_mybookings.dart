@@ -597,8 +597,18 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        backgroundColor: _red,
+        backgroundColor: const Color(0xFF1a202c),
         elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
+              stops: [0.0, 0.55, 1.0],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         leading: Navigator.canPop(context)
             ? IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
