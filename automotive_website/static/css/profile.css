@@ -35,9 +35,8 @@ body, body.portal-body {
     background: #F7F8FA;
 }
 
-/* Customer topbar (reused from customer_shared) */
+/* Customer topbar — base styles from customer_dashboard.css; only layout overrides here */
 .cu-topbar {
-    background: #E8001C;
     height: 60px;
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 20px; position: sticky; top: 0; z-index: 100; flex-shrink: 0;

@@ -741,6 +741,10 @@ def customer_smart_ai():
 def customer_header():
     return render_template('customer_header.html')
 
+@app.route('/customer_sidebar.html')
+def customer_sidebar():
+    return render_template('customer_sidebar.html')
+
 # ── Admin AI Backend Proxy ─────────────────────────────────────────────────────
 # The admin AI is served by the standalone FastAPI service in ai_assistant/.
 # Start it with:  cd ai_assistant && venv\Scripts\uvicorn main:app --port 8001

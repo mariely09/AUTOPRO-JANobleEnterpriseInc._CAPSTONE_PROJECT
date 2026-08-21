@@ -9,7 +9,7 @@
     <style>
         body { display:flex; flex-direction:column; height:100vh; overflow:hidden; background:#f0f2f5; }
 
-        /* ── Messages area ── */
+        /* ?? Messages area ?? */
         .ai-messages {
             flex: 1; overflow-y: auto; padding: 20px 16px;
             background: linear-gradient(180deg,#f8f9fb 0%,#f0f2f5 100%);
@@ -19,7 +19,7 @@
         .ai-messages::-webkit-scrollbar-track { background:transparent; }
         .ai-messages::-webkit-scrollbar-thumb { background:#d1d5db;border-radius:4px; }
 
-        /* ── Welcome block ── */
+        /* ?? Welcome block ?? */
         .ai-welcome { text-align:center; padding:28px 8px 8px; }
         .ai-welcome-icon {
             width:72px;height:72px;
@@ -32,7 +32,7 @@
         .ai-welcome-title { font-size:18px;font-weight:800;color:#1a202c;margin-bottom:6px;letter-spacing:-0.3px; }
         .ai-welcome-sub   { font-size:13px;color:#94a3b8;line-height:1.65;max-width:300px;margin:0 auto; }
 
-        /* ── Suggestion pills ── */
+        /* ?? Suggestion pills ?? */
         .ai-suggestions { display:flex;flex-direction:column;gap:9px;padding:20px 0 4px; }
         .ai-suggest-pill {
             display:flex;align-items:center;gap:10px;
@@ -51,14 +51,14 @@
             box-shadow:0 4px 14px rgba(232,0,28,0.13);transform:translateY(-1px);
         }
 
-        /* ── Row + avatars ── */
+        /* ?? Row + avatars ?? */
         .ai-row { display:flex;gap:8px;align-items:flex-end; }
         .ai-row.user { flex-direction:row-reverse; }
         .ai-av { width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
         .ai-av.bot { background:white;border:1.5px solid rgba(226,232,240,0.8);box-shadow:0 2px 8px rgba(0,0,0,0.1);overflow:hidden; }
         .ai-av.usr { background:linear-gradient(135deg,#475569,#334155);font-size:10px;font-weight:700;color:white;box-shadow:0 2px 6px rgba(0,0,0,0.15);border-radius:50%; }
 
-        /* ── Bubbles ── */
+        /* ?? Bubbles ?? */
         .ai-bubble { max-width:78%;padding:11px 15px;font-size:13.5px;line-height:1.65;word-break:break-word; }
         .ai-bubble.user {
             background:linear-gradient(135deg,#E8001C 0%,#c0001a 100%);
@@ -73,7 +73,7 @@
             border:1px solid rgba(226,232,240,0.6);
         }
 
-        /* ── Typing indicator ── */
+        /* ?? Typing indicator ?? */
         .ai-typing {
             background:white;border-radius:4px 16px 16px 16px;padding:13px 16px;
             align-self:flex-start;display:flex;gap:5px;align-items:center;
@@ -84,7 +84,7 @@
         .ai-typing span:nth-child(3) { animation-delay:.3s; }
         @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
 
-        /* ── Input bar ── */
+        /* ?? Input bar ?? */
         .ai-input-bar { background:white;border-top:1px solid #edf0f5;padding:10px 14px 14px;flex-shrink:0; }
         .ai-input-wrap {
             display:flex;gap:8px;align-items:center;
@@ -108,7 +108,7 @@
         .ai-send:hover { transform:scale(1.08);box-shadow:0 5px 14px rgba(232,0,28,0.45); }
         .ai-hint { text-align:center;font-size:10.5px;color:#c0c8d4;padding:5px 0 2px;background:white;flex-shrink:0; }
 
-        /* ── AI Header (matches admin panel header) ── */
+        /* ?? AI Header (matches admin panel header) ?? */
         .ai-panel-header {
             background:linear-gradient(135deg,#c62828 0%,#E8001C 60%,#ff5252 100%);
             padding:12px 10px;display:flex;align-items:center;gap:6px;flex-shrink:0;
@@ -153,7 +153,7 @@
         }
         .ai-hdr-btn:hover { background:rgba(255,255,255,0.28); }
 
-        /* ── History drawer ── */
+        /* ?? History drawer ?? */
         #aiHistoryDrawer {
             position:fixed;top:0;right:-340px;width:320px;height:100%;z-index:9999;
             background:white;box-shadow:-4px 0 24px rgba(0,0,0,0.13);
@@ -212,7 +212,7 @@
     <div class="ai-hist-header">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
         <div class="ai-hist-title">Chat History</div>
-        <button class="ai-hist-close" onclick="closeHistory()">×</button>
+        <button class="ai-hist-close" onclick="closeHistory()">?</button>
     </div>
     <button class="ai-hist-delete-all" onclick="deleteAllChats()">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
@@ -221,6 +221,9 @@
     <div class="ai-hist-body" id="aiHistoryList"></div>
 </div>
 
+<div id="customerSidebar"></div>
+
+<div class="cu-page-shell">
 <div id="customerHeader"></div>
 
 <!-- Admin-style AI Panel Header -->
@@ -261,7 +264,7 @@
             <img src="../static/img/AI_LOGO.png" width="72" height="72" style="object-fit:cover;display:block;" alt="AI Assistant" />
         </div>
         <div class="ai-welcome-title">AI Assistant</div>
-        <div class="ai-welcome-sub" id="aiWelcomeSub">Ask me anything about your vehicles — PMS status, maintenance history, bookings, and more.</div>
+        <div class="ai-welcome-sub" id="aiWelcomeSub">Ask me anything about your vehicles ??PMS status, maintenance history, bookings, and more.</div>
         <div class="ai-suggestions" id="aiSuggestions">
             <button class="ai-suggest-pill" data-q="Show my complete service history">Show my complete service history</button>
             <button class="ai-suggest-pill" data-q="List all my registered vehicles">List all my registered vehicles</button>
@@ -274,7 +277,7 @@
 
 <div class="ai-input-bar">
     <div class="ai-input-wrap">
-        <textarea class="ai-input" id="aiInput" placeholder="Ask about your vehicles, bookings, or services…" rows="1"
+        <textarea class="ai-input" id="aiInput" placeholder="Ask about your vehicles, bookings, or services?? rows="1"
             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send();}"
             oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';_updateSendBtn();"></textarea>
         <button class="ai-send" id="aiSendBtn" onclick="send()" disabled style="opacity:0.45;cursor:not-allowed;">
@@ -282,7 +285,7 @@
         </button>
     </div>
 </div>
-<div class="ai-hint">Enter to send &nbsp;·&nbsp; Shift+Enter for new line</div>
+<div class="ai-hint">Enter to send &nbsp;繚&nbsp; Shift+Enter for new line</div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -313,7 +316,7 @@
   let _currentUid  = null;
   let _isSending   = false;   // guard: prevents double-send
 
-  // ── Per-customer daily token limit ─────────────────────────────────────────
+  // ?? Per-customer daily token limit ?????????????????????????????????????????
   // Customers are limited to 2 000 tokens per day to prevent abuse.
   // Usage is tracked in localStorage under 'ai_cust_tokens_{uid}_{date}'.
   const _CUSTOMER_DAILY_TOKEN_LIMIT = 2000;
@@ -337,7 +340,7 @@
     return Math.max(0, _CUSTOMER_DAILY_TOKEN_LIMIT - _getUsedTokens(uid));
   }
 
-  // ── Send button enable/disable based on input content ───────────────────────
+  // ?? Send button enable/disable based on input content ???????????????????????
   function _updateSendBtn() {
     var input   = document.getElementById('aiInput');
     var sendBtn = document.getElementById('aiSendBtn');
@@ -358,8 +361,8 @@
     }
   }
 
-  // ── localStorage persistence helpers ─────────────────────────────────────
-  // Key for the ACTIVE (current) session — restored on every page load.
+  // ?? localStorage persistence helpers ?????????????????????????????????????
+  // Key for the ACTIVE (current) session ??restored on every page load.
   function _activeKey(uid)   { return 'ai_active_'  + uid; }
   function _storageKey(uid)  { return 'ai_chat_'    + uid; }
 
@@ -367,13 +370,13 @@
   function _saveChat() {
     if (!_currentUid || !_chatHistory.length) return;
     try {
-      // ── Active slot — always overwrite so tab-switches restore current chat ──
+      // ?? Active slot ??always overwrite so tab-switches restore current chat ??
       var sid = _sessionId || ('local_' + _currentUid);
       localStorage.setItem(_activeKey(_currentUid), JSON.stringify({
         id: sid, ts: Date.now(), messages: _chatHistory.slice()
       }));
 
-      // ── History list — upsert by sid ──────────────────────────────────
+      // ?? History list ??upsert by sid ??????????????????????????????????
       var existing = _loadAllSessions(_currentUid);
       var idx = existing.findIndex(function(s){ return s.id === sid; });
       var entry = { id: sid, ts: Date.now(), messages: _chatHistory.slice() };
@@ -381,7 +384,7 @@
       else existing.unshift(entry);
       if (existing.length > 50) existing = existing.slice(0, 50);
       localStorage.setItem(_storageKey(_currentUid), JSON.stringify(existing));
-    } catch(e) { /* quota exceeded — ignore */ }
+    } catch(e) { /* quota exceeded ??ignore */ }
   }
 
   function _loadAllSessions(uid) {
@@ -419,7 +422,7 @@
     if (document.visibilityState === 'hidden') _saveChat();
   });
 
-  // ── History drawer ────────────────────────────────────────────────────────
+  // ?? History drawer ????????????????????????????????????????????????????????
   window.openHistory = function() {
     // Save current chat first so it appears in the history list
     if (_chatHistory.length) _saveChat();
@@ -469,7 +472,7 @@
       var isActive = s.id === (_sessionId || ('local_' + _currentUid));
       html += '<div class="ai-hist-item'+(isActive?' active':'')+'" data-sid="'+_escHtml(s.id)+'">'
             + '<div class="ai-hist-item-preview">'+_escHtml(preview)+'</div>'
-            + '<div class="ai-hist-item-time">'+time+' &nbsp;·&nbsp; '+s.messages.length+' message'+(s.messages.length!==1?'s':'')+'</div>'
+            + '<div class="ai-hist-item-time">'+time+' &nbsp;繚&nbsp; '+s.messages.length+' message'+(s.messages.length!==1?'s':'')+'</div>'
             + '</div>';
     });
     list.innerHTML = html;
@@ -503,7 +506,7 @@
     closeHistory();
   };
 
-  // ── Rebuild the welcome screen safely (used by newChat + deleteAllChats) ──
+  // ?? Rebuild the welcome screen safely (used by newChat + deleteAllChats) ??
   function _rebuildWelcome() {
     var msgs    = document.getElementById('aiMessages');
     var welcome = document.getElementById('aiWelcome');
@@ -515,7 +518,7 @@
       var sug = welcome.querySelector('#aiSuggestions');
       if (sug) sug.style.display = 'flex';
       msgs.appendChild(welcome);
-      // Re-wire suggestion pills — clone to strip stale listeners
+      // Re-wire suggestion pills ??clone to strip stale listeners
       welcome.querySelectorAll('.ai-suggest-pill[data-q]').forEach(function(btn) {
         var fresh = btn.cloneNode(true);
         btn.parentNode.replaceChild(fresh, btn);
@@ -531,7 +534,7 @@
       input.disabled    = false;
       input.value       = '';
       input.style.height = 'auto';
-      input.placeholder  = 'Ask about your vehicles, bookings, or services…';
+      input.placeholder  = 'Ask about your vehicles, bookings, or services??;
       // Remove any stale disabled attribute left by rate-limit
       input.removeAttribute('disabled');
     }
@@ -552,14 +555,14 @@
     });
   });
 
-  // ── Customer token limit banner ───────────────────────────────────────────
+  // ?? Customer token limit banner ???????????????????????????????????????????
   function _showCustomerTokenLimitBanner(uid) {
     if (document.getElementById('aiTokenLimitBanner')) return; // already shown
     const remaining = _tokenLimitRemaining(uid);
     const used      = _getUsedTokens(uid);
     const input     = document.getElementById('aiInput');
     const sendBtn   = document.getElementById('aiSendBtn') || document.querySelector('.ai-send');
-    if (input)   { input.disabled = true; input.placeholder = 'Daily message limit reached — resets tomorrow'; }
+    if (input)   { input.disabled = true; input.placeholder = 'Daily message limit reached ??resets tomorrow'; }
     if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.45'; sendBtn.style.cursor = 'not-allowed'; }
     const b = document.createElement('div');
     b.id = 'aiTokenLimitBanner';
@@ -587,7 +590,7 @@
       'font-size:11.5px;color:#92400e;flex-shrink:0;display:flex;align-items:center;gap:8px;';
     w.innerHTML =
       '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="#92400e" style="flex-shrink:0;"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>' +
-      '<span>You\'re running low — approximately <strong>' + remaining + '</strong> tokens remaining today.</span>';
+      '<span>You\'re running low ??approximately <strong>' + remaining + '</strong> tokens remaining today.</span>';
     const inputBar = document.querySelector('.ai-input-bar');
     if (inputBar) inputBar.parentNode.insertBefore(w, inputBar);
   }
@@ -598,7 +601,7 @@
     const sendBtn = document.getElementById('aiSendBtn') || document.querySelector('.ai-send');
     const banner  = document.getElementById('aiRateBanner');
     if (limited) {
-      if (input)   { input.disabled = true; input.placeholder = 'AI unavailable — daily limit reached'; }
+      if (input)   { input.disabled = true; input.placeholder = 'AI unavailable ??daily limit reached'; }
       if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.45'; sendBtn.style.cursor = 'not-allowed'; }
       if (!banner) {
         const b = document.createElement('div');
@@ -608,13 +611,13 @@
           'font-size:12.5px;color:#9a3412;flex-shrink:0;display:flex;align-items:flex-start;gap:10px;line-height:1.55;';
         b.innerHTML =
           '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#9a3412" style="flex-shrink:0;margin-top:2px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
-          '<div><strong style="display:block;font-size:13px;margin-bottom:2px;">AI unavailable — daily token limit reached</strong>' +
+          '<div><strong style="display:block;font-size:13px;margin-bottom:2px;">AI unavailable ??daily token limit reached</strong>' +
           'Groq free-tier quota exhausted. Resets in <strong>' + (resetIn || 'some time') + '</strong>. Chat is disabled until then.</div>';
         const inputBar = document.querySelector('.ai-input-bar');
         if (inputBar) inputBar.parentNode.insertBefore(b, inputBar);
       }
     } else {
-      if (input)   { input.disabled = false; input.placeholder = 'Ask about your vehicles, bookings, or services…'; }
+      if (input)   { input.disabled = false; input.placeholder = 'Ask about your vehicles, bookings, or services??; }
       if (banner)  banner.remove();
       _updateSendBtn();
     }
@@ -631,10 +634,10 @@
         const snap = await db.collection('users').where('email', '==', cpUser.email).limit(1).get();
         if (!snap.empty) userName = snap.docs[0].data().name || '';
       }
-      // ── Store the resolved name for use in API calls ──────────────────
+      // ?? Store the resolved name for use in API calls ??????????????????
       if (userName) _resolvedCustomerName = userName;
 
-      // ── Also resolve company name from user profile ───────────────────
+      // ?? Also resolve company name from user profile ???????????????????
       let userCompanyName = '';
       const userDoc2 = await db.collection('users').doc(user.uid).get();
       if (userDoc2.exists) {
@@ -643,11 +646,11 @@
         userCompanyName = uData.companyName || '';
       }
 
-      // ── Query vehicles: 4-pass approach matching backend customer_tools ──
+      // ?? Query vehicles: 4-pass approach matching backend customer_tools ??
       // Pass 1: ownerId == user.uid
       // Pass 2a: owner == exact name
       // Pass 2b: owner == company name (if different)
-      // Pass 3: case-insensitive full scan (always run — catches capitalisation mismatches)
+      // Pass 3: case-insensitive full scan (always run ??catches capitalisation mismatches)
       const seenVehicleIds = new Set();
 
       const vSnapById = await db.collection('vehicles').where('ownerId', '==', user.uid).get();
@@ -695,7 +698,7 @@
         _customerInitials = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : parts[0][0].toUpperCase();
       }
       document.getElementById('aiWelcomeSub').textContent = _myVehicles.length
-        ? `Ask me anything about your ${_myVehicles.length} vehicle${_myVehicles.length !== 1 ? 's' : ''} — PMS status, maintenance history, and more.`
+        ? `Ask me anything about your ${_myVehicles.length} vehicle${_myVehicles.length !== 1 ? 's' : ''} ??PMS status, maintenance history, and more.`
         : 'No vehicles found under your account.';
       if (_myVehicles.length) {
         const plates = _myVehicles.map(v => v.plate).filter(Boolean).slice(0, 10);
@@ -709,25 +712,25 @@
     }
   }
 
-  // ── Scoped local fallback (used only when AI backend is unreachable) ────
+  // ?? Scoped local fallback (used only when AI backend is unreachable) ????
   // Handles each test-case correctly using only the customer's own local data.
   function _localFallback(q) {
     const ql = q.toLowerCase().trim();
 
-    // ── Out-of-scope: inventory, stock levels ────────────────────────────
+    // ?? Out-of-scope: inventory, stock levels ????????????????????????????
     if (ql.includes('inventory') || ql.includes('stock level') || ql.includes('stock') ||
         ql.includes('reorder') || ql.includes('supplier') || ql.includes('issuance') ||
         ql.includes('warehouse') || ql.includes('purchase order')) {
       return "I can only answer questions related to the Automotive Service and Inventory Management System.";
     }
 
-    // ── Out-of-scope: reports ────────────────────────────────────────────
+    // ?? Out-of-scope: reports ????????????????????????????????????????????
     if ((ql.includes('report') || ql.includes('generate') || ql.includes('pdf') || ql.includes('excel')) &&
         !ql.includes('my service') && !ql.includes('my vehicle') && !ql.includes('my booking')) {
       return "I can only answer questions related to the Automotive Service and Inventory Management System.";
     }
 
-    // ── Privacy: asking about another customer ───────────────────────────
+    // ?? Privacy: asking about another customer ???????????????????????????
     if (ql.includes("another customer") || ql.includes("juan dela cruz") ||
         ql.includes("someone else") || ql.includes("other customer") ||
         (ql.includes("customer") && (ql.includes("booking") || ql.includes("history") || ql.includes("vehicle")) &&
@@ -735,7 +738,7 @@
       return "I can only show information for your own account.";
     }
 
-    // ── Out-of-scope: general knowledge ─────────────────────────────────
+    // ?? Out-of-scope: general knowledge ?????????????????????????????????
     const outOfScope = ['capital of','weather','news','sport','math','cod','recipe',
       'movie','music','game','history of','who is','what country','population',
       'translate','currency','stock market','crypto','bitcoin'];
@@ -743,13 +746,13 @@
       return "I can only answer questions related to the Automotive Service and Inventory Management System.";
     }
 
-    // ── Garbage / symbols only ───────────────────────────────────────────
+    // ?? Garbage / symbols only ???????????????????????????????????????????
     const meaningfulChars = (q.match(/[a-zA-Z0-9]/g) || []).length;
     if (meaningfulChars < 2) {
       return "I didn't understand that. Please type a question about your vehicles, bookings, or services.";
     }
 
-    // ── No chat history context ──────────────────────────────────────────
+    // ?? No chat history context ??????????????????????????????????????????
     if (ql.includes('previous question') || ql.includes('what did i ask') ||
         ql.includes('last question') || ql.includes('earlier question')) {
       if (!_chatHistory.length || _chatHistory.filter(m => m.role === 'user').length <= 1) {
@@ -761,7 +764,7 @@
         : "There's no previous conversation in this session.";
     }
 
-    // ── Service history ──────────────────────────────────────────────────
+    // ?? Service history ??????????????????????????????????????????????????
     if (ql.includes('service history') || ql.includes('past service') ||
         ql.includes('maintenance record') || ql.includes('spent') ||
         ql.includes('service record') || ql.includes('show my service')) {
@@ -769,38 +772,38 @@
       if (!done.length) return "You don't have any completed service records yet.";
       const total = done.reduce((s, r) => {
         const raw = r.totalCost || r.cost || '0';
-        return s + (parseFloat(String(raw).replace(/[₱,\s]/g, '')) || 0);
+        return s + (parseFloat(String(raw).replace(/[??\s]/g, '')) || 0);
       }, 0);
       return `You have ${done.length} completed service record${done.length !== 1 ? 's' : ''}. ` +
-             `Total spent: ₱${total.toLocaleString('en-PH', {minimumFractionDigits:2})}\n\n` +
+             `Total spent: ??{total.toLocaleString('en-PH', {minimumFractionDigits:2})}\n\n` +
              `Go to the "PMS History" tab to view full details.`;
     }
 
-    // ── Vehicles ─────────────────────────────────────────────────────────
+    // ?? Vehicles ?????????????????????????????????????????????????????????
     if (ql.includes('my vehicle') || ql.includes('my fleet') || ql.includes('my car') ||
         ql.includes('list my') || ql.includes('show my vehicle') || ql.includes('fleet summary')) {
       if (!_myVehicles.length) return "No vehicles are registered under your account yet.";
-      const lines = _myVehicles.map(v => `• ${v.plate || '—'} — ${v.desc || v.type || '—'} (${v.status || 'Active'})`).join('\n');
+      const lines = _myVehicles.map(v => `??${v.plate || '??} ??${v.desc || v.type || '??} (${v.status || 'Active'})`).join('\n');
       return `Your fleet (${_myVehicles.length} vehicle${_myVehicles.length !== 1 ? 's' : ''}):\n${lines}`;
     }
 
-    // ── PMS / overdue / due soon ─────────────────────────────────────────
+    // ?? PMS / overdue / due soon ?????????????????????????????????????????
     if (ql.includes('overdue')) {
       const list = _myVehicles.filter(v => (v.status || '').toLowerCase() === 'overdue');
       return list.length
-        ? `PMS Overdue (${list.length}):\n` + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n') + '\n\nPlease schedule a service soon!'
+        ? `PMS Overdue (${list.length}):\n` + list.map(v => `??${v.plate} ??${v.desc}`).join('\n') + '\n\nPlease schedule a service soon!'
         : 'None of your vehicles are overdue for PMS.';
     }
     if (ql.includes('due soon') || ql.includes('due this week')) {
       const list = _myVehicles.filter(v => ['pms due soon','due soon','due this week'].includes((v.status || '').toLowerCase()));
       return list.length
-        ? `PMS Due Soon (${list.length}):\n` + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n')
+        ? `PMS Due Soon (${list.length}):\n` + list.map(v => `??${v.plate} ??${v.desc}`).join('\n')
         : 'No vehicles have PMS due soon.';
     }
     if (ql.includes('maintenance') || ql.includes('serviced') || ql.includes('under repair')) {
       const list = _myVehicles.filter(v => (v.status || '').toLowerCase().includes('maintenance'));
       return list.length
-        ? `Under maintenance:\n` + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n')
+        ? `Under maintenance:\n` + list.map(v => `??${v.plate} ??${v.desc}`).join('\n')
         : 'None of your vehicles are currently under maintenance.';
     }
     if (ql.includes('pms') || ql.includes('next service') || ql.includes('schedule')) {
@@ -809,28 +812,28 @@
       const over   = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'overdue').length;
       const soon   = _myVehicles.filter(v => ['pms due soon','due soon','due this week'].includes((v.status||'').toLowerCase())).length;
       const maint  = _myVehicles.filter(v => (v.status||'').toLowerCase().includes('maintenance')).length;
-      return `PMS Status for your fleet:\n• Active: ${active}\n• Under Maintenance: ${maint}\n• PMS Overdue: ${over}\n• Due Soon: ${soon}\n• Total: ${_myVehicles.length}`;
+      return `PMS Status for your fleet:\n??Active: ${active}\n??Under Maintenance: ${maint}\n??PMS Overdue: ${over}\n??Due Soon: ${soon}\n??Total: ${_myVehicles.length}`;
     }
 
-    // ── Bookings ─────────────────────────────────────────────────────────
+    // ?? Bookings ?????????????????????????????????????????????????????????
     if (ql.includes('booking') || ql.includes('appointment') || ql.includes('schedule') || ql.includes('upcoming')) {
-      return 'To view your service bookings, tap the **Bookings** tab in the app or go to **My Bookings** on the website. I can also look up your bookings — please ask while the AI service is online.';
+      return 'To view your service bookings, tap the **Bookings** tab in the app or go to **My Bookings** on the website. I can also look up your bookings ??please ask while the AI service is online.';
     }
 
-    // ── Pricing / services ───────────────────────────────────────────────
+    // ?? Pricing / services ???????????????????????????????????????????????
     if (ql.includes('price') || ql.includes('cost') || ql.includes('how much') ||
         ql.includes('service') || ql.includes('oil change') || ql.includes('change oil') ||
         ql.includes('estimate') || ql.includes('offer')) {
-      return 'For service pricing and estimates, please ask when the AI service is online — it can look up exact prices from the catalog. Common services include: Change Oil, Brake Service, Battery Check, Tire Rotation, and more.';
+      return 'For service pricing and estimates, please ask when the AI service is online ??it can look up exact prices from the catalog. Common services include: Change Oil, Brake Service, Battery Check, Tire Rotation, and more.';
     }
 
-    // ── Default for in-scope but offline ────────────────────────────────
+    // ?? Default for in-scope but offline ????????????????????????????????
     if (!_myVehicles.length) return 'No vehicles found under your account. Please check if your account is properly set up.';
     const active = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'active').length;
     const over   = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'overdue').length;
     const soon   = _myVehicles.filter(v => ['pms due soon','due soon','due this week'].includes((v.status||'').toLowerCase())).length;
     const maint  = _myVehicles.filter(v => (v.status||'').toLowerCase().includes('maintenance')).length;
-    return `Here's a quick summary of your fleet:\n• Total vehicles: ${_myVehicles.length}\n• Active: ${active}\n• Under Maintenance: ${maint}\n• PMS Overdue: ${over}\n• Due Soon: ${soon}\n\nFor detailed answers, please ask when the AI service is online.`;
+    return `Here's a quick summary of your fleet:\n??Total vehicles: ${_myVehicles.length}\n??Active: ${active}\n??Under Maintenance: ${maint}\n??PMS Overdue: ${over}\n??Due Soon: ${soon}\n\nFor detailed answers, please ask when the AI service is online.`;
   }
 
   const _BOT_AVATAR_SVG = '<img src="../static/img/AI_LOGO.png" width="32" height="32" style="object-fit:cover;border-radius:50%;display:block;" alt="AI">';
@@ -846,7 +849,7 @@
     s = s.replace(/`([^`\n]+?)`/g, '<code style="background:#f1f5f9;padding:1px 5px;border-radius:4px;font-family:monospace;font-size:0.92em;">$1</code>');
     s = s.replace(/^### (.+)$/gm, '<div style="font-weight:700;font-size:13.5px;margin:8px 0 3px;color:#1a202c;">$1</div>');
     s = s.replace(/^## (.+)$/gm,  '<div style="font-weight:700;font-size:14px;margin:8px 0 3px;color:#1a202c;">$1</div>');
-    s = s.replace(/^[\-\*•] (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;flex-shrink:0;">•</span><span>$1</span></div>');
+    s = s.replace(/^[\-\*?兡 (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;flex-shrink:0;">??/span><span>$1</span></div>');
     s = s.replace(/^(\d+)\. (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;font-weight:700;flex-shrink:0;min-width:16px;">$1.</span><span>$2</span></div>');
     s = s.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid #e2e8f0;margin:8px 0;">');
     s = s.replace(/\n\n/g, '<div style="height:6px;"></div>');
@@ -864,7 +867,7 @@
     const bub = document.createElement('div');
     bub.className = `ai-bubble ${role === 'user' ? 'user' : 'bot'}`;
     if (role === 'user') {
-      bub.textContent = text; // user text is plain — escape it
+      bub.textContent = text; // user text is plain ??escape it
     } else {
       bub.innerHTML = _md(text); // AI response gets markdown rendering
     }
@@ -897,7 +900,7 @@
     if (_rateLimited) return;
     if (_isSending) return;   // prevent double-send
 
-    // ── Customer daily token limit check ─────────────────────────────────
+    // ?? Customer daily token limit check ?????????????????????????????????
     if (_currentUid && _isTokenLimitReached(_currentUid)) {
       _showCustomerTokenLimitBanner(_currentUid);
       return;
@@ -905,7 +908,7 @@
 
     _isSending = true;
 
-    // ── Hide welcome, show clear button ──────────────────────────────────
+    // ?? Hide welcome, show clear button ??????????????????????????????????
     const welcome = document.getElementById('aiWelcome');
     if (welcome) welcome.style.display = 'none';
 
@@ -915,7 +918,7 @@
     _saveChat();
 
     if (!_dataLoaded) {
-      _addBubbleAndSave('Still loading your profile — please try again in a moment.', 'bot');
+      _addBubbleAndSave('Still loading your profile ??please try again in a moment.', 'bot');
       _saveChat();
       _isSending = false;
       return;
@@ -947,7 +950,7 @@
         rlBub.style.cssText = 'background:#fff7ed;border:1.5px solid #fb923c;color:#9a3412;max-width:90%;';
         rlBub.innerHTML = '<strong>AI Unavailable</strong><br><span style="font-size:12px;">Daily token limit reached. Resets in <strong>' + (data.reset_in || 'some time') + '</strong>.</span>';
         rlRow.appendChild(rlBub); msgs2.appendChild(rlRow); rlRow.scrollIntoView({ behavior: 'smooth' });
-        _chatHistory.push({ role: 'bot', text: 'AI Unavailable — Daily token limit reached.', ts: Date.now() });
+        _chatHistory.push({ role: 'bot', text: 'AI Unavailable ??Daily token limit reached.', ts: Date.now() });
       } else if (data.answer) {
         if (data.session_id) { _sessionId = data.session_id; }
         _addBubbleAndSave(data.answer, 'bot');
@@ -976,7 +979,7 @@
     _updateSendBtn();
   };
 
-  // ── New Chat — saves current session to history then opens a blank chat ──
+  // ?? New Chat ??saves current session to history then opens a blank chat ??
   window.newChat = function () {
     // Save current chat to history first (so it appears in the drawer)
     if (_chatHistory.length) _saveChat();
@@ -1013,7 +1016,7 @@
   });
 
   // Check AI health + update status dot
-  // Uses a 60-second timeout (covers Render free-tier cold-start of ~30–50s).
+  // Uses a 60-second timeout (covers Render free-tier cold-start of ~30??0s).
   // On failure, retries once after 60 s so the dot self-corrects once Render wakes.
   function _checkAiHealth(isRetry) {
     const ctrl = new AbortController();
@@ -1037,18 +1040,32 @@
         const txt = document.getElementById('aiStatusText');
         if (dot) { dot.style.background = '#d69e2e'; dot.style.boxShadow = '0 0 6px rgba(214,158,46,0.8)'; }
         if (txt) txt.textContent = 'Local mode';
-        // Retry once after 60 s — Render may still be spinning up
+        // Retry once after 60 s ??Render may still be spinning up
         if (!isRetry) setTimeout(() => _checkAiHealth(true), 60000);
       });
   }
   _checkAiHealth(false);
 
+  fetch('customer_sidebar.html').then(r => r.text()).then(html => {
+    document.getElementById('customerSidebar').innerHTML = html;
+    if (typeof setGreeting === 'function') setGreeting();
+    if (typeof setActiveTab === 'function') setActiveTab();
+    var sess = JSON.parse(sessionStorage.getItem('cpUser') || '{}');
+    var name = sess.name || '';
+    if (name) {
+      var parts = name.trim().split(' ').filter(Boolean);
+      var ini = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : parts[0][0].toUpperCase();
+      var av = document.getElementById('cuAvatar'); if(av) av.textContent = ini;
+      var hn = document.getElementById('cuHeaderName'); if(hn) hn.textContent = name;
+      var ge = document.getElementById('cuGreetLine'); if(ge && !ge.textContent) ge.textContent = sess.email || '';
+      var mn = document.getElementById('cuAvatarName'); if(mn) mn.textContent = name;
+    }
+  });
+
   fetch('customer_header.html').then(r => r.text()).then(html => {
     document.getElementById('customerHeader').innerHTML = html;
-    document.querySelectorAll('.cu-tab[data-page]').forEach(tab => {
-      tab.classList.toggle('active', tab.getAttribute('data-page') === 'smart-ai');
-    });
   });
 </script>
+</div><!-- /.cu-page-shell -->
 </body>
 </html>

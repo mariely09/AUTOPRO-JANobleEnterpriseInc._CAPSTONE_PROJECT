@@ -13,13 +13,13 @@
     <link rel="stylesheet" href="../static/css/customer_dashboard.css">
     <link rel="stylesheet" href="../static/css/notifications.css">
     <style>
-        body { background:#F7F8FA !important; display:block !important; align-items:unset !important; justify-content:unset !important; min-height:100vh; margin:0; padding:0; }
+        body { background:#F7F8FA !important; display:flex !important; align-items:unset !important; justify-content:unset !important; min-height:100vh; margin:0; padding:0; flex-direction:row; }
         #adminWrap, #standaloneWrap { display:none; }
     </style>
 </head>
 <body class="portal-body" data-page="notifications">
 <script>
-// Instant auth guard — blocks bfcache back-navigation after logout
+// Instant auth guard ??blocks bfcache back-navigation after logout
 (function() {
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
@@ -39,7 +39,7 @@
 })();
 </script>
 
-<!-- ── Admin layout ── -->
+<!-- ?? Admin layout ?? -->
 <div id="adminWrap" style="flex-direction:column;width:100%;min-height:100vh;" class="admin-dashboard">
     <div id="headerContainer"></div>
     <div class="admin-dashboard-body">
@@ -47,7 +47,7 @@
         <div class="admin-main">
             <div class="admin-header">
                 <div>
-                    <div class="breadcrumb">Admin Portal › My Profile › Notifications</div>
+                    <div class="breadcrumb">Admin Portal ??My Profile ??Notifications</div>
                     <div class="admin-header-title">Manage Alerts</div>
                 </div>
             </div>
@@ -58,12 +58,15 @@
     </div>
 </div>
 
-<!-- ── Customer / Staff layout ── -->
-<div id="standaloneWrap" style="flex-direction:column;min-height:100vh;width:100%;">
+<!-- ?? Customer / Staff layout ?? -->
+<div id="standaloneWrap" style="flex-direction:row;min-height:100vh;width:100%;">
+    <div id="customerSidebar"></div>
+    <div class="cu-page-shell" style="flex:1;min-width:0;">
     <div id="cuHeaderWrap"></div>
     <main style="flex:1;overflow-y:auto;padding:1.5rem 2rem;background:#F7F8FA;width:100%;box-sizing:border-box;">
         <div id="notifContent2"></div>
     </main>
+    </div>
 </div>
 
 <div id="notifToast"></div>
@@ -106,7 +109,7 @@
 var _notifRole = window._notifRole || 'customer';
 var _notifUid  = null;
 
-// ── Defaults ──
+// ?? Defaults ??
 var _prefs = {
     pmsOverdue:        true,
     pmsDueToday:       true,
@@ -128,18 +131,24 @@ var _prefs = {
         document.getElementById('adminWrap').style.display = 'flex';
     } else {
         document.getElementById('standaloneWrap').style.display = 'flex';
+        var sessKey = _notifRole === 'staff' ? 'spUser' : 'cpUser';
+        var sess = JSON.parse(sessionStorage.getItem(sessKey) || '{}');
+        var name = sess.name || '';
+        var parts = name.trim().split(' ').filter(Boolean);
+        var ini = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : (parts[0]?parts[0][0].toUpperCase():'CU');
+        fetch('customer_sidebar.html').then(function (r) { return r.text(); }).then(function (html) {
+            document.getElementById('customerSidebar').innerHTML = html;
+            if (typeof setGreeting === 'function') setGreeting();
+            if (typeof setActiveTab === 'function') setActiveTab();
+            if (name) {
+                var av = document.getElementById('cuAvatar'); if (av) av.textContent = ini;
+                var nm = document.getElementById('cuAvatarName'); if (nm) nm.textContent = name;
+                var hn = document.getElementById('cuHeaderName'); if (hn) hn.textContent = name;
+                var ge = document.getElementById('cuGreetLine'); if(ge && !ge.textContent) ge.textContent = sess.email || '';
+            }
+        });
         fetch('customer_header.html').then(function (r) { return r.text(); }).then(function (html) {
             document.getElementById('cuHeaderWrap').innerHTML = html;
-            if (typeof setActiveTab === 'function') setActiveTab();
-            var sessKey = _notifRole === 'staff' ? 'spUser' : 'cpUser';
-            var sess = JSON.parse(sessionStorage.getItem(sessKey) || '{}');
-            if (sess.name) {
-                var parts = sess.name.trim().split(' ').filter(Boolean);
-                var ini = parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : parts[0][0].toUpperCase();
-                var av = document.getElementById('cuAvatar'); if (av) av.textContent = ini;
-                var nm = document.getElementById('cuAvatarName'); if (nm) nm.textContent = sess.name;
-                var hn = document.getElementById('cuHeaderName'); if (hn) hn.textContent = sess.name;
-            }
         });
     }
     _renderContent();
@@ -181,7 +190,7 @@ function _renderContent() {
     var isStaffOrAdmin = _notifRole === 'staff' || _notifRole === 'admin';
     var isAdmin        = _notifRole === 'admin';
 
-    // ── Right column: alert cards ──
+    // ?? Right column: alert cards ??
     var rightHtml = '<div class="notif-right">';
 
     // Vehicle Alerts (all roles)
@@ -244,7 +253,7 @@ function _renderContent() {
             + '</div>';
     }
 
-    // ── Booking Alerts — customer ──
+    // ?? Booking Alerts ??customer ??
     if (_notifRole === 'customer') {
         rightHtml += '<div>'
             + '<div class="notif-section-label">Booking Alerts</div>'
@@ -264,7 +273,7 @@ function _renderContent() {
             + '</div>';
     }
 
-    // ── Booking Alerts — staff & admin ──
+    // ?? Booking Alerts ??staff & admin ??
     if (isStaffOrAdmin) {
         rightHtml += '<div>'
             + '<div class="notif-section-label">Booking Alerts</div>'
@@ -298,7 +307,7 @@ function _renderContent() {
         + '</a>'
         + '<div class="notif-page-grid">'
 
-        // ── Left: info card ──
+        // ?? Left: info card ??
         + '<div class="notif-info-card">'
         +   '<div class="notif-info-banner">'
         +     '<div class="notif-info-banner-icon">'
@@ -344,7 +353,7 @@ function _alertTile(iconBg, iconColor, svgPath, label, sub, key, isLast) {
 window.saveNotifPrefs = function () {
     if (!_notifUid) return;
     var btn = document.getElementById('notifSaveBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving??; }
 
     var isStaffOrAdmin = _notifRole === 'staff' || _notifRole === 'admin';
     var isAdmin        = _notifRole === 'admin';
