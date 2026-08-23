@@ -28,9 +28,9 @@ class CustomerChatStore {
   static String resetIn = '';
 
   // SharedPreferences key helpers
-  static String _activeKey(String uid)  => 'cust_ai_active_$uid';
+  static String _activeKey(String uid) => 'cust_ai_active_$uid';
   static String _storageKey(String uid) => 'cust_ai_chat_$uid';
-  static String _tokenKey(String uid)   {
+  static String _tokenKey(String uid) {
     final today = DateTime.now().toIso8601String().substring(0, 10);
     return 'cust_ai_tokens_${uid}_$today';
   }
@@ -48,21 +48,23 @@ class CustomerChatStore {
     if (messages.isEmpty) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final sid   = sessionId ?? 'local_$uid';
+      final sid = sessionId ?? 'local_$uid';
       final entry = {
         'id': sid,
         'ts': DateTime.now().millisecondsSinceEpoch,
-        'messages': messages.map((m) => {
-          'role': m.role,
-          'text': m.text,
-        }).toList(),
+        'messages': messages
+            .map((m) => {'role': m.role, 'text': m.text})
+            .toList(),
       };
       // Active slot
       await prefs.setString(_activeKey(uid), jsonEncode(entry));
       // History list — upsert by sid
       final all = await loadAllSessions(uid);
       final idx = all.indexWhere((s) => s['id'] == sid);
-      if (idx >= 0) all[idx] = entry; else all.insert(0, entry);
+      if (idx >= 0)
+        all[idx] = entry;
+      else
+        all.insert(0, entry);
       final trimmed = all.length > 50 ? all.sublist(0, 50) : all;
       await prefs.setString(_storageKey(uid), jsonEncode(trimmed));
     } catch (_) {}
@@ -72,13 +74,16 @@ class CustomerChatStore {
   static Future<List<Map<String, dynamic>>> loadAllSessions(String uid) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw   = prefs.getString(_storageKey(uid));
+      final raw = prefs.getString(_storageKey(uid));
       if (raw == null) return [];
       final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
-      list.sort((a, b) =>
-          ((b['ts'] as int?) ?? 0).compareTo((a['ts'] as int?) ?? 0));
+      list.sort(
+        (a, b) => ((b['ts'] as int?) ?? 0).compareTo((a['ts'] as int?) ?? 0),
+      );
       return list;
-    } catch (_) { return []; }
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Restore the most recent active session into in-memory messages.
@@ -86,22 +91,27 @@ class CustomerChatStore {
   static Future<bool> restoreActiveSession(String uid) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw   = prefs.getString(_activeKey(uid));
+      final raw = prefs.getString(_activeKey(uid));
       if (raw == null) return false;
       final entry = jsonDecode(raw) as Map<String, dynamic>;
-      final msgs  = (entry['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final msgs =
+          (entry['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
       if (msgs.isEmpty) return false;
       messages.clear();
       for (final m in msgs) {
-        messages.add(_ChatMsg(
-          role: m['role'] as String? ?? 'ai',
-          text: m['text'] as String? ?? '',
-        ));
+        messages.add(
+          _ChatMsg(
+            role: m['role'] as String? ?? 'ai',
+            text: m['text'] as String? ?? '',
+          ),
+        );
       }
       final sid = entry['id'] as String?;
       sessionId = (sid != null && !sid.startsWith('local_')) ? sid : null;
       return true;
-    } catch (_) { return false; }
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<void> clearAllHistory(String uid) async {
@@ -124,7 +134,9 @@ class CustomerChatStore {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getInt(_tokenKey(uid)) ?? 0;
-    } catch (_) { return 0; }
+    } catch (_) {
+      return 0;
+    }
   }
 
   static Future<void> addTokens(String uid, int n) async {
@@ -141,7 +153,10 @@ class CustomerChatStore {
 
   static Future<int> tokenLimitRemaining(String uid) async {
     final used = await getUsedTokens(uid);
-    return (_kCustomerDailyTokenLimit - used).clamp(0, _kCustomerDailyTokenLimit);
+    return (_kCustomerDailyTokenLimit - used).clamp(
+      0,
+      _kCustomerDailyTokenLimit,
+    );
   }
 }
 
@@ -175,7 +190,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
 
   bool _dataLoaded = false;
   bool _tokenLimitReached = false;
-  int  _tokensRemaining   = _kCustomerDailyTokenLimit;
+  int _tokensRemaining = _kCustomerDailyTokenLimit;
 
   // ── History drawer state ───────────────────────────────────────────────────
   bool _historyOpen = false;
@@ -194,7 +209,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   @override
   void initState() {
     super.initState();
-    _eagerRestoreSession();   // restore messages ASAP — skips the welcome flash
+    _eagerRestoreSession(); // restore messages ASAP — skips the welcome flash
     _loadIdentity();
     _checkBackend(silent: true);
     _checkAiStatus();
@@ -251,7 +266,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     final companyName = doc.data()?['companyName'] as String? ?? '';
 
     if (name.isNotEmpty || companyName.isNotEmpty) {
-      final nameLower    = name.toLowerCase();
+      final nameLower = name.toLowerCase();
       final companyLower = companyName.toLowerCase();
       final seenIds = <String>{};
 
@@ -286,10 +301,12 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           .get();
       for (final d in allVehicles.docs) {
         if (seenIds.contains(d.id)) continue;
-        final stored = ((d.data()['owner'] as String?) ?? '').toLowerCase().trim();
+        final stored = ((d.data()['owner'] as String?) ?? '')
+            .toLowerCase()
+            .trim();
         if (stored.isNotEmpty &&
             ((nameLower.isNotEmpty && stored == nameLower) ||
-             (companyLower.isNotEmpty && stored == companyLower))) {
+                (companyLower.isNotEmpty && stored == companyLower))) {
           seenIds.add(d.id);
         }
       }
@@ -306,13 +323,13 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
 
     // Check daily token limit
     final limitReached = await CustomerChatStore.isTokenLimitReached(user.uid);
-    final remaining    = await CustomerChatStore.tokenLimitRemaining(user.uid);
+    final remaining = await CustomerChatStore.tokenLimitRemaining(user.uid);
 
     if (mounted) {
       setState(() {
-        _dataLoaded         = true;
-        _tokenLimitReached  = limitReached;
-        _tokensRemaining    = remaining;
+        _dataLoaded = true;
+        _tokenLimitReached = limitReached;
+        _tokensRemaining = remaining;
       });
       // Scroll to bottom after restoring conversation
       if (_messages.isNotEmpty) _scrollToBottom();
@@ -326,7 +343,11 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     // Save current chat before opening history
     if (_messages.isNotEmpty) await CustomerChatStore.saveChat(_customerUid);
     final sessions = await CustomerChatStore.loadAllSessions(_customerUid);
-    if (mounted) setState(() { _historySessions = sessions; _historyOpen = true; });
+    if (mounted)
+      setState(() {
+        _historySessions = sessions;
+        _historyOpen = true;
+      });
   }
 
   void _closeHistory() {
@@ -334,18 +355,22 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   }
 
   Future<void> _loadHistorySession(Map<String, dynamic> session) async {
-    final msgs = (session['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final msgs =
+        (session['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     if (msgs.isEmpty) return;
-    CustomerChatStore.sessionId = (session['id'] as String?)?.startsWith('local_') == false
+    CustomerChatStore.sessionId =
+        (session['id'] as String?)?.startsWith('local_') == false
         ? session['id'] as String?
         : null;
     setState(() {
       CustomerChatStore.messages.clear();
       for (final m in msgs) {
-        CustomerChatStore.messages.add(_ChatMsg(
-          role: m['role'] as String? ?? 'ai',
-          text: m['text'] as String? ?? '',
-        ));
+        CustomerChatStore.messages.add(
+          _ChatMsg(
+            role: m['role'] as String? ?? 'ai',
+            text: m['text'] as String? ?? '',
+          ),
+        );
       }
       _historyOpen = false;
     });
@@ -358,24 +383,31 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete All Chats',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Delete All Chats',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
         content: const Text('Delete all chat history? This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel',
-                style: TextStyle(color: Color(0xFF718096))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF718096)),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFE8001C),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete All',
-                style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Delete All',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -384,13 +416,17 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     if (_customerUid.isNotEmpty) {
       await CustomerChatStore.clearAllHistory(_customerUid);
       if (_sessionId != null) {
-        http.delete(Uri.parse('$_kCustAiBaseUrl/session/$_sessionId'))
+        http
+            .delete(Uri.parse('$_kCustAiBaseUrl/session/$_sessionId'))
             .catchError((_) => http.Response('', 200));
       }
       CustomerChatStore.clear();
     }
     if (!mounted) return;
-    setState(() { _historySessions = []; _historyOpen = false; });
+    setState(() {
+      _historySessions = [];
+      _historyOpen = false;
+    });
   }
 
   // ── New Chat ───────────────────────────────────────────────────────────────
@@ -403,7 +439,8 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     }
     // Clear server-side session memory
     if (_sessionId != null) {
-      http.delete(Uri.parse('$_kCustAiBaseUrl/session/$_sessionId'))
+      http
+          .delete(Uri.parse('$_kCustAiBaseUrl/session/$_sessionId'))
           .catchError((_) => http.Response('', 200));
     }
     if (mounted) {
@@ -425,7 +462,9 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
       try {
         final r = await http
             .get(Uri.parse('$_kCustAiBaseUrl/health'))
-            .timeout(const Duration(seconds: 60)); // 60s covers Render cold-start (~30–50s)
+            .timeout(
+              const Duration(seconds: 60),
+            ); // 60s covers Render cold-start (~30–50s)
         if (r.statusCode == 200) {
           if (mounted) setState(() => _backendOnline = true);
           return;
@@ -467,7 +506,9 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     // ── Customer daily token limit check ─────────────────────────────────
     if (_tokenLimitReached) return;
     if (_customerUid.isNotEmpty) {
-      final limitHit = await CustomerChatStore.isTokenLimitReached(_customerUid);
+      final limitHit = await CustomerChatStore.isTokenLimitReached(
+        _customerUid,
+      );
       if (limitHit) {
         if (mounted) setState(() => _tokenLimitReached = true);
         return;
@@ -536,7 +577,8 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               );
             });
           }
-          if (_customerUid.isNotEmpty) await CustomerChatStore.saveChat(_customerUid);
+          if (_customerUid.isNotEmpty)
+            await CustomerChatStore.saveChat(_customerUid);
           return;
         }
 
@@ -551,25 +593,36 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         if (_customerUid.isNotEmpty) {
           final approxTokens = ((text.length + answer.length) / 4).ceil();
           await CustomerChatStore.addTokens(_customerUid, approxTokens);
-          final limitHit  = await CustomerChatStore.isTokenLimitReached(_customerUid);
-          final remaining = await CustomerChatStore.tokenLimitRemaining(_customerUid);
+          final limitHit = await CustomerChatStore.isTokenLimitReached(
+            _customerUid,
+          );
+          final remaining = await CustomerChatStore.tokenLimitRemaining(
+            _customerUid,
+          );
           if (mounted) {
             setState(() {
               _tokenLimitReached = limitHit;
-              _tokensRemaining   = remaining;
+              _tokensRemaining = remaining;
             });
           }
           // Persist after AI reply
           await CustomerChatStore.saveChat(_customerUid);
         }
-
       } else {
         // Non-200 response — try to extract a friendly reply from the body first
-        String errorMsg = "I'm having trouble processing your request right now. Please try again in a moment, or contact us at caltexautopro2026@gmail.com if the issue persists.";
+        String errorMsg =
+            "I'm having trouble processing your request right now. Please try again in a moment, or contact us at caltexautopro2026@gmail.com if the issue persists.";
         try {
           final errData = jsonDecode(resp.body) as Map<String, dynamic>;
-          final bodyReply = (errData['reply'] as String? ?? errData['detail'] as String? ?? '').trim();
-          if (bodyReply.isNotEmpty && !bodyReply.contains('Error') && !bodyReply.contains('500') && !bodyReply.contains('503')) {
+          final bodyReply =
+              (errData['reply'] as String? ??
+                      errData['detail'] as String? ??
+                      '')
+                  .trim();
+          if (bodyReply.isNotEmpty &&
+              !bodyReply.contains('Error') &&
+              !bodyReply.contains('500') &&
+              !bodyReply.contains('503')) {
             errorMsg = bodyReply;
           }
         } catch (_) {}
@@ -579,7 +632,8 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
             _messages.add(_ChatMsg(role: 'ai', text: errorMsg));
           });
         }
-        if (_customerUid.isNotEmpty) await CustomerChatStore.saveChat(_customerUid);
+        if (_customerUid.isNotEmpty)
+          await CustomerChatStore.saveChat(_customerUid);
       }
     } on http.ClientException catch (_) {
       if (mounted) {
@@ -588,7 +642,8 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           _messages.add(
             _ChatMsg(
               role: 'ai',
-              text: 'Cannot reach the AI service. Please check your internet connection and try again.',
+              text:
+                  'Cannot reach the AI service. Please check your internet connection and try again.',
             ),
           );
         });
@@ -600,7 +655,9 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           _messages.add(
             _ChatMsg(
               role: 'ai',
-              text: e.toString().contains('Timeout') || e.toString().contains('timed out')
+              text:
+                  e.toString().contains('Timeout') ||
+                      e.toString().contains('timed out')
                   ? 'The request took too long. Please check your connection and try again.'
                   : "I'm having trouble processing your request right now. Please try again in a moment.",
             ),
@@ -629,8 +686,18 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
       backgroundColor: _bg,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        backgroundColor: _red,
+        backgroundColor: const Color(0xFF004B5F),
         elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF004B5F), Color(0xFF006B7D), Color(0xFFEE152A)],
+              stops: [0.0, 0.35, 1.0],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
         title: Row(
           children: [
@@ -649,10 +716,11 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: (_backendOnline
-                            ? const Color(0xFF4ade80)
-                            : const Color(0xFFF97316))
-                        .withValues(alpha: 0.5),
+                    color:
+                        (_backendOnline
+                                ? const Color(0xFF4ade80)
+                                : const Color(0xFFF97316))
+                            .withValues(alpha: 0.5),
                     blurRadius: 8,
                     spreadRadius: 1,
                   ),
@@ -696,8 +764,12 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                           boxShadow: [
                             BoxShadow(
                               color: _backendOnline
-                                  ? const Color(0xFF4ade80).withValues(alpha: 0.8)
-                                  : const Color(0xFFF97316).withValues(alpha: 0.6),
+                                  ? const Color(
+                                      0xFF4ade80,
+                                    ).withValues(alpha: 0.8)
+                                  : const Color(
+                                      0xFFF97316,
+                                    ).withValues(alpha: 0.6),
                               blurRadius: 6,
                             ),
                           ],
@@ -762,24 +834,37 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                 Container(
                   width: double.infinity,
                   color: const Color(0xFFFFFBEB),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
-                      const Icon(Icons.warning_amber_rounded, size: 14,
-                          color: Color(0xFF975A16)),
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        size: 14,
+                        color: Color(0xFF975A16),
+                      ),
                       const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
                           'Cannot reach AI backend. Tap Retry.',
-                          style: TextStyle(fontSize: 11, color: Color(0xFF975A16)),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF975A16),
+                          ),
                         ),
                       ),
                       GestureDetector(
                         onTap: () => _checkBackend(),
-                        child: const Text('Retry',
-                            style: TextStyle(fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF975A16))),
+                        child: const Text(
+                          'Retry',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF975A16),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -789,29 +874,55 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               if (_rateLimited)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: const BoxDecoration(
                     color: Color(0xFFFFF7ED),
-                    border: Border(bottom: BorderSide(color: Color(0xFFFB923C), width: 2)),
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFFFB923C), width: 2),
+                    ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.block, size: 18, color: Color(0xFF9A3412)),
+                      const Icon(
+                        Icons.block,
+                        size: 18,
+                        color: Color(0xFF9A3412),
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: RichText(
                           text: TextSpan(
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF9A3412), height: 1.5),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF9A3412),
+                              height: 1.5,
+                            ),
                             children: [
                               const TextSpan(
-                                text: 'AI unavailable — daily token limit reached\n',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                                text:
+                                    'AI unavailable — daily token limit reached\n',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.5,
+                                ),
                               ),
-                              const TextSpan(text: 'Groq free-tier quota is exhausted. Resets in '),
-                              TextSpan(text: _resetIn,
-                                  style: const TextStyle(fontWeight: FontWeight.bold)),
-                              const TextSpan(text: '. Chat is disabled until then.'),
+                              const TextSpan(
+                                text:
+                                    'Groq free-tier quota is exhausted. Resets in ',
+                              ),
+                              TextSpan(
+                                text: _resetIn,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const TextSpan(
+                                text: '. Chat is disabled until then.',
+                              ),
                             ],
                           ),
                         ),
@@ -820,9 +931,14 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                         onTap: _checkAiStatus,
                         child: const Padding(
                           padding: EdgeInsets.only(left: 8),
-                          child: Text('Retry',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold,
-                                  color: Color(0xFF9A3412))),
+                          child: Text(
+                            'Retry',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF9A3412),
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -833,27 +949,44 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               if (_tokenLimitReached)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: const BoxDecoration(
                     color: Color(0xFFFFF7ED),
-                    border: Border(bottom: BorderSide(color: Color(0xFFFB923C), width: 2)),
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFFFB923C), width: 2),
+                    ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.block, size: 18, color: Color(0xFF9A3412)),
+                      const Icon(
+                        Icons.block,
+                        size: 18,
+                        color: Color(0xFF9A3412),
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: RichText(
                           text: TextSpan(
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF9A3412), height: 1.5),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF9A3412),
+                              height: 1.5,
+                            ),
                             children: [
                               const TextSpan(
                                 text: 'Daily message limit reached\n',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.5,
+                                ),
                               ),
                               TextSpan(
-                                text: "You've used your $_kCustomerDailyTokenLimit-token daily allowance. "
+                                text:
+                                    "You've used your $_kCustomerDailyTokenLimit-token daily allowance. "
                                     'Your quota resets at midnight tonight. '
                                     'You can still view your chat history.',
                               ),
@@ -866,23 +999,36 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                 ),
 
               // ── Low-token warning (< 400 remaining) ────────────────────
-              if (!_tokenLimitReached && _tokensRemaining < 400 && _tokensRemaining > 0)
+              if (!_tokenLimitReached &&
+                  _tokensRemaining < 400 &&
+                  _tokensRemaining > 0)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: const BoxDecoration(
                     color: Color(0xFFFFFBEB),
-                    border: Border(bottom: BorderSide(color: Color(0xFFFCD34D), width: 1.5)),
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFFFCD34D), width: 1.5),
+                    ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.warning_amber_rounded, size: 14,
-                          color: Color(0xFF92400E)),
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        size: 14,
+                        color: Color(0xFF92400E),
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Running low — ~$_tokensRemaining tokens remaining today.',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF92400E)),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF92400E),
+                          ),
                         ),
                       ),
                     ],
@@ -898,8 +1044,13 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                           children: [
                             CircularProgressIndicator(color: _red),
                             SizedBox(height: 12),
-                            Text('Loading your profile…',
-                                style: TextStyle(color: Color(0xFF718096), fontSize: 13)),
+                            Text(
+                              'Loading your profile…',
+                              style: TextStyle(
+                                color: Color(0xFF718096),
+                                fontSize: 13,
+                              ),
+                            ),
                           ],
                         ),
                       )
@@ -939,7 +1090,10 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                       const SizedBox(height: 4),
                       const Text(
                         'Enter to send  ·  Shift+Enter for new line',
-                        style: TextStyle(fontSize: 10, color: Color(0xFFC0C8D4)),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFFC0C8D4),
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -972,14 +1126,18 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
 
   // ── History drawer widget ──────────────────────────────────────────────────
   Widget _buildHistoryDrawer() {
-    final today     = DateTime.now();
+    final today = DateTime.now();
     final yesterday = today.subtract(const Duration(days: 1));
 
     String dayLabel(DateTime d) {
-      if (d.year == today.year && d.month == today.month && d.day == today.day) {
+      if (d.year == today.year &&
+          d.month == today.month &&
+          d.day == today.day) {
         return 'Today';
       }
-      if (d.year == yesterday.year && d.month == yesterday.month && d.day == yesterday.day) {
+      if (d.year == yesterday.year &&
+          d.month == yesterday.month &&
+          d.day == yesterday.day) {
         return 'Yesterday';
       }
       return '${_monthAbbr(d.month)} ${d.day}, ${d.year}';
@@ -1007,19 +1165,29 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                   const Icon(Icons.history, color: Colors.white, size: 18),
                   const SizedBox(width: 8),
                   const Expanded(
-                    child: Text('Chat History',
-                        style: TextStyle(color: Colors.white, fontSize: 14,
-                            fontWeight: FontWeight.bold)),
+                    child: Text(
+                      'Chat History',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                   GestureDetector(
                     onTap: _closeHistory,
                     child: Container(
-                      width: 28, height: 28,
+                      width: 28,
+                      height: 28,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.close, color: Colors.white, size: 18),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                     ),
                   ),
                 ],
@@ -1030,19 +1198,34 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
               onTap: _deleteAllHistory,
               child: Container(
                 margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 9,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF5F5),
-                  border: Border.all(color: const Color(0xFFFCA5A5), width: 1.5),
+                  border: Border.all(
+                    color: const Color(0xFFFCA5A5),
+                    width: 1.5,
+                  ),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.delete_outline, color: Color(0xFFDC2626), size: 14),
+                    Icon(
+                      Icons.delete_outline,
+                      color: Color(0xFFDC2626),
+                      size: 14,
+                    ),
                     SizedBox(width: 8),
-                    Text('Delete All Chats',
-                        style: TextStyle(color: Color(0xFFDC2626), fontSize: 12,
-                            fontWeight: FontWeight.w600)),
+                    Text(
+                      'Delete All Chats',
+                      style: TextStyle(
+                        color: Color(0xFFDC2626),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1053,53 +1236,88 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                   ? const Center(
                       child: Padding(
                         padding: EdgeInsets.all(24),
-                        child: Text('No chat history yet.\nStart a conversation!',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+                        child: Text(
+                          'No chat history yet.\nStart a conversation!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF94A3B8),
+                          ),
+                        ),
                       ),
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
                       itemCount: _historySessions.length,
                       itemBuilder: (_, i) {
-                        final s   = _historySessions[i];
-                        final ts  = DateTime.fromMillisecondsSinceEpoch((s['ts'] as int?) ?? 0);
+                        final s = _historySessions[i];
+                        final ts = DateTime.fromMillisecondsSinceEpoch(
+                          (s['ts'] as int?) ?? 0,
+                        );
                         final day = dayLabel(ts);
-                        final showLabel = i == 0 ||
-                            dayLabel(DateTime.fromMillisecondsSinceEpoch(
-                                (_historySessions[i - 1]['ts'] as int?) ?? 0)) != day;
-                        final msgs = (s['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                        final showLabel =
+                            i == 0 ||
+                            dayLabel(
+                                  DateTime.fromMillisecondsSinceEpoch(
+                                    (_historySessions[i - 1]['ts'] as int?) ??
+                                        0,
+                                  ),
+                                ) !=
+                                day;
+                        final msgs =
+                            (s['messages'] as List?)
+                                ?.cast<Map<String, dynamic>>() ??
+                            [];
                         final firstUser = msgs.firstWhere(
-                            (m) => m['role'] == 'user',
-                            orElse: () => {'text': '(empty)'});
-                        final preview = firstUser['text'] as String? ?? '(empty)';
-                        final time = '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}';
-                        final isActive = s['id'] == (CustomerChatStore.sessionId ?? 'local_$_customerUid');
+                          (m) => m['role'] == 'user',
+                          orElse: () => {'text': '(empty)'},
+                        );
+                        final preview =
+                            firstUser['text'] as String? ?? '(empty)';
+                        final time =
+                            '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}';
+                        final isActive =
+                            s['id'] ==
+                            (CustomerChatStore.sessionId ??
+                                'local_$_customerUid');
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (showLabel)
                               Padding(
-                                padding: const EdgeInsets.only(top: 10, bottom: 6),
-                                child: Text(day.toUpperCase(),
-                                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700,
-                                        color: Color(0xFF94A3B8), letterSpacing: 0.6)),
+                                padding: const EdgeInsets.only(
+                                  top: 10,
+                                  bottom: 6,
+                                ),
+                                child: Text(
+                                  day.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF94A3B8),
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
                               ),
                             GestureDetector(
                               onTap: () => _loadHistorySession(s),
                               child: Container(
                                 margin: const EdgeInsets.only(bottom: 7),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
                                 decoration: BoxDecoration(
                                   color: isActive
                                       ? const Color(0xFFFFF0F0)
                                       : const Color(0xFFF8F9FB),
                                   border: Border.all(
-                                      color: isActive
-                                          ? const Color(0xFFE8001C)
-                                          : const Color(0xFFE8EDF2),
-                                      width: 1.5),
+                                    color: isActive
+                                        ? const Color(0xFFE8001C)
+                                        : const Color(0xFFE8EDF2),
+                                    width: 1.5,
+                                  ),
                                   borderRadius: BorderRadius.circular(11),
                                 ),
                                 child: Column(
@@ -1109,12 +1327,20 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                                       preview.length > 60
                                           ? '${preview.substring(0, 60)}…'
                                           : preview,
-                                      style: const TextStyle(fontSize: 12,
-                                          color: Color(0xFF1A202C), fontWeight: FontWeight.w500),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF1A202C),
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
                                     const SizedBox(height: 3),
-                                    Text('$time · ${msgs.length} message${msgs.length != 1 ? 's' : ''}',
-                                        style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8))),
+                                    Text(
+                                      '$time · ${msgs.length} message${msgs.length != 1 ? 's' : ''}',
+                                      style: const TextStyle(
+                                        fontSize: 10.5,
+                                        color: Color(0xFF94A3B8),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1131,8 +1357,18 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   }
 
   String _monthAbbr(int m) => const [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ][m - 1];
 
   // ─────────────────────────────────────────────────────────────────────────

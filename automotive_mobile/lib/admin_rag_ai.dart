@@ -146,7 +146,7 @@ class AdminChatStore {
   static String resetIn = '';
 
   // SharedPreferences key helpers
-  static String _activeKey(String uid)  => 'rag_ai_active_$uid';
+  static String _activeKey(String uid) => 'rag_ai_active_$uid';
   static String _storageKey(String uid) => 'rag_ai_chat_$uid';
 
   static void clear() {
@@ -162,21 +162,23 @@ class AdminChatStore {
     if (messages.isEmpty) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final sid   = sessionId ?? 'local_$uid';
+      final sid = sessionId ?? 'local_$uid';
       final entry = {
         'id': sid,
         'ts': DateTime.now().millisecondsSinceEpoch,
-        'messages': messages.map((m) => {
-          'role': m.role,
-          'text': m.text ?? '',
-        }).toList(),
+        'messages': messages
+            .map((m) => {'role': m.role, 'text': m.text ?? ''})
+            .toList(),
       };
       // Active slot
       prefs.setString(_activeKey(uid), jsonEncode(entry));
       // History list — upsert by sid
       final all = await loadAllSessions(uid);
       final idx = all.indexWhere((s) => s['id'] == sid);
-      if (idx >= 0) all[idx] = entry; else all.insert(0, entry);
+      if (idx >= 0)
+        all[idx] = entry;
+      else
+        all.insert(0, entry);
       final trimmed = all.length > 50 ? all.sublist(0, 50) : all;
       prefs.setString(_storageKey(uid), jsonEncode(trimmed));
     } catch (_) {}
@@ -186,14 +188,16 @@ class AdminChatStore {
   static Future<List<Map<String, dynamic>>> loadAllSessions(String uid) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw   = prefs.getString(_storageKey(uid));
+      final raw = prefs.getString(_storageKey(uid));
       if (raw == null) return [];
-      final list = (jsonDecode(raw) as List)
-          .cast<Map<String, dynamic>>();
-      list.sort((a, b) =>
-          ((b['ts'] as int?) ?? 0).compareTo((a['ts'] as int?) ?? 0));
+      final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+      list.sort(
+        (a, b) => ((b['ts'] as int?) ?? 0).compareTo((a['ts'] as int?) ?? 0),
+      );
       return list;
-    } catch (_) { return []; }
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Clear all persisted history for [uid].
@@ -218,22 +222,27 @@ class AdminChatStore {
   static Future<bool> restoreActiveSession(String uid) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw   = prefs.getString(_activeKey(uid));
+      final raw = prefs.getString(_activeKey(uid));
       if (raw == null) return false;
       final entry = jsonDecode(raw) as Map<String, dynamic>;
-      final msgs  = (entry['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final msgs =
+          (entry['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
       if (msgs.isEmpty) return false;
       messages.clear();
       for (final m in msgs) {
-        messages.add(_ChatMessage(
-          role: m['role'] as String? ?? 'ai',
-          text: m['text'] as String? ?? '',
-        ));
+        messages.add(
+          _ChatMessage(
+            role: m['role'] as String? ?? 'ai',
+            text: m['text'] as String? ?? '',
+          ),
+        );
       }
       final sid = entry['id'] as String?;
       sessionId = (sid != null && !sid.startsWith('local_')) ? sid : null;
       return true;
-    } catch (_) { return false; }
+    } catch (_) {
+      return false;
+    }
   }
 }
 
@@ -250,7 +259,7 @@ class AdminSmartReports extends StatefulWidget {
 class _AdminSmartReportsState extends State<AdminSmartReports> {
   static const _red = Color(0xFFE8001C);
 
-  final _inputCtrl  = TextEditingController();
+  final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
 
   // Messages and session live in the static store — widget rebuild-safe
@@ -258,7 +267,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   String? get _sessionId => AdminChatStore.sessionId;
   set _sessionId(String? v) => AdminChatStore.sessionId = v;
 
-  final List<Map<String, String>> _history = []; // legacy — kept for fallback only
+  final List<Map<String, String>> _history =
+      []; // legacy — kept for fallback only
   String _initials = 'AD'; // admin initials shown on user bubble
   String _currentUid = ''; // Firebase UID for history persistence
 
@@ -307,7 +317,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       // Restore active session if in-memory store is empty (cold start)
       if (AdminChatStore.messages.isEmpty) {
         final restored = await AdminChatStore.restoreActiveSession(user.uid);
-        if (restored && mounted) setState(() {}); // rebuild to show restored messages
+        if (restored && mounted)
+          setState(() {}); // rebuild to show restored messages
       }
     } catch (_) {}
   }
@@ -334,7 +345,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       try {
         final r = await http
             .get(Uri.parse('$_kAiBaseUrl/health'))
-            .timeout(const Duration(seconds: 60)); // 60s covers Render cold-start (~30–50s)
+            .timeout(
+              const Duration(seconds: 60),
+            ); // 60s covers Render cold-start (~30–50s)
         if (r.statusCode == 200) {
           if (mounted) setState(() => _backendOnline = true);
           return;
@@ -360,7 +373,11 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   Future<void> _openHistory() async {
     if (_currentUid.isEmpty) return;
     final sessions = await AdminChatStore.loadAllSessions(_currentUid);
-    if (mounted) setState(() { _historySessions = sessions; _historyOpen = true; });
+    if (mounted)
+      setState(() {
+        _historySessions = sessions;
+        _historyOpen = true;
+      });
   }
 
   void _closeHistory() {
@@ -368,18 +385,22 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   }
 
   Future<void> _loadSession(Map<String, dynamic> session) async {
-    final msgs = (session['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final msgs =
+        (session['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     if (msgs.isEmpty) return;
-    AdminChatStore.sessionId = (session['id'] as String?)?.startsWith('local_') == false
+    AdminChatStore.sessionId =
+        (session['id'] as String?)?.startsWith('local_') == false
         ? session['id'] as String?
         : null;
     setState(() {
       AdminChatStore.messages.clear();
       for (final m in msgs) {
-        AdminChatStore.messages.add(_ChatMessage(
-          role: m['role'] as String? ?? 'ai',
-          text: m['text'] as String? ?? '',
-        ));
+        AdminChatStore.messages.add(
+          _ChatMessage(
+            role: m['role'] as String? ?? 'ai',
+            text: m['text'] as String? ?? '',
+          ),
+        );
       }
       _historyOpen = false;
     });
@@ -391,24 +412,31 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete All Chats',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Delete All Chats',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
         content: const Text('Delete all chat history? This cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel',
-                style: TextStyle(color: Color(0xFF718096))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF718096)),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFE8001C),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete All',
-                style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Delete All',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -418,12 +446,17 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       await AdminChatStore.clearAllHistory(_currentUid);
       // Also clear server session
       if (_sessionId != null) {
-        http.delete(Uri.parse('$_kAiBaseUrl/session/$_sessionId'))
+        http
+            .delete(Uri.parse('$_kAiBaseUrl/session/$_sessionId'))
             .catchError((_) => http.Response('', 200));
       }
       AdminChatStore.clear();
     }
-    if (mounted) setState(() { _historySessions = []; _historyOpen = false; });
+    if (mounted)
+      setState(() {
+        _historySessions = [];
+        _historyOpen = false;
+      });
   }
 
   // ── Scroll ─────────────────────────────────────────────────────────────────
@@ -486,8 +519,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           .timeout(const Duration(seconds: 120));
 
       if (resp.statusCode == 200) {
-        final data   = jsonDecode(resp.body) as Map<String, dynamic>;
-        final rawReply  = (data['reply'] as String? ?? '').trim();
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        final rawReply = (data['reply'] as String? ?? '').trim();
 
         // Persist session_id for continuity across turns
         if (data['session_id'] != null) {
@@ -527,38 +560,59 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
 
         if (rpMatch != null) {
           try {
-            final rpJson = jsonDecode(rpMatch.group(1)!.trim()) as Map<String, dynamic>;
+            final rpJson =
+                jsonDecode(rpMatch.group(1)!.trim()) as Map<String, dynamic>;
             if (rpJson['report_type'] != null) {
               // Strip the JSON block from the visible reply text
               final cleanReply = rawReply
-                  .replaceAll(RegExp(r'\n?```report_payload\s*\n.*?\n```', dotAll: true), '')
+                  .replaceAll(
+                    RegExp(r'\n?```report_payload\s*\n.*?\n```', dotAll: true),
+                    '',
+                  )
                   .trim();
 
               final rawFilters = Map<String, dynamic>.from(
-                  (rpJson['filters'] as Map<String, dynamic>?) ?? {});
-              final reportMonth     = rawFilters.remove('month') as String?;
-              final reportStartDate = rawFilters.remove('start_date') as String?;
-              final reportEndDate   = rawFilters.remove('end_date') as String?;
-              final reportType      = rpJson['report_type'] as String;
-              final rawFmt          = ((rpJson['format'] as String?) ?? 'pdf')
+                (rpJson['filters'] as Map<String, dynamic>?) ?? {},
+              );
+              final reportMonth = rawFilters.remove('month') as String?;
+              final reportStartDate =
+                  rawFilters.remove('start_date') as String?;
+              final reportEndDate = rawFilters.remove('end_date') as String?;
+              final reportType = rpJson['report_type'] as String;
+              final rawFmt = ((rpJson['format'] as String?) ?? 'pdf')
                   .toLowerCase()
                   .replaceAll('xlsx', 'excel');
 
               // ── Future-date guard ────────────────────────────────────────
               bool isFuture = false;
               if (reportMonth != null) {
-                final mMatch = RegExp(r'([A-Za-z]+)\s+(\d{4})').firstMatch(reportMonth);
+                final mMatch = RegExp(
+                  r'([A-Za-z]+)\s+(\d{4})',
+                ).firstMatch(reportMonth);
                 if (mMatch != null) {
                   const monthNames = [
-                    'january','february','march','april','may','june',
-                    'july','august','september','october','november','december',
+                    'january',
+                    'february',
+                    'march',
+                    'april',
+                    'may',
+                    'june',
+                    'july',
+                    'august',
+                    'september',
+                    'october',
+                    'november',
+                    'december',
                   ];
-                  final mIdx = monthNames.indexOf(mMatch.group(1)!.toLowerCase());
-                  final yr   = int.tryParse(mMatch.group(2)!) ?? 0;
-                  final now  = DateTime.now();
+                  final mIdx = monthNames.indexOf(
+                    mMatch.group(1)!.toLowerCase(),
+                  );
+                  final yr = int.tryParse(mMatch.group(2)!) ?? 0;
+                  final now = DateTime.now();
                   if (mIdx >= 0) {
                     final mo = mIdx + 1;
-                    isFuture = yr > now.year || (yr == now.year && mo > now.month);
+                    isFuture =
+                        yr > now.year || (yr == now.year && mo > now.month);
                   }
                 }
               }
@@ -567,11 +621,14 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 final label = reportMonth ?? 'the requested period';
                 setState(() {
                   _loading = false;
-                  _messages.add(_ChatMessage(
-                    role: 'ai',
-                    text: 'No records found for **$label** — that date range is in the future. '
-                        'Reports can only be generated for dates with existing historical data.',
-                  ));
+                  _messages.add(
+                    _ChatMessage(
+                      role: 'ai',
+                      text:
+                          'No records found for **$label** — that date range is in the future. '
+                          'Reports can only be generated for dates with existing historical data.',
+                    ),
+                  );
                 });
                 _scrollToBottom();
                 return;
@@ -583,18 +640,20 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
 
               setState(() {
                 _loading = false;
-                _messages.add(_ChatMessage(
-                  role: 'ai',
-                  text: displayReply,
-                  reportReady: true,
-                  reportType: reportType,
-                  reportFormat: rawFmt,
-                  reportMonth: reportMonth,
-                  reportStartDate: reportStartDate,
-                  reportEndDate: reportEndDate,
-                  reportFilters: rawFilters,
-                  reportLabel: _kReportTypes[reportType] ?? reportType,
-                ));
+                _messages.add(
+                  _ChatMessage(
+                    role: 'ai',
+                    text: displayReply,
+                    reportReady: true,
+                    reportType: reportType,
+                    reportFormat: rawFmt,
+                    reportMonth: reportMonth,
+                    reportStartDate: reportStartDate,
+                    reportEndDate: reportEndDate,
+                    reportFilters: rawFilters,
+                    reportLabel: _kReportTypes[reportType] ?? reportType,
+                  ),
+                );
               });
               _scrollToBottom();
               return;
@@ -605,18 +664,28 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         }
 
         // ── Normal reply (no report_payload) ───────────────────────────────
-        final answer = rawReply.isNotEmpty ? rawReply : 'No response generated.';
+        final answer = rawReply.isNotEmpty
+            ? rawReply
+            : 'No response generated.';
         setState(() {
           _loading = false;
           _messages.add(_ChatMessage(role: 'ai', text: answer));
         });
       } else {
         // Non-200 response — try to extract a friendly reply from the body first
-        String errorMsg = "I'm having trouble processing your request right now. Please try again in a moment.";
+        String errorMsg =
+            "I'm having trouble processing your request right now. Please try again in a moment.";
         try {
           final errData = jsonDecode(resp.body) as Map<String, dynamic>;
-          final bodyReply = (errData['reply'] as String? ?? errData['detail'] as String? ?? '').trim();
-          if (bodyReply.isNotEmpty && !bodyReply.contains('Error') && !bodyReply.contains('500') && !bodyReply.contains('503')) {
+          final bodyReply =
+              (errData['reply'] as String? ??
+                      errData['detail'] as String? ??
+                      '')
+                  .trim();
+          if (bodyReply.isNotEmpty &&
+              !bodyReply.contains('Error') &&
+              !bodyReply.contains('500') &&
+              !bodyReply.contains('503')) {
             errorMsg = bodyReply;
           }
         } catch (_) {}
@@ -631,7 +700,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         _messages.add(
           _ChatMessage(
             role: 'ai',
-            text: 'Cannot reach the AI service. Please check your internet connection and try again.',
+            text:
+                'Cannot reach the AI service. Please check your internet connection and try again.',
           ),
         );
       });
@@ -639,12 +709,16 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       // Covers TimeoutException and other network errors
       setState(() {
         _loading = false;
-        _messages.add(_ChatMessage(
-          role: 'ai',
-          text: e.toString().contains('TimeoutException') || e.toString().contains('timed out')
-              ? 'The request took too long. Please check your connection and try again.'
-              : "I'm having trouble processing your request right now. Please try again in a moment.",
-        ));
+        _messages.add(
+          _ChatMessage(
+            role: 'ai',
+            text:
+                e.toString().contains('TimeoutException') ||
+                    e.toString().contains('timed out')
+                ? 'The request took too long. Please check your connection and try again.'
+                : "I'm having trouble processing your request right now. Please try again in a moment.",
+          ),
+        );
       });
     }
     _scrollToBottom();
@@ -667,7 +741,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   // the message in-place with Open + Share actions.
 
   Widget _buildReportDownloadButtons(_ChatMessage msg) {
-    final fmt        = (msg.reportFormat ?? 'pdf').toLowerCase();
+    final fmt = (msg.reportFormat ?? 'pdf').toLowerCase();
     final monthLabel = msg.reportMonth != null ? ' (${msg.reportMonth})' : '';
 
     Widget _dlBtn(String format, bool primary) {
@@ -691,30 +765,39 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
               width: primary ? 0 : 1.5,
             ),
           ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(
-              format == 'pdf' ? Icons.picture_as_pdf_outlined : Icons.table_chart_outlined,
-              color: primary ? Colors.white : const Color(0xFF4a5568),
-              size: 13,
-            ),
-            const SizedBox(width: 5),
-            Text(
-              '↓ Download $fmtLabel$monthLabel',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                format == 'pdf'
+                    ? Icons.picture_as_pdf_outlined
+                    : Icons.table_chart_outlined,
                 color: primary ? Colors.white : const Color(0xFF4a5568),
+                size: 13,
               ),
-            ),
-          ]),
+              const SizedBox(width: 5),
+              Text(
+                '↓ Download $fmtLabel$monthLabel',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: primary ? Colors.white : const Color(0xFF4a5568),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    return Wrap(spacing: 8, runSpacing: 6, children: [
-      if (fmt == 'pdf' || fmt == 'both') _dlBtn('pdf', true),
-      if (fmt == 'excel' || fmt == 'both') _dlBtn('excel', fmt != 'both'),
-    ]);
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        if (fmt == 'pdf' || fmt == 'both') _dlBtn('pdf', true),
+        if (fmt == 'excel' || fmt == 'both') _dlBtn('excel', fmt != 'both'),
+      ],
+    );
   }
 
   // ── Report generation ──────────────────────────────────────────────────────
@@ -969,8 +1052,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     String? endDate,
     _ChatMessage? msgRef,
   }) async {
-    final typeName   = _kReportTypes[reportType] ?? reportType;
-    final fmtLabel   = format.toUpperCase();
+    final typeName = _kReportTypes[reportType] ?? reportType;
+    final fmtLabel = format.toUpperCase();
     final monthLabel = month != null ? ' ($month)' : '';
 
     final int targetIdx;
@@ -999,21 +1082,26 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     final queryParams = StringBuffer()
       ..write('?report_type=$reportType')
       ..write('&format=$format');
-    if (month != null) queryParams.write('&month=${Uri.encodeComponent(month)}');
-    if (startDate != null) queryParams.write('&start_date=${Uri.encodeComponent(startDate)}');
-    if (endDate != null)   queryParams.write('&end_date=${Uri.encodeComponent(endDate)}');
+    if (month != null)
+      queryParams.write('&month=${Uri.encodeComponent(month)}');
+    if (startDate != null)
+      queryParams.write('&start_date=${Uri.encodeComponent(startDate)}');
+    if (endDate != null)
+      queryParams.write('&end_date=${Uri.encodeComponent(endDate)}');
 
     final uri = Uri.parse('$_kAiBaseUrl/admin/report$queryParams');
 
-    Future<http.Response> _attempt() =>
-        http.post(uri, headers: {'Content-Type': 'application/json'})
-            .timeout(const Duration(seconds: 120));
+    Future<http.Response> _attempt() => http
+        .post(uri, headers: {'Content-Type': 'application/json'})
+        .timeout(const Duration(seconds: 120));
 
     void _setError(String text) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        final idx = targetIdx < _messages.length ? targetIdx : _messages.length - 1;
+        final idx = targetIdx < _messages.length
+            ? targetIdx
+            : _messages.length - 1;
         _messages[idx] = _ChatMessage(role: 'ai', text: text);
       });
       _scrollToBottom();
@@ -1026,7 +1114,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       } on SocketException {
         // Backend is cold-starting — warm it up then retry once
         try {
-          await http.get(Uri.parse('$_kAiBaseUrl/health'))
+          await http
+              .get(Uri.parse('$_kAiBaseUrl/health'))
               .timeout(const Duration(seconds: 60));
         } catch (_) {}
         await Future.delayed(const Duration(seconds: 2));
@@ -1034,19 +1123,22 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       }
 
       if (resp.statusCode == 200) {
-        final ext      = format == 'pdf' ? 'pdf' : 'xlsx';
-        final safeName = '$reportType'
+        final ext = format == 'pdf' ? 'pdf' : 'xlsx';
+        final safeName =
+            '$reportType'
             '${month != null ? '_${month.replaceAll(' ', '_')}' : ''}'
             '_report.$ext';
 
-        final dir  = await getTemporaryDirectory();
+        final dir = await getTemporaryDirectory();
         final file = File('${dir.path}/$safeName');
         await file.writeAsBytes(resp.bodyBytes);
 
         if (!mounted) return;
         setState(() {
           _loading = false;
-          final idx = targetIdx < _messages.length ? targetIdx : _messages.length - 1;
+          final idx = targetIdx < _messages.length
+              ? targetIdx
+              : _messages.length - 1;
           _messages[idx] = _ChatMessage(
             role: 'ai',
             text: '$typeName$monthLabel downloaded successfully.',
@@ -1058,29 +1150,31 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         _scrollToBottom();
         await OpenFile.open(file.path);
       } else {
-        final errMsg      = _parseError(resp.body);
-        final isNoRecords = resp.statusCode == 400 &&
+        final errMsg = _parseError(resp.body);
+        final isNoRecords =
+            resp.statusCode == 400 &&
             (errMsg.toLowerCase().contains('no record') ||
-             errMsg.toLowerCase().contains('no data')   ||
-             errMsg.toLowerCase().contains('not found'));
-        final isQuota  = resp.statusCode == 503 &&
+                errMsg.toLowerCase().contains('no data') ||
+                errMsg.toLowerCase().contains('not found'));
+        final isQuota =
+            resp.statusCode == 503 &&
             (errMsg.toLowerCase().contains('quota') ||
-             errMsg.toLowerCase().contains('resource_exhausted') ||
-             errMsg.toLowerCase().contains('429'));
+                errMsg.toLowerCase().contains('resource_exhausted') ||
+                errMsg.toLowerCase().contains('429'));
         final isColdStart = resp.statusCode == 503 && !isQuota;
 
         _setError(
           isNoRecords
               ? 'No records found for $typeName$monthLabel. '
-                'The report cannot be generated because no matching data exists for this period.'
+                    'The report cannot be generated because no matching data exists for this period.'
               : isQuota
-                  ? 'Firestore quota limit reached (free-tier). '
+              ? 'Firestore quota limit reached (free-tier). '
                     'The database is temporarily unavailable — please wait a few minutes and try again.'
-                  : isColdStart
-                      ? 'The AI service is warming up (Render cold start). '
-                        'Please wait 30–60 seconds and try again.'
-                      : 'Failed to generate $typeName$monthLabel '
-                        '(${resp.statusCode}): $errMsg',
+              : isColdStart
+              ? 'The AI service is warming up (Render cold start). '
+                    'Please wait 30–60 seconds and try again.'
+              : 'Failed to generate $typeName$monthLabel '
+                    '(${resp.statusCode}): $errMsg',
         );
       }
     } on SocketException {
@@ -1090,11 +1184,12 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       );
     } catch (e) {
       final msg = e.toString();
-      final isTimeout = msg.contains('TimeoutException') || msg.contains('timed out');
+      final isTimeout =
+          msg.contains('TimeoutException') || msg.contains('timed out');
       _setError(
         isTimeout
             ? 'The AI service took too long to respond. It may still be warming up — '
-              'please try again in a moment.'
+                  'please try again in a moment.'
             : 'Failed to generate $typeName$monthLabel: $msg',
       );
     }
@@ -1108,8 +1203,18 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       backgroundColor: const Color(0xFFF7F8FA),
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        backgroundColor: _red,
+        backgroundColor: const Color(0xFF004B5F),
         elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF004B5F), Color(0xFF006B7D), Color(0xFFEE152A)],
+              stops: [0.0, 0.35, 1.0],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
         title: Row(
           children: [
@@ -1129,10 +1234,11 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: (_backendOnline
-                            ? const Color(0xFF4ade80)
-                            : const Color(0xFFF97316))
-                        .withValues(alpha: 0.5),
+                    color:
+                        (_backendOnline
+                                ? const Color(0xFF4ade80)
+                                : const Color(0xFFF97316))
+                            .withValues(alpha: 0.5),
                     blurRadius: 8,
                     spreadRadius: 1,
                   ),
@@ -1179,7 +1285,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                                   ? const Color(
                                       0xFF4ade80,
                                     ).withValues(alpha: 0.8)
-                                  : const Color(0xFFF97316).withValues(alpha: 0.6),
+                                  : const Color(
+                                      0xFFF97316,
+                                    ).withValues(alpha: 0.6),
                               blurRadius: 6,
                             ),
                           ],
@@ -1259,162 +1367,178 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         children: [
           // ── Main chat column ──────────────────────────────────────────────
           Column(
-        children: [
-          // Offline banner
-          if (!_backendOnline)
-            Container(
-              width: double.infinity,
-              color: const Color(0xFFFFFBEB),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.warning_amber_rounded,
-                    size: 16,
-                    color: Color(0xFF975A16),
+            children: [
+              // Offline banner
+              if (!_backendOnline)
+                Container(
+                  width: double.infinity,
+                  color: const Color(0xFFFFFBEB),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
                   ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Cannot reach AI backend. Check your connection or tap Retry.',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF975A16)),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => _checkBackend(),
-                    child: const Text(
-                      'Retry',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        size: 16,
                         color: Color(0xFF975A16),
                       ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          // Rate-limit banner
-          if (_rateLimited)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF7ED),
-                border: Border(
-                  bottom: BorderSide(color: Color(0xFFFB923C), width: 2),
-                ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.block, size: 18, color: Color(0xFF9A3412)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'AI unavailable — daily token limit reached',
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Cannot reach AI backend. Check your connection or tap Retry.',
                           style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF9A3412),
+                            fontSize: 11,
+                            color: Color(0xFF975A16),
                           ),
-                        ),
-                        const SizedBox(height: 3),
-                        RichText(
-                          text: TextSpan(
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF9A3412),
-                              height: 1.5,
-                            ),
-                            children: [
-                              const TextSpan(
-                                text:
-                                    'Groq free-tier quota is exhausted. Resets in ',
-                              ),
-                              TextSpan(
-                                text: _resetIn,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const TextSpan(
-                                text: '. Chat is disabled until then.',
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _checkAiStatus,
-                    child: const Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: Text(
-                        'Retry',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF9A3412),
                         ),
                       ),
+                      GestureDetector(
+                        onTap: () => _checkBackend(),
+                        child: const Text(
+                          'Retry',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF975A16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Rate-limit banner
+              if (_rateLimited)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFF7ED),
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFFFB923C), width: 2),
                     ),
                   ),
-                ],
-              ),
-            ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.block,
+                        size: 18,
+                        color: Color(0xFF9A3412),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'AI unavailable — daily token limit reached',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF9A3412),
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            RichText(
+                              text: TextSpan(
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF9A3412),
+                                  height: 1.5,
+                                ),
+                                children: [
+                                  const TextSpan(
+                                    text:
+                                        'Groq free-tier quota is exhausted. Resets in ',
+                                  ),
+                                  TextSpan(
+                                    text: _resetIn,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const TextSpan(
+                                    text: '. Chat is disabled until then.',
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _checkAiStatus,
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Text(
+                            'Retry',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF9A3412),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
-          // Chat
-          Expanded(
-            child: _messages.isEmpty
-                ? _buildWelcome()
-                : ListView.builder(
-                    controller: _scrollCtrl,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length + (_loading ? 1 : 0),
-                    itemBuilder: (_, i) {
-                      if (_loading && i == _messages.length) {
-                        return _buildTypingIndicator();
-                      }
-                      return _buildBubble(_messages[i]);
-                    },
-                  ),
-          ),
-
-          // Input bar
-          SafeArea(
-            child: Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _AdminFocusInputBar(
-                    inputCtrl: _inputCtrl,
-                    loading: _loading,
-                    rateLimited: _rateLimited,
-                    hint: _rateLimited
-                        ? 'AI unavailable — daily limit reached'
-                        : 'Ask about fleet, inventory, reports…',
-                    onSend: _sendQuery,
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Enter to send  ·  Shift+Enter for new line',
-                    style: TextStyle(fontSize: 10, color: Color(0xFFC0C8D4)),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+              // Chat
+              Expanded(
+                child: _messages.isEmpty
+                    ? _buildWelcome()
+                    : ListView.builder(
+                        controller: _scrollCtrl,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _messages.length + (_loading ? 1 : 0),
+                        itemBuilder: (_, i) {
+                          if (_loading && i == _messages.length) {
+                            return _buildTypingIndicator();
+                          }
+                          return _buildBubble(_messages[i]);
+                        },
+                      ),
               ),
-            ),
+
+              // Input bar
+              SafeArea(
+                child: Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _AdminFocusInputBar(
+                        inputCtrl: _inputCtrl,
+                        loading: _loading,
+                        rateLimited: _rateLimited,
+                        hint: _rateLimited
+                            ? 'AI unavailable — daily limit reached'
+                            : 'Ask about fleet, inventory, reports…',
+                        onSend: _sendQuery,
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Enter to send  ·  Shift+Enter for new line',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFFC0C8D4),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
 
           // ── History drawer overlay ────────────────────────────────────────
           if (_historyOpen) ...[
@@ -1425,140 +1549,195 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             ),
             // Drawer panel — slides in from the right
             Positioned(
-              top: 0, right: 0, bottom: 0,
+              top: 0,
+              right: 0,
+              bottom: 0,
               width: 300,
               child: Material(
                 elevation: 8,
-                child: Column(children: [
-                  // Header
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFFc62828), Color(0xFFE8001C)],
-                        begin: Alignment.centerLeft, end: Alignment.centerRight,
+                child: Column(
+                  children: [
+                    // Header
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFFc62828), Color(0xFFE8001C)],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
                       ),
-                    ),
-                    child: Row(children: [
-                      const Icon(Icons.history, color: Colors.white, size: 18),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text('Chat History',
-                            style: TextStyle(color: Colors.white,
-                                fontSize: 14, fontWeight: FontWeight.bold)),
-                      ),
-                      GestureDetector(
-                        onTap: _closeHistory,
-                        child: Container(
-                          width: 28, height: 28,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(8),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.history,
+                            color: Colors.white,
+                            size: 18,
                           ),
-                          child: const Icon(Icons.close, color: Colors.white, size: 16),
-                        ),
-                      ),
-                    ]),
-                  ),
-                  // Delete all button
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-                    child: GestureDetector(
-                      onTap: _deleteAllHistory,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 9),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF5F5),
-                          border: Border.all(color: const Color(0xFFFCA5A5)),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(children: [
-                          const Icon(Icons.delete_outline,
-                              size: 14, color: Color(0xFFDC2626)),
                           const SizedBox(width: 8),
-                          const Text('Delete All Chats',
+                          const Expanded(
+                            child: Text(
+                              'Chat History',
                               style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFFDC2626))),
-                        ]),
-                      ),
-                    ),
-                  ),
-                  // Session list
-                  Expanded(
-                    child: _historySessions.isEmpty
-                        ? const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(24),
-                              child: Text(
-                                'No chat history yet.\nStart a conversation!',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                    fontSize: 13, color: Color(0xFF94A3B8)),
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-                            itemCount: _historySessions.length,
-                            itemBuilder: (_, i) {
-                              final s = _historySessions[i];
-                              final ts = s['ts'] as int? ?? 0;
-                              final d  = DateTime.fromMillisecondsSinceEpoch(ts);
-                              final msgs = (s['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-                              final firstUser = msgs.firstWhere(
+                          ),
+                          GestureDetector(
+                            onTap: _closeHistory,
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Delete all button
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                      child: GestureDetector(
+                        onTap: _deleteAllHistory,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 9,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF5F5),
+                            border: Border.all(color: const Color(0xFFFCA5A5)),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.delete_outline,
+                                size: 14,
+                                color: Color(0xFFDC2626),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Delete All Chats',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFDC2626),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Session list
+                    Expanded(
+                      child: _historySessions.isEmpty
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Text(
+                                  'No chat history yet.\nStart a conversation!',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(
+                                14,
+                                12,
+                                14,
+                                14,
+                              ),
+                              itemCount: _historySessions.length,
+                              itemBuilder: (_, i) {
+                                final s = _historySessions[i];
+                                final ts = s['ts'] as int? ?? 0;
+                                final d = DateTime.fromMillisecondsSinceEpoch(
+                                  ts,
+                                );
+                                final msgs =
+                                    (s['messages'] as List?)
+                                        ?.cast<Map<String, dynamic>>() ??
+                                    [];
+                                final firstUser = msgs.firstWhere(
                                   (m) => m['role'] == 'user',
-                                  orElse: () => {'text': '(empty)'});
-                              final preview = (firstUser['text'] as String? ?? '');
-                              final time = '${d.hour.toString().padLeft(2,'0')}:${d.minute.toString().padLeft(2,'0')}';
-                              final isActive = s['id'] == (AdminChatStore.sessionId ?? 'local_$_currentUid');
-                              return GestureDetector(
-                                onTap: () => _loadSession(s),
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 7),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: isActive
-                                        ? const Color(0xFFFFF0F0)
-                                        : const Color(0xFFF8F9FB),
-                                    border: Border.all(
+                                  orElse: () => {'text': '(empty)'},
+                                );
+                                final preview =
+                                    (firstUser['text'] as String? ?? '');
+                                final time =
+                                    '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+                                final isActive =
+                                    s['id'] ==
+                                    (AdminChatStore.sessionId ??
+                                        'local_$_currentUid');
+                                return GestureDetector(
+                                  onTap: () => _loadSession(s),
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 7),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isActive
+                                          ? const Color(0xFFFFF0F0)
+                                          : const Color(0xFFF8F9FB),
+                                      border: Border.all(
                                         color: isActive
                                             ? const Color(0xFFE8001C)
                                             : const Color(0xFFE8EDF2),
-                                        width: 1.5),
-                                    borderRadius: BorderRadius.circular(11),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        preview.length > 55
-                                            ? '${preview.substring(0, 55)}…'
-                                            : preview,
-                                        style: const TextStyle(
+                                        width: 1.5,
+                                      ),
+                                      borderRadius: BorderRadius.circular(11),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          preview.length > 55
+                                              ? '${preview.substring(0, 55)}…'
+                                              : preview,
+                                          style: const TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w500,
-                                            color: Color(0xFF1A202C)),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        '$time  ·  ${msgs.length} message${msgs.length != 1 ? 's' : ''}',
-                                        style: const TextStyle(
+                                            color: Color(0xFF1A202C),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          '$time  ·  ${msgs.length} message${msgs.length != 1 ? 's' : ''}',
+                                          style: const TextStyle(
                                             fontSize: 10.5,
-                                            color: Color(0xFF94A3B8)),
-                                      ),
-                                    ],
+                                            color: Color(0xFF94A3B8),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                ]),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -1870,50 +2049,68 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     // ── Normal AI bubble ─────────────────────────────────────
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        _aiAvatar(),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Container(
-            constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.76),
-            padding: const EdgeInsets.symmetric(
-                horizontal: 13, vertical: 10),
-            decoration: _aiBubbleDecoration(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SelectableText(
-                  msg.text ?? '',
-                  style: const TextStyle(
-                      fontSize: 13, color: Color(0xFF1a202c), height: 1.6),
-                ),
-                // ── Downloaded report: Open + Share buttons ──────────────
-                if (msg.reportFile != null) ...[
-                  const SizedBox(height: 10),
-                  Row(children: [
-                    _actionBtn(Icons.folder_open_outlined, 'Open', const Color(0xFFE8001C), () async {
-                      await OpenFile.open(msg.reportFile!.path);
-                    }),
-                    const SizedBox(width: 8),
-                    _actionBtn(Icons.share_outlined, 'Share', const Color(0xFF003087), () async {
-                      await Printing.sharePdf(
-                        bytes: await msg.reportFile!.readAsBytes(),
-                        filename: msg.reportFile!.path.split('/').last,
-                      );
-                    }),
-                  ]),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _aiAvatar(),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.76,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+              decoration: _aiBubbleDecoration(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SelectableText(
+                    msg.text ?? '',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF1a202c),
+                      height: 1.6,
+                    ),
+                  ),
+                  // ── Downloaded report: Open + Share buttons ──────────────
+                  if (msg.reportFile != null) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _actionBtn(
+                          Icons.folder_open_outlined,
+                          'Open',
+                          const Color(0xFFE8001C),
+                          () async {
+                            await OpenFile.open(msg.reportFile!.path);
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        _actionBtn(
+                          Icons.share_outlined,
+                          'Share',
+                          const Color(0xFF003087),
+                          () async {
+                            await Printing.sharePdf(
+                              bytes: await msg.reportFile!.readAsBytes(),
+                              filename: msg.reportFile!.path.split('/').last,
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                  // ── Report-ready from AI: Download PDF / Excel buttons ───
+                  if (msg.reportReady && msg.reportType != null) ...[
+                    const SizedBox(height: 10),
+                    _buildReportDownloadButtons(msg),
+                  ],
                 ],
-                // ── Report-ready from AI: Download PDF / Excel buttons ───
-                if (msg.reportReady && msg.reportType != null) ...[
-                  const SizedBox(height: 10),
-                  _buildReportDownloadButtons(msg),
-                ],
-              ],
+              ),
             ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 
@@ -2002,7 +2199,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       ),
     );
   }
-
 }
 
 // ── Focused input bar — matches admin/website wrapped input style ─────────────

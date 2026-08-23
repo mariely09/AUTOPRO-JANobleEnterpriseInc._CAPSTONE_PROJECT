@@ -166,13 +166,13 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1a202c),
+        backgroundColor: const Color(0xFF004B5F),
         elevation: 0,
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
-              stops: [0.0, 0.55, 1.0],
+              colors: [Color(0xFF004B5F), Color(0xFF006B7D), Color(0xFFEE152A)],
+              stops: [0.0, 0.35, 1.0],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -199,8 +199,12 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF1a202c), Color(0xFF2d3748), _red],
-                  stops: [0.0, 0.6, 1.0],
+                  colors: [
+                    Color(0xFF004B5F),
+                    Color(0xFF006B7D),
+                    Color(0xFFEE152A),
+                  ],
+                  stops: [0.0, 0.35, 1.0],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -278,7 +282,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                                 child: const Icon(
                                   Icons.help_outline,
                                   size: 16,
-                                  color: Color(0xFF1a202c),
+                                  color: Color(0xFF004B5F),
                                 ),
                               ),
                               const SizedBox(width: 12),

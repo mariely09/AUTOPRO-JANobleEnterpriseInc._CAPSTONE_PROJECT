@@ -10,33 +10,40 @@ import 'customer_dashboard.dart';
 /// Also used from the Profile screen to update an existing password.
 class ChangePasswordScreen extends StatefulWidget {
   final String role;
+
   /// true  → first-login flow (logo header, no back button, redirects to dashboard)
   /// false → profile flow (standard AppBar with back button, pops on success)
   final bool firstLogin;
+
   /// Optional: pre-fill the "current password" field (passed from login screen)
   final String? tempPassword;
-  const ChangePasswordScreen({super.key, required this.role, this.firstLogin = false, this.tempPassword});
+  const ChangePasswordScreen({
+    super.key,
+    required this.role,
+    this.firstLogin = false,
+    this.tempPassword,
+  });
 
   @override
   State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
 }
 
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
-  static const _red  = Color(0xFFE8001C);
+  static const _red = Color(0xFFE8001C);
   static const _blue = Color(0xFF003087);
 
-  final _currentCtrl  = TextEditingController();
-  final _newCtrl      = TextEditingController();
-  final _confirmCtrl  = TextEditingController();
+  final _currentCtrl = TextEditingController();
+  final _newCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
 
   bool _showCurrent = false;
-  bool _showNew     = false;
+  bool _showNew = false;
   bool _showConfirm = false;
-  bool _loading     = false;
+  bool _loading = false;
 
-  double _strength     = 0;
+  double _strength = 0;
   String _strengthText = '';
-  Color  _strengthColor = Colors.transparent;
+  Color _strengthColor = Colors.transparent;
 
   @override
   void initState() {
@@ -56,19 +63,31 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   void _checkStrength(String val) {
     int score = 0;
-    if (val.length >= 6)  score++;
+    if (val.length >= 6) score++;
     if (val.length >= 10) score++;
-    if (RegExp(r'[A-Z]').hasMatch(val) && RegExp(r'[a-z]').hasMatch(val)) score++;
-    if (RegExp(r'\d').hasMatch(val))          score++;
+    if (RegExp(r'[A-Z]').hasMatch(val) && RegExp(r'[a-z]').hasMatch(val))
+      score++;
+    if (RegExp(r'\d').hasMatch(val)) score++;
     if (RegExp(r'[^A-Za-z0-9]').hasMatch(val)) score++;
 
     setState(() {
       _strength = val.isEmpty ? 0 : score / 4;
-      if (val.isEmpty)   { _strengthText = '';       _strengthColor = Colors.transparent; }
-      else if (score <= 1) { _strengthText = 'Weak';   _strengthColor = _red; }
-      else if (score == 2) { _strengthText = 'Fair';   _strengthColor = Colors.orange; }
-      else if (score == 3) { _strengthText = 'Good';   _strengthColor = Colors.amber; }
-      else                 { _strengthText = 'Strong'; _strengthColor = Colors.green; }
+      if (val.isEmpty) {
+        _strengthText = '';
+        _strengthColor = Colors.transparent;
+      } else if (score <= 1) {
+        _strengthText = 'Weak';
+        _strengthColor = _red;
+      } else if (score == 2) {
+        _strengthText = 'Fair';
+        _strengthColor = Colors.orange;
+      } else if (score == 3) {
+        _strengthText = 'Good';
+        _strengthColor = Colors.amber;
+      } else {
+        _strengthText = 'Strong';
+        _strengthColor = Colors.green;
+      }
     });
   }
 
@@ -77,25 +96,38 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     final newPass = _newCtrl.text.trim();
     final confirm = _confirmCtrl.text.trim();
 
-    if (current.isEmpty) { _toast('Enter your current (temporary) password.'); return; }
-    if (newPass.isEmpty)  { _toast('Enter a new password.'); return; }
-    if (newPass.length < 6) { _toast('Password must be at least 6 characters.'); return; }
-    if (newPass != confirm) { _toast('Passwords do not match.'); return; }
+    if (current.isEmpty) {
+      _toast('Enter your current (temporary) password.');
+      return;
+    }
+    if (newPass.isEmpty) {
+      _toast('Enter a new password.');
+      return;
+    }
+    if (newPass.length < 6) {
+      _toast('Password must be at least 6 characters.');
+      return;
+    }
+    if (newPass != confirm) {
+      _toast('Passwords do not match.');
+      return;
+    }
 
     setState(() => _loading = true);
     try {
       final user = FirebaseAuth.instance.currentUser!;
       final cred = EmailAuthProvider.credential(
-          email: user.email!, password: current);
+        email: user.email!,
+        password: current,
+      );
 
       await user.reauthenticateWithCredential(cred);
       await user.updatePassword(newPass);
 
       // Clear the flag in Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({'mustChangePassword': false});
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update(
+        {'mustChangePassword': false},
+      );
 
       if (!mounted) return;
       _toast('Password updated successfully!', success: true);
@@ -123,21 +155,29 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   void _navigateToDashboard() {
     Widget dest;
     switch (widget.role) {
-      case 'admin':    dest = const AdminDashboard();    break;
-      case 'staff':    dest = const StaffDashboard();    break;
-      default:         dest = const CustomerDashboard(); break;
+      case 'admin':
+        dest = const AdminDashboard();
+        break;
+      case 'staff':
+        dest = const StaffDashboard();
+        break;
+      default:
+        dest = const CustomerDashboard();
+        break;
     }
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => dest));
   }
 
   void _toast(String msg, {bool success = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: success ? Colors.green : Colors.redAccent,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: success ? Colors.green : Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
@@ -147,13 +187,17 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return Scaffold(
         backgroundColor: const Color(0xFFF7F8FA),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1a202c),
+          backgroundColor: const Color(0xFF004B5F),
           elevation: 0,
           flexibleSpace: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
-                stops: [0.0, 0.55, 1.0],
+                colors: [
+                  Color(0xFF004B5F),
+                  Color(0xFF006B7D),
+                  Color(0xFFEE152A),
+                ],
+                stops: [0.0, 0.35, 1.0],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -163,9 +207,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () => Navigator.pop(context),
           ),
-          title: const Text('Change Password',
-              style: TextStyle(color: Colors.white, fontSize: 16,
-                  fontWeight: FontWeight.bold)),
+          title: const Text(
+            'Change Password',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
         body: SafeArea(child: _buildForm(showBanner: false)),
       );
@@ -181,143 +230,224 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Widget _buildForm({required bool showBanner}) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // ── Title + subtitle (first-login only) ──
-        if (showBanner) ...[
-          const Center(
-            child: Text('Set New Password',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold,
-                    color: Color(0xFF1a202c))),
-          ),
-          const SizedBox(height: 6),
-          const Center(
-            child: Text(
-              'You must change your temporary password\nbefore continuing.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Color(0xFF718096), height: 1.5)),
-          ),
-          const SizedBox(height: 20),
-        ],
-
-        // ── Warning banner (first-login only) ──
-        if (showBanner) ...[
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFFBEB),
-              border: Border.all(color: const Color(0xFFF6AD55)),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Row(children: [
-              Text('🔐', style: TextStyle(fontSize: 18)),
-              SizedBox(width: 10),
-              Expanded(child: Text(
-                'Action required: This is your first login. Please set a personal password to continue.',
-                style: TextStyle(fontSize: 12, color: Color(0xFF744210), height: 1.5),
-              )),
-            ]),
-          ),
-          const SizedBox(height: 24),
-        ],
-
-        // ── Form card ──
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10, offset: const Offset(0, 2))],
-          ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Current Password',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                    color: Color(0xFF4a5568))),
-            const SizedBox(height: 6),
-            _passwordField(
-              controller: _currentCtrl,
-              hint: showBanner ? 'Enter temporary password' : 'Enter current password',
-              visible: _showCurrent,
-              onToggle: () => setState(() => _showCurrent = !_showCurrent),
-            ),
-            const SizedBox(height: 16),
-            const Divider(color: Color(0xFFe2e8f0)),
-            const SizedBox(height: 16),
-
-            const Text('New Password',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                    color: Color(0xFF4a5568))),
-            const SizedBox(height: 6),
-            _passwordField(
-              controller: _newCtrl,
-              hint: 'Enter new password',
-              visible: _showNew,
-              onToggle: () => setState(() => _showNew = !_showNew),
-              onChanged: _checkStrength,
-            ),
-            if (_newCtrl.text.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: _strength.clamp(0.0, 1.0),
-                  backgroundColor: const Color(0xFFe2e8f0),
-                  valueColor: AlwaysStoppedAnimation(_strengthColor),
-                  minHeight: 5,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Title + subtitle (first-login only) ──
+          if (showBanner) ...[
+            const Center(
+              child: Text(
+                'Set New Password',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1a202c),
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(_strengthText,
-                  style: TextStyle(fontSize: 11, color: _strengthColor,
-                      fontWeight: FontWeight.w600)),
-            ],
-            const SizedBox(height: 16),
-
-            const Text('Confirm New Password',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
-                    color: Color(0xFF4a5568))),
+            ),
             const SizedBox(height: 6),
-            _passwordField(
-              controller: _confirmCtrl,
-              hint: 'Confirm new password',
-              visible: _showConfirm,
-              onToggle: () => setState(() => _showConfirm = !_showConfirm),
+            const Center(
+              child: Text(
+                'You must change your temporary password\nbefore continuing.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF718096),
+                  height: 1.5,
+                ),
+              ),
             ),
-            const SizedBox(height: 8),
-            const Text('Must be at least 6 characters.',
-                style: TextStyle(fontSize: 11, color: Color(0xFF718096))),
-          ]),
-        ),
-        const SizedBox(height: 24),
+            const SizedBox(height: 20),
+          ],
 
-        // ── Submit button ──
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _loading ? null : _submit,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _red,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30)),
-              elevation: 4,
+          // ── Warning banner (first-login only) ──
+          if (showBanner) ...[
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                border: Border.all(color: const Color(0xFFF6AD55)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                children: [
+                  Text('🔐', style: TextStyle(fontSize: 18)),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Action required: This is your first login. Please set a personal password to continue.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF744210),
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: _loading
-                ? const SizedBox(width: 20, height: 20,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
-                : const Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.lock_outline, size: 18),
-                    SizedBox(width: 8),
-                    Text('Save',
-                        style: TextStyle(fontSize: 15,
-                            fontWeight: FontWeight.w700)),
-                  ]),
+            const SizedBox(height: 24),
+          ],
+
+          // ── Form card ──
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Current Password',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4a5568),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                _passwordField(
+                  controller: _currentCtrl,
+                  hint: showBanner
+                      ? 'Enter temporary password'
+                      : 'Enter current password',
+                  visible: _showCurrent,
+                  onToggle: () => setState(() => _showCurrent = !_showCurrent),
+                ),
+                const SizedBox(height: 16),
+                const Divider(color: Color(0xFFe2e8f0)),
+                const SizedBox(height: 16),
+
+                const Text(
+                  'New Password',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4a5568),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                _passwordField(
+                  controller: _newCtrl,
+                  hint: 'Enter new password',
+                  visible: _showNew,
+                  onToggle: () => setState(() => _showNew = !_showNew),
+                  onChanged: _checkStrength,
+                ),
+                if (_newCtrl.text.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: _strength.clamp(0.0, 1.0),
+                      backgroundColor: const Color(0xFFe2e8f0),
+                      valueColor: AlwaysStoppedAnimation(_strengthColor),
+                      minHeight: 5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _strengthText,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: _strengthColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+
+                const Text(
+                  'Confirm New Password',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4a5568),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                _passwordField(
+                  controller: _confirmCtrl,
+                  hint: 'Confirm new password',
+                  visible: _showConfirm,
+                  onToggle: () => setState(() => _showConfirm = !_showConfirm),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Must be at least 6 characters.',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF718096)),
+                ),
+              ],
+            ),
           ),
-        ),
-      ]),
+          const SizedBox(height: 24),
+
+          // ── Submit button ──
+          SizedBox(
+            width: double.infinity,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF004B5F),
+                    Color(0xFF006B7D),
+                    Color(0xFFEE152A),
+                  ],
+                  stops: [0.0, 0.35, 1.0],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: ElevatedButton(
+                onPressed: _loading ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                ),
+                child: _loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.lock_outline, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Save',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -336,23 +466,35 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: Color(0xFFa0aec0), fontSize: 13),
-        prefixIcon: const Icon(Icons.lock_outline,
-            color: Color(0xFF718096), size: 20),
+        prefixIcon: const Icon(
+          Icons.lock_outline,
+          color: Color(0xFF718096),
+          size: 20,
+        ),
         suffixIcon: IconButton(
-          icon: Icon(visible ? Icons.visibility : Icons.visibility_off,
-              color: const Color(0xFF718096), size: 20),
+          icon: Icon(
+            visible ? Icons.visibility : Icons.visibility_off,
+            color: const Color(0xFF718096),
+            size: 20,
+          ),
           onPressed: onToggle,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Color(0xFFe2e8f0))),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
+        ),
         enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Color(0xFFe2e8f0))),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
+        ),
         focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: _red, width: 1.5)),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _red, width: 1.5),
+        ),
         filled: true,
         fillColor: const Color(0xFFF7F8FA),
       ),

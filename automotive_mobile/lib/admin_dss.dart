@@ -7,8 +7,9 @@ import 'alert_prefs.dart';
 import 'admin_calendar_widget.dart' show PmsCalendarFloating;
 
 // ── OneSignal credentials ──
-const _kOneSignalAppId  = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
-const _kOneSignalApiKey = 'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
+const _kOneSignalAppId = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
+const _kOneSignalApiKey =
+    'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
 
 /// Resolves Firebase UIDs → OneSignal subscription IDs stored in Firestore,
 /// then sends a push notification via the OneSignal REST API.
@@ -16,7 +17,7 @@ const _kOneSignalApiKey = 'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lm
 /// Uses `include_aliases` with `external_id` (set via OneSignal.login(uid))
 /// which works on the free plan and doesn't require subscription ID lookup.
 Future<void> _sendViaOneSignal({
-  required List<String> userIds,   // Firebase UIDs
+  required List<String> userIds, // Firebase UIDs
   required String title,
   required String message,
   String type = 'info',
@@ -31,9 +32,7 @@ Future<void> _sendViaOneSignal({
       },
       body: jsonEncode({
         'app_id': _kOneSignalAppId,
-        'include_aliases': {
-          'external_id': userIds,
-        },
+        'include_aliases': {'external_id': userIds},
         'target_channel': 'push',
         'headings': {'en': title},
         'contents': {'en': message},
@@ -66,8 +65,8 @@ class _AdminDSSState extends State<AdminDSS> {
 
   String _stockFilter = 'all';
   String _pmsFilter = 'all';
-  String _stockSort = 'stock-asc';   // stock-asc, stock-desc, name-asc, name-desc
-  String _pmsSort = 'pms-asc';       // pms-asc, pms-desc, plate-asc, plate-desc
+  String _stockSort = 'stock-asc'; // stock-asc, stock-desc, name-asc, name-desc
+  String _pmsSort = 'pms-asc'; // pms-asc, pms-desc, plate-asc, plate-desc
 
   @override
   void initState() {
@@ -111,8 +110,7 @@ class _AdminDSSState extends State<AdminDSS> {
     final today = DateTime.now();
     final todayKey =
         '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-    final sentinelRef =
-        db.collection('dss_alert_log').doc(todayKey);
+    final sentinelRef = db.collection('dss_alert_log').doc(todayKey);
     final sentinelSnap = await sentinelRef.get();
     if (sentinelSnap.exists) {
       debugPrint('⏭ DSS alerts already sent today ($todayKey), skipping');
@@ -123,7 +121,8 @@ class _AdminDSSState extends State<AdminDSS> {
     await sentinelRef.set({'sentAt': FieldValue.serverTimestamp()});
     try {
       // Get all admin UIDs for push targeting
-      final adminSnap = await db.collection('users')
+      final adminSnap = await db
+          .collection('users')
           .where('role', isEqualTo: 'admin')
           .get();
       final adminIds = adminSnap.docs.map((d) => d.id).toList();
@@ -151,25 +150,32 @@ class _AdminDSSState extends State<AdminDSS> {
 
       for (final doc in stockSnap.docs) {
         final data = doc.data();
-        final itemNum = (data['num'] as String?) ?? (data['itemNum'] as String?) ?? doc.id;
-        final stock   = (data['stock']  as num?)?.toInt() ?? 0;
-        final min     = (data['min']    as num?)?.toInt() ?? 0;
-        final max     = (data['max']    as num?)?.toInt() ?? 0;
+        final itemNum =
+            (data['num'] as String?) ?? (data['itemNum'] as String?) ?? doc.id;
+        final stock = (data['stock'] as num?)?.toInt() ?? 0;
+        final min = (data['min'] as num?)?.toInt() ?? 0;
+        final max = (data['max'] as num?)?.toInt() ?? 0;
         final reorder = (data['reorder'] as num?)?.toInt() ?? 0;
-        final name    = data['name'] as String? ?? itemNum;
-        final uom     = data['uom'] as String? ?? '';
+        final name = data['name'] as String? ?? itemNum;
+        final uom = data['uom'] as String? ?? '';
 
         final records = consumptionMap[itemNum] ?? [];
-        final totalConsumed = records.fold<double>(0.0, (s, r) => s + (r['qty'] as num).toDouble());
+        final totalConsumed = records.fold<double>(
+          0.0,
+          (s, r) => s + (r['qty'] as num).toDouble(),
+        );
 
         DateTime? earliest;
         for (final r in records) {
           final d2 = _parseIssuanceDate(r['date'] as String? ?? '');
-          if (d2 != null && (earliest == null || d2.isBefore(earliest!))) earliest = d2;
+          if (d2 != null && (earliest == null || d2.isBefore(earliest!)))
+            earliest = d2;
         }
 
         final daySpan = earliest != null
-            ? (now.difference(earliest!).inMilliseconds / 86400000).ceil().clamp(1, 999999)
+            ? (now.difference(earliest!).inMilliseconds / 86400000)
+                  .ceil()
+                  .clamp(1, 999999)
             : 30;
         final dailyRate = totalConsumed > 0 ? totalConsumed / daySpan : 0.0;
         final deficit = (max - stock).clamp(0, 999999);
@@ -180,7 +186,8 @@ class _AdminDSSState extends State<AdminDSS> {
           final targets = await filterByPref(adminIds, 'lowStock');
           await db.collection('notifications').add({
             'title': '🚨 URGENT: Out of Stock',
-            'message': '$name is out of stock. Recommend ordering $recommendQty $uom.',
+            'message':
+                '$name is out of stock. Recommend ordering $recommendQty $uom.',
             'type': 'warning',
             'targetRole': 'admin',
             'targetUid': '',
@@ -192,7 +199,8 @@ class _AdminDSSState extends State<AdminDSS> {
             await _sendViaOneSignal(
               userIds: targets,
               title: '🚨 URGENT: Out of Stock',
-              message: '$name is out of stock. Recommend ordering $recommendQty $uom.',
+              message:
+                  '$name is out of stock. Recommend ordering $recommendQty $uom.',
               type: 'warning',
             );
           }
@@ -201,7 +209,8 @@ class _AdminDSSState extends State<AdminDSS> {
           final targets = await filterByPref(adminIds, 'lowStock');
           await db.collection('notifications').add({
             'title': '⚠️ Low Stock Alert',
-            'message': '$name is low ($stock $uom). Recommend ordering $recommendQty $uom.',
+            'message':
+                '$name is low ($stock $uom). Recommend ordering $recommendQty $uom.',
             'type': 'warning',
             'targetRole': 'admin',
             'targetUid': '',
@@ -213,7 +222,8 @@ class _AdminDSSState extends State<AdminDSS> {
             await _sendViaOneSignal(
               userIds: targets,
               title: '⚠️ Low Stock Alert',
-              message: '$name is low ($stock $uom). Recommend ordering $recommendQty $uom.',
+              message:
+                  '$name is low ($stock $uom). Recommend ordering $recommendQty $uom.',
               type: 'warning',
             );
           }
@@ -226,25 +236,34 @@ class _AdminDSSState extends State<AdminDSS> {
 
       for (final vDoc in vehiclesSnap.docs) {
         final data = vDoc.data();
-        final plate       = data['plate'] as String? ?? '';
+        final plate = data['plate'] as String? ?? '';
         final lastSvcDate = data['lastSvcDate'] as String? ?? '';
-        final svcFreq     = int.tryParse(data['svcFreq']?.toString() ?? '');
+        final svcFreq = int.tryParse(data['svcFreq']?.toString() ?? '');
 
         if (lastSvcDate.isEmpty || svcFreq == null || plate.isEmpty) continue;
 
         final lastDate = DateTime.tryParse(lastSvcDate);
         if (lastDate == null) continue;
 
-        final nextDate     = DateTime(lastDate.year, lastDate.month + svcFreq, lastDate.day);
-        final nextMidnight = DateTime(nextDate.year, nextDate.month, nextDate.day);
-        final daysUntil    = nextMidnight.difference(todayMidnight).inDays;
+        final nextDate = DateTime(
+          lastDate.year,
+          lastDate.month + svcFreq,
+          lastDate.day,
+        );
+        final nextMidnight = DateTime(
+          nextDate.year,
+          nextDate.month,
+          nextDate.day,
+        );
+        final daysUntil = nextMidnight.difference(todayMidnight).inDays;
 
         // Admin PMS alerts — filter by pref before pushing
         if (daysUntil < 0) {
           final targets = await filterByPref(adminIds, 'pmsOverdue');
           await db.collection('notifications').add({
             'title': '🚨 PMS Overdue',
-            'message': '$plate is ${(-daysUntil)} day(s) overdue for maintenance.',
+            'message':
+                '$plate is ${(-daysUntil)} day(s) overdue for maintenance.',
             'type': 'warning',
             'targetRole': 'admin',
             'targetUid': '',
@@ -256,7 +275,8 @@ class _AdminDSSState extends State<AdminDSS> {
             await _sendViaOneSignal(
               userIds: targets,
               title: '🚨 PMS Overdue',
-              message: '$plate is ${(-daysUntil)} day(s) overdue for maintenance.',
+              message:
+                  '$plate is ${(-daysUntil)} day(s) overdue for maintenance.',
               type: 'warning',
             );
           }
@@ -284,7 +304,8 @@ class _AdminDSSState extends State<AdminDSS> {
           final targets = await filterByPref(adminIds, 'pmsDueThisWeek');
           await db.collection('notifications').add({
             'title': '📅 PMS Due This Week',
-            'message': '$plate is due for maintenance this week ($daysUntil day(s)).',
+            'message':
+                '$plate is due for maintenance this week ($daysUntil day(s)).',
             'type': 'warning',
             'targetRole': 'admin',
             'targetUid': '',
@@ -296,7 +317,8 @@ class _AdminDSSState extends State<AdminDSS> {
             await _sendViaOneSignal(
               userIds: targets,
               title: '📅 PMS Due This Week',
-              message: '$plate is due for maintenance this week ($daysUntil day(s)).',
+              message:
+                  '$plate is due for maintenance this week ($daysUntil day(s)).',
               type: 'warning',
             );
           }
@@ -323,7 +345,8 @@ class _AdminDSSState extends State<AdminDSS> {
         }
 
         // Customer PMS alerts — respect their own pref settings
-        final ownerId = data['ownerId'] as String? ?? data['customerId'] as String?;
+        final ownerId =
+            data['ownerId'] as String? ?? data['customerId'] as String?;
         if (ownerId != null && ownerId.isNotEmpty) {
           final ownerDoc = await db.collection('users').doc(ownerId).get();
           if (!ownerDoc.exists) continue;
@@ -332,7 +355,8 @@ class _AdminDSSState extends State<AdminDSS> {
             final targets = await filterByPref([ownerId], 'pmsOverdue');
             await db.collection('notifications').add({
               'title': '🚨 Your PMS is Overdue',
-              'message': 'Your $plate is ${(-daysUntil)} day(s) overdue for maintenance.',
+              'message':
+                  'Your $plate is ${(-daysUntil)} day(s) overdue for maintenance.',
               'type': 'warning',
               'targetRole': '',
               'targetUid': ownerId,
@@ -344,7 +368,8 @@ class _AdminDSSState extends State<AdminDSS> {
               await _sendViaOneSignal(
                 userIds: targets,
                 title: '🚨 Your PMS is Overdue',
-                message: 'Your $plate is ${(-daysUntil)} day(s) overdue for maintenance.',
+                message:
+                    'Your $plate is ${(-daysUntil)} day(s) overdue for maintenance.',
                 type: 'warning',
               );
             }
@@ -372,7 +397,8 @@ class _AdminDSSState extends State<AdminDSS> {
             final targets = await filterByPref([ownerId], 'pmsDueThisWeek');
             await db.collection('notifications').add({
               'title': '📅 Your PMS is Due This Week',
-              'message': 'Your $plate is due for maintenance this week ($daysUntil day(s)).',
+              'message':
+                  'Your $plate is due for maintenance this week ($daysUntil day(s)).',
               'type': 'warning',
               'targetRole': '',
               'targetUid': ownerId,
@@ -384,7 +410,8 @@ class _AdminDSSState extends State<AdminDSS> {
               await _sendViaOneSignal(
                 userIds: targets,
                 title: '📅 Your PMS is Due This Week',
-                message: 'Your $plate is due for maintenance this week ($daysUntil day(s)).',
+                message:
+                    'Your $plate is due for maintenance this week ($daysUntil day(s)).',
                 type: 'warning',
               );
             }
@@ -392,7 +419,8 @@ class _AdminDSSState extends State<AdminDSS> {
             final targets = await filterByPref([ownerId], 'pmsDueSoon');
             await db.collection('notifications').add({
               'title': '⚠️ Your PMS is Due Soon',
-              'message': 'Your $plate is due for maintenance in $daysUntil day(s).',
+              'message':
+                  'Your $plate is due for maintenance in $daysUntil day(s).',
               'type': 'info',
               'targetRole': '',
               'targetUid': ownerId,
@@ -404,7 +432,8 @@ class _AdminDSSState extends State<AdminDSS> {
               await _sendViaOneSignal(
                 userIds: targets,
                 title: '⚠️ Your PMS is Due Soon',
-                message: 'Your $plate is due for maintenance in $daysUntil day(s).',
+                message:
+                    'Your $plate is due for maintenance in $daysUntil day(s).',
                 type: 'info',
               );
             }
@@ -423,8 +452,18 @@ class _AdminDSSState extends State<AdminDSS> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        backgroundColor: _red,
+        backgroundColor: const Color(0xFF004B5F),
         elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF004B5F), Color(0xFF006B7D), Color(0xFFEE152A)],
+              stops: [0.0, 0.35, 1.0],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
         title: _isSearching
             ? TextField(
@@ -436,13 +475,23 @@ class _AdminDSSState extends State<AdminDSS> {
                   hintStyle: TextStyle(color: Colors.white60),
                   border: InputBorder.none,
                 ),
-                onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
+                onChanged: (val) =>
+                    setState(() => _searchQuery = val.trim().toLowerCase()),
               )
-            : const Text('Decision Support System',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            : const Text(
+                'Decision Support System',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
         actions: [
           IconButton(
-            icon: Icon(_isSearching ? Icons.close : Icons.search, color: Colors.white),
+            icon: Icon(
+              _isSearching ? Icons.close : Icons.search,
+              color: Colors.white,
+            ),
             onPressed: () {
               setState(() {
                 if (_isSearching) {
@@ -458,71 +507,183 @@ class _AdminDSSState extends State<AdminDSS> {
           if (!_isSearching)
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, color: Colors.white),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               onSelected: (val) {
-                if (_tab == 0) setState(() => _stockSort = val);
-                else setState(() => _pmsSort = val);
+                if (_tab == 0)
+                  setState(() => _stockSort = val);
+                else
+                  setState(() => _pmsSort = val);
               },
-              itemBuilder: (_) => _tab == 0 ? [
-                const PopupMenuItem(enabled: false, child: Text('Sort By', style: TextStyle(fontSize: 11, color: Color(0xFF718096), fontWeight: FontWeight.w700))),
-                _popItem('stock-asc',  'Stock (Lowest First)',   Icons.trending_down,   _stockSort == 'stock-asc',  _red),
-                _popItem('stock-desc', 'Stock (Highest First)',  Icons.trending_up,     _stockSort == 'stock-desc', _red),
-                _popItem('name-asc',   'Item Name A → Z',        Icons.sort_by_alpha,   _stockSort == 'name-asc',  _red),
-                _popItem('name-desc',  'Item Name Z → A',        Icons.sort_by_alpha,   _stockSort == 'name-desc', _red),
-              ] : [
-                const PopupMenuItem(enabled: false, child: Text('Sort By', style: TextStyle(fontSize: 11, color: Color(0xFF718096), fontWeight: FontWeight.w700))),
-                _popItem('pms-asc',   'Next PMS Date (Soonest)', Icons.arrow_upward,    _pmsSort == 'pms-asc',   _red),
-                _popItem('pms-desc',  'Next PMS Date (Latest)',  Icons.arrow_downward,  _pmsSort == 'pms-desc',  _red),
-                _popItem('plate-asc', 'Plate A → Z',             Icons.sort_by_alpha,   _pmsSort == 'plate-asc', _red),
-                _popItem('plate-desc','Plate Z → A',             Icons.sort_by_alpha,   _pmsSort == 'plate-desc',_red),
-              ],
+              itemBuilder: (_) => _tab == 0
+                  ? [
+                      const PopupMenuItem(
+                        enabled: false,
+                        child: Text(
+                          'Sort By',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF718096),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      _popItem(
+                        'stock-asc',
+                        'Stock (Lowest First)',
+                        Icons.trending_down,
+                        _stockSort == 'stock-asc',
+                        _red,
+                      ),
+                      _popItem(
+                        'stock-desc',
+                        'Stock (Highest First)',
+                        Icons.trending_up,
+                        _stockSort == 'stock-desc',
+                        _red,
+                      ),
+                      _popItem(
+                        'name-asc',
+                        'Item Name A → Z',
+                        Icons.sort_by_alpha,
+                        _stockSort == 'name-asc',
+                        _red,
+                      ),
+                      _popItem(
+                        'name-desc',
+                        'Item Name Z → A',
+                        Icons.sort_by_alpha,
+                        _stockSort == 'name-desc',
+                        _red,
+                      ),
+                    ]
+                  : [
+                      const PopupMenuItem(
+                        enabled: false,
+                        child: Text(
+                          'Sort By',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF718096),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      _popItem(
+                        'pms-asc',
+                        'Next PMS Date (Soonest)',
+                        Icons.arrow_upward,
+                        _pmsSort == 'pms-asc',
+                        _red,
+                      ),
+                      _popItem(
+                        'pms-desc',
+                        'Next PMS Date (Latest)',
+                        Icons.arrow_downward,
+                        _pmsSort == 'pms-desc',
+                        _red,
+                      ),
+                      _popItem(
+                        'plate-asc',
+                        'Plate A → Z',
+                        Icons.sort_by_alpha,
+                        _pmsSort == 'plate-asc',
+                        _red,
+                      ),
+                      _popItem(
+                        'plate-desc',
+                        'Plate Z → A',
+                        Icons.sort_by_alpha,
+                        _pmsSort == 'plate-desc',
+                        _red,
+                      ),
+                    ],
             ),
         ],
       ),
-      body: Column(children: [
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: Row(children: [
-            _tabBtn('Stock Replenishment', 0),
-            _tabBtn('PMS Scheduling', 1),
-          ]),
-        ),
-        Expanded(child: _tab == 0 ? _buildStockDSS() : _buildPMSDSS()),
-      ]),
+      body: Column(
+        children: [
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
+              children: [
+                _tabBtn('Stock Replenishment', 0),
+                _tabBtn('PMS Scheduling', 1),
+              ],
+            ),
+          ),
+          Expanded(child: _tab == 0 ? _buildStockDSS() : _buildPMSDSS()),
+        ],
+      ),
     );
   }
 
-  PopupMenuItem<String> _popItem(String value, String label, IconData icon, bool active, Color color) {
+  PopupMenuItem<String> _popItem(
+    String value,
+    String label,
+    IconData icon,
+    bool active,
+    Color color,
+  ) {
     return PopupMenuItem(
       value: value,
-      child: Row(children: [
-        Icon(icon, size: 16, color: active ? color : const Color(0xFF718096)),
-        const SizedBox(width: 10),
-        Text(label, style: TextStyle(fontSize: 13, color: active ? color : const Color(0xFF1a202c), fontWeight: active ? FontWeight.w700 : FontWeight.normal)),
-        if (active) ...[const Spacer(), Icon(Icons.check, size: 14, color: color)],
-      ]),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: active ? color : const Color(0xFF718096)),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: active ? color : const Color(0xFF1a202c),
+              fontWeight: active ? FontWeight.w700 : FontWeight.normal,
+            ),
+          ),
+          if (active) ...[
+            const Spacer(),
+            Icon(Icons.check, size: 14, color: color),
+          ],
+        ],
+      ),
     );
   }
 
   Widget _tabBtn(String label, int idx) {
     final active = _tab == idx;
-    return Expanded(child: GestureDetector(
-      onTap: () => setState(() => _tab = idx),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: active ? _red : Colors.transparent, width: 2))),
-        child: Text(label, textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12, fontWeight: active ? FontWeight.w700 : FontWeight.normal,
-            color: active ? _red : const Color(0xFF718096))),
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _tab = idx),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: active ? _red : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: active ? FontWeight.w700 : FontWeight.normal,
+              color: active ? _red : const Color(0xFF718096),
+            ),
+          ),
+        ),
       ),
-    ));
+    );
   }
 
   Widget _buildStockDSS() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('stock_inventory').snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('stock_inventory')
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -530,7 +691,9 @@ class _AdminDSSState extends State<AdminDSS> {
         final docs = snapshot.data?.docs ?? [];
 
         return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance.collection('issuances').snapshots(),
+          stream: FirebaseFirestore.instance
+              .collection('issuances')
+              .snapshots(),
           builder: (context, issSnap) {
             // Build consumption map: itemNum -> list of {date, qty}
             final consumptionMap = <String, List<Map<String, dynamic>>>{};
@@ -554,126 +717,150 @@ class _AdminDSSState extends State<AdminDSS> {
             // Keep todayMidnight only for PMS date comparisons elsewhere
             final todayMidnight = DateTime(today.year, today.month, today.day);
 
-            final items = docs.map((d) {
-              final data = d.data() as Map<String, dynamic>;
-              final itemNum = (data['num'] as String?)
-                           ?? (data['itemNum'] as String?)
-                           ?? d.id;
-              final stock   = (data['stock']  as num?)?.toInt() ?? 0;
-              final min     = (data['min']    as num?)?.toInt() ?? 0;
-              final max     = (data['max']    as num?)?.toInt() ?? 0;
-              final reorder = (data['reorder'] as num?)?.toInt() ?? 0;
-              final uom     = data['uom'] as String? ?? '';
+            final items =
+                docs.map((d) {
+                  final data = d.data() as Map<String, dynamic>;
+                  final itemNum =
+                      (data['num'] as String?) ??
+                      (data['itemNum'] as String?) ??
+                      d.id;
+                  final stock = (data['stock'] as num?)?.toInt() ?? 0;
+                  final min = (data['min'] as num?)?.toInt() ?? 0;
+                  final max = (data['max'] as num?)?.toInt() ?? 0;
+                  final reorder = (data['reorder'] as num?)?.toInt() ?? 0;
+                  final uom = data['uom'] as String? ?? '';
 
-              // ── Consumption rate — mirrors website dssAnalyze() ──
-              final records = consumptionMap[itemNum] ?? [];
+                  // ── Consumption rate — mirrors website dssAnalyze() ──
+                  final records = consumptionMap[itemNum] ?? [];
 
-              // totalConsumed: sum all qty records
-              final double totalConsumed = records.fold(
-                0.0, (s, r) => s + (r['qty'] as num).toDouble());
+                  // totalConsumed: sum all qty records
+                  final double totalConsumed = records.fold(
+                    0.0,
+                    (s, r) => s + (r['qty'] as num).toDouble(),
+                  );
 
-              // earliest date among all issuance records for this item
-              DateTime? earliest;
-              for (final r in records) {
-                final d2 = _parseIssuanceDate(r['date'] as String? ?? '');
-                if (d2 != null && (earliest == null || d2.isBefore(earliest!))) {
-                  earliest = d2;
-                }
-              }
+                  // earliest date among all issuance records for this item
+                  DateTime? earliest;
+                  for (final r in records) {
+                    final d2 = _parseIssuanceDate(r['date'] as String? ?? '');
+                    if (d2 != null &&
+                        (earliest == null || d2.isBefore(earliest!))) {
+                      earliest = d2;
+                    }
+                  }
 
-              // daySpan: Math.max(1, Math.ceil((today - earliest) / 86400000))
-              // Website uses full timestamp for today (new Date()), earliest is UTC midnight
-              // from ISO date string. We mirror this: today has time, earliest is midnight.
-              final int daySpan = earliest != null
-                  ? (today.difference(earliest!).inMilliseconds / 86400000)
-                        .ceil()
-                        .clamp(1, 999999)
-                  : 30;
+                  // daySpan: Math.max(1, Math.ceil((today - earliest) / 86400000))
+                  // Website uses full timestamp for today (new Date()), earliest is UTC midnight
+                  // from ISO date string. We mirror this: today has time, earliest is midnight.
+                  final int daySpan = earliest != null
+                      ? (today.difference(earliest!).inMilliseconds / 86400000)
+                            .ceil()
+                            .clamp(1, 999999)
+                      : 30;
 
-              // dailyRate: totalConsumed / daySpan  (0 if no data)
-              final double dailyRate =
-                  totalConsumed > 0 ? totalConsumed / daySpan : 0.0;
+                  // dailyRate: totalConsumed / daySpan  (0 if no data)
+                  final double dailyRate = totalConsumed > 0
+                      ? totalConsumed / daySpan
+                      : 0.0;
 
-              // daysLeft: Math.floor(stock / dailyRate)
-              final int daysLeft = dailyRate > 0
-                  ? (stock / dailyRate).floor()
-                  : (stock > 0 ? 999 : 0);
+                  // daysLeft: Math.floor(stock / dailyRate)
+                  final int daysLeft = dailyRate > 0
+                      ? (stock / dailyRate).floor()
+                      : (stock > 0 ? 999 : 0);
 
-              // ── Priority — 3-Tier Color-Coded System ──
-              // 0 = Out of Stock  🔴 Red    (stock = 0)
-              // 1 = Low Stock     🟡 Yellow (stock ≤ min qty)
-              // 2 = In Stock      🟢 Green  (stock > min qty)
-              final int priorityScore;
-              final String priorityLabel;
-              if (stock == 0) {
-                priorityScore = 0;
-                priorityLabel = 'Out of Stock';
-              } else if (stock <= min) {
-                priorityScore = 1;
-                priorityLabel = 'Low Stock';
-              } else {
-                priorityScore = 2;
-                priorityLabel = 'In Stock';
-              }
+                  // ── Priority — 3-Tier Color-Coded System ──
+                  // 0 = Out of Stock  🔴 Red    (stock = 0)
+                  // 1 = Low Stock     🟡 Yellow (stock ≤ min qty)
+                  // 2 = In Stock      🟢 Green  (stock > min qty)
+                  final int priorityScore;
+                  final String priorityLabel;
+                  if (stock == 0) {
+                    priorityScore = 0;
+                    priorityLabel = 'Out of Stock';
+                  } else if (stock <= min) {
+                    priorityScore = 1;
+                    priorityLabel = 'Low Stock';
+                  } else {
+                    priorityScore = 2;
+                    priorityLabel = 'In Stock';
+                  }
 
-              // Lead time demand (7-day buffer)
-              final int leadTimeDemand = dailyRate > 0 ? (dailyRate * 7).ceil() : 0;
+                  // Lead time demand (7-day buffer)
+                  final int leadTimeDemand = dailyRate > 0
+                      ? (dailyRate * 7).ceil()
+                      : 0;
 
-              // Recommended order qty — shown for Out of Stock and Low Stock only
-              final int deficit      = (max - stock).clamp(0, 999999);
-              final int recommendQty = priorityScore <= 1
-                  ? (deficit > reorder ? deficit : reorder)
-                  : 0;
+                  // Recommended order qty — shown for Out of Stock and Low Stock only
+                  final int deficit = (max - stock).clamp(0, 999999);
+                  final int recommendQty = priorityScore <= 1
+                      ? (deficit > reorder ? deficit : reorder)
+                      : 0;
 
-              return {
-                'name':            data['name'] as String? ?? '—',
-                'itemNum':         itemNum,
-                'uom':             uom,
-                'stock':           '$stock',
-                'max':             '$max',
-                'min':             '$min',
-                'reorderQty':      '$reorder',
-                'days':            daysLeft < 999
-                    ? '$daysLeft days'
-                    : (stock > 0 ? '—' : '0 days'),
-                'order':           priorityScore <= 1 && recommendQty > 0
-                    ? '$recommendQty'
-                    : '—',
-                'priority':        priorityLabel,
-                'priorityScore':   '$priorityScore',
-                'group':           data['group'] as String? ?? '—',
-                'consumptionRate': dailyRate > 0
-                    ? '${dailyRate.toStringAsFixed(2)} /day'
-                    : '—',
-                'totalConsumed':   totalConsumed > 0
-                    ? '${totalConsumed % 1 == 0 ? totalConsumed.toInt() : totalConsumed.toStringAsFixed(1)}'
-                    : '—',
-                'leadNeed':        leadTimeDemand > 0 ? '$leadTimeDemand' : '—',
-              };
-            }).toList()
-              ..sort((a, b) {
-              // Sort: Out of Stock(0) > Critical(1) > Low Stock(2) > In Stock(3) > Overstock(4)
-                final aScore = int.tryParse(a['priorityScore'] ?? '3') ?? 3;
-                final bScore = int.tryParse(b['priorityScore'] ?? '3') ?? 3;
-                return aScore.compareTo(bScore);
-              });
+                  return {
+                    'name': data['name'] as String? ?? '—',
+                    'itemNum': itemNum,
+                    'uom': uom,
+                    'stock': '$stock',
+                    'max': '$max',
+                    'min': '$min',
+                    'reorderQty': '$reorder',
+                    'days': daysLeft < 999
+                        ? '$daysLeft days'
+                        : (stock > 0 ? '—' : '0 days'),
+                    'order': priorityScore <= 1 && recommendQty > 0
+                        ? '$recommendQty'
+                        : '—',
+                    'priority': priorityLabel,
+                    'priorityScore': '$priorityScore',
+                    'group': data['group'] as String? ?? '—',
+                    'consumptionRate': dailyRate > 0
+                        ? '${dailyRate.toStringAsFixed(2)} /day'
+                        : '—',
+                    'totalConsumed': totalConsumed > 0
+                        ? '${totalConsumed % 1 == 0 ? totalConsumed.toInt() : totalConsumed.toStringAsFixed(1)}'
+                        : '—',
+                    'leadNeed': leadTimeDemand > 0 ? '$leadTimeDemand' : '—',
+                  };
+                }).toList()..sort((a, b) {
+                  // Sort: Out of Stock(0) > Critical(1) > Low Stock(2) > In Stock(3) > Overstock(4)
+                  final aScore = int.tryParse(a['priorityScore'] ?? '3') ?? 3;
+                  final bScore = int.tryParse(b['priorityScore'] ?? '3') ?? 3;
+                  return aScore.compareTo(bScore);
+                });
 
             final filtered = _searchQuery.isEmpty
                 ? items.where((i) => i['priority'] != 'In Stock').toList()
-                : items.where((i) =>
-                    i['priority'] != 'In Stock' && (
-                    (i['name'] ?? '').toLowerCase().contains(_searchQuery) ||
-                    (i['itemNum'] ?? '').toLowerCase().contains(_searchQuery) ||
-                    (i['group'] ?? '').toLowerCase().contains(_searchQuery))
-                  ).toList();
+                : items
+                      .where(
+                        (i) =>
+                            i['priority'] != 'In Stock' &&
+                            ((i['name'] ?? '').toLowerCase().contains(
+                                  _searchQuery,
+                                ) ||
+                                (i['itemNum'] ?? '').toLowerCase().contains(
+                                  _searchQuery,
+                                ) ||
+                                (i['group'] ?? '').toLowerCase().contains(
+                                  _searchQuery,
+                                )),
+                      )
+                      .toList();
 
             // Apply sort
             filtered.sort((a, b) {
               switch (_stockSort) {
-                case 'stock-desc': return (int.tryParse(b['stock'] ?? '0') ?? 0).compareTo(int.tryParse(a['stock'] ?? '0') ?? 0);
-                case 'name-asc':   return (a['name'] ?? '').compareTo(b['name'] ?? '');
-                case 'name-desc':  return (b['name'] ?? '').compareTo(a['name'] ?? '');
-                default:           return (int.tryParse(a['stock'] ?? '0') ?? 0).compareTo(int.tryParse(b['stock'] ?? '0') ?? 0);
+                case 'stock-desc':
+                  return (int.tryParse(b['stock'] ?? '0') ?? 0).compareTo(
+                    int.tryParse(a['stock'] ?? '0') ?? 0,
+                  );
+                case 'name-asc':
+                  return (a['name'] ?? '').compareTo(b['name'] ?? '');
+                case 'name-desc':
+                  return (b['name'] ?? '').compareTo(a['name'] ?? '');
+                default:
+                  return (int.tryParse(a['stock'] ?? '0') ?? 0).compareTo(
+                    int.tryParse(b['stock'] ?? '0') ?? 0,
+                  );
               }
             });
 
@@ -690,33 +877,64 @@ class _AdminDSSState extends State<AdminDSS> {
         ? items
         : items.where((i) => i['priority'] == _stockFilter).toList();
 
-    return Column(children: [
-      // ── KPI chips ──
-      Container(
-        color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-        child: Column(children: [
-          Row(children: [
-            _kpiChipTappable('Out of Stock', '${items.where((i) => i['priority'] == 'Out of Stock').length}', const Color(0xFFe53e3e), Icons.warning_amber_rounded, 'Out of Stock', _stockFilter, (f) => setState(() => _stockFilter = _stockFilter == f ? 'all' : f)),
-            const SizedBox(width: 8),
-            _kpiChipTappable('Low Stock', '${items.where((i) => i['priority'] == 'Low Stock').length}', const Color(0xFFd69e2e), Icons.trending_down_outlined, 'Low Stock', _stockFilter, (f) => setState(() => _stockFilter = _stockFilter == f ? 'all' : f)),
-          ]),
-        ]),
-      ),
-      // ── Item list ──
-      Expanded(
-        child: afterFilter.isEmpty
-          ? Center(child: Text(
-              _stockFilter == 'all' ? 'No items need attention.' : 'No items match this filter.',
-              style: const TextStyle(color: Color(0xFF718096))))
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: afterFilter.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) => _buildStockCard(afterFilter[i]),
-            ),
-      ),
-    ]);
+    return Column(
+      children: [
+        // ── KPI chips ──
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _kpiChipTappable(
+                    'Out of Stock',
+                    '${items.where((i) => i['priority'] == 'Out of Stock').length}',
+                    const Color(0xFFe53e3e),
+                    Icons.warning_amber_rounded,
+                    'Out of Stock',
+                    _stockFilter,
+                    (f) => setState(
+                      () => _stockFilter = _stockFilter == f ? 'all' : f,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _kpiChipTappable(
+                    'Low Stock',
+                    '${items.where((i) => i['priority'] == 'Low Stock').length}',
+                    const Color(0xFFd69e2e),
+                    Icons.trending_down_outlined,
+                    'Low Stock',
+                    _stockFilter,
+                    (f) => setState(
+                      () => _stockFilter = _stockFilter == f ? 'all' : f,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // ── Item list ──
+        Expanded(
+          child: afterFilter.isEmpty
+              ? Center(
+                  child: Text(
+                    _stockFilter == 'all'
+                        ? 'No items need attention.'
+                        : 'No items match this filter.',
+                    style: const TextStyle(color: Color(0xFF718096)),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: afterFilter.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) => _buildStockCard(afterFilter[i]),
+                ),
+        ),
+      ],
+    );
   }
 
   /// Card layout that mirrors the website table row:
@@ -726,13 +944,13 @@ class _AdminDSSState extends State<AdminDSS> {
     final color = _priorityColor(priority);
     final isCritical = priority == 'Out of Stock';
     // Parse stock numbers for the progress bar
-    final stockRaw   = item['stock'] ?? '0';
-    final stockNum   = int.tryParse(stockRaw) ?? 0;
-    final maxRaw     = item['max'] ?? '0';
-    final maxNum     = int.tryParse(maxRaw) ?? 0;
-    final minRaw     = item['min'] ?? '0';
+    final stockRaw = item['stock'] ?? '0';
+    final stockNum = int.tryParse(stockRaw) ?? 0;
+    final maxRaw = item['max'] ?? '0';
+    final maxNum = int.tryParse(maxRaw) ?? 0;
+    final minRaw = item['min'] ?? '0';
     final reorderRaw = item['reorderQty'] ?? '0';
-    final stockPct   = (maxNum > 0) ? (stockNum / maxNum).clamp(0.0, 1.0) : 0.0;
+    final stockPct = (maxNum > 0) ? (stockNum / maxNum).clamp(0.0, 1.0) : 0.0;
 
     // Decision text — 3-tier system
     final String decision;
@@ -758,127 +976,226 @@ class _AdminDSSState extends State<AdminDSS> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: isCritical ? Border.all(color: _red.withOpacity(0.25)) : null,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Padding(
           padding: const EdgeInsets.all(14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-            // ── Row 1: Item name + priority badge ──
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(item['name']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                Text(
-                  '${item['itemNum'] ?? ''}${item['itemNum'] != null && item['uom'] != null && (item['uom']?.isNotEmpty == true) ? '  ·  ' : ''}${item['uom'] ?? ''}',
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
-                ),
-              ])),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: color.withOpacity(0.3)),
-                ),
-                child: Text(priority.toUpperCase(),
-                  style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
-              ),
-            ]),
-
-            const SizedBox(height: 12),
-            const Divider(height: 1, color: Color(0xFFe2e8f0)),
-            const SizedBox(height: 12),
-
-            // ── Row 2: Stock status ──
-            _sectionLabel('STOCK STATUS'),
-            const SizedBox(height: 6),
-            // Progress bar
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: stockPct,
-                minHeight: 6,
-                backgroundColor: const Color(0xFFe2e8f0),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('Min: ${item['min'] ?? '—'}', style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
-              Text('${item['stock'] ?? '0'} / ${item['max'] ?? '—'}', style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w500)),
-              Text('Max: ${item['max'] ?? '—'}', style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
-            ]),
-
-            const SizedBox(height: 12),
-            const Divider(height: 1, color: Color(0xFFe2e8f0)),
-            const SizedBox(height: 12),
-
-            // ── Row 3: Consumption | Days Left | Order ──
-            Row(children: [
-              // Consumption Rate
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _sectionLabel('CONSUMPTION RATE'),
-                const SizedBox(height: 4),
-                RichText(text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: item['consumptionRate'] ?? '—',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF1a202c)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Row 1: Item name + priority badge ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item['name']!,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          '${item['itemNum'] ?? ''}${item['itemNum'] != null && item['uom'] != null && (item['uom']?.isNotEmpty == true) ? '  ·  ' : ''}${item['uom'] ?? ''}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF718096),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                )),
-                const SizedBox(height: 2),
-                Text(
-                  'Used: ${item['totalConsumed'] ?? '—'}',
-                  style: const TextStyle(fontSize: 10, color: Color(0xFF718096)),
-                ),
-              ])),
-
-              // Days Left
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _sectionLabel('DAYS OF STOCK LEFT'),
-                const SizedBox(height: 4),
-                Text(
-                  item['days'] ?? '—',
-                  style: TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w800,
-                    color: (item['days'] ?? '—') == '—' ? const Color(0xFF718096) : color,
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Lead need: ${item['leadNeed'] ?? '—'}',
-                  style: const TextStyle(fontSize: 10, color: Color(0xFF718096)),
-                ),
-              ])),
-
-              // Recommended Order
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _sectionLabel('RECOMMENDED ORDER'),
-                const SizedBox(height: 4),
-                Text(
-                  item['order'] ?? '—',
-                  style: TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w800,
-                    color: (item['order'] ?? '—') == '—'
-                        ? const Color(0xFF718096)
-                        : color,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: color.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      priority.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: color,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
                   ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Color(0xFFe2e8f0)),
+              const SizedBox(height: 12),
+
+              // ── Row 2: Stock status ──
+              _sectionLabel('STOCK STATUS'),
+              const SizedBox(height: 6),
+              // Progress bar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: stockPct,
+                  minHeight: 6,
+                  backgroundColor: const Color(0xFFe2e8f0),
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
                 ),
-              ])),
-            ]),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Min: ${item['min'] ?? '—'}',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF718096),
+                    ),
+                  ),
+                  Text(
+                    '${item['stock'] ?? '0'} / ${item['max'] ?? '—'}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: color,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    'Max: ${item['max'] ?? '—'}',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF718096),
+                    ),
+                  ),
+                ],
+              ),
 
-            const SizedBox(height: 12),
-            const Divider(height: 1, color: Color(0xFFe2e8f0)),
-            const SizedBox(height: 10),
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Color(0xFFe2e8f0)),
+              const SizedBox(height: 12),
 
-            // ── Row 4: Decision ──
-            Row(children: [
-              Icon(decisionIcon, size: 14, color: color),
-              const SizedBox(width: 6),
-              Text(decision, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
-            ]),
-          ]),
+              // ── Row 3: Consumption | Days Left | Order ──
+              Row(
+                children: [
+                  // Consumption Rate
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _sectionLabel('CONSUMPTION RATE'),
+                        const SizedBox(height: 4),
+                        RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: item['consumptionRate'] ?? '—',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF1a202c),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Used: ${item['totalConsumed'] ?? '—'}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF718096),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Days Left
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _sectionLabel('DAYS OF STOCK LEFT'),
+                        const SizedBox(height: 4),
+                        Text(
+                          item['days'] ?? '—',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: (item['days'] ?? '—') == '—'
+                                ? const Color(0xFF718096)
+                                : color,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Lead need: ${item['leadNeed'] ?? '—'}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF718096),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Recommended Order
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _sectionLabel('RECOMMENDED ORDER'),
+                        const SizedBox(height: 4),
+                        Text(
+                          item['order'] ?? '—',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: (item['order'] ?? '—') == '—'
+                                ? const Color(0xFF718096)
+                                : color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Color(0xFFe2e8f0)),
+              const SizedBox(height: 10),
+
+              // ── Row 4: Decision ──
+              Row(
+                children: [
+                  Icon(decisionIcon, size: 14, color: color),
+                  const SizedBox(width: 6),
+                  Text(
+                    decision,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -887,92 +1204,191 @@ class _AdminDSSState extends State<AdminDSS> {
   Color _priorityColor(String priority) {
     switch (priority) {
       case 'Out of Stock':
-        return const Color(0xFFe53e3e);   // 🔴 Red
+        return const Color(0xFFe53e3e); // 🔴 Red
       case 'Low Stock':
-        return const Color(0xFFd69e2e);   // 🟡 Yellow
+        return const Color(0xFFd69e2e); // 🟡 Yellow
       default:
-        return const Color(0xFF38a169);   // 🟢 Green (In Stock)
+        return const Color(0xFF38a169); // 🟢 Green (In Stock)
     }
   }
 
   Widget _sectionLabel(String text) {
-    return Text(text,
-      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700,
-        color: Color(0xFF718096), letterSpacing: 0.5));
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w700,
+        color: Color(0xFF718096),
+        letterSpacing: 0.5,
+      ),
+    );
   }
 
   void _showStockDetails(Map<String, String> item) {
     final priority = item['priority'] ?? 'In Stock';
     final color = _priorityColor(priority);
     showModalBottomSheet(
-      context: context, isScrollControlled: true,
+      context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) => DraggableScrollableSheet(
-        expand: false, initialChildSize: 0.55, maxChildSize: 0.8,
+        expand: false,
+        initialChildSize: 0.55,
+        maxChildSize: 0.8,
         builder: (_, ctrl) => SingleChildScrollView(
           controller: ctrl,
-          child: Column(children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-              decoration: BoxDecoration(color: color, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
-              child: Row(children: [
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(item['name']!, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(item['group'] ?? '—', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                ])),
-                GestureDetector(onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.close, color: Colors.white)),
-              ]),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFe2e8f0))),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('📦  STOCK INFO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF718096), letterSpacing: 0.5)),
-                    const SizedBox(height: 12),
-                    _detailRow('Item Name', item['name']!),
-                    _detailRow('Commodity Group', item['group']!),
-                    _detailRow('Priority', item['priority']!),
-                  ]),
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
                 ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFe2e8f0))),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('📊  ANALYSIS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF718096), letterSpacing: 0.5)),
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      _statBox('Current Stock', item['stock']!, const Color(0xFFebf8ff), const Color(0xFF003087)),                      const SizedBox(width: 8),
-                      _statBox('Consumption', item['consumptionRate']!, const Color(0xFFfff5f5), const Color(0xFFE8001C)),
-                    ]),
-                    const SizedBox(height: 8),
-                    Row(children: [
-                      _statBox('Days Left', item['days']!, const Color(0xFFfffaf0), const Color(0xFFdd6b20)),
-                      const SizedBox(width: 8),
-                      _statBox('Order Qty', item['order']!, const Color(0xFFe6fffa), const Color(0xFF2c7a7b)),
-                    ]),
-                  ]),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item['name']!,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            item['group'] ?? '—',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                SizedBox(width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                    child: const Text('Close'),
-                  )),
-              ]),
-            ),
-          ]),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFe2e8f0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '📦  STOCK INFO',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF718096),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _detailRow('Item Name', item['name']!),
+                          _detailRow('Commodity Group', item['group']!),
+                          _detailRow('Priority', item['priority']!),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFe2e8f0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '📊  ANALYSIS',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF718096),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              _statBox(
+                                'Current Stock',
+                                item['stock']!,
+                                const Color(0xFFebf8ff),
+                                const Color(0xFF003087),
+                              ),
+                              const SizedBox(width: 8),
+                              _statBox(
+                                'Consumption',
+                                item['consumptionRate']!,
+                                const Color(0xFFfff5f5),
+                                const Color(0xFFE8001C),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _statBox(
+                                'Days Left',
+                                item['days']!,
+                                const Color(0xFFfffaf0),
+                                const Color(0xFFdd6b20),
+                              ),
+                              const SizedBox(width: 8),
+                              _statBox(
+                                'Order Qty',
+                                item['order']!,
+                                const Color(0xFFe6fffa),
+                                const Color(0xFF2c7a7b),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text('Close'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -987,71 +1403,95 @@ class _AdminDSSState extends State<AdminDSS> {
         }
         final docs = snapshot.data?.docs ?? [];
         final now = DateTime.now();
-        final assets = docs.map((d) {
-          final data = d.data() as Map<String, dynamic>;
-          final plate = data['plate'] as String? ?? '';
-          final desc = data['desc'] as String? ?? '';
-          final lastSvcDate = data['lastSvcDate'] as String? ?? '';
-          final svcFreq = data['svcFreq'] as String? ?? '';
-          final lastDate = DateTime.tryParse(lastSvcDate);
-          final months = int.tryParse(svcFreq);
+        final assets =
+            docs.map((d) {
+              final data = d.data() as Map<String, dynamic>;
+              final plate = data['plate'] as String? ?? '';
+              final desc = data['desc'] as String? ?? '';
+              final lastSvcDate = data['lastSvcDate'] as String? ?? '';
+              final svcFreq = data['svcFreq'] as String? ?? '';
+              final lastDate = DateTime.tryParse(lastSvcDate);
+              final months = int.tryParse(svcFreq);
 
-          String due = '—';
-          String priority = 'Active';
-          String nextPMS = '—';
-          String lastService = lastSvcDate.isNotEmpty ? lastSvcDate : '—';
+              String due = '—';
+              String priority = 'Active';
+              String nextPMS = '—';
+              String lastService = lastSvcDate.isNotEmpty ? lastSvcDate : '—';
 
-          if (lastDate != null && months != null) {
-            final next = DateTime(lastDate.year, lastDate.month + months, lastDate.day);
-            nextPMS = '${next.year}-${next.month.toString().padLeft(2,'0')}-${next.day.toString().padLeft(2,'0')}';
-            // Strip time from both dates (midnight) to match website calculation
-            final today = DateTime(now.year, now.month, now.day);
-            final nextMidnight = DateTime(next.year, next.month, next.day);
-            final daysUntil = nextMidnight.difference(today).inDays;
-            if (daysUntil < 0) {
-              due = 'Overdue ${(-daysUntil)} day(s)';
-              priority = 'Overdue';
-            } else if (daysUntil == 0) {
-              due = 'Due today';
-              priority = 'Due Today';
-            } else if (daysUntil <= 7) {
-              due = 'Due in $daysUntil day(s)';
-              priority = 'Due This Week';
-            } else if (daysUntil <= 14) {
-              due = 'Due in $daysUntil days';
-              priority = 'Due Soon';
-            } else {
-              due = 'Due in $daysUntil days';
-              priority = 'Active';
-            }
-          }
+              if (lastDate != null && months != null) {
+                final next = DateTime(
+                  lastDate.year,
+                  lastDate.month + months,
+                  lastDate.day,
+                );
+                nextPMS =
+                    '${next.year}-${next.month.toString().padLeft(2, '0')}-${next.day.toString().padLeft(2, '0')}';
+                // Strip time from both dates (midnight) to match website calculation
+                final today = DateTime(now.year, now.month, now.day);
+                final nextMidnight = DateTime(next.year, next.month, next.day);
+                final daysUntil = nextMidnight.difference(today).inDays;
+                if (daysUntil < 0) {
+                  due = 'Overdue ${(-daysUntil)} day(s)';
+                  priority = 'Overdue';
+                } else if (daysUntil == 0) {
+                  due = 'Due today';
+                  priority = 'Due Today';
+                } else if (daysUntil <= 7) {
+                  due = 'Due in $daysUntil day(s)';
+                  priority = 'Due This Week';
+                } else if (daysUntil <= 14) {
+                  due = 'Due in $daysUntil days';
+                  priority = 'Due Soon';
+                } else {
+                  due = 'Due in $daysUntil days';
+                  priority = 'Active';
+                }
+              }
 
-          return {
-            'plate': plate,
-            'desc': desc,
-            'due': due,
-            'priority': priority,
-            'lastService': lastService,
-            'nextPMS': nextPMS,
-          };
-        }).toList()
-          ..sort((a, b) {
-            const order = {'Overdue': 0, 'Due Today': 1, 'Due This Week': 2, 'Due Soon': 3, 'Active': 4};
-            return (order[a['priority']] ?? 5).compareTo(order[b['priority']] ?? 5);
-          });
+              return {
+                'plate': plate,
+                'desc': desc,
+                'due': due,
+                'priority': priority,
+                'lastService': lastService,
+                'nextPMS': nextPMS,
+              };
+            }).toList()..sort((a, b) {
+              const order = {
+                'Overdue': 0,
+                'Due Today': 1,
+                'Due This Week': 2,
+                'Due Soon': 3,
+                'Active': 4,
+              };
+              return (order[a['priority']] ?? 5).compareTo(
+                order[b['priority']] ?? 5,
+              );
+            });
 
         final filtered = _searchQuery.isEmpty
             ? assets
-            : assets.where((a) =>
-                (a['plate'] ?? '').toLowerCase().contains(_searchQuery) ||
-                (a['desc'] ?? '').toLowerCase().contains(_searchQuery) ||
-                (a['priority'] ?? '').toLowerCase().contains(_searchQuery)
-              ).toList();
+            : assets
+                  .where(
+                    (a) =>
+                        (a['plate'] ?? '').toLowerCase().contains(
+                          _searchQuery,
+                        ) ||
+                        (a['desc'] ?? '').toLowerCase().contains(
+                          _searchQuery,
+                        ) ||
+                        (a['priority'] ?? '').toLowerCase().contains(
+                          _searchQuery,
+                        ),
+                  )
+                  .toList();
 
-        return Stack(children: [
-          _buildPMSDSSContent(filtered),
-          const PmsCalendarFloating(),
-        ]);
+        return Stack(
+          children: [
+            _buildPMSDSSContent(filtered),
+            const PmsCalendarFloating(),
+          ],
+        );
       },
     );
   }
@@ -1061,151 +1501,360 @@ class _AdminDSSState extends State<AdminDSS> {
         ? assets
         : assets.where((a) => a['priority'] == _pmsFilter).toList();
 
-    return Column(children: [
-      Container(
-        color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-        child: Column(children: [
-          Row(children: [
-            _kpiChipTappable('Overdue', '${assets.where((a) => a['priority'] == 'Overdue').length}', _red, Icons.error_outline, 'Overdue', _pmsFilter, (f) => setState(() => _pmsFilter = _pmsFilter == f ? 'all' : f)),
-            const SizedBox(width: 8),
-            _kpiChipTappable('Due Today', '${assets.where((a) => a['priority'] == 'Due Today').length}', const Color(0xFF0033A0), Icons.schedule_outlined, 'Due Today', _pmsFilter, (f) => setState(() => _pmsFilter = _pmsFilter == f ? 'all' : f)),
-          ]),
-          const SizedBox(height: 8),
-          Row(children: [
-            _kpiChipTappable('Due This Week', '${assets.where((a) => a['priority'] == 'Due This Week').length}', const Color(0xFFdd6b20), Icons.calendar_today_outlined, 'Due This Week', _pmsFilter, (f) => setState(() => _pmsFilter = _pmsFilter == f ? 'all' : f)),
-            const SizedBox(width: 8),
-            _kpiChipTappable('Due Soon', '${assets.where((a) => a['priority'] == 'Due Soon').length}', const Color(0xFFb7791f), Icons.event_outlined, 'Due Soon', _pmsFilter, (f) => setState(() => _pmsFilter = _pmsFilter == f ? 'all' : f)),
-            const SizedBox(width: 8),
-            _kpiChipTappable('Active', '${assets.where((a) => a['priority'] == 'Active').length}', const Color(0xFF276749), Icons.check_circle_outline, 'Active', _pmsFilter, (f) => setState(() => _pmsFilter = _pmsFilter == f ? 'all' : f)),
-          ]),
-        ]),
-      ),
-      Expanded(
-        child: afterFilter.isEmpty
-          ? const Center(child: Text('No vehicles found.', style: TextStyle(color: Color(0xFF718096))))
-          : ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: afterFilter.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (_, i) {
-            final a = afterFilter[i];
-            final color = a['priority'] == 'Overdue' ? _red
-                : a['priority'] == 'Due Today' ? const Color(0xFF0033A0)
-                : a['priority'] == 'Due This Week' ? const Color(0xFFdd6b20)
-                : a['priority'] == 'Due Soon' ? const Color(0xFFb7791f)
-                : const Color(0xFF276749); // Active
-            return GestureDetector(
-              onTap: () => _showPMSDetails(a),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
-                ),
-                child: Column(children: [
-                  Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(children: [
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(a['plate']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        Text(a['desc']!, style: const TextStyle(fontSize: 12, color: Color(0xFF4a5568))),
-                        const SizedBox(height: 4),
-                        Row(children: [
-                          Icon(Icons.schedule_outlined, size: 12, color: color),
-                          const SizedBox(width: 4),
-                          Text(a['due']!, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
-                        ]),
-                      ])),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                        child: Text(a['priority']!, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w700)),
-                      ),
-                      const SizedBox(width: 6),
-                      const Icon(Icons.chevron_right, size: 18, color: Color(0xFFa0aec0)),
-                    ]),
+    return Column(
+      children: [
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _kpiChipTappable(
+                    'Overdue',
+                    '${assets.where((a) => a['priority'] == 'Overdue').length}',
+                    _red,
+                    Icons.error_outline,
+                    'Overdue',
+                    _pmsFilter,
+                    (f) => setState(
+                      () => _pmsFilter = _pmsFilter == f ? 'all' : f,
+                    ),
                   ),
-                ]),
+                  const SizedBox(width: 8),
+                  _kpiChipTappable(
+                    'Due Today',
+                    '${assets.where((a) => a['priority'] == 'Due Today').length}',
+                    const Color(0xFF0033A0),
+                    Icons.schedule_outlined,
+                    'Due Today',
+                    _pmsFilter,
+                    (f) => setState(
+                      () => _pmsFilter = _pmsFilter == f ? 'all' : f,
+                    ),
+                  ),
+                ],
               ),
-            );
-          },
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _kpiChipTappable(
+                    'Due This Week',
+                    '${assets.where((a) => a['priority'] == 'Due This Week').length}',
+                    const Color(0xFFdd6b20),
+                    Icons.calendar_today_outlined,
+                    'Due This Week',
+                    _pmsFilter,
+                    (f) => setState(
+                      () => _pmsFilter = _pmsFilter == f ? 'all' : f,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _kpiChipTappable(
+                    'Due Soon',
+                    '${assets.where((a) => a['priority'] == 'Due Soon').length}',
+                    const Color(0xFFb7791f),
+                    Icons.event_outlined,
+                    'Due Soon',
+                    _pmsFilter,
+                    (f) => setState(
+                      () => _pmsFilter = _pmsFilter == f ? 'all' : f,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _kpiChipTappable(
+                    'Active',
+                    '${assets.where((a) => a['priority'] == 'Active').length}',
+                    const Color(0xFF276749),
+                    Icons.check_circle_outline,
+                    'Active',
+                    _pmsFilter,
+                    (f) => setState(
+                      () => _pmsFilter = _pmsFilter == f ? 'all' : f,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
-    ]);
+        Expanded(
+          child: afterFilter.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No vehicles found.',
+                    style: TextStyle(color: Color(0xFF718096)),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: afterFilter.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) {
+                    final a = afterFilter[i];
+                    final color = a['priority'] == 'Overdue'
+                        ? _red
+                        : a['priority'] == 'Due Today'
+                        ? const Color(0xFF0033A0)
+                        : a['priority'] == 'Due This Week'
+                        ? const Color(0xFFdd6b20)
+                        : a['priority'] == 'Due Soon'
+                        ? const Color(0xFFb7791f)
+                        : const Color(0xFF276749); // Active
+                    return GestureDetector(
+                      onTap: () => _showPMSDetails(a),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          a['plate']!,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        Text(
+                                          a['desc']!,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF4a5568),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.schedule_outlined,
+                                              size: 12,
+                                              color: color,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              a['due']!,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: color,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: color.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      a['priority']!,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: color,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Icon(
+                                    Icons.chevron_right,
+                                    size: 18,
+                                    color: Color(0xFFa0aec0),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
   }
 
   void _showPMSDetails(Map<String, String> a) {
-    final color = a['priority'] == 'Overdue' ? _red
-        : a['priority'] == 'Due Today' ? const Color(0xFF0033A0)
-        : a['priority'] == 'Due This Week' ? const Color(0xFFdd6b20)
-        : a['priority'] == 'Due Soon' ? const Color(0xFFb7791f)
+    final color = a['priority'] == 'Overdue'
+        ? _red
+        : a['priority'] == 'Due Today'
+        ? const Color(0xFF0033A0)
+        : a['priority'] == 'Due This Week'
+        ? const Color(0xFFdd6b20)
+        : a['priority'] == 'Due Soon'
+        ? const Color(0xFFb7791f)
         : const Color(0xFF276749); // Active
     showModalBottomSheet(
-      context: context, isScrollControlled: true,
+      context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) => DraggableScrollableSheet(
-        expand: false, initialChildSize: 0.55, maxChildSize: 0.8,
+        expand: false,
+        initialChildSize: 0.55,
+        maxChildSize: 0.8,
         builder: (_, ctrl) => SingleChildScrollView(
           controller: ctrl,
-          child: Column(children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-              decoration: BoxDecoration(color: color, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
-              child: Row(children: [
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(a['plate']!, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(a['desc']!, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                ])),
-                GestureDetector(onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.close, color: Colors.white)),
-              ]),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFe2e8f0))),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('🚗  VEHICLE INFO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF718096), letterSpacing: 0.5)),
-                    const SizedBox(height: 12),
-                    _detailRow('Plate Number', a['plate']!),
-                    _detailRow('Description', a['desc']!),
-                    _detailRow('Priority', a['priority']!),
-                    _detailRow('Status', a['due']!),
-                  ]),
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
                 ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFe2e8f0))),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('🔧  MAINTENANCE SCHEDULE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF718096), letterSpacing: 0.5)),
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      _statBox('Last Service', a['lastService']!, const Color(0xFFF7F8FA), const Color(0xFF1a202c)),
-                      const SizedBox(width: 8),
-                      _statBox('Next PMS Due', a['nextPMS']!, color.withOpacity(0.08), color),
-                    ]),
-                  ]),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            a['plate']!,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            a['desc']!,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                SizedBox(width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                    child: const Text('Close'),
-                  )),
-              ]),
-            ),
-          ]),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFe2e8f0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '🚗  VEHICLE INFO',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF718096),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _detailRow('Plate Number', a['plate']!),
+                          _detailRow('Description', a['desc']!),
+                          _detailRow('Priority', a['priority']!),
+                          _detailRow('Status', a['due']!),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFe2e8f0)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '🔧  MAINTENANCE SCHEDULE',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF718096),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              _statBox(
+                                'Last Service',
+                                a['lastService']!,
+                                const Color(0xFFF7F8FA),
+                                const Color(0xFF1a202c),
+                              ),
+                              const SizedBox(width: 8),
+                              _statBox(
+                                'Next PMS Due',
+                                a['nextPMS']!,
+                                color.withOpacity(0.08),
+                                color,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text('Close'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1239,14 +1888,26 @@ class _AdminDSSState extends State<AdminDSS> {
     }
     // Try "Jan 1, 2025" (JS en-US locale format)
     const months = {
-      'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
-      'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+      'jan': 1,
+      'feb': 2,
+      'mar': 3,
+      'apr': 4,
+      'may': 5,
+      'jun': 6,
+      'jul': 7,
+      'aug': 8,
+      'sep': 9,
+      'oct': 10,
+      'nov': 11,
+      'dec': 12,
     };
-    final localeMatch = RegExp(r'^(\w+)\s+(\d+),\s+(\d{4})$').firstMatch(s.trim());
+    final localeMatch = RegExp(
+      r'^(\w+)\s+(\d+),\s+(\d{4})$',
+    ).firstMatch(s.trim());
     if (localeMatch != null) {
       final mon = months[localeMatch.group(1)!.toLowerCase().substring(0, 3)];
       final day = int.tryParse(localeMatch.group(2)!);
-      final yr  = int.tryParse(localeMatch.group(3)!);
+      final yr = int.tryParse(localeMatch.group(3)!);
       if (mon != null && day != null && yr != null) {
         return DateTime.utc(yr, mon, day);
       }
@@ -1257,10 +1918,32 @@ class _AdminDSSState extends State<AdminDSS> {
   Widget _detailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(width: 130, child: Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF718096), fontWeight: FontWeight.w600))),
-        Expanded(child: Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1a202c)))),
-      ]),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF718096),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1a202c),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1268,27 +1951,73 @@ class _AdminDSSState extends State<AdminDSS> {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
-        child: Column(children: [
-          Text(label, style: const TextStyle(fontSize: 9, color: Color(0xFF718096), fontWeight: FontWeight.w700), textAlign: TextAlign.center),
-          const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: valueColor), textAlign: TextAlign.center),
-        ]),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 9,
+                color: Color(0xFF718096),
+                fontWeight: FontWeight.w700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: valueColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _infoBox(IconData icon, String label, String value, Color color, Color bg) {
+  Widget _infoBox(
+    IconData icon,
+    String label,
+    String value,
+    Color color,
+    Color bg,
+  ) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
-        child: Column(children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
-          Text(label, style: const TextStyle(fontSize: 9, color: Color(0xFF718096)), textAlign: TextAlign.center),
-        ]),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 9, color: Color(0xFF718096)),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1302,21 +2031,46 @@ class _AdminDSSState extends State<AdminDSS> {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: color.withOpacity(0.2)),
         ),
-        child: Column(children: [
-          Container(
-            width: 28, height: 28,
-            decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, color: color, size: 15),
-          ),
-          const SizedBox(height: 5),
-          Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color)),
-          Text(label, style: const TextStyle(fontSize: 9, color: Color(0xFF718096)), textAlign: TextAlign.center),
-        ]),
+        child: Column(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 15),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 9, color: Color(0xFF718096)),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _kpiChipTappable(String label, String value, Color color, IconData icon, String filter, String currentFilter, void Function(String) onTap) {
+  Widget _kpiChipTappable(
+    String label,
+    String value,
+    Color color,
+    IconData icon,
+    String filter,
+    String currentFilter,
+    void Function(String) onTap,
+  ) {
     final isActive = currentFilter == filter;
     return Expanded(
       child: GestureDetector(
@@ -1326,27 +2080,58 @@ class _AdminDSSState extends State<AdminDSS> {
           decoration: BoxDecoration(
             color: isActive ? color.withOpacity(0.08) : const Color(0xFFF7F8FA),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: isActive ? color : color.withOpacity(0.2), width: isActive ? 1.5 : 1),
-          ),
-          child: Column(children: [
-            Container(
-              width: 28, height: 28,
-              decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
-              child: Icon(icon, color: color, size: 15),
+            border: Border.all(
+              color: isActive ? color : color.withOpacity(0.2),
+              width: isActive ? 1.5 : 1,
             ),
-            const SizedBox(height: 5),
-            Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color)),
-            Text(label, style: const TextStyle(fontSize: 9, color: Color(0xFF718096)), textAlign: TextAlign.center),
-          ]),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 15),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 9, color: Color(0xFF718096)),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _dssInfo(String label, String value) {
-    return Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
-      Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-    ]));
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10, color: Color(0xFF718096)),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
   }
 }
