@@ -94,14 +94,15 @@
 })();
 </script>
 
-<div class="admin-dashboard" style="display:flex;flex-direction:column;">
-    <div id="headerContainer"></div>
-    <div class="admin-dashboard-body">
+<div class="admin-dashboard" style="display:flex;flex-direction:row;">
     <div id="sidebarContainer"></div>
-
-    <div class="admin-main">
+    
+    <div class="admin-page-shell" style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh;">
+        <div id="headerContainer"></div>
+        
+        <div class="admin-main">
         <div class="admin-header">
-            <div>
+            <div style="display:none;">
                 <div class="breadcrumb">Admin Portal</div>
                 <div class="admin-header-title">User Management</div>
             </div>
@@ -190,8 +191,7 @@
                 </div>
             </div>
         </div>
-    </div>
-    </div><!-- /.admin-dashboard-body -->
+    </div><!-- /.admin-page-shell -->
 </div>
 
 <!-- Floating Add Button -->

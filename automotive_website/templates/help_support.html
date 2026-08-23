@@ -39,13 +39,15 @@
 })();
 </script>
 <!-- ?? Admin layout ?? -->
-<div id="adminWrap" style="flex-direction:column;width:100%;min-height:100vh;" class="admin-dashboard">
-    <div id="headerContainer"></div>
-    <div class="admin-dashboard-body">
-        <div id="sidebarContainer"></div>
+<div id="adminWrap" style="flex-direction:row;width:100%;min-height:100vh;" class="admin-dashboard">
+    <div id="sidebarContainer"></div>
+    
+    <div class="admin-page-shell" style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh;">
+        <div id="headerContainer"></div>
+        
         <div class="admin-main">
             <div class="admin-header">
-                <div>
+                <div style="display:none;">
                     <div class="breadcrumb">Admin Portal ??My Profile ??Help & Support</div>
                     <div class="admin-header-title">Help & Support</div>
                 </div>
@@ -54,7 +56,7 @@
                 <div id="hsContent"></div>
             </div>
         </div>
-    </div>
+    </div><!-- /.admin-page-shell -->
 </div>
 
 <!-- ?? Customer / Staff layout ?? -->

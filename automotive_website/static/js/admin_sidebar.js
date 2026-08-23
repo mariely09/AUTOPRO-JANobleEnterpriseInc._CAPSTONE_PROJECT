@@ -172,10 +172,18 @@ function bindHeaderControls() {
     const menuBtn = document.getElementById('adminMenuBtn');
     if (menuBtn) {
         if (_isExpandCollapsePage()) {
-            menuBtn.addEventListener('click', toggleSidebarExpand);
+            menuBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleSidebarExpand();
+            });
         } else {
             // Drawer pages: hamburger opens/closes the sidebar as a slide-in panel
-            menuBtn.addEventListener('click', toggleAdminSidebar);
+            menuBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleAdminSidebar();
+            });
         }
     }
 
@@ -271,25 +279,40 @@ function bindHeaderControls() {
     const sidebarContainer = document.getElementById('sidebarContainer');
 
     const headerPromise = headerContainer
-        ? fetch('admin_header.html').then(r => r.text()).then(html => { headerContainer.innerHTML = html; })
+        ? fetch('admin_header.html')
+            .then(r => r.text())
+            .then(html => {
+                headerContainer.innerHTML = html;
+            })
         : Promise.resolve();
 
     const sidebarPromise = sidebarContainer
-        ? fetch('admin_sidebar.html').then(r => r.text()).then(html => {
-            sidebarContainer.innerHTML = html;
-            initSidebarActive();
-            // Restore expanded state from localStorage — only on expand/collapse pages
-            if (_isExpandCollapsePage() && localStorage.getItem('sidebarExpanded') === '1') {
-                var sidebar = document.getElementById('adminSidebar');
-                if (sidebar) {
-                    sidebar.classList.add('asb-exp');
-                    document.body.classList.add('sidebar-expanded');
+        ? fetch('admin_sidebar.html')
+            .then(r => r.text())
+            .then(html => {
+                sidebarContainer.innerHTML = html;
+                initSidebarActive();
+                // Restore expanded state from localStorage — only on expand/collapse pages
+                if (_isExpandCollapsePage() && localStorage.getItem('sidebarExpanded') === '1') {
+                    var sidebar = document.getElementById('adminSidebar');
+                    if (sidebar) {
+                        sidebar.classList.add('asb-exp');
+                        document.body.classList.add('sidebar-expanded');
+                    }
                 }
-            }
-        })
+            })
         : Promise.resolve();
 
-    Promise.all([headerPromise, sidebarPromise]).then(bindHeaderControls);
+    Promise.all([headerPromise, sidebarPromise])
+        .then(() => {
+            // Add a small delay to ensure DOM is fully updated
+            setTimeout(() => {
+                bindHeaderControls();
+            }, 100);
+        })
+        .catch(err => {
+            console.error('Error loading header/sidebar:', err);
+        });
 })();
 
 
