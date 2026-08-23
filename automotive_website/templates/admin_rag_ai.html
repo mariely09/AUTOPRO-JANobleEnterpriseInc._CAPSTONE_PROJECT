@@ -35,13 +35,13 @@
 </div>
 
 <!-- Floating toggle button -->
-<div id="ragAiFabWrap" style="position:fixed;bottom:2rem;right:2rem;z-index:1200;display:inline-flex;">
+<div id="ragAiFabWrap" style="position:fixed;bottom:2rem;right:2rem;z-index:1200;display:inline-flex;cursor:grab;touch-action:none;">
   <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;">
     <!-- Animated pulse rings -->
     <span id="ragPulseOuter" style="position:absolute;width:58px;height:58px;border-radius:50%;border:2px solid #22c55e;opacity:0;animation:ragRingPulse 1.8s ease-out infinite;pointer-events:none;"></span>
     <span id="ragPulseInner" style="position:absolute;width:58px;height:58px;border-radius:50%;border:1.5px solid #22c55e;opacity:0;animation:ragRingPulse 1.8s ease-out 0.45s infinite;pointer-events:none;"></span>
     <button id="ragAiToggleBtn" onclick="ragAiToggle()"
-      title="AI Assistant"
+      title="AI Assistant — hold to move"
       style="width:58px;height:58px;border-radius:50%;border:2.5px solid #22c55e;cursor:pointer;
              background:white;
              box-shadow:0 4px 20px rgba(34,197,94,0.25),0 0 0 0 rgba(34,197,94,0.15);
@@ -55,7 +55,7 @@
       style="position:absolute;bottom:3px;right:3px;width:13px;height:13px;
              border-radius:50%;background:#22c55e;border:2.5px solid white;
              box-shadow:0 0 6px rgba(34,197,94,0.7);z-index:2;
-             transition:background 0.3s,box-shadow 0.3s;"></span>
+             transition:background 0.3s,box-shadow 0.3s;pointer-events:none;"></span>
   </div>
 </div>
 
@@ -466,6 +466,152 @@ window.ragAiToggle = function() {
     }
   }
 };
+
+// ── Draggable FAB — hold to drag, release to snap to nearest edge ─────────────
+(function() {
+  var fab       = null;   // #ragAiFabWrap
+  var panel     = null;   // #ragAiPanel
+  var dragging  = false;
+  var holdTimer = null;
+  var startX = 0, startY = 0;     // pointer-down position
+  var fabStartX = 0, fabStartY = 0; // FAB's top/left at drag start
+  var HOLD_MS   = 220;            // hold duration before drag activates
+  var EDGE_PAD  = 14;             // px from viewport edge on snap
+  var DRAG_THRESHOLD = 6;         // px movement to cancel as "tap not drag"
+
+  function _getClient(e) {
+    var t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX, y: t.clientY };
+  }
+
+  function _reposPanel() {
+    if (!panel || !fab) return;
+    var isOpen = panel.style.display === 'flex';
+    if (!isOpen) return;
+    // Keep panel above the FAB by the same relative offset it had originally
+    var fabRect = fab.getBoundingClientRect();
+    var panelW  = panel.offsetWidth  || 390;
+    var panelH  = panel.offsetHeight || 580;
+    var vw = window.innerWidth, vh = window.innerHeight;
+
+    // Preferred: above + right-aligned with FAB
+    var top  = fabRect.top  - panelH - 12;
+    var left = fabRect.right - panelW;
+
+    // Clamp within viewport
+    if (top  < 8)        top  = fabRect.bottom + 12;  // flip below if no room above
+    if (left < 8)        left = 8;
+    if (left + panelW > vw - 8) left = vw - panelW - 8;
+    if (top  < 8)        top  = 8;
+    if (top  + panelH > vh - 8) top  = vh - panelH - 8;
+
+    panel.style.bottom = 'auto';
+    panel.style.right  = 'auto';
+    panel.style.top    = top  + 'px';
+    panel.style.left   = left + 'px';
+  }
+
+  function _snapToEdge() {
+    if (!fab) return;
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var rect = fab.getBoundingClientRect();
+    var cx = rect.left + rect.width / 2;
+    var cy = rect.top  + rect.height / 2;
+
+    // Snap to nearest horizontal edge
+    var snapLeft = cx < vw / 2;
+    var newLeft  = snapLeft ? EDGE_PAD : vw - rect.width - EDGE_PAD;
+    var newTop   = Math.max(EDGE_PAD, Math.min(cy - rect.height / 2, vh - rect.height - EDGE_PAD));
+
+    fab.style.transition = 'left 0.22s cubic-bezier(.34,1.56,.64,1), top 0.22s cubic-bezier(.34,1.56,.64,1)';
+    fab.style.left = newLeft + 'px';
+    fab.style.top  = newTop  + 'px';
+    fab.style.bottom = 'auto';
+    fab.style.right  = 'auto';
+    setTimeout(function() {
+      if (fab) fab.style.transition = '';
+      _reposPanel();
+    }, 260);
+  }
+
+  function _onDown(e) {
+    fab   = fab   || document.getElementById('ragAiFabWrap');
+    panel = panel || document.getElementById('ragAiPanel');
+    if (!fab) return;
+    var pt = _getClient(e);
+    startX = pt.x; startY = pt.y;
+    var rect = fab.getBoundingClientRect();
+    fabStartX = rect.left;
+    fabStartY = rect.top;
+    dragging  = false;
+
+    holdTimer = setTimeout(function() {
+      dragging = true;
+      fab.style.transition  = '';
+      fab.style.cursor      = 'grabbing';
+      fab.style.transform   = 'scale(1.1)';
+      fab.style.transition  = 'transform 0.15s';
+      // Switch to absolute top/left positioning
+      fab.style.bottom = 'auto';
+      fab.style.right  = 'auto';
+      fab.style.left   = fabStartX + 'px';
+      fab.style.top    = fabStartY + 'px';
+    }, HOLD_MS);
+  }
+
+  function _onMove(e) {
+    if (!dragging || !fab) return;
+    e.preventDefault();
+    var pt  = _getClient(e);
+    var dx  = pt.x - startX;
+    var dy  = pt.y - startY;
+    var vw  = window.innerWidth, vh = window.innerHeight;
+    var rect = fab.getBoundingClientRect();
+    var w   = rect.width || 74;
+    var h   = rect.height || 74;
+    var newLeft = Math.max(0, Math.min(fabStartX + dx, vw - w));
+    var newTop  = Math.max(0, Math.min(fabStartY + dy, vh - h));
+    fab.style.left = newLeft + 'px';
+    fab.style.top  = newTop  + 'px';
+    _reposPanel();
+  }
+
+  function _onUp(e) {
+    clearTimeout(holdTimer);
+    if (!fab) return;
+    fab.style.cursor    = '';
+    fab.style.transform = '';
+    if (dragging) {
+      dragging = false;
+      _snapToEdge();
+    }
+  }
+
+  // Attach once on DOMContentLoaded
+  document.addEventListener('DOMContentLoaded', function() {
+    fab   = document.getElementById('ragAiFabWrap');
+    panel = document.getElementById('ragAiPanel');
+    if (!fab) return;
+
+    // Mouse events
+    fab.addEventListener('mousedown',  _onDown);
+    document.addEventListener('mousemove', _onMove, { passive: false });
+    document.addEventListener('mouseup',   _onUp);
+
+    // Touch events
+    fab.addEventListener('touchstart',  _onDown, { passive: true });
+    document.addEventListener('touchmove',  _onMove, { passive: false });
+    document.addEventListener('touchend',   _onUp);
+    document.addEventListener('touchcancel', _onUp);
+  });
+
+  // Also reposition panel whenever ragAiToggle opens it
+  var _origToggle = window.ragAiToggle;
+  window.ragAiToggle = function() {
+    _origToggle && _origToggle();
+    setTimeout(_reposPanel, 20); // after display:flex is applied
+  };
+})();
 
 // Get admin initials + set UID for history, then restore active session
 if (typeof firebase !== 'undefined') {

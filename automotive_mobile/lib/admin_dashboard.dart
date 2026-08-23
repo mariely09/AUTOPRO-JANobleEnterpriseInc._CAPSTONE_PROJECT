@@ -28,10 +28,19 @@ import 'sync_indicator.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 //  Self-contained AI FAB — owns its own AnimationController + backend check
 //  so it survives Navigator push/pop without losing state.
+//  Supports long-press drag to reposition anywhere on screen.
 // ─────────────────────────────────────────────────────────────────────────────
 class _AiStatusFab extends StatefulWidget {
   final VoidCallback onTap;
-  const _AiStatusFab({required this.onTap});
+  final VoidCallback? onDragStart;
+  final void Function(Offset globalPosition)? onDragUpdate;
+  final VoidCallback? onDragEnd;
+  const _AiStatusFab({
+    required this.onTap,
+    this.onDragStart,
+    this.onDragUpdate,
+    this.onDragEnd,
+  });
 
   @override
   State<_AiStatusFab> createState() => _AiStatusFabState();
@@ -125,6 +134,10 @@ class _AiStatusFabState extends State<_AiStatusFab>
               // Button
               GestureDetector(
                 onTap: widget.onTap,
+                onLongPressStart: (_) => widget.onDragStart?.call(),
+                onLongPressMoveUpdate: (d) =>
+                    widget.onDragUpdate?.call(d.globalPosition),
+                onLongPressEnd: (_) => widget.onDragEnd?.call(),
                 child: Material(
                   color: Colors.transparent,
                   elevation: 6,
@@ -209,6 +222,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
   String _initials = '?';
   String? _photoUrl;
   String _userName = '';
+
+  // ── Draggable FAB position (bottom-right offset from bottom-right corner) ──
+  double _fabRight  = 16.0;
+  double _fabBottom = 16.0;
+  bool   _fabDragging = false;
 
   // Cache so photo is available immediately on re-entry (no flicker)
   static String?    _cachedPhotoUrl;
@@ -304,12 +322,34 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: _buildTopBar(),
-      body: _buildBody(),
-      floatingActionButton: _AiStatusFab(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AdminSmartReports()),
-        ),
+      body: Stack(
+        children: [
+          _buildBody(),
+          // ── Draggable AI FAB ───────────────────────────────────────────
+          Positioned(
+            right:  _fabRight,
+            bottom: _fabBottom,
+            child: AnimatedScale(
+              scale: _fabDragging ? 1.12 : 1.0,
+              duration: const Duration(milliseconds: 150),
+              child: _AiStatusFab(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminSmartReports()),
+                ),
+                onDragStart: () => setState(() => _fabDragging = true),
+                onDragUpdate: (globalPos) {
+                  final size = MediaQuery.of(context).size;
+                  setState(() {
+                    _fabRight  = (size.width  - globalPos.dx - 45).clamp(0.0, size.width  - 90);
+                    _fabBottom = (size.height - globalPos.dy - 45).clamp(0.0, size.height - 90);
+                  });
+                },
+                onDragEnd: () => setState(() => _fabDragging = false),
+              ),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: AdminBottomNavBar(
         currentIndex: _currentIndex,
