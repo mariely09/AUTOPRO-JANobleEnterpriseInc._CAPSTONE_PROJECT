@@ -1,124 +1,188 @@
-<div class="admin-sidebar" id="adminSidebar" style="display:flex;flex-direction:column;overflow:hidden;">
+﻿<div id="adminSidebar" style="width:56px;min-width:56px;flex-shrink:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;align-self:flex-start;background:#fff;border-right:1px solid #f0f4f8;box-shadow:2px 0 8px rgba(0,0,0,0.04);overflow:hidden;transition:width .25s cubic-bezier(.4,0,.2,1);z-index:300;">
+<style>
+/* Self-contained sidebar styles — ID selector beats everything */
+#adminSidebar.asb-exp { width:220px; min-width:220px; }
 
-    <div class="admin-nav" style="flex:1;overflow-y:auto;">
+#adminSidebar .asb-profile {
+    height:56px; min-height:56px; flex-shrink:0;
+    display:flex; align-items:center; gap:10px;
+    padding-left:8px; border-bottom:1px solid #f0f4f8;
+    overflow:hidden; cursor:pointer; position:relative;
+}
+#adminSidebar .asb-av {
+    width:40px; height:40px; border-radius:50%;
+    background:#f0f4f8; color:#1a202c;
+    font-size:13px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; overflow:hidden;
+}
+#adminSidebar .asb-av img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+#adminSidebar .asb-user { flex-shrink:0; overflow:hidden; white-space:nowrap; opacity:0; transition:opacity .15s; }
+#adminSidebar.asb-exp .asb-user { opacity:1; }
+#adminSidebar .asb-uname { font-size:13px; font-weight:700; color:#1a202c; line-height:1.3; }
+#adminSidebar .asb-urole { font-size:11px; color:#718096; }
 
-        <!-- Dashboard -->
-        <button class="admin-nav-btn" data-section="overview" onclick="navigateTo('overview')">
-            <span class="admin-nav-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-            </span>
-            Dashboard
-        </button>
+#adminSidebar .asb-nav { flex:1; overflow-y:auto; overflow-x:hidden; }
 
-        <!-- Inventory Management Section -->
-        <div class="admin-nav-section-label">Inventory Management</div>
+#adminSidebar .asb-sec {
+    height:0; padding:0; overflow:hidden; opacity:0;
+    font-size:9px; font-weight:700; color:#a0aec0;
+    letter-spacing:.8px; text-transform:uppercase;
+    transition:opacity .15s; white-space:nowrap;
+}
+#adminSidebar.asb-exp .asb-sec {
+    height:auto; padding:12px 16px 4px; opacity:1;
+}
 
-        <button class="admin-nav-btn submenu-item" data-section="item-master" onclick="navigateTo('item-master')">
-            <span class="admin-nav-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            </span>
-            Item Master
-        </button>
+#adminSidebar .asb-btn {
+    display:flex; align-items:center; gap:12px;
+    width:100%; height:44px; padding-left:16px;
+    background:none; border:none; border-radius:0;
+    color:#718096; font-size:13px; font-weight:500;
+    cursor:pointer; font-family:inherit;
+    white-space:nowrap; overflow:hidden; text-align:left;
+    transition:background .12s, color .12s;
+    text-decoration:none;
+}
+#adminSidebar .asb-btn:hover { background:#f7f9fc; color:#1a202c; }
+#adminSidebar .asb-btn.active { background:rgba(232,0,28,0.06); color:#E8001C; font-weight:700; }
+#adminSidebar .asb-btn.active .asb-ico svg { stroke:#E8001C; }
 
-        <button class="admin-nav-btn submenu-item" data-section="inventory" onclick="navigateTo('inventory')">
-            <span class="admin-nav-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-            </span>
-            Stock Inventory
-        </button>
+#adminSidebar .asb-ico {
+    width:24px; height:24px;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+}
+#adminSidebar .asb-lbl { opacity:0; transition:opacity .15s; pointer-events:none; white-space:nowrap; }
+#adminSidebar.asb-exp .asb-lbl { opacity:1; pointer-events:auto; }
 
-        <a href="admin_receiving.html" class="admin-nav-btn submenu-item" data-section="receiving" style="text-decoration:none;">
-            <span class="admin-nav-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </span>
-            Receiving Items
-        </a>
+#adminSidebar .asb-foot {
+    flex-shrink:0; border-top:1px solid #f0f4f8; padding:8px 0;
+}
+#adminSidebar .asb-logout {
+    display:flex; align-items:center; gap:12px;
+    width:100%; height:44px; padding-left:16px;
+    background:none; border:none; border-radius:0;
+    color:#E8001C; font-size:13px; font-weight:600;
+    cursor:pointer; font-family:inherit;
+    white-space:nowrap; overflow:hidden;
+    transition:background .12s; text-align:left;
+}
+#adminSidebar .asb-logout:hover { background:#fff5f5; }
+</style>
 
-        <button class="admin-nav-btn submenu-item" data-section="inventory-transactions" onclick="navigateTo('inventory-transactions')">
-            <span class="admin-nav-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-            </span>
-            Inventory Transactions
-        </button>
-        
-        <!-- Vehicle Maintenance Section -->
-        <div class="admin-nav-section-label">Vehicle Maintenance</div>
-
-        <button class="admin-nav-btn submenu-item" data-section="assets" onclick="navigateTo('assets')">
-            <span class="admin-nav-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-            </span>
-            Vehicle List
-        </button>
-
-        <button class="admin-nav-btn submenu-item" data-section="asset-servicing" onclick="navigateTo('asset-servicing')">
-            <span class="admin-nav-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-            </span>
-            Vehicle Maintenance
-        </button>
-
-        <a href="admin_service_bookings.html" class="admin-nav-btn submenu-item" data-section="pms-reschedule" style="text-decoration:none;">
-            <span class="admin-nav-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01"/></svg>
-            </span>
-            Service Bookings
-        </a>
-
-        <button class="admin-nav-btn submenu-item" data-section="issuance" onclick="navigateTo('issuance')">
-            <span class="admin-nav-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            </span>
-            Issuances
-        </button>
-
-        <!-- Decision Support System Section -->
-        <div class="admin-nav-section-label">Decision Support System</div>
-
-        <button class="admin-nav-btn submenu-item" data-section="dss" onclick="navigateTo('dss')">
-            <span class="admin-nav-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-            </span>
-            Stock Replenishment
-        </button>
-
-        <button class="admin-nav-btn submenu-item" data-section="dss-pms" onclick="navigateTo('dss-pms')">
-            <span class="admin-nav-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </span>
-            PMS Scheduling
-        </button>
-
-        <!-- Administration Section -->
-        <div class="admin-nav-section-label">Administration</div>
-
-        <button class="admin-nav-btn" data-section="users" onclick="navigateTo('users')">
-            <span class="admin-nav-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            </span>
-            User Management
-        </button>
-
-        <button class="admin-nav-btn" data-section="domains" onclick="navigateTo('domains')">
-            <span class="admin-nav-icon">
-                <!-- Grid/apps (apps_outlined) -->
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="17" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/><rect x="17" y="10" width="5" height="5" rx="1"/><rect x="3" y="17" width="5" height="5" rx="1"/><rect x="10" y="17" width="5" height="5" rx="1"/><rect x="17" y="17" width="5" height="5" rx="1"/></svg>
-            </span>
-            Domain Management
-        </button>
-
-        <a href="admin_archive.html" class="admin-nav-btn" data-section="archive" style="text-decoration:none;">
-            <span class="admin-nav-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-            </span>
-            Archive
-        </a>
-
+<!-- Profile block -->
+<div class="asb-profile" onclick="toggleAvatarMenu('adminSidebarAvatarMenu')">
+    <div class="asb-av" id="sidebarAvatar">AD</div>
+    <div class="asb-user">
+        <div class="asb-uname" id="sidebarName">Administrator</div>
+        <div class="asb-urole">Admin</div>
     </div>
-
-    <div class="admin-sidebar-footer" style="flex-shrink:0;border-top:1px solid #e2e8f0;background:#fff;padding:0;">
-        <button class="logout-btn" id="adminLogoutBtn" onclick="if(typeof adminAvatarLogout==='function'){adminAvatarLogout();}else{if(!confirm('Are you sure you want to logout?'))return;localStorage.setItem('_loggedOut',Date.now().toString());sessionStorage.removeItem('apUser');sessionStorage.removeItem('spUser');sessionStorage.removeItem('cpUser');if(typeof firebase!=='undefined'&&firebase.auth){firebase.auth().signOut().finally(function(){window.location.replace('/index.html');});}else{window.location.replace('/index.html');}}">
+    <div class="avatar-menu" id="adminSidebarAvatarMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:190px;z-index:9999;">
+        <div class="avatar-menu-user">
+            <div class="avatar-menu-name" id="adminAvatarName">Administrator</div>
+            <div class="avatar-menu-role">Admin</div>
+        </div>
+        <div class="avatar-menu-divider"></div>
+        <a href="profile.html" class="avatar-menu-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            My Profile
+        </a>
+        <div class="avatar-menu-divider"></div>
+        <button class="avatar-menu-item avatar-menu-logout" onclick="adminAvatarLogout()">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             Logout
         </button>
     </div>
+</div>
+
+<!-- Nav links -->
+<nav class="asb-nav">
+    <button class="asb-btn" data-section="overview" onclick="navigateTo('overview')">
+        <span class="asb-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span>
+        <span class="asb-lbl">Dashboard</span>
+    </button>
+
+    <div class="asb-sec">Inventory Management</div>
+
+    <button class="asb-btn" data-section="item-master" onclick="navigateTo('item-master')">
+        <span class="asb-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+        <span class="asb-lbl">Item Master</span>
+    </button>
+
+    <button class="asb-btn" data-section="inventory" onclick="navigateTo('inventory')">
+        <span class="asb-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>
+        <span class="asb-lbl">Stock Inventory</span>
+    </button>
+
+    <a href="admin_receiving.html" class="asb-btn" data-section="receiving" style="text-decoration:none;">
+        <span class="asb-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+        <span class="asb-lbl">Receiving Items</span>
+    </a>
+
+    <button class="asb-btn" data-section="inventory-transactions" onclick="navigateTo('inventory-transactions')">
+        <span class="asb-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span>
+        <span class="asb-lbl">Inv. Transactions</span>
+    </button>
+
+    <div class="asb-sec">Vehicle Maintenance</div>
+
+    <button class="asb-btn" data-section="assets" onclick="navigateTo('assets')">
+        <span class="asb-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span>
+        <span class="asb-lbl">Vehicle List</span>
+    </button>
+
+    <button class="asb-btn" data-section="asset-servicing" onclick="navigateTo('asset-servicing')">
+        <span class="asb-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
+        <span class="asb-lbl">Vehicle Maintenance</span>
+    </button>
+
+    <a href="admin_service_bookings.html" class="asb-btn" data-section="pms-reschedule" style="text-decoration:none;">
+        <span class="asb-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+        <span class="asb-lbl">Service Bookings</span>
+    </a>
+
+    <button class="asb-btn" data-section="issuance" onclick="navigateTo('issuance')">
+        <span class="asb-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+        <span class="asb-lbl">Issuances</span>
+    </button>
+
+    <div class="asb-sec">Decision Support</div>
+
+    <button class="asb-btn" data-section="dss" onclick="navigateTo('dss')">
+        <span class="asb-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        <span class="asb-lbl">Stock Replenishment</span>
+    </button>
+
+    <button class="asb-btn" data-section="dss-pms" onclick="navigateTo('dss-pms')">
+        <span class="asb-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+        <span class="asb-lbl">PMS Scheduling</span>
+    </button>
+
+    <div class="asb-sec">Administration</div>
+
+    <button class="asb-btn" data-section="users" onclick="navigateTo('users')">
+        <span class="asb-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+        <span class="asb-lbl">User Management</span>
+    </button>
+
+    <button class="asb-btn" data-section="domains" onclick="navigateTo('domains')">
+        <span class="asb-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="17" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/><rect x="17" y="10" width="5" height="5" rx="1"/><rect x="3" y="17" width="5" height="5" rx="1"/><rect x="10" y="17" width="5" height="5" rx="1"/><rect x="17" y="17" width="5" height="5" rx="1"/></svg></span>
+        <span class="asb-lbl">Domain Management</span>
+    </button>
+
+    <a href="admin_archive.html" class="asb-btn" data-section="archive" style="text-decoration:none;">
+        <span class="asb-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>
+        <span class="asb-lbl">Archive</span>
+    </a>
+</nav>
+
+<!-- Logout -->
+<div class="asb-foot">
+    <button class="asb-logout" id="adminLogoutBtn" onclick="if(typeof adminAvatarLogout==='function'){adminAvatarLogout();}else{if(!confirm('Logout?'))return;localStorage.setItem('_loggedOut',Date.now().toString());sessionStorage.removeItem('apUser');sessionStorage.removeItem('spUser');sessionStorage.removeItem('cpUser');if(typeof firebase!=='undefined'&&firebase.auth){firebase.auth().signOut().finally(function(){window.location.replace('/index.html');});}else{window.location.replace('/index.html');}}">
+        <span class="asb-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+        <span class="asb-lbl">Logout</span>
+    </button>
+</div>
+
+</div>

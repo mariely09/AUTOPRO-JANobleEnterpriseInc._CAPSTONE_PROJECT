@@ -1,7 +1,7 @@
 /* ── Admin Top Bar — matches customer header style ── */
 .admin-topbar {
-    background: #E8001C;
-    height: 60px;
+    background: #ffffff;
+    height: 56px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -10,6 +10,7 @@
     top: 0;
     z-index: 400;
     flex-shrink: 0;
+    border-bottom: 1px solid #f0f4f8;
 }
 
 .admin-topbar-left {
@@ -19,17 +20,17 @@
 }
 
 .admin-menu-btn {
-    background: rgba(255,255,255,0.15);
+    background: none;
     border: none;
     border-radius: 8px;
     width: 36px; height: 36px;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
-    color: white;
+    color: #1a202c;
     transition: background .2s;
     flex-shrink: 0;
 }
-.admin-menu-btn:hover { background: rgba(255,255,255,0.28); }
+.admin-menu-btn:hover { background: #f0f4f8; }
 
 .admin-topbar-brand {
     display: flex;
@@ -42,26 +43,33 @@
 .admin-topbar-wordmark { height: 16px; object-fit: contain; }
 .admin-topbar-autopro { font-size: 10px; color: rgba(255,255,255,0.7); font-weight: 700; letter-spacing: 2px; }
 
+/* Page title in topbar */
+.admin-topbar-page-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a202c;
+}
+
 .admin-topbar-actions { display: flex; align-items: center; gap: 8px; }
 
 .admin-notif-btn {
-    background: rgba(255,255,255,0.15);
+    background: transparent;
     border: none;
     border-radius: 50%;
-    width: 36px; height: 36px;
+    width: 38px; height: 38px;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
-    color: white;
+    color: #1a202c;
     position: relative;
     transition: background .2s;
 }
-.admin-notif-btn:hover { background: rgba(255,255,255,0.25); }
+.admin-notif-btn:hover { background: #fff5f5; }
 
 .admin-notif-badge {
     position: absolute;
     top: 4px; right: 4px;
-    background: #FFC107;
-    color: #000;
+    background: #E8001C;
+    color: #fff;
     font-size: 9px;
     font-weight: 800;
     min-width: 14px;
@@ -74,10 +82,10 @@
 }
 
 .admin-avatar {
-    width: 34px; height: 34px;
+    width: 36px; height: 36px;
     border-radius: 50%;
-    background: rgba(255,255,255,0.25);
-    color: white;
+    background: #f0f4f8;
+    color: #1a202c;
     font-size: 12px;
     font-weight: 700;
     display: flex;
@@ -85,10 +93,14 @@
     justify-content: center;
     cursor: pointer;
     overflow: hidden;
+    flex-shrink: 0;
 }
 .admin-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
 /* ── Sidebar overlay ── */
+#sidebarContainer {
+    display: contents; /* transparent wrapper — sidebar is the actual flex child */
+}
 .admin-sidebar-overlay {
     display: none;
     position: fixed;
@@ -98,13 +110,11 @@
 }
 .admin-sidebar-overlay.active { display: block; }
 
-/* ── Sidebar drawer ── */
-
 /* ── Sidebar nav — active state ── */
 .admin-nav-btn.active {
-    background: rgba(232,0,28,0.08);
+    background: rgba(232,0,28,0.06);
     color: #E8001C;
-    font-weight: 600;
+    font-weight: 700;
 }
 
 .admin-nav-btn.active .admin-nav-icon svg {
@@ -223,58 +233,62 @@
     margin-bottom: 0.15rem;
 }
 
-/* ── Stat cards — Mobile app style ── */
+/* ── Stat cards — matches customer my-bookings style ── */
 .stat-card {
     background: white;
-    border-radius: 14px;
-    padding: 1.1rem 0.75rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    border: 1px solid #e2e8f0;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 16px;
+    padding: 20px 20px 18px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    border: 1.5px solid #e2e8f0;
+    transition: all 0.15s;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    gap: 0.4rem;
+    gap: 10px;
+    cursor: pointer;
 }
 
 .stat-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.09);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+.stat-card.active {
+    border-color: var(--sc, #003087);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
 }
 
 .stat-icon {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 0.3rem;
     flex-shrink: 0;
 }
 
-.stat-icon.blue   { background: rgba(0,48,135,0.10); color: #003087; }
-.stat-icon.green  { background: rgba(44,122,123,0.10); color: #2c7a7b; }
-.stat-icon.red    { background: rgba(232,0,28,0.08); color: #E8001C; }
-.stat-icon.orange { background: rgba(234,88,12,0.10); color: #ea580c; }
+.stat-icon.blue   { background: rgba(0,48,135,0.10);  color: #003087; }
+.stat-icon.green  { background: rgba(56,161,105,0.10); color: #38a169; }
+.stat-icon.red    { background: rgba(232,0,28,0.08);   color: #E8001C; }
+.stat-icon.orange { background: rgba(234,88,12,0.10);  color: #ea580c; }
 
 .stat-number {
-    font-size: 1.6rem;
+    font-size: 28px;
     font-weight: 800;
     line-height: 1;
 }
 
 .stat-card .stat-icon.blue   ~ .stat-number { color: #003087; }
-.stat-card .stat-icon.green  ~ .stat-number { color: #2c7a7b; }
+.stat-card .stat-icon.green  ~ .stat-number { color: #38a169; }
 .stat-card .stat-icon.red    ~ .stat-number { color: #E8001C; }
 .stat-card .stat-icon.orange ~ .stat-number { color: #ea580c; }
 
 .stat-label {
-    font-size: 0.72rem;
+    font-size: 11px;
+    font-weight: 700;
     color: #718096;
-    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .6px;
     line-height: 1.3;
 }
 
@@ -795,107 +809,130 @@
 }
 
 .admin-nav-btn.submenu-item {
-    padding-left: 2.75rem;
-    font-size: 0.83rem;
     color: #718096;
+    font-size: 13px;
 }
 
 .admin-nav-btn.submenu-item.active {
     color: #E8001C;
-    font-weight: 600;
+    font-weight: 700;
 }
 
 /* ── Sidebar width tweak for SVG icons ── */
 .admin-sidebar {
-    width: 80px;
-    min-width: 80px;
-    display: flex;
-    flex-direction: column;
-    transition: width 0.25s ease, min-width 0.25s ease, transform 0.25s ease;
-    overflow: visible;
-    z-index: 300;
-    /* Override style.css: always visible */
-    transform: translateX(0) !important;
-    box-shadow: none !important;
-    /* Fixed below the 60px header, full remaining height */
-    position: fixed;
-    top: 60px;
-    left: 0;
-    height: calc(100vh - 60px);
-    background: #fff;
-    border-right: 1px solid #e2e8f0;
-}
-
-/* Ensure the nav scrolls and footer stays pinned at the bottom */
-.admin-sidebar .admin-nav {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    min-height: 0;
-}
-
-.admin-sidebar .admin-sidebar-footer {
-    flex-shrink: 0;
+    width: 56px !important;
+    min-width: 56px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    transition: width 0.25s cubic-bezier(.4,0,.2,1) !important;
+    z-index: 300 !important;
+    /* Override style.css fixed+translateX drawer — make it sticky in flow */
+    position: sticky !important;
+    top: 0 !important;
+    left: auto !important;
+    bottom: auto !important;
+    height: 100vh !important;
+    transform: none !important;
+    align-self: flex-start !important;
+    background: #fff !important;
+    border-right: 1px solid #f0f4f8 !important;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.04) !important;
+    flex-shrink: 0 !important;
+    overflow: hidden !important;
 }
 
 .admin-sidebar.expanded {
-    width: 256px;
-    min-width: 256px;
-    box-shadow: 4px 0 24px rgba(0,0,0,0.12) !important;
+    width: 220px !important;
+    min-width: 220px !important;
 }
 
-/* Nav buttons: icon + small label stacked vertically by default (like YT Music) */
+/* Ensure the nav scrolls and footer stays pinned */
+.admin-sidebar .admin-nav {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    min-height: 0 !important;
+}
+.admin-sidebar .admin-sidebar-footer {
+    flex-shrink: 0 !important;
+}
+
+/* Nav buttons: icon-only by default (centered in 56px) */
 .admin-sidebar .admin-nav-btn {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    justify-content: center;
-    gap: 3px;
+    gap: 12px;
     overflow: hidden;
-    padding: 10px 2px;
-    font-size: 7.5px;
-    text-align: center;
-    line-height: 1.2;
+    padding: 0;
+    height: 44px;
+    padding-left: calc((56px - 24px) / 2); /* 16px — centers the 24px icon */
+    font-size: 13px;
+    font-weight: 500;
     width: 100%;
-    letter-spacing: -0.2px;
+    white-space: nowrap;
+    text-align: left;
+    color: #718096;
+    background: none;
+    border: none;
+    border-radius: 0;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .12s, color .12s;
+    text-decoration: none;
+}
+.admin-sidebar .admin-nav-btn:hover:not(.active) {
+    background: #f7f9fc;
+    color: #1a202c;
 }
 .admin-sidebar .admin-nav-btn .admin-nav-icon {
-    margin: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
 }
+/* Nav text label — hidden when collapsed */
+.admin-sidebar .admin-nav-btn .admin-nav-label {
+    opacity: 0;
+    transition: opacity .15s;
+    pointer-events: none;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.admin-sidebar.expanded .admin-nav-btn .admin-nav-label {
+    opacity: 1;
+    pointer-events: auto;
+}
 
-/* Expanded: horizontal layout with full text */
+/* Expanded: show full labels */
 .admin-sidebar.expanded .admin-nav-btn {
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: 10px;
-    padding: 10px 16px;
-    font-size: 0.85rem;
-    text-align: left;
-    letter-spacing: 0;
+    padding-left: 16px;
 }
 
-/* Main content offset for the fixed sidebar and fixed topbar */
-.admin-dashboard-body {
-    padding-left: 0;
-    transition: padding-left 0.25s ease;
-}
-.sidebar-expanded .admin-dashboard-body {
-    padding-left: 0;
-}
-
-/* Push main content clear of the fixed sidebar */
+/* No margin-left needed — sidebar is sticky in flex layout */
 .admin-main {
-    margin-left: 80px;
     flex: 1;
     min-width: 0;
-    transition: margin-left 0.25s ease;
     display: flex;
     flex-direction: column;
     overflow-x: hidden;
+    margin-left: 0 !important;
+}
+
+.admin-dashboard-body {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+}
+.sidebar-expanded .admin-dashboard-body {
+    /* no change needed — sidebar is sticky in flow */
 }
 .sidebar-expanded .admin-main {
-    margin-left: 256px;
+    margin-left: 0 !important;
 }
 
 /* Section labels: hidden by default */
@@ -906,67 +943,60 @@
     overflow: hidden;
     font-size: 0;
     border: none;
+    opacity: 0;
+    transition: opacity .15s;
 }
 .admin-sidebar.expanded .admin-nav-section-label {
     height: auto;
     padding: 12px 16px 4px;
     margin: 0;
     font-size: 0.7rem;
+    opacity: 1;
 }
 
-/* Footer: icon-only by default */
-.admin-sidebar .admin-sidebar-footer > div:first-child {
-    justify-content: center;
-    padding: 10px 8px !important;
-}
-.admin-sidebar .admin-sidebar-footer > div:first-child > div:last-child {
-    display: none;
-}
-.admin-sidebar.expanded .admin-sidebar-footer > div:first-child {
-    justify-content: flex-start;
-    padding: 12px 16px !important;
-}
-.admin-sidebar.expanded .admin-sidebar-footer > div:first-child > div:last-child {
-    display: block;
-}
-
-/* Logout button: collapsed = icon+label stacked, expanded = row with full text */
+/* Logout button — matches cu-sb-logout style */
 .admin-sidebar .admin-sidebar-footer .logout-btn {
-    width: 100% !important;
-    height: auto !important;
-    padding: 10px 2px 8px !important;
-    margin: 6px 0 6px !important;
-    border-radius: 0 !important;
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    height: 44px;
+    padding: 0;
+    padding-left: calc((56px - 24px) / 2);
     border: none !important;
+    border-radius: 0 !important;
     background: none !important;
-    font-size: 7.5px !important;
-    gap: 3px !important;
-    overflow: visible !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    color: #718096 !important;
-    letter-spacing: -0.2px !important;
-    line-height: 1.2 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #E8001C !important;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .12s !important;
+    white-space: nowrap;
+    overflow: hidden;
+    justify-content: flex-start !important;
+    text-align: left;
 }
 .admin-sidebar .admin-sidebar-footer .logout-btn:hover {
     background: #fff5f5 !important;
-    color: #E8001C !important;
 }
 .admin-sidebar .admin-sidebar-footer .logout-btn svg {
     flex-shrink: 0;
     width: 18px;
     height: 18px;
 }
-
-/* Expanded: row layout with full text */
+.admin-sidebar .admin-sidebar-footer .logout-btn .admin-nav-label {
+    opacity: 0;
+    transition: opacity .15s;
+    pointer-events: none;
+}
 .admin-sidebar.expanded .admin-sidebar-footer .logout-btn {
-    width: calc(100% - 24px) !important;
-    flex-direction: row !important;
-    justify-content: center !important;
-    align-items: center !important;
-    font-size: 0.82rem !important;
-    gap: 8px !important;
+    padding-left: 16px !important;
+}
+.admin-sidebar.expanded .admin-sidebar-footer .logout-btn .admin-nav-label {
+    opacity: 1;
+    pointer-events: auto;
+}
     padding: 10px 14px !important;
     margin: 8px 12px 12px !important;
     border-radius: 10px !important;
@@ -1127,14 +1157,30 @@
         overflow-x: hidden !important;
     }
 
-    /* ─ Body row: sidebar is a fixed drawer, main fills full width ─ */
+    /* ─ On mobile: sidebar becomes a fixed drawer, main fills full width ─ */
+    .admin-sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        height: 100vh !important;
+        transform: translateX(-100%) !important;
+        z-index: 300 !important;
+        width: 220px !important;
+        min-width: 220px !important;
+        box-shadow: none !important;
+    }
+    .admin-sidebar.admin-sidebar-open {
+        transform: translateX(0) !important;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.15) !important;
+    }
+    .admin-sidebar.admin-sidebar-open .admin-nav-label,
+    .admin-sidebar.admin-sidebar-open .admin-sidebar-user-info { opacity: 1 !important; }
+
     .admin-dashboard-body {
         flex-direction: row !important;
         height: auto !important;
-        min-height: calc(100vh - 60px);
+        min-height: calc(100vh - 56px);
         overflow: visible !important;
-        /* Sidebar is position:fixed at this breakpoint — kill the padding offset
-           that would otherwise create an invisible blank column on the right */
         padding-left: 0 !important;
     }
     .sidebar-expanded .admin-dashboard-body {

@@ -127,8 +127,6 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Row(children: [
-              _statChip('Total', '$total', _blue, Icons.calendar_today_outlined, 'all'),
-              const SizedBox(width: 6),
               _statChip('Approved', '$approved', const Color(0xFF38a169), Icons.check_circle_outline, 'Approved'),
               const SizedBox(width: 6),
               _statChip('Resched', '$rescheduled', _blue, Icons.history, 'Rescheduled'),
@@ -161,10 +159,12 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
     return previousDate.isNotEmpty && previousDate != preferredDate;
   }
 
-  /// Auto-cancels any Approved booking whose preferredDate is in the past.
+  /// Auto-cancels any Approved booking whose preferredDate is in the past,
+  /// or is today and the current time is at or after 5:00 PM.
   void _autoCancelPastDue(List<QueryDocumentSnapshot> docs) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    final isPastFivePm = now.hour >= 17;
     final db = FirebaseFirestore.instance;
 
     for (final doc in docs) {
@@ -174,29 +174,37 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
       if (prefDate.isEmpty) continue;
       final prefDateTime = DateTime.tryParse(prefDate);
       if (prefDateTime == null) continue;
-      // Only cancel if the entire scheduled day has passed
-      if (!prefDateTime.isBefore(today)) continue;
 
-      // Past-due — auto-cancel (fire-and-forget)
+      final isPastDay  = prefDateTime.isBefore(today);
+      final isToday5pm = prefDateTime.isAtSameMomentAs(today) && isPastFivePm;
+      if (!isPastDay && !isToday5pm) continue;
+
+      final reason = isPastDay
+          ? 'No-show / Service date passed'
+          : 'No-show / Service not started by closing time (5:00 PM)';
+
       db.collection('service_bookings').doc(doc.id).update({
         'status': 'Cancelled',
         'cancelledAt': FieldValue.serverTimestamp(),
         'cancelledBy': 'system',
-        'cancellationReason': 'No-show / Service date passed',
+        'cancellationReason': reason,
       }).then((_) {
         final customerId = data['customerId'] as String? ?? '';
         final plate = data['plate'] as String? ?? '';
         if (customerId.isNotEmpty) {
+          final msg = isPastDay
+              ? 'Your booking for $plate on ${_formatDate(prefDate)} was automatically cancelled because the scheduled date has passed.'
+              : 'Your booking for $plate on ${_formatDate(prefDate)} was automatically cancelled because the service was not started by 5:00 PM.';
           db.collection('notifications').add({
             'title': '❌ Booking Auto-Cancelled',
-            'message': 'Your booking for $plate on ${_formatDate(prefDate)} was automatically cancelled because the scheduled date has passed.',
+            'message': msg,
             'type': 'warning',
             'targetRole': '', 'targetUid': customerId,
             'createdAt': FieldValue.serverTimestamp(),
             'readBy': <String, bool>{}, 'isRead': false,
           });
         }
-      }).catchError((_) {}); // silent — will retry on next snapshot
+      }).catchError((_) {});
     }
   }
 
