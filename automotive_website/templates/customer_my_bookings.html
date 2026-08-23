@@ -151,24 +151,30 @@
       </div>
     </div>
 
-    <!-- Filter pills -->
-    <div id="mbTabBar" style="display:none;" class="mb-filter-bar">
-      <button id="mbTab_all" onclick="mbSetFilter('all')" class="mb-filter-pill active">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-        All
-      </button>
-      <button id="mbTab_approved" onclick="mbSetFilter('approved')" class="mb-filter-pill">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        Approved
-      </button>
-      <button id="mbTab_rescheduled" onclick="mbSetFilter('rescheduled')" class="mb-filter-pill">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-        Rescheduled
-      </button>
-      <button id="mbTab_cancelled" onclick="mbSetFilter('cancelled')" class="mb-filter-pill">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-        Cancelled
-      </button>
+    <!-- Filter pills + Book Service button -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+      <div id="mbTabBar" style="display:none;" class="mb-filter-bar" style="margin-bottom:0;">
+        <button id="mbTab_all" onclick="mbSetFilter('all')" class="mb-filter-pill active">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          All
+        </button>
+        <button id="mbTab_approved" onclick="mbSetFilter('approved')" class="mb-filter-pill">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Approved
+        </button>
+        <button id="mbTab_rescheduled" onclick="mbSetFilter('rescheduled')" class="mb-filter-pill">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          Rescheduled
+        </button>
+        <button id="mbTab_cancelled" onclick="mbSetFilter('cancelled')" class="mb-filter-pill">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          Cancelled
+        </button>
+      </div>
+      <a href="customer_book_service.html" class="mb-book-btn" style="flex-shrink:0;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Book Service
+      </a>
     </div>
     <div id="mbList">
       <div style="text-align:center;padding:40px;color:#718096;font-size:13px;">Loading bookings...</div>
@@ -457,10 +463,20 @@ window.mbOpenModal = function(docId) {
 
   document.getElementById('mbModalDetails').innerHTML = details;
 
-  // aa?aa? Cancel button inside modal (only for Pending / Approved) aa?aa?
+  // Cancel button inside modal (only for Pending / Approved AND date is still in the future)
   var canCancelStatus = status.toLowerCase() === 'pending' || status.toLowerCase() === 'approved';
+  var bookingDateStr = d.preferredDate || '';
+  var canCancelDate = false;
+  if (bookingDateStr) {
+    var today = new Date(); today.setHours(0,0,0,0);
+    var parts = bookingDateStr.split('-');
+    if (parts.length === 3) {
+      var bDate = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+      canCancelDate = bDate > today; // strictly after today — same day = no cancel
+    }
+  }
   var cancelHtml = '';
-  if (canCancelStatus) {
+  if (canCancelStatus && canCancelDate) {
     cancelHtml = '<div style="padding:16px 20px 4px;">'
       + '<button onclick="mbCancelBooking(\'' + docId + '\',\'' + _esc(d.plate || '') + '\')" '
       + 'style="width:100%;padding:12px;border:1.5px solid #e2e8f0;border-radius:12px;background:white;font-size:13px;font-weight:700;color:#718096;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;" '
@@ -469,6 +485,13 @@ window.mbOpenModal = function(docId) {
       + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
       + 'Cancel Booking'
       + '</button>'
+      + '</div>';
+  } else if (canCancelStatus && !canCancelDate) {
+    cancelHtml = '<div style="padding:16px 20px 4px;">'
+      + '<div style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:#fff8f0;border:1.5px solid #fed7aa;border-radius:12px;">'
+      + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c05621" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+      + '<span style="font-size:12px;color:#c05621;font-weight:600;">Cancellation is no longer allowed on or after the scheduled date.</span>'
+      + '</div>'
       + '</div>';
   }
   document.querySelector('.mb-modal-body').innerHTML =
@@ -530,7 +553,7 @@ firebase.auth().onAuthStateChanged(function(user) {
       var statsEl = document.getElementById('mbStats');
       if (statsEl) statsEl.style.display = cntAll > 0 ? 'grid' : 'none';
       var tabBar = document.getElementById('mbTabBar');
-      if (tabBar) tabBar.style.display = cntAll > 0 ? 'flex' : 'none';
+      if (tabBar) tabBar.style.display = 'flex';
 
       _mbRender();
     }, function(err) {

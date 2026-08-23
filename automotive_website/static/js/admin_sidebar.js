@@ -104,16 +104,14 @@ function toggleAdminSidebar() {
 window.toggleSidebarExpand = function() {
     const sidebar = document.getElementById('adminSidebar');
     if (!sidebar) return;
-    const isExpanded = sidebar.classList.toggle('expanded');
+    const isExpanded = sidebar.classList.toggle('asb-exp');
     document.body.classList.toggle('sidebar-expanded', isExpanded);
-    // Save preference
     localStorage.setItem('sidebarExpanded', isExpanded ? '1' : '0');
 };
 
 function initSidebarActive() {
     const page = document.body.getAttribute('data-page') || 'overview';
-
-    document.querySelectorAll('.admin-nav-btn[data-section]').forEach(btn => {
+    document.querySelectorAll('#adminSidebar .asb-btn[data-section]').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-section') === page);
     });
 }
@@ -144,6 +142,33 @@ function _isExpandCollapsePage() {
 }
 
 function bindHeaderControls() {
+    // Set page title in topbar
+    var _adminPageTitles = {
+        'overview':               'Dashboard',
+        'item-master':            'Item Master',
+        'inventory':              'Stock Inventory',
+        'receiving':              'Receiving Items',
+        'inventory-transactions': 'Inventory Transactions',
+        'assets':                 'Vehicle List',
+        'asset-servicing':        'Vehicle Maintenance',
+        'pms-reschedule':         'Service Bookings',
+        'issuance':               'Issuances',
+        'dss':                    'Stock Replenishment',
+        'dss-pms':                'PMS Scheduling',
+        'users':                  'User Management',
+        'domains':                'Domain Management',
+        'archive':                'Archive',
+        'profile':                'My Profile',
+        'change_password':        'Change Password',
+        'notifications':          'Notifications',
+        'help_support':           'Help & Support',
+    };
+    var titleEl = document.getElementById('adminPageTitle');
+    if (titleEl) {
+        var page = document.body.getAttribute('data-page') || 'overview';
+        titleEl.textContent = _adminPageTitles[page] || '';
+    }
+
     const menuBtn = document.getElementById('adminMenuBtn');
     if (menuBtn) {
         if (_isExpandCollapsePage()) {
@@ -158,7 +183,7 @@ function bindHeaderControls() {
     if (overlay) overlay.addEventListener('click', function() {
         var sidebar = document.getElementById('adminSidebar');
         if (_isExpandCollapsePage()) {
-            if (sidebar) sidebar.classList.remove('expanded');
+            if (sidebar) sidebar.classList.remove('asb-exp');
             document.body.classList.remove('sidebar-expanded');
             localStorage.setItem('sidebarExpanded', '0');
         } else {
@@ -256,8 +281,10 @@ function bindHeaderControls() {
             // Restore expanded state from localStorage — only on expand/collapse pages
             if (_isExpandCollapsePage() && localStorage.getItem('sidebarExpanded') === '1') {
                 var sidebar = document.getElementById('adminSidebar');
-                if (sidebar) sidebar.classList.add('expanded');
-                document.body.classList.add('sidebar-expanded');
+                if (sidebar) {
+                    sidebar.classList.add('asb-exp');
+                    document.body.classList.add('sidebar-expanded');
+                }
             }
         })
         : Promise.resolve();

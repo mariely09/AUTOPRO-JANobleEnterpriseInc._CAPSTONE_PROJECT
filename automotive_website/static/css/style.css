@@ -500,9 +500,9 @@ body {
 /* 11. Tables */
 .data-table {
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    border: 1.5px solid #e2e8f0;
     overflow: hidden;
     margin-bottom: 2rem;
 }

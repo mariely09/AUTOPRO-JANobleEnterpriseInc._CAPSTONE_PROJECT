@@ -6,10 +6,259 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Management</title>
+    <title>Vehicle Maintenance</title>
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
     <link rel="stylesheet" href="../static/css/style.css">
     <link rel="stylesheet" href="../static/css/admin.css">
+</head>
+<body class="portal-body" data-page="asset-servicing">
+<script>
+// Instant auth guard ??blocks bfcache back-navigation after logout
+(function() {
+  var logoutTime = localStorage.getItem('_loggedOut');
+  var loginTime  = localStorage.getItem('_loggedIn');
+  // If logged out more recently than logged in, block access
+  if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+    return;
+  }
+  var hasSession = sessionStorage.getItem('apUser') ||
+                   sessionStorage.getItem('spUser') ||
+                   sessionStorage.getItem('cpUser');
+  if (!hasSession) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+  }
+})();
+</script>
+
+<div class="admin-dashboard" style="display:flex;flex-direction:column;min-height:100vh;">
+    <div id="headerContainer"></div>
+    <div class="admin-dashboard-body">
+    <div id="sidebarContainer"></div>
+
+    <div class="admin-main">
+        <div class="admin-header">
+            <div>
+                <div class="breadcrumb">Admin Portal ??Vehicle Maintenance Management</div>
+                <div class="admin-header-title">Vehicle Maintenance</div>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:0.5rem;align-items:center;">
+                <!-- Search -->
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" class="search-bar" placeholder="Search services..." id="serviceSearch" style="width:220px;padding-left:2rem;" oninput="renderServicesList()">
+                </div>
+                <!-- Sort By -->
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+                    <select id="svcSortSelect" onchange="renderServicesList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;transition:border-color 0.2s ease;">
+                        <option value="date-desc">Date ??Newest</option>
+                        <option value="date-asc">Date ??Oldest</option>
+                        <option value="plate-asc">Plate A?’Z</option>
+                        <option value="plate-desc">Plate Z?’A</option>
+                        <option value="mechanic-asc">Mechanic A?’Z</option>
+                        <option value="cost-desc">Cost ??Highest</option>
+                        <option value="cost-asc">Cost ??Lowest</option>
+                    </select>
+                    <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-content">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem;">
+                <div class="stat-card" onclick="svcSetFilter('all',document.querySelector('#svcFilterPills .dss-pill:first-child'))" style="cursor:pointer;">
+                    <div class="stat-icon" style="background:rgba(0,48,135,0.10);color:#003087;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </div>
+                    <div class="stat-number" id="totalServices" style="color:#003087;">0</div>
+                    <div class="stat-label">Total Services</div>
+                </div>
+                <div class="stat-card" onclick="svcSetFilter('Ongoing',document.querySelectorAll('#svcFilterPills .dss-pill')[1])" style="cursor:pointer;">
+                    <div class="stat-icon orange">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    </div>
+                    <div class="stat-number" id="ongoingServices">0</div>
+                    <div class="stat-label">Ongoing</div>
+                </div>
+                <div class="stat-card" onclick="svcSetFilter('Completed',document.querySelectorAll('#svcFilterPills .dss-pill')[2])" style="cursor:pointer;">
+                    <div class="stat-icon green">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    </div>
+                    <div class="stat-number" id="completedServices">0</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+            </div>
+
+            <!-- Status filter pills -->
+            <div class="dss-filter-bar">
+                <div class="dss-filter-group">
+                    <label class="dss-filter-label">Filter by Status</label>
+                    <div class="dss-filter-pills" id="svcFilterPills">
+                        <button class="dss-pill active" onclick="svcSetFilter('all',this)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                            All
+                        </button>
+                        <button class="dss-pill dss-pill--thisweek" onclick="svcSetFilter('Ongoing',this)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                            Ongoing
+                        </button>
+                        <button class="dss-pill dss-pill--ontrack" onclick="svcSetFilter('Completed',this)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            Completed
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="data-table">
+                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1.5fr 1fr 1fr 1fr 120px;">
+                    <div>Date Serviced</div><div>Plate Number</div><div>Description</div>
+                    <div>Mechanic Name</div><div>Total Cost</div><div>Status</div><div>Actions</div>
+                </div>
+                <div id="servicesList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading services...</div></div>
+            </div>
+        </div>
+    </div>
+    </div><!-- /.admin-dashboard-body -->
+</div>
+
+<!-- Floating Add Button -->
+<button onclick="svcOpenAddModal()" style="position:fixed;bottom:2rem;right:2rem;width:56px;height:56px;border-radius:50%;background:#E31E24;border:none;color:white;cursor:pointer;box-shadow:0 4px 16px rgba(227,30,36,0.4);display:flex;align-items:center;justify-content:center;z-index:9999;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='0 6px 24px rgba(227,30,36,0.5)'" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 16px rgba(227,30,36,0.4)'">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+
+<!-- -- View Service Modal -- -->
+<div class="modal" id="svcDetailsModal">
+    <div class="modal-content" style="max-width:540px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:90vh;overflow-x:hidden;">
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
+            <div style="flex:1;">
+                <div id="svcDetailPlate" style="color:white;font-size:1rem;font-weight:700;"></div>
+                <div id="svcDetailDesc" style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.1rem;"></div>
+            </div>
+            <button onclick="closeModal('svcDetailsModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+        </div>
+        <!-- Body -->
+        <div style="padding:1.25rem 1.5rem;overflow-y:auto;overflow-x:hidden;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.75rem;">
+            <!-- Info rows -->
+            <div style="background:white;border-radius:14px;padding:1rem 1.25rem;border:1px solid #e2e8f0;" id="svcDetailRows"></div>
+            <!-- Issues Tags -->
+            <div id="svcDetailIssuesSection" style="display:none;">
+                <div style="font-size:0.75rem;font-weight:700;color:#4a5568;text-transform:uppercase;margin-bottom:0.5rem;letter-spacing:0.05em;">Vehicle Issues Reported</div>
+                <div id="svcDetailIssueTiles" style="display:flex;flex-wrap:wrap;gap:0.4rem;"></div>
+            </div>
+            <!-- Services Rendered -->
+            <div id="svcDetailSvcSection" style="display:none;">
+                <div style="font-size:0.75rem;font-weight:700;color:#4a5568;text-transform:uppercase;margin-bottom:0.5rem;letter-spacing:0.05em;">Services Rendered</div>
+                <div id="svcDetailSvcRows" style="display:flex;flex-direction:column;gap:0.5rem;"></div>
+            </div>
+            <!-- Materials Used -->
+            <div id="svcDetailMatSection" style="display:none;">
+                <div style="font-size:0.75rem;font-weight:700;color:#4a5568;text-transform:uppercase;margin-bottom:0.5rem;letter-spacing:0.05em;">Materials Used</div>
+                <div id="svcDetailMatRows" style="display:flex;flex-direction:column;gap:0.5rem;"></div>
+            </div>
+        </div>
+        <!-- Footer actions -->
+        <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
+            <button id="svcDetailCompleteBtn" style="display:none;flex:1;padding:0.75rem;background:#38a169;border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;align-items:center;justify-content:center;gap:0.4rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/><polyline points="20 6 9 17 4 12"/><path d="M4 12l5 5L20 6"/><path d="M9 17l-5-5"/></svg>
+                Mark as Completed
+            </button>
+            <button id="svcDetailEditBtn" style="display:none;flex:1;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;align-items:center;justify-content:center;gap:0.4rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- -- Add / Edit Service Modal -- -->
+<div class="modal" id="svcAddModal">
+    <div class="modal-content" style="max-width:600px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;overflow-x:hidden;">
+        <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
+            <div id="svcModalIconWrap" style="display:none;"></div>
+            <div style="flex:1;"><div id="svcModalTitle" style="color:white;font-size:1rem;font-weight:700;">New Service</div></div>
+            <button onclick="svcCancelAddModal()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+        </div>
+        <div style="padding:1.25rem 1.5rem;overflow-y:auto;overflow-x:hidden;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
+            <div class="fl-field" style="position:relative;">
+                <input type="text" id="svcPlateInput" placeholder=" " autocomplete="off"
+                    style="text-transform:uppercase;"
+                    oninput="svcPlateLookup(this)" onfocus="svcPlateLookup(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();}">
+                <label>Plate Number *</label>
+                <input type="hidden" id="svcPlateSelect" value="">
+            </div>
+            <div id="svcVehicleInfo" style="display:none;background:white;border-radius:10px;padding:0.75rem 1rem;border:1px solid #e2e8f0;font-size:0.83rem;color:#4a5568;align-items:center;gap:0.6rem;"></div>
+            <div class="fl-field" style="position:relative;">
+                <input type="text" id="svcMechanic" placeholder=" " autocomplete="off"
+                    oninput="svcMechanicLookup(this)" onfocus="svcMechanicLookup(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();}">
+                <label>Mechanic Name *</label>
+            </div>
+            <div class="fl-field">
+                <input type="text" id="svcDateDisplay" readonly placeholder=" "
+                    style="cursor:pointer;"
+                    onclick="document.getElementById('svcDatePicker').showPicker ? document.getElementById('svcDatePicker').showPicker() : document.getElementById('svcDatePicker').click()">
+                <label>Service Date *</label>
+                <svg style="position:absolute;right:0.65rem;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <input type="date" id="svcDate" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;"
+                    onchange="svcFormatDateDisplay(this.value)">
+            </div>
+            <!-- Odometer Reading -->
+            <div class="fl-field">
+                <input type="number" id="svcOdometer" placeholder=" " min="0">
+                <label>Odometer Reading (km)</label>
+            </div>
+            <!-- Vehicle Issues -->
+            <div>
+                <label style="font-size:0.78rem;font-weight:600;color:#4a5568;display:block;margin-bottom:0.4rem;">Vehicle Issues <span style="font-weight:400;color:#a0aec0;">(optional ??select all that apply)</span></label>
+                <div id="svcIssueTiles" style="display:flex;flex-wrap:wrap;gap:0.4rem;"></div>
+                <div style="margin-top:0.5rem;display:flex;gap:0.4rem;align-items:center;">
+                    <input type="text" id="svcIssueCustomInput" placeholder="Add custom issue..." autocomplete="off"
+                        style="flex:1;padding:0.45rem 0.75rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.82rem;"
+                        onkeydown="if(event.key==='Enter'){event.preventDefault();svcAddCustomIssue();}">
+                    <button type="button" onclick="svcAddCustomIssue()"
+                        style="padding:0.45rem 0.85rem;background:#E31E24;color:white;border:none;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;">+ Add</button>
+                </div>
+            </div>
+            <!-- Services Rendered -->
+            <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                    <span style="font-size:0.85rem;font-weight:700;color:#4a5568;">Services Rendered</span>
+                    <button type="button" onclick="svcAddSvcRow()" style="background:none;border:none;color:#E31E24;font-size:0.82rem;cursor:pointer;font-weight:600;">+ Add Row</button>
+                </div>
+                <div id="svcSvcRows"></div>
+            </div>
+            <!-- Materials Used -->
+            <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                    <span style="font-size:0.85rem;font-weight:700;color:#4a5568;">Materials Used</span>
+                    <button type="button" onclick="svcAddMatRow()" style="background:none;border:none;color:#E31E24;font-size:0.82rem;cursor:pointer;font-weight:600;">+ Add Row</button>
+                </div>
+                <div id="svcMatRows"></div>
+            </div>
+            <!-- Total -->
+            <div style="background:white;border-radius:10px;padding:0.85rem 1rem;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:0.88rem;font-weight:600;color:#2c5282;">Total Cost</span>
+                <span id="svcTotalDisplay" style="font-size:1.2rem;font-weight:800;color:#2b6cb0;">??.00</span>
+            </div>
+        </div>
+        <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
+            <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="svcCancelAddModal()">Cancel</button>
+            <button type="button" class="btn-primary" style="flex:1;display:flex;align-items:center;justify-content:center;gap:0.4rem;" id="svcSubmitBtn" onclick="svcSave()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Save
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="svcPlateSuggestions" style="display:none;position:fixed;background:white;border:1px solid #e2e8f0;border-radius:8px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.14);z-index:99999;"></div>
+<div id="svcMechanicSuggestions" style="display:none;position:fixed;background:white;border:1px solid #e2e8f0;border-radius:8px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.14);z-index:99999;"></div>
+
+<div id="toast"></div>
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
 /* -- Floating label fields -- */
@@ -34,12 +283,6 @@
     -webkit-appearance: none;
     -moz-appearance: textfield;
 }
-.fl-field select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a0aec0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.85rem center;
-    padding-right: 2.2rem;
-}
 .fl-field input:focus,
 .fl-field select:focus {
     border-color: #E31E24;
@@ -60,267 +303,15 @@
 }
 .fl-field input:focus ~ label,
 .fl-field input:not(:placeholder-shown) ~ label,
-.fl-field select:focus ~ label,
 .fl-field.has-value > label {
     top: 0;
     transform: translateY(-50%);
     font-size: 0.72rem;
     color: #718096;
 }
-.fl-field input:focus ~ label,
-.fl-field select:focus ~ label { color: #E31E24; }
+.fl-field input:focus ~ label { color: #E31E24; }
 .fl-field input::placeholder { color: transparent; }
 </style>
-</head>
-<body class="portal-body" data-page="users">
-<script>
-// Instant auth guard â€” blocks bfcache back-navigation after logout
-(function() {
-  var logoutTime = localStorage.getItem('_loggedOut');
-  var loginTime  = localStorage.getItem('_loggedIn');
-  // If logged out more recently than logged in, block access
-  if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
-    document.documentElement.style.display = 'none';
-    window.location.replace('/login.html');
-    return;
-  }
-  var hasSession = sessionStorage.getItem('apUser') ||
-                   sessionStorage.getItem('spUser') ||
-                   sessionStorage.getItem('cpUser');
-  if (!hasSession) {
-    document.documentElement.style.display = 'none';
-    window.location.replace('/login.html');
-  }
-})();
-</script>
-
-<div class="admin-dashboard" style="display:flex;flex-direction:column;">
-    <div id="headerContainer"></div>
-    <div class="admin-dashboard-body">
-    <div id="sidebarContainer"></div>
-
-    <div class="admin-main">
-        <div class="admin-header">
-            <div>
-                <div class="breadcrumb">Admin Portal</div>
-                <div class="admin-header-title">User Management</div>
-            </div>
-            <div style="margin-left:auto;position:relative;display:flex;align-items:center;gap:0.75rem;">
-                <div style="position:relative;">
-                    <svg style="position:absolute;left:0.65rem;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <input type="text" class="search-bar" placeholder="Search users..." id="userSearch" style="width:220px;padding-left:2rem;" oninput="renderUsersList()">
-                </div>
-                <select id="userStatusFilter" onchange="userSetStatusFilter(this.value,null)" class="search-bar" style="width:140px;padding:0.5rem 2rem 0.5rem 0.75rem;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%23a0aec0%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpolyline points=%276 9 12 15 18 9%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 0.6rem center;">
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                </select>
-                <select id="userSortBy" onchange="renderUsersList()" class="search-bar" style="width:160px;padding:0.5rem 2rem 0.5rem 0.75rem;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%23a0aec0%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpolyline points=%276 9 12 15 18 9%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 0.6rem center;">
-                    <option value="name-asc">Name Aâ†’Z</option>
-                    <option value="name-desc">Name Zâ†’A</option>
-                    <option value="email-asc">Email Aâ†’Z</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="admin-content">
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;margin-bottom:2rem;">
-                <div class="stat-card" onclick="userSetFilter('all',document.querySelector('#userFilterPills .dss-pill:first-child'))" style="cursor:pointer;">
-                    <div class="stat-icon" style="background:rgba(59,130,246,0.10);color:#3b82f6;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    </div>
-                    <div class="stat-number" id="userStatTotal" style="color:#3b82f6;">0</div>
-                    <div class="stat-label">Total Users</div>
-                </div>
-                <div class="stat-card" onclick="userSetFilter('admin',document.querySelectorAll('#userFilterPills .dss-pill')[1])" style="cursor:pointer;">
-                    <div class="stat-icon red">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    </div>
-                    <div class="stat-number" id="userStatAdmin">0</div>
-                    <div class="stat-label">Admin</div>
-                </div>
-                <div class="stat-card" onclick="userSetFilter('customer',document.querySelectorAll('#userFilterPills .dss-pill')[3])" style="cursor:pointer;">
-                    <div class="stat-icon green">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    </div>
-                    <div class="stat-number" id="userStatCustomer">0</div>
-                    <div class="stat-label">Customer</div>
-                </div>
-                <div class="stat-card" onclick="userSetFilter('staff',document.querySelectorAll('#userFilterPills .dss-pill')[2])" style="cursor:pointer;">
-                    <div class="stat-icon" style="background:rgba(0,48,135,0.10);color:#003087;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    </div>
-                    <div class="stat-number" id="userStatStaff" style="color:#003087;">0</div>
-                    <div class="stat-label">Staff</div>
-                </div>
-            </div>
-
-            <!-- Role filter pills -->
-            <div class="dss-filter-bar">
-                <div class="dss-filter-group">
-                    <label class="dss-filter-label">Filter by Role</label>
-                    <div class="dss-filter-pills" id="userFilterPills">
-                        <button class="dss-pill active" onclick="userSetFilter('all',this)">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-                            All
-                        </button>
-                        <button class="dss-pill dss-pill--overdue" onclick="userSetFilter('admin',this)">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            Admin
-                        </button>
-                        <button class="dss-pill dss-pill--duetoday" onclick="userSetFilter('staff',this)">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            Staff
-                        </button>
-                        <button class="dss-pill dss-pill--ontrack" onclick="userSetFilter('customer',this)">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            Customer
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- -- Users Table -- -->
-            <div id="tabAll">
-                <div class="data-table">
-                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:40px 2fr 2fr 1.5fr 1.2fr 1fr 1fr 175px;">
-                        <div>#</div><div>Full Name</div><div>Email</div><div>Company Name</div><div>Phone</div><div>Role</div><div>Status</div><div>Actions</div>
-                    </div>
-                    <div id="userCardsList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading users...</div></div>
-                </div>
-            </div>
-        </div>
-    </div>
-    </div><!-- /.admin-dashboard-body -->
-</div>
-
-<!-- Floating Add Button -->
-<button onclick="openAddUserModal()" style="position:fixed;bottom:2rem;right:2rem;width:56px;height:56px;border-radius:50%;background:#E31E24;border:none;color:white;cursor:pointer;box-shadow:0 4px 16px rgba(227,30,36,0.4);display:flex;align-items:center;justify-content:center;z-index:9999;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='0 6px 24px rgba(227,30,36,0.5)'" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 16px rgba(227,30,36,0.4)'">
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-</button>
-
-<!-- View User Modal -->
-<div class="modal" id="viewUserModal">
-    <div class="modal-content" style="max-width:480px;padding:0;border-radius:20px;overflow:hidden;">
-        <div id="vuHeader" style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.5rem 1.5rem;display:flex;align-items:center;gap:1rem;">
-            <div style="background:rgba(255,255,255,0.2);width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid rgba(255,255,255,0.3);">
-                <span id="vuAvatar" style="color:white;font-size:1.2rem;font-weight:800;"></span>
-            </div>
-            <div style="flex:1;">
-                <div id="vuName" style="color:white;font-size:1.1rem;font-weight:700;"></div>
-                <div id="vuUsername" style="color:rgba(255,255,255,0.8);font-size:0.8rem;margin-top:0.2rem;"></div>
-            </div>
-            <button onclick="closeModal('viewUserModal')" style="background:rgba(255,255,255,0.15);border:none;color:white;width:34px;height:34px;border-radius:50%;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">&times;</button>
-        </div>
-        <div style="padding:1.25rem 1.5rem;background:#f8fafc;">
-            <div id="vuInfoGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;"></div>
-        </div>
-        <div style="padding:1.1rem 1.5rem;background:white;border-top:1px solid #f0f4f8;display:flex;gap:0.75rem;">
-            <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;border-radius:10px;padding:0.75rem;" onclick="closeModal('viewUserModal')">Close</button>
-            <button id="vuEditBtn" style="flex:1;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.9rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
-                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                Edit User
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Add/Edit User Modal -->
-<div class="modal" id="addUserModal">
-    <div class="modal-content" style="max-width:480px;padding:0;border-radius:20px;overflow:hidden;">
-        <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;">
-            <div style="flex:1;">
-                <div id="userModalTitle" style="color:white;font-size:1rem;font-weight:700;">Add User</div>
-            </div>
-            <button onclick="closeModal('addUserModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
-        </div>
-        <form id="addUserForm" style="padding:1.25rem 1.5rem;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-                <div class="fl-field">
-                    <input type="text" name="firstName" required placeholder=" ">
-                    <label>First Name *</label>
-                </div>
-                <div class="fl-field">
-                    <input type="text" name="lastName" required placeholder=" ">
-                    <label>Last Name *</label>
-                </div>
-            </div>
-            <div class="fl-field">
-                <input type="email" name="email" required placeholder=" ">
-                <label>Email *</label>
-            </div>
-            <div class="fl-field has-value" id="phoneNumberField">
-                <input type="tel" name="phoneNumber" id="phoneNumberInput" value="+63" maxlength="13"
-                    oninput="
-                        var pos = this.selectionStart;
-                        var raw = this.value;
-                        if (!raw.startsWith('+63')) raw = '+63';
-                        var digits = raw.slice(3).replace(/\D/g,'').slice(0,10);
-                        this.value = '+63' + digits;
-                        var newPos = Math.max(3, pos);
-                        this.setSelectionRange(newPos, newPos);
-                    "
-                    onkeydown="
-                        var start = this.selectionStart;
-                        var end = this.selectionEnd;
-                        if ((event.key==='Backspace'||event.key==='Delete') && start <= 3 && end <= 3) {
-                            event.preventDefault();
-                        }
-                    "
-                    onclick="
-                        if (this.selectionStart < 3) this.setSelectionRange(3, 3);
-                    ">
-                <label>Phone Number</label>
-            </div>
-            <div class="fl-field has-value">
-                <select name="role" required onchange="document.getElementById('companyNameField').style.display = this.value === 'customer' ? 'block' : 'none';">
-                    <option value="admin">Admin</option>
-                    <option value="staff" selected>Staff</option>
-                    <option value="customer">Customer</option>
-                </select>
-                <label>Role *</label>
-            </div>
-            <div class="fl-field" id="companyNameField" style="display:none;">
-                <input type="text" name="companyName" placeholder=" ">
-                <label>Company Name</label>
-            </div>
-            <div id="addUserEmailNote" style="display:none;background:#f0fff4;border:1px solid #9ae6b4;border-radius:10px;padding:0.75rem 1rem;font-size:0.82rem;color:#276749;display:none;align-items:center;gap:0.5rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                A temporary password will be auto-generated and sent to the user's email.
-            </div>
-            <div style="display:flex;gap:0.75rem;padding-top:0.5rem;">
-                <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('addUserModal')">Cancel</button>
-                <button type="submit" id="userSubmitBtn" class="btn-primary" style="flex:1;display:flex;align-items:center;justify-content:center;gap:0.4rem;">
-                    <span id="userSubmitContent" style="display:flex;align-items:center;gap:0.4rem;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                        Save
-                    </span>
-                    <span id="userSubmitLoading" style="display:none;align-items:center;gap:0.5rem;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                        Saving...
-                    </span>
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div id="toast"></div>
-
-<!-- -- Confirm Dialog -- -->
-<div id="confirmDialog" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:16px;padding:0;max-width:400px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,0.18);overflow:hidden;">
-    <div id="confirmHeader" style="padding:1.1rem 1.4rem;display:flex;align-items:center;gap:0.75rem;">
-      <div id="confirmIconWrap" style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;"></div>
-      <div id="confirmTitle" style="font-size:1rem;font-weight:700;color:#1a202c;"></div>
-    </div>
-    <div id="confirmBody" style="padding:0 1.4rem 1.2rem;font-size:0.88rem;color:#4a5568;line-height:1.6;"></div>
-    <div style="padding:0.85rem 1.4rem 1.1rem;display:flex;gap:0.65rem;justify-content:flex-end;border-top:1px solid #e2e8f0;">
-      <button id="confirmCancelBtn" style="padding:0.55rem 1.2rem;border:1.5px solid #e2e8f0;border-radius:8px;background:white;cursor:pointer;font-size:0.85rem;font-weight:600;color:#718096;">Cancel</button>
-      <button id="confirmOkBtn" style="padding:0.55rem 1.4rem;border:none;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:700;color:white;"></button>
-    </div>
-  </div>
-</div>
 
 <script src="../static/js/data.js"></script>
 
@@ -346,439 +337,1305 @@
 <script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 <script>
-var _editingUserId = null;
-var _currentTab = 'all';
+var _svcEditingId = null;
+var _svcServiceItems = [];
+var _svcMaterialItems = [];
+var _svcVehicles = [];
 
-// -- User role filter --
-window._userFilter = 'all';
-window._statusFilter = 'all';
-window.userSetFilter = function(filter, btn) {
-  window._userFilter = filter;
-  document.querySelectorAll('#userFilterPills .dss-pill').forEach(function(p){ p.classList.remove('active'); });
+// -- Service status filter --
+window._svcStatusFilter = 'all';
+window.svcSetFilter = function(filter, btn) {
+  window._svcStatusFilter = filter;
+  document.querySelectorAll('#svcFilterPills .dss-pill').forEach(function(p){ p.classList.remove('active'); });
   if (btn) btn.classList.add('active');
-  if (typeof renderUsersList === 'function') renderUsersList();
-};
-window.userSetStatusFilter = function(filter, btn) {
-  window._statusFilter = filter;
-  // Sync dropdown
-  var sel = document.getElementById('userStatusFilter');
-  if (sel && sel.value !== filter) sel.value = filter;
-  if (typeof renderUsersList === 'function') renderUsersList();
+  if (typeof renderServicesList === 'function') renderServicesList();
 };
 
-function switchTab(tab) {
-    _currentTab = tab;
-    document.getElementById('tabAll').style.display     = tab === 'all'     ? 'block' : 'none';
-    document.getElementById('tabPending').style.display = tab === 'pending' ? 'block' : 'none';
-    var allBtn     = document.getElementById('tabAllBtn');
-    var pendingBtn = document.getElementById('tabPendingBtn');
-    if (tab === 'all') {
-        allBtn.style.color = '#E31E24'; allBtn.style.borderBottom = '2px solid #E31E24';
-        pendingBtn.style.color = '#718096'; pendingBtn.style.borderBottom = '2px solid transparent';
+// -- Vehicle Issue Tags --------------------------------------
+var _SVC_PRESET_ISSUES = [
+  'Engine Problem','Brake Issue','Tire/Wheel','Battery','Overheating',
+  'Oil Leak','Transmission','Suspension','Electrical','AC/Cooling',
+  'Exhaust','Steering','Fuel System','Body Damage','Lights/Signals',
+];
+var _svcSelectedIssues = [];
+
+function svcRenderIssueTiles() {
+  var container = document.getElementById('svcIssueTiles');
+  if (!container) return;
+  // Preset tiles
+  var html = _SVC_PRESET_ISSUES.map(function(issue) {
+    var sel = _svcSelectedIssues.indexOf(issue) !== -1;
+    return '<button type="button" onclick="svcToggleIssue(\'' + issue.replace(/'/g,"\\'") + '\',this)"'
+      + ' style="padding:0.3rem 0.75rem;border-radius:20px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;'
+      + (sel
+        ? 'background:#E31E24;color:white;border:1.5px solid #E31E24;'
+        : 'background:white;color:#4a5568;border:1.5px solid #e2e8f0;')
+      + '">' + issue + '</button>';
+  }).join('');
+  // Custom issues (not in preset)
+  _svcSelectedIssues.filter(function(i){ return _SVC_PRESET_ISSUES.indexOf(i) === -1; }).forEach(function(issue) {
+    html += '<button type="button" onclick="svcToggleIssue(\'' + issue.replace(/'/g,"\\'") + '\',this)"'
+      + ' style="padding:0.3rem 0.75rem;border-radius:20px;font-size:0.78rem;font-weight:600;cursor:pointer;background:#E31E24;color:white;border:1.5px solid #E31E24;">'
+      + issue + ' &#x2715;</button>';
+  });
+  container.innerHTML = html;
+}
+
+function svcToggleIssue(issue, btn) {
+  var idx = _svcSelectedIssues.indexOf(issue);
+  if (idx === -1) {
+    _svcSelectedIssues.push(issue);
+    btn.style.background = '#E31E24'; btn.style.color = 'white'; btn.style.borderColor = '#E31E24';
+  } else {
+    _svcSelectedIssues.splice(idx, 1);
+    // If custom, remove tile entirely; if preset, just deselect
+    if (_SVC_PRESET_ISSUES.indexOf(issue) === -1) {
+      svcRenderIssueTiles(); return;
+    }
+    btn.style.background = 'white'; btn.style.color = '#4a5568'; btn.style.borderColor = '#e2e8f0';
+  }
+}
+
+function svcAddCustomIssue() {
+  var input = document.getElementById('svcIssueCustomInput');
+  var val = (input.value || '').trim();
+  if (!val) return;
+  if (_svcSelectedIssues.indexOf(val) === -1) {
+    _svcSelectedIssues.push(val);
+    svcRenderIssueTiles();
+  }
+  input.value = '';
+}
+
+// -- Service Date formatting (matches mobile: "Jan 5, 2025") --
+var _SVC_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function svcFormatDateDisplay(isoVal) {
+  // isoVal = "YYYY-MM-DD"
+  if (!isoVal) return;
+  var parts = isoVal.split('-');
+  if (parts.length !== 3) return;
+  var y = parseInt(parts[0]);
+  var m = parseInt(parts[1]) - 1; // 0-indexed
+  var d = parseInt(parts[2]);
+  var formatted = _SVC_MONTHS[m] + ' ' + d + ', ' + y;
+  document.getElementById('svcDateDisplay').value = formatted;
+  document.getElementById('svcDate').value = isoVal; // keep hidden input in sync
+}
+
+function _svcTodayFormatted() {
+  var t = new Date();
+  return _SVC_MONTHS[t.getMonth()] + ' ' + t.getDate() + ', ' + t.getFullYear();
+}
+
+function _svcTodayISO() {
+  var t = new Date();
+  return t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
+}
+var _svcMechanicNames = [];
+
+function _svcLoadMechanics() {
+  if (_svcMechanicNames.length > 0) return Promise.resolve();
+  return firebase.firestore().collection('users')
+    .where('role', '==', 'staff').get()
+    .then(function(snap) {
+      _svcMechanicNames = snap.docs
+        .map(function(d) { return d.data().name || ''; })
+        .filter(function(n) { return n.trim() !== ''; })
+        .sort();
+    }).catch(function() {});
+}
+
+function svcMechanicLookup(input) {
+  var q = input.value.trim().toLowerCase();
+  var suggestions = document.getElementById('svcMechanicSuggestions');
+
+  _svcLoadMechanics().then(function() {
+    var matches = q
+      ? _svcMechanicNames.filter(function(n) { return n.toLowerCase().includes(q); })
+      : _svcMechanicNames;
+
+    if (matches.length === 0) {
+      suggestions.innerHTML = '<div style="padding:0.75rem 0.85rem;font-size:0.83rem;color:#a0aec0;text-align:center;">No staff found.</div>';
+      _svcPositionDropdown(input, suggestions);
+      suggestions.style.display = 'block';
+      return;
+    }
+    suggestions.innerHTML = matches.map(function(name) {
+      return '<div style="padding:0.6rem 0.85rem;cursor:pointer;border-bottom:1px solid #f0f4f8;font-size:0.85rem;font-weight:600;color:#1a202c;transition:background 0.12s;" '
+        + 'onmouseover="this.style.background=\'#f7f8fa\'" onmouseout="this.style.background=\'\'" '
+        + 'onmousedown="event.preventDefault();svcMechanicSelect(\'' + name.replace(/'/g,"\\'") + '\');">'
+        + name
+        + '</div>';
+    }).join('');
+    _svcPositionDropdown(input, suggestions);
+    suggestions.style.display = 'block';
+  });
+}
+
+function svcMechanicSelect(name) {
+  document.getElementById('svcMechanic').value = name;
+  document.getElementById('svcMechanicSuggestions').style.display = 'none';
+}
+
+// (outside-click handling consolidated above)
+
+// Pull latest data from Firebase globals ??called on demand so timing doesn't matter
+function _svcRefreshData() {
+  _svcVehicles = window._fbVehicles || window.assets || [];
+  var master = window.itemMaster || window._fbItemMaster || [];
+  // Normalize: _fbItemMaster uses raw Firestore fields, itemMaster uses mapped fields
+  if (master.length && master[0].name && !master[0].itemName) {
+    // Raw _fbItemMaster ??map it
+    master = master.map(function(i) {
+      return {
+        itemName: i.name || '',
+        itemNum:  i.num  || '',
+        supplierCode: i.supplierCode || '',
+        itemType: i.type || 'Material',
+        uom: i.uom || '',
+        cost: parseFloat(String(i.cost || 0).replace(/[?,]/g, '')) || 0,
+      };
+    });
+  }
+  _svcServiceItems  = master.filter(function(i){ return (i.itemType || '').toLowerCase() === 'service'; });
+  _svcMaterialItems = master.filter(function(i){
+    if ((i.itemType || '').toLowerCase() !== 'material') return false;
+    // Exclude items whose stock_inventory status is 'Inactive' (archived)
+    var inv = window.inventory || [];
+    var stockItem = inv.find(function(s){
+      return (s.itemNum || '').toLowerCase() === (i.itemNum || '').toLowerCase()
+          || (s.itemName || '').toLowerCase() === (i.itemName || '').toLowerCase();
+    });
+    if (stockItem && (stockItem.status || '') === 'Inactive') return false;
+    return true;
+  });
+}
+
+// If itemMaster isn't loaded yet, fetch directly from Firestore then open modal
+function _svcEnsureDataThen(callback) {
+  _svcRefreshData();
+  if (_svcServiceItems.length > 0 || _svcMaterialItems.length > 0) {
+    callback();
+    return;
+  }
+  // Fallback: fetch from Firestore directly
+  firebase.firestore().collection('item_master').get().then(function(snap) {
+    window._fbItemMaster = snap.docs.map(function(d) { return Object.assign({ _id: d.id }, d.data()); });
+    window.itemMaster = window._fbItemMaster.map(function(i) {
+      return {
+        id: i._id,
+        itemNum: i.num || i._id,
+        supplierCode: i.supplierCode || '',
+        itemName: i.name || '',
+        uom: i.uom || '',
+        cost: parseFloat(String(i.cost || 0).replace(/[?,]/g, '')) || 0,
+        itemType: i.type || 'Material',
+      };
+    });
+    _svcRefreshData();
+    callback();
+  }).catch(function() { callback(); });
+}
+
+// Also fetch vehicles from Firestore if not loaded yet
+function _svcEnsureVehiclesThen(callback) {
+  if (_svcVehicles.length > 0) { callback(); return; }
+  firebase.firestore().collection('vehicles').get().then(function(snap) {
+    window._fbVehicles = snap.docs.map(function(d) { return Object.assign({ _id: d.id }, d.data()); });
+    window.assets = window._fbVehicles;
+    _svcRefreshData();
+    callback();
+  }).catch(function() { callback(); });
+}
+
+function _svcPositionDropdown(inputEl, dropdownEl) {
+  var rect = inputEl.getBoundingClientRect();
+  dropdownEl.style.position = 'fixed';
+  dropdownEl.style.left = rect.left + 'px';
+  dropdownEl.style.top  = (rect.bottom + 2) + 'px';
+  dropdownEl.style.width = rect.width + 'px';
+  dropdownEl.style.zIndex = '99999';
+}
+
+function svcPlateLookup(input) {
+  _svcRefreshData();
+  var q = input.value.trim().toUpperCase();
+  var suggestions = document.getElementById('svcPlateSuggestions');
+  var hidden = document.getElementById('svcPlateSelect');
+  var info = document.getElementById('svcVehicleInfo');
+
+  hidden.value = '';
+  info.style.display = 'none';
+
+  var matches = q
+    ? _svcVehicles.filter(function(v) {
+        var plate = (v.plate || v.plateNumber || '').toUpperCase();
+        var desc = (v.desc || v.assetDescription || '').toUpperCase();
+        return plate.includes(q) || desc.includes(q);
+      })
+    : _svcVehicles.slice(0, 40);
+
+  if (matches.length === 0) {
+    suggestions.innerHTML = '<div style="padding:0.75rem 0.85rem;font-size:0.83rem;color:#a0aec0;text-align:center;">No vehicles found.</div>';
+    _svcPositionDropdown(input, suggestions);
+    suggestions.style.display = 'block';
+    return;
+  }
+
+  suggestions.innerHTML = matches.map(function(v) {
+    var plate = v.plate || v.plateNumber || '';
+    var desc = v.desc || v.assetDescription || '';
+    var owner = v.owner || '';
+    return '<div style="padding:0.6rem 0.85rem;cursor:pointer;border-bottom:1px solid #f0f4f8;transition:background 0.12s;" '
+      + 'onmouseover="this.style.background=\'#f7f8fa\'" onmouseout="this.style.background=\'\'" '
+      + 'onmousedown="event.preventDefault();svcPlateSelect(\'' + plate.replace(/'/g,"\\'") + '\');">'
+      + '<div style="font-weight:700;font-size:0.85rem;color:#1a202c;">' + plate + '</div>'
+      + (desc ? '<div style="font-size:0.75rem;color:#718096;">' + desc + (owner ? ' ??' + owner : '') + '</div>' : '')
+      + '</div>';
+  }).join('');
+  _svcPositionDropdown(input, suggestions);
+  suggestions.style.display = 'block';
+}
+
+function svcPlateSelect(plate) {
+  var v = _svcVehicles.find(function(x){ return (x.plate || x.plateNumber) === plate; });
+  document.getElementById('svcPlateInput').value = plate;
+  document.getElementById('svcPlateSelect').value = plate;
+  document.getElementById('svcPlateSuggestions').style.display = 'none';
+  var info = document.getElementById('svcVehicleInfo');
+  if (v) {
+    info.style.display = 'flex';
+    info.style.alignItems = 'center';
+    info.style.gap = '0.6rem';
+    info.innerHTML = '<div><div style="font-weight:600;font-size:0.85rem;color:#1a202c;">' + (v.desc || v.assetDescription || plate) + '</div>'
+      + (v.owner ? '<div style="font-size:0.75rem;color:#718096;">' + v.owner + '</div>' : '')
+      + '</div>';
+    // Auto-fill odometer with vehicle's current value
+    var odoInput = document.getElementById('svcOdometer');
+    var curOdo = parseInt(String(v.odometer || v.odo || '0').replace(/[^0-9]/g, '')) || 0;
+    if (odoInput && curOdo > 0) {
+      // Do nothing ??let user input manually
+    }
+  } else {
+    info.style.display = 'none';
+  }
+}
+
+// Keep backward compat for editService which calls svcOnPlateChange
+function svcOnPlateChange(sel) { svcPlateSelect(sel.value || sel); }
+
+function svcParseToInputDate(dateStr) {
+  if (!dateStr) return '';
+  // Try parsing common formats: "Jan 5, 2025", "1/5/2025", "2025-01-05"
+  var d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  var y = d.getFullYear();
+  var m = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
+function svcCalcTotal() {
+  var total = 0;
+  document.querySelectorAll('#svcSvcRows .svc-row, #svcMatRows .svc-row').forEach(function(row) {
+    var qty = parseFloat((row.querySelector('.svc-row-qty') || {}).value) || 0;
+    var cost = parseFloat((row.querySelector('.svc-row-cost') || {}).value) || 0;
+    total += qty * cost;
+  });
+  document.getElementById('svcTotalDisplay').textContent = '?? + total.toLocaleString('en-PH', {minimumFractionDigits:2});
+  return total;
+}
+
+function _floatLabel(label, value) {
+  if (!label) return;
+  if (value) {
+    label.style.top = '0';
+    label.style.transform = 'translateY(-50%)';
+    label.style.fontSize = '0.72rem';
+    label.style.color = '#718096';
+  } else {
+    label.style.top = '50%';
+    label.style.transform = 'translateY(-50%)';
+    label.style.fontSize = '0.88rem';
+    label.style.color = '#a0aec0';
+  }
+}
+
+function svcAddSvcRow(name, qty, uom, cost) {
+  _svcRefreshData();
+  var div = document.createElement('div');
+  div.className = 'svc-row';
+  div.style.cssText = 'margin-bottom:0.6rem;';
+  div.innerHTML =
+    '<div style="display:flex;gap:0.4rem;align-items:stretch;">'
+    + '<div style="flex:1;position:relative;">'
+    // -- Search input (shown when nothing selected) --
+    + '<div class="svc-svc-search-wrap">'
+    + '<input type="text" class="svc-svc-search" autocomplete="off"'
+    + ' style="width:100%;padding:1rem 1rem 0.4rem 1rem;border:1.5px solid #c5cdd9;border-radius:8px;font-size:0.85rem;font-family:inherit;color:#1a202c;background:white;outline:none;box-sizing:border-box;transition:border-color 0.2s;"'
+    + ' oninput="svcSvcLookup(this)"'
+    + ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();svcSvcLookupExact(this);}">'
+    + '<label style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:0.88rem;color:#a0aec0;pointer-events:none;transition:all 0.18s;background:white;padding:0 0.2rem;line-height:1;">Service Name *</label>'
+    + '<div class="svc-svc-suggestions" style="display:none;position:fixed;background:white;border:1px solid #e2e8f0;border-radius:8px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.14);z-index:99999;"></div>'
+    + '</div>'
+    // -- Selected card (shown once a service is picked) --
+    + '<div class="svc-svc-detail" style="display:none;background:white;border-radius:8px;padding:0.65rem 0.85rem;border:1px solid #e2e8f0;">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;">'
+    + '<span class="svc-svc-name-display" style="font-weight:600;font-size:0.85rem;color:#1a202c;"></span>'
+    + '<button type="button" onclick="svcSvcClear(this)" style="background:none;border:none;color:#718096;cursor:pointer;font-size:0.8rem;padding:0;">&#x2715; Clear</button>'
+    + '</div>'
+    + '<div style="font-size:0.75rem;color:#718096;margin-top:2px;" class="svc-svc-meta"></div>'
+    + '<div style="margin-top:0.5rem;">'
+    + '<label style="font-size:0.75rem;font-weight:600;color:#4a5568;">Quantity *</label>'
+    + '<input type="number" class="svc-row-qty" min="1" value="' + (qty||1) + '" style="width:100%;margin-top:0.2rem;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;" oninput="svcCalcTotal()">'
+    + '</div>'
+    + '<input type="hidden" class="svc-row-name" value="">'
+    + '<input type="hidden" class="svc-row-uom" value="' + (uom||'') + '">'
+    + '<input type="hidden" class="svc-row-cost" value="' + (cost||'') + '">'
+    + '</div>'
+    + '</div>'
+    + '<button type="button" onclick="this.closest(\'.svc-row\').remove();svcCalcTotal();" style="width:30px;height:30px;background:none;border:none;color:#e53e3e;cursor:pointer;font-size:1.1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;align-self:flex-start;margin-top:0.6rem;" title="Remove">&#x2715;</button>'
+    + '</div>';
+
+  document.getElementById('svcSvcRows').appendChild(div);
+
+  // Wire up floating label behaviour
+  var searchInput = div.querySelector('.svc-svc-search');
+  searchInput.addEventListener('input', function() {
+    _floatLabel(div.querySelector('.svc-svc-search-wrap label'), searchInput.value);
+  });
+  searchInput.addEventListener('focus', function() {
+    searchInput.style.borderColor = '#E31E24';
+    searchInput.style.boxShadow = '0 0 0 3px rgba(227,30,36,0.12)';
+    var label = div.querySelector('.svc-svc-search-wrap label');
+    // Float label up on focus always
+    label.style.top = '0';
+    label.style.transform = 'translateY(-50%)';
+    label.style.fontSize = '0.72rem';
+    label.style.color = '#E31E24';
+  });
+  searchInput.addEventListener('blur', function() {
+    searchInput.style.borderColor = '#c5cdd9';
+    searchInput.style.boxShadow = '';
+    _floatLabel(div.querySelector('.svc-svc-search-wrap label'), searchInput.value);
+    // Hide suggestions when focus leaves the field
+    setTimeout(function() {
+      var sugg = div.querySelector('.svc-svc-suggestions');
+      if (sugg) sugg.style.display = 'none';
+    }, 150);
+  });
+
+  if (name) {
+    // If uom/cost not provided, look them up from the item master (e.g. when pre-filling from a booking)
+    if ((uom === undefined || uom === null || uom === '') && (cost === undefined || cost === null || cost === '')) {
+      var _found = _svcServiceItems.find(function(i) {
+        return (i.itemName || '').toLowerCase() === name.toLowerCase();
+      });
+      if (_found) {
+        uom  = _found.uom  || '';
+        cost = _found.cost || 0;
+      }
+    }
+    svcSvcApply(div, name, uom, cost);
+  }
+}
+
+function svcSvcLookup(input) {
+  var row = input.closest('.svc-row');
+  var q = input.value.trim().toLowerCase();
+  var suggestions = row.querySelector('.svc-svc-suggestions');
+  var matches = q
+    ? _svcServiceItems.filter(function(i){ 
+        return i.itemName.toLowerCase().includes(q) 
+            || (i.itemNum || '').toLowerCase().includes(q);
+      })
+    : _svcServiceItems;
+  if (matches.length === 0) {
+    suggestions.style.display = 'none';
+    // Only show "no results" message if user has actually typed something
+    if (q) {
+      suggestions.innerHTML = '<div style="padding:0.75rem 0.85rem;font-size:0.83rem;color:#a0aec0;text-align:center;">No services found.</div>';
+      var rect = input.getBoundingClientRect();
+      suggestions.style.left  = rect.left + 'px';
+      suggestions.style.top   = (rect.bottom + 2) + 'px';
+      suggestions.style.width = rect.width + 'px';
+      suggestions.style.display = 'block';
+    }
+    return;
+  }
+  suggestions.innerHTML = matches.map(function(i){
+    var secondLine = (i.uom||'') + (i.uom && i.cost ? ' ??' : '') + (i.cost ? '?? + parseFloat(i.cost||0).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
+    return '<div style="padding:0.6rem 0.85rem;cursor:pointer;border-bottom:1px solid #f0f4f8;transition:background 0.12s;" '
+      + 'onmouseover="this.style.background=\'#f7f8fa\'" onmouseout="this.style.background=\'\'" '
+      + 'onmousedown="event.preventDefault();svcSvcApply(this.closest(\'.svc-row\'),\'' + i.itemName.replace(/'/g,"\\'") + '\',\'' + (i.uom||'').replace(/'/g,"\\'") + '\',\'' + (i.cost||0) + '\');">'
+      + '<div style="font-weight:700;font-size:0.85rem;color:#1a202c;">' + i.itemName + '</div>'
+      + (secondLine ? '<div style="font-size:0.75rem;color:#718096;">' + secondLine + '</div>' : '')
+      + '</div>';
+  }).join('');
+  // Position fixed relative to the input
+  var rect = input.getBoundingClientRect();
+  suggestions.style.left  = rect.left + 'px';
+  suggestions.style.top   = (rect.bottom + 2) + 'px';
+  suggestions.style.width = rect.width + 'px';
+  suggestions.style.display = 'block';
+}
+
+function svcSvcLookupExact(input) {
+  var q = input.value.trim().toLowerCase();
+  var match = _svcServiceItems.find(function(i){ return i.itemName.toLowerCase() === q; });
+  if (match) svcSvcApply(input.closest('.svc-row'), match.itemName, match.uom, match.cost);
+}
+
+function svcSvcApply(row, name, uom, cost) {
+  var costNum = parseFloat(cost) || 0;
+  var searchWrap  = row.querySelector('.svc-svc-search-wrap');
+  var detailEl    = row.querySelector('.svc-svc-detail');
+  var suggestions = row.querySelector('.svc-svc-suggestions');
+  searchWrap.style.display = 'none';
+  detailEl.style.display = 'block';
+  if (suggestions) suggestions.style.display = 'none';
+  row.querySelector('.svc-row-name').value = name;
+  row.querySelector('.svc-row-uom').value  = uom || '';
+  row.querySelector('.svc-row-cost').value = costNum;
+  row.querySelector('.svc-svc-name-display').textContent = name;
+  row.querySelector('.svc-svc-meta').textContent = (uom||'??) + '  ?? ?? + costNum.toLocaleString('en-PH',{minimumFractionDigits:2});
+  if (!row.querySelector('.svc-row-qty').value) row.querySelector('.svc-row-qty').value = 1;
+  svcCalcTotal();
+}
+
+function svcSvcClear(btn) {
+  var row = btn.closest('.svc-row');
+  var searchWrap = row.querySelector('.svc-svc-search-wrap');
+  var detailEl   = row.querySelector('.svc-svc-detail');
+  searchWrap.style.display = 'block';
+  detailEl.style.display   = 'none';
+  row.querySelector('.svc-svc-search').value = '';
+  row.querySelector('.svc-row-name').value   = '';
+  row.querySelector('.svc-row-uom').value    = '';
+  row.querySelector('.svc-row-cost').value   = '';
+  // Reset label
+  var label = searchWrap.querySelector('label');
+  label.style.top = '50%'; label.style.transform = 'translateY(-50%)';
+  label.style.fontSize = '0.88rem'; label.style.color = '#a0aec0';
+  svcCalcTotal();
+}
+
+// Legacy ??keep for backward compat (editService passes name via svcAddSvcRow)
+function svcOnSvcSelect(sel, preQty, preUom, preCost) {}
+
+function svcAddMatRow(name, qty, uom, cost) {
+  _svcRefreshData();
+  // Look up itemNum from _svcMaterialItems matching BOTH name and uom
+  // (handles same-name different-UOM items correctly ??_svcMaterialItems preserves duplicates)
+  var _lookupItemNum = '';
+  if (name) {
+    var _masterItem = _svcMaterialItems.find(function(i) {
+      var nameMatch = (i.itemName || '').toLowerCase() === name.toLowerCase();
+      if (!nameMatch) return false;
+      // If uom provided, prefer exact uom match; otherwise take first name match
+      return uom ? (i.uom || '').toLowerCase() === uom.toLowerCase() : true;
+    });
+    if (!_masterItem && name) {
+      // Fallback: any name match
+      _masterItem = _svcMaterialItems.find(function(i) {
+        return (i.itemName || '').toLowerCase() === name.toLowerCase();
+      });
+    }
+    if (_masterItem) _lookupItemNum = _masterItem.itemNum || '';
+  }
+  var div = document.createElement('div');
+  div.className = 'svc-row';
+  div.style.cssText = 'margin-bottom:0.6rem;';
+  div.innerHTML =
+    '<div style="display:flex;gap:0.4rem;align-items:stretch;">'
+    + '<div style="flex:1;position:relative;">'
+    // -- Search input (shown when nothing selected) --
+    + '<div class="svc-mat-search-wrap">'
+    + '<input type="text" class="svc-mat-search" autocomplete="off"'
+    + ' style="width:100%;padding:1rem 2.2rem 0.4rem 1rem;border:1.5px solid #c5cdd9;border-radius:8px;font-size:0.85rem;font-family:inherit;color:#1a202c;background:white;outline:none;box-sizing:border-box;transition:border-color 0.2s;"'
+    + ' oninput="svcMatLookup(this)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();svcMatLookup(this,true);}">'
+    + '<label style="position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:0.88rem;color:#a0aec0;pointer-events:none;transition:all 0.18s;background:white;padding:0 0.2rem;line-height:1;">Material Name *</label>'
+    + '<button type="button" onclick="svcMatLookup(this.previousElementSibling.previousElementSibling,true)" title="Search" style="position:absolute;right:0.4rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#718096;padding:0;display:flex;align-items:center;justify-content:center;"><svg xmlns=\'http://www.w3.org/2000/svg\' width=\'15\' height=\'15\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><circle cx=\'11\' cy=\'11\' r=\'8\'/><line x1=\'21\' y1=\'21\' x2=\'16.65\' y2=\'16.65\'/></svg></button>'
+    + '<div class="svc-mat-suggestions" style="display:none;position:fixed;background:white;border:1px solid #e2e8f0;border-radius:8px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.14);z-index:99999;"></div>'
+    + '</div>'
+    // -- Selected card (shown once a material is picked) --
+    + '<div class="svc-row-detail" style="display:none;margin-top:0;background:white;border-radius:8px;padding:0.65rem 0.85rem;border:1px solid #e2e8f0;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
+    + '<div>'
+    + '<div class="svc-mat-name-display" style="font-weight:600;font-size:0.85rem;color:#1a202c;"></div>'
+    + '<div style="font-size:0.75rem;color:#718096;margin-top:2px;" class="svc-row-meta"></div>'
+    + '</div>'
+    + '<button type="button" onclick="svcMatClear(this)" style="background:none;border:none;color:#718096;cursor:pointer;font-size:0.8rem;padding:0;">&#x2715; Clear</button>'
+    + '</div>'
+    + '<div class="svc-mat-stock" style="font-size:0.75rem;font-weight:700;margin-top:6px;padding:3px 8px;border-radius:20px;display:inline-block;"></div>'
+    + '<div style="margin-top:0.5rem;">'
+    + '<label class="svc-mat-qty-label" style="font-size:0.75rem;font-weight:600;color:#4a5568;">Quantity *</label>'
+    + '<input type="number" class="svc-row-qty" min="1" value="' + (qty||1) + '" style="width:100%;margin-top:0.2rem;padding:0.45rem 0.65rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.83rem;" oninput="svcMatQtyCheck(this)" onkeydown="svcMatQtyKeyDown(event,this)">'
+    + '</div>'
+    + '<input type="hidden" class="svc-row-name" value="">'
+    + '<input type="hidden" class="svc-row-uom" value="' + (uom||'') + '">'
+    + '<input type="hidden" class="svc-row-cost" value="' + (cost||'') + '">'
+    + '<input type="hidden" class="svc-mat-max" value="99999">'
+    + '</div>'
+    + '</div>'
+    + '<button type="button" onclick="this.closest(\'.svc-row\').remove();svcCalcTotal();" style="width:30px;height:30px;background:none;border:none;color:#e53e3e;cursor:pointer;font-size:1.1rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;align-self:flex-start;margin-top:0.6rem;" title="Remove">&#x2715;</button>'
+    + '</div>';
+
+  document.getElementById('svcMatRows').appendChild(div);
+
+  // Wire up floating label behaviour
+  var searchInput = div.querySelector('.svc-mat-search');
+  searchInput.addEventListener('input', function() {
+    _floatLabel(div.querySelector('.svc-mat-search-wrap label'), searchInput.value);
+  });
+  searchInput.addEventListener('focus', function() {
+    searchInput.style.borderColor = '#E31E24';
+    searchInput.style.boxShadow = '0 0 0 3px rgba(227,30,36,0.12)';
+    var label = div.querySelector('.svc-mat-search-wrap label');
+    label.style.top = '0';
+    label.style.transform = 'translateY(-50%)';
+    label.style.fontSize = '0.72rem';
+    label.style.color = '#E31E24';
+  });
+  searchInput.addEventListener('blur', function() {
+    searchInput.style.borderColor = '#c5cdd9';
+    searchInput.style.boxShadow = '';
+    div.querySelector('.svc-mat-search-wrap label').style.color = searchInput.value ? '#718096' : '#a0aec0';
+    // Hide suggestions when focus leaves the field
+    setTimeout(function() {
+      var sugg = div.querySelector('.svc-mat-suggestions');
+      if (sugg) sugg.style.display = 'none';
+    }, 150);
+  });
+
+  if (name) {
+    // If uom/cost not provided, look them up from the item master (e.g. when pre-filling from a booking)
+    if ((uom === undefined || uom === null || uom === '') && (cost === undefined || cost === null || cost === '')) {
+      var _foundMat = _svcMaterialItems.find(function(i) {
+        return (i.itemName || '').toLowerCase() === name.toLowerCase();
+      });
+      if (_foundMat) {
+        uom  = _foundMat.uom  || '';
+        cost = _foundMat.cost || 0;
+        if (!_lookupItemNum) _lookupItemNum = _foundMat.itemNum || '';
+      }
+    }
+    div.querySelector('.svc-mat-search').value = name;
+    svcMatApply(div, name, uom, cost, null, _lookupItemNum);
+  }
+}
+
+function svcMatLookup(input, exact) {
+  var row = input.closest('.svc-row');
+  var q = input.value.trim().toLowerCase();
+  var suggestions = row.querySelector('.svc-mat-suggestions');
+
+  var matches = q
+    ? _svcMaterialItems.filter(function(i){ 
+        return i.itemName.toLowerCase().includes(q)
+            || (i.itemNum || '').toLowerCase().includes(q)
+            || (i.supplierCode || '').toLowerCase().includes(q);
+      })
+    : _svcMaterialItems;
+
+  if (exact && matches.length === 1) {
+    suggestions.style.display = 'none';
+    svcMatApply(row, matches[0].itemName, matches[0].uom, matches[0].cost, null, matches[0].itemNum || '');
+    return;
+  }
+  if (exact && matches.length === 0) return;
+  if (matches.length === 0) {
+    suggestions.style.display = 'none';
+    // Only show "no results" message if user has actually typed something
+    if (q) {
+      suggestions.innerHTML = '<div style="padding:0.75rem 0.85rem;font-size:0.83rem;color:#a0aec0;text-align:center;">No materials found.</div>';
+      var rect2 = input.getBoundingClientRect();
+      suggestions.style.left  = rect2.left + 'px';
+      suggestions.style.top   = (rect2.bottom + 2) + 'px';
+      suggestions.style.width = rect2.width + 'px';
+      suggestions.style.display = 'block';
+    }
+    return;
+  }
+
+  suggestions.innerHTML = matches.map(function(i){
+    var secondLine = (i.uom||'') + (i.uom && i.cost ? ' ??' : '') + (i.cost ? '?? + parseFloat(i.cost||0).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
+    // Check stock level from window.inventory cache (already loaded, no extra query)
+    var stockAvailable = -1; // -1 = unknown
+    var invList = window.inventory || [];
+    var invItem = invList.find(function(inv) {
+      return (i.itemNum && (inv.itemNum||'').toLowerCase() === i.itemNum.toLowerCase())
+          || (inv.itemName||'').toLowerCase() === (i.itemName||'').toLowerCase();
+    });
+    if (invItem !== undefined) stockAvailable = parseInt(invItem.stock) || 0;
+    var isOutOfStock = stockAvailable === 0;
+    var cardStyle = isOutOfStock
+      ? 'padding:0.6rem 0.85rem;cursor:not-allowed;border-bottom:1px solid #f0f4f8;background:#f8f8f8;opacity:0.85;'
+      : 'padding:0.6rem 0.85rem;cursor:pointer;border-bottom:1px solid #f0f4f8;transition:background 0.12s;';
+    var nameColor = isOutOfStock ? '#a0aec0' : '#1a202c';
+    var mouseEvents = isOutOfStock ? '' :
+      'onmouseover="this.style.background=\'#f7f8fa\'" onmouseout="this.style.background=\'\'" '
+      + 'onmousedown="event.preventDefault();svcMatApply(this.closest(\'.svc-row\'),\'' + i.itemName.replace(/'/g,"\\'") + '\',\'' + (i.uom||'').replace(/'/g,"\\'") + '\',\'' + (i.cost||'0') + '\',null,\'' + (i.itemNum||'').replace(/'/g,"\\'") + '\');this.closest(\'.svc-row\').querySelector(\'.svc-mat-suggestions\').style.display=\'none\';"';
+    return '<div style="' + cardStyle + '" ' + mouseEvents + '>'
+      + '<div style="font-weight:700;font-size:0.85rem;color:' + nameColor + ';">' + i.itemName + '</div>'
+      + (secondLine ? '<div style="font-size:0.75rem;color:#718096;">' + secondLine + '</div>' : '')
+      + (isOutOfStock ? '<div style="margin-top:4px;display:inline-block;padding:2px 8px;border-radius:20px;background:rgba(229,62,62,0.08);font-size:0.72rem;font-weight:700;color:#e53e3e;">??Out of stock ??cannot add</div>' : '')
+      + '</div>';
+  }).join('');
+  var rect = input.getBoundingClientRect();
+  suggestions.style.left  = rect.left + 'px';
+  suggestions.style.top   = (rect.bottom + 2) + 'px';
+  suggestions.style.width = rect.width + 'px';
+  suggestions.style.display = 'block';
+}
+
+function svcMatApply(row, name, uom, cost, maxStock, itemNum) {
+  var costNum = parseFloat(cost) || 0;
+  var searchWrap = row.querySelector('.svc-mat-search-wrap');
+  var detailEl   = row.querySelector('.svc-row-detail');
+  if (searchWrap) searchWrap.style.display = 'none';
+  if (detailEl)   detailEl.style.display   = 'block';
+  row.querySelector('.svc-mat-search').value = name;
+  row.querySelector('.svc-row-name').value = name;
+  row.querySelector('.svc-row-uom').value  = uom || '';
+  row.querySelector('.svc-row-cost').value = costNum;
+  row.querySelector('.svc-mat-name-display').textContent = name;
+  row.querySelector('.svc-row-meta').textContent = (uom||'??) + '  ?? ?? + costNum.toLocaleString('en-PH',{minimumFractionDigits:2});
+  var sugg = row.querySelector('.svc-mat-suggestions');
+  if (sugg) sugg.style.display = 'none';
+  if (!row.querySelector('.svc-row-qty').value) row.querySelector('.svc-row-qty').value = 1;
+
+  var stockEl  = row.querySelector('.svc-mat-stock');
+  var qtyInput = row.querySelector('.svc-row-qty');
+  var qtyLabel = row.querySelector('.svc-mat-qty-label');
+
+  function _applyStockDisplay(available, minLvl) {
+    row.querySelector('.svc-mat-max').value = available;
+    if (available >= 99999) {
+      // No stock record ??no restriction
+      stockEl.textContent = '';
+      stockEl.style.cssText = '';
+      qtyInput.removeAttribute('max');
+      qtyInput.disabled = false;
+      qtyLabel.textContent = 'Quantity *';
+    } else if (available === 0) {
+      stockEl.textContent = '??Out of stock ??cannot add';
+      stockEl.style.cssText = 'font-size:0.75rem;font-weight:700;margin-top:6px;padding:3px 8px;border-radius:20px;display:inline-block;color:#e53e3e;background:rgba(229,62,62,0.12);';
+      qtyInput.setAttribute('max', '0');
+      qtyInput.value = 0;
+      qtyInput.disabled = true;
+      qtyLabel.textContent = 'Quantity *';
     } else {
-        pendingBtn.style.color = '#E31E24'; pendingBtn.style.borderBottom = '2px solid #E31E24';
-        allBtn.style.color = '#718096'; allBtn.style.borderBottom = '2px solid transparent';
+      var isLow = (minLvl > 0) ? available <= minLvl : available <= 5;
+      stockEl.textContent = 'Available stock: ' + available;
+      stockEl.style.cssText = 'font-size:0.75rem;font-weight:700;margin-top:6px;padding:3px 8px;border-radius:20px;display:inline-block;'
+        + (isLow ? 'color:#d69e2e;background:rgba(214,158,46,0.12);' : 'color:#38a169;background:rgba(56,161,105,0.12);');
+      qtyInput.setAttribute('max', available);
+      qtyInput.disabled = false;
+      qtyLabel.textContent = 'Quantity *';
+      // Clamp existing value
+      var cur = parseInt(qtyInput.value) || 1;
+      if (maxStock === null && cur > available) {
+        qtyInput.value = available;
+      }
     }
-}
+    svcCalcTotal();
+  }
 
-function _generateTempPassword() {
-    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-    var base = '';
-    for (var i = 0; i < 8; i++) base += chars[Math.floor(Math.random() * chars.length)];
-    return base + '@1';
-}
+  // Step 1: try from already-loaded window.inventory first (instant)
+  var invList = window.inventory || [];
+  var invItem = invList.find(function(i) {
+    if (itemNum && itemNum !== '') {
+      return (i.itemNum || i.num || '').toLowerCase() === itemNum.toLowerCase();
+    }
+    return (i.itemName || '').toLowerCase() === name.toLowerCase()
+        || (i.name   || '').toLowerCase() === name.toLowerCase();
+  });
 
-function _sendWelcomeEmail(toEmail, toName, tempPassword, role) {
-    return fetch('/api/send-welcome-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to_email: toEmail, to_name: toName, temp_password: tempPassword, role: role })
+  if (invItem !== undefined) {
+    _applyStockDisplay(parseInt(invItem.stock) || 0, parseInt(invItem.minLevel || invItem.min) || 0);
+  } else {
+    // Not loaded yet ??show loading state then fetch
+    stockEl.textContent = 'Checking stock...';
+    stockEl.style.cssText = 'font-size:0.75rem;font-weight:600;margin-top:6px;padding:3px 8px;border-radius:20px;display:inline-block;color:#718096;background:rgba(113,128,150,0.10);';
+  }
+
+  // Step 2: always verify with Firestore ??query by item number (unique) to handle same-name different-UOM items
+  var stockQuery = (itemNum && itemNum !== '')
+    ? firebase.firestore().collection('stock_inventory').where('num', '==', itemNum).limit(1).get()
+    : (uom && uom !== '')
+      ? firebase.firestore().collection('stock_inventory').where('name', '==', name).where('uom', '==', uom).limit(1).get()
+      : firebase.firestore().collection('stock_inventory').where('name', '==', name).limit(1).get();
+
+  stockQuery
+    .then(function(snap) {
+      if (snap.empty && !(itemNum && itemNum !== '')) {
+        // Also try by itemName field (fallback for name-based lookup)
+        return firebase.firestore().collection('stock_inventory')
+          .where('itemName', '==', name).limit(1).get();
+      }
+      return snap;
     })
-    .then(function(r){ return r.json(); })
-    .then(function(data){ return data.ok === true; })
-    .catch(function(err){ console.error('Email send error:', err); return false; });
-}
-
-function _sendApprovalEmail(toEmail, toName) {
-    return fetch('/api/send-approval-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to_email: toEmail, to_name: toName })
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(data){ return data.ok === true; })
-    .catch(function(err){ console.error('Approval email error:', err); return false; });
-}
-
-function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-// -- Styled confirm dialog --
-function showConfirm(opts) {
-    // opts: { title, body, icon, iconBg, okLabel, okColor, onOk }
-    var dialog     = document.getElementById('confirmDialog');
-    var header     = document.getElementById('confirmHeader');
-    var iconWrap   = document.getElementById('confirmIconWrap');
-    var titleEl    = document.getElementById('confirmTitle');
-    var bodyEl     = document.getElementById('confirmBody');
-    var okBtn      = document.getElementById('confirmOkBtn');
-    var cancelBtn  = document.getElementById('confirmCancelBtn');
-
-    iconWrap.textContent      = opts.icon   || '?';
-    iconWrap.style.background = opts.iconBg || '#f0f4ff';
-    titleEl.textContent       = opts.title  || 'Confirm';
-    bodyEl.innerHTML          = opts.body   || '';
-    okBtn.textContent         = opts.okLabel || 'OK';
-    okBtn.style.background    = opts.okColor || '#E31E24';
-
-    dialog.style.display = 'flex';
-
-    function close() { dialog.style.display = 'none'; okBtn.onclick = null; cancelBtn.onclick = null; }
-    okBtn.onclick     = function() { if (opts.onOk) { var result = opts.onOk(); if (result === false) return; } close(); };
-    cancelBtn.onclick = function() { close(); };
-}
-
-// -- Approve user --
-function approveUser(uid, email, name) {
-    showConfirm({
-        title:   'Approve Account',
-        body:    'Approve <strong>' + escHtml(name) + '</strong>?<br/><br/>They will receive an email notification and can sign in immediately.',
-        icon:    '?',
-        iconBg:  '#f0fff4',
-        okLabel: 'Approve',
-        okColor: '#38a169',
-        onOk: function() {
-            var db = firebase.firestore();
-            db.collection('users').doc(uid).update({ status: 'Active' })
-                .then(function() {
-                    return db.collection('notifications').add({
-                        title:      '? Account Approved',
-                        message:    name + ' (' + email + ') has been approved and can now sign in.',
-                        type:       'success',
-                        targetRole: 'admin',
-                        targetUid:  '',
-                        createdAt:  firebase.firestore.FieldValue.serverTimestamp(),
-                        readBy:     {},
-                        isRead:     false,
-                    });
-                })
-                .then(function() { return _sendApprovalEmail(email, name); })
-                .then(function(sent) {
-                    showToast(name + ' approved!' + (sent ? ' Email sent.' : ' (Email not sent â€” check server.)'), 'success');
-                })
-                .catch(function(err) { showToast('Error: ' + err.message, 'error'); });
-        }
-    });
-}
-
-// -- Reject user (delete from Firestore + Firebase Auth) --
-function rejectUser(uid, name) {
-    showConfirm({
-        title:   'Reject & Delete Account',
-        body:    'Reject <strong>' + escHtml(name) + '</strong>\'s account?<br/><br/>This will <strong>permanently delete</strong> their account.',
-        icon:    '???',
-        iconBg:  '#fff5f5',
-        okLabel: 'Delete Account',
-        okColor: '#e53e3e',
-        onOk: function() {
-            // 1. Delete Firestore document
-            firebase.firestore().collection('users').doc(uid).delete()
-                .then(function() {
-                    // 2. Delete Firebase Auth account via Flask Admin SDK
-                    return fetch('/api/delete-user', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ uid: uid })
-                    })
-                    .then(function(r){ return r.json(); })
-                    .catch(function(){ return { ok: false }; });
-                })
-                .then(function(result) {
-                    showToast(name + "'s account has been deleted.", 'success');
-                })
-                .catch(function(err) { showToast('Error: ' + err.message, 'error'); });
-        }
-    });
-}
-
-// -- Toggle active/inactive (non-pending only) --
-function toggleUserStatus(uid, currentStatus) {
-    if (currentStatus === 'pending') return;
-    var newStatus = currentStatus === 'active' ? 'Inactive' : 'Active';
-    var label     = newStatus === 'Inactive' ? 'deactivate' : 'activate';
-    if (!confirm('Are you sure you want to ' + label + ' this user?')) return;
-    firebase.firestore().collection('users').doc(uid).update({ status: newStatus })
-        .then(function() {
-            showToast('User ' + label + 'd successfully.', 'success');
-        })
-        .catch(function(err) {
-            showToast('Error: ' + err.message, 'error');
-        });
-}
-
-// -- Render pending cards --
-function renderPendingCards(pending) {
-    var list = document.getElementById('pendingCardsList');
-    if (!list) return;
-    if (!pending.length) {
-        list.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;">'
-            + '<div style="margin-bottom:0.75rem;"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>'
-            + '<div style="font-weight:600;">No pending registrations</div></div>';
+    .then(function(snap) {
+      if (snap.empty) {
+        // No stock record ??no restriction
+        _applyStockDisplay(99999, 0);
         return;
-    }
-    list.innerHTML = pending.map(function(u) {
-        var initials = (u.name||'?').split(' ').map(function(n){ return n[0]||''; }).join('').toUpperCase().slice(0,2);
-        return '<div style="background:white;border:1px solid #fbd38d;border-radius:14px;padding:1.1rem 1.25rem;margin-bottom:0.85rem;display:flex;align-items:center;gap:1rem;">'
-            + '<div style="width:44px;height:44px;border-radius:50%;background:#fff3cd;display:flex;align-items:center;justify-content:center;font-weight:800;color:#c05621;font-size:1rem;flex-shrink:0;">'+initials+'</div>'
-            + '<div style="flex:1;min-width:0;">'
-            +   '<div style="font-weight:700;color:#1a202c;font-size:0.92rem;">'+escHtml(u.name||'â€”')+'</div>'
-            +   '<div style="color:#718096;font-size:0.8rem;margin-top:0.1rem;">'+escHtml(u.email||'â€”')+'</div>'
-            + '</div>'
-            + '<span style="background:#fff3cd;color:#c05621;padding:0.2rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;flex-shrink:0;">Pending</span>'
-            + '<div style="display:flex;gap:0.5rem;flex-shrink:0;">'
-            +   '<button onclick="rejectUser(\''+u.id+'\',\''+escHtml(u.name||'')+'\')" style="padding:0.45rem 1rem;background:white;border:1.5px solid #fc8181;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:700;color:#e53e3e;">Reject</button>'
-            +   '<button onclick="approveUser(\''+u.id+'\',\''+escHtml(u.email||'')+'\',\''+escHtml(u.name||'')+'\')" style="padding:0.45rem 1rem;background:#38a169;border:none;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:700;color:white;">Approve</button>'
-            + '</div>'
-            + '</div>';
-    }).join('');
-}
-
-function openAddUserModal() {
-    _editingUserId = null;
-    document.getElementById('userModalTitle').textContent = 'Add User';
-    document.getElementById('addUserForm').reset();
-    // Reset phone field to default +63 prefix
-    var ph = document.getElementById('phoneNumberInput');
-    if (ph) ph.value = '+63';
-    // Reset button to Save state
-    var c = document.getElementById('userSubmitContent');
-    if (c) c.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
-    // Show email note for add mode
-    var note = document.getElementById('addUserEmailNote');
-    if (note) note.style.display = 'flex';
-    // Hide company name field (default role is Staff)
-    var companyField = document.getElementById('companyNameField');
-    if (companyField) companyField.style.display = 'none';
-    document.getElementById('addUserModal').classList.add('active');
-}
-
-function viewUser(userId) {
-    var users = window.users || [];
-    var u = users.find(function(x){ return x.id === userId; });
-    if (!u) return;
-    var roleColors = { admin:'#E31E24', staff:'#003087', customer:'#38a169' };
-    var rc = roleColors[(u.role||'').toLowerCase()] || '#718096';
-    document.getElementById('vuAvatar').textContent = (u.name||'?').split(' ').map(function(n){ return n[0]; }).join('').toUpperCase().slice(0,2);
-    document.getElementById('vuName').textContent = u.name || 'â€”';
-    document.getElementById('vuUsername').textContent = u.email || '';
-    document.getElementById('vuUsername').style.display = u.email ? 'block' : 'none';
-    var roleLabel = (u.role||''); roleLabel = roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1);
-    var statusLower = (u.status||'').toLowerCase();
-    var statusColor = statusLower === 'active' ? '#38a169' : '#718096';
-    var statusLabel = statusLower === 'active' ? 'Active' : 'Inactive';
-
-    // Build info items â€” only include company name / phone if they have a value
-    var infoItems = [
-        ['Email', '<span style="word-break:break-all;">' + escHtml(u.email||'â€”') + '</span>'],
-    ];
-    if ((u.phoneNumber||'').trim()) {
-        infoItems.push(['Phone', '<span style="font-weight:700;color:#1a202c;">' + escHtml(u.phoneNumber) + '</span>']);
-    }
-    if ((u.companyName||'').trim()) {
-        infoItems.push(['Company Name', '<span style="font-weight:700;color:#1a202c;">' + escHtml(u.companyName) + '</span>']);
-    }
-    infoItems.push(['Role', '<span style="background:'+rc+'15;color:'+rc+';padding:0.25rem 0.7rem;border-radius:20px;font-size:0.78rem;font-weight:700;display:inline-block;">'+roleLabel+'</span>']);
-    infoItems.push(['Status', '<span style="background:'+statusColor+'15;color:'+statusColor+';padding:0.25rem 0.7rem;border-radius:20px;font-size:0.78rem;font-weight:700;display:inline-block;">'+statusLabel+'</span>']);
-
-    document.getElementById('vuInfoGrid').style.display = 'block';
-    document.getElementById('vuInfoGrid').innerHTML = infoItems.map(function(item){
-        return '<div style="display:flex;padding:0.6rem 0;border-bottom:1px solid #f0f4f8;">'
-            + '<span style="width:120px;flex-shrink:0;font-size:0.78rem;color:#718096;font-weight:500;">'+item[0]+'</span>'
-            + '<span style="font-size:0.88rem;font-weight:600;color:#1a202c;flex:1;">'+item[1]+'</span>'
-            + '</div>';
-    }).join('');
-    document.getElementById('vuEditBtn').onclick = function(){ closeModal('viewUserModal'); editUser(userId); };
-    document.getElementById('viewUserModal').classList.add('active');
-}
-
-function editUser(userId) {
-    var users = window.users || [];
-    var u = users.find(function(x){ return x.id === userId; });
-    if (!u) return;
-    _editingUserId = userId;
-    document.getElementById('userModalTitle').textContent = 'Edit User';
-    var form = document.getElementById('addUserForm');
-    // Use stored firstName/lastName fields directly â€” don't split name
-    form.elements.firstName.value = u.firstName || (u.name || '').split(' ')[0] || '';
-    form.elements.lastName.value  = u.lastName  || (u.name || '').split(' ').slice(1).join(' ') || '';
-    form.elements.email.value = u.email || '';
-    // Ensure stored value always displays with +63 prefix
-    var phone = u.phoneNumber || '';
-    if (phone && !phone.startsWith('+63')) phone = '+63' + phone.replace(/\D/g,'');
-    form.elements.phoneNumber.value = phone;
-    form.elements.role.value = (u.role||'staff').toLowerCase();
-    // Show/hide company name field based on role
-    var companyField = document.getElementById('companyNameField');
-    if (companyField) {
-        companyField.style.display = (u.role||'').toLowerCase() === 'customer' ? 'block' : 'none';
-    }
-    if (form.elements.companyName) form.elements.companyName.value = u.companyName || '';
-    // Switch button to Update state
-    var c = document.getElementById('userSubmitContent');
-    if (c) c.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Update';
-    // Hide email note in edit mode
-    var note = document.getElementById('addUserEmailNote');
-    if (note) note.style.display = 'none';
-    document.getElementById('addUserModal').classList.add('active');
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Auto-cleanup orphaned user docs (Auth deleted but Firestore still exists)
-    fetch('/api/cleanup-orphaned-users', { method: 'POST' })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.count > 0) console.log('?? Cleaned ' + data.count + ' orphaned user doc(s)');
-        })
-        .catch(function() {});
-
-    // Keep select fl-field label floated when value changes
-    document.querySelectorAll('#addUserModal .fl-field select').forEach(function(sel) {
-        sel.addEventListener('change', function() {
-            var wrap = sel.closest('.fl-field');
-            if (wrap) wrap.classList.toggle('has-value', sel.value !== '');
-        });
+      }
+      var data = snap.docs[0].data();
+      var fresh = parseInt(data.stock) || 0;
+      var minLvl = parseInt(data.min) || 0;
+      _applyStockDisplay(fresh, minLvl);
+    })
+    .catch(function() {
+      // On error, don't restrict
+      _applyStockDisplay(99999, 0);
     });
 
-    var form = document.getElementById('addUserForm');
-    if (!form) return;
+  svcCalcTotal();
+}
 
-    function setLoading(on) {
-        var btn     = document.getElementById('userSubmitBtn');
-        var content = document.getElementById('userSubmitContent');
-        var loading = document.getElementById('userSubmitLoading');
-        if (!btn) return;
-        btn.disabled = on;
-        content.style.display = on ? 'none' : 'flex';
-        loading.style.display  = on ? 'flex' : 'none';
-    }
+function svcMatQtyCheck(input) {
+  var row = input.closest('.svc-row');
+  var max = parseInt(row.querySelector('.svc-mat-max').value) || 99999;
+  var val = parseInt(input.value) || 1;
+  if (val < 1) { input.value = 1; }
+  if (max < 99999 && val > max) {
+    input.value = max;
+    input.style.borderColor = '#e53e3e';
+    setTimeout(function(){ input.style.borderColor = '#bee3f8'; }, 1500);
+  }
+  svcCalcTotal();
+}
 
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        var firstName = form.elements.firstName.value.trim();
-        var lastName  = form.elements.lastName.value.trim();
-        var fullName  = (firstName + ' ' + lastName).trim();
-        var email     = form.elements.email.value.trim();
-        var role      = form.elements.role.value;
-        var rawPhone  = (form.elements.phoneNumber ? form.elements.phoneNumber.value.trim() : '');
-        // +63 alone (no digits typed) = empty; otherwise normalise to +63XXXXXXXXXX
-        var phoneNumber = '';
-        if (rawPhone && rawPhone !== '+63') {
-            var digits = rawPhone.replace(/\D/g,'');
-            if (digits.length === 12) phoneNumber = '+' + digits;        // already has 63 prefix
-            else if (digits.length === 10) phoneNumber = '+63' + digits; // bare 10-digit
-            else phoneNumber = rawPhone; // keep as-is if unusual
+// Block keypresses that would push qty above max ??fires before value changes
+function svcMatQtyKeyDown(e, input) {
+  // Allow: backspace, delete, tab, arrows, home, end
+  var allowed = ['Backspace','Delete','Tab','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'];
+  if (allowed.indexOf(e.key) !== -1) return;
+  // Only allow digits
+  if (!/^\d$/.test(e.key)) { e.preventDefault(); return; }
+  var row = input.closest('.svc-row');
+  var max = parseInt(row.querySelector('.svc-mat-max').value) || 99999;
+  if (max >= 99999) return; // no limit
+  // Compute what the value would be after this keypress
+  var start = input.selectionStart;
+  var end   = input.selectionEnd;
+  var cur   = input.value;
+  var next  = cur.substring(0, start) + e.key + cur.substring(end);
+  if (parseInt(next) > max) {
+    e.preventDefault();
+    input.value = max;
+    input.style.borderColor = '#e53e3e';
+    setTimeout(function(){ input.style.borderColor = '#bee3f8'; }, 1500);
+    svcCalcTotal();
+  }
+}
+
+function svcMatClear(btn) {
+  var row = btn.closest('.svc-row');
+  var searchWrap = row.querySelector('.svc-mat-search-wrap');
+  var detailEl   = row.querySelector('.svc-row-detail');
+  var searchInput = row.querySelector('.svc-mat-search');
+  searchWrap.style.display = 'block';
+  detailEl.style.display   = 'none';
+  searchInput.value = '';
+  row.querySelector('.svc-row-name').value  = '';
+  row.querySelector('.svc-row-uom').value   = '';
+  row.querySelector('.svc-row-cost').value  = '';
+  _floatLabel(searchWrap.querySelector('label'), '');
+  svcCalcTotal();
+}
+
+// Cancel the add/edit modal ??reverts booking to "Approved" if opened from a booking
+function svcCancelAddModal() {
+  var bookingId = window._svcFromBookingId || '';
+  window._svcFromBookingId = '';
+  if (bookingId) {
+    firebase.firestore().collection('service_bookings').doc(bookingId)
+      .update({ status: 'Approved' })
+      .catch(function() {})
+      .finally(function() {
+        closeModal('svcAddModal');
+        window.location.href = 'admin_service_bookings.html';
+      });
+  } else {
+    closeModal('svcAddModal');
+  }
+}
+
+function svcOpenAddModal() {
+  _svcEnsureDataThen(function() {
+  _svcEnsureVehiclesThen(function() {
+  _svcLoadMechanics(); // pre-load mechanic names (staff + admin)
+  window._svcEditingId = null;
+  _svcEditingId = null;
+  document.getElementById('svcModalTitle').textContent = 'New Service';
+  document.getElementById('svcSubmitBtn').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
+  document.getElementById('svcPlateInput').value = '';
+  document.getElementById('svcPlateSelect').value = '';
+  document.getElementById('svcPlateSuggestions').style.display = 'none';
+  document.getElementById('svcVehicleInfo').style.display = 'none';
+  document.getElementById('svcMechanic').value = '';
+  // Auto-fill today's date in mobile format (e.g. "May 14, 2026")
+  document.getElementById('svcDate').value = _svcTodayISO();
+  document.getElementById('svcDateDisplay').value = _svcTodayFormatted();
+  document.getElementById('svcSvcRows').innerHTML = '';
+  document.getElementById('svcMatRows').innerHTML = '';
+  document.getElementById('svcTotalDisplay').textContent = '??.00';
+  document.getElementById('svcOdometer').value = '';
+  _svcSelectedIssues = [];
+  svcRenderIssueTiles();
+  svcAddSvcRow(); svcAddMatRow();
+  document.getElementById('svcAddModal').classList.add('active');
+  }); // _svcEnsureVehiclesThen
+  }); // _svcEnsureDataThen
+}
+
+function openAddServiceModal() { svcOpenAddModal(); }
+
+// Auto-open service modal from booking (navigated from Service Bookings page)
+(function() {
+  var hash = window.location.hash;
+  if (hash.startsWith('#startService=')) {
+    var raw = decodeURIComponent(hash.substring('#startService='.length));
+    var params = {};
+    try { params = JSON.parse(raw); } catch(e) { return; }
+    // Wait for data to load then open modal pre-filled
+    setTimeout(function() {
+      _svcEnsureDataThen(function() {
+      _svcEnsureVehiclesThen(function() {
+        _svcLoadMechanics();
+        window._svcEditingId = null;
+        _svcEditingId = null;
+        document.getElementById('svcModalTitle').textContent = 'New Service (from Booking)';
+        document.getElementById('svcSubmitBtn').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
+        document.getElementById('svcMechanic').value = '';
+        document.getElementById('svcSvcRows').innerHTML = '';
+        document.getElementById('svcMatRows').innerHTML = '';
+        document.getElementById('svcTotalDisplay').textContent = '??.00';
+        document.getElementById('svcOdometer').value = '';
+        _svcSelectedIssues = [];
+        svcRenderIssueTiles();
+
+        // Auto-fill plate
+        var plate = params.plate || '';
+        if (plate) {
+          document.getElementById('svcPlateInput').value = plate;
+          document.getElementById('svcPlateSelect').value = plate;
+          svcPlateSelect(plate);
         }
-        var companyName = (form.elements.companyName ? form.elements.companyName.value.trim() : '');
-        if (!firstName || !lastName || !email) { showToast('Please fill all required fields.', 'error'); return; }
 
-        setLoading(true);
-
-        var db = firebase.firestore();
-        if (_editingUserId) {
-            // Edit â€” update fields, preserve existing status
-            // Check if email changed AND user hasn't logged in yet (mustChangePassword)
-            var existingUser = (window.users || []).find(function(u){ return u.id === _editingUserId; });
-            var emailChanged = existingUser && existingUser.email !== email;
-            var notYetLoggedIn = existingUser && existingUser.mustChangePassword === true;
-
-            var updatePromise = db.collection('users').doc(_editingUserId).update({
-                firstName: firstName,
-                lastName:  lastName,
-                name:      fullName,
-                email:     email,
-                role:      role,
-                phoneNumber: phoneNumber,
-                companyName: role === 'customer' ? companyName : ''
-            });
-
-            if (emailChanged && notYetLoggedIn) {
-                var newTempPass = _generateTempPassword();
-                updatePromise = updatePromise
-                    .then(function() {
-                        // Update email + password in Firebase Auth via Flask
-                        return fetch('/api/update-user-email-password', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ uid: _editingUserId, new_email: email, new_password: newTempPass })
-                        }).then(function(r){ return r.json(); }).catch(function(){ return { ok: false }; });
-                    })
-                    .then(function() {
-                        // Send welcome email to new address with new temp password
-                        return _sendWelcomeEmail(email, fullName, newTempPass, role);
-                    })
-                    .then(function(sent) {
-                        closeModal('addUserModal');
-                        showToast('User updated!' + (sent ? ' New credentials sent to ' + email + '.' : ' (Email not sent â€” check server.)'), 'success');
-                    });
-            } else {
-                updatePromise = updatePromise.then(function(){
-                    closeModal('addUserModal');
-                    showToast('User updated successfully!', 'success');
-                });
-            }
-
-            updatePromise
-                .catch(function(err){ showToast('Error: ' + err.message, 'error'); })
-                .finally(function(){ setLoading(false); });
+        // Auto-fill date from preferred date
+        var dateStr = params.date || '';
+        if (dateStr) {
+          document.getElementById('svcDate').value = dateStr;
+          svcFormatDateDisplay(dateStr);
         } else {
-            // Add â€” check for existing email first, then auto-generate password, create via Firebase Auth REST, save to Firestore, send email
-            var tempPass = _generateTempPassword();
-            var apiKey = 'AIzaSyCaoJWbwJk0Xi694ARHpdHhiNjT0SpASRs';
-
-            db.collection('users').where('email', '==', email).limit(1).get()
-                .then(function(snap) {
-                    if (!snap.empty) {
-                        throw new Error('A user with this email already exists in the system.');
-                    }
-                    return fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + apiKey, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: email, password: tempPass, returnSecureToken: false })
-                    })
-                    .then(function(r){ return r.json(); })
-                    .then(function(data) {
-                        if (data.error) throw new Error(data.error.message);
-                        var uid = data.localId;
-                        return db.collection('users').doc(uid).set({
-                            uid:           uid,
-                            firstName: firstName,
-                            lastName:  lastName,
-                            name:      fullName,
-                            email:     email,
-                            role:      role,
-                            phoneNumber: phoneNumber,
-                            companyName: role === 'customer' ? companyName : '',
-                            status:    'Active',
-                            mustChangePassword: true,
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                        }).then(function(){ return tempPass; });
-                    });
-                })
-                .then(function(pass) {
-                    return _sendWelcomeEmail(email, fullName, pass, role)
-                        .then(function(sent) {
-                            closeModal('addUserModal');
-                            showToast('User added!' + (sent ? ' Credentials sent to ' + email + '.' : ' (Email not sent â€” check server.)'), 'success');
-                        });
-                })
-                .catch(function(err){
-                    showToast('Error: ' + (err.message || 'Unknown error'), 'error');
-                })
-                .finally(function(){ setLoading(false); });
+          document.getElementById('svcDate').value = _svcTodayISO();
+          document.getElementById('svcDateDisplay').value = _svcTodayFormatted();
         }
-    });
+
+        // Auto-fill service rows from booking services
+        var services = params.services || [];
+        if (services.length > 0) {
+          services.forEach(function(svcName) {
+            svcAddSvcRow(svcName);
+          });
+        } else {
+          svcAddSvcRow();
+        }
+        svcAddMatRow();
+
+        // Store booking ID so we can reference it on save if needed
+        window._svcFromBookingId = params.bookingId || '';
+
+        document.getElementById('svcAddModal').classList.add('active');
+
+        // Clean hash
+        history.replaceState(null, '', window.location.pathname);
+      }); // _svcEnsureVehiclesThen
+      }); // _svcEnsureDataThen
+    }, 1200);
+  }
+})();
+
+// Close plate suggestions on outside click
+document.addEventListener('click', function(e) {
+  var plateInput = document.getElementById('svcPlateInput');
+  var plateSugg  = document.getElementById('svcPlateSuggestions');
+  var mechInput  = document.getElementById('svcMechanic');
+  var mechSugg   = document.getElementById('svcMechanicSuggestions');
+  if (plateSugg && plateInput && !plateInput.contains(e.target) && !plateSugg.contains(e.target)) {
+    plateSugg.style.display = 'none';
+  }
+  if (mechSugg && mechInput && !mechInput.contains(e.target) && !mechSugg.contains(e.target)) {
+    mechSugg.style.display = 'none';
+  }
 });
+
+function viewServiceDetails(docId) {
+  window._svcViewDetails(docId);
+}
+window._svcViewDetails = function(docId) {
+  var db = firebase.firestore();
+
+  // Use cached data first (instant) ??fall back to Firestore if not found
+  var cached = (window._fbServices || []).find(function(s) { return s._id === docId; });
+
+  function _renderDetails(s) {
+    var statusLower = (s.status || '').toLowerCase();
+    var sc = { 'completed':'#38a169', 'ongoing':'#d69e2e', 'pending':'#718096' };
+    var color = sc[statusLower] || '#718096';
+
+    document.getElementById('svcDetailPlate').textContent = s.plate || '??;
+    document.getElementById('svcDetailDesc').textContent = s.desc || '??;
+
+    // Info rows
+    var rows = [
+      ['Plate Number', s.plate || '??],
+      ['Mechanic', s.mechanic || '??],
+      ['Service Date', s.date || '??],
+      ['Odometer Reading', s.odometer ? Number(s.odometer).toLocaleString() + ' km' : '??],
+      ['Total Cost', s.cost || '?0.00'],
+      ['Status', '<span style="display:inline-block;padding:2px 10px;border-radius:20px;background:' + color + '1a;color:' + color + ';font-weight:700;font-size:0.82rem;">' + (s.status || '??) + '</span>'],
+    ];
+    document.getElementById('svcDetailRows').innerHTML = rows.map(function(r, i) {
+      var isLast = i === rows.length - 1;
+      return '<div style="display:flex;align-items:center;padding:0.55rem 0;' + (!isLast ? 'border-bottom:1px solid #f0f4f8;' : '') + '">'
+        + '<span style="width:130px;flex-shrink:0;font-size:0.78rem;color:#718096;font-weight:500;">' + r[0] + '</span>'
+        + '<span style="font-size:0.85rem;font-weight:600;color:#1a202c;flex:1;">' + r[1] + '</span>'
+        + '</div>';
+    }).join('');
+
+    // Issues Tags
+    var issuesSec = document.getElementById('svcDetailIssuesSection');
+    var issuesTiles = document.getElementById('svcDetailIssueTiles');
+    var issues = (s.issues || []).filter(function(i){ return i; });
+    if (issues.length > 0) {
+      issuesSec.style.display = 'block';
+      issuesTiles.innerHTML = issues.map(function(tag) {
+        return '<span style="display:inline-block;padding:0.3rem 0.75rem;border-radius:20px;font-size:0.78rem;font-weight:600;background:#fff5f5;color:#E31E24;border:1.5px solid #fed7d7;">' + tag + '</span>';
+      }).join('');
+    } else {
+      issuesSec.style.display = 'none';
+    }
+
+    // Services Rendered (svcRows)
+    var svcSec = document.getElementById('svcDetailSvcSection');
+    var svcRowsEl = document.getElementById('svcDetailSvcRows');
+    var svcRows = (s.svcRows || []).filter(function(r){ return r.name; });
+    if (svcRows.length > 0) {
+      svcSec.style.display = 'block';
+      svcRowsEl.innerHTML = svcRows.map(function(r) {
+        var qty = parseFloat(r.qty) || 1;
+        var cost = parseFloat(r.cost) || 0;
+        var subtotal = qty * cost;
+        return '<div style="background:white;border-radius:10px;padding:0.75rem 1rem;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">'
+          + '<div>'
+          + '<div style="font-weight:600;font-size:13px;color:#1a202c;">' + (r.name || '??) + '</div>'
+          + '<div style="font-size:11px;color:#718096;">' + qty + ' ' + (r.uom || '') + ' &nbsp;??nbsp; ?? + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</div>'
+          + '</div>'
+          + '<span style="font-weight:700;font-size:13px;color:#1a202c;">?? + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</span>'
+          + '</div>';
+      }).join('');
+    } else { svcSec.style.display = 'none'; }
+
+    // Materials Used (matRows)
+    var matSec = document.getElementById('svcDetailMatSection');
+    var matRowsEl = document.getElementById('svcDetailMatRows');
+    var matRows = (s.matRows || []).filter(function(r){ return r.name; });
+    if (matRows.length > 0) {
+      matSec.style.display = 'block';
+      matRowsEl.innerHTML = matRows.map(function(r) {
+        var qty = parseFloat(r.qty) || 1;
+        var cost = parseFloat(r.cost) || 0;
+        var subtotal = qty * cost;
+        return '<div style="background:white;border-radius:10px;padding:0.75rem 1rem;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">'
+          + '<div>'
+          + '<div style="font-weight:600;font-size:13px;color:#1a202c;">' + (r.name || '??) + (r.uom ? ' (' + r.uom + ')' : '') + '</div>'
+          + '<div style="font-size:11px;color:#718096;">' + qty + ' &nbsp;??nbsp; ?? + cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</div>'
+          + '</div>'
+          + '<span style="font-weight:700;font-size:13px;color:#1a202c;">?? + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</span>'
+          + '</div>';
+      }).join('');
+    } else { matSec.style.display = 'none'; }
+
+    // Action buttons ??mirror mobile logic (no Pending state anymore)
+    var completeBtn = document.getElementById('svcDetailCompleteBtn');
+    var editBtn = document.getElementById('svcDetailEditBtn');
+    completeBtn.style.display = statusLower === 'ongoing' ? 'flex' : 'none';
+    editBtn.style.display = statusLower !== 'completed' ? 'flex' : 'none';
+
+    completeBtn.onclick = function() {
+      if (!confirm('Are you sure you want to mark service for ' + s.plate + ' as Completed?')) return;
+      var cBtn = document.getElementById('svcDetailCompleteBtn');
+      var cBtnOrigHtml = cBtn ? cBtn.innerHTML : '';
+      if (cBtn) { cBtn.disabled = true; cBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Completing??; }
+      db.collection('maintenance').doc(docId).update({ status: 'Completed' }).then(function() {
+        var now = new Date();
+        var _MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var dateStr = _MO[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
+        var plate = (s.plate || '').trim().toUpperCase();
+        var matRows = s.matRows || [];
+        var svcRows = s.svcRows || [];
+        var batch = db.batch();
+
+        // Get actual user name from Firestore
+        var currentUser = firebase.auth().currentUser;
+        var byNamePromise = currentUser
+          ? db.collection('users').doc(currentUser.uid).get().then(function(uDoc) {
+              return (uDoc.exists && uDoc.data().name) ? uDoc.data().name : 'Admin';
+            }).catch(function() { return 'Admin'; })
+          : Promise.resolve('Admin');
+
+        byNamePromise.then(function(byName) {
+
+        // Auto-create issuances + deduct stock for materials
+        var matPromises = matRows.filter(function(r){ return r.name; }).map(function(r) {
+          var qty = parseInt(r.qty) || 1;
+          var cost = parseFloat(r.cost) || 0;
+          return db.collection('item_master').where('name', '==', r.name).limit(1).get().then(function(iSnap) {
+            var iData = iSnap.empty ? {} : iSnap.docs[0].data();
+            db.collection('issuances').add({
+              id: 'ISS-AUTO-' + Date.now(),
+              date: dateStr, plate: plate, assetDesc: s.desc || '',
+              itemNum: iData.num || '', itemName: r.name, itemType: 'Material',
+              commodityGroup: iData.group || '', uom: r.uom || '',
+              qty: '' + qty, unitCost: cost.toFixed(2), subtotal: (cost * qty).toFixed(2),
+              createdBy: byName, maintenanceId: s.id || docId,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+            // Deduct stock
+            return db.collection('stock_inventory').where('name', '==', r.name).limit(1).get().then(function(stSnap) {
+              if (!stSnap.empty) {
+                var stDoc = stSnap.docs[0];
+                var cur = (stDoc.data().stock || 0);
+                var newStock = Math.max(0, cur - qty);
+                var minLevel = stDoc.data().min || 0;
+                stDoc.ref.update({ stock: newStock, status: newStock >= minLevel ? 'OK' : 'Low', updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+              }
+              // Log OUT transaction
+              db.collection('transactions').add({
+                item: r.name, desc: 'Issued for maintenance ' + (s.id || docId) + ' ??' + plate,
+                type: 'OUT', qty: '-' + qty, date: dateStr, by: byName,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              });
+            });
+          });
+        });
+
+        // Issuances for service rows
+        var svcPromises = svcRows.filter(function(r){ return r.name; }).map(function(r) {
+          var qty = parseInt(r.qty) || 1;
+          var cost = parseFloat(r.cost) || 0;
+          return db.collection('item_master').where('name', '==', r.name).limit(1).get().then(function(iSnap) {
+            var iData = iSnap.empty ? {} : iSnap.docs[0].data();
+            return db.collection('issuances').add({
+              id: 'ISS-AUTO-' + Date.now() + '-S',
+              date: dateStr, plate: plate, assetDesc: s.desc || '',
+              itemNum: iData.num || '', itemName: r.name, itemType: 'Service',
+              commodityGroup: iData.group || '', uom: r.uom || '',
+              qty: '' + qty, unitCost: cost.toFixed(2), subtotal: (cost * qty).toFixed(2),
+              createdBy: byName, maintenanceId: s.id || docId,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+          });
+        });
+
+        Promise.all(matPromises.concat(svcPromises)).then(function() {
+          // Update vehicle status + last service date + last service odometer
+          var lastSvcDate = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+          var vUpdate = { status: 'Completed', completedAt: firebase.firestore.FieldValue.serverTimestamp(), lastSvcDate: lastSvcDate };
+          if (s.odometer) {
+            vUpdate.lastSvcOdo = parseInt(s.odometer) || 0;
+            vUpdate.lastServiceOdometer = parseInt(s.odometer) || 0;
+            vUpdate.odometer = parseInt(s.odometer) || 0;
+            vUpdate.odo = parseInt(s.odometer) + ' km';
+          }
+          db.collection('vehicles').where('plate', '==', plate).limit(1).get().then(function(vSnap) {
+            if (!vSnap.empty) vSnap.docs[0].ref.update(vUpdate);
+          });
+          closeModal('svcDetailsModal');
+          showToast('Service marked as Completed successfully!', 'success');
+
+          // Also update linked service booking to "Completed" if exists
+          if (s.bookingId) {
+            db.collection('service_bookings').doc(s.bookingId).get().then(function(bDoc) {
+              var bData = bDoc.exists ? bDoc.data() : {};
+              var customerId = bData.customerId || '';
+              bDoc.ref.update({ status: 'Completed' }).then(function() {
+                // Notify customer ??in-app
+                if (customerId) {
+                  db.collection('notifications').add({
+                    title: '??Service Completed',
+                    message: 'Your vehicle ' + plate + ' has been serviced and is now ready. Thank you for choosing AutoPro!',
+                    type: 'success',
+                    targetRole: '', targetUid: customerId,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
+                  });
+                  // Email notification
+                  if (typeof sendAlertEmail === 'function') {
+                    sendAlertEmail({ title: '??Service Completed', message: 'Your vehicle ' + plate + ' has been serviced and is now ready.', type: 'success', targetUid: customerId });
+                  }
+                }
+              }).catch(function() {});
+            }).catch(function() {});
+          }
+        });
+        }); // end byNamePromise.then
+      }).catch(function(err) { showToast('Error: ' + err.message, 'error'); if (cBtn) { cBtn.disabled = false; cBtn.innerHTML = cBtnOrigHtml; } });
+    };
+
+    editBtn.onclick = function() { closeModal('svcDetailsModal'); editService(docId); };
+
+    document.getElementById('svcDetailsModal').classList.add('active');
+  }
+
+  if (cached) {
+    var s = Object.assign({}, cached);
+    s._docId = s._id || docId;
+    _renderDetails(s);
+  } else {
+    db.collection('maintenance').doc(docId).get().then(function(doc) {
+      if (!doc.exists) return;
+      var s = doc.data();
+      s._docId = doc.id;
+      _renderDetails(s);
+    });
+  }
+}
+
+function svcSave() {
+  var plate = document.getElementById('svcPlateSelect').value;
+  var mechanic = document.getElementById('svcMechanic').value.trim();
+  var date = document.getElementById('svcDateDisplay').value.trim(); // "May 14, 2026" format
+  var odometer = parseInt(document.getElementById('svcOdometer').value) || 0;
+  if (!plate || !mechanic || !date) { showToast('Please fill all required fields.', 'error'); return; }
+
+  var svcRows = [], matRows = [];
+  document.querySelectorAll('#svcSvcRows .svc-row').forEach(function(row) {
+    var name = (row.querySelector('.svc-row-name') || {}).value || '';
+    if (!name) return;
+    svcRows.push({ name: name, qty: (row.querySelector('.svc-row-qty')||{}).value||'1', uom: (row.querySelector('.svc-row-uom')||{}).value||'', cost: (row.querySelector('.svc-row-cost')||{}).value||'0' });
+  });
+  document.querySelectorAll('#svcMatRows .svc-row').forEach(function(row) {
+    var name = (row.querySelector('.svc-row-name') || {}).value || '';
+    if (!name) return;
+    matRows.push({ name: name, qty: (row.querySelector('.svc-row-qty')||{}).value||'1', uom: (row.querySelector('.svc-row-uom')||{}).value||'', cost: (row.querySelector('.svc-row-cost')||{}).value||'0' });
+  });
+
+  var v = _svcVehicles.find(function(x){ return (x.plate || x.plateNumber) === plate; });
+  var total = svcCalcTotal();
+  var db = firebase.firestore();
+
+  // ?€?€ vehicleId + ownerId are always resolved from the vehicle document ?€?€
+  // The admin selects a plate; ownerId comes from vehicle.ownerId so it
+  // cannot be tampered with by client-side input.
+  var resolvedVehicleId = v ? (v._id || v.id || '') : '';
+  var resolvedOwnerId   = v ? (v.ownerId || '') : '';
+
+  // If _svcVehicles doesn't carry ownerId yet, fall back to Firestore lookup
+  // (happens before migration completes ??non-blocking, handled in save flow)
+
+  var data = {
+    // ?€?€ Relational keys (authoritative) ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
+    plateNumber: plate,   // canonical field name
+    plate:       plate,   // legacy alias kept for backward compatibility
+    desc: v ? (v.desc || v.assetDescription || '') : '',
+    mechanic: mechanic,
+    date: date,
+    odometer: odometer,
+    cost: '?? + total.toLocaleString('en-PH', {minimumFractionDigits:2}),
+    svcRows: svcRows,
+    matRows: matRows,
+    issues: _svcSelectedIssues.slice(),
+  };
+  if (resolvedVehicleId) data.vehicleId = resolvedVehicleId;
+  if (resolvedOwnerId)   data.ownerId   = resolvedOwnerId;
+
+  // Update vehicle's current odometer on save (only when a value is provided)
+  function _updateVehicleOdometer() {
+    if (!odometer || odometer <= 0) return;
+    if (resolvedVehicleId) {
+      db.collection('vehicles').doc(resolvedVehicleId).update({
+        odometer: odometer, odo: odometer + ' km'
+      }).catch(function() {});
+      return;
+    }
+    db.collection('vehicles').where('plate', '==', plate).limit(1).get().then(function(vSnap) {
+      if (!vSnap.empty) {
+        var vDoc = vSnap.docs[0];
+        vDoc.ref.update({ odometer: odometer, odo: odometer + ' km' });
+      }
+    }).catch(function() {});
+  }
+  var sBtn = document.getElementById('svcSubmitBtn');
+  var sBtnOrigHtml = sBtn ? sBtn.innerHTML : '';
+  var spinSave = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving??;
+  var spinUpdate = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Updating??;
+  if (sBtn) { sBtn.disabled = true; sBtn.innerHTML = window._svcEditingId ? spinUpdate : spinSave; }
+  if (window._svcEditingId) {
+    db.collection('maintenance').doc(window._svcEditingId).update(data)
+      .then(function() { _updateVehicleOdometer(); closeModal('svcAddModal'); showToast('Service updated successfully!', 'success'); })
+      .catch(function(err) { showToast('Update failed: ' + err.message, 'error'); })
+      .finally(function() { if (sBtn) { sBtn.disabled = false; sBtn.innerHTML = sBtnOrigHtml; } });
+  } else {
+    data.status = 'Ongoing';
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    // Link to service booking if created from one
+    if (window._svcFromBookingId) {
+      data.bookingId = window._svcFromBookingId;
+    }
+    // Check for existing Ongoing service for this plate
+    db.collection('maintenance')
+      .where('plate', '==', plate)
+      .where('status', 'in', ['Ongoing'])
+      .limit(1).get()
+      .then(function(snap) {
+        if (!snap.empty) {
+          showToast('This vehicle already has an Ongoing service. Complete or cancel it first.', 'error');
+          if (sBtn) { sBtn.disabled = false; sBtn.innerHTML = sBtnOrigHtml; }
+          return;
+        }
+        return db.collection('maintenance').add(data).then(function(ref) {
+          if (ref) {
+            _updateVehicleOdometer();
+            // Set vehicle status to Under Maintenance ??prefer vehicleId over plate scan
+            if (resolvedVehicleId) {
+              db.collection('vehicles').doc(resolvedVehicleId).update({ status: 'Under Maintenance' }).catch(function() {});
+            } else {
+              db.collection('vehicles').where('plate', '==', plate).limit(1).get().then(function(vSnap) {
+                if (!vSnap.empty) vSnap.docs[0].ref.update({ status: 'Under Maintenance' });
+              }).catch(function() {});
+            }
+            // Notify customer ??in-app + email
+            if (window._svcFromBookingId) {
+              db.collection('service_bookings').doc(window._svcFromBookingId).get().then(function(bDoc) {
+                var customerId = bDoc.exists ? (bDoc.data().customerId || '') : '';
+                if (customerId) {
+                  db.collection('notifications').add({
+                    title: '?”§ Vehicle Under Maintenance',
+                    message: 'Your vehicle ' + plate + ' is now under maintenance. We will notify you once the service is completed.',
+                    type: 'info',
+                    targetRole: '', targetUid: customerId,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
+                  });
+                  if (typeof sendAlertEmail === 'function') {
+                    sendAlertEmail({ title: '?”§ Vehicle Under Maintenance', message: 'Your vehicle ' + plate + ' is now under maintenance.', type: 'info', targetUid: customerId });
+                  }
+                }
+              }).catch(function() {});
+            }
+            closeModal('svcAddModal');
+            showToast('Service added successfully!', 'success');
+          }
+        });
+      })
+      .catch(function(err) { showToast('Save failed: ' + err.message, 'error'); })
+      .finally(function() { if (sBtn) { sBtn.disabled = false; sBtn.innerHTML = sBtnOrigHtml; } });
+  }
+}
 </script>
-</body>
 </html>
