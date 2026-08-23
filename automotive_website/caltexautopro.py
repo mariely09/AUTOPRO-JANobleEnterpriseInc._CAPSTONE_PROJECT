@@ -762,9 +762,9 @@ _AI_BACKEND_URL = os.environ.get('AI_BACKEND_URL', 'https://caltex-autopro-capst
 
 
 def _ai_backend_available() -> bool:
-    """Quick liveness ping to the AI backend."""
+    """Quick liveness ping to the AI backend. Uses a longer timeout to handle Render cold starts."""
     try:
-        r = _requests_lib.get(f'{_AI_BACKEND_URL}/health', timeout=3)
+        r = _requests_lib.get(f'{_AI_BACKEND_URL}/health', timeout=60)
         return r.status_code == 200
     except Exception:
         return False
@@ -1158,23 +1158,39 @@ def ai_generate_report():
         elif month:
             params['month'] = month
 
-        resp = _requests_lib.post(
-            f'{_AI_BACKEND_URL}/admin/report',
-            params=params,
-            json=filters if filters else None,   # body → filters dict
-            timeout=90,
-        )
+        # Attempt the report request — retry once after a warm-up delay if the
+        # backend is cold-starting (Render free tier can take 30–50 s to wake).
+        def _do_report_request():
+            return _requests_lib.post(
+                f'{_AI_BACKEND_URL}/admin/report',
+                params=params,
+                json=filters if filters else None,
+                timeout=120,
+            )
+
+        try:
+            resp = _do_report_request()
+        except (_requests_lib.exceptions.ConnectionError,
+                _requests_lib.exceptions.Timeout):
+            # Backend may be cold-starting — warm it up then retry once
+            import time as _time
+            try:
+                _requests_lib.get(f'{_AI_BACKEND_URL}/health', timeout=60)
+            except Exception:
+                pass
+            _time.sleep(2)
+            resp = _do_report_request()
 
         # Surface 400 errors (no records / future date) as JSON so the
         # frontend can show the real message instead of a generic failure.
         if resp.status_code == 400:
             try:
-                detail = resp.json().get('detail', 'Report generation failed.')
+                detail = resp.json().get('detail', 'No records found for the selected period.')
             except Exception:
-                detail = 'Report generation failed.'
+                detail = 'No records found for the selected period.'
             return jsonify({'success': False, 'error': detail}), 400
 
-        # Surface 503 (quota exceeded) and 500 (server error) with real detail
+        # Surface 503 / 500 with real detail
         if resp.status_code in (500, 503):
             try:
                 detail = resp.json().get('detail', 'Report generation failed.')
@@ -1206,8 +1222,13 @@ def ai_generate_report():
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['Cache-Control'] = 'no-store'
         return response
-    except _requests_lib.exceptions.ConnectionError:
-        return jsonify({'success': False, 'error': 'AI service offline'}), 503
+    except (_requests_lib.exceptions.ConnectionError,
+            _requests_lib.exceptions.Timeout):
+        return jsonify({
+            'success': False,
+            'error': 'Cannot reach the AI service. It may be starting up (Render cold start) — '
+                     'please wait 30–60 seconds and try again.'
+        }), 503
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -1225,6 +1246,146 @@ def privacy_policy():
 @app.route('/terms_condiion.html')
 def terms_conditions():
     return render_template('terms_condiion.html')
+
+
+@app.route('/api/send-notification-email', methods=['POST'])
+def send_notification_email():
+    """
+    Send a PMS/alert notification email to admin users (by role) or a specific
+    customer (by UID).  Called by admin_functions.js generateWebPMSNotifications.
+
+    Request body:
+        title      : str  – notification title
+        message    : str  – notification body text
+        type       : str  – "warning" | "info" | "success"
+        targetRole : str  – "admin" | "staff" | "" (empty = use targetUid)
+        targetUid  : str  – Firebase UID of a specific user (used when targetRole is empty)
+    """
+    import firebase_admin.firestore as _fs
+
+    data        = request.get_json(silent=True) or {}
+    title       = data.get('title',       'AutoPro Notification').strip()
+    message     = data.get('message',     '').strip()
+    notif_type  = data.get('type',        'info').strip()
+    target_role = data.get('targetRole',  '').strip()
+    target_uid  = data.get('targetUid',   '').strip()
+
+    if not message:
+        return jsonify({'ok': False, 'error': 'Missing message'}), 400
+
+    colour_map = {'warning': '#E8001C', 'success': '#38a169', 'info': '#003087'}
+    icon_map   = {'warning': '⚠️',      'success': '✅',       'info': 'ℹ️'}
+    accent  = colour_map.get(notif_type, '#003087')
+    icon    = icon_map.get(notif_type, 'ℹ️')
+    subject = f'{icon} {title}'
+
+    html_body = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;padding:40px 0;">
+  <tr><td align="center">
+    <table width="520" cellpadding="0" cellspacing="0"
+           style="background:#fff;border-radius:16px;overflow:hidden;
+                  box-shadow:0 4px 24px rgba(0,0,0,.10);">
+      <tr>
+        <td style="background:#E8001C;padding:30px 40px 0;text-align:center;">
+          <div style="font-size:13px;font-weight:700;letter-spacing:4px;
+                      color:rgba(255,255,255,.8);margin-bottom:6px;">CALTEX</div>
+          <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:2px;">AutoPro</div>
+          <div style="background:#fff;border-radius:24px 24px 0 0;height:22px;margin-top:20px;"></div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 40px 40px;">
+          <div style="text-align:center;margin-bottom:18px;">
+            <span style="display:inline-block;background:{accent}18;
+                         border:1.5px solid {accent}40;border-radius:24px;
+                         padding:6px 18px;font-size:12px;font-weight:700;
+                         color:{accent};letter-spacing:0.5px;">
+              {icon} &nbsp;{title}
+            </span>
+          </div>
+          <div style="background:#f7f8fa;border-radius:12px;padding:18px 20px;
+                      margin-bottom:20px;">
+            <p style="margin:0;font-size:13px;color:#1a202c;line-height:1.7;">{message}</p>
+          </div>
+          <p style="margin:0;font-size:12px;color:#a0aec0;text-align:center;line-height:1.6;">
+            Log in to the AutoPro portal to view more details.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f7f8fa;padding:18px 40px;text-align:center;
+                   border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:11px;color:#a0aec0;line-height:1.6;">
+            &copy; 2025 AutoPro &middot; JA Noble Enterprise Inc<br/>
+            102 National Highway, Brgy. Landayan, San Pedro, Laguna<br/>
+            This is an automated message &mdash; please do not reply.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>"""
+
+    # ── Resolve recipient emails from Firestore ──────────────────────────────
+    try:
+        fdb = _fs.client()
+        recipients = []
+        if target_uid:
+            # Single user
+            doc = fdb.collection('users').document(target_uid).get()
+            if doc.exists:
+                d     = doc.to_dict()
+                email = (d.get('email') or '').strip()
+                name  = (d.get('name')  or 'User').strip()
+                if email:
+                    recipients.append({'email': email, 'name': name})
+        elif target_role:
+            # All users with that role
+            docs = fdb.collection('users').where('role', '==', target_role).stream()
+            for doc in docs:
+                d     = doc.to_dict()
+                email = (d.get('email') or '').strip()
+                name  = (d.get('name')  or target_role.capitalize()).strip()
+                if email:
+                    recipients.append({'email': email, 'name': name})
+    except Exception as e:
+        print(f'❌ send-notification-email Firestore error: {e}')
+        return jsonify({'ok': False, 'error': f'Firestore lookup failed: {e}'}), 500
+
+    if not recipients:
+        return jsonify({'ok': True, 'sent': 0, 'note': 'No recipients found'})
+
+    # ── Send one email per recipient ─────────────────────────────────────────
+    sent   = 0
+    errors = []
+    for r in recipients:
+        personalized = html_body.replace(
+            'Log in to the AutoPro portal',
+            f'Hi <strong>{r["name"]}</strong> — log in to the AutoPro portal'
+        )
+        try:
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From']    = SMTP_FROM
+            msg['To']      = r['email']
+            msg.attach(MIMEText(personalized, 'html'))
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+                server.ehlo()
+                server.starttls()
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.sendmail(SMTP_USER, r['email'], msg.as_string())
+            print(f'✅ Notification email → {r["email"]}')
+            sent += 1
+        except Exception as e:
+            print(f'❌ Notification email error → {r["email"]}: {e}')
+            errors.append({'email': r['email'], 'error': str(e)})
+
+    return jsonify({'ok': True, 'sent': sent, 'errors': errors})
 
 
 @app.route('/api/send-booking-email', methods=['POST'])

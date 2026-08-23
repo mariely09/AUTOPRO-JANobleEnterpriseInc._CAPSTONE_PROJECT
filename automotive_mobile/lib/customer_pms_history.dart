@@ -15,7 +15,7 @@ class CustomerPmsScreen extends StatefulWidget {
 class _CustomerPmsScreenState extends State<CustomerPmsScreen> {
   static const _red = Color(0xFFE8001C);
   bool _searchOpen = false;
-  final _searchCtrl     = TextEditingController();
+  final _searchCtrl = TextEditingController();
   final _searchNotifier = ValueNotifier<String>('');
 
   @override
@@ -30,13 +30,13 @@ class _CustomerPmsScreenState extends State<CustomerPmsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1a202c),
+        backgroundColor: const Color(0xFF004B5F),
         elevation: 0,
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
-              stops: [0.0, 0.55, 1.0],
+              colors: [Color(0xFF004B5F), Color(0xFF006B7D), Color(0xFFEE152A)],
+              stops: [0.0, 0.35, 1.0],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -55,7 +55,10 @@ class _CustomerPmsScreenState extends State<CustomerPmsScreen> {
                 onChanged: (v) => _searchNotifier.value = v,
                 decoration: InputDecoration(
                   hintText: 'Search plate or description...',
-                  hintStyle: const TextStyle(color: Colors.white60, fontSize: 13),
+                  hintStyle: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 13,
+                  ),
                   border: InputBorder.none,
                   suffixIcon: _searchCtrl.text.isNotEmpty
                       ? GestureDetector(
@@ -63,22 +66,31 @@ class _CustomerPmsScreenState extends State<CustomerPmsScreen> {
                             _searchCtrl.clear();
                             _searchNotifier.value = '';
                           },
-                          child: const Icon(Icons.close, color: Colors.white70, size: 18),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white70,
+                            size: 18,
+                          ),
                         )
                       : null,
                 ),
               )
-            : const Text('PMS History',
+            : const Text(
+                'PMS History',
                 style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold)),
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
         actions: [
           if (_searchOpen)
             IconButton(
               icon: const Icon(Icons.close, color: Colors.white, size: 20),
               onPressed: () {
-                setState(() { _searchOpen = false; });
+                setState(() {
+                  _searchOpen = false;
+                });
                 _searchCtrl.clear();
                 _searchNotifier.value = '';
               },
@@ -104,13 +116,13 @@ class CustomerPms extends StatefulWidget {
 
 class _CustomerPmsState extends State<CustomerPms> {
   static const _red = Color(0xFFE8001C);
-  static const _bg  = Color(0xFFF7F8FA);
+  static const _bg = Color(0xFFF7F8FA);
 
   String _userName = '';
   String _companyName = '';
 
   // Search state lives here — NOT rebuilt by StreamBuilder
-  final _searchCtrl     = TextEditingController();
+  final _searchCtrl = TextEditingController();
   final _searchNotifier = ValueNotifier<String>('');
 
   @override
@@ -129,11 +141,15 @@ class _CustomerPmsState extends State<CustomerPms> {
   Future<void> _loadUserName() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    if (mounted) setState(() {
-      _userName = doc['name'] as String? ?? '';
-      _companyName = doc.data()?['companyName'] as String? ?? '';
-    });
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+    if (mounted)
+      setState(() {
+        _userName = doc['name'] as String? ?? '';
+        _companyName = doc.data()?['companyName'] as String? ?? '';
+      });
   }
 
   @override
@@ -144,81 +160,110 @@ class _CustomerPmsState extends State<CustomerPms> {
 
     return Container(
       color: _bg,
-      child: Column(children: [
-
-        // ── Header ───────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          child: Row(children: [
-            const Icon(Icons.history, color: _red, size: 20),
-            const SizedBox(width: 8),
-            const Expanded(child: Text('PMS History',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1a202c)))),
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('vehicles').snapshots(),
-              builder: (_, snap) {
-                final uname = _userName.toLowerCase();
-                final cname = _companyName.toLowerCase();
-                final count = (snap.data?.docs ?? [])
-                    .where((d) {
+      child: Column(
+        children: [
+          // ── Header ───────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Row(
+              children: [
+                const Icon(Icons.history, color: _red, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'PMS History',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1a202c),
+                    ),
+                  ),
+                ),
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('vehicles')
+                      .snapshots(),
+                  builder: (_, snap) {
+                    final uname = _userName.toLowerCase();
+                    final cname = _companyName.toLowerCase();
+                    final count = (snap.data?.docs ?? []).where((d) {
                       final owner = (d['owner'] as String? ?? '').toLowerCase();
-                      return owner == uname || (cname.isNotEmpty && owner == cname);
-                    })
-                    .length;
-                return Text('$count vehicle${count != 1 ? 's' : ''}',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF718096)));
-              },
+                      return owner == uname ||
+                          (cname.isNotEmpty && owner == cname);
+                    }).length;
+                    return Text(
+                      '$count vehicle${count != 1 ? 's' : ''}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF718096),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-          ]),
-        ),
+          ),
 
-        // ── Search bar — completely outside StreamBuilder ─────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: TextField(
-            controller: _searchCtrl,
-            onChanged: (v) => _searchNotifier.value = v,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF1a202c)),
-            decoration: InputDecoration(
-              hintText: 'Search by plate or description...',
-              hintStyle: const TextStyle(fontSize: 13, color: Color(0xFFa0aec0)),
-              prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFFa0aec0)),
-              suffixIcon: ValueListenableBuilder<String>(
-                valueListenable: _searchNotifier,
-                builder: (_, q, __) => q.isNotEmpty
-                    ? GestureDetector(
-                        onTap: () {
-                          _searchCtrl.clear();
-                          _searchNotifier.value = '';
-                        },
-                        child: const Icon(Icons.close, size: 16, color: Color(0xFFa0aec0)),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: _red, width: 1.5),
+          // ── Search bar — completely outside StreamBuilder ─────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (v) => _searchNotifier.value = v,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF1a202c)),
+              decoration: InputDecoration(
+                hintText: 'Search by plate or description...',
+                hintStyle: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFFa0aec0),
+                ),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  size: 18,
+                  color: Color(0xFFa0aec0),
+                ),
+                suffixIcon: ValueListenableBuilder<String>(
+                  valueListenable: _searchNotifier,
+                  builder: (_, q, __) => q.isNotEmpty
+                      ? GestureDetector(
+                          onTap: () {
+                            _searchCtrl.clear();
+                            _searchNotifier.value = '';
+                          },
+                          child: const Icon(
+                            Icons.close,
+                            size: 16,
+                            color: Color(0xFFa0aec0),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: _red, width: 1.5),
+                ),
               ),
             ),
           ),
-        ),
 
-        // ── Vehicle list — rebuilt only by stream + search ────
-        Expanded(
-          child: _CustomerPmsBody(searchNotifier: _searchNotifier),
-        ),
-      ]),
+          // ── Vehicle list — rebuilt only by stream + search ────
+          Expanded(child: _CustomerPmsBody(searchNotifier: _searchNotifier)),
+        ],
+      ),
     );
   }
 }
@@ -230,7 +275,11 @@ class _VehicleHistoryCard extends StatelessWidget {
   final String type;
   static const _red = Color(0xFFE8001C);
 
-  const _VehicleHistoryCard({required this.plate, required this.desc, required this.type});
+  const _VehicleHistoryCard({
+    required this.plate,
+    required this.desc,
+    required this.type,
+  });
 
   IconData get _vehicleIcon {
     final t = type.toLowerCase();
@@ -256,7 +305,9 @@ class _VehicleHistoryCard extends StatelessWidget {
           });
 
         final totalCost = docs.fold<double>(0, (sum, d) {
-          final cost = (d['cost'] as String? ?? '0').replaceAll('₱', '').replaceAll(',', '');
+          final cost = (d['cost'] as String? ?? '0')
+              .replaceAll('₱', '')
+              .replaceAll(',', '');
           return sum + (double.tryParse(cost) ?? 0);
         });
 
@@ -264,36 +315,90 @@ class _VehicleHistoryCard extends StatelessWidget {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => PmsHistoryDetails(plate: plate, desc: desc, type: type),
+              builder: (_) =>
+                  PmsHistoryDetails(plate: plate, desc: desc, type: type),
             ),
           ),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             padding: const EdgeInsets.all(16),
-            child: Row(children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(plate, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1a202c))),
-                Text(desc,  style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                const SizedBox(height: 4),
-                Row(children: [
-                  const Icon(Icons.receipt_long_outlined, size: 12, color: Color(0xFF718096)),
-                  const SizedBox(width: 4),
-                  Text('${docs.length} service record${docs.length != 1 ? 's' : ''}',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                ]),
-              ])),
-              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text('₱${totalCost.toStringAsFixed(2)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1a202c))),
-                const Text('total spent', style: TextStyle(fontSize: 9, color: Color(0xFF718096))),
-                const SizedBox(height: 6),
-                const Icon(Icons.chevron_right, color: Color(0xFF718096), size: 18),
-              ]),
-            ]),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        plate,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Color(0xFF1a202c),
+                        ),
+                      ),
+                      Text(
+                        desc,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF718096),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.receipt_long_outlined,
+                            size: 12,
+                            color: Color(0xFF718096),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${docs.length} service record${docs.length != 1 ? 's' : ''}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF718096),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '₱${totalCost.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Color(0xFF1a202c),
+                      ),
+                    ),
+                    const Text(
+                      'total spent',
+                      style: TextStyle(fontSize: 9, color: Color(0xFF718096)),
+                    ),
+                    const SizedBox(height: 6),
+                    const Icon(
+                      Icons.chevron_right,
+                      color: Color(0xFF718096),
+                      size: 18,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -323,11 +428,15 @@ class _CustomerPmsBodyState extends State<_CustomerPmsBody> {
   Future<void> _loadUserName() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    if (mounted) setState(() {
-      _userName = doc['name'] as String? ?? '';
-      _companyName = doc.data()?['companyName'] as String? ?? '';
-    });
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+    if (mounted)
+      setState(() {
+        _userName = doc['name'] as String? ?? '';
+        _companyName = doc.data()?['companyName'] as String? ?? '';
+      });
   }
 
   @override
@@ -345,23 +454,22 @@ class _CustomerPmsBodyState extends State<_CustomerPmsBody> {
 
         final uname = _userName.toLowerCase();
         final cname = _companyName.toLowerCase();
-        final allVehicles = (vSnap.data?.docs ?? [])
-            .where((d) {
-              final owner = (d['owner'] as String? ?? '').toLowerCase();
-              return owner == uname || (cname.isNotEmpty && owner == cname);
-            })
-            .toList();
+        final allVehicles = (vSnap.data?.docs ?? []).where((d) {
+          final owner = (d['owner'] as String? ?? '').toLowerCase();
+          return owner == uname || (cname.isNotEmpty && owner == cname);
+        }).toList();
 
         return ValueListenableBuilder<String>(
           valueListenable: widget.searchNotifier,
           builder: (_, q, __) {
-            final query    = q.toLowerCase().trim();
+            final query = q.toLowerCase().trim();
             final filtered = query.isEmpty
                 ? allVehicles
                 : allVehicles.where((d) {
-                    final data  = d.data() as Map<String, dynamic>;
-                    final plate = (data['plate'] as String? ?? '').toLowerCase();
-                    final desc  = (data['desc']  as String? ?? '').toLowerCase();
+                    final data = d.data() as Map<String, dynamic>;
+                    final plate = (data['plate'] as String? ?? '')
+                        .toLowerCase();
+                    final desc = (data['desc'] as String? ?? '').toLowerCase();
                     return plate.contains(query) || desc.contains(query);
                   }).toList();
 
@@ -388,8 +496,8 @@ class _CustomerPmsBodyState extends State<_CustomerPmsBody> {
                 final vData = filtered[i].data() as Map<String, dynamic>;
                 return _VehicleHistoryCard(
                   plate: vData['plate'] as String? ?? '',
-                  desc:  vData['desc']  as String? ?? '',
-                  type:  vData['type']  as String? ?? '',
+                  desc: vData['desc'] as String? ?? '',
+                  type: vData['type'] as String? ?? '',
                 );
               },
             );

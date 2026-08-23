@@ -282,6 +282,17 @@ Keyword mappings (English and Filipino):
 
 """ + _build_report_prompt()
 
+def _is_model_not_found(exc: Exception) -> bool:
+    """Return True if the Groq error is a model_not_found / 404."""
+    s = str(exc).lower()
+    return (
+        "model_not_found" in s
+        or "does not exist" in s
+        or "404" in s
+        or "no access to it" in s
+    )
+
+
 def _call_groq(messages: list[dict], tools: list[dict] | None = None,
                model: str | None = None):
     """
@@ -324,6 +335,15 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None,
             "The AI service has reached its daily usage limit (Groq free tier). "
             "Please try again later."
         ) from exc
+    except Exception as exc:
+        if _is_model_not_found(exc):
+            logger.error("Groq model_not_found: %s — model=%s", exc, chosen_model)
+            raise InvalidApiKeyError(
+                f"The AI model '{chosen_model}' is no longer available on Groq. "
+                "Please update GROQ_MODEL_PRIMARY / GROQ_MODEL_SECONDARY in the "
+                "Render environment variables to a currently supported model."
+            ) from exc
+        raise
 
 
 def _strip_null_args(raw_args: str) -> dict:

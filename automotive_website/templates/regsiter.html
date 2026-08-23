@@ -66,17 +66,16 @@
     .btn-back {
       width: 100%;
       padding: 13px;
-      background: #E8001C;
+      background: linear-gradient(135deg, #1a202c 0%, #2d3748 55%, #E8001C 100%);
       color: #fff;
       border: none;
       border-radius: 30px;
       font-size: 15px;
       font-weight: 700;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(232,0,28,0.3);
-      transition: opacity .2s;
+      transition: opacity .2s, transform .2s;
     }
-    .btn-back:hover { opacity: .88; }
+    .btn-back:hover { opacity: .92; transform: translateY(-1px); }
 
     @media (max-width: 640px) {
       .name-row { grid-template-columns: 1fr; }
