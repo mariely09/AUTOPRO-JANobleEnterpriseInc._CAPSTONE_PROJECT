@@ -425,7 +425,11 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
         previousDate.isNotEmpty && previousDate != date;
     final ss = _statusStyle(data);
     final status = (data['status'] as String? ?? '').toLowerCase();
-    final canCancel = status == 'pending' || status == 'approved';
+    final bookingDate = DateTime.tryParse(date);
+    final today = DateTime.now();
+    final todayMidnight = DateTime(today.year, today.month, today.day);
+    final canCancelDate = bookingDate != null && bookingDate.isAfter(todayMidnight.subtract(const Duration(seconds: 1))) && bookingDate.isAfter(todayMidnight);
+    final canCancel = (status == 'pending' || status == 'approved') && canCancelDate;
     final docId = data['docId'] as String? ?? '';
 
     showModalBottomSheet(
@@ -531,27 +535,46 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
                 ),
               ),
             ),
-            // ── Cancel button (only for Pending / Approved) ──
-            if (canCancel && docId.isNotEmpty)
+            // ── Cancel button (only for Pending / Approved and date is in the future) ──
+            if ((status == 'pending' || status == 'approved') && docId.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      Navigator.pop(context); // close modal first
-                      await _cancelBooking(context, data);
-                    },
-                    icon: const Icon(Icons.cancel_outlined, size: 16, color: Color(0xFF718096)),
-                    label: const Text('Cancel Booking',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF718096))),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: const BorderSide(color: Color(0xFFe2e8f0)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
+                child: canCancel
+                    ? SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            Navigator.pop(context);
+                            await _cancelBooking(context, data);
+                          },
+                          icon: const Icon(Icons.cancel_outlined, size: 16, color: Color(0xFF718096)),
+                          label: const Text('Cancel Booking',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF718096))),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            side: const BorderSide(color: Color(0xFFe2e8f0)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF8F0),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFED7AA)),
+                        ),
+                        child: const Row(children: [
+                          Icon(Icons.info_outline, color: Color(0xFFC05621), size: 16),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Cancellation is no longer allowed on or after the scheduled date.',
+                              style: TextStyle(fontSize: 12, color: Color(0xFFC05621), fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ]),
+                      ),
               ),
           ]),
         ),

@@ -8,9 +8,14 @@ import 'customer_mybookings.dart';
 class CustomerBookService extends StatefulWidget {
   /// When [embedded] is true (inside a TabBarView), the AppBar is hidden.
   final bool embedded;
+
   /// When set, this vehicle will be pre-selected on load.
   final String? preselectedVehicleId;
-  const CustomerBookService({super.key, this.embedded = false, this.preselectedVehicleId});
+  const CustomerBookService({
+    super.key,
+    this.embedded = false,
+    this.preselectedVehicleId,
+  });
 
   @override
   State<CustomerBookService> createState() => _CustomerBookServiceState();
@@ -30,13 +35,24 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
   bool _loading = true;
   bool _submitting = false;
 
-  static const _allTimeSlots = ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'];
+  static const _allTimeSlots = [
+    '8:00 AM',
+    '9:00 AM',
+    '10:00 AM',
+    '11:00 AM',
+    '1:00 PM',
+    '2:00 PM',
+    '3:00 PM',
+    '4:00 PM',
+  ];
 
   // Calendar state
   late int _calYear;
   late int _calMonth;
-  Map<String, List<String>> _bookedDates = {}; // date → list of taken time slots
-  Map<String, List<String>> _bookedTimes = {}; // date → list of taken time slots (alias, reused from _bookedDates)
+  Map<String, List<String>> _bookedDates =
+      {}; // date → list of taken time slots
+  Map<String, List<String>> _bookedTimes =
+      {}; // date → list of taken time slots (alias, reused from _bookedDates)
 
   @override
   void initState() {
@@ -56,19 +72,33 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     final svcSnap = await FirebaseFirestore.instance
         .collection('item_master')
         .get();
-    
-    final serviceItems = svcSnap.docs.where((d) {
-      final data = d.data();
-      final type = (data['type'] as String? ?? data['itemType'] as String? ?? '').toLowerCase();
-      return type == 'service';
-    }).map((d) => {'id': d.id, ...d.data()}).toList();
+
+    final serviceItems = svcSnap.docs
+        .where((d) {
+          final data = d.data();
+          final type =
+              (data['type'] as String? ?? data['itemType'] as String? ?? '')
+                  .toLowerCase();
+          return type == 'service';
+        })
+        .map((d) => {'id': d.id, ...d.data()})
+        .toList();
 
     // Load user's vehicles
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    final userName = (userDoc.data()?['name'] as String? ?? '').toLowerCase().trim();
-    final companyName = (userDoc.data()?['companyName'] as String? ?? '').toLowerCase().trim();
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+    final userName = (userDoc.data()?['name'] as String? ?? '')
+        .toLowerCase()
+        .trim();
+    final companyName = (userDoc.data()?['companyName'] as String? ?? '')
+        .toLowerCase()
+        .trim();
 
-    final vehSnap = await FirebaseFirestore.instance.collection('vehicles').get();
+    final vehSnap = await FirebaseFirestore.instance
+        .collection('vehicles')
+        .get();
     final myVehicles = vehSnap.docs
         .where((d) {
           final data = d.data();
@@ -76,9 +106,9 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
           // Match if vehicle owner equals the user's name OR their company name
           // Also match if ownerId field equals the current uid
           final ownerId = (data['ownerId'] as String? ?? '').trim();
-          return (userName.isNotEmpty && owner == userName)
-              || (companyName.isNotEmpty && owner == companyName)
-              || (ownerId.isNotEmpty && ownerId == uid);
+          return (userName.isNotEmpty && owner == userName) ||
+              (companyName.isNotEmpty && owner == companyName) ||
+              (ownerId.isNotEmpty && ownerId == uid);
         })
         .map((d) => {'id': d.id, ...d.data()})
         .toList();
@@ -117,10 +147,11 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
           if (!slots[date]!.contains(time)) slots[date]!.add(time);
         }
       }
-      if (mounted) setState(() {
-        _bookedDates = slots;
-        _bookedTimes = Map.from(slots); // share the same data
-      });
+      if (mounted)
+        setState(() {
+          _bookedDates = slots;
+          _bookedTimes = Map.from(slots); // share the same data
+        });
     } catch (_) {}
   }
 
@@ -128,7 +159,8 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     if (_bookedTimes.containsKey(dateStr)) return;
     // Reuse already-loaded slot data if available
     if (_bookedDates.isNotEmpty) {
-      if (mounted) setState(() => _bookedTimes[dateStr] = _bookedDates[dateStr] ?? []);
+      if (mounted)
+        setState(() => _bookedTimes[dateStr] = _bookedDates[dateStr] ?? []);
       return;
     }
     try {
@@ -151,22 +183,29 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
 
   Future<void> _submitBooking() async {
     if (_selectedVehicleIds.isEmpty) {
-      _snack('Please select at least one vehicle.'); return;
+      _snack('Please select at least one vehicle.');
+      return;
     }
     // Check each selected vehicle has at least one service
     for (final vId in _selectedVehicleIds) {
       final svcs = _vehicleServices[vId] ?? {};
       if (svcs.isEmpty) {
-        final vehicle = _vehicles.firstWhere((v) => v['id'] == vId, orElse: () => <String, dynamic>{});
+        final vehicle = _vehicles.firstWhere(
+          (v) => v['id'] == vId,
+          orElse: () => <String, dynamic>{},
+        );
         final plate = vehicle['plate'] as String? ?? 'a vehicle';
-        _snack('Please select services for $plate.'); return;
+        _snack('Please select services for $plate.');
+        return;
       }
     }
     if (_preferredDate == null) {
-      _snack('Please select a preferred date.'); return;
+      _snack('Please select a preferred date.');
+      return;
     }
     if (_preferredTime == null) {
-      _snack('Please select a preferred start time.'); return;
+      _snack('Please select a preferred start time.');
+      return;
     }
 
     setState(() => _submitting = true);
@@ -177,9 +216,12 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       final userDoc = await db.collection('users').doc(uid).get();
       final customerName = userDoc.data()?['name'] as String? ?? '';
 
-      final selectedVehicles = _vehicles.where((v) => _selectedVehicleIds.contains(v['id'])).toList();
+      final selectedVehicles = _vehicles
+          .where((v) => _selectedVehicleIds.contains(v['id']))
+          .toList();
 
-      final dateStr = '${_preferredDate!.year}-${_preferredDate!.month.toString().padLeft(2, '0')}-${_preferredDate!.day.toString().padLeft(2, '0')}';
+      final dateStr =
+          '${_preferredDate!.year}-${_preferredDate!.month.toString().padLeft(2, '0')}-${_preferredDate!.day.toString().padLeft(2, '0')}';
 
       // Create one booking per selected vehicle — always Approved
       for (final vehicle in selectedVehicles) {
@@ -226,11 +268,18 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       final detailedMsg = vehicleBreakdown.join(' | ');
       final vCount = selectedVehicles.length;
       final vLabel = '$vCount vehicle${vCount > 1 ? 's' : ''}';
-      final bookingMsg = '$customerName booked service for $vLabel on ${_fmtDatePretty(_preferredDate!)}. $detailedMsg';
+      final bookingMsg =
+          '$customerName booked service for $vLabel on ${_fmtDatePretty(_preferredDate!)}. $detailedMsg';
 
       // ── Load admin & staff UIDs ──
-      final adminSnap = await db.collection('users').where('role', isEqualTo: 'admin').get();
-      final staffSnap2 = await db.collection('users').where('role', isEqualTo: 'staff').get();
+      final adminSnap = await db
+          .collection('users')
+          .where('role', isEqualTo: 'admin')
+          .get();
+      final staffSnap2 = await db
+          .collection('users')
+          .where('role', isEqualTo: 'staff')
+          .get();
       final adminUids = adminSnap.docs.map((d) => d.id).toList();
       final staffUids = staffSnap2.docs.map((d) => d.id).toList();
 
@@ -268,18 +317,29 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       // ── Notify customer: in-app only ──
       await db.collection('notifications').add({
         'title': '✅ Booking Confirmed',
-        'message': 'Your service booking on ${_fmtDatePretty(_preferredDate!)} at $_preferredTime has been confirmed.\n$detailedMsg',
-        'type': 'success', 'targetRole': '', 'targetUid': uid,
-        'createdAt': FieldValue.serverTimestamp(), 'readBy': <String, bool>{}, 'isRead': false,
+        'message':
+            'Your service booking on ${_fmtDatePretty(_preferredDate!)} at $_preferredTime has been confirmed.\n$detailedMsg',
+        'type': 'success',
+        'targetRole': '',
+        'targetUid': uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'readBy': <String, bool>{},
+        'isRead': false,
       });
 
       if (mounted) {
-        Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (_) => const CustomerMyBookings()));
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('✅ Booking confirmed for $vCount vehicle${vCount > 1 ? 's' : ''}!'),
-          backgroundColor: Colors.green,
-        ));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CustomerMyBookings()),
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ Booking confirmed for $vCount vehicle${vCount > 1 ? 's' : ''}!',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       _snack('Error: $e');
@@ -303,9 +363,13 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
 
     // 1. In-app notification (one doc per role so all members see it)
     await db.collection('notifications').add({
-      'title': title, 'message': message, 'type': type,
-      'targetRole': targetRole, 'targetUid': targetUid,
-      'readBy': <String, bool>{}, 'isRead': false,
+      'title': title,
+      'message': message,
+      'type': type,
+      'targetRole': targetRole,
+      'targetUid': targetUid,
+      'readBy': <String, bool>{},
+      'isRead': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -352,7 +416,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       final vehiclePayload = selectedVehicles.map((v) {
         final vId = v['id'] as String;
         final plate = v['plate'] as String? ?? '—';
-        final desc  = v['desc']  as String? ?? '';
+        final desc = v['desc'] as String? ?? '';
         final svcIds = vehicleServices[vId] ?? {};
         final svcNames = services
             .where((s) => svcIds.contains(s['id']))
@@ -366,12 +430,12 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         Uri.parse('$flaskBaseUrl/api/send-booking-email'),
         headers: {'Content-Type': 'application/json; charset=utf-8'},
         body: jsonEncode({
-          'customer_name':  customerName,
-          'vehicles':       vehiclePayload,
+          'customer_name': customerName,
+          'vehicles': vehiclePayload,
           'preferred_date': preferredDate,
           'preferred_time': preferredTime,
-          'notes':          notes,
-          'target_roles':   ['admin', 'staff'],
+          'notes': notes,
+          'target_roles': ['admin', 'staff'],
         }),
       );
     } catch (e) {
@@ -382,237 +446,385 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.redAccent));
+      SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
-      appBar: widget.embedded ? null : AppBar(
-        backgroundColor: const Color(0xFF1a202c),
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
-              stops: [0.0, 0.55, 1.0],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              backgroundColor: const Color(0xFF004B5F),
+              elevation: 0,
+              flexibleSpace: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF004B5F),
+                      Color(0xFF006B7D),
+                      Color(0xFFEE152A),
+                    ],
+                    stops: [0.0, 0.35, 1.0],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+              ),
+              iconTheme: const IconThemeData(color: Colors.white),
+              title: const Text(
+                'Book a Service',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-          ),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('Book a Service',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // ── Select Vehicle(s) ──
-                _sectionTitle('Select Vehicle(s)'),
-                const SizedBox(height: 8),
-                if (_vehicles.isEmpty)
-                  _emptyCard('No vehicles found under your account.')
-                else
-                  ..._vehicles.map((v) => _vehicleTile(v)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Select Vehicle(s) ──
+                  _sectionTitle('Select Vehicle(s)'),
+                  const SizedBox(height: 8),
+                  if (_vehicles.isEmpty)
+                    _emptyCard('No vehicles found under your account.')
+                  else
+                    ..._vehicles.map((v) => _vehicleTile(v)),
 
-                // ── Per-vehicle service selection ──
-                if (_selectedVehicleIds.isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  _sectionTitle('Select Services'),
-                  const SizedBox(height: 12),
-                  ..._selectedVehicleIds.map((vId) {
-                    final vehicle = _vehicles.firstWhere((v) => v['id'] == vId, orElse: () => <String, dynamic>{});
-                    final plate = vehicle['plate'] as String? ?? '—';
-                    final desc = vehicle['desc'] as String? ?? '';
-                    final selectedSvcs = _vehicleServices[vId] ?? {};
-                    final selectedNames = _services
-                        .where((s) => selectedSvcs.contains(s['id']))
-                        .map((s) => s['name'] as String? ?? '')
-                        .where((n) => n.isNotEmpty)
-                        .toList();
+                  // ── Per-vehicle service selection ──
+                  if (_selectedVehicleIds.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    _sectionTitle('Select Services'),
+                    const SizedBox(height: 12),
+                    ..._selectedVehicleIds.map((vId) {
+                      final vehicle = _vehicles.firstWhere(
+                        (v) => v['id'] == vId,
+                        orElse: () => <String, dynamic>{},
+                      );
+                      final plate = vehicle['plate'] as String? ?? '—';
+                      final desc = vehicle['desc'] as String? ?? '';
+                      final selectedSvcs = _vehicleServices[vId] ?? {};
+                      final selectedNames = _services
+                          .where((s) => selectedSvcs.contains(s['id']))
+                          .map((s) => s['name'] as String? ?? '')
+                          .where((n) => n.isNotEmpty)
+                          .toList();
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: selectedSvcs.isNotEmpty ? _red.withOpacity(0.3) : const Color(0xFFe2e8f0)),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
-                      ),
-                      child: Row(children: [
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(plate, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
-                          if (desc.isNotEmpty)
-                            Text(desc, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                          if (selectedNames.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Wrap(
-                              spacing: 4, runSpacing: 4,
-                              children: selectedNames.map((n) => Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF5F5),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: _red.withOpacity(0.3)),
-                                ),
-                                child: Text(n, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _red)),
-                              )).toList(),
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: selectedSvcs.isNotEmpty
+                                ? _red.withOpacity(0.3)
+                                : const Color(0xFFe2e8f0),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.03),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
                             ),
                           ],
-                        ])),
-                        const SizedBox(width: 10),
-                        GestureDetector(
-                          onTap: () => _showServiceModal(vId, plate),
-                          child: selectedSvcs.isNotEmpty
-                              ? Container(
-                                  width: 36, height: 36,
-                                  decoration: BoxDecoration(
-                                    color: _red,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.edit_outlined, size: 17, color: Colors.white),
-                                )
-                              : Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF003087),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                                    Icon(Icons.add, size: 14, color: Colors.white),
-                                    SizedBox(width: 4),
-                                    Text('Select Services',
-                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
-                                  ]),
-                                ),
                         ),
-                      ]),
-                    );
-                  }),
-                ],
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    plate,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF1a202c),
+                                    ),
+                                  ),
+                                  if (desc.isNotEmpty)
+                                    Text(
+                                      desc,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFF718096),
+                                      ),
+                                    ),
+                                  if (selectedNames.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Wrap(
+                                      spacing: 4,
+                                      runSpacing: 4,
+                                      children: selectedNames
+                                          .map(
+                                            (n) => Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 3,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFFFF5F5),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: _red.withOpacity(0.3),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                n,
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _red,
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            GestureDetector(
+                              onTap: () => _showServiceModal(vId, plate),
+                              child: selectedSvcs.isNotEmpty
+                                  ? Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: _red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.edit_outlined,
+                                        size: 17,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF003087),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.add,
+                                            size: 14,
+                                            color: Colors.white,
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Select Services',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                // ── Preferred Date ──
-                _sectionTitle('Preferred Date'),
-                const SizedBox(height: 8),
-                // AI suggestion
-                if (_selectedVehicleIds.isNotEmpty) _buildDateSuggestion(),
-                if (_selectedVehicleIds.isNotEmpty) const SizedBox(height: 8),
-                // Date display field (like website's "Tap to select date" button)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _preferredDate != null ? _red : const Color(0xFFe2e8f0)),
-                  ),
-                  child: Row(children: [
-                    Icon(Icons.calendar_today_outlined, size: 18,
-                      color: _preferredDate != null ? _red : const Color(0xFF718096)),
-                    const SizedBox(width: 10),
-                    Text(
-                      _preferredDate != null
-                          ? _fmtDatePretty(_preferredDate!)
-                          : 'Select a date from the calendar below',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: _preferredDate != null ? const Color(0xFF1a202c) : const Color(0xFFa0aec0),
-                        fontWeight: _preferredDate != null ? FontWeight.w600 : FontWeight.normal,
+                  // ── Preferred Date ──
+                  _sectionTitle('Preferred Date'),
+                  const SizedBox(height: 8),
+                  // AI suggestion
+                  if (_selectedVehicleIds.isNotEmpty) _buildDateSuggestion(),
+                  if (_selectedVehicleIds.isNotEmpty) const SizedBox(height: 8),
+                  // Date display field (like website's "Tap to select date" button)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _preferredDate != null
+                            ? _red
+                            : const Color(0xFFe2e8f0),
                       ),
                     ),
-                  ]),
-                ),
-                const SizedBox(height: 10),
-                // Custom Calendar
-                _buildCalendar(),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: 18,
+                          color: _preferredDate != null
+                              ? _red
+                              : const Color(0xFF718096),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          _preferredDate != null
+                              ? _fmtDatePretty(_preferredDate!)
+                              : 'Select a date from the calendar below',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _preferredDate != null
+                                ? const Color(0xFF1a202c)
+                                : const Color(0xFFa0aec0),
+                            fontWeight: _preferredDate != null
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Custom Calendar
+                  _buildCalendar(),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                // ── Preferred Start Time ──
-                _sectionTitle('Preferred Start Time'),
-                const SizedBox(height: 4),
-                const Text('Please arrive 15 minutes before your selected time.',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8, runSpacing: 8,
-                  children: ['8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM']
-                    .map((time) => _timeChip(time)).toList(),
-                ),
-                if (_preferredTime != null) ...[
+                  // ── Preferred Start Time ──
+                  _sectionTitle('Preferred Start Time'),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Please arrive 15 minutes before your selected time.',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF718096)),
+                  ),
                   const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0FDF4),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFC6F6D5)),
-                    ),
-                    child: Row(children: [
-                      const Icon(Icons.access_time, size: 14, color: Color(0xFF38A169)),
-                      const SizedBox(width: 8),
-                      Text('Arrive by: ${_getArriveBy(_preferredTime!)}',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF276749), fontWeight: FontWeight.w600)),
-                    ]),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      '8:00 AM',
+                      '9:00 AM',
+                      '10:00 AM',
+                      '11:00 AM',
+                      '1:00 PM',
+                      '2:00 PM',
+                      '3:00 PM',
+                      '4:00 PM',
+                    ].map((time) => _timeChip(time)).toList(),
                   ),
+                  if (_preferredTime != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFC6F6D5)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.access_time,
+                            size: 14,
+                            color: Color(0xFF38A169),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Arrive by: ${_getArriveBy(_preferredTime!)}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF276749),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 20),
+
+                  // ── Notes ──
+                  _sectionTitle('Notes (optional)'),
+                  const SizedBox(height: 8),
+                  TextField(
+                    maxLines: 3,
+                    onChanged: (v) => _notes = v,
+                    decoration: InputDecoration(
+                      hintText: 'Any special requests or details...',
+                      hintStyle: const TextStyle(
+                        color: Color(0xFFa0aec0),
+                        fontSize: 13,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _red, width: 1.5),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // ── Submit ──
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _submitting ? null : _submitBooking,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 4,
+                      ),
+                      child: _submitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Book Service',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                 ],
-
-                const SizedBox(height: 20),
-
-                // ── Notes ──
-                _sectionTitle('Notes (optional)'),
-                const SizedBox(height: 8),
-                TextField(
-                  maxLines: 3,
-                  onChanged: (v) => _notes = v,
-                  decoration: InputDecoration(
-                    hintText: 'Any special requests or details...',
-                    hintStyle: const TextStyle(color: Color(0xFFa0aec0), fontSize: 13),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFe2e8f0))),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFe2e8f0))),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _red, width: 1.5)),
-                  ),
-                ),
-
-                const SizedBox(height: 28),
-
-                // ── Submit ──
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _submitting ? null : _submitBooking,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 4,
-                    ),
-                    child: _submitting
-                        ? const SizedBox(width: 20, height: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('Book Service',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ]),
+              ),
             ),
     );
   }
@@ -627,255 +839,319 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) => StatefulBuilder(
         builder: (ctx, setSheet) {
           final filtered = searchQuery.isEmpty
               ? _services
               : _services
-                  .where((s) => (s['name'] as String? ?? '')
-                      .toLowerCase()
-                      .contains(searchQuery))
-                  .toList();
+                    .where(
+                      (s) => (s['name'] as String? ?? '')
+                          .toLowerCase()
+                          .contains(searchQuery),
+                    )
+                    .toList();
 
           // Keyboard height — shrinks modal up so nothing overflows
           final keyboardH = MediaQuery.of(ctx).viewInsets.bottom;
-          final screenH   = MediaQuery.of(ctx).size.height;
+          final screenH = MediaQuery.of(ctx).size.height;
 
           return Padding(
             padding: EdgeInsets.only(bottom: keyboardH),
             child: SizedBox(
               // Cap total modal height so it never overflows
               height: screenH * 0.82,
-              child: Column(children: [
-                // ── Header ──
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                  decoration: const BoxDecoration(
+              child: Column(
+                children: [
+                  // ── Header ──
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                    decoration: const BoxDecoration(
                       color: _red,
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(24))),
-                  child: Row(children: [
-                    Expanded(
-                        child: Column(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(24),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                          const Text('Select Services',
-                              style: TextStyle(
+                              const Text(
+                                'Select Services',
+                                style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
-                                  fontWeight: FontWeight.bold)),
-                          Text(plate,
-                              style: const TextStyle(
-                                  color: Colors.white70, fontSize: 12)),
-                        ])),
-                    GestureDetector(
-                        onTap: () => Navigator.pop(ctx),
-                        child: const Icon(Icons.close, color: Colors.white)),
-                  ]),
-                ),
-                // ── Search bar ──
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: TextField(
-                    controller: searchCtrl,
-                    onChanged: (v) =>
-                        setSheet(() => searchQuery = v.trim().toLowerCase()),
-                    decoration: InputDecoration(
-                      hintText: 'Search services...',
-                      hintStyle: const TextStyle(
-                          fontSize: 13, color: Color(0xFFa0aec0)),
-                      prefixIcon: const Icon(Icons.search,
-                          size: 18, color: Color(0xFF718096)),
-                      suffixIcon: searchQuery.isNotEmpty
-                          ? GestureDetector(
-                              onTap: () {
-                                searchCtrl.clear();
-                                setSheet(() => searchQuery = '');
-                              },
-                              child: const Icon(Icons.close,
-                                  size: 16, color: Color(0xFF718096)))
-                          : null,
-                      filled: true,
-                      fillColor: const Color(0xFFF7F8FA),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none),
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFe2e8f0))),
-                      focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: _red, width: 1.5)),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                plate,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(ctx),
+                          child: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                // ── Count label ──
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Row(
+                  // ── Search bar ──
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: TextField(
+                      controller: searchCtrl,
+                      onChanged: (v) =>
+                          setSheet(() => searchQuery = v.trim().toLowerCase()),
+                      decoration: InputDecoration(
+                        hintText: 'Search services...',
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFFa0aec0),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          size: 18,
+                          color: Color(0xFF718096),
+                        ),
+                        suffixIcon: searchQuery.isNotEmpty
+                            ? GestureDetector(
+                                onTap: () {
+                                  searchCtrl.clear();
+                                  setSheet(() => searchQuery = '');
+                                },
+                                child: const Icon(
+                                  Icons.close,
+                                  size: 16,
+                                  color: Color(0xFF718096),
+                                ),
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: const Color(0xFFF7F8FA),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFe2e8f0),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: _red, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // ── Count label ──
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                            filtered.isEmpty
-                                ? 'No results'
-                                : '${filtered.length} service${filtered.length != 1 ? 's' : ''}',
-                            style: const TextStyle(
-                                fontSize: 11, color: Color(0xFF718096))),
-                        if (localSelected.isNotEmpty)
-                          Text('${localSelected.length} selected',
-                              style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: _red)),
-                      ]),
-                ),
-                // ── Service list — Expanded fills remaining space ──
-                Expanded(
-                  child: filtered.isEmpty
-                      ? Center(
-                          child: Text(
-                            searchQuery.isNotEmpty
-                                ? 'No services match "$searchQuery"'
-                                : 'No services available.',
-                            style: const TextStyle(
-                                color: Color(0xFF718096), fontSize: 13),
-                            textAlign: TextAlign.center,
+                          filtered.isEmpty
+                              ? 'No results'
+                              : '${filtered.length} service${filtered.length != 1 ? 's' : ''}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF718096),
                           ),
-                        )
-                      : ListView.separated(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                          itemCount: filtered.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 8),
-                          itemBuilder: (_, i) {
-                            final s = filtered[i];
-                            final id = s['id'] as String;
-                            final isSelected = localSelected.contains(id);
-                            final name = (s['name'] ?? '').toString();
-                            final rawCost = (s['cost'] ?? '')
-                                .toString()
-                                .replaceAll('₱', '')
-                                .replaceAll(',', '')
-                                .trim();
-                            final costDisplay =
-                                rawCost.isNotEmpty ? '₱$rawCost' : '';
-                            final uom = (s['uom'] ?? '').toString();
+                        ),
+                        if (localSelected.isNotEmpty)
+                          Text(
+                            '${localSelected.length} selected',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: _red,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // ── Service list — Expanded fills remaining space ──
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? Center(
+                            child: Text(
+                              searchQuery.isNotEmpty
+                                  ? 'No services match "$searchQuery"'
+                                  : 'No services available.',
+                              style: const TextStyle(
+                                color: Color(0xFF718096),
+                                fontSize: 13,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (_, i) {
+                              final s = filtered[i];
+                              final id = s['id'] as String;
+                              final isSelected = localSelected.contains(id);
+                              final name = (s['name'] ?? '').toString();
+                              final rawCost = (s['cost'] ?? '')
+                                  .toString()
+                                  .replaceAll('₱', '')
+                                  .replaceAll(',', '')
+                                  .trim();
+                              final costDisplay = rawCost.isNotEmpty
+                                  ? '₱$rawCost'
+                                  : '';
+                              final uom = (s['uom'] ?? '').toString();
 
-                            return GestureDetector(
-                              onTap: () => setSheet(() {
-                                if (isSelected)
-                                  localSelected.remove(id);
-                                else
-                                  localSelected.add(id);
-                              }),
-                              child: Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? const Color(0xFFFFF5F5)
-                                      : Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
+                              return GestureDetector(
+                                onTap: () => setSheet(() {
+                                  if (isSelected)
+                                    localSelected.remove(id);
+                                  else
+                                    localSelected.add(id);
+                                }),
+                                child: Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? const Color(0xFFFFF5F5)
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
                                       color: isSelected
                                           ? _red
                                           : const Color(0xFFe2e8f0),
-                                      width: isSelected ? 1.5 : 1),
-                                  boxShadow: [
-                                    BoxShadow(
-                                        color:
-                                            Colors.black.withOpacity(0.03),
-                                        blurRadius: 6)
-                                  ],
-                                ),
-                                child: Row(children: [
-                                  Container(
-                                    width: 22,
-                                    height: 22,
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? _red
-                                          : Colors.transparent,
-                                      borderRadius:
-                                          BorderRadius.circular(6),
-                                      border: Border.all(
+                                      width: isSelected ? 1.5 : 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.03),
+                                        blurRadius: 6,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 22,
+                                        height: 22,
+                                        decoration: BoxDecoration(
                                           color: isSelected
                                               ? _red
-                                              : const Color(0xFFcbd5e0),
-                                          width: 1.5),
-                                    ),
-                                    child: isSelected
-                                        ? const Icon(Icons.check,
-                                            size: 14, color: Colors.white)
-                                        : null,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                      child: Column(
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? _red
+                                                : const Color(0xFFcbd5e0),
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: isSelected
+                                            ? const Icon(
+                                                Icons.check,
+                                                size: 14,
+                                                color: Colors.white,
+                                              )
+                                            : null,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                        Text(name,
-                                            style: TextStyle(
+                                            Text(
+                                              name,
+                                              style: TextStyle(
                                                 fontWeight: FontWeight.w600,
                                                 fontSize: 13,
                                                 color: isSelected
                                                     ? _red
-                                                    : const Color(
-                                                        0xFF1a202c))),
-                                        if (costDisplay.isNotEmpty)
-                                          Text('$costDisplay / $uom',
-                                              style: const TextStyle(
+                                                    : const Color(0xFF1a202c),
+                                              ),
+                                            ),
+                                            if (costDisplay.isNotEmpty)
+                                              Text(
+                                                '$costDisplay / $uom',
+                                                style: const TextStyle(
                                                   fontSize: 11,
-                                                  color:
-                                                      Color(0xFF718096))),
-                                      ])),
-                                  if (isSelected)
-                                    const Icon(Icons.check_circle,
-                                        size: 18, color: _red),
-                                ]),
-                              ),
-                            );
-                          },
+                                                  color: Color(0xFF718096),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (isSelected)
+                                        const Icon(
+                                          Icons.check_circle,
+                                          size: 18,
+                                          color: _red,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  // ── Done button ──
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(
+                            () => _vehicleServices[vehicleId] = localSelected,
+                          );
+                          Navigator.pop(ctx);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _red,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                ),
-                // ── Done button ──
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(
-                            () => _vehicleServices[vehicleId] = localSelected);
-                        Navigator.pop(ctx);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _red,
-                        foregroundColor: Colors.white,
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text(
+                        child: Text(
                           localSelected.isEmpty
                               ? 'Done'
                               : 'Confirm ${localSelected.length} Service${localSelected.length > 1 ? 's' : ''}',
                           style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700)),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ),
           );
         },
@@ -892,7 +1168,10 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     DateTime? earliestPmsDue;
 
     for (final vId in _selectedVehicleIds) {
-      final vehicle = _vehicles.firstWhere((v) => v['id'] == vId, orElse: () => <String, dynamic>{});
+      final vehicle = _vehicles.firstWhere(
+        (v) => v['id'] == vId,
+        orElse: () => <String, dynamic>{},
+      );
       if (vehicle.isEmpty) continue;
 
       final lastSvc = (vehicle['lastSvcDate'] ?? '').toString();
@@ -901,7 +1180,11 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       if (lastSvc.isNotEmpty && freq > 0) {
         final lastDate = DateTime.tryParse(lastSvc);
         if (lastDate != null) {
-          final nextPms = DateTime(lastDate.year, lastDate.month + freq, lastDate.day);
+          final nextPms = DateTime(
+            lastDate.year,
+            lastDate.month + freq,
+            lastDate.day,
+          );
           if (earliestPmsDue == null || nextPms.isBefore(earliestPmsDue)) {
             earliestPmsDue = nextPms;
           }
@@ -917,7 +1200,8 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         // Suggest 3 days before earliest PMS due
         bestSuggestion = earliestPmsDue.subtract(const Duration(days: 3));
         if (bestSuggestion!.isBefore(tomorrow)) bestSuggestion = tomorrow;
-        reason = 'PMS due ${_fmtDatePretty(earliestPmsDue)} — book before it\'s overdue';
+        reason =
+            'PMS due ${_fmtDatePretty(earliestPmsDue)} — book before it\'s overdue';
       } else {
         // Overdue — suggest tomorrow
         bestSuggestion = tomorrow;
@@ -930,8 +1214,10 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       bestSuggestion = tomorrow;
       int attempts = 0;
       while (attempts < 30) {
-        final dateStr = '${bestSuggestion!.year}-${bestSuggestion!.month.toString().padLeft(2, '0')}-${bestSuggestion!.day.toString().padLeft(2, '0')}';
-        final isFull = (_bookedDates[dateStr]?.length ?? 0) >= _allTimeSlots.length;
+        final dateStr =
+            '${bestSuggestion!.year}-${bestSuggestion!.month.toString().padLeft(2, '0')}-${bestSuggestion!.day.toString().padLeft(2, '0')}';
+        final isFull =
+            (_bookedDates[dateStr]?.length ?? 0) >= _allTimeSlots.length;
         if (!isFull) break;
         bestSuggestion = bestSuggestion!.add(const Duration(days: 1));
         attempts++;
@@ -941,8 +1227,10 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       // Also check if the suggested date is fully booked → shift forward
       int attempts = 0;
       while (attempts < 14) {
-        final dateStr = '${bestSuggestion!.year}-${bestSuggestion!.month.toString().padLeft(2, '0')}-${bestSuggestion!.day.toString().padLeft(2, '0')}';
-        final isFull = (_bookedDates[dateStr]?.length ?? 0) >= _allTimeSlots.length;
+        final dateStr =
+            '${bestSuggestion!.year}-${bestSuggestion!.month.toString().padLeft(2, '0')}-${bestSuggestion!.day.toString().padLeft(2, '0')}';
+        final isFull =
+            (_bookedDates[dateStr]?.length ?? 0) >= _allTimeSlots.length;
         if (!isFull) break;
         bestSuggestion = bestSuggestion!.add(const Duration(days: 1));
         attempts++;
@@ -959,7 +1247,8 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
           _calYear = suggestedDate.year;
           _calMonth = suggestedDate.month;
         });
-        final dateStr = '${suggestedDate.year}-${suggestedDate.month.toString().padLeft(2, '0')}-${suggestedDate.day.toString().padLeft(2, '0')}';
+        final dateStr =
+            '${suggestedDate.year}-${suggestedDate.month.toString().padLeft(2, '0')}-${suggestedDate.day.toString().padLeft(2, '0')}';
         _loadBookedTimesForDate(dateStr);
       },
       child: Container(
@@ -969,35 +1258,93 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: const Color(0xFFbee3f8)),
         ),
-        child: Row(children: [
-          Container(
-            width: 32, height: 32,
-            decoration: BoxDecoration(color: const Color(0xFF003087).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-            child: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF003087)),
-          ),
-          const SizedBox(width: 10),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('AI Suggested Date', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF003087))),
-            Text(
-              '${_fmtDatePretty(suggestedDate)} — $reason',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: const Color(0xFF003087).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.auto_awesome,
+                size: 16,
+                color: Color(0xFF003087),
+              ),
             ),
-          ])),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: const Color(0xFF003087),
-              borderRadius: BorderRadius.circular(6),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'AI Suggested Date',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF003087),
+                    ),
+                  ),
+                  Text(
+                    '${_fmtDatePretty(suggestedDate)} — $reason',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF718096),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: const Text('Use', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
-          ),
-        ]),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF003087),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'Use',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  static const _months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  static const _monthsFull = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  static const _months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  static const _monthsFull = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
 
   Widget _buildCalendar() {
     final now = DateTime.now();
@@ -1013,152 +1360,257 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFe2e8f0)),
       ),
-      child: Column(children: [
-        // Header: nav + month label
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          GestureDetector(
-            onTap: () => setState(() {
-              _calMonth--;
-              if (_calMonth < 1) { _calMonth = 12; _calYear--; }
-            }),
-            child: Container(
-              width: 32, height: 32,
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFe2e8f0)),
-                borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.chevron_left, size: 18, color: Color(0xFF4a5568)),
-            ),
-          ),
-          Text('${_monthsFull[_calMonth - 1]} $_calYear',
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
-          GestureDetector(
-            onTap: () => setState(() {
-              _calMonth++;
-              if (_calMonth > 12) { _calMonth = 1; _calYear++; }
-            }),
-            child: Container(
-              width: 32, height: 32,
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFe2e8f0)),
-                borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.chevron_right, size: 18, color: Color(0xFF4a5568)),
-            ),
-          ),
-        ]),
-        const SizedBox(height: 12),
-        // Day of week headers
-        Row(children: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d) =>
-          Expanded(child: Center(child: Text(d,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFa0aec0)))))).toList()),
-        const SizedBox(height: 6),
-        // Calendar grid
-        GridView.count(
-          crossAxisCount: 7,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 4, crossAxisSpacing: 4,
-          children: [
-            // Empty cells before first day
-            ...List.generate(startWeekday, (_) => const SizedBox.shrink()),
-            // Day cells
-            ...List.generate(daysInMonth, (i) {
-              final day = i + 1;
-              final date = DateTime(_calYear, _calMonth, day);
-              final dateStr = '${_calYear}-${_calMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
-              final isPast = date.isBefore(todayMidnight);
-              final takenSlots = _bookedDates[dateStr] ?? [];
-              final isFull = takenSlots.length >= _allTimeSlots.length;
-              final isSelected = _preferredDate != null &&
-                  _preferredDate!.year == _calYear &&
-                  _preferredDate!.month == _calMonth &&
-                  _preferredDate!.day == day;
-              final isClosed = isPast;
-              final isAvailable = !isClosed && !isFull;
-
-              Color bgColor;
-              Color textColor;
-              Color dotColor;
-              if (isSelected) {
-                bgColor = _red;
-                textColor = Colors.white;
-                dotColor = Colors.white70;
-              } else if (isClosed) {
-                bgColor = const Color(0xFFF1F5F9);
-                textColor = const Color(0xFFcbd5e0);
-                dotColor = const Color(0xFFcbd5e0);
-              } else if (isFull) {
-                bgColor = const Color(0xFFFEF3C7);
-                textColor = const Color(0xFF92400E);
-                dotColor = const Color(0xFFD97706);
-              } else {
-                bgColor = const Color(0xFFF0FDF4);
-                textColor = const Color(0xFF1a202c);
-                dotColor = const Color(0xFF38A169);
-              }
-
-              return GestureDetector(
-                onTap: isAvailable ? () {
-                  final dateStr2 = '$_calYear-${_calMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
-                  setState(() {
-                    _preferredDate = date;
-                    // Reset time if changing date
-                    _preferredTime = null;
-                  });
-                  _loadBookedTimesForDate(dateStr2);
-                } : null,
+      child: Column(
+        children: [
+          // Header: nav + month label
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              GestureDetector(
+                onTap: () => setState(() {
+                  _calMonth--;
+                  if (_calMonth < 1) {
+                    _calMonth = 12;
+                    _calYear--;
+                  }
+                }),
                 child: Container(
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(10),
-                    border: isSelected ? Border.all(color: _red, width: 2) : null,
+                    border: Border.all(color: const Color(0xFFe2e8f0)),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text('$day', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
-                    const SizedBox(height: 2),
-                    Container(width: 5, height: 5, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
-                  ]),
+                  child: const Icon(
+                    Icons.chevron_left,
+                    size: 18,
+                    color: Color(0xFF4a5568),
+                  ),
                 ),
-              );
-            }),
-          ],
-        ),
-        const SizedBox(height: 12),
-        // Legend
-        Container(
-          padding: const EdgeInsets.only(top: 10),
-          decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xFFF0F4F8)))),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            _legendItem(const Color(0xFF38A169), 'Available'),
-            const SizedBox(width: 16),
-            _legendDot(const Color(0xFFD97706), const Color(0xFFFEF3C7), 'Fully Booked'),
-            const SizedBox(width: 16),
-            _legendItem(const Color(0xFFe2e8f0), 'Closed / Past'),
-          ]),
-        ),
-      ]),
+              ),
+              Text(
+                '${_monthsFull[_calMonth - 1]} $_calYear',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1a202c),
+                ),
+              ),
+              GestureDetector(
+                onTap: () => setState(() {
+                  _calMonth++;
+                  if (_calMonth > 12) {
+                    _calMonth = 1;
+                    _calYear++;
+                  }
+                }),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFe2e8f0)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: Color(0xFF4a5568),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Day of week headers
+          Row(
+            children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                .map(
+                  (d) => Expanded(
+                    child: Center(
+                      child: Text(
+                        d,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFa0aec0),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 6),
+          // Calendar grid
+          GridView.count(
+            crossAxisCount: 7,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 4,
+            crossAxisSpacing: 4,
+            children: [
+              // Empty cells before first day
+              ...List.generate(startWeekday, (_) => const SizedBox.shrink()),
+              // Day cells
+              ...List.generate(daysInMonth, (i) {
+                final day = i + 1;
+                final date = DateTime(_calYear, _calMonth, day);
+                final dateStr =
+                    '${_calYear}-${_calMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+                final isPast = date.isBefore(todayMidnight);
+                final takenSlots = _bookedDates[dateStr] ?? [];
+                final isFull = takenSlots.length >= _allTimeSlots.length;
+                final isSelected =
+                    _preferredDate != null &&
+                    _preferredDate!.year == _calYear &&
+                    _preferredDate!.month == _calMonth &&
+                    _preferredDate!.day == day;
+                final isClosed = isPast;
+                final isAvailable = !isClosed && !isFull;
+
+                Color bgColor;
+                Color textColor;
+                Color dotColor;
+                if (isSelected) {
+                  bgColor = _red;
+                  textColor = Colors.white;
+                  dotColor = Colors.white70;
+                } else if (isClosed) {
+                  bgColor = const Color(0xFFF1F5F9);
+                  textColor = const Color(0xFFcbd5e0);
+                  dotColor = const Color(0xFFcbd5e0);
+                } else if (isFull) {
+                  bgColor = const Color(0xFFFEF3C7);
+                  textColor = const Color(0xFF92400E);
+                  dotColor = const Color(0xFFD97706);
+                } else {
+                  bgColor = const Color(0xFFF0FDF4);
+                  textColor = const Color(0xFF1a202c);
+                  dotColor = const Color(0xFF38A169);
+                }
+
+                return GestureDetector(
+                  onTap: isAvailable
+                      ? () {
+                          final dateStr2 =
+                              '$_calYear-${_calMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+                          setState(() {
+                            _preferredDate = date;
+                            // Reset time if changing date
+                            _preferredTime = null;
+                          });
+                          _loadBookedTimesForDate(dateStr2);
+                        }
+                      : null,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(10),
+                      border: isSelected
+                          ? Border.all(color: _red, width: 2)
+                          : null,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '$day',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Container(
+                          width: 5,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: dotColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Legend
+          Container(
+            padding: const EdgeInsets.only(top: 10),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Color(0xFFF0F4F8))),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _legendItem(const Color(0xFF38A169), 'Available'),
+                const SizedBox(width: 16),
+                _legendDot(
+                  const Color(0xFFD97706),
+                  const Color(0xFFFEF3C7),
+                  'Fully Booked',
+                ),
+                const SizedBox(width: 16),
+                _legendItem(const Color(0xFFe2e8f0), 'Closed / Past'),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _legendItem(Color color, String label) {
-    return Row(children: [
-      Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-      const SizedBox(width: 5),
-      Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-    ]);
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
+        ),
+      ],
+    );
   }
 
   Widget _legendDot(Color borderColor, Color bgColor, String label) {
-    return Row(children: [
-      Container(width: 10, height: 10, decoration: BoxDecoration(
-        color: bgColor, shape: BoxShape.circle, border: Border.all(color: borderColor, width: 2))),
-      const SizedBox(width: 5),
-      Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-    ]);
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: bgColor,
+            shape: BoxShape.circle,
+            border: Border.all(color: borderColor, width: 2),
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
+        ),
+      ],
+    );
   }
 
   static const _arriveByMap = {
-    '8:00 AM': '7:45 AM', '9:00 AM': '8:45 AM', '10:00 AM': '9:45 AM', '11:00 AM': '10:45 AM',
-    '1:00 PM': '12:45 PM', '2:00 PM': '1:45 PM', '3:00 PM': '2:45 PM', '4:00 PM': '3:45 PM',
+    '8:00 AM': '7:45 AM',
+    '9:00 AM': '8:45 AM',
+    '10:00 AM': '9:45 AM',
+    '11:00 AM': '10:45 AM',
+    '1:00 PM': '12:45 PM',
+    '2:00 PM': '1:45 PM',
+    '3:00 PM': '2:45 PM',
+    '4:00 PM': '3:45 PM',
   };
 
   String _getArriveBy(String time) => _arriveByMap[time] ?? time;
@@ -1169,18 +1621,29 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     final dateStr = _preferredDate != null
         ? '${_preferredDate!.year}-${_preferredDate!.month.toString().padLeft(2, '0')}-${_preferredDate!.day.toString().padLeft(2, '0')}'
         : '';
-    final isTaken = dateStr.isNotEmpty && (_bookedTimes[dateStr]?.contains(time) ?? false);
+    final isTaken =
+        dateStr.isNotEmpty && (_bookedTimes[dateStr]?.contains(time) ?? false);
 
     // Check if the slot has already passed (only applies when selected date is today)
     bool isPast = false;
     if (_preferredDate != null) {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      final selected = DateTime(_preferredDate!.year, _preferredDate!.month, _preferredDate!.day);
+      final selected = DateTime(
+        _preferredDate!.year,
+        _preferredDate!.month,
+        _preferredDate!.day,
+      );
       if (selected == today) {
         const slotHour24 = {
-          '8:00 AM': 8, '9:00 AM': 9, '10:00 AM': 10, '11:00 AM': 11,
-          '1:00 PM': 13, '2:00 PM': 14, '3:00 PM': 15, '4:00 PM': 16,
+          '8:00 AM': 8,
+          '9:00 AM': 9,
+          '10:00 AM': 10,
+          '11:00 AM': 11,
+          '1:00 PM': 13,
+          '2:00 PM': 14,
+          '3:00 PM': 15,
+          '4:00 PM': 16,
         };
         final h = slotHour24[time];
         if (h != null) isPast = now.hour >= h;
@@ -1191,8 +1654,8 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     final tooltip = isPast
         ? 'This time has already passed'
         : isTaken
-            ? 'Already booked — choose another time'
-            : '';
+        ? 'Already booked — choose another time'
+        : '';
 
     return GestureDetector(
       onTap: isDisabled ? null : () => setState(() => _preferredTime = time),
@@ -1204,15 +1667,15 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
             color: (isTaken || isPast)
                 ? const Color(0xFFF1F5F9)
                 : isSelected
-                    ? const Color(0xFFFFF5F5)
-                    : Colors.white,
+                ? const Color(0xFFFFF5F5)
+                : Colors.white,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: (isTaken || isPast)
                   ? const Color(0xFFe2e8f0)
                   : isSelected
-                      ? _red
-                      : const Color(0xFFe2e8f0),
+                  ? _red
+                  : const Color(0xFFe2e8f0),
               width: isSelected ? 2 : 1.5,
             ),
           ),
@@ -1224,9 +1687,11 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
               color: (isTaken || isPast)
                   ? const Color(0xFFa0aec0)
                   : isSelected
-                      ? _red
-                      : const Color(0xFF4a5568),
-              decoration: (isTaken || isPast) ? TextDecoration.lineThrough : null,
+                  ? _red
+                  : const Color(0xFF4a5568),
+              decoration: (isTaken || isPast)
+                  ? TextDecoration.lineThrough
+                  : null,
               decorationColor: const Color(0xFFa0aec0),
             ),
           ),
@@ -1239,16 +1704,28 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     return '${_months[d.month - 1]} ${d.day}, ${d.year}';
   }
 
-  Widget _sectionTitle(String title) => Text(title,
-    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1a202c)));
+  Widget _sectionTitle(String title) => Text(
+    title,
+    style: const TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w700,
+      color: Color(0xFF1a202c),
+    ),
+  );
 
   Widget _emptyCard(String msg) => Container(
     width: double.infinity,
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
-      color: Colors.white, borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: const Color(0xFFe2e8f0))),
-    child: Text(msg, style: const TextStyle(color: Color(0xFF718096), fontSize: 13), textAlign: TextAlign.center),
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFFe2e8f0)),
+    ),
+    child: Text(
+      msg,
+      style: const TextStyle(color: Color(0xFF718096), fontSize: 13),
+      textAlign: TextAlign.center,
+    ),
   );
 
   Widget _vehicleTile(Map<String, dynamic> v) {
@@ -1272,20 +1749,40 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? _red : const Color(0xFFe2e8f0),
-            width: isSelected ? 2 : 1),
+            width: isSelected ? 2 : 1,
+          ),
         ),
-        child: Row(children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(v['plate'] as String? ?? '—',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14,
-                color: isSelected ? _red : const Color(0xFF1a202c))),
-            Text(v['desc'] as String? ?? '',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF718096))),
-          ])),
-          Icon(
-            isSelected ? Icons.check_box : Icons.check_box_outline_blank,
-            color: isSelected ? _red : const Color(0xFFcbd5e0), size: 22),
-        ]),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    v['plate'] as String? ?? '—',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: isSelected ? _red : const Color(0xFF1a202c),
+                    ),
+                  ),
+                  Text(
+                    v['desc'] as String? ?? '',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF718096),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+              color: isSelected ? _red : const Color(0xFFcbd5e0),
+              size: 22,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1295,7 +1792,11 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     final svcs = _vehicleServices[vehicleId] ?? {};
     final isSelected = svcs.contains(id);
     final name = (s['name'] ?? '').toString();
-    final rawCost = (s['cost'] ?? '').toString().replaceAll('₱', '').replaceAll(',', '').trim();
+    final rawCost = (s['cost'] ?? '')
+        .toString()
+        .replaceAll('₱', '')
+        .replaceAll(',', '')
+        .trim();
     final costDisplay = rawCost.isNotEmpty ? '₱$rawCost' : '';
     final uom = (s['uom'] ?? '').toString();
 
@@ -1316,28 +1817,52 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected ? _red : const Color(0xFFF0F4F8),
-            width: isSelected ? 1.5 : 1),
-        ),
-        child: Row(children: [
-          Container(
-            width: 20, height: 20,
-            decoration: BoxDecoration(
-              color: isSelected ? _red : Colors.transparent,
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(color: isSelected ? _red : const Color(0xFFcbd5e0), width: 1.5),
-            ),
-            child: isSelected
-                ? const Icon(Icons.check, size: 14, color: Colors.white)
-                : null,
+            width: isSelected ? 1.5 : 1,
           ),
-          const SizedBox(width: 10),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13,
-              color: isSelected ? _red : const Color(0xFF1a202c))),
-            if (costDisplay.isNotEmpty)
-              Text('$costDisplay / $uom', style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-          ])),
-        ]),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: isSelected ? _red : Colors.transparent,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                  color: isSelected ? _red : const Color(0xFFcbd5e0),
+                  width: 1.5,
+                ),
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: isSelected ? _red : const Color(0xFF1a202c),
+                    ),
+                  ),
+                  if (costDisplay.isNotEmpty)
+                    Text(
+                      '$costDisplay / $uom',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF718096),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
