@@ -27,7 +27,7 @@ body::after {
   content: "";
   position: fixed;
   inset: 0;
-  background: linear-gradient(135deg, rgba(26,32,44,0.78) 0%, rgba(45,55,72,0.68) 60%, rgba(232,0,28,0.68) 100%);
+  background: linear-gradient(135deg, rgba(0,75,95,0.78) 0%, rgba(238,21,42,0.68) 100%);
   z-index: -1;
 }
 
@@ -122,7 +122,7 @@ label {
 .btn-signin {
   width: 100%;
   padding: 15px;
-  background: linear-gradient(135deg, #1a202c 0%, #2d3748 55%, #E8001C 100%);
+  background: linear-gradient(135deg, #004B5F 0%, #EE152A 100%);
   color: #fff;
   border: none;
   border-radius: 30px;

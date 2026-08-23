@@ -288,7 +288,7 @@ body {
   position: relative;
   width: 100%;
   min-height: 280px;
-  background: linear-gradient(135deg, #1a202c 0%, #2d3748 55%, #E8001C 100%);
+  background: linear-gradient(135deg, #004B5F 0%, #EE152A 100%);
   border-radius: 20px;
   margin-bottom: 24px;
   box-shadow: 0 6px 18px rgba(232,0,28,0.25);
@@ -624,7 +624,7 @@ body {
 }
 
 .cu-modal-header {
-  background: var(--red);
+  background: linear-gradient(135deg, #004B5F 0%, #EE152A 100%);
   padding: 20px;
   flex-shrink: 0;
 }
@@ -760,7 +760,7 @@ body {
 }
 
 .cu-ai-header {
-  background: #003087;
+  background: #004B5F;
   padding: 14px 16px;
   display: flex;
   align-items: center;
@@ -815,7 +815,7 @@ body {
   border-radius: 16px;
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 12px;
-  color: #003087;
+  color: #004B5F;
 }
 
 .cu-ai-chips {

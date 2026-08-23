@@ -75,6 +75,8 @@ class _AiStatusFabState extends State<_AiStatusFab>
 
   @override
   Widget build(BuildContext context) {
+    // Use gradient colors for button, green for status dot
+    const gradientColors = [Color(0xFF004B5F), Color(0xFFEE152A)];
     final statusColor = _online
         ? const Color(0xFF22c55e)
         : const Color(0xFFF97316);
@@ -113,7 +115,7 @@ class _AiStatusFabState extends State<_AiStatusFab>
                   ),
                 ),
               ),
-              // Button
+              // Button with gradient background
               GestureDetector(
                 onTap: widget.onTap,
                 child: Material(
@@ -125,11 +127,17 @@ class _AiStatusFabState extends State<_AiStatusFab>
                     height: 58,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white,
-                      border: Border.all(color: statusColor, width: 3),
+                      gradient: _online
+                          ? const LinearGradient(
+                              colors: gradientColors,
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
+                      color: _online ? null : const Color(0xFFF97316),
                       boxShadow: [
                         BoxShadow(
-                          color: statusColor.withOpacity(0.35),
+                          color: Colors.black.withOpacity(0.2),
                           blurRadius: 10,
                           spreadRadius: 1,
                         ),
@@ -165,12 +173,6 @@ class _AiStatusFabState extends State<_AiStatusFab>
                               shape: BoxShape.circle,
                               color: statusColor,
                               border: Border.all(color: Colors.white, width: 2),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: statusColor.withOpacity(0.8),
-                                  blurRadius: 6,
-                                ),
-                              ],
                             ),
                           ),
                         ),
@@ -197,6 +199,7 @@ class CustomerDashboard extends StatefulWidget {
 class _CustomerDashboardState extends State<CustomerDashboard> {
   int _currentIndex = 0;
   static const _red = Color(0xFFE8001C);
+  static const _darkerTeal = Color(0xFF004B5F);
   static const _bg = Color(0xFFF7F8FA);
   String _initials = '?';
   String? _photoUrl;
@@ -684,8 +687,8 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF004B5F), Color(0xFF006B7D), Color(0xFFEE152A)],
-          stops: [0.0, 0.35, 1.0],
+          colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
+          stops: [0.0, 1.0],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -933,7 +936,11 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     margin: const EdgeInsets.symmetric(horizontal: 4),
   );
 
-  Widget _vehicleIcon(String type, {double size = 26, Color color = _red}) {
+  Widget _vehicleIcon(
+    String type, {
+    double size = 26,
+    Color color = _darkerTeal,
+  }) {
     final t = type.toLowerCase();
     final icon = t.contains('truck')
         ? Icons.local_shipping_outlined
@@ -1669,7 +1676,11 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                 decoration: const BoxDecoration(
-                  color: _red,
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 child: Column(
@@ -2493,7 +2504,14 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                                   vertical: 10,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFE8001C),
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF004B5F),
+                                      Color(0xFFEE152A),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
                                   borderRadius: BorderRadius.circular(50),
                                 ),
                                 child: const Text(
@@ -3857,7 +3875,7 @@ class _SvcCarPainter extends CustomPainter {
       colors: [const Color(0xFFFFB3B3), const Color(0xFFFF9999)],
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-    ).createShader(Rect.fromLTWH(cx - cw * 0.35, gY - ch, cw * 0.65, ch));
+    ).createShader(Rect.fromLTWH(cx - cw * 0.65, gY - ch, cw * 0.65, ch));
 
     canvas.drawPath(cabinPath, Paint()..shader = cabGrad);
     canvas.drawPath(

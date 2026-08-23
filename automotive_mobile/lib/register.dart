@@ -1,10 +1,10 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 
-// ── OneSignal push (same credentials as notifications.dart) ──
+// -- OneSignal push (same credentials as notifications.dart) --
 const _kOneSignalAppId = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
 const _kOneSignalApiKey =
     'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
@@ -80,7 +80,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Update display name
       await cred.user!.updateDisplayName('$firstName $lastName');
 
-      // Save user document to Firestore — status 'pending' until admin approves
+      // Save user document to Firestore � status 'pending' until admin approves
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'uid': uid,
         'firstName': firstName,
@@ -94,7 +94,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       // Notify admins about new registration
       await FirebaseFirestore.instance.collection('notifications').add({
-        'title': '🆕 New Account Registered',
+        'title': '?? New Account Registered',
         'message': '$firstName $lastName ($email) has created a new account.',
         'type': 'info',
         'targetRole': 'admin',
@@ -105,7 +105,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
 
       if (!mounted) return;
-      // Sign out — they need to login with their new credentials
+      // Sign out � they need to login with their new credentials
       await FirebaseAuth.instance.signOut();
 
       // Show success and go back to login
@@ -220,7 +220,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             children: [
               const SizedBox(height: 40),
 
-              // ── Form ──
+              // -- Form --
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
                 child: Column(
@@ -360,11 +360,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              Color(0xFF1a202c), // Dark blue
-                              Color(0xFF2d3748), // Mid blue-gray
-                              Color(0xFFE8001C), // Red
+                              Color(0xFF004B5F), // Caltex teal
+                              // Mid teal
+                              Color(0xFFEE152A), // Caltex red
                             ],
-                            stops: [0.0, 0.55, 1.0],
+                            stops: [0.0, 1.0],
                           ),
                           borderRadius: BorderRadius.circular(30),
                         ),

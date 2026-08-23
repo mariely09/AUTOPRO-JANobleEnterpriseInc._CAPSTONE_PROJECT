@@ -370,8 +370,8 @@
         overdueSection = `
         <div style="margin-top:14px;padding:12px;background:#fff5f5;border-radius:12px;border:1.5px solid #fed7d7;">
           <div style="display:flex;align-items:center;gap:12px;">
-            <div style="width:38px;height:38px;background:rgba(232,0,28,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <div style="width:38px;height:38px;background:rgba(0,75,95,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#004B5F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
             <div style="flex:1;">
               <div style="font-size:12px;font-weight:700;color:#E8001C;">PMS is overdue</div>

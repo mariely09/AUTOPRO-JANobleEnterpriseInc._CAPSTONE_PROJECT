@@ -458,7 +458,7 @@ function renderDSSKpis() {
 
     el.innerHTML = [
         { svg: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>',
-          label: 'Total Items', val: total, color: '#003087', bg: 'rgba(0,48,135,0.10)', filter: 'all', idx: 0 },
+          label: 'Total Items', val: total, color: '#004B5F', bg: 'rgba(0,75,95,0.10)', filter: 'all', idx: 0 },
         { svg: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
           label: 'Out of Stock', val: outOfStock, color: '#e53e3e', bg: 'rgba(229,62,62,0.10)', filter: 'critical', idx: 1 },
         { svg: '<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>',

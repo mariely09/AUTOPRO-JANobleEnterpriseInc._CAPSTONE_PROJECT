@@ -15,7 +15,7 @@ import 'background_dss.dart';
 import 'sync_indicator.dart';
 
 // ── Workmanager task name ──
-const _kDSSTaskName   = 'dss_background_check';
+const _kDSSTaskName = 'dss_background_check';
 const _kDSSTaskUnique = 'dss_periodic';
 
 /// Top-level callback required by workmanager.
@@ -40,7 +40,8 @@ void main() async {
   if (!kIsWeb) {
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
-      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED, // no size limit on local cache
+      cacheSizeBytes:
+          Settings.CACHE_SIZE_UNLIMITED, // no size limit on local cache
     );
     debugPrint('✅ Firestore offline persistence enabled');
   }
@@ -61,7 +62,11 @@ void main() async {
       if (!isOptedIn) {
         final granted = await OneSignal.Notifications.requestPermission(true);
         if (granted) await OneSignal.User.pushSubscription.optIn();
-        debugPrint(granted ? '✅ Push re-opted in on restart' : '❌ Push permission denied on restart');
+        debugPrint(
+          granted
+              ? '✅ Push re-opted in on restart'
+              : '❌ Push permission denied on restart',
+        );
       }
 
       // Save/refresh subscription ID — use observer as primary, immediate check as fast path
@@ -86,7 +91,9 @@ void main() async {
         }
 
         // Wait for OneSignal to assign it (first install or token expired)
-        debugPrint('⏳ Waiting for OneSignal to assign subscription ID on restart...');
+        debugPrint(
+          '⏳ Waiting for OneSignal to assign subscription ID on restart...',
+        );
         OneSignal.User.pushSubscription.addObserver((state) {
           final newId = state.current.id;
           if (newId == null || newId.isEmpty) return;
@@ -108,10 +115,7 @@ void main() async {
     }
 
     // ── Workmanager: register background DSS check (mobile only) ──
-    await Workmanager().initialize(
-      callbackDispatcher,
-      isInDebugMode: false,
-    );
+    await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
     await Workmanager().registerPeriodicTask(
       _kDSSTaskUnique,
       _kDSSTaskName,
@@ -207,8 +211,8 @@ class _AuthGateState extends State<_AuthGate> {
         return;
       }
 
-      final data   = doc.data()!;
-      final role   = (data['role']   as String?) ?? '';
+      final data = doc.data()!;
+      final role = (data['role'] as String?) ?? '';
       final status = ((data['status'] as String?) ?? 'active').toLowerCase();
 
       // Block inactive/pending accounts from auto-login.
@@ -249,8 +253,8 @@ class _AuthGateState extends State<_AuthGate> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
-            stops: [0.0, 0.6, 1.0],
+            colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
+            stops: [0.0, 1.0],
           ),
         ),
         child: Center(

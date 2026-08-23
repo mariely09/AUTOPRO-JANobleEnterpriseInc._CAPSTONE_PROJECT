@@ -614,11 +614,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              Color(0xFF1a202c), // Dark blue
-                              Color(0xFF2d3748), // Mid blue-gray
-                              Color(0xFFE8001C), // Red
+                              Color(0xFF004B5F), // Caltex teal
+                              // Mid teal
+                              Color(0xFFEE152A), // Caltex red
                             ],
-                            stops: [0.0, 0.55, 1.0],
+                            stops: [0.0, 1.0],
                           ),
                           borderRadius: BorderRadius.circular(30),
                         ),

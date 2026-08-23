@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -134,7 +134,7 @@ class NotifBadge extends StatelessWidget {
   }
 }
 
-// ── OneSignal credentials ──
+// -- OneSignal credentials --
 const _kOneSignalAppId = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
 const _kOneSignalApiKey =
     'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
@@ -149,7 +149,7 @@ Future<void> _sendViaOneSignal({
 }) async {
   if (userIds.isEmpty) return;
   if (kIsWeb) {
-    debugPrint('ℹ️ OneSignal push skipped on web');
+    debugPrint('?? OneSignal push skipped on web');
     return;
   }
   try {
@@ -168,9 +168,9 @@ Future<void> _sendViaOneSignal({
         'data': {'type': type},
       }),
     );
-    debugPrint('📤 OneSignal → ${res.statusCode}: ${res.body}');
+    debugPrint('?? OneSignal ? ${res.statusCode}: ${res.body}');
   } catch (e) {
-    debugPrint('❌ OneSignal send error: $e');
+    debugPrint('? OneSignal send error: $e');
   }
 }
 
@@ -184,7 +184,7 @@ class AppNotifications extends StatefulWidget {
 
 class _AppNotificationsState extends State<AppNotifications> {
   static const _red = Color(0xFFE8001C);
-  static const _blue = Color(0xFF003087);
+  static const _teal = Color(0xFF004B5F);
 
   @override
   void initState() {
@@ -196,13 +196,13 @@ class _AppNotificationsState extends State<AppNotifications> {
   void _setupListeners() {
     if (kIsWeb) return; // OneSignal not supported on web
     OneSignal.Notifications.addForegroundWillDisplayListener((event) {
-      debugPrint('🔔 Foreground: ${event.notification.title}');
+      debugPrint('?? Foreground: ${event.notification.title}');
       event.preventDefault(); // prevent auto-display so we show our own dialog
       _showNotificationDialog(event.notification);
     });
 
     OneSignal.Notifications.addClickListener((event) {
-      debugPrint('👆 Tapped: ${event.notification.title}');
+      debugPrint('?? Tapped: ${event.notification.title}');
     });
   }
 
@@ -223,7 +223,7 @@ class _AppNotificationsState extends State<AppNotifications> {
     );
   }
 
-  // ── Helpers ──
+  // -- Helpers --
 
   String get _roleString {
     switch (widget.role) {
@@ -248,7 +248,7 @@ class _AppNotificationsState extends State<AppNotifications> {
   }
 
   /// Write to /notifications (for in-app display) AND push via OneSignal directly.
-  /// [prefKey] — if non-empty, only push to users who have that pref enabled.
+  /// [prefKey] � if non-empty, only push to users who have that pref enabled.
   Future<void> _notify({
     required String title,
     required String message,
@@ -269,7 +269,7 @@ class _AppNotificationsState extends State<AppNotifications> {
       'targetRole': targetRole,
       'targetUid': targetUid,
       'createdAt': FieldValue.serverTimestamp(),
-      'readBy': <String, bool>{}, // empty map — filled as users read it
+      'readBy': <String, bool>{}, // empty map � filled as users read it
       'isRead': false, // convenience flag for quick queries
     });
 
@@ -321,13 +321,13 @@ class _AppNotificationsState extends State<AppNotifications> {
               'type': type,
             }),
           );
-          debugPrint('📧 Email sent to $userEmail');
+          debugPrint('?? Email sent to $userEmail');
         } catch (e) {
-          debugPrint('⚠️ Email to $uid failed (non-fatal): $e');
+          debugPrint('?? Email to $uid failed (non-fatal): $e');
         }
       }
     } catch (e) {
-      debugPrint('⚠️ Notification email send failed (non-fatal): $e');
+      debugPrint('?? Notification email send failed (non-fatal): $e');
     }
 
     // 3. Filter by pref then push via OneSignal
@@ -351,7 +351,7 @@ class _AppNotificationsState extends State<AppNotifications> {
     final db = FirebaseFirestore.instance;
     final now = DateTime.now();
 
-    // ── Dedup guard: only generate once per calendar day ──
+    // -- Dedup guard: only generate once per calendar day --
     final todayStr =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final markerRef = db.collection('_pmsAlertLog').doc(todayStr);
@@ -359,7 +359,7 @@ class _AppNotificationsState extends State<AppNotifications> {
       final markerDoc = await markerRef.get();
       if (markerDoc.exists) {
         debugPrint(
-          'ℹ️ DSS alerts already generated today ($todayStr), skipping.',
+          '?? DSS alerts already generated today ($todayStr), skipping.',
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -372,7 +372,7 @@ class _AppNotificationsState extends State<AppNotifications> {
       await markerRef.set({'generatedAt': FieldValue.serverTimestamp()});
     } catch (e) {
       debugPrint(
-        '⚠️ DSS marker check failed: $e — skipping to avoid duplicates',
+        '?? DSS marker check failed: $e � skipping to avoid duplicates',
       );
       return;
     }
@@ -381,7 +381,7 @@ class _AppNotificationsState extends State<AppNotifications> {
       // Get admin UIDs for push targeting
       final adminIds = await _uidsForRole('admin');
 
-      // ── STOCK ALERTS ──
+      // -- STOCK ALERTS --
       final stockSnap = await db.collection('stock_inventory').get();
       final issuancesSnap = await db.collection('issuances').get();
 
@@ -436,7 +436,7 @@ class _AppNotificationsState extends State<AppNotifications> {
 
         if (stock == 0) {
           await _notify(
-            title: '🚨 URGENT: Out of Stock',
+            title: '?? URGENT: Out of Stock',
             message:
                 '$name is out of stock. Recommend ordering $recommendQty $uom.',
             type: 'warning',
@@ -446,7 +446,7 @@ class _AppNotificationsState extends State<AppNotifications> {
           );
         } else if (stock <= min) {
           await _notify(
-            title: '⚠️ Low Stock Alert',
+            title: '?? Low Stock Alert',
             message:
                 '$name is low ($stock $uom). Recommend ordering $recommendQty $uom.',
             type: 'warning',
@@ -457,7 +457,7 @@ class _AppNotificationsState extends State<AppNotifications> {
         }
       }
 
-      // ── PMS ALERTS ──
+      // -- PMS ALERTS --
       final vehiclesSnap = await db.collection('vehicles').get();
       final today = DateTime(now.year, now.month, now.day);
 
@@ -484,10 +484,10 @@ class _AppNotificationsState extends State<AppNotifications> {
         );
         final daysUntil = nextMidnight.difference(today).inDays;
 
-        // Admin PMS alerts — gated by pref
+        // Admin PMS alerts � gated by pref
         if (daysUntil < 0) {
           await _notify(
-            title: '🚨 PMS Overdue',
+            title: '?? PMS Overdue',
             message:
                 '$plate is ${(-daysUntil)} day(s) overdue for maintenance.',
             type: 'warning',
@@ -497,7 +497,7 @@ class _AppNotificationsState extends State<AppNotifications> {
           );
         } else if (daysUntil == 0) {
           await _notify(
-            title: '📅 PMS Due Today',
+            title: '?? PMS Due Today',
             message: '$plate is due for maintenance today.',
             type: 'warning',
             targetRole: 'admin',
@@ -506,7 +506,7 @@ class _AppNotificationsState extends State<AppNotifications> {
           );
         } else if (daysUntil <= 7) {
           await _notify(
-            title: '📅 PMS Due This Week',
+            title: '?? PMS Due This Week',
             message:
                 '$plate is due for maintenance this week ($daysUntil day(s)).',
             type: 'warning',
@@ -516,7 +516,7 @@ class _AppNotificationsState extends State<AppNotifications> {
           );
         } else if (daysUntil <= 14) {
           await _notify(
-            title: '⚠️ PMS Due Soon',
+            title: '?? PMS Due Soon',
             message: '$plate is due for maintenance in $daysUntil day(s).',
             type: 'info',
             targetRole: 'admin',
@@ -525,7 +525,7 @@ class _AppNotificationsState extends State<AppNotifications> {
           );
         }
 
-        // Customer PMS alerts — gated by their own prefs
+        // Customer PMS alerts � gated by their own prefs
         // Try UID fields first, then fall back to name-based lookup
         String? ownerId =
             data['ownerId'] as String? ?? data['customerId'] as String?;
@@ -562,10 +562,10 @@ class _AppNotificationsState extends State<AppNotifications> {
               }
             }
             if (ownerId != null && ownerId.isNotEmpty) {
-              debugPrint('✅ Resolved owner UID for $ownerName → $ownerId');
+              debugPrint('? Resolved owner UID for $ownerName ? $ownerId');
             } else {
               debugPrint(
-                '⚠️ Could not resolve owner UID for vehicle $plate (owner: $ownerName)',
+                '?? Could not resolve owner UID for vehicle $plate (owner: $ownerName)',
               );
             }
           }
@@ -576,7 +576,7 @@ class _AppNotificationsState extends State<AppNotifications> {
 
           if (daysUntil < 0) {
             await _notify(
-              title: '🚨 Your PMS is Overdue',
+              title: '?? Your PMS is Overdue',
               message:
                   'Your $plate is ${(-daysUntil)} day(s) overdue for maintenance.',
               type: 'warning',
@@ -586,7 +586,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             );
           } else if (daysUntil == 0) {
             await _notify(
-              title: '📅 Your PMS is Due Today',
+              title: '?? Your PMS is Due Today',
               message: 'Your $plate is due for maintenance today.',
               type: 'warning',
               targetUid: ownerId,
@@ -595,7 +595,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             );
           } else if (daysUntil <= 7) {
             await _notify(
-              title: '📅 Your PMS is Due This Week',
+              title: '?? Your PMS is Due This Week',
               message:
                   'Your $plate is due for maintenance this week ($daysUntil day(s)).',
               type: 'warning',
@@ -605,7 +605,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             );
           } else if (daysUntil <= 14) {
             await _notify(
-              title: '⚠️ Your PMS is Due Soon',
+              title: '?? Your PMS is Due Soon',
               message:
                   'Your $plate is due for maintenance in $daysUntil day(s).',
               type: 'info',
@@ -617,14 +617,14 @@ class _AppNotificationsState extends State<AppNotifications> {
         }
       }
 
-      debugPrint('✅ DSS alerts generated and pushed');
+      debugPrint('? DSS alerts generated and pushed');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('DSS alerts sent')));
       }
     } catch (e) {
-      debugPrint('❌ generateDSSAlerts error: $e');
+      debugPrint('? generateDSSAlerts error: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -649,7 +649,7 @@ class _AppNotificationsState extends State<AppNotifications> {
     );
   }
 
-  // ── Date parser ──
+  // -- Date parser --
 
   static DateTime? _parseIssuanceDate(String s) {
     if (s.isEmpty) return null;
@@ -687,8 +687,8 @@ class _AppNotificationsState extends State<AppNotifications> {
     return null;
   }
 
-  // ── Firestore streams for in-app notification list ──
-  // Note: no .orderBy() on the queries — sorting is done client-side after
+  // -- Firestore streams for in-app notification list --
+  // Note: no .orderBy() on the queries � sorting is done client-side after
   // merging both streams. This avoids the need for Firestore composite indexes.
 
   Stream<QuerySnapshot> get _stream => FirebaseFirestore.instance
@@ -720,7 +720,7 @@ class _AppNotificationsState extends State<AppNotifications> {
     String title,
     String message,
   ) async {
-    // Mark read first (fire-and-forget is fine here — UI updates immediately)
+    // Mark read first (fire-and-forget is fine here � UI updates immediately)
     _markRead(docId);
 
     final t = title.toLowerCase();
@@ -799,7 +799,7 @@ class _AppNotificationsState extends State<AppNotifications> {
     if (type == 'warning') return Colors.orange;
     if (type == 'success') return const Color(0xFF2c7a7b);
     if (type == 'danger') return const Color(0xFFE8001C);
-    return _blue;
+    return _teal;
   }
 
   IconData _typeIcon(String type) {
@@ -812,18 +812,18 @@ class _AppNotificationsState extends State<AppNotifications> {
   // Map notification title keywords to specific emoji icons (matches website style)
   String _titleEmoji(String title, String type) {
     final t = title.toLowerCase();
-    if (t.contains('overdue')) return '🚨';
-    if (t.contains('due this week')) return '📅';
-    if (t.contains('due soon')) return '⚠️';
-    if (t.contains('out of stock')) return '🚨';
-    if (t.contains('low stock')) return '⚠️';
-    if (t.contains('approved')) return '✅';
-    if (t.contains('registration')) return '🆕';
-    if (t.contains('maintenance')) return '🔧';
-    if (type == 'success') return '✅';
-    if (type == 'warning') return '⚠️';
-    if (type == 'danger') return '🚨';
-    return '🔔';
+    if (t.contains('overdue')) return '??';
+    if (t.contains('due this week')) return '??';
+    if (t.contains('due soon')) return '??';
+    if (t.contains('out of stock')) return '??';
+    if (t.contains('low stock')) return '??';
+    if (t.contains('approved')) return '?';
+    if (t.contains('registration')) return '??';
+    if (t.contains('maintenance')) return '??';
+    if (type == 'success') return '?';
+    if (type == 'warning') return '??';
+    if (type == 'danger') return '??';
+    return '??';
   }
 
   String _timeAgo(Timestamp? ts) {
@@ -836,7 +836,7 @@ class _AppNotificationsState extends State<AppNotifications> {
     return '${diff.inDays} days ago';
   }
 
-  // ── Selection state ──
+  // -- Selection state --
   final Set<String> _selected = {};
   bool get _isSelecting => _selected.isNotEmpty;
 
@@ -948,7 +948,7 @@ class _AppNotificationsState extends State<AppNotifications> {
     if (confirmed == true) await _deleteSelected();
   }
 
-  // ── UI ──
+  // -- UI --
 
   @override
   Widget build(BuildContext context) {
@@ -968,12 +968,8 @@ class _AppNotificationsState extends State<AppNotifications> {
                   flexibleSpace: Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [
-                          Color(0xFF004B5F),
-                          Color(0xFF006B7D),
-                          Color(0xFFEE152A),
-                        ],
-                        stops: [0.0, 0.35, 1.0],
+                        colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
+                        stops: [0.0, 1.0],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -1018,19 +1014,15 @@ class _AppNotificationsState extends State<AppNotifications> {
             return Scaffold(
               backgroundColor: const Color(0xFFF7F8FA),
               appBar: _isSelecting
-                  // ── Selection mode AppBar ──
+                  // -- Selection mode AppBar --
                   ? AppBar(
                       backgroundColor: const Color(0xFF004B5F),
                       elevation: 0,
                       flexibleSpace: Container(
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [
-                              Color(0xFF004B5F),
-                              Color(0xFF006B7D),
-                              Color(0xFFEE152A),
-                            ],
-                            stops: [0.0, 0.35, 1.0],
+                            colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
+                            stops: [0.0, 1.0],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -1078,19 +1070,15 @@ class _AppNotificationsState extends State<AppNotifications> {
                         ),
                       ],
                     )
-                  // ── Normal AppBar ──
+                  // -- Normal AppBar --
                   : AppBar(
                       backgroundColor: const Color(0xFF004B5F),
                       elevation: 0,
                       flexibleSpace: Container(
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [
-                              Color(0xFF004B5F),
-                              Color(0xFF006B7D),
-                              Color(0xFFEE152A),
-                            ],
-                            stops: [0.0, 0.35, 1.0],
+                            colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
+                            stops: [0.0, 1.0],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -1137,7 +1125,7 @@ class _AppNotificationsState extends State<AppNotifications> {
                     )
                   : Column(
                       children: [
-                        // ── Toolbar row ──
+                        // -- Toolbar row --
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                           child: Row(
@@ -1151,7 +1139,7 @@ class _AppNotificationsState extends State<AppNotifications> {
                               Expanded(
                                 child: Text(
                                   _isSelecting
-                                      ? 'Long press to select • tap to toggle'
+                                      ? 'Long press to select � tap to toggle'
                                       : unreadCount > 0
                                       ? '$unreadCount unread notification${unreadCount > 1 ? 's' : ''}'
                                       : 'All caught up!',
@@ -1175,7 +1163,7 @@ class _AppNotificationsState extends State<AppNotifications> {
                             ],
                           ),
                         ),
-                        // ── List ──
+                        // -- List --
                         Expanded(
                           child: ListView.separated(
                             padding: const EdgeInsets.all(16),
@@ -1238,7 +1226,7 @@ class _AppNotificationsState extends State<AppNotifications> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      // ── Emoji icon (matches website style) ──
+                                      // -- Emoji icon (matches website style) --
                                       if (_isSelecting)
                                         Padding(
                                           padding: const EdgeInsets.only(
@@ -1294,7 +1282,7 @@ class _AppNotificationsState extends State<AppNotifications> {
                                             ),
                                           ),
                                         ),
-                                      // ── Text ──
+                                      // -- Text --
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -1341,7 +1329,7 @@ class _AppNotificationsState extends State<AppNotifications> {
                                           ],
                                         ),
                                       ),
-                                      // ── Unread dot (right side, red) ──
+                                      // -- Unread dot (right side, red) --
                                       if (!_isSelecting && isUnread) ...[
                                         const SizedBox(width: 8),
                                         Padding(

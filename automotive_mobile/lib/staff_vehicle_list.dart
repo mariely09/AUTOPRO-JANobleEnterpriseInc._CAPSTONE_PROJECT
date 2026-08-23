@@ -163,8 +163,8 @@ class _StaffVehicleListState extends State<StaffVehicleList> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF004B5F), Color(0xFF006B7D), Color(0xFFEE152A)],
-              stops: [0.0, 0.35, 1.0],
+              colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
+              stops: [0.0, 1.0],
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
             ),

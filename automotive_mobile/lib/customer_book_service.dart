@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -27,7 +27,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
   List<Map<String, dynamic>> _services = [];
   List<Map<String, dynamic>> _vehicles = [];
   final Set<String> _selectedVehicleIds = {};
-  // Per-vehicle service selections: vehicleId → Set of service IDs
+  // Per-vehicle service selections: vehicleId ? Set of service IDs
   final Map<String, Set<String>> _vehicleServices = {};
   DateTime? _preferredDate;
   String? _preferredTime;
@@ -50,9 +50,9 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
   late int _calYear;
   late int _calMonth;
   Map<String, List<String>> _bookedDates =
-      {}; // date → list of taken time slots
+      {}; // date ? list of taken time slots
   Map<String, List<String>> _bookedTimes =
-      {}; // date → list of taken time slots (alias, reused from _bookedDates)
+      {}; // date ? list of taken time slots (alias, reused from _bookedDates)
 
   @override
   void initState() {
@@ -223,7 +223,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       final dateStr =
           '${_preferredDate!.year}-${_preferredDate!.month.toString().padLeft(2, '0')}-${_preferredDate!.day.toString().padLeft(2, '0')}';
 
-      // Create one booking per selected vehicle — always Approved
+      // Create one booking per selected vehicle � always Approved
       for (final vehicle in selectedVehicles) {
         final plate = vehicle['plate'] as String? ?? '';
         final vehicleDesc = vehicle['desc'] as String? ?? '';
@@ -256,7 +256,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       final vehicleBreakdown = <String>[];
       for (final vehicle in selectedVehicles) {
         final vId = vehicle['id'] as String;
-        final plate = vehicle['plate'] as String? ?? '—';
+        final plate = vehicle['plate'] as String? ?? '�';
         final vSvcIds = _vehicleServices[vId] ?? {};
         final vNames = _services
             .where((s) => vSvcIds.contains(s['id']))
@@ -271,7 +271,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       final bookingMsg =
           '$customerName booked service for $vLabel on ${_fmtDatePretty(_preferredDate!)}. $detailedMsg';
 
-      // ── Load admin & staff UIDs ──
+      // -- Load admin & staff UIDs --
       final adminSnap = await db
           .collection('users')
           .where('role', isEqualTo: 'admin')
@@ -283,27 +283,27 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       final adminUids = adminSnap.docs.map((d) => d.id).toList();
       final staffUids = staffSnap2.docs.map((d) => d.id).toList();
 
-      // ── Notify admin: in-app + push ──
+      // -- Notify admin: in-app + push --
       await _sendAlertToUsers(
         db: db,
         uids: adminUids,
-        title: '📅 New Booking — $vLabel',
+        title: '?? New Booking � $vLabel',
         message: bookingMsg,
         type: 'info',
         targetRole: 'admin',
       );
 
-      // ── Notify staff: in-app + push ──
+      // -- Notify staff: in-app + push --
       await _sendAlertToUsers(
         db: db,
         uids: staffUids,
-        title: '📅 New Booking — $vLabel',
+        title: '?? New Booking � $vLabel',
         message: bookingMsg,
         type: 'info',
         targetRole: 'staff',
       );
 
-      // ── Email admin & staff via Flask (server fetches recipient emails) ──
+      // -- Email admin & staff via Flask (server fetches recipient emails) --
       _sendBookingEmail(
         customerName: customerName,
         selectedVehicles: selectedVehicles,
@@ -312,11 +312,11 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         preferredDate: _fmtDatePretty(_preferredDate!),
         preferredTime: _preferredTime!,
         notes: _notes,
-      ); // fire-and-forget — don't await so UI isn't blocked
+      ); // fire-and-forget � don't await so UI isn't blocked
 
-      // ── Notify customer: in-app only ──
+      // -- Notify customer: in-app only --
       await db.collection('notifications').add({
-        'title': '✅ Booking Confirmed',
+        'title': '? Booking Confirmed',
         'message':
             'Your service booking on ${_fmtDatePretty(_preferredDate!)} at $_preferredTime has been confirmed.\n$detailedMsg',
         'type': 'success',
@@ -335,7 +335,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '✅ Booking confirmed for $vCount vehicle${vCount > 1 ? 's' : ''}!',
+              '? Booking confirmed for $vCount vehicle${vCount > 1 ? 's' : ''}!',
             ),
             backgroundColor: Colors.green,
           ),
@@ -396,11 +396,11 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         }),
       );
     } catch (e) {
-      debugPrint('❌ OneSignal push error: $e');
+      debugPrint('? OneSignal push error: $e');
     }
   }
 
-  /// Calls Flask /api/send-booking-email — server fetches admin/staff emails
+  /// Calls Flask /api/send-booking-email � server fetches admin/staff emails
   /// from Firestore and sends a rich HTML booking notification email.
   Future<void> _sendBookingEmail({
     required String customerName,
@@ -415,7 +415,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     try {
       final vehiclePayload = selectedVehicles.map((v) {
         final vId = v['id'] as String;
-        final plate = v['plate'] as String? ?? '—';
+        final plate = v['plate'] as String? ?? '�';
         final desc = v['desc'] as String? ?? '';
         final svcIds = vehicleServices[vId] ?? {};
         final svcNames = services
@@ -439,7 +439,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         }),
       );
     } catch (e) {
-      debugPrint('❌ Booking email dispatch error: $e');
+      debugPrint('? Booking email dispatch error: $e');
     }
   }
 
@@ -467,7 +467,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                       Color(0xFF006B7D),
                       Color(0xFFEE152A),
                     ],
-                    stops: [0.0, 0.35, 1.0],
+                    stops: [0.0, 1.0],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -490,7 +490,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Select Vehicle(s) ──
+                  // -- Select Vehicle(s) --
                   _sectionTitle('Select Vehicle(s)'),
                   const SizedBox(height: 8),
                   if (_vehicles.isEmpty)
@@ -498,7 +498,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                   else
                     ..._vehicles.map((v) => _vehicleTile(v)),
 
-                  // ── Per-vehicle service selection ──
+                  // -- Per-vehicle service selection --
                   if (_selectedVehicleIds.isNotEmpty) ...[
                     const SizedBox(height: 20),
                     _sectionTitle('Select Services'),
@@ -508,7 +508,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                         (v) => v['id'] == vId,
                         orElse: () => <String, dynamic>{},
                       );
-                      final plate = vehicle['plate'] as String? ?? '—';
+                      final plate = vehicle['plate'] as String? ?? '�';
                       final desc = vehicle['desc'] as String? ?? '';
                       final selectedSvcs = _vehicleServices[vId] ?? {};
                       final selectedNames = _services
@@ -650,7 +650,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
 
                   const SizedBox(height: 20),
 
-                  // ── Preferred Date ──
+                  // -- Preferred Date --
                   _sectionTitle('Preferred Date'),
                   const SizedBox(height: 8),
                   // AI suggestion
@@ -702,7 +702,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
 
                   const SizedBox(height: 20),
 
-                  // ── Preferred Start Time ──
+                  // -- Preferred Start Time --
                   _sectionTitle('Preferred Start Time'),
                   const SizedBox(height: 4),
                   const Text(
@@ -759,7 +759,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
 
                   const SizedBox(height: 20),
 
-                  // ── Notes ──
+                  // -- Notes --
                   _sectionTitle('Notes (optional)'),
                   const SizedBox(height: 8),
                   TextField(
@@ -790,7 +790,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
 
                   const SizedBox(height: 28),
 
-                  // ── Submit ──
+                  // -- Submit --
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -853,7 +853,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                     )
                     .toList();
 
-          // Keyboard height — shrinks modal up so nothing overflows
+          // Keyboard height � shrinks modal up so nothing overflows
           final keyboardH = MediaQuery.of(ctx).viewInsets.bottom;
           final screenH = MediaQuery.of(ctx).size.height;
 
@@ -864,7 +864,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
               height: screenH * 0.82,
               child: Column(
                 children: [
-                  // ── Header ──
+                  // -- Header --
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
@@ -905,7 +905,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                       ],
                     ),
                   ),
-                  // ── Search bar ──
+                  // -- Search bar --
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                     child: TextField(
@@ -959,7 +959,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                       ),
                     ),
                   ),
-                  // ── Count label ──
+                  // -- Count label --
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -989,7 +989,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                       ],
                     ),
                   ),
-                  // ── Service list — Expanded fills remaining space ──
+                  // -- Service list � Expanded fills remaining space --
                   Expanded(
                     child: filtered.isEmpty
                         ? Center(
@@ -1016,11 +1016,11 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                               final name = (s['name'] ?? '').toString();
                               final rawCost = (s['cost'] ?? '')
                                   .toString()
-                                  .replaceAll('₱', '')
+                                  .replaceAll('?', '')
                                   .replaceAll(',', '')
                                   .trim();
                               final costDisplay = rawCost.isNotEmpty
-                                  ? '₱$rawCost'
+                                  ? '?$rawCost'
                                   : '';
                               final uom = (s['uom'] ?? '').toString();
 
@@ -1118,7 +1118,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                             },
                           ),
                   ),
-                  // ── Done button ──
+                  // -- Done button --
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                     child: SizedBox(
@@ -1201,11 +1201,11 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         bestSuggestion = earliestPmsDue.subtract(const Duration(days: 3));
         if (bestSuggestion!.isBefore(tomorrow)) bestSuggestion = tomorrow;
         reason =
-            'PMS due ${_fmtDatePretty(earliestPmsDue)} — book before it\'s overdue';
+            'PMS due ${_fmtDatePretty(earliestPmsDue)} � book before it\'s overdue';
       } else {
-        // Overdue — suggest tomorrow
+        // Overdue � suggest tomorrow
         bestSuggestion = tomorrow;
-        reason = 'PMS is overdue — book ASAP';
+        reason = 'PMS is overdue � book ASAP';
       }
     }
 
@@ -1224,7 +1224,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       }
       reason = 'Next available open day';
     } else {
-      // Also check if the suggested date is fully booked → shift forward
+      // Also check if the suggested date is fully booked ? shift forward
       int attempts = 0;
       while (attempts < 14) {
         final dateStr =
@@ -1287,7 +1287,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                     ),
                   ),
                   Text(
-                    '${_fmtDatePretty(suggestedDate)} — $reason',
+                    '${_fmtDatePretty(suggestedDate)} � $reason',
                     style: const TextStyle(
                       fontSize: 11,
                       color: Color(0xFF718096),
@@ -1654,7 +1654,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     final tooltip = isPast
         ? 'This time has already passed'
         : isTaken
-        ? 'Already booked — choose another time'
+        ? 'Already booked � choose another time'
         : '';
 
     return GestureDetector(
@@ -1759,7 +1759,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    v['plate'] as String? ?? '—',
+                    v['plate'] as String? ?? '�',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
@@ -1794,10 +1794,10 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     final name = (s['name'] ?? '').toString();
     final rawCost = (s['cost'] ?? '')
         .toString()
-        .replaceAll('₱', '')
+        .replaceAll('?', '')
         .replaceAll(',', '')
         .trim();
-    final costDisplay = rawCost.isNotEmpty ? '₱$rawCost' : '';
+    final costDisplay = rawCost.isNotEmpty ? '?$rawCost' : '';
     final uom = (s['uom'] ?? '').toString();
 
     return GestureDetector(
@@ -1868,7 +1868,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
   }
 
   Widget _serviceTile(Map<String, dynamic> s) {
-    // Legacy — kept for compatibility but not used in new flow
+    // Legacy � kept for compatibility but not used in new flow
     return _perVehicleServiceTile('', s);
   }
 }

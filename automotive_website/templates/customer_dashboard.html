@@ -7,7 +7,7 @@
     <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Portal</title>
-    <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
+    <link rel="icon" type="image/png" href="../static/img/LOGO_AUTOPRO.png" />
     <link rel="stylesheet" href="../static/css/customer_dashboard.css">
 </head>
 <body data-page="dashboard">
@@ -236,10 +236,12 @@
         <!-- Panel header -->
         <div style="background:linear-gradient(135deg,#c62828 0%,#E8001C 60%,#ff5252 100%);padding:12px 10px;display:flex;align-items:center;gap:6px;flex-shrink:0;position:relative;overflow:visible;">
             <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.1) 0%,transparent 65%);pointer-events:none;border-radius:22px 22px 0 0;"></div>
-            <!-- Avatar -->
+            <!-- Avatar with gradient border -->
             <div style="position:relative;flex-shrink:0;">
-              <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,0.4);flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
-                <img src="../static/img/AI_LOGO.png" style="width:36px;height:36px;object-fit:cover;display:block;" alt="AI">
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg, #004B5F 0%, #EE152A 100%);flex-shrink:0;box-shadow:0 0 8px rgba(0,75,95,0.35),0 2px 8px rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:center;padding:2.5px;">
+                <div style="width:100%;height:100%;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                  <img src="../static/img/AI_LOGO.png" style="width:26px;height:26px;object-fit:contain;display:block;" alt="AI">
+                </div>
               </div>
               <span id="aiFabOnlineDotHdr" style="display:none;position:absolute;bottom:1px;right:1px;width:9px;height:9px;border-radius:50%;background:#4ade80;border:2px solid white;box-shadow:0 0 5px rgba(74,222,128,0.8);z-index:1;"></span>
             </div>
@@ -320,20 +322,20 @@
     <!-- FAB toggle button -->
     <div id="aiFabWrap" style="position:relative;display:inline-flex;">
       <button id="aiFab" onclick="toggleSmartAI()"
-        style="width:58px;height:58px;background:white;border:2.5px solid #E8001C;border-radius:50%;cursor:pointer;
+        style="width:58px;height:58px;background:linear-gradient(135deg, #004B5F 0%, #EE152A 100%);border:none;border-radius:50%;cursor:pointer;
                display:flex;align-items:center;justify-content:center;
-               box-shadow:0 4px 20px rgba(232,0,28,0.22),0 0 0 0 rgba(232,0,28,0.15);
-               transition:transform .2s,box-shadow .2s;animation:aiFabPulse 2.8s ease-in-out infinite;
+               box-shadow:0 4px 20px rgba(0,75,95,0.4),0 0 0 0 rgba(0,75,95,0.15);
+               transition:transform .2s,box-shadow .2s;
                padding:3px;overflow:hidden;"
         onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
           <img id="aiFabImg" src="../static/img/AI_LOGO.png"
-               style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">
+               style="width:52px;height:52px;object-fit:cover;border-radius:50%;display:block;" alt="AI">
       </button>
       <!-- Green online indicator dot on customer FAB -->
       <span id="aiFabOnlineDot"
         style="position:absolute;bottom:3px;right:3px;width:13px;height:13px;
-               border-radius:50%;background:#22c55e;border:2.5px solid white;
-               box-shadow:0 0 6px rgba(34,197,94,0.7);z-index:1;
+               border-radius:50%;background:#22c55e !important;border:2.5px solid white;
+               box-shadow:0 0 6px rgba(34,197,94,0.7);z-index:10;
                transition:background 0.3s;"></span>
     </div>
 </div>
@@ -420,12 +422,12 @@
   display:flex;align-items:center;gap:8px;margin-top:4px;
 }
 .cu-svc-book-btn {
-  flex:1;background:#E8001C;border:none;border-radius:50px;
+  flex:1;background:linear-gradient(135deg, #004B5F 0%, #EE152A 100%);border:none;border-radius:50px;
   padding:8px 14px;font-size:12px;font-weight:700;color:#fff;
   cursor:pointer;font-family:inherit;text-align:center;
-  transition:background .15s;text-decoration:none;display:block;
+  transition:opacity .15s;text-decoration:none;display:block;
 }
-.cu-svc-book-btn:hover { background:#c8001a; }
+.cu-svc-book-btn:hover { opacity:0.9; }
 .cu-svc-next-btn {
   width:34px;height:34px;border-radius:50%;
   background:rgba(232,0,28,0.12);border:none;
@@ -587,7 +589,6 @@
 }
 
 @keyframes aiPanelIn { from{opacity:0;transform:translateY(16px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
-@keyframes aiFabPulse { 0%,100%{box-shadow:0 4px 20px rgba(232,0,28,0.22),0 0 0 0 rgba(232,0,28,0.15)} 50%{box-shadow:0 4px 20px rgba(232,0,28,0.22),0 0 0 8px rgba(232,0,28,0)} }
 @keyframes aiBounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
 .ai-bubble-user { max-width:80%;padding:10px 14px;border-radius:16px 4px 16px 16px;background:linear-gradient(135deg,#E8001C 0%,#c0001a 100%);color:white;font-size:12.5px;line-height:1.65;align-self:flex-end;white-space:pre-wrap;box-shadow:0 3px 12px rgba(232,0,28,0.25); }
 .ai-bubble-bot  { max-width:82%;padding:10px 14px;border-radius:4px 16px 16px 16px;background:white;color:#1a202c;font-size:12.5px;line-height:1.65;align-self:flex-start;white-space:pre-wrap;box-shadow:0 2px 12px rgba(0,0,0,0.07);border:1px solid rgba(226,232,240,0.6); }
@@ -773,11 +774,11 @@ function _updateFabIcon(open) {
         fab.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
         if (dot) dot.style.display = 'none';
     } else {
-        fab.style.background = 'white';
-        fab.style.border = '2.5px solid #E8001C';
+        fab.style.background = 'linear-gradient(135deg, #004B5F 0%, #EE152A 100%)';
+        fab.style.border = 'none';
         fab.style.overflow = 'hidden';
         fab.style.padding = '3px';
-        fab.innerHTML = '<img id="aiFabImg" src="../static/img/AI_LOGO.png" style="width:48px;height:48px;object-fit:cover;border-radius:50%;display:block;" alt="AI">';
+        fab.innerHTML = '<img id="aiFabImg" src="../static/img/AI_LOGO.png" style="width:52px;height:52px;object-fit:cover;border-radius:50%;display:block;" alt="AI">';
         if (dot) dot.style.display = 'block';
     }
 }

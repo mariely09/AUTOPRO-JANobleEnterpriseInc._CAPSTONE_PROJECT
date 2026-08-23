@@ -1007,10 +1007,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                       gradient: const LinearGradient(
                                         colors: [
                                           Color(0xFF004B5F),
-                                          Color(0xFF006B7D),
                                           Color(0xFFEE152A),
                                         ],
-                                        stops: [0.0, 0.35, 1.0],
+                                        stops: [0.0, 1.0],
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                       ),
