@@ -170,10 +170,15 @@ class CustomerSmartAI extends StatefulWidget {
   State<CustomerSmartAI> createState() => _CustomerSmartAIState();
 }
 
-class _CustomerSmartAIState extends State<CustomerSmartAI> {
+class _CustomerSmartAIState extends State<CustomerSmartAI>
+    with SingleTickerProviderStateMixin {
   // ── Brand colours ─────────────────────────────────────────────────────────
   static const _red = Color(0xFFE8001C);
   static const _bg = Color(0xFFF7F8FA);
+
+  // ── Pulsing ring animation for the AppBar avatar ──────────────────────────
+  late final AnimationController _pulseCtrl;
+  late final Animation<double> _pulseAnim;
 
   final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
@@ -209,6 +214,14 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   @override
   void initState() {
     super.initState();
+    // Pulse animation — repeats to produce the expanding ring effect
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+    _pulseAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeOut),
+    );
     _eagerRestoreSession(); // restore messages ASAP — skips the welcome flash
     _loadIdentity();
     _checkBackend(silent: true);
@@ -234,6 +247,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
 
   @override
   void dispose() {
+    _pulseCtrl.dispose();
     // Save chat on widget dispose (navigation away)
     if (_customerUid.isNotEmpty && CustomerChatStore.messages.isNotEmpty) {
       CustomerChatStore.saveChat(_customerUid);
@@ -701,41 +715,91 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         iconTheme: const IconThemeData(color: Colors.white),
         title: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              margin: const EdgeInsets.only(right: 10),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-                border: Border.all(
-                  color: _backendOnline
-                      ? const Color(0xFF4ade80)
-                      : const Color(0xFFF97316),
-                  width: 2.5,
+            // AI logo in AppBar with animated pulse ring
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                // Outer pulse ring
+                AnimatedBuilder(
+                  animation: _pulseAnim,
+                  builder: (_, __) {
+                    final color = _backendOnline
+                        ? const Color(0xFF4ade80)
+                        : const Color(0xFFF97316);
+                    return Container(
+                      width: 40 + (_pulseAnim.value * 22),
+                      height: 40 + (_pulseAnim.value * 22),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: color.withValues(
+                            alpha: (1 - _pulseAnim.value) * 0.55,
+                          ),
+                          width: 2,
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        (_backendOnline
+                // Inner pulse ring (offset by half a period)
+                AnimatedBuilder(
+                  animation: _pulseAnim,
+                  builder: (_, __) {
+                    final phase = (_pulseAnim.value + 0.45) % 1.0;
+                    final color = _backendOnline
+                        ? const Color(0xFF4ade80)
+                        : const Color(0xFFF97316);
+                    return Container(
+                      width: 40 + (phase * 22),
+                      height: 40 + (phase * 22),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: color.withValues(alpha: (1 - phase) * 0.55),
+                          width: 1.5,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                // Avatar circle with status-colour border
+                Container(
+                  width: 40,
+                  height: 40,
+                  margin: const EdgeInsets.only(right: 0),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    border: Border.all(
+                      color: _backendOnline
+                          ? const Color(0xFF4ade80)
+                          : const Color(0xFFF97316),
+                      width: 2.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (_backendOnline
                                 ? const Color(0xFF4ade80)
                                 : const Color(0xFFF97316))
                             .withValues(alpha: 0.5),
-                    blurRadius: 8,
-                    spreadRadius: 1,
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: ClipOval(
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Image.asset(
-                    'assets/img/AI_LOGO.png',
-                    fit: BoxFit.contain,
+                  child: ClipOval(
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Image.asset(
+                        'assets/img/AI_LOGO.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

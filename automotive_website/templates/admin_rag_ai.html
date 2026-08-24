@@ -37,6 +37,9 @@
 <!-- Floating toggle button -->
 <div id="ragAiFabWrap" style="position:fixed;bottom:2rem;right:2rem;z-index:1200;display:inline-flex;">
   <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;">
+    <!-- FAB pulse rings -->
+    <span id="ragFabPulseOuter" style="position:absolute;width:58px;height:58px;border-radius:50%;border:2px solid #22c55e;opacity:0;animation:ragRingPulse 1.8s ease-out infinite;pointer-events:none;"></span>
+    <span id="ragFabPulseInner" style="position:absolute;width:58px;height:58px;border-radius:50%;border:1.5px solid #22c55e;opacity:0;animation:ragRingPulse 1.8s ease-out 0.45s infinite;pointer-events:none;"></span>
     <button id="ragAiToggleBtn" onclick="ragAiToggle()"
       title="AI Assistant"
       style="width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;
@@ -72,6 +75,9 @@
     <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.1) 0%,transparent 65%);pointer-events:none;border-radius:22px 22px 0 0;"></div>
     <!-- Avatar — white bg with gradient border -->
     <div style="position:relative;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+      <!-- Animated pulse rings -->
+      <span id="ragHdrPulseOuter" style="position:absolute;width:36px;height:36px;border-radius:50%;border:2px solid #22c55e;opacity:0;animation:ragRingPulse 1.8s ease-out infinite;pointer-events:none;"></span>
+      <span id="ragHdrPulseInner" style="position:absolute;width:36px;height:36px;border-radius:50%;border:1.5px solid #22c55e;opacity:0;animation:ragRingPulse 1.8s ease-out 0.45s infinite;pointer-events:none;"></span>
       <div id="ragHdrAvatarRing" style="width:36px;height:36px;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px rgba(0,75,95,0.35),0 2px 8px rgba(0,0,0,0.15);background:linear-gradient(135deg, #004B5F 0%, #EE152A 100%);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;transition:background 0.3s,box-shadow 0.3s;padding:2.5px;">
         <div style="width:100%;height:100%;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center;overflow:hidden;">
           <img src="../static/img/AI_LOGO.png" style="width:26px;height:26px;object-fit:contain;display:block;" alt="AI">
@@ -497,18 +503,32 @@ function _ragWatch() {
           var fabDot     = document.getElementById('ragFabOnlineDot');
           var hdrRing    = document.getElementById('ragHdrAvatarRing');
           var hdrDot     = document.getElementById('ragHeaderOnlineDot');
+          var fabPulseO  = document.getElementById('ragFabPulseOuter');
+          var fabPulseI  = document.getElementById('ragFabPulseInner');
+          var hdrPulseO  = document.getElementById('ragHdrPulseOuter');
+          var hdrPulseI  = document.getElementById('ragHdrPulseInner');
           if (d.online) {
             if (dot) dot.style.background = '#4ade80';
             if (txt) { txt.textContent = 'Online · RAG AI'; }
             if (fabDot) { fabDot.style.background = '#22c55e'; fabDot.style.boxShadow = '0 0 6px rgba(34,197,94,0.7)'; }
             if (hdrRing) { hdrRing.style.background = 'linear-gradient(135deg, #004B5F 0%, #EE152A 100%)'; hdrRing.style.boxShadow = '0 0 8px rgba(0,75,95,0.35),0 2px 8px rgba(0,0,0,0.15)'; }
             if (hdrDot) { hdrDot.style.background = '#22c55e'; hdrDot.style.boxShadow = '0 0 5px rgba(34,197,94,0.8)'; }
+            // Green pulse rings
+            if (fabPulseO) { fabPulseO.style.borderColor = '#22c55e'; }
+            if (fabPulseI) { fabPulseI.style.borderColor = '#22c55e'; }
+            if (hdrPulseO) { hdrPulseO.style.borderColor = '#22c55e'; }
+            if (hdrPulseI) { hdrPulseI.style.borderColor = '#22c55e'; }
           } else {
             if (dot) dot.style.background = '#f97316';
             if (txt) { txt.textContent = 'Local mode'; }
             if (fabDot) { fabDot.style.background = '#f97316'; fabDot.style.boxShadow = '0 0 6px rgba(249,115,22,0.7)'; }
             if (hdrRing) { hdrRing.style.background = '#f97316'; hdrRing.style.boxShadow = '0 0 8px rgba(249,115,22,0.45),0 2px 8px rgba(0,0,0,0.15)'; }
             if (hdrDot) { hdrDot.style.background = '#f97316'; hdrDot.style.boxShadow = '0 0 5px rgba(249,115,22,0.8)'; }
+            // Orange pulse rings
+            if (fabPulseO) { fabPulseO.style.borderColor = '#f97316'; }
+            if (fabPulseI) { fabPulseI.style.borderColor = '#f97316'; }
+            if (hdrPulseO) { hdrPulseO.style.borderColor = '#f97316'; }
+            if (hdrPulseI) { hdrPulseI.style.borderColor = '#f97316'; }
           }
         }).catch(function(){
           clearTimeout(timer);
@@ -518,11 +538,20 @@ function _ragWatch() {
           var fabDot     = document.getElementById('ragFabOnlineDot');
           var hdrRing    = document.getElementById('ragHdrAvatarRing');
           var hdrDot     = document.getElementById('ragHeaderOnlineDot');
+          var fabPulseO  = document.getElementById('ragFabPulseOuter');
+          var fabPulseI  = document.getElementById('ragFabPulseInner');
+          var hdrPulseO  = document.getElementById('ragHdrPulseOuter');
+          var hdrPulseI  = document.getElementById('ragHdrPulseInner');
           if (dot) dot.style.background = '#f97316';
           if (txt) { txt.textContent = 'Local mode'; }
           if (fabDot) { fabDot.style.background = '#f97316'; fabDot.style.boxShadow = '0 0 6px rgba(249,115,22,0.7)'; }
           if (hdrRing) { hdrRing.style.background = '#f97316'; hdrRing.style.boxShadow = '0 0 8px rgba(249,115,22,0.45),0 2px 8px rgba(0,0,0,0.15)'; }
           if (hdrDot) { hdrDot.style.background = '#f97316'; hdrDot.style.boxShadow = '0 0 5px rgba(249,115,22,0.8)'; }
+          // Orange pulse rings on error/offline
+          if (fabPulseO) { fabPulseO.style.borderColor = '#f97316'; }
+          if (fabPulseI) { fabPulseI.style.borderColor = '#f97316'; }
+          if (hdrPulseO) { hdrPulseO.style.borderColor = '#f97316'; }
+          if (hdrPulseI) { hdrPulseI.style.borderColor = '#f97316'; }
           // Retry once after 60 s — Render may still be waking up
           if (!isRetry) setTimeout(function(){ _checkRagHealth(true); }, 60000);
         });

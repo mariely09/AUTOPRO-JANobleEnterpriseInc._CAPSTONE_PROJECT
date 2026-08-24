@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -386,19 +386,13 @@
   function _saveChat() {
     if (!_currentUid || !_chatHistory.length) return;
     try {
-<<<<<<< HEAD
       var sid = _effectiveSid();
       var entry = { id: sid, ts: Date.now(), messages: _chatHistory.slice() };
 
       // ── Active slot — always overwrite so tab-switches restore current chat ──
       localStorage.setItem(_activeKey(_currentUid), JSON.stringify(entry));
-=======
-      // ?? Active slot ??always overwrite so tab-switches restore current chat ??
-      var sid = _sessionId || ('local_' + _currentUid);
-      localStorage.setItem(_activeKey(_currentUid), JSON.stringify({
-        id: sid, ts: Date.now(), messages: _chatHistory.slice()
-      }));
->>>>>>> e901441d16244b6a4bcc03eac98f97c13940e4ff
+
+      // ── History list — upsert by sid ──
 
       // ?? History list ??upsert by sid ??????????????????????????????????
       var existing = _loadAllSessions(_currentUid);
@@ -1137,15 +1131,11 @@
         const pulseInner = document.getElementById('aiHdrPulseInner');
         if (dot) { dot.style.background = '#f97316'; dot.style.boxShadow = '0 0 6px rgba(249,115,22,0.8)'; }
         if (txt) txt.textContent = 'Local mode';
-<<<<<<< HEAD
         if (ring) { ring.style.borderColor = '#f97316'; ring.style.boxShadow = '0 0 8px rgba(249,115,22,0.45),0 2px 8px rgba(0,0,0,0.15)'; }
         if (hdrDot) { hdrDot.style.background = '#f97316'; hdrDot.style.boxShadow = '0 0 5px rgba(249,115,22,0.8)'; }
         if (pulseOuter) pulseOuter.style.borderColor = '#f97316';
         if (pulseInner) pulseInner.style.borderColor = '#f97316';
         // Retry once after 60 s — Render may still be spinning up
-=======
-        // Retry once after 60 s ??Render may still be spinning up
->>>>>>> e901441d16244b6a4bcc03eac98f97c13940e4ff
         if (!isRetry) setTimeout(() => _checkAiHealth(true), 60000);
       });
   }
