@@ -1299,7 +1299,7 @@ window._svcViewDetails = function(docId) {
       ['Mechanic', s.mechanic || '—'],
       ['Service Date', s.date || '—'],
       ['Odometer Reading', s.odometer ? Number(s.odometer).toLocaleString() + ' km' : '—'],
-      ['Total Cost', s.cost || '₱0.00'],
+      ['Total Cost', (s.cost || '₱0.00').replace(/^\?/, '₱')],
       ['Status', '<span style="display:inline-block;padding:2px 10px;border-radius:20px;background:' + color + '1a;color:' + color + ';font-weight:700;font-size:0.82rem;">' + (s.status || '—') + '</span>'],
     ];
     document.getElementById('svcDetailRows').innerHTML = rows.map(function(r, i) {
@@ -1446,9 +1446,9 @@ window._svcViewDetails = function(docId) {
         });
 
         Promise.all(matPromises.concat(svcPromises)).then(function() {
-          // Update vehicle status + last service date + last service odometer
+          // Update vehicle status + last service date + last service odometer + next PMS due
           var lastSvcDate = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-          var vUpdate = { status: 'Completed', completedAt: firebase.firestore.FieldValue.serverTimestamp(), lastSvcDate: lastSvcDate };
+          var vUpdate = { status: 'Active', completedAt: firebase.firestore.FieldValue.serverTimestamp(), lastSvcDate: lastSvcDate, lastServiceDate: lastSvcDate };
           if (s.odometer) {
             vUpdate.lastSvcOdo = parseInt(s.odometer) || 0;
             vUpdate.lastServiceOdometer = parseInt(s.odometer) || 0;
@@ -1456,7 +1456,18 @@ window._svcViewDetails = function(docId) {
             vUpdate.odo = parseInt(s.odometer) + ' km';
           }
           db.collection('vehicles').where('plate', '==', plate).limit(1).get().then(function(vSnap) {
-            if (!vSnap.empty) vSnap.docs[0].ref.update(vUpdate);
+            if (!vSnap.empty) {
+              var vData = vSnap.docs[0].data();
+              var freq = parseInt(vData.svcFreq || vData.serviceFrequency || '0') || 0;
+              if (freq > 0) {
+                var nextDue = new Date(lastSvcDate + 'T00:00:00');
+                nextDue.setMonth(nextDue.getMonth() + freq);
+                vUpdate.nextPMSDue = nextDue.getFullYear() + '-'
+                  + String(nextDue.getMonth()+1).padStart(2,'0') + '-'
+                  + String(nextDue.getDate()).padStart(2,'0');
+              }
+              vSnap.docs[0].ref.update(vUpdate);
+            }
           });
           closeModal('svcDetailsModal');
           showToast('Service marked as Completed successfully!', 'success');
@@ -1548,7 +1559,7 @@ function svcSave() {
     mechanic: mechanic,
     date: date,
     odometer: odometer,
-    cost: '?' + total.toLocaleString('en-PH', {minimumFractionDigits:2}),
+    cost: '₱' + total.toLocaleString('en-PH', {minimumFractionDigits:2}),
     svcRows: svcRows,
     matRows: matRows,
     issues: _svcSelectedIssues.slice(),

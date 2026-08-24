@@ -1152,7 +1152,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                 final completionDate =
                                     '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
                                 final vUpdate = <String, dynamic>{
-                                  'status': 'Completed',
+                                  'status': 'Active',
                                   'completedAt': FieldValue.serverTimestamp(),
                                   // Canonical lastServiceDate + legacy lastSvcDate
                                   'lastServiceDate': completionDate,
@@ -1169,11 +1169,27 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                     vUpdate['odo'] = '$odoInt km';
                                   }
                                 }
+
+                                // Compute nextPMSDue from completionDate + svcFreq
+                                Future<void> _applyNextPMSAndUpdate(Map<String, dynamic> vData, DocumentReference ref) async {
+                                  final freq = int.tryParse((vData['svcFreq'] ?? vData['serviceFrequency'] ?? '').toString()) ?? 0;
+                                  if (freq > 0) {
+                                    final lastDate = DateTime.tryParse(completionDate);
+                                    if (lastDate != null) {
+                                      final nextDue = DateTime(lastDate.year, lastDate.month + freq, lastDate.day);
+                                      vUpdate['nextPMSDue'] = '${nextDue.year}-${nextDue.month.toString().padLeft(2, '0')}-${nextDue.day.toString().padLeft(2, '0')}';
+                                    }
+                                  }
+                                  await ref.update(vUpdate);
+                                }
+
                                 if (completionVehicleId.isNotEmpty) {
-                                  await FirebaseFirestore.instance
+                                  final vDoc = await FirebaseFirestore.instance
                                       .collection('vehicles')
                                       .doc(completionVehicleId)
-                                      .update(vUpdate);
+                                      .get();
+                                  await _applyNextPMSAndUpdate(
+                                    vDoc.data() ?? {}, vDoc.reference);
                                 } else {
                                   // Fallback: plate scan
                                   var vSnap = await FirebaseFirestore.instance
@@ -1189,8 +1205,9 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                         .get();
                                   }
                                   if (vSnap.docs.isNotEmpty) {
-                                    await vSnap.docs.first.reference.update(
-                                      vUpdate,
+                                    await _applyNextPMSAndUpdate(
+                                      vSnap.docs.first.data(),
+                                      vSnap.docs.first.reference,
                                     );
                                   }
                                 }

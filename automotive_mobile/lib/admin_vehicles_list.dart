@@ -708,12 +708,6 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
           (v['lastSvcOdo'] ?? '').replaceAll(RegExp(r'[^0-9]'), ''),
         ) ??
         0;
-    final currentOdo =
-        int.tryParse((v['odo'] ?? '').replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-    final kmSince =
-        (currentOdo > 0 && lastSvcOdo > 0 && currentOdo >= lastSvcOdo)
-        ? '${(currentOdo - lastSvcOdo).toString()} km'
-        : '—';
 
     showModalBottomSheet(
       context: context,
@@ -789,7 +783,6 @@ class _AdminVehiclesListBodyState extends State<AdminVehiclesListBody> {
                       'Last Service Odometer',
                       lastSvcOdo > 0 ? '$lastSvcOdo km' : '—',
                     ),
-                    _detailRow('KM Since Last Service', kmSince),
                     _detailRow(
                       'Next PMS Due',
                       _fmtDate(_calcNextPms(v['lastSvcDate']!, v['svcFreq']!)),

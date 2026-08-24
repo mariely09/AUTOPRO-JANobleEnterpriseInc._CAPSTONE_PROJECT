@@ -663,10 +663,12 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                         final vSnap = await FirebaseFirestore.instance
                             .collection('vehicles').where('plate', isEqualTo: plate).limit(1).get();
                         if (vSnap.docs.isNotEmpty) {
+                          final lastSvcDate = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
                           final vUpdate = <String, dynamic>{
-                            'status': 'Completed',
+                            'status': 'Active',
                             'completedAt': FieldValue.serverTimestamp(),
-                            'lastSvcDate': '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
+                            'lastSvcDate': lastSvcDate,
+                            'lastServiceDate': lastSvcDate,
                           };
                           final mainDoc = await _db.doc(s['docId'] as String).get();
                           final mainData = mainDoc.data() as Map<String, dynamic>? ?? {};
@@ -678,6 +680,16 @@ class _AdminVehicleMaintenanceBodyState extends State<AdminVehicleMaintenanceBod
                               vUpdate['lastServiceOdometer'] = odoInt;
                               vUpdate['odometer'] = odoInt;
                               vUpdate['odo'] = '$odoInt km';
+                            }
+                          }
+                          // Compute nextPMSDue from lastSvcDate + svcFreq
+                          final vData = vSnap.docs.first.data();
+                          final freq = int.tryParse((vData['svcFreq'] ?? vData['serviceFrequency'] ?? '').toString()) ?? 0;
+                          if (freq > 0) {
+                            final lastDate = DateTime.tryParse(lastSvcDate);
+                            if (lastDate != null) {
+                              final nextDue = DateTime(lastDate.year, lastDate.month + freq, lastDate.day);
+                              vUpdate['nextPMSDue'] = '${nextDue.year}-${nextDue.month.toString().padLeft(2, '0')}-${nextDue.day.toString().padLeft(2, '0')}';
                             }
                           }
                           await vSnap.docs.first.reference.update(vUpdate);

@@ -15,7 +15,7 @@
 .hs-back:hover { color: #E8001C; }
 
 .hs-left { display: flex; flex-direction: column; gap: 1.25rem; }
-.hs-hero { background: linear-gradient(135deg, #1a202c 0%, #2d3748 60%, #E8001C 100%); border-radius: 16px; padding: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; text-align: center; }
+.hs-hero { background: linear-gradient(135deg, #004B5F 0%, #EE152A 100%); border-radius: 16px; padding: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; text-align: center; }
 .hs-hero-icon { width: 52px; height: 52px; border-radius: 14px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
 .hs-hero-title { color: #fff; font-size: 1.05rem; font-weight: 800; }
 .hs-hero-sub { color: rgba(255,255,255,0.8); font-size: 0.8rem; line-height: 1.5; }

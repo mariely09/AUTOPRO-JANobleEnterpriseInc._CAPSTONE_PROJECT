@@ -125,9 +125,9 @@
         .stats-grid[style*="repeat(5"] {
           grid-template-columns: repeat(2, 1fr) !important;
         }
-        /* Chart rows ? single column */
+        /* Chart rows — wrap to 2 cols on tablet, 1 col on mobile */
         .dash-row-1, .dash-row-2 {
-          grid-template-columns: 1fr !important;
+          grid-template-columns: repeat(2, 1fr) !important;
         }
         /* Issuance/txn stats ? 2-col */
         #issuance > div[style*="repeat(3"],
@@ -422,8 +422,228 @@
                     })();
                     </script>
 
-                    <!-- -- Charts Row 1: Service by Type + Vehicle Status (2 cards side by side) -- -->
-                    <div class="dash-row-1" style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
+                    <!-- -- Service Calendar (matches mobile app admin_dashboard.dart) -- -->
+                    <div id="adminCalCard" style="background:#fff;border-radius:20px;box-shadow:0 4px 12px rgba(0,0,0,0.05);margin-bottom:1.25rem;overflow:hidden;">
+                        <!-- Header -->
+                        <div style="display:flex;align-items:center;gap:8px;padding:14px 16px 12px;border-bottom:1px solid #e2e8f0;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <span style="font-size:12px;font-weight:700;color:#1a202c;letter-spacing:0.4px;flex:1;">Service Calendar</span>
+                            <!-- Month nav -->
+                            <button onclick="_calNav(-1)" style="width:26px;height:26px;background:#f0f4f8;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                            </button>
+                            <span id="calMonthLabel" style="font-size:13px;font-weight:800;color:#1a202c;min-width:110px;text-align:center;"></span>
+                            <button onclick="_calNav(1)" style="width:26px;height:26px;background:#f0f4f8;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                            </button>
+                        </div>
+                        <!-- Grid -->
+                        <div style="padding:10px 10px 4px;">
+                            <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;"></div>
+                        </div>
+                        <!-- Day detail panel -->
+                        <div id="calDayDetail" style="display:none;margin:0 10px 8px;padding:10px;background:#F7F8FA;border-radius:10px;border:1px solid #e2e8f0;"></div>
+                        <!-- Legend -->
+                        <div style="padding:4px 14px 12px;display:flex;flex-wrap:wrap;gap:4px 12px;">
+                            <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#4a5568;"><span style="width:7px;height:7px;background:#E8001C;border-radius:2px;display:inline-block;"></span>Overdue</span>
+                            <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#4a5568;"><span style="width:7px;height:7px;background:#ed8936;border-radius:2px;display:inline-block;"></span>This Week</span>
+                            <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#4a5568;"><span style="width:7px;height:7px;background:#EAB308;border-radius:2px;display:inline-block;"></span>Upcoming</span>
+                            <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#4a5568;"><span style="width:7px;height:7px;background:#0033A0;border-radius:2px;display:inline-block;"></span>Today</span>
+                            <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#4a5568;"><span style="width:7px;height:7px;background:#7c3aed;border-radius:2px;display:inline-block;"></span>Booked</span>
+                        </div>
+                    </div>
+
+                    <script>
+                    // ── Admin Service Calendar ──────────────────────────────────────────
+                    (function() {
+                        var _CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                        var _CAL_MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                        var _CAL_DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+                        var _calEvents = {}; // "YYYY-MM-DD" → [{type,plate,urgency,desc,services,daysUntil,...}]
+                        var _calYear, _calMonth, _calSelectedDay = null;
+
+                        var now = new Date();
+                        _calYear  = now.getFullYear();
+                        _calMonth = now.getMonth() + 1; // 1-based
+
+                        function _urgencyColor(u) {
+                            return { overdue:'#E8001C', today:'#0033A0', week:'#ed8936', booking:'#7c3aed' }[u] || '#EAB308';
+                        }
+
+                        function _pad2(n) { return ('0'+n).slice(-2); }
+
+                        function _todayKey() {
+                            var t = new Date();
+                            return t.getFullYear() + '-' + _pad2(t.getMonth()+1) + '-' + _pad2(t.getDate());
+                        }
+
+                        // ── Render calendar grid ──────────────────────────────────────
+                        function _renderCal() {
+                            document.getElementById('calMonthLabel').textContent = _CAL_MONTHS[_calMonth-1] + ' ' + _calYear;
+                            var grid = document.getElementById('calGrid');
+                            var tok = _todayKey();
+                            var firstDay = new Date(_calYear, _calMonth-1, 1).getDay(); // 0=Sun
+                            var daysInM  = new Date(_calYear, _calMonth, 0).getDate();
+                            var prevDays = new Date(_calYear, _calMonth-1, 0).getDate();
+                            var html = '';
+
+                            // DOW headers
+                            _CAL_DOW.forEach(function(d) {
+                                html += '<div style="text-align:center;font-size:9px;font-weight:700;color:#a0aec0;padding:4px 0;">' + d + '</div>';
+                            });
+
+                            // Leading empty cells
+                            for (var i = firstDay-1; i >= 0; i--) {
+                                html += _emptyCell(prevDays - i);
+                            }
+
+                            // Current month days
+                            for (var d = 1; d <= daysInM; d++) {
+                                var key = _calYear + '-' + _pad2(_calMonth) + '-' + _pad2(d);
+                                var evts = _calEvents[key] || [];
+                                var isToday = key === tok;
+                                var isSel   = key === _calSelectedDay;
+                                var bg = isSel ? '#ebf8ff' : isToday ? '#f0fdfa' : '#F7F8FA';
+                                var border = isSel ? '1.5px solid #003087' : isToday ? '1.5px solid #0033A0' : '1.5px solid transparent';
+                                var numColor = isToday ? '#0033A0' : '#4a5568';
+                                var numWeight = isToday ? '800' : '600';
+                                var cursor = evts.length ? 'pointer' : 'default';
+                                var dots = '';
+                                evts.slice(0,3).forEach(function(e) {
+                                    dots += '<span style="display:inline-block;width:5px;height:5px;border-radius:1.5px;background:' + _urgencyColor(e.urgency) + ';margin:0 1px;"></span>';
+                                });
+                                html += '<div onclick="_calClick(\'' + key + '\')" style="background:' + bg + ';border:' + border + ';border-radius:6px;padding:3px 2px;cursor:' + cursor + ';display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:32px;">'
+                                    + '<span style="font-size:11px;font-weight:' + numWeight + ';color:' + numColor + ';line-height:1;">' + d + '</span>'
+                                    + (dots ? '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:1px;margin-top:2px;">' + dots + '</div>' : '')
+                                    + '</div>';
+                            }
+
+                            // Trailing empty cells
+                            var trailing = (firstDay + daysInM) % 7;
+                            if (trailing !== 0) {
+                                for (var t = 1; t <= 7 - trailing; t++) {
+                                    html += _emptyCell(t);
+                                }
+                            }
+
+                            grid.innerHTML = html;
+                            _renderDayDetail();
+                        }
+
+                        function _emptyCell(n) {
+                            return '<div style="background:#F7F8FA;border-radius:5px;display:flex;align-items:center;justify-content:center;min-height:32px;">'
+                                + '<span style="font-size:11px;color:#d1d5db;">' + n + '</span>'
+                                + '</div>';
+                        }
+
+                        window._calClick = function(key) {
+                            var evts = _calEvents[key] || [];
+                            if (!evts.length) return;
+                            _calSelectedDay = (_calSelectedDay === key) ? null : key;
+                            _renderCal();
+                        };
+
+                        window._calNav = function(dir) {
+                            _calMonth += dir;
+                            if (_calMonth > 12) { _calMonth = 1; _calYear++; }
+                            if (_calMonth < 1)  { _calMonth = 12; _calYear--; }
+                            _calSelectedDay = null;
+                            _renderCal();
+                        };
+
+                        function _renderDayDetail() {
+                            var panel = document.getElementById('calDayDetail');
+                            if (!_calSelectedDay || !(_calEvents[_calSelectedDay] || []).length) {
+                                panel.style.display = 'none';
+                                return;
+                            }
+                            var evts = _calEvents[_calSelectedDay];
+                            var parts = _calSelectedDay.split('-');
+                            var title = _CAL_MONTHS[parseInt(parts[1])-1] + ' ' + parseInt(parts[2]) + ', ' + parts[0];
+                            var html = '<div style="font-size:10px;font-weight:700;color:#718096;letter-spacing:0.3px;margin-bottom:6px;">' + title + '</div>';
+                            evts.forEach(function(e) {
+                                var color = _urgencyColor(e.urgency);
+                                var days = e.daysUntil;
+                                var label = e.type === 'booking'
+                                    ? (days < 0 ? 'Past' : days === 0 ? 'Today' : 'In ' + days + ' day' + (days !== 1 ? 's' : ''))
+                                    : (days < 0 ? (-days) + 'd overdue' : days === 0 ? 'Due Today' : 'In ' + days + ' day' + (days !== 1 ? 's' : ''));
+                                html += '<div style="display:flex;align-items:center;gap:8px;background:#fff;border-radius:8px;border:1px solid #e2e8f0;padding:7px 10px;margin-bottom:5px;">'
+                                    + '<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + color + ';flex-shrink:0;"></span>'
+                                    + '<div style="flex:1;min-width:0;">'
+                                    +   '<div style="font-size:12px;font-weight:700;color:#1a202c;">' + (e.plate || '—') + '</div>'
+                                    +   (e.type === 'booking' && e.services ? '<div style="font-size:10px;color:#718096;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + e.services + '</div>' : '')
+                                    + '</div>'
+                                    + '<span style="font-size:10px;font-weight:700;color:' + color + ';background:' + color + '1a;border-radius:20px;padding:3px 8px;white-space:nowrap;">' + label + '</span>'
+                                    + '</div>';
+                            });
+                            panel.innerHTML = html;
+                            panel.style.display = 'block';
+                        }
+
+                        // ── Load data from Firestore ──────────────────────────────────
+                        function _loadCalData() {
+                            if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) {
+                                setTimeout(_loadCalData, 400); return;
+                            }
+                            var db = firebase.firestore();
+                            var todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
+                            var events = {};
+
+                            // ── Service Bookings ──
+                            db.collection('service_bookings').get().then(function(snap) {
+                                snap.docs.forEach(function(doc) {
+                                    var d = doc.data();
+                                    var date = d.preferredDate || '';
+                                    var status = (d.status || '').toLowerCase();
+                                    if (!date) return;
+                                    if (['completed','under maintenance','dismissed','cancelled','rejected'].indexOf(status) !== -1) return;
+                                    var due = new Date(date);
+                                    if (isNaN(due.getTime())) return;
+                                    var dueMid = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+                                    var daysUntil = Math.round((dueMid - todayMidnight) / 86400000);
+                                    if (!events[date]) events[date] = [];
+                                    events[date].push({
+                                        type: 'booking',
+                                        plate: d.plate || '—',
+                                        desc: d.vehicleDesc || d.desc || '',
+                                        services: (d.services || []).join(', '),
+                                        status: d.status || '',
+                                        time: d.preferredTime || '',
+                                        daysUntil: daysUntil,
+                                        urgency: 'booking',
+                                    });
+                                });
+                            }).catch(function() {});
+
+                            // ── PMS due dates ──
+                            db.collection('vehicles').get().then(function(snap) {
+                                snap.docs.forEach(function(doc) {
+                                    var d = doc.data();
+                                    var plate   = d.plate || '';
+                                    var lastSvc = d.lastSvcDate || '';
+                                    var freq    = parseInt(d.svcFreq || '');
+                                    if (!lastSvc || isNaN(freq) || !plate) return;
+                                    var lastDate = new Date(lastSvc);
+                                    if (isNaN(lastDate.getTime())) return;
+                                    var next = new Date(lastDate.getFullYear(), lastDate.getMonth() + freq, lastDate.getDate());
+                                    var nextMid = new Date(next.getFullYear(), next.getMonth(), next.getDate());
+                                    var daysUntil = Math.round((nextMid - todayMidnight) / 86400000);
+                                    var key = next.getFullYear() + '-' + _pad2(next.getMonth()+1) + '-' + _pad2(next.getDate());
+                                    var urgency = daysUntil < 0 ? 'overdue' : daysUntil === 0 ? 'today' : daysUntil <= 7 ? 'week' : 'upcoming';
+                                    if (!events[key]) events[key] = [];
+                                    events[key].push({ type:'pms', plate:plate, desc:d.desc||'', daysUntil:daysUntil, urgency:urgency, vehicleId:doc.id });
+                                });
+                                _calEvents = events;
+                                _renderCal();
+                            }).catch(function() { _renderCal(); });
+                        }
+
+                        // Initial render while data loads
+                        _renderCal();
+                        _loadCalData();
+                    })();
+                    </script>
+                    <div style="display:grid;grid-template-columns:1.2fr 0.8fr 1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
 
                         <!-- Stacked Bar chart: Services by Type last 7 days -->
                         <div class="dash-chart-card">
@@ -474,10 +694,7 @@
                                 <div id="vehicleDonutLegend" style="display:flex;flex-direction:column;gap:0.55rem;font-size:0.78rem;flex:1;"></div>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- -- Charts Row 2: Line + Top Parts side by side -- -->
-                    <div class="dash-row-2" style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
+                    <!-- -- Charts Row 2 (merged into single row above) -- -->
 
                         <!-- Line chart: Stock In vs Stock Out -->
                         <div class="dash-chart-card">
@@ -588,7 +805,7 @@
                             <input type="date" id="issuanceDateFrom" onchange="renderIssuancesList()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
                             <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">To</span>
                             <input type="date" id="issuanceDateTo" onchange="renderIssuancesList()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
-                            <button onclick="document.getElementById('issuanceDateFrom').value='';document.getElementById('issuanceDateTo').value='';renderIssuancesList();" title="Clear date range" style="height:34px;padding:0 0.55rem;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;color:#718096;font-size:0.82rem;" type="button">?</button>
+                            <button onclick="document.getElementById('issuanceDateFrom').value='';document.getElementById('issuanceDateTo').value='';renderIssuancesList();" title="Clear date range" style="height:34px;padding:0 0.55rem;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;color:#718096;font-size:0.82rem;" type="button">&#x2715;</button>
                         </div>
                     </div>
                     <div class="data-table">
@@ -654,7 +871,7 @@
                             <input type="date" id="txnDateFrom" onchange="renderInventoryTransactions()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
                             <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">To</span>
                             <input type="date" id="txnDateTo" onchange="renderInventoryTransactions()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
-                            <button onclick="document.getElementById('txnDateFrom').value='';document.getElementById('txnDateTo').value='';renderInventoryTransactions();" title="Clear date range" style="height:34px;padding:0 0.55rem;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;color:#718096;font-size:0.82rem;" type="button">?</button>
+                            <button onclick="document.getElementById('txnDateFrom').value='';document.getElementById('txnDateTo').value='';renderInventoryTransactions();" title="Clear date range" style="height:34px;padding:0 0.55rem;background:#f7f8fa;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;color:#718096;font-size:0.82rem;" type="button">&#x2715;</button>
                         </div>
                     </div>
                     <div class="data-table">

@@ -96,9 +96,9 @@
                 </div>
             </div>
             <div class="data-table">
-                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr 120px;">
+                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 120px;">
                     <div>Plate Number</div><div>Vehicle Type</div><div>Owner / Company Name</div>
-                    <div>Odometer (km)</div><div>KM Since Last Service</div><div>Last Service Date</div><div>Next PMS Due</div><div>Actions</div>
+                    <div>Odometer (km)</div><div>Last Service Date</div><div>Next PMS Due</div><div>Actions</div>
                 </div>
                 <div id="assetsList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading vehicles...</div></div>
             </div>
@@ -452,7 +452,6 @@
       + _vehDetailRow('Current Odometer', asset.odometer ? asset.odometer.toLocaleString() + ' km' : (asset.odo || '—'))
       + _vehDetailRow('Last Service Date', _fmtDate(lastSvcDateVal))
       + _vehDetailRow('Last Service Odometer', lastSvcOdoVal ? Number(lastSvcOdoVal).toLocaleString() + ' km' : '—')
-      + _vehDetailRow('KM Since Last Service', kmSinceVal)
       + _vehDetailRow('Next PMS Due', _fmtDate(nextPms))
       + _vehDetailRow('Service Frequency', (asset.svcFreq || asset.serviceFrequency) ? (asset.svcFreq || asset.serviceFrequency) + ' month(s)' : '—');
 

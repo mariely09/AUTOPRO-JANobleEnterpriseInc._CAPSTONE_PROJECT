@@ -157,7 +157,7 @@ body, body.portal-body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    background: linear-gradient(135deg, #1a202c 0%, #2d3748 60%, #E8001C 100%);
+    background: linear-gradient(135deg, #004B5F 0%, #EE152A 100%);
     padding: 2rem 1.5rem 2.5rem;
 }
 .profile-avatar-lg {
