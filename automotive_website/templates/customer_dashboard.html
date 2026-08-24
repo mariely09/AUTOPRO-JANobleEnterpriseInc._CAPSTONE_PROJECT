@@ -45,61 +45,66 @@
     <div class="cu-hero-row">
 
         <!-- Left: Welcome / stats banner -->
-        <div class="cu-welcome-banner">
+        <div class="cu-welcome-banner" style="background:linear-gradient(135deg,#004B5F 0%,#EE152A 100%);border-radius:24px;padding:2rem;box-shadow:0 8px 32px rgba(0,75,95,0.3);position:relative;overflow:hidden;color:white;">
             <!-- Decorative glow overlay -->
-            <div class="cu-banner-glow"></div>
+            <div style="position:absolute;top:-50%;right:-20%;width:60%;height:200%;background:radial-gradient(ellipse,rgba(255,255,255,0.15) 0%,transparent 60%);pointer-events:none;"></div>
 
-            <!-- Top row: greeting + date box -->
-            <div class="cu-banner-top">
-                <div class="cu-banner-greeting">
-                    <!-- Time-based greeting -->
-                    <div class="cu-banner-good"><span id="cuBannerGood"></span> <span id="cuBannerName"></span></div>
-                    <div class="cu-banner-greeting-line1">
-                        <span id="cuBannerIcon">✅</span>
-                        <span id="cuBannerLine1">All clear today</span>
+            <!-- Greeting Section -->
+            <div style="position:relative;z-index:1;margin-bottom:1.5rem;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem;">
+                    <div style="flex:1;">
+                        <div style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:0.8;margin-bottom:0.5rem;">Customer Portal</div>
+                        <div style="font-size:2rem;font-weight:800;margin-bottom:0.5rem;line-height:1.2;"><span id="cuBannerGood"></span> <span id="cuBannerName"></span></div>
+                        <div style="font-size:0.95rem;opacity:0.9;font-weight:500;display:flex;align-items:center;gap:0.5rem;">
+                            <span id="cuBannerIcon">✅</span>
+                            <span id="cuBannerLine1">All clear today</span>
+                        </div>
+                        <div style="font-size:0.85rem;opacity:0.85;margin-top:0.25rem;" id="cuBannerLine2">No scheduled services for today.</div>
                     </div>
-                    <div class="cu-banner-greeting-line2" id="cuBannerLine2">No scheduled services for today.</div>
-                </div>
-                <div class="cu-banner-datebox">
-                    <div class="cu-banner-date-monthyear" id="cuBannerMonthYear"></div>
-                    <div class="cu-banner-date-day"        id="cuBannerDay"></div>
-                    <div class="cu-banner-date-weekday"    id="cuBannerWeekday"></div>
+                    <div style="background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border-radius:16px;padding:1rem 1.25rem;text-align:center;border:1px solid rgba(255,255,255,0.2);min-width:110px;">
+                        <div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;opacity:0.8;margin-bottom:0.25rem;" id="cuBannerMonthYear"></div>
+                        <div style="font-size:2.5rem;font-weight:800;line-height:1;margin-bottom:0.25rem;" id="cuBannerDay"></div>
+                        <div style="font-size:0.75rem;font-weight:600;opacity:0.8;" id="cuBannerWeekday"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Divider -->
-            <div class="cu-banner-divider"></div>
-
-            <!-- Stats strip -->
-            <div class="cu-banner-stats">
-                <div class="cu-banner-stat" style="display:none;">
-                    <div class="cu-banner-stat-value green"  id="cuTotalVehicles">0</div>
-                    <div class="cu-banner-stat-label green"  id="cuTotalVehiclesIcon">Total</div>
+            <!-- Stats Row - 4 cards in one line -->
+            <div style="position:relative;z-index:1;display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;">
+                <!-- Active -->
+                <div style="background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border-radius:16px;padding:1.25rem;transition:all 0.2s;border:1px solid rgba(255,255,255,0.2);cursor:default;" onmouseover="this.style.background='rgba(255,255,255,0.25)';this.style.transform='translateY(-3px)'" onmouseout="this.style.background='rgba(255,255,255,0.15)';this.style.transform=''">
+                    <div style="width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    </div>
+                    <div style="font-size:1.8rem;font-weight:800;margin-bottom:0.25rem;" id="cuActive">0</div>
+                    <div style="font-size:0.75rem;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Active</div>
                 </div>
-                <div class="cu-banner-vline" style="display:none;"></div>
-                <div class="cu-banner-stat">
-                    <div class="cu-banner-stat-value green"  id="cuActive">0</div>
-                    <div class="cu-banner-stat-label green">Active</div>
+                
+                <!-- Maintenance -->
+                <div style="background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border-radius:16px;padding:1.25rem;transition:all 0.2s;border:1px solid rgba(255,255,255,0.2);cursor:default;" onmouseover="this.style.background='rgba(255,255,255,0.25)';this.style.transform='translateY(-3px)'" onmouseout="this.style.background='rgba(255,255,255,0.15)';this.style.transform=''">
+                    <div style="width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                    </div>
+                    <div style="font-size:1.8rem;font-weight:800;margin-bottom:0.25rem;" id="cuMaintenance">0</div>
+                    <div style="font-size:0.75rem;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Maintenance</div>
                 </div>
-                <div class="cu-banner-vline"></div>
-                <div class="cu-banner-stat">
-                    <div class="cu-banner-stat-value amber"  id="cuMaintenance">0</div>
-                    <div class="cu-banner-stat-label amber">Maintenance</div>
+                
+                <!-- Due This Week -->
+                <div style="background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border-radius:16px;padding:1.25rem;transition:all 0.2s;border:1px solid rgba(255,255,255,0.2);cursor:default;" onmouseover="this.style.background='rgba(255,255,255,0.25)';this.style.transform='translateY(-3px)'" onmouseout="this.style.background='rgba(255,255,255,0.15)';this.style.transform=''">
+                    <div style="width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <div style="font-size:1.8rem;font-weight:800;margin-bottom:0.25rem;" id="cuDueThisWeek">0</div>
+                    <div style="font-size:0.75rem;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Due This Week</div>
                 </div>
-                <div class="cu-banner-vline" style="display:none;"></div>
-                <div class="cu-banner-stat" style="display:none;">
-                    <div class="cu-banner-stat-value red"    id="cuOverdue">0</div>
-                    <div class="cu-banner-stat-label red">Overdue</div>
-                </div>
-                <div class="cu-banner-vline"></div>
-                <div class="cu-banner-stat">
-                    <div class="cu-banner-stat-value amber"  id="cuDueThisWeek">0</div>
-                    <div class="cu-banner-stat-label amber">Due This Week</div>
-                </div>
-                <div class="cu-banner-vline"></div>
-                <div class="cu-banner-stat">
-                    <div class="cu-banner-stat-value blue"   id="cuDueSoon">0</div>
-                    <div class="cu-banner-stat-label blue">Due Today</div>
+                
+                <!-- Due Today -->
+                <div style="background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border-radius:16px;padding:1.25rem;transition:all 0.2s;border:1px solid rgba(255,255,255,0.2);cursor:default;" onmouseover="this.style.background='rgba(255,255,255,0.25)';this.style.transform='translateY(-3px)'" onmouseout="this.style.background='rgba(255,255,255,0.15)';this.style.transform=''">
+                    <div style="width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div style="font-size:1.8rem;font-weight:800;margin-bottom:0.25rem;" id="cuDueSoon">0</div>
+                    <div style="font-size:0.75rem;opacity:0.9;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Due Today</div>
                 </div>
             </div>
         </div>
