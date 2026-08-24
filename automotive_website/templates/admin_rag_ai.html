@@ -42,13 +42,13 @@
     <span id="ragFabPulseInner" style="position:absolute;width:58px;height:58px;border-radius:50%;border:1.5px solid #22c55e;opacity:0;animation:ragRingPulse 1.8s ease-out 0.45s infinite;pointer-events:none;"></span>
     <button id="ragAiToggleBtn" onclick="ragAiToggle()"
       title="AI Assistant"
-      style="width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;
-             background:linear-gradient(135deg, #004B5F 0%, #EE152A 100%);
-             box-shadow:0 4px 20px rgba(0,0,0,0.2),0 2px 8px rgba(0,0,0,0.15);
+      style="width:58px;height:58px;border-radius:50%;border:2.5px solid #22c55e;cursor:pointer;
+             background:white;
+             box-shadow:0 0 10px rgba(34,197,94,0.45),0 4px 20px rgba(0,0,0,0.15);
              display:flex;align-items:center;justify-content:center;
              transition:all 0.25s ease;padding:3px;overflow:hidden;position:relative;">
       <img id="ragFabAiImg" src="../static/img/AI_LOGO.png"
-           style="width:52px;height:52px;object-fit:cover;border-radius:50%;display:block;" alt="AI">
+           style="width:50px;height:50px;object-fit:cover;border-radius:50%;display:block;" alt="AI">
     </button>
     <!-- Status indicator dot on FAB -->
     <span id="ragFabOnlineDot"
@@ -78,10 +78,8 @@
       <!-- Animated pulse rings -->
       <span id="ragHdrPulseOuter" style="position:absolute;width:36px;height:36px;border-radius:50%;border:2px solid #22c55e;opacity:0;animation:ragRingPulse 1.8s ease-out infinite;pointer-events:none;"></span>
       <span id="ragHdrPulseInner" style="position:absolute;width:36px;height:36px;border-radius:50%;border:1.5px solid #22c55e;opacity:0;animation:ragRingPulse 1.8s ease-out 0.45s infinite;pointer-events:none;"></span>
-      <div id="ragHdrAvatarRing" style="width:36px;height:36px;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px rgba(0,75,95,0.35),0 2px 8px rgba(0,0,0,0.15);background:linear-gradient(135deg, #004B5F 0%, #EE152A 100%);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;transition:background 0.3s,box-shadow 0.3s;padding:2.5px;">
-        <div style="width:100%;height:100%;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center;overflow:hidden;">
-          <img src="../static/img/AI_LOGO.png" style="width:26px;height:26px;object-fit:contain;display:block;" alt="AI">
-        </div>
+      <div id="ragHdrAvatarRing" style="width:36px;height:36px;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px rgba(34,197,94,0.45),0 2px 8px rgba(0,0,0,0.15);background:white;border:2.5px solid #22c55e;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;z-index:1;transition:border-color 0.3s,box-shadow 0.3s;">
+        <img src="../static/img/AI_LOGO.png" style="width:28px;height:28px;object-fit:contain;display:block;" alt="AI">
       </div>
       <!-- Online dot on avatar -->
       <span id="ragHeaderOnlineDot" style="position:absolute;bottom:1px;right:1px;width:9px;height:9px;border-radius:50%;background:#22c55e;border:2px solid white;box-shadow:0 0 5px rgba(34,197,94,0.8);z-index:2;transition:background 0.3s,box-shadow 0.3s;"></span>
@@ -165,7 +163,7 @@
 
 /* ── Avatars ── */
 #ragAiChat .rag-av { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden; }
-#ragAiChat .rag-av.ai  { background:transparent;box-shadow:0 2px 8px rgba(0,0,0,0.12);border:1.5px solid rgba(226,232,240,0.8); }
+#ragAiChat .rag-av.ai  { background:white;box-shadow:0 0 5px rgba(34,197,94,0.3),0 2px 8px rgba(0,0,0,0.08);border:1.5px solid #22c55e; }
 #ragAiChat .rag-av.usr { background:linear-gradient(135deg,#475569,#334155);color:white;font-size:10px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.15); }
 
 /* ── Bubbles ── */
@@ -454,9 +452,11 @@ window.ragAiToggle = function() {
       btn.style.padding = '0';
       if (dot) dot.style.display = 'none';
     } else {
-      // Now closing — show AI image with gradient background
-      btn.innerHTML = '<img id="ragFabAiImg" src="../static/img/AI_LOGO.png" style="width:52px;height:52px;object-fit:cover;border-radius:50%;display:block;" alt="AI">';
-      btn.style.background = 'linear-gradient(135deg, #004B5F 0%, #EE152A 100%)';
+      // Now closing — show AI image with white/green background
+      btn.innerHTML = '<img id="ragFabAiImg" src="../static/img/AI_LOGO.png" style="width:50px;height:50px;object-fit:cover;border-radius:50%;display:block;" alt="AI">';
+      btn.style.background = 'white';
+      btn.style.border = '2.5px solid #22c55e';
+      btn.style.boxShadow = '0 0 10px rgba(34,197,94,0.45),0 4px 20px rgba(0,0,0,0.15)';
       btn.style.overflow = 'hidden';
       btn.style.padding = '3px';
       btn.style.position = 'relative';
@@ -511,8 +511,14 @@ function _ragWatch() {
             if (dot) dot.style.background = '#4ade80';
             if (txt) { txt.textContent = 'Online · RAG AI'; }
             if (fabDot) { fabDot.style.background = '#22c55e'; fabDot.style.boxShadow = '0 0 6px rgba(34,197,94,0.7)'; }
-            if (hdrRing) { hdrRing.style.background = 'linear-gradient(135deg, #004B5F 0%, #EE152A 100%)'; hdrRing.style.boxShadow = '0 0 8px rgba(0,75,95,0.35),0 2px 8px rgba(0,0,0,0.15)'; }
+            if (hdrRing) { hdrRing.style.borderColor = '#22c55e'; hdrRing.style.background = 'white'; hdrRing.style.boxShadow = '0 0 8px rgba(34,197,94,0.45),0 2px 8px rgba(0,0,0,0.15)'; }
             if (hdrDot) { hdrDot.style.background = '#22c55e'; hdrDot.style.boxShadow = '0 0 5px rgba(34,197,94,0.8)'; }
+            // Update FAB button border colour too
+            var fabBtn2 = document.getElementById('ragAiToggleBtn');
+            if (fabBtn2 && fabBtn2.style.background !== 'linear-gradient(135deg,#E8001C,#c0001a)') {
+              fabBtn2.style.borderColor = '#22c55e';
+              fabBtn2.style.boxShadow = '0 0 10px rgba(34,197,94,0.45),0 4px 20px rgba(0,0,0,0.15)';
+            }
             // Green pulse rings
             if (fabPulseO) { fabPulseO.style.borderColor = '#22c55e'; }
             if (fabPulseI) { fabPulseI.style.borderColor = '#22c55e'; }
@@ -522,8 +528,14 @@ function _ragWatch() {
             if (dot) dot.style.background = '#f97316';
             if (txt) { txt.textContent = 'Local mode'; }
             if (fabDot) { fabDot.style.background = '#f97316'; fabDot.style.boxShadow = '0 0 6px rgba(249,115,22,0.7)'; }
-            if (hdrRing) { hdrRing.style.background = '#f97316'; hdrRing.style.boxShadow = '0 0 8px rgba(249,115,22,0.45),0 2px 8px rgba(0,0,0,0.15)'; }
+            if (hdrRing) { hdrRing.style.borderColor = '#f97316'; hdrRing.style.background = 'white'; hdrRing.style.boxShadow = '0 0 8px rgba(249,115,22,0.45),0 2px 8px rgba(0,0,0,0.15)'; }
             if (hdrDot) { hdrDot.style.background = '#f97316'; hdrDot.style.boxShadow = '0 0 5px rgba(249,115,22,0.8)'; }
+            // Update FAB button border colour too
+            var fabBtn3 = document.getElementById('ragAiToggleBtn');
+            if (fabBtn3 && fabBtn3.style.background !== 'linear-gradient(135deg,#E8001C,#c0001a)') {
+              fabBtn3.style.borderColor = '#f97316';
+              fabBtn3.style.boxShadow = '0 0 10px rgba(249,115,22,0.45),0 4px 20px rgba(0,0,0,0.15)';
+            }
             // Orange pulse rings
             if (fabPulseO) { fabPulseO.style.borderColor = '#f97316'; }
             if (fabPulseI) { fabPulseI.style.borderColor = '#f97316'; }
@@ -545,7 +557,7 @@ function _ragWatch() {
           if (dot) dot.style.background = '#f97316';
           if (txt) { txt.textContent = 'Local mode'; }
           if (fabDot) { fabDot.style.background = '#f97316'; fabDot.style.boxShadow = '0 0 6px rgba(249,115,22,0.7)'; }
-          if (hdrRing) { hdrRing.style.background = '#f97316'; hdrRing.style.boxShadow = '0 0 8px rgba(249,115,22,0.45),0 2px 8px rgba(0,0,0,0.15)'; }
+          if (hdrRing) { hdrRing.style.borderColor = '#f97316'; hdrRing.style.background = 'white'; hdrRing.style.boxShadow = '0 0 8px rgba(249,115,22,0.45),0 2px 8px rgba(0,0,0,0.15)'; }
           if (hdrDot) { hdrDot.style.background = '#f97316'; hdrDot.style.boxShadow = '0 0 5px rgba(249,115,22,0.8)'; }
           // Orange pulse rings on error/offline
           if (fabPulseO) { fabPulseO.style.borderColor = '#f97316'; }

@@ -2183,9 +2183,21 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
     height: 32,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
-      border: Border.all(color: const Color(0xFFe2e8f0), width: 1.5),
+      color: Colors.white,
+      border: Border.all(
+        color: _backendOnline
+            ? const Color(0xFF4ade80)
+            : const Color(0xFFF97316),
+        width: 1.5,
+      ),
       boxShadow: [
-        BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4),
+        BoxShadow(
+          color: (_backendOnline
+                  ? const Color(0xFF4ade80)
+                  : const Color(0xFFF97316))
+              .withValues(alpha: 0.35),
+          blurRadius: 5,
+        ),
       ],
     ),
     child: ClipOval(
