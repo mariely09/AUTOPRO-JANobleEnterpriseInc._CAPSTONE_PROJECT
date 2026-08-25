@@ -40,12 +40,9 @@
         <div id="headerContainer"></div>
         
         <div class="admin-main">
-        <div class="admin-header">
-            <div style="display:none;">
-                <div class="breadcrumb">Admin Portal › Inventory Management</div>
-                <div class="admin-header-title">Stock Inventory</div>
-            </div>
-            <div style="margin-left:auto;display:flex;align-items:center;gap:0.6rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.6rem;flex-wrap:wrap;padding:0.6rem 1.5rem;background:white;border-bottom:1px solid #f0f4f8;flex-shrink:0;position:relative;z-index:10;">
+                <!-- Left: search + filters -->
+                <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
                 <!-- Search -->
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -72,6 +69,9 @@
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
+                </div>
+                <!-- Right: print + export -->
+                <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0;">
                 <!-- Print Button -->
                 <button class="btn-icon btn-secondary" onclick="printStockInventory()" style="display:flex;align-items:center;gap:0.3rem;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
@@ -82,8 +82,8 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     Excel
                 </button>
+                </div>
             </div>
-        </div>
 
         <div class="admin-content">
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;">

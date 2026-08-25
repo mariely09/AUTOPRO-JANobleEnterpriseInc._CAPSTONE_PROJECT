@@ -32,18 +32,12 @@
         <div id="headerContainer"></div>
         
         <div class="admin-main">
-        <div class="admin-header">
-            <div style="display:none;">
-                <div class="breadcrumb">Admin Portal › Archive</div>
-                <div class="admin-header-title">Archive</div>
-            </div>
-            <div style="margin-left:auto;display:flex;align-items:center;gap:0.6rem;">
+        <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;padding:0.6rem 1.5rem;background:white;border-bottom:1px solid #f0f4f8;flex-shrink:0;position:relative;z-index:10;">
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <input type="text" class="search-bar" placeholder="Search archived items..." id="archiveSearch" style="width:220px;padding-left:2rem;" oninput="_archiveResetPage(); renderCurrentTab();">
                 </div>
             </div>
-        </div>
 
         <div class="admin-content">
             <!-- Tab bar -->

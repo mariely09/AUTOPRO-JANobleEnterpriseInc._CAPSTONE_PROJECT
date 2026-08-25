@@ -4609,7 +4609,8 @@
             };
             
             if (titles[sectionName]) {
-                document.querySelector('#currentSectionTitle').textContent = titles[sectionName];
+                const titleEl = document.querySelector('#adminPageTitle') || document.querySelector('#currentSectionTitle');
+                if (titleEl) titleEl.textContent = titles[sectionName];
             }
             
             // Load data when switching to PMS sections

@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Issuances</title>
+    <link rel="icon" type="image/png" href="../static/img/LOGO_AUTOPRO.png" />
+    <link rel="stylesheet" href="../static/css/style.css">
+    <link rel="stylesheet" href="../static/css/admin.css">
+</head>
+<body class="portal-body" data-page="issuance">
+<script>
+// Instant auth guard — blocks bfcache back-navigation after logout
+(function() {
+  var logoutTime = localStorage.getItem('_loggedOut');
+  var loginTime  = localStorage.getItem('_loggedIn');
+  if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+    return;
+  }
+  var hasSession = sessionStorage.getItem('apUser') ||
+                   sessionStorage.getItem('spUser') ||
+                   sessionStorage.getItem('cpUser');
+  if (!hasSession) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+  }
+})();
+</script>
+
+<div class="admin-dashboard" style="display:flex;flex-direction:row;">
+    <div id="sidebarContainer"></div>
+
+    <div class="admin-page-shell" style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh;">
+        <div id="headerContainer"></div>
+
+        <div class="admin-main">
+
+        <!-- ── Action controls bar ─────────────────────────────────────── -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;padding:0.6rem 1.5rem;background:white;border-bottom:1px solid #f0f4f8;flex-shrink:0;position:relative;z-index:10;">
+            <!-- Left: search + filters -->
+            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                <!-- Search -->
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" class="search-bar" placeholder="Search items..." id="issuanceSearch" style="width:220px;padding-left:2rem;" oninput="renderIssuancesList()">
+                </div>
+                <!-- Sort By -->
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+                    <select id="issSortSelect" onchange="renderIssuancesList()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;">
+                        <option value="date-desc">Date (Newest First)</option>
+                        <option value="date-asc">Date (Oldest First)</option>
+                        <option value="item-asc">Item Name A→Z</option>
+                        <option value="item-desc">Item Name Z→A</option>
+                        <option value="qty-desc">Qty (Highest)</option>
+                        <option value="qty-asc">Qty (Lowest)</option>
+                        <option value="cost-desc">Cost (Highest)</option>
+                        <option value="cost-asc">Cost (Lowest)</option>
+                    </select>
+                    <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <!-- Date preset filter -->
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <select id="issuanceMonthFilter" onchange="issMonthToDateRange(this.value)" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:140px;outline:none;">
+                        <option value="">All Time</option>
+                        <option value="today">Today</option>
+                        <option value="this-week">This Week</option>
+                        <option value="this-month">This Month</option>
+                        <option value="last-week">Last Week</option>
+                        <option value="last-month">Last Month</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                    <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <!-- Custom date range -->
+                <div id="issCustomDateWrap" style="display:none;align-items:center;gap:0.4rem;">
+                    <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">From</span>
+                    <input type="date" id="issuanceDateFrom" onchange="renderIssuancesList()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
+                    <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">To</span>
+                    <input type="date" id="issuanceDateTo" onchange="renderIssuancesList()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
+                </div>
+                <!-- Commodity Group filter -->
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                    <select id="issCommodityFilterDropdown" onchange="issSetCommodityFilter(this.value)" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:150px;outline:none;">
+                        <option value="">All Groups</option>
+                    </select>
+                    <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+            </div>
+            <!-- Right: print + export -->
+            <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0;">
+                <button class="btn-icon btn-secondary" onclick="printIssuances()" style="display:flex;align-items:center;gap:0.3rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Print
+                </button>
+                <button class="btn-icon btn-secondary" onclick="exportIssuancesExcel()" style="display:flex;align-items:center;gap:0.3rem;background:#f0fff4;border-color:#9ae6b4;color:#276749;" title="Export to Excel">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Excel
+                </button>
+            </div>
+        </div>
+
+        <div class="admin-content">
+
+            <!-- Stats cards -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.25rem;">
+                <div class="stat-card" onclick="issSetFilter('all',document.getElementById('issPill_all'))" style="cursor:pointer;">
+                    <div class="stat-icon" style="background:rgba(59,130,246,0.10);color:#3b82f6;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    </div>
+                    <div class="stat-number" id="totalIssuances" style="color:#3b82f6;">0</div>
+                    <div class="stat-label">Total Issuances</div>
+                </div>
+                <div class="stat-card" onclick="issSetFilter('Service',document.getElementById('issPill_Service'))" style="cursor:pointer;">
+                    <div class="stat-icon" style="background:rgba(0,48,135,0.10);color:#003087;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                    </div>
+                    <div class="stat-number" id="totalIssuanceServices" style="color:#003087;">0</div>
+                    <div class="stat-label">Services</div>
+                </div>
+                <div class="stat-card" onclick="issSetFilter('Material',document.getElementById('issPill_Material'))" style="cursor:pointer;">
+                    <div class="stat-icon red">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                    </div>
+                    <div class="stat-number" id="totalMaterials">0</div>
+                    <div class="stat-label">Materials</div>
+                </div>
+            </div>
+
+            <!-- Filter pills -->
+            <div class="dss-filter-bar" style="margin-bottom:1rem;">
+                <div class="dss-filter-group">
+                    <label class="dss-filter-label">Filter by Type</label>
+                    <div class="dss-filter-pills" id="issFilterPills">
+                        <button id="issPill_all" class="dss-pill active" onclick="issSetFilter('all',this)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                            All
+                        </button>
+                        <button id="issPill_Service" class="dss-pill dss-pill--duetoday" onclick="issSetFilter('Service',this)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                            Services
+                        </button>
+                        <button id="issPill_Material" class="dss-pill dss-pill--overdue" onclick="issSetFilter('Material',this)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                            Materials
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="data-table">
+                <div style="overflow-x:auto;">
+                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;min-width:1100px;grid-template-columns:110px 130px 120px 1fr 100px 140px 70px 80px 110px 110px;">
+                        <div>Date</div><div>Plate Number</div><div>Item Number</div><div>Description</div>
+                        <div>Item Type</div><div>Commodity Group</div><div>UOM</div><div>Qty</div>
+                        <div>Unit Cost</div><div>Subtotal</div>
+                    </div>
+                    <div id="issuancesList" style="min-width:1100px;"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading issuances...</div></div>
+                </div>
+            </div>
+
+        </div><!-- /.admin-content -->
+        </div><!-- /.admin-main -->
+    </div><!-- /.admin-page-shell -->
+</div><!-- /.admin-dashboard -->
+
+<!-- ── Issuance Details Modal ─────────────────────────────────────────────── -->
+<div class="modal" id="issuanceDetailsModal">
+    <div class="modal-content" style="max-width:640px;padding:0;border-radius:20px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#E31E24 0%,#C41E3A 100%);padding:1.75rem 2rem;color:white;position:relative;overflow:hidden;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1;">
+                <div>
+                    <div style="font-size:0.72rem;opacity:0.7;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:0.4rem;">Issuance Record</div>
+                    <div style="font-size:1.3rem;font-weight:800;" id="idAssetNum">-</div>
+                    <div style="font-size:0.9rem;opacity:0.8;margin-top:0.25rem;" id="idAssetDesc">-</div>
+                    <div style="margin-top:0.75rem;" id="idItemTypeBadge"></div>
+                </div>
+                <button onclick="closeModal('issuanceDetailsModal')" style="background:rgba(255,255,255,0.15);border:none;color:white;width:36px;height:36px;border-radius:50%;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">&times;</button>
+            </div>
+        </div>
+        <div style="padding:1.75rem 2rem;background:#f8fafc;max-height:65vh;overflow-y:auto;">
+            <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);border-radius:14px;padding:1.25rem 1.5rem;margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;color:white;">
+                <div><div style="font-size:0.72rem;opacity:0.85;font-weight:700;text-transform:uppercase;margin-bottom:0.3rem;">Subtotal</div><div style="font-size:2rem;font-weight:800;" id="idSubtotal">₱0.00</div></div>
+                <div style="text-align:right;"><div style="font-size:0.72rem;opacity:0.85;font-weight:700;text-transform:uppercase;margin-bottom:0.3rem;">Date</div><div style="font-size:1rem;font-weight:700;" id="idDate">-</div></div>
+            </div>
+            <div style="background:white;border-radius:14px;padding:1.5rem;margin-bottom:1.25rem;border:1px solid #e2e8f0;">
+                <div style="font-size:0.72rem;font-weight:700;color:#718096;text-transform:uppercase;margin-bottom:1.25rem;">Item Details</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;" id="idItemGrid"></div>
+            </div>
+            <div style="background:white;border-radius:14px;padding:1.5rem;border:1px solid #e2e8f0;">
+                <div style="font-size:0.72rem;font-weight:700;color:#718096;text-transform:uppercase;margin-bottom:1.25rem;">Cost Breakdown</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.85rem;">
+                    <div style="background:#f7fafc;border-radius:10px;padding:1rem;text-align:center;"><div style="font-size:0.7rem;color:#718096;font-weight:700;text-transform:uppercase;margin-bottom:0.4rem;">Quantity</div><div style="font-size:1.4rem;font-weight:800;color:#1a202c;" id="idQty">-</div><div style="font-size:0.75rem;color:#a0aec0;" id="idUOM">-</div></div>
+                    <div style="background:#ebf8ff;border-radius:10px;padding:1rem;text-align:center;border-left:3px solid #3182ce;"><div style="font-size:0.7rem;color:#2c5282;font-weight:700;text-transform:uppercase;margin-bottom:0.4rem;">Unit Cost</div><div style="font-size:1.2rem;font-weight:800;color:#2b6cb0;" id="idUnitCost">-</div></div>
+                    <div style="background:linear-gradient(135deg,#fff5f5,#fed7d7);border-radius:10px;padding:1rem;text-align:center;border-left:3px solid #E31E24;"><div style="font-size:0.7rem;color:#c53030;font-weight:700;text-transform:uppercase;margin-bottom:0.4rem;">Subtotal</div><div style="font-size:1.2rem;font-weight:800;color:#E31E24;" id="idSubtotal2">-</div></div>
+                </div>
+            </div>
+        </div>
+        <div style="padding:1.25rem 2rem;background:white;border-top:1px solid #e2e8f0;">
+            <button onclick="closeModal('issuanceDetailsModal')" style="width:100%;padding:0.85rem;background:#f7fafc;color:#4a5568;border:1.5px solid #e2e8f0;border-radius:12px;font-weight:600;cursor:pointer;">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Add Issuance Modal ──────────────────────────────────────────────────── -->
+<div class="modal" id="addIssuanceModal">
+    <div class="modal-content" style="max-width:700px;">
+        <div class="modal-header"><h2 id="issuanceModalTitle">New Issuance</h2><button class="close-btn" onclick="closeModal('addIssuanceModal')">&times;</button></div>
+        <form id="addIssuanceForm">
+            <div class="form-group"><label>Date *</label><input type="date" name="issuanceDate" required></div>
+            <div class="form-group"><label>Vehicle *</label><select name="assetNum" id="issuanceAssetSelect" required onchange="loadAssetDescription()"><option value="">Select Asset</option></select></div>
+            <div class="form-group"><label>Description</label><input type="text" id="issuanceAssetDescription" readonly style="background:#f7fafc;"></div>
+            <div class="form-group"><label>Item *</label><select name="itemNum" id="issuanceItemSelect" required onchange="loadItemDetails()"><option value="">Select Item</option></select></div>
+            <div class="form-group"><label>Description</label><input type="text" id="issuanceDescription" readonly style="background:#f7fafc;"></div>
+            <div class="form-group"><label>Item Type *</label><select name="itemType" required><option value="">Select Type</option><option value="Service">Service</option><option value="Material">Material</option></select></div>
+            <div class="form-group"><label>Commodity Group</label><input type="text" id="issuanceCommodityGroup" readonly style="background:#f7fafc;"></div>
+            <div class="form-group"><label>UOM</label><input type="text" id="issuanceUOM" readonly style="background:#f7fafc;"></div>
+            <div class="form-group"><label>Quantity *</label><input type="number" name="quantity" placeholder="Enter quantity" step="1" min="1" required onchange="calculateSubtotal()"></div>
+            <div class="form-group"><label>Unit Cost</label><input type="number" id="issuanceUnitCost" readonly style="background:#f7fafc;"></div>
+            <div style="background:#ebf8ff;padding:1.5rem;border-radius:8px;margin-bottom:1rem;border-left:4px solid #3182ce;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-weight:600;color:#2c5282;">Subtotal:</div>
+                    <div style="font-size:1.5rem;font-weight:bold;color:#2c5282;" id="subtotalDisplay">₱0.00</div>
+                </div>
+            </div>
+            <div style="display:flex;gap:1rem;margin-top:2rem;">
+                <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('addIssuanceModal')">Cancel</button>
+                <button type="submit" class="btn-primary" style="flex:1;">Save Issuance</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ExcelJS for styled Excel export -->
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="../static/js/data.js"></script>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+  if (!firebase.apps.length) {
+    firebase.initializeApp({
+      apiKey: "AIzaSyCaoJWbwJk0Xi694ARHpdHhiNjT0SpASRs",
+      authDomain: "caltex-autopro-1e664.firebaseapp.com",
+      projectId: "caltex-autopro-1e664",
+      storageBucket: "caltex-autopro-1e664.firebasestorage.app",
+      messagingSenderId: "930140433367",
+      appId: "1:930140433367:web:cf67bfa388fa517422b992"
+    });
+  }
+</script>
+<script src="../static/js/admin_firebase.js"></script>
+<script src="../static/js/admin_functions.js?v=202607180001"></script>
+<script src="../static/js/admin.js?v=202608120002"></script>
+<script src="../static/js/admin_sidebar.js"></script>
+<script src="../static/js/print_layout_header.js"></script>
+
+<script>
+// ── Filter state ──────────────────────────────────────────────────────────
+window._issFilter          = 'all';
+window._issCommodityFilter = '';
+
+// ── Date preset helpers ───────────────────────────────────────────────────
+function _pad(n) { return ('0' + n).slice(-2); }
+function _fmtDate(d) { return d.getFullYear() + '-' + _pad(d.getMonth()+1) + '-' + _pad(d.getDate()); }
+
+function _presetToRange(val) {
+  var today = new Date(); today.setHours(0,0,0,0);
+  var from, to;
+  if (val === 'today') {
+    from = to = _fmtDate(today);
+  } else if (val === 'this-week') {
+    var dow = today.getDay();
+    var mon = new Date(today); mon.setDate(today.getDate() - ((dow + 6) % 7));
+    var sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    from = _fmtDate(mon); to = _fmtDate(sun);
+  } else if (val === 'this-month') {
+    from = _fmtDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    to   = _fmtDate(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+  } else if (val === 'last-week') {
+    var dow2 = today.getDay();
+    var lMon = new Date(today); lMon.setDate(today.getDate() - ((dow2 + 6) % 7) - 7);
+    var lSun = new Date(lMon); lSun.setDate(lMon.getDate() + 6);
+    from = _fmtDate(lMon); to = _fmtDate(lSun);
+  } else if (val === 'last-month') {
+    var lm = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    from = _fmtDate(lm);
+    to   = _fmtDate(new Date(today.getFullYear(), today.getMonth(), 0));
+  } else {
+    from = to = '';
+  }
+  return { from: from, to: to };
+}
+
+window.issMonthToDateRange = function(val) {
+  var wrap = document.getElementById('issCustomDateWrap');
+  if (val === 'custom') {
+    if (wrap) wrap.style.display = 'flex';
+    return;
+  }
+  if (wrap) wrap.style.display = 'none';
+  var r = _presetToRange(val);
+  document.getElementById('issuanceDateFrom').value = r.from;
+  document.getElementById('issuanceDateTo').value   = r.to;
+  if (typeof renderIssuancesList === 'function') renderIssuancesList();
+};
+
+window.issSetFilter = function(filter, btn) {
+  window._issFilter = filter;
+  document.querySelectorAll('#issFilterPills .dss-pill').forEach(function(p) { p.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  if (typeof renderIssuancesList === 'function') renderIssuancesList();
+};
+
+window.issSetCommodityFilter = function(val) {
+  window._issCommodityFilter = val;
+  if (typeof renderIssuancesList === 'function') renderIssuancesList();
+};
+
+// ── Populate commodity group dropdown ─────────────────────────────────────
+window._issPopulateCommodityFilterDropdown = function() {
+  var sel = document.getElementById('issCommodityFilterDropdown');
+  if (!sel) return;
+  if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) {
+    setTimeout(window._issPopulateCommodityFilterDropdown, 400);
+    return;
+  }
+  firebase.firestore().collection('domains').doc('commodity_groups').collection('items').orderBy('name').get()
+    .then(function(snap) {
+      var cgList = snap.docs.map(function(d){ return d.data().name || ''; }).filter(Boolean);
+      if (!cgList.length) cgList = ['Lubricants','Spare Parts','Filter','AutoService'];
+      sel.innerHTML = '<option value="">All Groups</option>'
+        + cgList.map(function(v){ return '<option value="'+v+'">'+v+'</option>'; }).join('');
+      if (window._issCommodityFilter) sel.value = window._issCommodityFilter;
+    })
+    .catch(function() {
+      ['Lubricants','Spare Parts','Filter','AutoService'].forEach(function(v){
+        var o = document.createElement('option'); o.value = v; o.textContent = v;
+        sel.appendChild(o);
+      });
+    });
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+  window._issPopulateCommodityFilterDropdown();
+});
+
+// ── Print ─────────────────────────────────────────────────────────────────
+function printIssuances() {
+  var issuances = window.issuances || window._fbIssuances || [];
+  var issFilter = window._issFilter || 'all';
+  if (issFilter !== 'all') issuances = issuances.filter(function(i){ return (i.itemType||'') === issFilter; });
+
+  var afterMonth = issuances;
+  var q = ((document.getElementById('issuanceSearch')||{}).value||'').trim().toLowerCase();
+  var filtered = q ? afterMonth.filter(function(i){
+    return (i.assetNum||i.plate||'').toLowerCase().includes(q)
+        || (i.itemNum||'').toLowerCase().includes(q)
+        || (i.itemName||'').toLowerCase().includes(q)
+        || (i.itemType||'').toLowerCase().includes(q)
+        || (i.commodityGroup||'').toLowerCase().includes(q)
+        || (i.date||'').toLowerCase().includes(q);
+  }) : afterMonth;
+
+  var issCgF = window._issCommodityFilter || '';
+  if (issCgF) filtered = filtered.filter(function(i){ return (i.commodityGroup||'') === issCgF; });
+
+  var issFrom = ((document.getElementById('issuanceDateFrom')||{}).value||'').trim();
+  var issTo   = ((document.getElementById('issuanceDateTo')||{}).value||'').trim();
+  if (issFrom || issTo) {
+    filtered = filtered.filter(function(i) {
+      var d = i.date; if (!d) return false;
+      var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var yr, mo, dy;
+      var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/); if (m1) { mo = MO.indexOf(m1[1].slice(0,3)); yr = parseInt(m1[3]); dy = parseInt(m1[2]); }
+      if (mo === undefined) { var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m2) { mo = parseInt(m2[1])-1; dy = parseInt(m2[2]); yr = parseInt(m2[3]); } }
+      if (mo === undefined) { var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m3) { yr = parseInt(m3[1]); mo = parseInt(m3[2])-1; dy = parseInt(m3[3]); } }
+      if (mo === undefined || isNaN(yr) || isNaN(dy)) return true;
+      var ds = yr + '-' + ('0'+(mo+1)).slice(-2) + '-' + ('0'+dy).slice(-2);
+      if (issFrom && ds < issFrom) return false;
+      if (issTo   && ds > issTo)   return false;
+      return true;
+    });
+  }
+
+  var issSortVal = (document.getElementById('issSortSelect')||{}).value||'date-desc';
+  filtered = filtered.slice().sort(function(a,b){
+    function dateMs(i){ var d=new Date(i.date||''); return isNaN(d.getTime())?0:d.getTime(); }
+    function qty(i){ return parseFloat(i.quantity||i.qty||0)||0; }
+    function cost(i){ return qty(i)*(parseFloat(String(i.unitCost||0).replace(/[₱,]/g,''))||0); }
+    switch(issSortVal){
+      case 'date-asc':  return dateMs(a)-dateMs(b);
+      case 'item-asc':  return (a.itemName||'').localeCompare(b.itemName||'');
+      case 'item-desc': return (b.itemName||'').localeCompare(a.itemName||'');
+      case 'qty-desc':  return qty(b)-qty(a);
+      case 'qty-asc':   return qty(a)-qty(b);
+      case 'cost-desc': return cost(b)-cost(a);
+      case 'cost-asc':  return cost(a)-cost(b);
+      default:          return dateMs(b)-dateMs(a);
+    }
+  });
+
+  var svcCount = filtered.filter(function(i){ return (i.itemType||'') === 'Service'; }).length;
+  var matCount = filtered.filter(function(i){ return (i.itemType||'') !== 'Service'; }).length;
+
+  var reportTitle = 'Issuances';
+  if (issFilter === 'Service') reportTitle += ' (Services)';
+  else if (issFilter === 'Material') reportTitle += ' (Materials)';
+  if (issCgF) reportTitle += ' · ' + issCgF;
+
+  var FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtDate(d) {
+    if (!d) return '—';
+    var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
+    if (m1) { var mi=MONTHS_S.indexOf(m1[1].slice(0,3)); return (mi!==-1?FULL_MONTHS[mi]:m1[1])+' '+parseInt(m1[2])+', '+m1[3]; }
+    var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m2) return FULL_MONTHS[parseInt(m2[1])-1]+' '+parseInt(m2[2])+', '+m2[3];
+    var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m3) return FULL_MONTHS[parseInt(m3[2])-1]+' '+parseInt(m3[3])+', '+m3[1];
+    var dt = new Date(d); if (!isNaN(dt)) return FULL_MONTHS[dt.getMonth()]+' '+dt.getDate()+', '+dt.getFullYear();
+    return d;
+  }
+
+  var issPrintDateRange = (issFrom || issTo) ? fmtDate(issFrom||'')+' – '+fmtDate(issTo||'') : '';
+  var grandTotalQty = 0, grandTotalSubtotal = 0;
+  var rows = filtered.map(function(i) {
+    var qty      = parseFloat(i.quantity||i.qty||0)||0;
+    var uc       = parseFloat(String(i.unitCost||i.unit_cost||0).replace(/[₱,]/g,''))||0;
+    var subtotal = parseFloat(String(i.subtotal||0).replace(/[₱,]/g,''))||(qty*uc);
+    var plate    = i.plate||i.assetNum||i.assetDesc||'—';
+    var assetDesc = i.assetDescription||i.assetDesc||'';
+    var plateCell = plate+(assetDesc?'<br><span style="font-size:7.5px;color:#718096;">'+assetDesc+'</span>':'');
+    grandTotalQty += qty;
+    grandTotalSubtotal += subtotal;
+    return [fmtDate(i.date),plateCell,i.itemNum||'—',i.itemName||'—',i.commodityGroup||'—',i.uom||i.unit||'—',qty>0?qty:'—',uc>0?'₱'+uc.toLocaleString('en-PH',{minimumFractionDigits:2}):'—',subtotal>0?'₱'+subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}):'—'];
+  });
+
+  _doPrint(reportTitle,
+    [{label:'Total',value:filtered.length,color:'#1a202c'},{label:'Services',value:svcCount,color:'#003087'},{label:'Materials',value:matCount,color:'#E8001C'}],
+    ['Date','Plate No.','Item No.','Description','Group','UOM','Qty','Unit Cost','Subtotal'],
+    rows,
+    {values:[grandTotalQty>0?grandTotalQty:'—','','₱'+grandTotalSubtotal.toLocaleString('en-PH',{minimumFractionDigits:2})]},
+    {dateRange:issPrintDateRange}
+  );
+}
+
+// ── Excel export ──────────────────────────────────────────────────────────
+async function _downloadExcel(filename, reportTitle, headers, rows, footer, opts) {
+  var ExcelJS = window.ExcelJS;
+  if (!ExcelJS) { alert('ExcelJS not loaded yet, please try again.'); return; }
+  var wb = new ExcelJS.Workbook();
+  wb.creator = 'Caltex AutoPro'; wb.created = new Date();
+  var ws = wb.addWorksheet('Report', {pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1}});
+  var now = new Date();
+  var dateStr = now.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  var timeStr = now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  var colCount = headers.length;
+  var RED='FFE8001C', DARK='FF1A202C', STRIPE='FFF8FAFC', GREY='FF718096', LGREY='FFA0AEC0';
+  var leftCols=Math.ceil(colCount/2), rightStart=leftCols+1;
+  ws.mergeCells(1,1,1,leftCols); ws.mergeCells(1,rightStart,1,colCount);
+  var r1L=ws.getCell(1,1); r1L.value='JA Noble Enterprise Inc.'; r1L.font={name:'Segoe UI',size:14,bold:true,color:{argb:DARK}}; r1L.alignment={vertical:'middle',horizontal:'left'}; ws.getRow(1).height=22;
+  var r1R=ws.getCell(1,rightStart); r1R.value='OFFICIAL REPORT'; r1R.font={name:'Segoe UI',size:7,bold:true,color:{argb:LGREY}}; r1R.alignment={vertical:'middle',horizontal:'right'};
+  ws.mergeCells(2,1,2,leftCols); ws.mergeCells(2,rightStart,2,colCount);
+  var r2L=ws.getCell(2,1); r2L.value='Caltex San Pedro'; r2L.font={name:'Segoe UI',size:9,bold:true,color:{argb:GREY}}; r2L.alignment={vertical:'middle',horizontal:'left'}; ws.getRow(2).height=18;
+  var r2R=ws.getCell(2,rightStart); r2R.value=reportTitle; r2R.font={name:'Segoe UI',size:13,bold:true,color:{argb:DARK}}; r2R.alignment={vertical:'middle',horizontal:'right'};
+  ws.mergeCells(3,1,3,leftCols); ws.mergeCells(3,rightStart,3,colCount);
+  var r3L=ws.getCell(3,1); r3L.value='102 National Highway, Brgy. Landayan, San Pedro, Laguna'; r3L.font={name:'Segoe UI',size:8,color:{argb:LGREY}}; r3L.alignment={vertical:'middle',horizontal:'left'}; ws.getRow(3).height=14;
+  var excelDateRange=(opts&&opts.dateRange)||'';
+  var r3R=ws.getCell(3,rightStart);
+  if (excelDateRange) { r3R.value={richText:[{text:'Date Range: ',font:{name:'Segoe UI',size:8,color:{argb:GREY}}},{text:excelDateRange,font:{name:'Segoe UI',size:8,bold:true,color:{argb:DARK}}}]}; }
+  r3R.alignment={vertical:'middle',horizontal:'right'};
+  ws.mergeCells(4,1,4,leftCols); ws.mergeCells(4,rightStart,4,colCount); ws.getRow(4).height=13;
+  var r4R=ws.getCell(4,rightStart); r4R.value='Generated on '+dateStr+' at '+timeStr; r4R.font={name:'Segoe UI',size:8,color:{argb:GREY}}; r4R.alignment={vertical:'middle',horizontal:'right'};
+  ws.addRow([]); var divRow=ws.getRow(5); divRow.height=3;
+  for (var ci=1;ci<=colCount;ci++) ws.getCell(5,ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:RED}};
+  ws.addRow([]); ws.getRow(6).height=6;
+  var headerRow=ws.addRow(headers); headerRow.height=18;
+  headerRow.eachCell(function(cell){ cell.value=(cell.value||'').toString().toUpperCase(); cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:DARK}}; cell.font={name:'Segoe UI',size:8,bold:true,color:{argb:'FFFFFFFF'}}; cell.alignment={vertical:'middle',horizontal:'left',wrapText:false}; cell.border={bottom:{style:'thin',color:{argb:'FF2D3748'}}}; });
+  rows.forEach(function(rowData,idx){
+    var cleaned=rowData.map(function(v){ var s=String(v===null||v===undefined?'':v).replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'); var n=parseFloat(s.replace(/[₱,]/g,'')); if(!isNaN(n)&&s.replace(/[₱,\s]/g,'')!==''&&!/[a-zA-Z]/.test(s.replace(/₱/g,''))) return n; return s; });
+    var dr=ws.addRow(cleaned); dr.height=15; var isEven=idx%2===1;
+    dr.eachCell({includeEmpty:true},function(cell){ if(isEven) cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:STRIPE}}; cell.border={bottom:{style:'hair',color:{argb:'FFF0F4F8'}}}; cell.font={name:'Segoe UI',size:8.5,color:{argb:'FF2D3748'}}; cell.alignment={vertical:'middle',wrapText:false}; });
+  });
+  if (footer&&footer.values&&footer.values.length) {
+    ws.addRow([]);
+    var totalCells=new Array(colCount).fill('');
+    if (typeof footer.values[0]==='object'&&footer.values[0]!==null&&'colIndex' in footer.values[0]) {
+      footer.values.forEach(function(v){ totalCells[v.colIndex-1]=v.value; });
+      var firstIdx=footer.values[0].colIndex-1; if(firstIdx>0) totalCells[firstIdx-1]='TOTAL';
+    } else {
+      var insertAt=colCount-footer.values.length;
+      footer.values.forEach(function(v,i){ totalCells[insertAt+i]=v; });
+      if(insertAt>0) totalCells[insertAt-1]='TOTAL';
+    }
+    var totRow=ws.addRow(totalCells); totRow.height=16;
+    totRow.eachCell({includeEmpty:true},function(cell){ cell.font={name:'Segoe UI',size:9,bold:true,color:{argb:DARK}}; cell.border={top:{style:'medium',color:{argb:DARK}}}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEBF8FF'}}; });
+  }
+  var colWidths=headers.map(function(h){ return Math.max(String(h).length,8); });
+  rows.forEach(function(rowData){ rowData.forEach(function(v,i){ var s=String(v||'').replace(/<[^>]+>/g,''); if(s.length>colWidths[i]) colWidths[i]=s.length; }); });
+  colWidths.forEach(function(w,i){ ws.getColumn(i+1).width=Math.min(w+4,40); });
+  var buf=await wb.xlsx.writeBuffer();
+  var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function exportIssuancesExcel() {
+  var issuances = window.issuances || window._fbIssuances || [];
+  var issF = window._issFilter || 'all';
+  if (issF !== 'all') issuances = issuances.filter(function(i){ return (i.itemType||'') === issF; });
+
+  var MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var FULL_MONTHS_E = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  var q = ((document.getElementById('issuanceSearch')||{}).value||'').trim().toLowerCase();
+  var filtered = q ? issuances.filter(function(i){ return (i.itemName+i.itemNum+i.itemType+i.commodityGroup).toLowerCase().includes(q); }) : issuances;
+  var cgF = window._issCommodityFilter || '';
+  if (cgF) filtered = filtered.filter(function(i){ return (i.commodityGroup||'')===cgF; });
+
+  var issFromE = ((document.getElementById('issuanceDateFrom')||{}).value||'').trim();
+  var issToE   = ((document.getElementById('issuanceDateTo')||{}).value||'').trim();
+  if (issFromE || issToE) {
+    filtered = filtered.filter(function(i) {
+      var d = i.date; if (!d) return false;
+      var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var yr, mo, dy;
+      var m1=d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/); if(m1){mo=MO.indexOf(m1[1].slice(0,3));yr=parseInt(m1[3]);dy=parseInt(m1[2]);}
+      if(mo===undefined){var m2=d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m2){mo=parseInt(m2[1])-1;dy=parseInt(m2[2]);yr=parseInt(m2[3]);}}
+      if(mo===undefined){var m3=d.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m3){yr=parseInt(m3[1]);mo=parseInt(m3[2])-1;dy=parseInt(m3[3]);}}
+      if(mo===undefined||isNaN(yr)||isNaN(dy))return true;
+      var ds=yr+'-'+('0'+(mo+1)).slice(-2)+'-'+('0'+dy).slice(-2);
+      if(issFromE&&ds<issFromE)return false;
+      if(issToE&&ds>issToE)return false;
+      return true;
+    });
+  }
+
+  var sortVal = (document.getElementById('issSortSelect')||{}).value||'date-desc';
+  filtered = filtered.slice().sort(function(a,b){
+    function dm(i){var d=new Date(i.date||'');return isNaN(d)?0:d.getTime();}
+    function qty(i){return parseFloat(i.quantity||i.qty||0)||0;}
+    function cost(i){return qty(i)*(parseFloat(String(i.unitCost||0).replace(/[₱,]/g,''))||0);}
+    switch(sortVal){case 'date-asc':return dm(a)-dm(b);case 'item-asc':return (a.itemName||'').localeCompare(b.itemName||'');case 'item-desc':return (b.itemName||'').localeCompare(a.itemName||'');case 'qty-desc':return qty(b)-qty(a);case 'qty-asc':return qty(a)-qty(b);case 'cost-desc':return cost(b)-cost(a);case 'cost-asc':return cost(a)-cost(b);default:return dm(b)-dm(a);}
+  });
+
+  function _fmtIssDate(d) {
+    if (!d) return '—';
+    var m1=d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
+    if(m1){var mi=MONTHS_S.indexOf(m1[1].slice(0,3));return (mi!==-1?FULL_MONTHS_E[mi]:m1[1])+' '+parseInt(m1[2])+', '+m1[3];}
+    var m2=d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m2)return FULL_MONTHS_E[parseInt(m2[1])-1]+' '+parseInt(m2[2])+', '+m2[3];
+    var m3=d.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m3)return FULL_MONTHS_E[parseInt(m3[2])-1]+' '+parseInt(m3[3])+', '+m3[1];
+    return d;
+  }
+
+  var issExportTitle = 'Issuances';
+  if (issF === 'Service') issExportTitle += ' (Services)';
+  else if (issF === 'Material') issExportTitle += ' (Materials)';
+  if (cgF) issExportTitle += ' · ' + cgF;
+  var issExcelDateRange = (issFromE || issToE) ? _fmtIssDate(issFromE||'')+' – '+_fmtIssDate(issToE||'') : '';
+
+  var grandTotalQty = 0, grandTotalSubtotal = 0;
+  var rows = filtered.map(function(i){
+    var qty=parseFloat(i.quantity||i.qty||0)||0;
+    var uc=parseFloat(String(i.unitCost||0).replace(/[₱,]/g,''))||0;
+    var sub=parseFloat(String(i.subtotal||0).replace(/[₱,]/g,''))||(qty*uc);
+    grandTotalQty += qty; grandTotalSubtotal += sub;
+    return [_fmtIssDate(i.date),i.plate||i.assetNum||'—',i.itemNum||'—',i.itemName||'—',i.itemType||'—',i.commodityGroup||'—',i.uom||i.unit||'—',qty||'—',uc||'—',sub>0?parseFloat(sub.toFixed(2)):'—'];
+  });
+
+  var now = new Date();
+  var stamp = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  _downloadExcel(
+    'Issuances_'+stamp+'.xlsx',
+    issExportTitle,
+    ['Date','Plate No.','Item No.','Item Name','Item Type','Commodity Group','UOM','Qty','Unit Cost','Subtotal'],
+    rows,
+    {values:[{value:grandTotalQty>0?grandTotalQty:'—',colIndex:8},{value:grandTotalSubtotal>0?parseFloat(grandTotalSubtotal.toFixed(2)):'—',colIndex:10}]},
+    {dateRange:issExcelDateRange}
+  );
+}
+</script>
+
+</body>
+</html>

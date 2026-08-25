@@ -173,10 +173,10 @@ function switchAdminSection(sectionName) {
         'dss': 'Stock Replenishment DSS',
         'dss-pms': 'Preventive Maintenance Scheduling DSS'
     };
-    var titleEl = document.getElementById('currentSectionTitle');
+    var titleEl = document.getElementById('adminPageTitle') || document.getElementById('currentSectionTitle');
     if (titleEl) titleEl.textContent = titles[sectionName] || 'Admin Panel';
 
-    // Show/hide header controls
+    // Show/hide header controls (no-op if elements removed from DOM)
     var txnCtrl = document.getElementById('txnHeaderControls');
     var issCtrl = document.getElementById('issuanceHeaderControls');
     if (txnCtrl) txnCtrl.style.display = sectionName === 'inventory-transactions' ? 'flex' : 'none';
@@ -1648,22 +1648,8 @@ function renderInventoryTransactions(filter) {
         filtered = filtered.filter(function(t){ return t.type === txnFilter; });
     }
 
-    // Apply month filter from header dropdown
-    var MONTHS_SHORT_TXN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var selectedTxnMonth = ((document.getElementById('txnMonthFilter') || {}).value || '').trim();
-    if (selectedTxnMonth) {
-        filtered = filtered.filter(function(t) {
-            var dateStr = t.date || '';
-            if (!dateStr) return false;
-            var m1 = dateStr.match(/^([A-Za-z]+)\s+\d+,?\s+(\d{4})/);
-            if (m1) return (m1[1].slice(0,3) + ' ' + m1[2]) === selectedTxnMonth;
-            var m2 = dateStr.match(/^(\d{1,2})\/\d{1,2}\/(\d{4})/);
-            if (m2) return (MONTHS_SHORT_TXN[parseInt(m2[1]) - 1] + ' ' + m2[2]) === selectedTxnMonth;
-            var m3 = dateStr.match(/^(\d{4})-(\d{2})-\d{2}/);
-            if (m3) return (MONTHS_SHORT_TXN[parseInt(m3[2]) - 1] + ' ' + m3[1]) === selectedTxnMonth;
-            return false;
-        });
-    }
+    // Apply month filter from header dropdown — now uses date range inputs set by preset handler
+    // (txnMonthFilter values are presets like 'today','this-week' etc., not "Jan 2026" strings)
 
     // Apply commodity group filter from header dropdown
     var txnCgFilter = window._txnCommodityFilter || '';
@@ -2293,47 +2279,19 @@ function renderIssuancesList() {
         return null;
     }
 
-    // Populate month filter dropdown
-    var monthSel = document.getElementById('issuanceMonthFilter');
-    if (monthSel) {
-        var monthSet = {};
-        issuances.forEach(function(i) {
-            var parsed = parseDateToMonthYear(i.date);
-            if (parsed) {
-                var key = parsed.month + ' ' + parsed.year;
-                monthSet[key] = { month: parsed.month, year: parseInt(parsed.year) };
-            }
-        });
-        var months = Object.keys(monthSet).sort(function(a, b) {
-            var da = monthSet[a], db = monthSet[b];
-            if (da.year !== db.year) return db.year - da.year;
-            return MONTHS_SHORT.indexOf(db.month) - MONTHS_SHORT.indexOf(da.month);
-        });
-        var current = monthSel.value;
-        monthSel.innerHTML = '<option value="">All Months</option>'
-            + months.map(function(m) {
-                return '<option value="' + m + '"' + (m === current ? ' selected' : '') + '>' + m + '</option>';
-            }).join('');
-    }
-
-    // Apply month filter
-    var selectedMonth = (monthSel && monthSel.value) || '';
-    var afterMonth = selectedMonth ? issuances.filter(function(i) {
-        var parsed = parseDateToMonthYear(i.date);
-        if (!parsed) return false;
-        return (parsed.month + ' ' + parsed.year) === selectedMonth;
-    }) : issuances;
+    // Month filter dropdown uses fixed presets — do NOT overwrite innerHTML
+    // Date range is set by issMonthToDateRange() via preset handler
 
     // Apply search filter
     var q = ((document.getElementById('issuanceSearch') || {}).value || '').trim().toLowerCase();
-    var filtered = q ? afterMonth.filter(function(i) {
+    var filtered = q ? issuances.filter(function(i) {
         return (i.assetNum||'').toLowerCase().includes(q)
             || (i.itemNum||'').toLowerCase().includes(q)
             || (i.itemName||'').toLowerCase().includes(q)
             || (i.itemType||'').toLowerCase().includes(q)
             || (i.commodityGroup||'').toLowerCase().includes(q)
             || (i.date||'').toLowerCase().includes(q);
-    }) : afterMonth;
+    }) : issuances;
 
     // Apply item type filter from pills
     var issFilter = window._issFilter || 'all';

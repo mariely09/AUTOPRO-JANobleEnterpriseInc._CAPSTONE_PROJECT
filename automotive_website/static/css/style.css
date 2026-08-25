@@ -362,6 +362,7 @@ body {
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-height: 0;
     overflow: visible;
 }
 
@@ -403,8 +404,10 @@ body {
 .admin-content {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 2rem;
     background: #f8fafc;
+    min-height: 0; /* prevent flex child from overflowing its container */
 }
 
 /* 9. Sections */

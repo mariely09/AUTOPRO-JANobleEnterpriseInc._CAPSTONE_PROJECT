@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -48,21 +48,21 @@
         <div id="headerContainer"></div>
         
         <div class="admin-main">
-        <div class="admin-header">
-            <div style="display:none;">
-                <div class="breadcrumb">Admin Portal › Decision Support System</div>
-                <div class="admin-header-title" id="dssPageTitle">Stock Replenishment</div>
-            </div>
-            <div style="margin-left:auto;position:relative;display:flex;align-items:center;gap:0.5rem;">
-                <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;padding:0.6rem 1.5rem;background:white;border-bottom:1px solid #f0f4f8;position:relative;flex-shrink:0;z-index:10;">
                 <!-- Stock search (visible on dss section) -->
-                <input type="text" class="search-bar dss-header-search" id="dssSearch"
-                    placeholder="Search item..." style="width:220px;padding-left:2rem;"
-                    oninput="dssApplySearch()">
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" class="search-bar dss-header-search" id="dssSearch"
+                        placeholder="Search item..." style="width:220px;padding-left:2rem;"
+                        oninput="dssApplySearch()">
+                </div>
                 <!-- PMS search (visible on dss-pms section) -->
-                <input type="text" class="search-bar dss-header-search" id="dssPmsSearch"
-                    placeholder="Search vehicle..." style="width:220px;padding-left:2rem;display:none;"
-                    oninput="dssPMSApplySearch()">
+                <div id="dssPmsSearchWrap" style="position:relative;display:none;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" class="search-bar dss-header-search" id="dssPmsSearch"
+                        placeholder="Search vehicle..." style="width:220px;padding-left:2rem;"
+                        oninput="dssPMSApplySearch()">
+                </div>
                 <!-- Stock Sort By -->
                 <div id="dssSortWrap" style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
@@ -86,7 +86,6 @@
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
             </div>
-        </div>
 
         <div class="admin-content">
 
@@ -154,8 +153,6 @@
 
             <!-- Preventive Maintenance Section -->
             <div class="admin-section" id="dss-pms">
-                <!-- PMS Calendar floating widget â€â€ only shown on PMS tab -->
-                {% include 'calendarview_widget.html' %}
                 <div class="dss-kpi-grid" id="dssPmsKpiGrid" style="grid-template-columns:repeat(5,1fr);">
                     <div class="stat-card">
                         <div class="stat-icon" style="background:rgba(229,62,62,0.10);color:#e53e3e;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
@@ -266,10 +263,10 @@
     if (titleEl) titleEl.textContent = section === 'dss-pms' ? 'PMS Scheduling' : 'Stock Replenishment';
 
     // Swap header search inputs
-    const stockSearch = document.getElementById('dssSearch');
-    const pmsSearch   = document.getElementById('dssPmsSearch');
-    if (stockSearch) stockSearch.style.display = section === 'dss-pms' ? 'none' : '';
-    if (pmsSearch)   pmsSearch.style.display   = section === 'dss-pms' ? ''     : 'none';
+    const stockSearch    = document.getElementById('dssSearch');
+    const pmsSearchWrap  = document.getElementById('dssPmsSearchWrap');
+    if (stockSearch)   stockSearch.style.display   = section === 'dss-pms' ? 'none' : '';
+    if (pmsSearchWrap) pmsSearchWrap.style.display = section === 'dss-pms' ? 'flex' : 'none';
     // Swap sort dropdowns
     const stockSort = document.getElementById('dssSortWrap');
     const pmsSort   = document.getElementById('dssPmsSortWrap');
@@ -306,10 +303,10 @@
     if (target) target.classList.add('active');
     const titleEl = document.getElementById('dssPageTitle');
     if (titleEl) titleEl.textContent = section === 'dss-pms' ? 'PMS Scheduling' : 'Stock Replenishment';
-    const stockSearch = document.getElementById('dssSearch');
-    const pmsSearch   = document.getElementById('dssPmsSearch');
-    if (stockSearch) stockSearch.style.display = section === 'dss-pms' ? 'none' : '';
-    if (pmsSearch)   pmsSearch.style.display   = section === 'dss-pms' ? ''     : 'none';
+    const stockSearch    = document.getElementById('dssSearch');
+    const pmsSearchWrap  = document.getElementById('dssPmsSearchWrap');
+    if (stockSearch)   stockSearch.style.display   = section === 'dss-pms' ? 'none' : '';
+    if (pmsSearchWrap) pmsSearchWrap.style.display = section === 'dss-pms' ? 'flex' : 'none';
     const stockSort = document.getElementById('dssSortWrap');
     const pmsSort   = document.getElementById('dssPmsSortWrap');
     if (stockSort) stockSort.style.display = section === 'dss-pms' ? 'none' : 'flex';
@@ -355,3 +352,4 @@
 
 </body>
 </html>
+

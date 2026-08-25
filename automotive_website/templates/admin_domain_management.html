@@ -64,25 +64,19 @@
         <div id="headerContainer"></div>
         
         <div class="admin-main">
-        <div class="admin-header">
-            <div style="display:flex;align-items:center;gap:0.75rem;">
-                <button id="dmBackBtn" onclick="dmBack()" style="display:none;background:none;border:none;cursor:pointer;padding:0.3rem;border-radius:8px;color:#4a5568;display:none;align-items:center;" title="Back">
+        <div class="admin-content">
+            <!-- Domain header controls (shown/hidden via JS) -->
+            <div id="dmHeaderBar" style="display:none;align-items:center;gap:0.75rem;margin-bottom:1rem;">
+                <button id="dmBackBtn" onclick="dmBack()" style="display:none;background:none;border:none;cursor:pointer;padding:0.3rem;border-radius:8px;color:#4a5568;align-items:center;" title="Back">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                 </button>
-                <div style="display:none;">
-                    <div class="breadcrumb">Admin Portal › Domain Management</div>
-                    <div class="admin-header-title" id="dmHeaderTitle">Domain Management</div>
+                <div id="dmHeaderActions" style="display:none;gap:0.5rem;align-items:center;">
+                    <div style="position:relative;display:flex;align-items:center;">
+                        <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" class="search-bar" placeholder="Search items..." id="dmSearch" style="width:200px;padding-left:2rem;" oninput="dmRenderItems()">
+                    </div>
                 </div>
             </div>
-            <div id="dmHeaderActions" style="margin-left:auto;display:none;gap:0.5rem;align-items:center;">
-                <div style="position:relative;display:flex;align-items:center;">
-                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <input type="text" class="search-bar" placeholder="Search items..." id="dmSearch" style="width:200px;padding-left:2rem;" oninput="dmRenderItems()">
-                </div>
-            </div>
-        </div>
-
-        <div class="admin-content">
             <!-- Domain List View -->
             <div id="dmListView">
                 <div style="display:flex;flex-direction:column;gap:0.75rem;" id="dmDomainCards"></div>

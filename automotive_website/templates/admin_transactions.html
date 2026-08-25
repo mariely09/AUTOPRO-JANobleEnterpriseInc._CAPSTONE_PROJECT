@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Transactions</title>
+    <link rel="icon" type="image/png" href="../static/img/LOGO_AUTOPRO.png" />
+    <link rel="stylesheet" href="../static/css/style.css">
+    <link rel="stylesheet" href="../static/css/admin.css">
+</head>
+<body class="portal-body" data-page="inventory-transactions">
+<script>
+// Instant auth guard — blocks bfcache back-navigation after logout
+(function() {
+  var logoutTime = localStorage.getItem('_loggedOut');
+  var loginTime  = localStorage.getItem('_loggedIn');
+  if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+    return;
+  }
+  var hasSession = sessionStorage.getItem('apUser') ||
+                   sessionStorage.getItem('spUser') ||
+                   sessionStorage.getItem('cpUser');
+  if (!hasSession) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+  }
+})();
+</script>
+
+<div class="admin-dashboard" style="display:flex;flex-direction:row;">
+    <div id="sidebarContainer"></div>
+
+    <div class="admin-page-shell" style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh;">
+        <div id="headerContainer"></div>
+
+        <div class="admin-main">
+
+        <!-- ── Action controls bar ─────────────────────────────────────── -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;padding:0.6rem 1.5rem;background:white;border-bottom:1px solid #f0f4f8;flex-shrink:0;position:relative;z-index:10;">
+            <!-- Left: search + filters -->
+            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                <!-- Search -->
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" class="search-bar" placeholder="Search transactions..." id="txnSearch" style="width:220px;padding-left:2rem;" oninput="renderInventoryTransactions()">
+                </div>
+                <!-- Sort By -->
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+                    <select id="txnSortSelect" onchange="renderInventoryTransactions()" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:170px;outline:none;">
+                        <option value="date-desc">Date (Newest First)</option>
+                        <option value="date-asc">Date (Oldest First)</option>
+                        <option value="item-asc">Item Name A→Z</option>
+                        <option value="item-desc">Item Name Z→A</option>
+                        <option value="qty-desc">Qty (Highest)</option>
+                        <option value="qty-asc">Qty (Lowest)</option>
+                    </select>
+                    <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <!-- Date preset filter -->
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <select id="txnMonthFilter" onchange="txnMonthToDateRange(this.value)" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:140px;outline:none;">
+                        <option value="">All Time</option>
+                        <option value="today">Today</option>
+                        <option value="this-week">This Week</option>
+                        <option value="this-month">This Month</option>
+                        <option value="last-week">Last Week</option>
+                        <option value="last-month">Last Month</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                    <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <!-- Custom date range (shown only when Custom is selected) -->
+                <div id="txnCustomDateWrap" style="display:none;align-items:center;gap:0.4rem;">
+                    <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">From</span>
+                    <input type="date" id="txnDateFrom" onchange="renderInventoryTransactions()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
+                    <span style="font-size:0.78rem;color:#718096;font-weight:600;white-space:nowrap;">To</span>
+                    <input type="date" id="txnDateTo" onchange="renderInventoryTransactions()" style="height:34px;padding:0 0.5rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;color:#4a5568;background:white;outline:none;cursor:pointer;">
+                </div>
+                <!-- Commodity Group filter -->
+                <div style="position:relative;display:flex;align-items:center;">
+                    <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                    <select id="txnCommodityFilterDropdown" onchange="txnSetCommodityFilter(this.value)" style="padding:0.55rem 2rem 0.55rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.82rem;font-family:inherit;color:#1a202c;background:white;cursor:pointer;appearance:none;-webkit-appearance:none;min-width:150px;outline:none;">
+                        <option value="">All Groups</option>
+                    </select>
+                    <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+            </div>
+            <!-- Right: print + export -->
+            <div style="display:flex;align-items:center;gap:0.4rem;flex-shrink:0;">
+                <button class="btn-icon btn-secondary" onclick="printTransactions()" style="display:flex;align-items:center;gap:0.3rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Print
+                </button>
+                <button class="btn-icon btn-secondary" onclick="exportTransactionsExcel()" style="display:flex;align-items:center;gap:0.3rem;background:#f0fff4;border-color:#9ae6b4;color:#276749;" title="Export to Excel">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Excel
+                </button>
+            </div>
+        </div>
+
+        <div class="admin-content">
+
+            <!-- Stats cards -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.25rem;">
+                <div class="stat-card" onclick="txnSetFilter('all',document.getElementById('txnPill_all'))" style="cursor:pointer;">
+                    <div class="stat-icon blue">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                    </div>
+                    <div class="stat-number" id="txnTotal">0</div>
+                    <div class="stat-label">Total Transactions</div>
+                </div>
+                <div class="stat-card" onclick="txnSetFilter('IN',document.getElementById('txnPill_IN'))" style="cursor:pointer;">
+                    <div class="stat-icon" style="background:rgba(0,48,135,0.10);color:#003087;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </div>
+                    <div class="stat-number" id="txnIn" style="color:#003087;">0</div>
+                    <div class="stat-label">Stock In (Received)</div>
+                </div>
+                <div class="stat-card" onclick="txnSetFilter('OUT',document.getElementById('txnPill_OUT'))" style="cursor:pointer;">
+                    <div class="stat-icon red">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    </div>
+                    <div class="stat-number" id="txnOut">0</div>
+                    <div class="stat-label">Stock Out (Issued)</div>
+                </div>
+            </div>
+
+            <!-- Filter pills -->
+            <div class="dss-filter-bar" style="margin-bottom:1rem;">
+                <div class="dss-filter-group">
+                    <label class="dss-filter-label">Filter by Type</label>
+                    <div class="dss-filter-pills" id="txnFilterPills">
+                        <button id="txnPill_all" class="dss-pill active" onclick="txnSetFilter('all',this)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                            All
+                        </button>
+                        <button id="txnPill_IN" class="dss-pill dss-pill--duetoday" onclick="txnSetFilter('IN',this)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Stock In
+                        </button>
+                        <button id="txnPill_OUT" class="dss-pill dss-pill--overdue" onclick="txnSetFilter('OUT',this)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            Stock Out
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="data-table">
+                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:120px 1fr 1fr 80px 80px 100px;">
+                    <div>Date</div>
+                    <div>Item</div>
+                    <div>Commodity Group</div>
+                    <div>Type</div>
+                    <div>Qty</div>
+                    <div>Performed By</div>
+                </div>
+                <div id="txnList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading transactions...</div></div>
+            </div>
+
+        </div><!-- /.admin-content -->
+        </div><!-- /.admin-main -->
+    </div><!-- /.admin-page-shell -->
+</div><!-- /.admin-dashboard -->
+
+<div id="toast"></div>
+
+<!-- ExcelJS for styled Excel export -->
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="../static/js/data.js"></script>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+  if (!firebase.apps.length) {
+    firebase.initializeApp({
+      apiKey: "AIzaSyCaoJWbwJk0Xi694ARHpdHhiNjT0SpASRs",
+      authDomain: "caltex-autopro-1e664.firebaseapp.com",
+      projectId: "caltex-autopro-1e664",
+      storageBucket: "caltex-autopro-1e664.firebasestorage.app",
+      messagingSenderId: "930140433367",
+      appId: "1:930140433367:web:cf67bfa388fa517422b992"
+    });
+  }
+</script>
+<script src="../static/js/admin_firebase.js"></script>
+<script src="../static/js/admin_functions.js?v=202607180001"></script>
+<script src="../static/js/admin.js?v=202608120002"></script>
+<script src="../static/js/admin_sidebar.js"></script>
+<script src="../static/js/print_layout_header.js"></script>
+
+<script>
+// ── Filter state ──────────────────────────────────────────────────────────
+window._txnFilter          = 'all';
+window._txnCommodityFilter = '';
+
+// ── Date preset helpers ───────────────────────────────────────────────────
+function _pad(n) { return ('0' + n).slice(-2); }
+function _fmtDate(d) { return d.getFullYear() + '-' + _pad(d.getMonth()+1) + '-' + _pad(d.getDate()); }
+
+function _presetToRange(val) {
+  var today = new Date(); today.setHours(0,0,0,0);
+  var from, to;
+  if (val === 'today') {
+    from = to = _fmtDate(today);
+  } else if (val === 'this-week') {
+    var dow = today.getDay();
+    var mon = new Date(today); mon.setDate(today.getDate() - ((dow + 6) % 7));
+    var sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    from = _fmtDate(mon); to = _fmtDate(sun);
+  } else if (val === 'this-month') {
+    from = _fmtDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    to   = _fmtDate(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+  } else if (val === 'last-week') {
+    var dow2 = today.getDay();
+    var lMon = new Date(today); lMon.setDate(today.getDate() - ((dow2 + 6) % 7) - 7);
+    var lSun = new Date(lMon); lSun.setDate(lMon.getDate() + 6);
+    from = _fmtDate(lMon); to = _fmtDate(lSun);
+  } else if (val === 'last-month') {
+    var lm = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    from = _fmtDate(lm);
+    to   = _fmtDate(new Date(today.getFullYear(), today.getMonth(), 0));
+  } else {
+    from = to = '';
+  }
+  return { from: from, to: to };
+}
+
+window.txnMonthToDateRange = function(val) {
+  var wrap = document.getElementById('txnCustomDateWrap');
+  if (val === 'custom') {
+    if (wrap) wrap.style.display = 'flex';
+    return;
+  }
+  if (wrap) wrap.style.display = 'none';
+  var r = _presetToRange(val);
+  document.getElementById('txnDateFrom').value = r.from;
+  document.getElementById('txnDateTo').value   = r.to;
+  if (typeof renderInventoryTransactions === 'function') renderInventoryTransactions();
+};
+
+window.txnSetFilter = function(filter, btn) {
+  window._txnFilter = filter;
+  document.querySelectorAll('#txnFilterPills .dss-pill').forEach(function(p) { p.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  if (typeof renderInventoryTransactions === 'function') renderInventoryTransactions();
+};
+
+window.txnSetCommodityFilter = function(val) {
+  window._txnCommodityFilter = val;
+  if (typeof renderInventoryTransactions === 'function') renderInventoryTransactions();
+};
+
+// ── Populate commodity group dropdown from Firestore ──────────────────────
+window._txnPopulateCommodityFilterDropdown = function() {
+  var sel = document.getElementById('txnCommodityFilterDropdown');
+  if (!sel) return;
+  if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) {
+    setTimeout(window._txnPopulateCommodityFilterDropdown, 400);
+    return;
+  }
+  firebase.firestore().collection('domains').doc('commodity_groups').collection('items').orderBy('name').get()
+    .then(function(snap) {
+      var cgList = snap.docs.map(function(d){ return d.data().name || ''; }).filter(Boolean);
+      if (!cgList.length) cgList = ['Lubricants','Spare Parts','Filter','AutoService'];
+      sel.innerHTML = '<option value="">All Groups</option>'
+        + cgList.map(function(v){ return '<option value="'+v+'">'+v+'</option>'; }).join('');
+      if (window._txnCommodityFilter) sel.value = window._txnCommodityFilter;
+    })
+    .catch(function() {
+      ['Lubricants','Spare Parts','Filter','AutoService'].forEach(function(v){
+        var o = document.createElement('option'); o.value = v; o.textContent = v;
+        sel.appendChild(o);
+      });
+    });
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+  window._txnPopulateCommodityFilterDropdown();
+});
+
+// ── Print ─────────────────────────────────────────────────────────────────
+function printTransactions() {
+  var txns = (window._fbTransactions || []).map(function(t) {
+    var itemName = t.item || t.name || '—';
+    var cg = t.commodityGroup || (function() {
+      var nm = (itemName || '').toLowerCase().trim();
+      var inNum = (t.itemNum || '').toLowerCase().trim();
+      var inv = window.inventory || [];
+      var found = inv.find(function(i){ return (i.itemName||'').toLowerCase() === nm || (inNum && (i.itemNum||'').toLowerCase() === inNum); });
+      if (found && found.commodityGroup) return found.commodityGroup;
+      var rawInv = window._fbInventory || [];
+      var rawFound = rawInv.find(function(i){ return (i.name||'').toLowerCase() === nm || (inNum && (i.num||'').toLowerCase() === inNum); });
+      if (rawFound && rawFound.group) return rawFound.group;
+      var master = window.itemMaster || [];
+      var mf = master.find(function(i){ return (i.itemName||'').toLowerCase() === nm || (inNum && (i.itemNum||'').toLowerCase() === inNum); });
+      if (mf && mf.commodityGroup) return mf.commodityGroup;
+      var rawMaster = window._fbItemMaster || [];
+      var rawMf = rawMaster.find(function(i){ return (i.name||'').toLowerCase() === nm || (inNum && (i.num||'').toLowerCase() === inNum); });
+      return (rawMf && rawMf.group) ? rawMf.group : '—';
+    })();
+    var rawDesc = t.desc || t.description || '';
+    var type = (t.type || 'IN').toUpperCase();
+    var cleanedDesc = (function(raw) {
+      var d = (raw || '—')
+        .replace(/for maintenance SVC-\d+\s*[—\-]\s*/gi, 'for ')
+        .replace(/for maintenance SVC-\d+/gi, '')
+        .replace(/\s*SVC-\d+\s*/gi, '')
+        .replace(/for maintenance\s+[A-Za-z0-9]{15,}\s*[—\-]\s*/gi, 'for ')
+        .replace(/for maintenance\s+[A-Za-z0-9]{15,}/gi, '')
+        .replace(/^(Stock received|Initial stock received)\s*[—\-]\s*.+$/i, function(m, base) { return base; })
+        .trim();
+      return d || '—';
+    })(rawDesc);
+    var assetLine = '';
+    if (type === 'OUT') {
+      var issuedMatch = cleanedDesc.match(/^(Issued (?:to|for)\s+\S+)\s*—\s*(.+)$/i);
+      if (issuedMatch) { assetLine = issuedMatch[2].trim(); cleanedDesc = issuedMatch[1].trim(); }
+      else {
+        var assetDesc = t.assetDescription || t.assetDesc || '';
+        if (!assetDesc) {
+          var assets = window.assets || [];
+          var assetNum = t.assetNum || t.plateNumber || t.plate || '';
+          if (!assetNum) { var m = cleanedDesc.match(/(?:Issued (?:to|for))\s+([A-Z0-9][\w\-]*)/i); if (m) assetNum = m[1]; }
+          if (assetNum) {
+            var found = assets.find(function(a){ return (a.plateNumber||'').toUpperCase() === assetNum.toUpperCase() || (a.assetNum||'').toUpperCase() === assetNum.toUpperCase(); });
+            if (found) assetDesc = found.assetDescription || found.type || '';
+          }
+        }
+        if (assetDesc) assetLine = assetDesc;
+      }
+    }
+    return { date: t.date||'', item: itemName, commodityGroup: cg, description: cleanedDesc, assetLine: assetLine, type: type, qty: t.qty||t.quantity||0, by: t.by||t.performedBy||'—' };
+  });
+
+  var q = ((document.getElementById('txnSearch')||{}).value||'').trim().toLowerCase();
+  if (q) txns = txns.filter(function(t){ return (t.item+t.description+t.by).toLowerCase().includes(q); });
+  var txnFilter = window._txnFilter || 'all';
+  if (txnFilter !== 'all') txns = txns.filter(function(t){ return t.type === txnFilter; });
+  var cgF = window._txnCommodityFilter || '';
+  if (cgF) txns = txns.filter(function(t){ return (t.commodityGroup||'—') === cgF; });
+  var txnFromP = ((document.getElementById('txnDateFrom')||{}).value||'').trim();
+  var txnToP   = ((document.getElementById('txnDateTo')||{}).value||'').trim();
+  if (txnFromP || txnToP) {
+    txns = txns.filter(function(t) {
+      var d = t.date; if (!d) return false;
+      var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var yr, mo, dy;
+      var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/); if (m1) { mo = MO.indexOf(m1[1].slice(0,3)); yr = parseInt(m1[3]); dy = parseInt(m1[2]); }
+      if (mo === undefined) { var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m2) { mo = parseInt(m2[1])-1; dy = parseInt(m2[2]); yr = parseInt(m2[3]); } }
+      if (mo === undefined) { var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m3) { yr = parseInt(m3[1]); mo = parseInt(m3[2])-1; dy = parseInt(m3[3]); } }
+      if (mo === undefined || isNaN(yr) || isNaN(dy)) return true;
+      var ds = yr + '-' + ('0'+(mo+1)).slice(-2) + '-' + ('0'+dy).slice(-2);
+      if (txnFromP && ds < txnFromP) return false;
+      if (txnToP   && ds > txnToP)   return false;
+      return true;
+    });
+  }
+  var txnSortVal = (document.getElementById('txnSortSelect')||{}).value||'date-desc';
+  txns = txns.slice().sort(function(a,b){
+    function dateMs(t){ var d=new Date(t.date||''); return isNaN(d.getTime())?0:d.getTime(); }
+    function qtyN(t){ return parseFloat(String(t.qty||0).replace(/[^0-9.]/g,''))||0; }
+    switch(txnSortVal){
+      case 'date-asc':  return dateMs(a)-dateMs(b);
+      case 'item-asc':  return (a.item||'').localeCompare(b.item||'');
+      case 'item-desc': return (b.item||'').localeCompare(a.item||'');
+      case 'qty-desc':  return qtyN(b)-qtyN(a);
+      case 'qty-asc':   return qtyN(a)-qtyN(b);
+      default:          return dateMs(b)-dateMs(a);
+    }
+  });
+
+  var inCount  = txns.filter(function(t){ return t.type === 'IN'; }).length;
+  var outCount = txns.filter(function(t){ return t.type === 'OUT'; }).length;
+
+  var _MONTHS_P = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var _FULL_MONTHS_P = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  function _fmtPrintDate(d) {
+    if (!d) return '—';
+    var m1 = d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
+    if (m1) { var mi = _MONTHS_P.indexOf(m1[1].slice(0,3)); return (mi !== -1 ? _FULL_MONTHS_P[mi] : m1[1]) + ' ' + parseInt(m1[2]) + ', ' + m1[3]; }
+    var dt = new Date(d); if (isNaN(dt.getTime())) return d;
+    return _FULL_MONTHS_P[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+  }
+  function _fmtIso(iso) {
+    var p = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return p ? _FULL_MONTHS_P[parseInt(p[2])-1] + ' ' + parseInt(p[3]) + ', ' + p[1] : iso;
+  }
+
+  var totalQty = 0;
+  var rows = txns.map(function(t) {
+    var q = parseFloat(String(t.qty||0).replace(/[^0-9.]/g,''))||0;
+    totalQty += q;
+    return [_fmtPrintDate(t.date), '<strong>'+t.item+'</strong>', t.commodityGroup, t.qty];
+  });
+
+  var printTitle = 'Inventory Transactions';
+  if (txnFilter === 'IN') printTitle += ' (Received)';
+  else if (txnFilter === 'OUT') printTitle += ' (Issued)';
+  if (cgF) printTitle += ' · ' + cgF;
+  var txnPrintDateRange = (txnFromP || txnToP) ? _fmtIso(txnFromP||'…') + ' – ' + _fmtIso(txnToP||'…') : '';
+
+  _doPrint(printTitle,
+    [{label:'Total',value:txns.length,color:'#1a202c'},{label:'Stock In',value:inCount,color:'#003087'},{label:'Stock Out',value:outCount,color:'#E8001C'}],
+    ['Date','Item','Commodity Group','Qty'],
+    rows,
+    {values:[totalQty > 0 ? totalQty : '—']},
+    {dateRange:txnPrintDateRange}
+  );
+}
+
+// ── Excel export ──────────────────────────────────────────────────────────
+async function _downloadExcel(filename, reportTitle, headers, rows, footer, opts) {
+  var ExcelJS = window.ExcelJS;
+  if (!ExcelJS) { alert('ExcelJS not loaded yet, please try again.'); return; }
+  var wb = new ExcelJS.Workbook();
+  wb.creator = 'Caltex AutoPro'; wb.created = new Date();
+  var ws = wb.addWorksheet('Report', {pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1}});
+  var now = new Date();
+  var dateStr = now.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  var timeStr = now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  var colCount = headers.length;
+  var RED='FFE8001C', DARK='FF1A202C', STRIPE='FFF8FAFC', GREY='FF718096', LGREY='FFA0AEC0';
+  var leftCols = Math.ceil(colCount/2), rightStart = leftCols+1;
+  ws.mergeCells(1,1,1,leftCols); ws.mergeCells(1,rightStart,1,colCount);
+  var r1L=ws.getCell(1,1); r1L.value='JA Noble Enterprise Inc.'; r1L.font={name:'Segoe UI',size:14,bold:true,color:{argb:DARK}}; r1L.alignment={vertical:'middle',horizontal:'left'}; ws.getRow(1).height=22;
+  var r1R=ws.getCell(1,rightStart); r1R.value='OFFICIAL REPORT'; r1R.font={name:'Segoe UI',size:7,bold:true,color:{argb:LGREY}}; r1R.alignment={vertical:'middle',horizontal:'right'};
+  ws.mergeCells(2,1,2,leftCols); ws.mergeCells(2,rightStart,2,colCount);
+  var r2L=ws.getCell(2,1); r2L.value='Caltex San Pedro'; r2L.font={name:'Segoe UI',size:9,bold:true,color:{argb:GREY}}; r2L.alignment={vertical:'middle',horizontal:'left'}; ws.getRow(2).height=18;
+  var r2R=ws.getCell(2,rightStart); r2R.value=reportTitle; r2R.font={name:'Segoe UI',size:13,bold:true,color:{argb:DARK}}; r2R.alignment={vertical:'middle',horizontal:'right'};
+  ws.mergeCells(3,1,3,leftCols); ws.mergeCells(3,rightStart,3,colCount);
+  var r3L=ws.getCell(3,1); r3L.value='102 National Highway, Brgy. Landayan, San Pedro, Laguna'; r3L.font={name:'Segoe UI',size:8,color:{argb:LGREY}}; r3L.alignment={vertical:'middle',horizontal:'left'}; ws.getRow(3).height=14;
+  var excelDateRange=(opts&&opts.dateRange)||'';
+  var r3R=ws.getCell(3,rightStart);
+  if (excelDateRange) { r3R.value={richText:[{text:'Date Range: ',font:{name:'Segoe UI',size:8,color:{argb:GREY}}},{text:excelDateRange,font:{name:'Segoe UI',size:8,bold:true,color:{argb:DARK}}}]}; }
+  r3R.alignment={vertical:'middle',horizontal:'right'};
+  ws.mergeCells(4,1,4,leftCols); ws.mergeCells(4,rightStart,4,colCount); ws.getRow(4).height=13;
+  var r4R=ws.getCell(4,rightStart); r4R.value='Generated on '+dateStr+' at '+timeStr; r4R.font={name:'Segoe UI',size:8,color:{argb:GREY}}; r4R.alignment={vertical:'middle',horizontal:'right'};
+  ws.addRow([]); var divRow=ws.getRow(5); divRow.height=3;
+  for (var ci=1;ci<=colCount;ci++) ws.getCell(5,ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:RED}};
+  ws.addRow([]); ws.getRow(6).height=6;
+  var headerRow=ws.addRow(headers); headerRow.height=18;
+  headerRow.eachCell(function(cell){ cell.value=(cell.value||'').toString().toUpperCase(); cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:DARK}}; cell.font={name:'Segoe UI',size:8,bold:true,color:{argb:'FFFFFFFF'}}; cell.alignment={vertical:'middle',horizontal:'left',wrapText:false}; cell.border={bottom:{style:'thin',color:{argb:'FF2D3748'}}}; });
+  rows.forEach(function(rowData,idx){
+    var cleaned=rowData.map(function(v){
+      var s=String(v===null||v===undefined?'':v).replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+      var n=parseFloat(s.replace(/[?,]/g,''));
+      if (!isNaN(n)&&s.replace(/[?,\s]/g,'')!==''&&!/[a-zA-Z]/.test(s.replace(/\?/g,''))) return n;
+      return s;
+    });
+    var dr=ws.addRow(cleaned); dr.height=15;
+    var isEven=idx%2===1;
+    dr.eachCell({includeEmpty:true},function(cell){ if(isEven) cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:STRIPE}}; cell.border={bottom:{style:'hair',color:{argb:'FFF0F4F8'}}}; cell.font={name:'Segoe UI',size:8.5,color:{argb:'FF2D3748'}}; cell.alignment={vertical:'middle',wrapText:false}; });
+  });
+  if (footer&&footer.values&&footer.values.length) {
+    ws.addRow([]);
+    var totalCells=new Array(colCount).fill('');
+    if (typeof footer.values[0]==='object'&&footer.values[0]!==null&&'colIndex' in footer.values[0]) {
+      footer.values.forEach(function(v){ totalCells[v.colIndex-1]=v.value; });
+      var firstIdx=footer.values[0].colIndex-1; if(firstIdx>0) totalCells[firstIdx-1]='TOTAL';
+    } else {
+      var insertAt=colCount-footer.values.length;
+      footer.values.forEach(function(v,i){ totalCells[insertAt+i]=v; });
+      if(insertAt>0) totalCells[insertAt-1]='TOTAL';
+    }
+    var totRow=ws.addRow(totalCells); totRow.height=16;
+    totRow.eachCell({includeEmpty:true},function(cell){ cell.font={name:'Segoe UI',size:9,bold:true,color:{argb:DARK}}; cell.border={top:{style:'medium',color:{argb:DARK}}}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEBF8FF'}}; });
+  }
+  var colWidths=headers.map(function(h){ return Math.max(String(h).length,8); });
+  rows.forEach(function(rowData){ rowData.forEach(function(v,i){ var s=String(v||'').replace(/<[^>]+>/g,''); if(s.length>colWidths[i]) colWidths[i]=s.length; }); });
+  colWidths.forEach(function(w,i){ ws.getColumn(i+1).width=Math.min(w+4,40); });
+  var buf=await wb.xlsx.writeBuffer();
+  var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function exportTransactionsExcel() {
+  var txns = (window._fbTransactions || []).map(function(t) {
+    var itemName = t.item || t.name || '—';
+    var cg = t.commodityGroup || (function() {
+      var nm=(itemName||'').toLowerCase().trim(), inNum=(t.itemNum||'').toLowerCase().trim();
+      var inv=window.inventory||[]; var found=inv.find(function(i){ return (i.itemName||'').toLowerCase()===nm||(inNum&&(i.itemNum||'').toLowerCase()===inNum); });
+      if(found&&found.commodityGroup) return found.commodityGroup;
+      var rawInv=window._fbInventory||[]; var rawFound=rawInv.find(function(i){ return (i.name||'').toLowerCase()===nm||(inNum&&(i.num||'').toLowerCase()===inNum); });
+      if(rawFound&&rawFound.group) return rawFound.group;
+      var master=window.itemMaster||[]; var mf=master.find(function(i){ return (i.itemName||'').toLowerCase()===nm||(inNum&&(i.itemNum||'').toLowerCase()===inNum); });
+      if(mf&&mf.commodityGroup) return mf.commodityGroup;
+      var rawMaster=window._fbItemMaster||[]; var rawMf=rawMaster.find(function(i){ return (i.name||'').toLowerCase()===nm||(inNum&&(i.num||'').toLowerCase()===inNum); });
+      return (rawMf&&rawMf.group)?rawMf.group:'—';
+    })();
+    var rawDesc=t.desc||t.description||'', type=(t.type||'IN').toUpperCase();
+    var cleanedDesc=(function(raw){ return (raw||'—').replace(/for maintenance SVC-\d+\s*[—\-]\s*/gi,'for ').replace(/for maintenance SVC-\d+/gi,'').replace(/\s*SVC-\d+\s*/gi,'').replace(/for maintenance\s+[A-Za-z0-9]{15,}\s*[—\-]\s*/gi,'for ').replace(/for maintenance\s+[A-Za-z0-9]{15,}/gi,'').replace(/^(Stock received|Initial stock received)\s*[—\-]\s*.+$/i,function(m,base){return base;}).trim()||'—'; })(rawDesc);
+    var assetLine='';
+    if(type==='OUT'){
+      var issuedMatch=cleanedDesc.match(/^(Issued (?:to|for)\s+\S+)\s*—\s*(.+)$/i);
+      if(issuedMatch){assetLine=issuedMatch[2].trim();cleanedDesc=issuedMatch[1].trim();}
+      else{
+        var assetDesc=t.assetDescription||t.assetDesc||'';
+        if(!assetDesc){var assets=window.assets||[];var assetNum=t.assetNum||t.plateNumber||t.plate||'';if(!assetNum){var mm=cleanedDesc.match(/(?:Issued (?:to|for))\s+([A-Z0-9][\w\-]*)/i);if(mm)assetNum=mm[1];}if(assetNum){var af=assets.find(function(a){return (a.plateNumber||'').toUpperCase()===assetNum.toUpperCase()||(a.assetNum||'').toUpperCase()===assetNum.toUpperCase();});if(af)assetDesc=af.assetDescription||af.type||'';}}
+        if(assetDesc)assetLine=assetDesc;
+      }
+    }
+    var fullDesc=assetLine?(cleanedDesc+'\n'+assetLine):cleanedDesc;
+    return {date:t.date||'',item:itemName,cg:cg,desc:fullDesc,type:type,qty:t.qty||t.quantity||0,by:t.by||t.performedBy||'—'};
+  });
+
+  var q=((document.getElementById('txnSearch')||{}).value||'').trim().toLowerCase();
+  if(q) txns=txns.filter(function(t){return (t.item+t.desc+t.by).toLowerCase().includes(q);});
+  var txnF=window._txnFilter||'all';
+  if(txnF!=='all') txns=txns.filter(function(t){return t.type===txnF;});
+  var cgF=window._txnCommodityFilter||'';
+  if(cgF) txns=txns.filter(function(t){return t.cg===cgF;});
+  var txnFromE=((document.getElementById('txnDateFrom')||{}).value||'').trim();
+  var txnToE=((document.getElementById('txnDateTo')||{}).value||'').trim();
+  if(txnFromE||txnToE){
+    txns=txns.filter(function(t){
+      var d=t.date;if(!d)return false;
+      var MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var yr,mo,dy;
+      var m1=d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);if(m1){mo=MO.indexOf(m1[1].slice(0,3));yr=parseInt(m1[3]);dy=parseInt(m1[2]);}
+      if(mo===undefined){var m2=d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m2){mo=parseInt(m2[1])-1;dy=parseInt(m2[2]);yr=parseInt(m2[3]);}}
+      if(mo===undefined){var m3=d.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m3){yr=parseInt(m3[1]);mo=parseInt(m3[2])-1;dy=parseInt(m3[3]);}}
+      if(mo===undefined||isNaN(yr)||isNaN(dy))return true;
+      var ds=yr+'-'+('0'+(mo+1)).slice(-2)+'-'+('0'+dy).slice(-2);
+      if(txnFromE&&ds<txnFromE)return false;
+      if(txnToE&&ds>txnToE)return false;
+      return true;
+    });
+  }
+  var sortVal=(document.getElementById('txnSortSelect')||{}).value||'date-desc';
+  txns=txns.slice().sort(function(a,b){
+    function dm(t){var d=new Date(t.date||'');return isNaN(d)?0:d.getTime();}
+    function qn(t){return parseFloat(String(t.qty||0).replace(/[^0-9.]/g,''))||0;}
+    switch(sortVal){case 'date-asc':return dm(a)-dm(b);case 'item-asc':return (a.item||'').localeCompare(b.item||'');case 'item-desc':return (b.item||'').localeCompare(a.item||'');case 'qty-desc':return qn(b)-qn(a);case 'qty-asc':return qn(a)-qn(b);default:return dm(b)-dm(a);}
+  });
+
+  var now=new Date();
+  var stamp=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  var FULL_MONTHS_TXN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var MONTHS_S_TXN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function _fmtTxnDateExport(d){
+    if(!d)return '—';
+    var mx=d.match(/^([A-Za-z]+)\s+(\d+),?\s+(\d{4})/);
+    if(mx){var mi=MONTHS_S_TXN.indexOf(mx[1].slice(0,3));return (mi!==-1?FULL_MONTHS_TXN[mi]:mx[1])+' '+parseInt(mx[2])+', '+mx[3];}
+    var m2=d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m2)return FULL_MONTHS_TXN[parseInt(m2[1])-1]+' '+parseInt(m2[2])+', '+m2[3];
+    var m3=d.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m3)return FULL_MONTHS_TXN[parseInt(m3[2])-1]+' '+parseInt(m3[3])+', '+m3[1];
+    return d;
+  }
+
+  var txnExportTitle='Inventory Transactions';
+  if(txnF==='IN') txnExportTitle+=' (Received)';
+  else if(txnF==='OUT') txnExportTitle+=' (Issued)';
+  if(cgF) txnExportTitle+=' · '+cgF;
+  var txnExcelDateRange=(txnFromE||txnToE)?_fmtTxnDateExport(txnFromE||'')+' – '+_fmtTxnDateExport(txnToE||''):'';
+  var txnTotalQty=txns.reduce(function(s,t){return s+(parseFloat(String(t.qty||0).replace(/[^0-9.]/g,''))||0);},0);
+
+  _downloadExcel(
+    'Inventory_Transactions_'+stamp+'.xlsx',
+    txnExportTitle,
+    ['Date','Item','Commodity Group','Qty'],
+    txns.map(function(t){return [_fmtTxnDateExport(t.date),t.item,t.cg,t.qty];}),
+    {values:[{value:txnTotalQty>0?txnTotalQty:'—',colIndex:4}]},
+    {dateRange:txnExcelDateRange}
+  );
+}
+</script>
+
+</body>
+</html>

@@ -101,12 +101,7 @@
         <div id="headerContainer"></div>
         
         <div class="admin-main">
-        <div class="admin-header">
-            <div style="display:none;">
-                <div class="breadcrumb">Admin Portal</div>
-                <div class="admin-header-title">User Management</div>
-            </div>
-            <div style="margin-left:auto;position:relative;display:flex;align-items:center;gap:0.75rem;">
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;padding:0.6rem 1.5rem;background:white;border-bottom:1px solid #f0f4f8;margin-left:auto;position:relative;">
                 <div style="position:relative;">
                     <svg style="position:absolute;left:0.65rem;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <input type="text" class="search-bar" placeholder="Search users..." id="userSearch" style="width:220px;padding-left:2rem;" oninput="renderUsersList()">
@@ -122,7 +117,6 @@
                     <option value="email-asc">Email A→Z</option>
                 </select>
             </div>
-        </div>
 
         <div class="admin-content">
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;margin-bottom:2rem;">

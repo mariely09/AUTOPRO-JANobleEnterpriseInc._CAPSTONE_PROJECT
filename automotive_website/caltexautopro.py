@@ -631,6 +631,14 @@ def register():
 def admin_dashboard():
     return render_template('admin_dashboard.html')
 
+@app.route('/admin_transactions.html')
+def admin_transactions():
+    return render_template('admin_transactions.html')
+
+@app.route('/admin_issuances.html')
+def admin_issuances():
+    return render_template('admin_issuances.html')
+
 @app.route('/admin_inventory_itemaster.html')
 def admin_inventory_items():
     return render_template('admin_inventory_itemaster.html')
