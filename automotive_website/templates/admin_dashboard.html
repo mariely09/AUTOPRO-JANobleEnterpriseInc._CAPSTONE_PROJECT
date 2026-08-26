@@ -125,7 +125,9 @@
         .stats-grid[style*="repeat(5"] {
           grid-template-columns: repeat(2, 1fr) !important;
         }
-        /* Chart rows — wrap to 2 cols on tablet, 1 col on mobile */
+        /* Row 1: calendar + services by type → stack vertically */
+        #adminCalCard { order: 1; }
+        /* Row 2: 3 charts → 2-col */
         .dash-row-1, .dash-row-2 {
           grid-template-columns: repeat(2, 1fr) !important;
         }
@@ -295,8 +297,7 @@
                         if (apUser) {
                             try {
                                 const userData = JSON.parse(apUser);
-                                const name = userData.name || 'Admin';
-                                const firstName = name.split(' ')[0];
+                                const firstName = userData.firstName || (userData.name || 'Admin').split(' ')[0];
                                 document.getElementById('adminNameGreeting').textContent = firstName;
                             } catch(e) {}
                         }
@@ -311,8 +312,11 @@
                     })();
                     </script>
 
-                    <!-- -- Service Calendar (matches mobile app admin_dashboard.dart) -- -->
-                    <div id="adminCalCard" style="background:#fff;border-radius:20px;box-shadow:0 4px 12px rgba(0,0,0,0.05);margin-bottom:1.25rem;overflow:hidden;">
+                    <!-- ── Row 1: Calendar + Services by Type ─────────────────── -->
+                    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:1.25rem;margin-bottom:1.25rem;align-items:start;">
+
+                    <!-- Service Calendar -->
+                    <div id="adminCalCard" style="background:#fff;border-radius:20px;box-shadow:0 4px 12px rgba(0,0,0,0.05);overflow:hidden;">
                         <!-- Header -->
                         <div style="display:flex;align-items:center;gap:8px;padding:14px 16px 12px;border-bottom:1px solid #e2e8f0;">
                             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -532,10 +536,9 @@
                         _loadCalData();
                     })();
                     </script>
-                    <div style="display:grid;grid-template-columns:1.2fr 0.8fr 1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
 
-                        <!-- Stacked Bar chart: Services by Type last 7 days -->
-                        <div class="dash-chart-card">
+                        <!-- Stacked Bar chart: Services by Type — right of calendar -->
+                        <div class="dash-chart-card" style="height:100%;">
                             <div class="dash-chart-header" style="flex-wrap:wrap;gap:0.5rem;">
                                 <div class="dash-chart-icon" style="background:linear-gradient(135deg,#E8001C,#c0001a);">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -561,6 +564,11 @@
                             </div>
                         </div>
 
+                    </div><!-- /.row-1 calendar + services by type -->
+
+                    <!-- ── Row 2: Vehicle Status + Stock In/Out + Top Parts ──── -->
+                    <div style="display:grid;grid-template-columns:0.8fr 1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
+
                         <!-- Donut chart: Vehicle status -->
                         <div class="dash-chart-card">
                             <div class="dash-chart-header">
@@ -583,7 +591,7 @@
                                 <div id="vehicleDonutLegend" style="display:flex;flex-direction:column;gap:0.55rem;font-size:0.78rem;flex:1;"></div>
                             </div>
                         </div>
-                    <!-- -- Charts Row 2 (merged into single row above) -- -->
+                    <!-- -- Charts Row 2 (now separate row) -- -->
 
                         <!-- Line chart: Stock In vs Stock Out -->
                         <div class="dash-chart-card">
@@ -631,16 +639,35 @@
 
                     </div>
 
+                    <!-- ── Row 3: Today's Services + Recent Services ──────────── -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
+
                     <!-- Today's services table -->
-                    <div class="data-table">
-                        <div style="padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;">
-                            <span style="font-weight:600;color:#1a202c;font-size:0.95rem;">Today's Services</span>
+                    <div class="data-table" style="margin-bottom:0;">
+                        <div style="padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:0.5rem;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <span style="font-weight:700;color:#1a202c;font-size:0.92rem;">Today's Services</span>
                         </div>
-                        <div class="table-row" style="background: #f7fafc; font-weight: bold; border-bottom: 2px solid #e2e8f0; grid-template-columns: 1fr 1.5fr 1fr 1fr;">
-                            <div>Plate Number</div><div>Service</div><div>Mechanic</div><div>Status</div>
+                        <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1.5fr 1fr 1fr;">
+                            <div>Plate</div><div>Service</div><div>Mechanic</div><div>Status</div>
                         </div>
                         <div id="todayServicesList"></div>
                     </div>
+
+                    <!-- Recent services table -->
+                    <div class="data-table" style="margin-bottom:0;">
+                        <div style="padding:0.75rem 1rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:0.5rem;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#003087" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            <span style="font-weight:700;color:#1a202c;font-size:0.92rem;">Recent Services</span>
+                            <span style="font-size:0.75rem;color:#718096;margin-left:auto;">Last 5 completed</span>
+                        </div>
+                        <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1.5fr 1fr 100px;">
+                            <div>Plate</div><div>Service</div><div>Mechanic</div><div>Date</div>
+                        </div>
+                        <div id="recentServicesList"><div style="padding:1.5rem;text-align:center;color:#718096;font-size:0.9rem;">Loading...</div></div>
+                    </div>
+
+                    </div><!-- /.row-3 today + recent -->
                 </div>
             </div><!-- end admin-content -->
         </div><!-- end admin-main -->

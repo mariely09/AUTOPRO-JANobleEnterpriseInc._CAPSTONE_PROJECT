@@ -74,6 +74,12 @@
           const name = doc.data().name || apUser.name || 'Administrator';
           const nameEl = document.getElementById('adminName');
           if (nameEl) nameEl.textContent = name;
+          // Update greeting with first name only
+          const greetingNameEl = document.getElementById('adminNameGreeting');
+          if (greetingNameEl) {
+            const firstName = doc.data().firstName || name.trim().split(' ')[0];
+            greetingNameEl.textContent = firstName;
+          }
           const avatarEl = document.getElementById('adminAvatar');
           if (avatarEl) {
             const parts = name.trim().split(' ');
@@ -484,6 +490,7 @@
 
     // Recent services table → Today's Service Schedule
     _renderTodayServices(services);
+    _renderRecentServices(services);
   }
 
   function _renderTodayServices(services) {
@@ -498,7 +505,12 @@
     const todayServices = services.filter(s => (s.date || '') === todayFormatted);
 
     if (!todayServices.length) {
-      container.innerHTML = `<div style="padding:1.5rem;text-align:center;color:#718096;font-size:0.9rem;">No services scheduled for today.</div>`;
+      container.innerHTML = `<div style="padding:2.5rem 1rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.75rem;">
+        <div style="width:48px;height:48px;background:#f0f4f8;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div style="font-size:0.88rem;font-weight:600;color:#a0aec0;">No services scheduled for today</div>
+      </div>`;
       return;
     }
 
@@ -514,6 +526,56 @@
         <div>${_getFirstService(s)}</div>
         <div>${s.mechanic || '—'}</div>
         <div><span class="status-badge ${statusClass}">${s.status || '—'}</span></div>`;
+      container.appendChild(row);
+    });
+  }
+
+  function _renderRecentServices(services) {
+    const container = document.getElementById('recentServicesList');
+    if (!container) return;
+
+    // Last 5 completed services sorted by date descending
+    const completed = services
+      .filter(s => (s.status || '').toLowerCase() === 'completed')
+      .slice()
+      .sort((a, b) => {
+        const da = new Date(a.date || a.dateServiced || '');
+        const db = new Date(b.date || b.dateServiced || '');
+        return (isNaN(db) ? 0 : db) - (isNaN(da) ? 0 : da);
+      })
+      .slice(0, 5);
+
+    if (!completed.length) {
+      container.innerHTML = '<div style="padding:2.5rem 1rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.75rem;">'
+        + '<div style="width:48px;height:48px;background:#f0f4f8;border-radius:50%;display:flex;align-items:center;justify-content:center;">'
+        + '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+        + '</div>'
+        + '<div style="font-size:0.88rem;font-weight:600;color:#a0aec0;">No completed services yet</div>'
+        + '</div>';
+      return;
+    }
+
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    function _fmtShort(d) {
+      if (!d) return '—';
+      // "Jan 5, 2025" → "Jan 5"
+      const m = d.match(/^([A-Za-z]+)\s+(\d+)/);
+      if (m) return m[1].slice(0,3) + ' ' + m[2];
+      const dt = new Date(d);
+      if (!isNaN(dt)) return months[dt.getMonth()] + ' ' + dt.getDate();
+      return d;
+    }
+
+    container.innerHTML = '';
+    completed.forEach(s => {
+      const row = document.createElement('div');
+      row.className = 'table-row';
+      row.style.gridTemplateColumns = '1fr 1.5fr 1fr 100px';
+      row.innerHTML =
+        '<div><strong>' + (s.plate || '—') + '</strong></div>' +
+        '<div>' + _getFirstService(s) + '</div>' +
+        '<div>' + (s.mechanic || '—') + '</div>' +
+        '<div style="font-size:0.8rem;color:#718096;">' + _fmtShort(s.date || s.dateServiced || '') + '</div>';
       container.appendChild(row);
     });
   }
