@@ -58,6 +58,10 @@
                     style="padding:0.65rem 1.25rem;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:0.88rem;font-weight:600;color:#718096;cursor:pointer;">
                     Users
                 </button>
+                <button id="tabDeliveriesBtn" onclick="switchArchiveTab('deliveries')"
+                    style="padding:0.65rem 1.25rem;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;font-size:0.88rem;font-weight:600;color:#718096;cursor:pointer;">
+                    Purchase Orders
+                </button>
             </div>
 
             <!-- Item Master Tab -->
@@ -107,6 +111,17 @@
                         <div>Full Name</div><div>Email</div><div>Role</div><div style="white-space:nowrap;">Archived At</div><div style="text-align:center;">Actions</div>
                     </div>
                     <div id="archiveUsersList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived users...</div></div>
+                </div>
+            </div>
+
+            <!-- Purchase Orders Tab -->
+            <div id="tabDeliveries" style="display:none;">
+                <div class="data-table" style="overflow-x:auto;">
+                    <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:100px 1fr 1.6fr 0.6fr 0.6fr 1fr 120px;min-width:900px;">
+                        <div>Order Date</div><div>Supplier</div><div>Items</div>
+                        <div>Total Qty</div><div>Status</div><div style="white-space:nowrap;">Archived At</div><div style="text-align:center;">Actions</div>
+                    </div>
+                    <div id="archiveDeliveriesList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived purchase orders...</div></div>
                 </div>
             </div>
         </div>
@@ -163,7 +178,7 @@ var _archiveCurrentTab = 'item-master';
 if (typeof _apPages === 'undefined') { var _apPages = {}; }
 
 function _archiveResetPage() {
-    ['archiveList','archiveMaintenanceList','archiveVehiclesList','archiveUsersList'].forEach(function(id) {
+    ['archiveList','archiveMaintenanceList','archiveVehiclesList','archiveUsersList','archiveDeliveriesList'].forEach(function(id) {
         _apPages[id] = 1;
     });
 }
@@ -235,16 +250,19 @@ window.switchArchiveTab = function(tab) {
     document.getElementById('tabMaintenance').style.display  = tab === 'maintenance'  ? 'block' : 'none';
     document.getElementById('tabVehicles').style.display     = tab === 'vehicles'     ? 'block' : 'none';
     document.getElementById('tabUsers').style.display        = tab === 'users'        ? 'block' : 'none';
+    document.getElementById('tabDeliveries').style.display   = tab === 'deliveries'   ? 'block' : 'none';
     var iBtn = document.getElementById('tabItemMasterBtn');
     var mBtn = document.getElementById('tabMaintenanceBtn');
     var vBtn = document.getElementById('tabVehiclesBtn');
     var uBtn = document.getElementById('tabUsersBtn');
-    [iBtn, mBtn, vBtn, uBtn].forEach(function(b) {
+    var dBtn = document.getElementById('tabDeliveriesBtn');
+    [iBtn, mBtn, vBtn, uBtn, dBtn].forEach(function(b) {
+        if (!b) return;
         b.style.borderBottomColor = 'transparent';
         b.style.color = '#718096';
         b.style.fontWeight = '600';
     });
-    var activeBtn = tab === 'item-master' ? iBtn : tab === 'maintenance' ? mBtn : tab === 'vehicles' ? vBtn : uBtn;
+    var activeBtn = tab === 'item-master' ? iBtn : tab === 'maintenance' ? mBtn : tab === 'vehicles' ? vBtn : tab === 'deliveries' ? dBtn : uBtn;
     activeBtn.style.borderBottomColor = '#E31E24';
     activeBtn.style.color = '#E31E24';
     activeBtn.style.fontWeight = '700';
@@ -255,6 +273,7 @@ window.renderCurrentTab = function() {
     if (_archiveCurrentTab === 'item-master') renderArchiveList();
     else if (_archiveCurrentTab === 'maintenance') renderMaintenanceArchiveList();
     else if (_archiveCurrentTab === 'vehicles') renderVehiclesArchiveList();
+    else if (_archiveCurrentTab === 'deliveries') renderDeliveriesArchiveList();
     else renderUsersArchiveList();
 };
 
@@ -590,6 +609,104 @@ window.permanentlyDeleteArchivedUser = function(docId, name) {
         db.collection('archive').doc('users').collection('users').doc(docId).delete()
             .then(function() { showToast('"' + name + '" permanently deleted.', 'error'); })
             .catch(function(err) { showToast('Error: ' + err.message, 'error'); });
+    });
+};
+
+// ── Purchase Orders (deliveries) archive ──────────────────────────────────
+var _archivedDeliveries = [];
+
+db.collection('deliveries').where('archived', '==', true).onSnapshot(function(snap) {
+    var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    _archivedDeliveries = snap.docs.map(function(d) {
+        var data = d.data();
+        var createdAt = data.createdAt;
+        var orderDateStr = '';
+        if (createdAt) {
+            var dt;
+            if (createdAt.toDate) dt = createdAt.toDate();
+            else if (createdAt.seconds) dt = new Date(createdAt.seconds * 1000);
+            else dt = new Date(createdAt);
+            if (!isNaN(dt)) orderDateStr = MO[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+        }
+        return {
+            id:          d.id,
+            supplier:    data.supplier || '',
+            items:       data.items    || [],
+            status:      data.status   || 'Pending',
+            orderDate:   orderDateStr,
+            createdAt:   data.createdAt  || null,
+            archivedAt:  data.archivedAt || null,
+        };
+    });
+    if (_archiveCurrentTab === 'deliveries') renderDeliveriesArchiveList();
+}, function() {});
+
+function renderDeliveriesArchiveList() {
+    var list = document.getElementById('archiveDeliveriesList');
+    if (!list) return;
+    var q = ((document.getElementById('archiveSearch') || {}).value || '').toLowerCase().trim();
+    var items = _archivedDeliveries;
+    if (q) {
+        items = items.filter(function(d) {
+            return (d.supplier || '').toLowerCase().includes(q) ||
+                   (d.status   || '').toLowerCase().includes(q) ||
+                   (d.items || []).some(function(it){
+                       return (it.itemName || '').toLowerCase().includes(q) ||
+                              (it.supplierCode || '').toLowerCase().includes(q);
+                   });
+        });
+    }
+    if (!items.length) {
+        list.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">No archived purchase orders found.</div>';
+        return;
+    }
+    var statusColors = {
+        'Pending':               ['#718096','rgba(113,128,150,0.1)'],
+        'For Admin Review':      ['#E8001C','rgba(232,0,28,0.08)'],
+        'Awaiting Double Check': ['#d69e2e','rgba(214,158,46,0.1)'],
+        'Approved':              ['#38a169','rgba(56,161,105,0.1)'],
+        'Rejected':              ['#E8001C','rgba(232,0,28,0.1)'],
+    };
+    var rows = items.map(function(d) {
+        var sc = statusColors[d.status] || ['#718096','rgba(113,128,150,0.1)'];
+        var badge = '<span style="background:' + sc[1] + ';color:' + sc[0] + ';border:1.5px solid ' + sc[0] + ';padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;">' + d.status + '</span>';
+        var totalQty = (d.items || []).reduce(function(s, it){ return s + (parseInt(it.expectedQty || it.orderQty || 0)); }, 0);
+        var itemNames = (d.items || []).slice(0, 2).map(function(it){ return it.itemName || it.supplierCode || '—'; }).join(', ')
+            + ((d.items || []).length > 2 ? ' +' + ((d.items || []).length - 2) + ' more' : '');
+        return '<div class="table-row" style="grid-template-columns:100px 1fr 1.6fr 0.6fr 0.6fr 1fr 120px;min-width:900px;align-items:center;opacity:0.85;">'
+            + '<div style="font-size:11px;color:#718096;">' + (d.orderDate || '—') + '</div>'
+            + '<div style="font-size:12px;font-weight:600;color:#1a202c;">' + (d.supplier || '—') + '</div>'
+            + '<div style="font-size:11px;color:#4a5568;">' + (itemNames || '—') + '</div>'
+            + '<div style="font-size:12px;font-weight:600;color:#1a202c;">' + totalQty + '</div>'
+            + '<div>' + badge + '</div>'
+            + '<div style="font-size:11px;color:#718096;white-space:nowrap;">' + fmtArchivedAt(d.archivedAt) + '</div>'
+            + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;">'
+            +   '<button class="btn-small btn-secondary" onclick="restoreDelivery(\'' + d.id + '\',\'' + (d.supplier || '').replace(/'/g,"\\'") + '\')" title="Restore" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;color:#38a169;border-color:#9ae6b4;background:#f0fff4;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg></button>'
+            +   '<button class="btn-small btn-danger" onclick="permanentlyDeleteDelivery(\'' + d.id + '\',\'' + (d.supplier || 'this PO').replace(/'/g,"\\'") + '\')" title="Delete Permanently" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
+            + '</div>'
+            + '</div>';
+    });
+    list.innerHTML = '';
+    apRenderPaged('archiveDeliveriesList', rows, 10, 'renderDeliveriesArchiveList');
+}
+
+window.restoreDelivery = function(docId, supplier) {
+    var label = supplier || 'this item';
+    if (!confirm('Restore "' + label + '" back to Receiving Items?')) return;
+    db.collection('deliveries').doc(docId).update({
+        archived: firebase.firestore.FieldValue.delete(),
+        archivedAt: firebase.firestore.FieldValue.delete(),
+    })
+    .then(function() { showToast('"' + label + '" restored to Receiving Items!', 'success'); })
+    .catch(function(err) { showToast('Restore failed: ' + err.message, 'error'); });
+};
+
+window.permanentlyDeleteDelivery = function(docId, supplier) {
+    var label = supplier || 'this item';
+    showDeleteConfirm('Permanently Delete Item?', label, 'item', function() {
+        db.collection('deliveries').doc(docId).delete()
+            .then(function() { showToast('"' + label + '" permanently deleted.', 'error'); })
+            .catch(function(err) { showToast('Delete failed: ' + err.message, 'error'); });
     });
 };
 </script>

@@ -41,17 +41,18 @@ class AdminArchive extends StatefulWidget {
 class _AdminArchiveState extends State<AdminArchive> {
   static const _red = Color(0xFFE8001C);
 
-  // 0=Item Master, 1=Maintenance, 2=Vehicles, 3=Users
+  // 0=Item Master, 1=Maintenance, 2=Vehicles, 3=Users, 4=Purchase Orders
   int _tab = 0;
   bool _searching = false;
   final _searchCtrl = TextEditingController();
 
-  static const _tabs = ['Item Master', 'Maintenance', 'Vehicles', 'Users'];
+  static const _tabs = ['Item Master', 'Maintenance', 'Vehicles', 'Users', 'Purchase Orders'];
   static const _tabTitles = [
     'Archived Items',
     'Archived Records',
     'Archived Vehicles',
     'Archived Users',
+    'Archived Purchase Orders',
   ];
 
   @override
@@ -193,6 +194,7 @@ class _AdminArchiveState extends State<AdminArchive> {
           _MaintenanceArchiveTab(searchQuery: _tab == 1 ? _searchQuery : ''),
           _VehiclesArchiveTab(searchQuery: _tab == 2 ? _searchQuery : ''),
           _UsersArchiveTab(searchQuery: _tab == 3 ? _searchQuery : ''),
+          _PurchaseOrdersArchiveTab(searchQuery: _tab == 4 ? _searchQuery : ''),
         ],
       ),
     );
@@ -1921,6 +1923,246 @@ class _UsersArchiveCard extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
+    }
+  }
+}
+
+// ── Purchase Orders Archive Tab ──────────────────────────────
+class _PurchaseOrdersArchiveTab extends StatelessWidget {
+  final String searchQuery;
+  const _PurchaseOrdersArchiveTab({required this.searchQuery});
+
+  static const _red   = Color(0xFFE8001C);
+  static const _amber = Color(0xFFd69e2e);
+  static const _green = Color(0xFF38a169);
+  static const _months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  String _fmtOrderDate(dynamic raw) {
+    if (raw == null) return '—';
+    DateTime? dt;
+    if (raw is Timestamp) dt = raw.toDate();
+    else if (raw is String && raw.isNotEmpty) dt = DateTime.tryParse(raw);
+    if (dt == null) return '—';
+    return '${_months[dt.month - 1]} ${dt.day}, ${dt.year}';
+  }
+
+  Color _statusColor(String s) {
+    switch (s) {
+      case 'Pending': return const Color(0xFF718096);
+      case 'For Admin Review': return _red;
+      case 'Awaiting Double Check': return _amber;
+      case 'Approved': return _green;
+      case 'Rejected': return _red;
+      default: return const Color(0xFF718096);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('deliveries')
+          .where('archived', isEqualTo: true)
+          .snapshots(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final docs = snap.data?.docs ?? [];
+        var items = docs.map((d) {
+          final data = d.data() as Map<String, dynamic>;
+          return {
+            'id': d.id,
+            'supplier': data['supplier'] as String? ?? '—',
+            'items': data['items'] as List? ?? [],
+            'status': data['status'] as String? ?? 'Pending',
+            'createdAt': data['createdAt'],
+            'archivedAt': data['archivedAt'],
+          };
+        }).toList();
+
+        if (searchQuery.isNotEmpty) {
+          items = items.where((d) {
+            final sup = (d['supplier'] as String).toLowerCase();
+            final status = (d['status'] as String).toLowerCase();
+            final itemNames = (d['items'] as List).any((i) =>
+              ((i as Map)['itemName'] as String? ?? '').toLowerCase().contains(searchQuery) ||
+              ((i)['supplierCode'] as String? ?? '').toLowerCase().contains(searchQuery));
+            return sup.contains(searchQuery) || status.contains(searchQuery) || itemNames;
+          }).toList();
+        }
+
+        if (items.isEmpty) {
+          return Center(
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.archive_outlined, size: 48, color: Colors.grey.shade300),
+              const SizedBox(height: 12),
+              Text(
+                searchQuery.isEmpty ? 'No archived purchase orders.' : 'No results found.',
+                style: const TextStyle(color: Color(0xFF718096), fontSize: 14)),
+            ]),
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (_, i) {
+            final d = items[i];
+            final delivItems = d['items'] as List;
+            final totalQty = delivItems.fold<int>(0, (sum, it) => sum + ((it as Map)['expectedQty'] as int? ?? 0));
+            final itemNames = delivItems.take(2).map((it) => (it as Map)['itemName'] as String? ?? '—').join(', ')
+                + (delivItems.length > 2 ? ' +${delivItems.length - 2} more' : '');
+            final status = d['status'] as String;
+            final color = _statusColor(status);
+
+            return Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFe2e8f0)),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(d['supplier'] as String,
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1a202c))),
+                    const SizedBox(height: 2),
+                    Text(_fmtOrderDate(d['createdAt']),
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                  ])),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                    child: Text(status, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color)),
+                  ),
+                ]),
+                const SizedBox(height: 6),
+                Text(itemNames, style: const TextStyle(fontSize: 11, color: Color(0xFF4a5568))),
+                const SizedBox(height: 4),
+                Text('Total Qty: $totalQty  ·  ${delivItems.length} item${delivItems.length != 1 ? 's' : ''}',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                const SizedBox(height: 8),
+                Text('Archived: ${_fmtArchivedAt(d['archivedAt'])}',
+                  style: const TextStyle(fontSize: 10, color: Color(0xFFa0aec0))),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(child: OutlinedButton.icon(
+                    onPressed: () => _restoreDelivery(context, d),
+                    icon: const Icon(Icons.restore, size: 14, color: Color(0xFF38a169)),
+                    label: const Text('Restore', style: TextStyle(color: Color(0xFF38a169), fontWeight: FontWeight.w600, fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF9ae6b4)),
+                      backgroundColor: const Color(0xFFf0fff4),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  )),
+                  const SizedBox(width: 8),
+                  Expanded(child: OutlinedButton.icon(
+                    onPressed: () => _permanentlyDelete(context, d),
+                    icon: const Icon(Icons.delete_forever_outlined, size: 14, color: Colors.red),
+                    label: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600, fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  )),
+                ]),
+              ]),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _restoreDelivery(BuildContext context, Map<String, dynamic> d) async {
+    final supplier = d['supplier'] as String? ?? 'this item';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.restore, color: Color(0xFF38a169), size: 22),
+          SizedBox(width: 8),
+          Text('Restore Item', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: Text('Restore "$supplier" back to Receiving Items?',
+          style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096)))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38a169), foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            child: const Text('Yes, Restore'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({
+        'archived': FieldValue.delete(),
+        'archivedAt': FieldValue.delete(),
+      });
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('"$supplier" restored to Receiving Items!'),
+        backgroundColor: const Color(0xFF38a169), behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+    }
+  }
+
+  Future<void> _permanentlyDelete(BuildContext context, Map<String, dynamic> d) async {
+    final supplier = d['supplier'] as String? ?? 'this item';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.delete_forever_outlined, color: Colors.red, size: 22),
+          SizedBox(width: 8),
+          Text('Permanently Delete', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: RichText(text: TextSpan(
+          style: const TextStyle(fontSize: 13, color: Color(0xFF4a5568), height: 1.6),
+          children: [
+            const TextSpan(text: 'This action cannot be undone. Are you sure you want to permanently delete '),
+            TextSpan(text: '"$supplier"', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1a202c))),
+            const TextSpan(text: ' from the archive?'),
+          ],
+        )),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096)))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            child: const Text('Yes, Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).delete();
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('"$supplier" permanently deleted.'),
+        backgroundColor: Colors.red, behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     }
   }
 }

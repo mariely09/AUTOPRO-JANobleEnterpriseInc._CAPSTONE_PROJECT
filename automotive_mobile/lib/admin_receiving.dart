@@ -55,6 +55,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
         setState(() {
           _deliveries = snap.docs
               .map((d) => {...d.data(), 'id': d.id})
+              .where((d) => d['archived'] != true)
               .toList();
           _loading = false;
         });
@@ -644,9 +645,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                     )),
                     const SizedBox(width: 8),
                     Expanded(child: OutlinedButton.icon(
-                      onPressed: () { Navigator.pop(ctx2); _deleteItemFromDelivery(d, itemIdx); },
-                      icon: const Icon(Icons.delete_outline, size: 14, color: Colors.red),
-                      label: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                      onPressed: () { Navigator.pop(ctx2); _archiveItemFromDelivery(d, itemIdx); },
+                      icon: const Icon(Icons.archive_outlined, size: 14, color: Colors.red),
+                      label: const Text('Archive', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
                       style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red), padding: const EdgeInsets.symmetric(vertical: 13), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
                     )),
                   ]),
@@ -763,21 +764,21 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
     );
   }
 
-  void _deleteItemFromDelivery(Map<String, dynamic> d, int itemIdx) async {
-    final items = List<Map<String, dynamic>>.from((d['items'] as List).map((i) => Map<String, dynamic>.from(i as Map)));
-    final item = items[itemIdx];
+  void _archiveItemFromDelivery(Map<String, dynamic> d, int itemIdx) async {
+    final items = d['items'] as List? ?? [];
+    final item = items.isNotEmpty && itemIdx < items.length ? items[itemIdx] as Map : <String, dynamic>{};
     final itemName = item['itemName'] as String? ?? 'this item';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(children: [
-          Icon(Icons.delete_outline, color: Colors.red, size: 22),
+          Icon(Icons.archive_outlined, color: Colors.red, size: 22),
           SizedBox(width: 8),
-          Text('Delete Item', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          Text('Archive Item', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         ]),
         content: Text(
-          'Are you sure you want to remove "$itemName" from the delivery?',
+          'Are you sure you want to archive "$itemName"?',
           style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
         ),
         actions: [
@@ -791,21 +792,62 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
               backgroundColor: Colors.red, foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Yes, Delete'),
+            child: const Text('Yes, Archive'),
           ),
         ],
       ),
     );
     if (confirmed != true) return;
-    items.removeAt(itemIdx);
-    if (items.isEmpty) {
-      await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).delete();
-    } else {
-      await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({'items': items});
-    }
+    await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({
+      'archived': true,
+      'archivedAt': FieldValue.serverTimestamp(),
+    });
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(items.isEmpty ? 'Item deleted successfully!' : 'Item removed successfully!'),
-      backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
+      content: Text('Item "$itemName" archived successfully!'),
+      backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+  }
+
+  void _confirmArchive(Map<String, dynamic> d) async {
+    final supplier = d['supplier'] as String? ?? 'this delivery';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.archive_outlined, color: Colors.red, size: 22),
+          SizedBox(width: 8),
+          Text('Archive Delivery', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: Text(
+          'Are you sure you want to archive the delivery from "$supplier"?',
+          style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red, foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Yes, Archive'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({
+      'archived': true,
+      'archivedAt': FieldValue.serverTimestamp(),
+    });
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: const Text('Purchase order archived successfully!'),
+      backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
   }
 
   // ── View Delivery Modal ─────────────────────────────────────
@@ -1101,9 +1143,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                   const SizedBox(height: 8),
                   SizedBox(width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () { Navigator.pop(context); _confirmDelete(d); },
-                      icon: const Icon(Icons.delete_outline, size: 15, color: Colors.red),
-                      label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                      onPressed: () { Navigator.pop(context); _confirmArchive(d); },
+                      icon: const Icon(Icons.archive_outlined, size: 15, color: Colors.red),
+                      label: const Text('Archive', style: TextStyle(color: Colors.red)),
                       style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
                     )),
                 ] else if (status == 'For Admin Review') ...[
@@ -1123,9 +1165,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                   const SizedBox(height: 10),
                   Row(children: [
                     Expanded(child: OutlinedButton.icon(
-                      onPressed: () { Navigator.pop(context); _confirmDelete(d); },
-                      icon: const Icon(Icons.delete_outline, size: 15, color: Colors.red),
-                      label: const Text('Reject', style: TextStyle(color: Colors.red)),
+                      onPressed: () { Navigator.pop(context); _confirmArchive(d); },
+                      icon: const Icon(Icons.archive_outlined, size: 15, color: Colors.red),
+                      label: const Text('Archive', style: TextStyle(color: Colors.red)),
                       style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
                     )),
                     const SizedBox(width: 10),
@@ -1145,9 +1187,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                 ] else if (status == 'Awaiting Double Check') ...[
                   Row(children: [
                     Expanded(child: OutlinedButton.icon(
-                      onPressed: () { Navigator.pop(context); _confirmDelete(d); },
-                      icon: const Icon(Icons.delete_outline, size: 15, color: Colors.red),
-                      label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                      onPressed: () { Navigator.pop(context); _confirmArchive(d); },
+                      icon: const Icon(Icons.archive_outlined, size: 15, color: Colors.red),
+                      label: const Text('Archive', style: TextStyle(color: Colors.red)),
                       style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
                     )),
                     const SizedBox(width: 10),
@@ -1161,9 +1203,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                 ] else ...[
                   Row(children: [
                     Expanded(child: OutlinedButton.icon(
-                      onPressed: () { Navigator.pop(context); _confirmDelete(d); },
-                      icon: const Icon(Icons.delete_outline, size: 15, color: Colors.red),
-                      label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                      onPressed: () { Navigator.pop(context); _confirmArchive(d); },
+                      icon: const Icon(Icons.archive_outlined, size: 15, color: Colors.red),
+                      label: const Text('Archive', style: TextStyle(color: Colors.red)),
                       style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
                     )),
                     if (status == 'Rejected') ...[
@@ -2506,47 +2548,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
     }
   }
 
-  void _confirmDelete(Map<String, dynamic> d) {
-    final supplier = d['supplier'] as String? ?? 'this delivery';
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(children: [
-          Icon(Icons.delete_outline, color: Colors.red, size: 22),
-          SizedBox(width: 8),
-          Text('Delete Delivery', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        ]),
-        content: Text(
-          'Are you sure you want to delete the delivery from "$supplier"?',
-          style: const TextStyle(fontSize: 14, color: Color(0xFF4a5568)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF718096))),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).delete();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: const Text('Purchase order deleted successfully.'), backgroundColor: Colors.red,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red, foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Yes, Delete'),
-          ),
-        ],
-      ),
-    );
-  }
+  // kept for backward compat — now archives instead
+  void _confirmDelete(Map<String, dynamic> d) => _confirmArchive(d);
 }
 
 

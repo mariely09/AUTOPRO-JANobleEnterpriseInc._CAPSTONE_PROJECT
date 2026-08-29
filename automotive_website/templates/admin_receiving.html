@@ -80,7 +80,9 @@
         <div id="headerContainer"></div>
         
         <div class="admin-main">
-        <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;padding:0.6rem 1.5rem;background:white;border-bottom:1px solid #f0f4f8;flex-shrink:0;position:relative;z-index:10;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.6rem;flex-wrap:wrap;padding:0.6rem 1.5rem;background:white;border-bottom:1px solid #f0f4f8;flex-shrink:0;position:relative;z-index:10;">
+                <!-- Left: search + sort -->
+                <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <input type="text" class="search-bar" placeholder="Search deliveries..." id="deliverySearch" style="width:220px;padding-left:2rem;" oninput="deliveryApplySearch()">
@@ -95,14 +97,19 @@
                     </select>
                     <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
-                <!-- Print PO — shown only when there are Pending deliveries -->
-                <div id="printPOWrap" style="display:none;position:relative;">
+                </div>
+                <!-- Right: Print PO + Excel — shown only when there are Pending deliveries -->
+                <div id="printPOWrap" style="display:none;align-items:center;gap:6px;position:relative;">
                     <button id="printPOBtn" onclick="togglePrintPOMenu()" style="display:flex;align-items:center;gap:6px;padding:0.55rem 1rem;background:#E8001C;border:none;border-radius:8px;color:white;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='#C41E3A'" onmouseout="this.style.background='#E8001C'">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                         Print PO
                         <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                     </button>
-                    <div id="printPOMenu" style="display:none;position:absolute;top:calc(100% + 8px);right:0;background:white;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:280px;max-width:320px;z-index:999;overflow:hidden;">
+                    <button id="exportPOBtn" onclick="exportPOExcel()" style="display:flex;align-items:center;gap:6px;padding:0.55rem 1rem;background:#f0fff4;border:1.5px solid #9ae6b4;border-radius:8px;color:#276749;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s;" onmouseover="this.style.background='#c6f6d5'" onmouseout="this.style.background='#f0fff4'" title="Export to Excel">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Excel
+                    </button>
+                    <div id="printPOMenu" style="display:none;position:absolute;top:calc(100% + 8px);left:0;background:white;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:280px;max-width:320px;z-index:999;overflow:hidden;">
                         <div style="padding:12px 16px;font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0;background:#fafbfc;">Select Purchase Order</div>
                         <div id="printPOList" style="max-height:280px;overflow-y:auto;padding:4px 0;"></div>
                     </div>
@@ -455,26 +462,7 @@ function fabOpenEditPO() {
 
 <div id="toast"></div>
 
-<!-- ââ€€ââ€€ PO Print Area (same-page print, hidden until printing) ââ€€ââ€€ -->
-<div id="poPrintArea" style="display:none;"></div>
-
-<style>
-@media print {
-  body > *:not(#poPrintArea) { display: none !important; }
-  #poPrintArea {
-    display: block !important;
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%;
-    font-family: Arial, sans-serif;
-    font-size: 10px;
-    color: #1a202c;
-    padding: 12mm 10mm;
-    box-sizing: border-box;
-  }
-}
-</style>
-
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="../static/js/data.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -495,6 +483,7 @@ function fabOpenEditPO() {
 <script src="../static/js/admin_functions.js?v=202607180001"></script>
 <script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
+<script src="../static/js/print_layout_header.js"></script>
 <script>
 var db = firebase.firestore();
 var _allDeliveries = [];
@@ -559,7 +548,7 @@ window._updatePrintPOMenu = function() {
   var pendingDeliveries = _allDeliveries.filter(function(d){ return d.status === 'Pending'; });
   var wrap = document.getElementById('printPOWrap');
   if (!wrap) return;
-  wrap.style.display = pendingDeliveries.length ? 'block' : 'none';
+  wrap.style.display = pendingDeliveries.length ? 'flex' : 'none';
   var list = document.getElementById('printPOList');
   if (!list) return;
   if (!pendingDeliveries.length) { list.innerHTML = ''; return; }
@@ -743,8 +732,8 @@ window._renderList = function _renderList() {
           ? '<button class="btn-small btn-secondary" onclick="editItemInDelivery(\'' + d.id + '\',' + idx + ')" title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
           : '<button class="btn-small btn-secondary" disabled title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
         var deleteBtn = (!item.itemStatus || item.itemStatus === 'Pending')
-          ? '<button class="btn-small btn-danger" onclick="deleteItemFromDelivery(\'' + d.id + '\',' + idx + ')" title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
-          : '<button class="btn-small btn-danger" disabled title="Delete" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>';
+          ? '<button class="btn-small btn-danger" onclick="archiveItemFromDelivery(\'' + d.id + '\',' + idx + ')" title="Archive" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>'
+          : '<button class="btn-small btn-danger" disabled title="Archive" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>';
         // Print PO button <span style="color:#a0aec0;">—</span> only on the first item row of a Pending delivery
         var printPOBtn = '';
         var cols = [viewBtn, editBtn, deleteBtn].filter(function(b){return b;});
@@ -884,7 +873,10 @@ function _ivInfoCard(label, value, valueColor) {
 }
 
 db.collection('deliveries').orderBy('createdAt','desc').onSnapshot(function(snap) {
-  _allDeliveries = snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
+  // Exclude archived deliveries from the active list
+  _allDeliveries = snap.docs
+    .map(function(d){ return Object.assign({id:d.id},d.data()); })
+    .filter(function(d){ return !d.archived; });
   // Enrich items with cost + stock from item_master and stock_inventory
   Promise.all([
     db.collection('item_master').where('type','==','Material').get(),
@@ -1472,13 +1464,32 @@ window.editDelivery = function(id) {
 
 var _currentEditDeliveryId = null;
 
-// -- Delete Delivery --
-window.deleteDelivery = function(id) {
+// -- Archive Delivery (whole PO) --
+window.archiveDelivery = function(id) {
   var d = _allDeliveries.find(function(x){ return x.id === id; });
-  var label = d ? (d.supplier || 'this delivery') : 'this delivery';
-  if (!confirm('Are you sure you want to delete the delivery from "' + label + '"?')) return;
-  db.collection('deliveries').doc(id).delete()
-    .then(function(){ showToast('Purchase order deleted successfully!', 'error'); })
+  var label = d ? (d.supplier || 'this purchase order') : 'this purchase order';
+  if (!confirm('Are you sure you want to archive the purchase order from "' + label + '"?')) return;
+  db.collection('deliveries').doc(id).update({
+    archived: true,
+    archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  })
+    .then(function(){ showToast('Purchase order archived successfully!', 'success'); })
+    .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
+};
+
+// -- Archive single item from delivery --
+window.archiveItemFromDelivery = function(deliveryId, itemIdx) {
+  var d = _allDeliveries.find(function(x){ return x.id === deliveryId; });
+  if (!d || !d.items) return;
+  var item = d.items[itemIdx];
+  if (!item) return;
+  if (!confirm('Are you sure you want to archive "' + (item.itemName || 'this item') + '"?')) return;
+  // Archive the whole delivery document (soft-archive, same pattern as maintenance)
+  db.collection('deliveries').doc(deliveryId).update({
+    archived: true,
+    archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  })
+    .then(function(){ showToast('Item archived successfully!', 'success'); })
     .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
 };
 
@@ -1619,25 +1630,9 @@ window.saveEditItem = function() {
     });
 };
 
-// -- Delete single item from delivery --
+// -- Delete single item from delivery (kept for backward compat — now archives instead) --
 window.deleteItemFromDelivery = function(deliveryId, itemIdx) {
-  var d = _allDeliveries.find(function(x){ return x.id === deliveryId; });
-  if (!d || !d.items) return;
-  var item = d.items[itemIdx];
-  if (!item) return;
-  if (!confirm('Are you sure you want to remove "' + (item.itemName || 'this item') + '" from the delivery?')) return;
-  var updatedItems = d.items.slice();
-  updatedItems.splice(itemIdx, 1);
-  if (updatedItems.length === 0) {
-    // Last item <span style="color:#a0aec0;">—</span> delete entire delivery
-    db.collection('deliveries').doc(deliveryId).delete()
-      .then(function(){ showToast('Item deleted successfully!', 'error'); })
-      .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
-  } else {
-    db.collection('deliveries').doc(deliveryId).update({ items: updatedItems })
-      .then(function(){ showToast('Item removed successfully!', 'error'); })
-      .catch(function(err){ showToast('Error: ' + err.message, 'error'); });
-  }
+  archiveItemFromDelivery(deliveryId, itemIdx);
 };
 
 // -- Receive Modal (single item) --
@@ -1947,7 +1942,7 @@ window.submitReview = function(decision) {
   });
 };
 
-// ââ€€ââ€€ Generate Purchase Order (same-page print) ââ€€ââ€€
+// ── Generate Purchase Order — uses _doPrint (same-page print layout) ──────
 window.generatePO = function() {
   var d = _allDeliveries.find(function(x){ return x.id === _currentDeliveryId; });
   if (!d) return;
@@ -1956,103 +1951,431 @@ window.generatePO = function() {
     return;
   }
 
-  var now = new Date();
-  var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MO   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  function fmtTs(raw) {
+    if (!raw) return '';
+    var dt;
+    if (raw.toDate) dt = raw.toDate();
+    else if (raw.seconds) dt = new Date(raw.seconds * 1000);
+    else dt = new Date(raw);
+    if (isNaN(dt)) return '';
+    return MO[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+  }
+
+  var delivDateStr = '\u2014';
+  if (d.date) {
+    var ddt;
+    if (d.date.toDate) ddt = d.date.toDate();
+    else if (d.date.seconds) ddt = new Date(d.date.seconds * 1000);
+    else ddt = new Date(d.date);
+    if (!isNaN(ddt)) delivDateStr = MO[ddt.getMonth()] + ' ' + ddt.getDate() + ' (' + DAYS[ddt.getDay()] + ')';
+    else delivDateStr = d.date;
+  }
+
+  var now     = new Date();
   var dateStr = MO[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
-  var delivDateStr = _fmtDate(d.date);
-  var delivDay = '';
-  var delivDt = new Date(d.date);
-  if (!isNaN(delivDt)) delivDay = ' (' + days[delivDt.getDay()].slice(0,5) + ')';
 
   var items = d.items || [];
+  var MIN_ROWS = 15;
+  var subtotalQty = 0, grandTotal = 0;
+  items.forEach(function(it) {
+    subtotalQty += parseInt(it.expectedQty || it.orderQty || 0);
+    grandTotal  += parseFloat(it._cost || it.supplierPrice || it.price || 0) * parseInt(it.expectedQty || it.orderQty || 0);
+  });
 
-  // Build table rows <span style="color:#a0aec0;">—</span> only actual items, no empty padding
-  var rows = items.map(function(item, i) {
+  // Build table rows — pad to MIN_ROWS
+  var rowsHtml = '';
+  for (var i = 0; i < MIN_ROWS; i++) {
+    var it = items[i];
     var bg = i % 2 === 1 ? '#dce9f7' : '#ffffff';
-    var curStock = (item.stockAtReceive !== undefined && item.stockAtReceive !== null)
-      ? item.stockAtReceive
-      : (item._stock !== undefined && item._stock !== null ? item._stock : '<span style="color:#a0aec0;">—</span>');
-    var supPrice = parseFloat(item._cost || item.supplierPrice || item.price || 0);
-    var orderQty = parseInt(item.expectedQty || item.orderQty || 0);
-    var totalAmt = supPrice * orderQty;
-    var supPriceStr = supPrice > 0 ? supPrice.toLocaleString('en-PH', {minimumFractionDigits:2}) : '0.00';
-    var totalAmtStr = totalAmt > 0 ? totalAmt.toLocaleString('en-PH', {minimumFractionDigits:2}) : '0.00';
-    return '<tr style="background:' + bg + ';">'
-      + '<td style="padding:3px 4px;border:1px solid #b0c4de;text-align:center;">' + (i+1) + '</td>'
-      + '<td style="padding:3px 4px;border:1px solid #b0c4de;font-weight:600;">' + (item.itemNum || '<span style="color:#a0aec0;">—</span>') + '</td>'
-      + '<td style="padding:3px 4px;border:1px solid #b0c4de;">' + (item.supplierCode || item.supplierItemCode || '<span style="color:#a0aec0;">—</span>') + '</td>'
-      + '<td style="padding:3px 4px;border:1px solid #b0c4de;">' + (item.oem || '<span style="color:#a0aec0;">—</span>') + '</td>'
-      + '<td style="padding:3px 4px;border:1px solid #b0c4de;">' + (item.itemName || '<span style="color:#a0aec0;">—</span>') + '</td>'
-      + '<td style="padding:3px 4px;border:1px solid #b0c4de;text-align:center;">' + curStock + '</td>'
-      + '<td style="padding:3px 4px;border:1px solid #b0c4de;text-align:center;font-weight:700;">' + (orderQty || '0') + '</td>'
-      + '<td style="padding:3px 4px;border:1px solid #b0c4de;text-align:right;">' + supPriceStr + '</td>'
-      + '<td style="padding:3px 4px;border:1px solid #b0c4de;text-align:right;font-weight:700;">' + totalAmtStr + '</td>'
-      + '<td style="padding:3px 4px;border:1px solid #b0c4de;">' + (item.status || item.condition || '') + '</td>'
+    var c1='', c2='', c3='', c4='', c5='', c6='', c7='', c8='', c9='';
+    if (it) {
+      c1 = it.itemNum || '';
+      c2 = it.supplierCode || it.supplierItemCode || '';
+      c3 = it.oem || '';
+      c4 = it.itemName || '';
+      var stk = (it.stockAtReceive !== undefined && it.stockAtReceive !== null) ? it.stockAtReceive
+              : (it._stock !== undefined && it._stock !== null ? it._stock : '0');
+      c5 = '' + stk;
+      var qty = parseInt(it.expectedQty || it.orderQty || 0);
+      var price = parseFloat(it._cost || it.supplierPrice || it.price || 0);
+      var total = qty * price;
+      c6 = '' + qty;
+      c7 = price > 0 ? price.toLocaleString('en-PH', {minimumFractionDigits:2}) : '0.00';
+      c8 = total > 0 ? total.toLocaleString('en-PH', {minimumFractionDigits:2}) : '0.00';
+      c9 = it.condition || it.remark || '';
+    }
+    var td = 'border:1px solid #94b5d8;padding:2px 3px;font-size:7.5px;vertical-align:top;word-break:break-word;';
+    rowsHtml +=
+      '<tr style="background:' + bg + ';height:19px;">'
+      + '<td style="' + td + 'text-align:center;">' + (i+1) + '</td>'
+      + '<td style="' + td + '">' + c1 + '</td>'
+      + '<td style="' + td + '">' + c2 + '</td>'
+      + '<td style="' + td + '">' + c3 + '</td>'
+      + '<td style="' + td + '">' + c4 + '</td>'
+      + '<td style="' + td + 'text-align:center;">' + c5 + '</td>'
+      + '<td style="' + td + 'text-align:center;font-weight:700;">' + c6 + '</td>'
+      + '<td style="' + td + 'text-align:right;">' + c7 + '</td>'
+      + '<td style="' + td + 'text-align:right;font-weight:700;">' + c8 + '</td>'
+      + '<td style="' + td + '">' + c9 + '</td>'
       + '</tr>';
-  }).join('');
+  }
 
-  var subtotalQty = items.reduce(function(s,i){ return s + parseInt(i.expectedQty||i.orderQty||0); }, 0);
-  var grandTotal  = items.reduce(function(s,i){
-    return s + (parseFloat(i._cost||i.supplierPrice||i.price||0) * parseInt(i.expectedQty||i.orderQty||0));
-  }, 0);
-  var grandTotalStr = grandTotal > 0 ? grandTotal.toLocaleString('en-PH', {minimumFractionDigits:2}) : '0.00';
-  var noteLines = items.filter(function(i){ return i.remark; })
-    .map(function(i){ return (i.itemNum||i.itemName||'') + ' <span style="color:#a0aec0;">—</span> ' + i.remark; }).join('\n');
-  var preparedBy = d.receivedBy || d.checkedBy || '';
-  var opsHead    = d.checkedBy  || '';
+  var noteLines = items.filter(function(it){ return it.remark; })
+    .map(function(it){ return (it.supplierCode || it.itemNum || '') + ' \u2013 ' + it.itemName + ': ' + it.remark; }).join('; ');
+  var notesText = (d.notes || noteLines || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Prepared by = currently logged-in user
+  var _apUser = JSON.parse(sessionStorage.getItem('apUser') || sessionStorage.getItem('spUser') || '{}');
+  var preparedBy = (_apUser.name || _apUser.displayName || d.receivedBy || d.checkedBy || '').toUpperCase();
+  // Operations Head = fixed name
+  var opsHead = 'JUAN PAOLO F. TONGCO';
 
   var inner =
     '<style>'
-    + '*{box-sizing:border-box;}'
-    + 'h1{font-size:13px;font-weight:900;text-align:center;margin:0 0 6px;}'
-    + 'table.mt{width:100%;border-collapse:collapse;margin-bottom:4px;}'
-    + 'table.mt td{padding:1px 0;font-size:10px;}'
-    + 'table.mt td:first-child{width:145px;font-weight:700;}'
-    + '.ul{display:inline-block;min-width:200px;border-bottom:1px solid #000;}'
-    + 'table.po{width:100%;border-collapse:collapse;margin-top:5px;font-size:9px;}'
-    + 'table.po th{background:#1a202c;color:#fff;padding:3px 4px;font-size:8px;font-weight:700;text-align:center;border:1px solid #b0c4de;white-space:nowrap;}'
-    + 'table.po td{border:1px solid #b0c4de;padding:3px 4px;font-size:9px;}'
-    + '.tr{background:#1a202c;color:#fff;}'
-    + '.tr td{font-weight:700;font-size:9px;border:1px solid #b0c4de;padding:3px 4px;}'
-    + '.nb{border:1px solid #b0c4de;padding:4px 7px;margin-top:5px;font-size:9px;min-height:18px;white-space:pre-wrap;}'
-    + '.sg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:10px;}'
-    + '.sl{border-bottom:1px solid #000;min-height:18px;font-size:10px;padding-bottom:2px;}'
-    + '.lb{font-size:8px;color:#718096;margin-top:1px;}'
+    + '*{box-sizing:border-box;margin:0;padding:0;}'
+    + 'body{font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#1a202c;padding:5mm 6mm;}'
+    + 'h2{font-size:10.5px;font-weight:900;text-align:center;margin-bottom:4px;}'
+    + '.meta{margin-bottom:4px;}'
+    + '.meta-row{display:flex;gap:4px;margin-bottom:2px;font-size:8px;}'
+    + '.meta-row .lbl{font-weight:700;width:115px;flex-shrink:0;}'
+    + '.meta-row .val{border-bottom:1px solid #000;flex:1;padding-bottom:1px;}'
+    + 'table.po{width:100%;border-collapse:collapse;table-layout:fixed;}'
+    + 'table.po th{background:#1a202c;color:#fff;font-size:7px;font-weight:700;border:1px solid #94b5d8;padding:2px 3px;text-align:center;white-space:normal;line-height:1.25;word-break:break-word;}'
+    + 'table.po td{border:1px solid #94b5d8;padding:2px 3px;font-size:7.5px;vertical-align:top;word-break:break-word;overflow-wrap:break-word;}'
+    + '.sub-row td{background:#1a202c;color:#fff;font-size:8px;font-weight:700;border:1px solid #94b5d8;padding:2px 3px;}'
+    + '.notes-label{font-weight:700;margin-top:4px;margin-bottom:2px;font-size:8px;}'
+    + '.notes-box{border:1px solid #94b5d8;padding:3px 5px;min-height:18px;font-size:7.5px;white-space:pre-wrap;}'
+    + '.sigs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:20px;}'
+    + '.sig-line{border-bottom:1px solid #000;min-height:16px;font-size:8px;padding-bottom:2px;font-weight:700;text-align:center;}'
+    + '.sig-label{font-size:7px;color:#555;margin-top:2px;text-align:center;}'
+    + '@media print{'
+    + '  @page{margin:6mm;size:A4 portrait;}'
+    + '  body{padding:0;}'
+    + '  table.po{page-break-inside:auto;}'
+    + '  tr{page-break-inside:avoid;}'
+    + '}'
     + '</style>'
-    + '<h1>Internal Purchase Order Form</h1>'
-    + '<table class="mt"><tbody>'
-    + '<tr><td>Order Type (Normal/Rush)</td><td><span class="ul">' + (d.orderType||'Normal') + '</span></td></tr>'
-    + '<tr><td>Supplier:</td><td><span class="ul">' + (d.supplier||'<span style="color:#a0aec0;">—</span>') + '</span></td></tr>'
-    + '<tr><td>Target Delivery Date:</td><td><span class="ul">' + delivDateStr + delivDay + '</span></td></tr>'
+    + '<h2>Internal Purchase Order Form</h2>'
+    + '<div class="meta">'
+    + '<div class="meta-row"><span class="lbl">Order Type (Normal/Rush)</span><span class="val">' + (d.orderType || 'Normal') + '</span></div>'
+    + '<div class="meta-row"><span class="lbl">Supplier:</span><span class="val">' + (d.supplier || '') + '</span></div>'
+    + '<div class="meta-row"><span class="lbl">Target Delivery Date:</span><span class="val">' + delivDateStr + '</span></div>'
+    + '</div>'
+    + '<table class="po"><colgroup>'
+    + '<col style="width:3.5%">'
+    + '<col style="width:9%">'
+    + '<col style="width:12%">'
+    + '<col style="width:9%">'
+    + '<col style="width:27%">'
+    + '<col style="width:4.5%">'
+    + '<col style="width:6%">'
+    + '<col style="width:9%">'
+    + '<col style="width:10%">'
+    + '<col style="width:10%">'
+    + '</colgroup><thead><tr>'
+    + '<th></th>'
+    + '<th>Item Number</th>'
+    + '<th>Supplier Item Code</th>'
+    + '<th>OEM #</th>'
+    + '<th>Description</th>'
+    + '<th>Curbal</th>'
+    + '<th>Order Qty</th>'
+    + '<th>Supplier Price</th>'
+    + '<th>Total Amount</th>'
+    + '<th>Status: (Compl/ Return)</th>'
+    + '</tr></thead><tbody>' + rowsHtml
+    + '<tr class="sub-row">'
+    + '<td colspan="6" style="text-align:right;padding-right:5px;">Subtotal:</td>'
+    + '<td style="text-align:center;background:#E8001C;border:1px solid #94b5d8;">' + subtotalQty + '</td>'
+    + '<td style="text-align:right;padding-right:3px;">Total Amount</td>'
+    + '<td style="text-align:right;padding-right:3px;background:#E8001C;border:1px solid #94b5d8;">' + (grandTotal > 0 ? grandTotal.toLocaleString('en-PH',{minimumFractionDigits:2}) : '0.00') + '</td>'
+    + '<td></td>'
+    + '</tr>'
     + '</tbody></table>'
-    + '<table class="po"><thead><tr>'
-    + '<th style="width:20px;">#</th>'
-    + '<th>Item Number</th><th>Supplier Item ID</th><th>OEM #</th><th>Description</th>'
-    + '<th style="width:38px;">Curba l</th><th style="width:48px;">Order Qty</th>'
-    + '<th style="width:68px;">Supplier Price</th><th style="width:72px;">Total Amount</th>'
-    + '<th>Status</th>'
-    + '</tr></thead><tbody>' + rows
-    + '<tr class="tr">'
-    + '<td colspan="6" style="text-align:right;">Subtotal:</td>'
-    + '<td style="text-align:center;background:#E8001C;">' + subtotalQty + '</td>'
-    + '<td style="text-align:right;">Total Amount</td>'
-    + '<td style="text-align:right;background:#E8001C;">' + grandTotalStr + '</td>'
-    + '<td></td></tr></tbody></table>'
-    + '<div style="margin-top:6px;font-size:9px;font-weight:700;">Notes</div>'
-    + '<div class="nb">' + (d.notes||noteLines||'').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>'
-    + '<div class="sg">'
-    + '<div><div class="sl">' + preparedBy + '</div><div class="lb">Prepared by Name &amp; Signature</div></div>'
-    + '<div><div class="sl">' + opsHead + '</div><div class="lb">Operations Head Name &amp; Signature</div></div>'
-    + '<div style="text-align:right;"><div class="sl">' + dateStr + '</div><div class="lb" style="text-align:right;">Date</div></div>'
+    + '<div class="notes-label">Notes</div>'
+    + '<div class="notes-box">' + notesText + '</div>'
+    + '<div class="sigs">'
+    + '<div><div class="sig-line">' + preparedBy + '</div><div class="sig-label">Prepared by Name &amp; Signature</div></div>'
+    + '<div><div class="sig-line">' + opsHead    + '</div><div class="sig-label">Operations Head/Name &amp; Signature</div></div>'
+    + '<div><div class="sig-line">' + dateStr + '</div><div class="sig-label">Date</div></div>'
     + '</div>';
 
-  var area = document.getElementById('poPrintArea');
-  area.innerHTML = inner;
-  window.print();
-  // Clear after print dialog closes
-  setTimeout(function(){ area.innerHTML = ''; }, 1000);
+  // ── Same-page print using _apPrintContent (same mechanism as _doPrint) ──
+  // Remove any previous instance
+  var prev = document.getElementById('_apPrintContent');
+  if (prev) prev.remove();
+  var prevStyle = document.getElementById('_apPrintStyle');
+  if (prevStyle) prevStyle.remove();
+
+  var printDiv = document.createElement('div');
+  printDiv.id = '_apPrintContent';
+  printDiv.innerHTML = inner;
+
+  var styleEl = document.createElement('style');
+  styleEl.id = '_apPrintStyle';
+  styleEl.textContent = [
+    '@media print {',
+    '  body > *:not(#_apPrintContent) { display: none !important; }',
+    '  #_apPrintContent { display: block !important; }',
+    '  @page { margin: 8mm; size: A4 portrait; }',
+    '}',
+    '#_apPrintContent { display: none; }',
+  ].join('\n');
+
+  document.head.appendChild(styleEl);
+  document.body.appendChild(printDiv);
+
+  setTimeout(function() {
+    window.print();
+    setTimeout(function() {
+      var s = document.getElementById('_apPrintStyle');
+      var d2 = document.getElementById('_apPrintContent');
+      if (s) s.remove();
+      if (d2) d2.remove();
+    }, 500);
+  }, 120);
 };
+
+// ── Export PO to Excel ────────────────────────────────────────────────────
+window.exportPOExcel = async function() {
+  // Use the same delivery selected for the print PO dropdown
+  var pendingDeliveries = (_allDeliveries || []).filter(function(d){ return d.status === 'Pending'; });
+  if (!pendingDeliveries.length) { showToast('No pending purchase orders to export.', 'error'); return; }
+
+  // If there is more than one, show the same PO picker used by Print PO
+  var d = null;
+  if (_currentDeliveryId) {
+    d = _allDeliveries.find(function(x){ return x.id === _currentDeliveryId; });
+  }
+  if (!d || d.status !== 'Pending') {
+    if (pendingDeliveries.length === 1) {
+      d = pendingDeliveries[0];
+    } else {
+      showToast('Please select a PO from the Print PO dropdown first, then click Excel.', 'error');
+      return;
+    }
+  }
+
+  var ExcelJS = window.ExcelJS;
+  if (!ExcelJS) { showToast('ExcelJS not loaded yet, please try again.', 'error'); return; }
+
+  var MO   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  function fmtTs(raw) {
+    if (!raw) return '';
+    var dt;
+    if (raw.toDate) dt = raw.toDate();
+    else if (raw.seconds) dt = new Date(raw.seconds * 1000);
+    else dt = new Date(raw);
+    if (isNaN(dt)) return '';
+    return MO[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+  }
+
+  var delivDateStr = '\u2014';
+  if (d.date) {
+    var ddt;
+    if (d.date.toDate) ddt = d.date.toDate();
+    else if (d.date.seconds) ddt = new Date(d.date.seconds * 1000);
+    else ddt = new Date(d.date);
+    if (!isNaN(ddt)) delivDateStr = MO[ddt.getMonth()] + ' ' + ddt.getDate() + ' (' + DAYS[ddt.getDay()].slice(0,3) + ')';
+    else delivDateStr = d.date;
+  }
+
+  var now     = new Date();
+  var dateStr = MO[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
+  var stamp   = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+
+  var _apUser  = JSON.parse(sessionStorage.getItem('apUser') || sessionStorage.getItem('spUser') || '{}');
+  var preparedBy = (_apUser.name || _apUser.displayName || d.receivedBy || d.checkedBy || '').toUpperCase();
+  var opsHead    = 'JUAN PAOLO F. TONGCO';
+
+  var items = d.items || [];
+  var MIN_ROWS = 15;
+  var subtotalQty = 0, grandTotal = 0;
+  items.forEach(function(it) {
+    subtotalQty += parseInt(it.expectedQty || it.orderQty || 0);
+    grandTotal  += parseFloat(it._cost || it.supplierPrice || it.price || 0) * parseInt(it.expectedQty || it.orderQty || 0);
+  });
+
+  var wb = new ExcelJS.Workbook();
+  wb.creator = 'Caltex AutoPro'; wb.created = now;
+  var ws = wb.addWorksheet('Purchase Order', { pageSetup: { orientation: 'portrait', fitToPage: true, fitToWidth: 1, paperSize: 9 } });
+
+  var DARK = 'FF1A202C', RED = 'FFE8001C', BLUE = 'FF94B5D8', LB = 'FFDCE9F7', WHITE = 'FFFFFFFF', GREEN = 'FF276749';
+
+  // ── Title ──
+  ws.mergeCells('A1:J1');
+  var titleCell = ws.getCell('A1');
+  titleCell.value = 'Internal Purchase Order Form';
+  titleCell.font  = { name:'Arial', size:12, bold:true };
+  titleCell.alignment = { horizontal:'center', vertical:'middle' };
+  ws.getRow(1).height = 20;
+
+  // ── Meta rows ──
+  function metaRow(rowNum, label, value) {
+    ws.mergeCells('A'+rowNum+':C'+rowNum);
+    ws.mergeCells('D'+rowNum+':J'+rowNum);
+    ws.getCell('A'+rowNum).value = label;
+    ws.getCell('A'+rowNum).font  = { name:'Arial', size:8, bold:true };
+    ws.getCell('D'+rowNum).value = value;
+    ws.getCell('D'+rowNum).font  = { name:'Arial', size:8 };
+    ws.getRow(rowNum).height = 14;
+  }
+  metaRow(2, 'Order Type (Normal/Rush)', d.orderType || 'Normal');
+  metaRow(3, 'Supplier:', d.supplier || '');
+  metaRow(4, 'Target Delivery Date:', delivDateStr);
+
+  // ── Table header (row 5) ──
+  var headers = ['#', 'Item Number', 'Supplier Item Code', 'OEM #', 'Description', 'Curbal', 'Order Qty', 'Supplier Price', 'Total Amount', 'Status'];
+  var colWidths = [4, 14, 16, 12, 30, 6, 9, 13, 13, 12];
+  headers.forEach(function(h, i) {
+    var cell = ws.getCell(5, i+1);
+    cell.value = h;
+    cell.font  = { name:'Arial', size:7.5, bold:true, color:{ argb:WHITE } };
+    cell.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:DARK } };
+    cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+    cell.border = { top:{style:'thin',color:{argb:BLUE}}, bottom:{style:'thin',color:{argb:BLUE}}, left:{style:'thin',color:{argb:BLUE}}, right:{style:'thin',color:{argb:BLUE}} };
+    ws.getColumn(i+1).width = colWidths[i];
+  });
+  ws.getRow(5).height = 24;
+
+  // ── Data rows ──
+  for (var i = 0; i < MIN_ROWS; i++) {
+    var it = items[i];
+    var rowNum = i + 6;
+    var isEven = i % 2 === 1;
+    var bgColor = isEven ? LB : WHITE;
+
+    var rowData = ['', '', '', '', '', '', '', '', '', ''];
+    if (it) {
+      var stk   = (it.stockAtReceive !== undefined && it.stockAtReceive !== null) ? it.stockAtReceive : (it._stock !== undefined && it._stock !== null ? it._stock : 0);
+      var qty   = parseInt(it.expectedQty || it.orderQty || 0);
+      var price = parseFloat(it._cost || it.supplierPrice || it.price || 0);
+      var total = qty * price;
+      rowData = [i+1, it.itemNum||'', it.supplierCode||it.supplierItemCode||'', it.oem||'', it.itemName||'', stk, qty, price||0, total||0, it.condition||it.remark||''];
+    } else {
+      rowData = [i+1, '', '', '', '', '', '', 0, 0, ''];
+    }
+
+    rowData.forEach(function(val, ci) {
+      var cell = ws.getCell(rowNum, ci+1);
+      cell.value = val;
+      cell.font  = { name:'Arial', size:8 };
+      cell.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:bgColor } };
+      cell.border = { top:{style:'hair',color:{argb:BLUE}}, bottom:{style:'hair',color:{argb:BLUE}}, left:{style:'thin',color:{argb:BLUE}}, right:{style:'thin',color:{argb:BLUE}} };
+      // Number formatting
+      if (ci === 0 || ci === 5 || ci === 6) cell.alignment = { horizontal:'center', vertical:'middle' };
+      if (ci === 7 || ci === 8) {
+        cell.numFmt = '#,##0.00';
+        cell.alignment = { horizontal:'right', vertical:'middle' };
+      }
+    });
+    ws.getRow(rowNum).height = 15;
+  }
+
+  // ── Subtotal row ──
+  var subRow = MIN_ROWS + 6;
+  ws.mergeCells('A'+subRow+':F'+subRow);
+  ws.getCell('A'+subRow).value = 'Subtotal:';
+  ws.getCell('A'+subRow).font  = { name:'Arial', size:8, bold:true, color:{argb:WHITE} };
+  ws.getCell('A'+subRow).fill  = { type:'pattern', pattern:'solid', fgColor:{argb:DARK} };
+  ws.getCell('A'+subRow).alignment = { horizontal:'right', vertical:'middle' };
+
+  ws.getCell('G'+subRow).value = subtotalQty;
+  ws.getCell('G'+subRow).font  = { name:'Arial', size:8, bold:true, color:{argb:WHITE} };
+  ws.getCell('G'+subRow).fill  = { type:'pattern', pattern:'solid', fgColor:{argb:RED} };
+  ws.getCell('G'+subRow).alignment = { horizontal:'center', vertical:'middle' };
+
+  ws.getCell('H'+subRow).value = 'Total Amount';
+  ws.getCell('H'+subRow).font  = { name:'Arial', size:8, bold:true, color:{argb:WHITE} };
+  ws.getCell('H'+subRow).fill  = { type:'pattern', pattern:'solid', fgColor:{argb:DARK} };
+  ws.getCell('H'+subRow).alignment = { horizontal:'right', vertical:'middle' };
+
+  ws.getCell('I'+subRow).value = grandTotal;
+  ws.getCell('I'+subRow).numFmt = '#,##0.00';
+  ws.getCell('I'+subRow).font  = { name:'Arial', size:8, bold:true, color:{argb:WHITE} };
+  ws.getCell('I'+subRow).fill  = { type:'pattern', pattern:'solid', fgColor:{argb:RED} };
+  ws.getCell('I'+subRow).alignment = { horizontal:'right', vertical:'middle' };
+
+  ws.getCell('J'+subRow).fill = { type:'pattern', pattern:'solid', fgColor:{argb:DARK} };
+  ws.getRow(subRow).height = 15;
+  // borders on subRow
+  ['A','G','H','I','J'].forEach(function(col) {
+    var c = ws.getCell(col+subRow);
+    c.border = { top:{style:'thin',color:{argb:BLUE}}, bottom:{style:'thin',color:{argb:BLUE}}, left:{style:'thin',color:{argb:BLUE}}, right:{style:'thin',color:{argb:BLUE}} };
+  });
+
+  // ── Notes ──
+  var notesRow = subRow + 1;
+  ws.mergeCells('A'+notesRow+':J'+notesRow);
+  ws.getCell('A'+notesRow).value = 'Notes:';
+  ws.getCell('A'+notesRow).font  = { name:'Arial', size:8, bold:true };
+  ws.getRow(notesRow).height = 12;
+
+  var notesLines = items.filter(function(it){ return it.remark; })
+    .map(function(it){ return (it.supplierCode||it.itemNum||'') + ' \u2013 ' + it.itemName + ': ' + it.remark; }).join('; ');
+  var notesText = d.notes || notesLines || '';
+  var notesValRow = notesRow + 1;
+  ws.mergeCells('A'+notesValRow+':J'+notesValRow);
+  ws.getCell('A'+notesValRow).value = notesText;
+  ws.getCell('A'+notesValRow).font  = { name:'Arial', size:8 };
+  ws.getCell('A'+notesValRow).border = { top:{style:'thin',color:{argb:BLUE}}, bottom:{style:'thin',color:{argb:BLUE}}, left:{style:'thin',color:{argb:BLUE}}, right:{style:'thin',color:{argb:BLUE}} };
+  ws.getRow(notesValRow).height = 18;
+
+  // ── Signatures ──
+  var sigNameRow = notesValRow + 3;
+  var sigLblRow  = sigNameRow + 1;
+
+  ws.mergeCells('A'+sigNameRow+':C'+sigNameRow);
+  ws.getCell('A'+sigNameRow).value = preparedBy;
+  ws.getCell('A'+sigNameRow).font  = { name:'Arial', size:8, bold:true };
+  ws.getCell('A'+sigNameRow).alignment = { horizontal:'center' };
+  ws.getCell('A'+sigNameRow).border = { bottom:{style:'thin',color:{argb:DARK}} };
+
+  ws.mergeCells('D'+sigNameRow+':G'+sigNameRow);
+  ws.getCell('D'+sigNameRow).value = opsHead;
+  ws.getCell('D'+sigNameRow).font  = { name:'Arial', size:8, bold:true };
+  ws.getCell('D'+sigNameRow).alignment = { horizontal:'center' };
+  ws.getCell('D'+sigNameRow).border = { bottom:{style:'thin',color:{argb:DARK}} };
+
+  ws.mergeCells('H'+sigNameRow+':J'+sigNameRow);
+  ws.getCell('H'+sigNameRow).value = dateStr;
+  ws.getCell('H'+sigNameRow).font  = { name:'Arial', size:8, bold:true };
+  ws.getCell('H'+sigNameRow).alignment = { horizontal:'center' };
+  ws.getCell('H'+sigNameRow).border = { bottom:{style:'thin',color:{argb:DARK}} };
+
+  ws.mergeCells('A'+sigLblRow+':C'+sigLblRow);
+  ws.getCell('A'+sigLblRow).value = 'Prepared by Name & Signature';
+  ws.getCell('A'+sigLblRow).font  = { name:'Arial', size:7, color:{argb:'FF555555'} };
+  ws.getCell('A'+sigLblRow).alignment = { horizontal:'center' };
+
+  ws.mergeCells('D'+sigLblRow+':G'+sigLblRow);
+  ws.getCell('D'+sigLblRow).value = 'Operations Head/Name & Signature';
+  ws.getCell('D'+sigLblRow).font  = { name:'Arial', size:7, color:{argb:'FF555555'} };
+  ws.getCell('D'+sigLblRow).alignment = { horizontal:'center' };
+
+  ws.mergeCells('H'+sigLblRow+':J'+sigLblRow);
+  ws.getCell('H'+sigLblRow).value = 'Date';
+  ws.getCell('H'+sigLblRow).font  = { name:'Arial', size:7, color:{argb:'FF555555'} };
+  ws.getCell('H'+sigLblRow).alignment = { horizontal:'center' };
+
+  // ── Download ──
+  var buf  = await wb.xlsx.writeBuffer();
+  var blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href = url; a.download = 'PurchaseOrder_' + stamp + '.xlsx';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast('Purchase Order exported to Excel.', 'success');
+};
+
+
+
+
 </script>
 </body>
 </html>
