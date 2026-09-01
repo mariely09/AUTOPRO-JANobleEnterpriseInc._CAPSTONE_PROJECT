@@ -46,6 +46,7 @@ from datetime import datetime
 from collections import defaultdict
 from firestore_client import get_db
 from google.cloud.firestore_v1.base_query import FieldFilter
+import cache_manager
 
 logger = logging.getLogger(__name__)
 
@@ -124,14 +125,11 @@ def _get_svc_freq(d: dict) -> str:
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
 def _resolve_company_name(db, customer_uid: str) -> str:
-    """Look up the customer's companyName from their users document."""
-    try:
-        doc = db.collection("users").document(customer_uid).get()
-        if doc.exists:
-            return (doc.to_dict().get("companyName") or "").strip()
-    except Exception:
-        pass
-    return ""
+    """
+    Look up the customer's companyName from their users document.
+    Result is cached for 5 minutes to avoid repeated single-doc reads.
+    """
+    return cache_manager.get_company_name(db, customer_uid)
 
 
 def _iter_customer_vehicles(db, customer_uid: str,
@@ -567,25 +565,31 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
 
 def get_service_prices(customer_uid: str, customer_name: str,
                        service_name: str | None = None, **_) -> dict:
-    """Return services and prices from the item catalog (public for all customers)."""
+    """
+    Return services and prices from the item catalog (public for all customers).
+    Uses cache_manager to avoid re-reading item_master on every request.
+    """
     try:
         db       = get_db()
+        # Use cached catalog — avoids repeated Firestore reads for pricing queries
+        catalog  = cache_manager.get_service_catalog(db)
+        if catalog is None:
+            return _quota_error()
+
         services = []
-        for doc in db.collection("item_master").where(
-                filter=FieldFilter("type", "==", "Service")).stream():
-            d    = doc.to_dict()
-            name = d.get("name", "")
+        for item in catalog:
+            name = item.get("name", "")
             if service_name and service_name.lower() not in name.lower():
                 continue
             services.append({
-                "num":   d.get("num", ""),
+                "num":   item.get("num", ""),
                 "name":  name,
-                "group": d.get("group", ""),
-                "uom":   d.get("uom", ""),
-                "cost":  _fmt_cost(d.get("cost", 0)),
+                "group": item.get("group", ""),
+                "uom":   item.get("uom", ""),
+                "cost":  _fmt_cost(item.get("cost", 0)),
             })
 
-        services.sort(key=lambda s: s["name"])
+        # Already sorted by name in cache_manager
         return {
             "filter":         service_name or "all services",
             "total_services": len(services),
@@ -600,22 +604,29 @@ def get_service_prices(customer_uid: str, customer_name: str,
 
 def estimate_service_cost(customer_uid: str, customer_name: str,
                           service_names: list[str] | None = None, **_) -> dict:
-    """Estimate combined cost for one or more named services."""
+    """
+    Estimate combined cost for one or more named services.
+    Uses the shared service catalog cache — no extra Firestore read.
+    """
     if not service_names:
         return {
             "error": "NO_SERVICES",
             "message": "Please specify at least one service name to estimate the cost.",
         }
     try:
-        db      = get_db()
-        catalog = {}
-        for doc in db.collection("item_master").where(
-                filter=FieldFilter("type", "==", "Service")).stream():
-            d = doc.to_dict()
-            catalog[d.get("name", "").lower()] = {
-                "name": d.get("name", ""),
-                "cost": _strip_currency(d.get("cost", 0)),
-                "uom":  d.get("uom", ""),
+        db = get_db()
+        # Use cached catalog — the same data already fetched for get_service_prices
+        raw_catalog = cache_manager.get_service_catalog(db)
+        if raw_catalog is None:
+            return _quota_error()
+
+        # Build a name→item map from the cached list (lowercase keys for matching)
+        catalog: dict[str, dict] = {}
+        for item in raw_catalog:
+            catalog[item.get("name", "").lower()] = {
+                "name": item.get("name", ""),
+                "cost": _strip_currency(item.get("cost", 0)),
+                "uom":  item.get("uom", ""),
             }
 
         matched   = []
@@ -626,6 +637,7 @@ def estimate_service_cost(customer_uid: str, customer_name: str,
             key  = svc.lower().strip()
             item = catalog.get(key)
             if not item:
+                # Fuzzy partial match
                 for k, v in catalog.items():
                     if key in k or k in key:
                         item = v

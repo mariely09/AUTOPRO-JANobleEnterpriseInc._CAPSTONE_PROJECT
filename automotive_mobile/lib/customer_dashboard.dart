@@ -84,47 +84,52 @@ class _AiStatusFabState extends State<_AiStatusFab>
 
   @override
   Widget build(BuildContext context) {
-    // Use gradient colors for button, green for status dot
-    const gradientColors = [Color(0xFF004B5F), Color(0xFFEE152A)];
     final statusColor = _online
-        ? const Color(0xFF22c55e)
+        ? const Color(0xFF4ade80)
         : const Color(0xFFF97316);
 
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, _) {
+        // Compute phase for the second (offset) ring — matches admin AppBar
+        final phase = (_ctrl.value + 0.45) % 1.0;
+
         return SizedBox(
-          width: 90,
-          height: 90,
+          width: 96,
+          height: 96,
           child: Stack(
             alignment: Alignment.center,
             clipBehavior: Clip.none,
             children: [
-              // Outer pulse ring
-              Opacity(
-                opacity: (1.0 - _ctrl.value).clamp(0.0, 0.30),
-                child: Container(
-                  width: 58 + 26 * _ctrl.value,
-                  height: 58 + 26 * _ctrl.value,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: statusColor.withOpacity(0.25),
+              // Outer pulse ring — expands & fades out
+              Container(
+                width: 58 + (_ctrl.value * 28),
+                height: 58 + (_ctrl.value * 28),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: statusColor.withOpacity(
+                      (1 - _ctrl.value) * 0.55,
+                    ),
+                    width: 2,
                   ),
                 ),
               ),
-              // Inner pulse ring
-              Opacity(
-                opacity: (1.0 - _ctrl.value).clamp(0.0, 0.45),
-                child: Container(
-                  width: 58 + 13 * _ctrl.value,
-                  height: 58 + 13 * _ctrl.value,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: statusColor.withOpacity(0.20),
+              // Inner pulse ring — offset phase
+              Container(
+                width: 58 + (phase * 28),
+                height: 58 + (phase * 28),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: statusColor.withOpacity(
+                      (1 - phase) * 0.55,
+                    ),
+                    width: 1.5,
                   ),
                 ),
               ),
-              // Button with gradient background
+              // Main button — white circle with status-colour border
               GestureDetector(
                 onTap: widget.onTap,
                 onLongPressStart: (_) => widget.onDragStart?.call(),
@@ -140,22 +145,19 @@ class _AiStatusFabState extends State<_AiStatusFab>
                     height: 58,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: _online
-                          ? const LinearGradient(
-                              colors: gradientColors,
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            )
-                          : null,
-                      color: _online ? null : const Color(0xFFF97316),
+                      color: Colors.white,
+                      border: Border.all(
+                        color: statusColor,
+                        width: 2.5,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: statusColor.withOpacity(0.45),
                           blurRadius: 10,
                           spreadRadius: 1,
                         ),
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
+                          color: Colors.black.withOpacity(0.10),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
@@ -185,7 +187,16 @@ class _AiStatusFabState extends State<_AiStatusFab>
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: statusColor,
-                              border: Border.all(color: Colors.white, width: 2),
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: statusColor.withOpacity(0.8),
+                                  blurRadius: 6,
+                                ),
+                              ],
                             ),
                           ),
                         ),

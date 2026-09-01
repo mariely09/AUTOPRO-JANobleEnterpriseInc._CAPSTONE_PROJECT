@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from firestore_client import get_db
 from google.cloud.firestore_v1.base_query import FieldFilter
+import cache_manager
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -33,7 +34,11 @@ def _strip_currency(value) -> float:
 
 
 def _build_user_lookup(db) -> dict:
-    """uid → {name, email, role}"""
+    """uid → {name, email, role} — cached for 5 minutes."""
+    cached = cache_manager.get_user_lookup(db)
+    if cached is not None:
+        return cached
+    # Fallback: build inline (should not normally reach here)
     lookup = {}
     for doc in db.collection("users").stream():
         d = doc.to_dict()
@@ -46,12 +51,15 @@ def _build_user_lookup(db) -> dict:
 
 
 def _build_vehicle_lookup_by_id(db) -> dict:
-    """doc_id → {plate, desc, owner, ownerId, type, status}"""
+    """doc_id → {plate, desc, owner, ownerId, type, status} — cached for 3 minutes."""
+    cached = cache_manager.get_vehicle_lookup_by_id(db)
+    if cached is not None:
+        return cached
+    # Fallback
     lookup = {}
     for doc in db.collection("vehicles").stream():
         d = doc.to_dict()
         lookup[doc.id] = {
-            # canonical first, legacy fallback
             "plate":   d.get("plateNumber") or d.get("plate") or "",
             "desc":    d.get("description") or d.get("desc") or d.get("assetDescription") or "",
             "owner":   d.get("owner", ""),
@@ -63,11 +71,14 @@ def _build_vehicle_lookup_by_id(db) -> dict:
 
 
 def _build_vehicle_lookup_by_plate(db) -> dict:
-    """plateNumber (canonical) → {docId, desc, owner, ownerId, type, status}"""
+    """plateNumber → {docId, desc, owner, ownerId, type, status} — cached for 3 minutes."""
+    cached = cache_manager.get_vehicle_lookup_by_plate(db)
+    if cached is not None:
+        return cached
+    # Fallback
     lookup = {}
     for doc in db.collection("vehicles").stream():
         d = doc.to_dict()
-        # Prefer canonical plateNumber, fall back to legacy plate
         plate = (d.get("plateNumber") or d.get("plate") or "").strip()
         if plate:
             lookup[plate] = {
@@ -152,27 +163,41 @@ def get_low_stock_items() -> dict:
 # ── Item Master (catalog) ─────────────────────────────────────────────────────
 
 def get_item_catalog(item_type: str | None = None, group: str | None = None) -> dict:
-    """List catalog items. item_type: 'Material' or 'Service'."""
+    """
+    List catalog items. item_type: 'Material' or 'Service'.
+    Uses cache to avoid re-reading item_master on every admin query.
+    """
     db = get_db()
-    query = db.collection("item_master")
-    if item_type:
-        query = query.where(filter=FieldFilter("type", "==", item_type))
+    # Try the cache first (covers the common Service-only query)
+    cached = cache_manager.get_item_catalog_cached(db, item_type=item_type)
+
+    if cached is not None:
+        items = cached
+    else:
+        # Cache miss — should not normally happen; fall through to direct query
+        query = db.collection("item_master")
+        if item_type:
+            query = query.where(filter=FieldFilter("type", "==", item_type))
+        if group:
+            query = query.where(filter=FieldFilter("group", "==", group))
+        items_raw = []
+        for doc in query.stream():
+            d = doc.to_dict()
+            items_raw.append({
+                "num":   d.get("num", ""),
+                "name":  d.get("name", ""),
+                "type":  d.get("type", ""),
+                "group": d.get("group", ""),
+                "uom":   d.get("uom", ""),
+                "cost":  d.get("cost", ""),
+            })
+        items_raw.sort(key=lambda x: (x["type"], x["name"]))
+        items = items_raw
+
+    # Apply group filter post-cache (group is a secondary filter rarely used)
     if group:
-        query = query.where(filter=FieldFilter("group", "==", group))
+        items = [i for i in items if i.get("group", "").lower() == group.lower()]
 
-    items = []
-    for doc in query.stream():
-        d = doc.to_dict()
-        items.append({
-            "num":   d.get("num", ""),
-            "name":  d.get("name", ""),
-            "type":  d.get("type", ""),
-            "group": d.get("group", ""),
-            "uom":   d.get("uom", ""),
-            "cost":  d.get("cost", ""),
-        })
-
-    items.sort(key=lambda x: (x["type"], x["name"]))
     return {
         "filter_type":  item_type or "all types",
         "filter_group": group or "all groups",
