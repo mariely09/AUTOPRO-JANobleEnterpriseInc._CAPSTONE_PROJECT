@@ -78,6 +78,8 @@ def get_service_catalog(db=None) -> list[dict] | None:
     """
     Return the cached service catalog, or None if the cache is cold/expired.
     If db is provided and cache is cold, fetches from Firestore and warms the cache.
+
+    Handles both exact 'Service' and lowercase/variant type field values.
     """
     cached = _get(_KEY_SERVICE_CATALOG)
     if cached is not None:
@@ -91,11 +93,80 @@ def get_service_catalog(db=None) -> list[dict] | None:
     logger.info("cache_manager: service_catalog MISS — fetching from Firestore")
     try:
         from google.cloud.firestore_v1.base_query import FieldFilter
+
+        # Try exact match first
         docs = list(
             db.collection("item_master")
             .where(filter=FieldFilter("type", "==", "Service"))
             .stream()
         )
+
+        # If nothing found, try lowercase variant (data entry inconsistency)
+        if not docs:
+            logger.warning(
+                "cache_manager: no items with type='Service' — trying 'service'"
+            )
+            docs = list(
+                db.collection("item_master")
+                .where(filter=FieldFilter("type", "==", "service"))
+                .stream()
+            )
+
+        # If still nothing, do a full scan and filter in Python.
+        # This handles any capitalisation variant (SERVICE, Services, etc.)
+        # and also catches items stored under group='AutoService' with no type.
+        if not docs:
+            logger.warning(
+                "cache_manager: still no services — doing full item_master scan"
+            )
+            all_docs = list(db.collection("item_master").stream())
+            logger.info(
+                "cache_manager: full scan retrieved %d total item_master docs",
+                len(all_docs),
+            )
+
+            # Pass A: type field (any casing)
+            docs = [
+                d for d in all_docs
+                if (d.to_dict().get("type") or "").strip().lower() == "service"
+            ]
+            logger.info(
+                "cache_manager: type-based filter found %d service items", len(docs)
+            )
+
+            # Pass B: group='AutoService' (Flutter ItemMaster uses this group
+            # for service entries that may not have a 'type' field set)
+            if not docs:
+                logger.warning(
+                    "cache_manager: no type='service' docs — trying group='AutoService'"
+                )
+                docs = [
+                    d for d in all_docs
+                    if (d.to_dict().get("group") or "").strip().lower() == "autoservice"
+                ]
+                logger.info(
+                    "cache_manager: AutoService group fallback found %d items",
+                    len(docs),
+                )
+
+            # Pass C: any item that has a 'cost' field and a non-empty 'name'
+            # but no 'type' field — treat as a service when the catalog is
+            # otherwise completely empty (last-resort, logs a warning)
+            if not docs:
+                logger.warning(
+                    "cache_manager: AutoService fallback also empty — "
+                    "including all item_master docs that have a cost and name "
+                    "(last resort, may include materials)"
+                )
+                docs = [
+                    d for d in all_docs
+                    if d.to_dict().get("name") and d.to_dict().get("cost") is not None
+                ]
+                logger.warning(
+                    "cache_manager: last-resort found %d named+costed items",
+                    len(docs),
+                )
+
         items = []
         for doc in docs:
             d = doc.to_dict()

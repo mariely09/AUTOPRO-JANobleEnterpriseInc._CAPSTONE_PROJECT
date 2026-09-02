@@ -180,6 +180,41 @@ def invalidate_cache(key: str | None = None):
     return {"success": True, "invalidated": key or "all"}
 
 
+@app.get("/debug/item-master")
+def debug_item_master():
+    """
+    Diagnostic endpoint — shows what's in the item_master Firestore collection.
+    Use this when the service catalog appears empty in the AI assistant.
+    Returns the first 100 documents with their name, type, group, and cost fields.
+    """
+    try:
+        from firestore_client import get_db
+        db = get_db()
+        docs = list(db.collection("item_master").limit(100).stream())
+        items = []
+        for doc in docs:
+            d = doc.to_dict()
+            items.append({
+                "id":    doc.id,
+                "name":  d.get("name", ""),
+                "type":  d.get("type", "MISSING"),
+                "group": d.get("group", ""),
+                "cost":  d.get("cost", ""),
+                "num":   d.get("num", ""),
+            })
+        type_counts: dict = {}
+        for it in items:
+            t = it["type"] or "MISSING"
+            type_counts[t] = type_counts.get(t, 0) + 1
+        return {
+            "total_docs": len(items),
+            "type_breakdown": type_counts,
+            "items": items,
+        }
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
 # ── Session management ────────────────────────────────────────────────────────
 
 @app.get("/session/{session_id}", response_model=SessionInfoResponse)
@@ -643,7 +678,8 @@ TOOL MAPPING:
 - "estimate", "how much would X and Y cost" → estimate_service_cost
 
 WHEN TOOL RETURNS EMPTY DATA:
-- get_service_prices returns total_services=0 → say: "I wasn't able to find pricing information in our system at the moment. Please contact us at caltexautopro2026@gmail.com or visit the shop for current service rates."
+- get_service_prices returns total_services=0 AND catalog_size=0 → say: "Our service pricing catalog hasn't been set up yet. Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."
+- get_service_prices returns total_services=0 AND catalog_size>0 → say: "I couldn't find a service matching '[keyword]' in our catalog. Try asking 'list all services' to see everything we offer."
 - get_my_vehicles returns total_vehicles=0 → say: "You don't have any registered vehicles on file yet."
 - get_my_service_history returns total_jobs=0 → say the standard "no completed service records" message.
 - Any tool returns {"error": "QUOTA_EXCEEDED"} → say: "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
@@ -1131,11 +1167,21 @@ def _customer_direct_lookup(message: str, customer_uid: str,
             }
         services = result.get("services", [])
         total    = result.get("total_services", 0)
+        catalog_size = result.get("catalog_size", -1)   # -1 means field absent (old cached)
+
         if total == 0:
-            if _svc_kw:
+            if catalog_size == 0:
+                # The whole item_master catalog is empty — data not yet seeded
+                reply = (
+                    "Our service pricing catalog hasn't been set up yet. "
+                    "Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."
+                )
+            elif _svc_kw:
+                # We have a catalog but this specific service wasn't found —
+                # show a helpful "closest matches" or suggest listing all
                 reply = (
                     f"I couldn't find a service matching **\"{_svc_kw}\"** in our catalog. "
-                    f"You can ask me to *list all services* to see everything we offer, "
+                    f"Try asking *\"list all services\"* to see everything we offer, "
                     f"or contact us at caltexautopro2026@gmail.com for details."
                 )
             else:
