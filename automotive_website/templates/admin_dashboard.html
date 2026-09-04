@@ -120,59 +120,108 @@
       }
 
       /* -- Dashboard responsive -- */
-      @media (max-width: 900px) {
-        /* Stats: 5-col → 2-col */
-        .stats-grid[style*="repeat(5"] {
-          grid-template-columns: repeat(2, 1fr) !important;
-        }
-        /* Row 1: calendar + services by type → stack vertically */
-        #adminCalCard { order: 1; }
-        /* Row 2: 3 charts → 2-col */
-        .dash-row-1, .dash-row-2 {
-          grid-template-columns: repeat(2, 1fr) !important;
-        }
+
+      /* ── Layout grid classes ── */
+      .dash-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1rem;
+      }
+      .dash-banner-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+        gap: 1rem;
+      }
+      .dash-banner-date {
+        background: rgba(255,255,255,0.15);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 1rem 1.25rem;
+        text-align: center;
+        border: 1px solid rgba(255,255,255,0.2);
+        min-width: 110px;
+        flex-shrink: 0;
+      }
+      .dash-row-1 {
+        display: grid;
+        grid-template-columns: 1fr 1.4fr;
+        gap: 1.25rem;
+        margin-bottom: 1.25rem;
+        align-items: start;
+      }
+      .dash-row-2 {
+        display: grid;
+        grid-template-columns: 0.8fr 1fr 1fr;
+        gap: 1.25rem;
+        margin-bottom: 1.25rem;
+      }
+      .dash-row-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+        margin-bottom: 1.25rem;
       }
 
+      /* ── 1280px — slight compression ── */
+      @media (max-width: 1280px) {
+        .dash-stats-grid { grid-template-columns: repeat(5, 1fr); gap: 0.75rem; }
+        .dash-row-2 { grid-template-columns: 1fr 1fr 1fr; }
+      }
+
+      /* ── 1024px tablet landscape ── */
+      @media (max-width: 1024px) {
+        .dash-stats-grid { grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+        .dash-row-1 { grid-template-columns: 1fr; }
+        .dash-row-2 { grid-template-columns: 1fr 1fr; }
+        .dash-row-3 { grid-template-columns: 1fr 1fr; }
+        .dash-banner-date { min-width: 90px; padding: 0.75rem 1rem; }
+        #adminBannerDay { font-size: 2rem !important; }
+      }
+
+      /* ── 768px tablet portrait ── */
+      @media (max-width: 768px) {
+        .dash-stats-grid { grid-template-columns: repeat(3, 1fr); gap: 0.65rem; }
+        .dash-row-1 { grid-template-columns: 1fr; }
+        .dash-row-2 { grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .dash-row-3 { grid-template-columns: 1fr; gap: 1rem; }
+        .admin-content { padding: 1rem !important; }
+        .dash-chart-card { padding: 1rem 1.1rem; }
+        .dash-chart-canvas-wrap { height: 200px !important; }
+        .dash-donut-inner { flex-direction: column !important; align-items: center !important; gap: 0.75rem !important; }
+      }
+
+      /* ── 600px mobile ── */
       @media (max-width: 600px) {
-        /* Stats: 2-col */
-        .stats-grid[style*="repeat(5"] {
-          grid-template-columns: repeat(2, 1fr) !important;
-        }
-        /* Content */
+        .dash-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+        .dash-banner-top { flex-direction: column; align-items: stretch; }
+        .dash-banner-date { display: flex; align-items: center; justify-content: center; gap: 1rem; min-width: unset; border-radius: 12px; padding: 0.75rem 1rem; }
+        .dash-banner-date > div { margin: 0 !important; }
+        #adminBannerDay { font-size: 1.8rem !important; line-height: 1 !important; }
+        .dash-row-1 { grid-template-columns: 1fr; }
+        .dash-row-2 { grid-template-columns: 1fr; gap: 0.85rem; }
+        .dash-row-3 { grid-template-columns: 1fr; gap: 0.85rem; }
         .admin-content { padding: 0.75rem !important; }
-        /* Chart cards */
-        .dash-chart-card { padding: 0.9rem !important; }
-        /* Chart header: title wraps */
+        .dash-chart-card { padding: 0.9rem 1rem !important; }
+        .dash-chart-canvas-wrap { height: 170px !important; }
         .dash-chart-header { flex-wrap: wrap !important; gap: 0.4rem !important; margin-bottom: 0.75rem !important; }
         .dash-chart-title { font-size: 0.82rem !important; }
-        .dash-chart-sub { font-size: 0.68rem !important; }
-        /* Chart canvas heights — smaller on mobile */
-        #servicesBarChart { max-height: 180px !important; }
-        #vehicleDonutChart { max-height: 130px !important; }
-        #stockLineChart { max-height: 160px !important; }
-        #topPartsBarChart { max-height: 160px !important; }
-        /* Donut: stack chart + legend vertically */
+        .dash-chart-sub   { font-size: 0.68rem !important; }
         .dash-donut-inner { flex-direction: column !important; align-items: center !important; gap: 0.75rem !important; }
-        /* Data table: horizontal scroll */
         .data-table { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }
-        /* Today's service table columns — simpler grid */
-        #todayServicesList .table-row { font-size: 0.78rem !important; }
+        /* greeting title font size */
+        #overview .dash-greeting-title { font-size: 1.4rem !important; }
+        #overview .dash-greeting-wrap { padding: 1.25rem !important; }
       }
 
+      /* ── 400px very small ── */
       @media (max-width: 400px) {
-        .stats-grid[style*="repeat(5"] { grid-template-columns: repeat(2, 1fr) !important; }
+        .dash-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
         .admin-content { padding: 0.5rem !important; }
-        .dash-chart-card { padding: 0.7rem !important; }
-        #servicesBarChart { max-height: 150px !important; }
-        #stockLineChart, #topPartsBarChart { max-height: 140px !important; }
-      }
-
-      /* Chart canvas wrapper: reduce height on mobile */
-      @media (max-width: 600px) {
-        .dash-chart-canvas-wrap { height: 170px !important; }
-      }
-      @media (max-width: 400px) {
+        .dash-chart-card { padding: 0.75rem !important; }
         .dash-chart-canvas-wrap { height: 145px !important; }
+        #overview .dash-greeting-title { font-size: 1.2rem !important; }
       }
     </style>
 </head>
@@ -211,32 +260,31 @@
                 <!-- Overview Section -->
                 <div class="admin-section active" id="overview">
                     <!-- Greeting Card -->
-                    <div style="background:linear-gradient(135deg,#004B5F 0%,#EE152A 100%);border-radius:20px;padding:2rem 2.5rem;margin-bottom:1.5rem;color:white;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(0,75,95,0.25);">
+                    <div class="dash-greeting-wrap" style="background:linear-gradient(135deg,#004B5F 0%,#EE152A 100%);border-radius:20px;padding:2rem 2.5rem;margin-bottom:1.5rem;color:white;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(0,75,95,0.25);">
                         <!-- Background decoration -->
                         <div style="position:absolute;top:-30px;right:-30px;width:180px;height:180px;background:rgba(255,255,255,0.06);border-radius:50%;"></div>
                         <div style="position:absolute;bottom:-50px;left:-40px;width:200px;height:200px;background:rgba(255,255,255,0.04);border-radius:50%;"></div>
                         
                         <div style="position:relative;z-index:1;">
-                            <!-- Greeting Text -->
-                            <div style="margin-bottom:2rem;">
-                                <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem;">
+                                <div style="margin-bottom:2rem;">
+                                <div class="dash-banner-top">
                                     <div style="flex:1;">
                                         <div style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:0.8;margin-bottom:0.5rem;">Dashboard Overview</div>
-                                        <div style="font-size:2rem;font-weight:800;margin-bottom:0.5rem;line-height:1.2;"><span id="greetingText">Good morning</span>, <span id="adminNameGreeting">Admin</span></div>
+                                        <div class="dash-greeting-title" style="font-size:2rem;font-weight:800;margin-bottom:0.5rem;line-height:1.2;"><span id="greetingText">Good morning</span>, <span id="adminNameGreeting">Admin</span></div>
                                         <div style="font-size:0.85rem;opacity:0.85;line-height:1.6;max-width:600px;">
                                             Track your fleet operations, inventory status, and maintenance schedules at a glance.
                                         </div>
                                     </div>
-                                    <div style="background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border-radius:16px;padding:1rem 1.25rem;text-align:center;border:1px solid rgba(255,255,255,0.2);min-width:110px;">
+                                    <div class="dash-banner-date">
                                         <div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;opacity:0.8;margin-bottom:0.25rem;" id="adminBannerMonthYear"></div>
                                         <div style="font-size:2.5rem;font-weight:800;line-height:1;margin-bottom:0.25rem;" id="adminBannerDay"></div>
                                         <div style="font-size:0.75rem;font-weight:600;opacity:0.8;" id="adminBannerWeekday"></div>
                                     </div>
                                 </div>
-                            </div>
+                                </div>
                             
                             <!-- Stats Row - 5 cards in one line -->
-                            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;">
+                            <div class="dash-stats-grid">
                                 <!-- Total Vehicles -->
                                 <div onclick="window.location.href='admin_vehicle_list.html'" style="background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border-radius:16px;padding:1.25rem;cursor:pointer;transition:all 0.2s;border:1px solid rgba(255,255,255,0.2);" onmouseover="this.style.background='rgba(255,255,255,0.25)';this.style.transform='translateY(-3px)'" onmouseout="this.style.background='rgba(255,255,255,0.15)';this.style.transform=''">
                                     <div style="width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;">
@@ -352,7 +400,7 @@
                     </script>
 
                     <!-- ── Row 1: Calendar + Services by Type ─────────────────── -->
-                    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:1.25rem;margin-bottom:1.25rem;align-items:start;">
+                    <div class="dash-row-1">
 
                     <!-- Service Calendar -->
                     <div id="adminCalCard" style="background:#fff;border-radius:20px;box-shadow:0 4px 12px rgba(0,0,0,0.05);overflow:hidden;">
@@ -606,7 +654,7 @@
                     </div><!-- /.row-1 calendar + services by type -->
 
                     <!-- ── Row 2: Vehicle Status + Stock In/Out + Top Parts ──── -->
-                    <div style="display:grid;grid-template-columns:0.8fr 1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
+                    <div class="dash-row-2">
 
                         <!-- Donut chart: Vehicle status -->
                         <div class="dash-chart-card">
@@ -679,7 +727,7 @@
                     </div>
 
                     <!-- ── Row 3: Today's Services + Recent Services ──────────── -->
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem;">
+                    <div class="dash-row-3">
 
                     <!-- Today's services table -->
                     <div class="data-table" style="margin-bottom:0;">
