@@ -324,10 +324,8 @@
         });
       }
 
-      // Sign in anonymously so Firestore rules (request.auth != null) pass on this public page
-      firebase.auth().signInAnonymously()
-        .then(_fetchServices)
-        .catch(_fetchServices); // attempt fetch even if anon auth fails (open rules)
+      // item_master has a public read rule, so no auth is needed on this page.
+      _fetchServices();
     })();
     </script>
   </section>
