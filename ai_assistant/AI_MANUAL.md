@@ -134,7 +134,17 @@ Then try starting again.
 ```
 FIREBASE_CREDENTIALS_PATH=./caltex-autopro-1e664-firebase-adminsdk-fbsvc-07b4fc625e.json
 GROQ_API_KEY=gsk_...
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL_PRIMARY=qwen/qwen3.6-27b
+GROQ_MODEL_SECONDARY=qwen/qwen3-32b
+GROQ_MAX_OUTPUT_TOKENS=512
+GROQ_MAX_HISTORY_MSGS=6
+GROQ_MAX_TOOL_RESULT_CHARS=4000
+
+# Daily AI usage limits (resets at midnight every day)
+CUSTOMER_DAILY_TOKEN_LIMIT=20000    # 0 = unlimited
+CUSTOMER_DAILY_REQUEST_LIMIT=50     # 0 = unlimited
+ADMIN_DAILY_TOKEN_LIMIT=0           # 0 = unlimited (recommended for admin)
+ADMIN_DAILY_REQUEST_LIMIT=0         # 0 = unlimited
 ```
 
 ---
@@ -186,12 +196,16 @@ The backend must be started with `--host 0.0.0.0` (which `start.bat` already doe
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/health` | Liveness check — returns `{"status":"ok","role":"admin"}` |
+| GET | `/health` | Liveness check — returns status, role, active sessions, and limit config |
 | POST | `/admin/chat` | Admin AI chat with session memory |
 | POST | `/customer/chat` | Customer AI chat (scoped to their own data) |
 | POST | `/admin/report` | Generate PDF or Excel report |
 | GET | `/session/{id}` | Get session metadata |
 | DELETE | `/session/{id}` | Clear session memory |
+| GET | `/usage/customer/{uid}` | Get today's usage stats for a customer |
+| GET | `/usage/admin` | Get today's aggregate usage stats for the admin |
+| GET | `/cache/stats` | View current Firestore cache state |
+| POST | `/cache/invalidate` | Force-refresh Firestore cache (pass `?key=` to target one entry) |
 
 ### Admin Chat Request
 ```json

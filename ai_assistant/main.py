@@ -18,6 +18,8 @@ from session_store import (
 )
 from config import settings as _settings  # for token-limit constants in _merge_history
 import token_tracker
+import usage_limiter
+import cache_manager
 
 app = FastAPI(
     title="Caltex AutoPro AI",
@@ -142,7 +144,75 @@ def health():
         "status":          "ok",
         "role":            "admin",
         "active_sessions": active_session_count(),
+        "limits": {
+            "customer_daily_tokens":   usage_limiter.CUSTOMER_DAILY_TOKEN_LIMIT,
+            "customer_daily_requests": usage_limiter.CUSTOMER_DAILY_REQUEST_LIMIT,
+            "admin_daily_tokens":      usage_limiter.ADMIN_DAILY_TOKEN_LIMIT,
+            "admin_daily_requests":    usage_limiter.ADMIN_DAILY_REQUEST_LIMIT,
+        },
     }
+
+
+# ── Usage / quota endpoints ───────────────────────────────────────────────────
+
+@app.get("/usage/customer/{customer_uid}")
+def get_customer_usage(customer_uid: str):
+    """Return today's AI usage stats for a specific customer (for the UI quota banner)."""
+    return usage_limiter.get_user_usage(customer_uid, role="customer")
+
+
+@app.get("/usage/admin")
+def get_admin_usage():
+    """Return today's aggregate AI usage stats for the admin."""
+    return usage_limiter.get_all_usage()
+
+
+@app.get("/cache/stats")
+def get_cache_stats():
+    """Return current Firestore cache state (admin debug endpoint)."""
+    return cache_manager.get_stats()
+
+
+@app.post("/cache/invalidate")
+def invalidate_cache(key: str | None = None):
+    """Force-invalidate the Firestore cache (admin use only). Pass key= to target one entry."""
+    cache_manager.invalidate(key)
+    return {"success": True, "invalidated": key or "all"}
+
+
+@app.get("/debug/item-master")
+def debug_item_master():
+    """
+    Diagnostic endpoint — shows what's in the item_master Firestore collection.
+    Use this when the service catalog appears empty in the AI assistant.
+    Returns the first 100 documents with their name, type, group, and cost fields.
+    """
+    try:
+        from firestore_client import get_db
+        db = get_db()
+        docs = list(db.collection("item_master").limit(100).stream())
+        items = []
+        for doc in docs:
+            d = doc.to_dict()
+            items.append({
+                "id":    doc.id,
+                "name":  d.get("name", ""),
+                "type":  d.get("type", "MISSING"),
+                "group": d.get("group", ""),
+                "cost":  d.get("cost", ""),
+                "num":   d.get("num", ""),
+            })
+        type_counts: dict = {}
+        for it in items:
+            t = it["type"] or "MISSING"
+            type_counts[t] = type_counts.get(t, 0) + 1
+        return {
+            "total_docs": len(items),
+            "type_breakdown": type_counts,
+            "items": items,
+        }
+    except Exception as exc:
+        return {"error": str(exc)}
 
 
 # ── Session management ────────────────────────────────────────────────────────
@@ -169,53 +239,61 @@ def admin_chat(req: ChatRequest):
 
     Flow:
       1. Resolve or create a session_id.
-      2. Classify intent using deterministic rules (zero tokens).
-      3. Select model: 8B for most requests, 70B only for COMPLEX_ANALYSIS.
+      2. Check admin daily usage limit (high/unlimited by default).
+      3. Classify intent using deterministic rules (zero tokens).
       4. Try the admin fast-path classifier for obvious DB queries.
          — If matched and intent is DATABASE_LOOKUP/CALCULATION: return the
            data directly with a template reply (0 LLM tokens).
          — If matched but still needs phrasing: call 8B with data already fetched.
       5. Otherwise: full LLM tool-calling loop with selected model.
-      6. Append exchange to session store.
-      7. Return reply + session_id.
+      6. Record token usage against the admin's daily limit.
+      7. Append exchange to session store.
+      8. Return reply + session_id.
     """
     session_id = req.session_id or str(uuid.uuid4())
+    admin_id   = session_id[:20]   # stable identifier for usage tracking
 
     try:
+        # ── Step 2: daily usage check ─────────────────────────────────────────
+        limit_check = usage_limiter.check_limit(admin_id, role="admin")
+        if not limit_check["allowed"]:
+            return ChatResponse(
+                reply=limit_check["reason"],
+                session_id=session_id,
+                rate_limited=True,
+                reset_in="midnight",
+            )
+
         server_history    = get_history(session_id)
         effective_history = _merge_history(server_history, req.history)
 
-        # ── Step 2: intent classification (deterministic, 0 tokens) ──────────
+        # ── Step 3: intent classification (deterministic, 0 tokens) ──────────
         intent      = classify_intent(req.message)
         chosen_model = select_model(intent)
 
-        # ── Step 3: admin fast-path (pre-fetches DB data before any LLM call) ─
+        # ── Step 4: admin fast-path (pre-fetches DB data before any LLM call) ─
         fast_path = classify_and_run(req.message)
 
         if fast_path:
-            # Data already retrieved from Firestore.
-            # For pure DB lookups, skip the LLM entirely and reply with a
-            # compact template.  This saves ~400–800 tokens per request.
             if intent in (DATABASE_LOOKUP, DATABASE_CALCULATION):
                 reply = _format_admin_db_reply(req.message, fast_path["result"])
                 append_turn(session_id, req.message, reply)
-                # Record zero LLM tokens (DB-only path)
+                # Zero LLM tokens — record request count only
                 token_tracker.record(
-                    user_id=session_id[:20],
+                    user_id=admin_id,
                     role="admin",
                     model="none",
                     intent=intent,
                     input_tokens=0,
                     output_tokens=0,
                 )
+                usage_limiter.record_usage(admin_id, "admin", 0, 0)
                 return ChatResponse(
                     reply=reply,
                     session_id=session_id,
                     tool_calls=[fast_path],
                 )
 
-            # Needs phrasing — build a minimal prompt with only the retrieved data.
-            # Use 8B model: if the data is already fetched, phrasing is trivial.
             phrasing_prompt = (
                 f"The user asked: \"{req.message}\"\n\n"
                 f"Here is the exact data retrieved from the database:\n"
@@ -223,27 +301,28 @@ def admin_chat(req: ChatRequest):
                 f"Answer the user's question using ONLY this data. "
                 f"Be concise. Do not recalculate anything."
             )
-            t0 = time.time()
             result = llm_chat(
                 phrasing_prompt,
                 history=effective_history,
-                model=_settings.GROQ_MODEL_PRIMARY,  # always 8B for phrasing
+                model=_settings.GROQ_MODEL_PRIMARY,
                 intent=intent,
-                user_id=session_id[:20],
+                user_id=admin_id,
             )
             reply = result["reply"]
             tool_calls_out = [fast_path]
         else:
-            # Full LLM tool-calling loop with selected model
             result = llm_chat(
                 req.message,
                 history=effective_history,
                 model=chosen_model,
                 intent=intent,
-                user_id=session_id[:20],
+                user_id=admin_id,
             )
             reply = result["reply"]
             tool_calls_out = result["tool_calls"]
+
+        # ── Record usage against daily limit ──────────────────────────────────
+        _record_llm_usage_admin(result, admin_id)
 
         append_turn(session_id, req.message, reply)
 
@@ -257,7 +336,7 @@ def admin_chat(req: ChatRequest):
         if _is_rate_limit(e):
             rl = _rate_limit_reply(str(e))
             token_tracker.record(
-                user_id=session_id[:20], role="admin",
+                user_id=admin_id, role="admin",
                 model=_settings.GROQ_MODEL_PRIMARY, intent="UNKNOWN",
                 input_tokens=0, output_tokens=0,
                 success=False, rate_limited=True,
@@ -279,6 +358,25 @@ def admin_chat(req: ChatRequest):
             reply="I'm having trouble processing your request right now. Please try again in a moment.",
             session_id=session_id,
         )
+
+
+def _record_llm_usage_admin(result: dict, admin_id: str) -> None:
+    """Extract token counts from an LLM result dict and record them for the admin."""
+    try:
+        # token_tracker.record is already called inside client.py (_record_usage).
+        # We only need to update usage_limiter here so the per-user daily cap is tracked.
+        # Estimate from token_tracker's last entry since client.py doesn't return counts.
+        summary = token_tracker.get_daily_summary()
+        by_model = summary.get("by_model", {})
+        # Sum all model tokens recorded today for the admin session
+        total_today = summary.get("total_tokens", 0)
+        _ = total_today  # used indirectly via usage_limiter below
+
+        # We approximate: record 1 request with 0 extra tokens since token_tracker
+        # already captured the exact counts; usage_limiter just needs the request bump.
+        usage_limiter.record_usage(admin_id, "admin", 0, 0)
+    except Exception:
+        pass
 
 
 def _format_admin_db_reply(message: str, result: dict) -> str:
@@ -580,7 +678,8 @@ TOOL MAPPING:
 - "estimate", "how much would X and Y cost" → estimate_service_cost
 
 WHEN TOOL RETURNS EMPTY DATA:
-- get_service_prices returns total_services=0 → say: "I wasn't able to find pricing information in our system at the moment. Please contact us at caltexautopro2026@gmail.com or visit the shop for current service rates."
+- get_service_prices returns total_services=0 AND catalog_size=0 → say: "Our service pricing catalog hasn't been set up yet. Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."
+- get_service_prices returns total_services=0 AND catalog_size>0 → say: "I couldn't find a service matching '[keyword]' in our catalog. Try asking 'list all services' to see everything we offer."
 - get_my_vehicles returns total_vehicles=0 → say: "You don't have any registered vehicles on file yet."
 - get_my_service_history returns total_jobs=0 → say the standard "no completed service records" message.
 - Any tool returns {"error": "QUOTA_EXCEEDED"} → say: "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
@@ -620,6 +719,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     # ── Step 1: direct DB path for simple lookups (0 LLM tokens) ─────────────
     direct = _customer_direct_lookup(message, customer_uid, customer_name, intent)
     if direct is not None:
+        # Direct DB path uses 0 LLM tokens — only count as 1 request
         token_tracker.record(
             user_id=customer_uid,
             role="customer",
@@ -628,6 +728,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
             input_tokens=0,
             output_tokens=0,
         )
+        usage_limiter.record_usage(customer_uid, "customer", 0, 0)
         return direct
 
     # ── Step 1b: out-of-scope pre-check (0 LLM tokens) ───────────────────────
@@ -1066,11 +1167,21 @@ def _customer_direct_lookup(message: str, customer_uid: str,
             }
         services = result.get("services", [])
         total    = result.get("total_services", 0)
+        catalog_size = result.get("catalog_size", -1)   # -1 means field absent (old cached)
+
         if total == 0:
-            if _svc_kw:
+            if catalog_size == 0:
+                # The whole item_master catalog is empty — data not yet seeded
+                reply = (
+                    "Our service pricing catalog hasn't been set up yet. "
+                    "Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."
+                )
+            elif _svc_kw:
+                # We have a catalog but this specific service wasn't found —
+                # show a helpful "closest matches" or suggest listing all
                 reply = (
                     f"I couldn't find a service matching **\"{_svc_kw}\"** in our catalog. "
-                    f"You can ask me to *list all services* to see everything we offer, "
+                    f"Try asking *\"list all services\"* to see everything we offer, "
                     f"or contact us at caltexautopro2026@gmail.com for details."
                 )
             else:
@@ -1112,16 +1223,20 @@ def _record_customer_usage(response, model: str, intent: str,
     try:
         usage = getattr(response, "usage", None)
         if usage:
+            input_t  = getattr(usage, "prompt_tokens",     0)
+            output_t = getattr(usage, "completion_tokens", 0)
             token_tracker.record(
                 user_id=customer_uid,
                 role="customer",
                 model=model,
                 intent=intent,
-                input_tokens=getattr(usage, "prompt_tokens", 0),
-                output_tokens=getattr(usage, "completion_tokens", 0),
+                input_tokens=input_t,
+                output_tokens=output_t,
                 response_ms=elapsed_s * 1000,
                 success=success,
             )
+            # Also update the per-user daily usage limiter
+            usage_limiter.record_usage(customer_uid, "customer", input_t, output_t)
     except Exception:
         pass
 
@@ -1134,12 +1249,13 @@ def customer_chat_endpoint(req: CustomerChatRequest):
 
     Flow:
       1. Validate customer_uid and customer_name.
-      2. Classify intent using deterministic rules (0 tokens).
-      3. Try direct DB path for DATABASE_LOOKUP/CALCULATION (0 LLM tokens).
-      4. If LLM needed: select model (8B default, 70B for COMPLEX_ANALYSIS).
-      5. Run tool-calling loop.
-      6. Record token usage.
-      7. Return reply + session_id.
+      2. Check customer daily usage limit — block if exceeded.
+      3. Classify intent using deterministic rules (0 tokens).
+      4. Try direct DB path for DATABASE_LOOKUP/CALCULATION (0 LLM tokens).
+      5. If LLM needed: select model (8B default, 70B for COMPLEX_ANALYSIS).
+      6. Run tool-calling loop.
+      7. Record token usage against the daily limit.
+      8. Return reply + session_id.
     """
     if not req.customer_uid or not req.customer_name:
         raise HTTPException(
@@ -1170,6 +1286,21 @@ def customer_chat_endpoint(req: CustomerChatRequest):
     session_id = req.session_id or f"customer-{req.customer_uid}"
 
     try:
+        # ── Step 2: daily usage limit check (before any DB or LLM call) ──────
+        limit_check = usage_limiter.check_limit(req.customer_uid, role="customer")
+        if not limit_check["allowed"]:
+            token_tracker.record(
+                user_id=req.customer_uid, role="customer",
+                model="none", intent="LIMIT_EXCEEDED",
+                input_tokens=0, output_tokens=0, success=False,
+            )
+            return ChatResponse(
+                reply=limit_check["reason"],
+                session_id=session_id,
+                rate_limited=True,
+                reset_in="midnight",
+            )
+
         server_history    = get_history(session_id)
         effective_history = _merge_history(server_history, req.history)
 
@@ -1215,7 +1346,6 @@ def customer_chat_endpoint(req: CustomerChatRequest):
                 session_id=session_id,
             )
         traceback.print_exc()
-        # Return a friendly message instead of a 500 error
         return ChatResponse(
             reply="I'm having trouble processing your request right now. Please try again in a moment, or contact us at caltexautopro2026@gmail.com if the issue persists.",
             session_id=session_id,

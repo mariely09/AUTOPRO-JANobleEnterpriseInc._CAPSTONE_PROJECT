@@ -46,6 +46,7 @@ from datetime import datetime
 from collections import defaultdict
 from firestore_client import get_db
 from google.cloud.firestore_v1.base_query import FieldFilter
+import cache_manager
 
 logger = logging.getLogger(__name__)
 
@@ -124,14 +125,11 @@ def _get_svc_freq(d: dict) -> str:
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
 def _resolve_company_name(db, customer_uid: str) -> str:
-    """Look up the customer's companyName from their users document."""
-    try:
-        doc = db.collection("users").document(customer_uid).get()
-        if doc.exists:
-            return (doc.to_dict().get("companyName") or "").strip()
-    except Exception:
-        pass
-    return ""
+    """
+    Look up the customer's companyName from their users document.
+    Result is cached for 5 minutes to avoid repeated single-doc reads.
+    """
+    return cache_manager.get_company_name(db, customer_uid)
 
 
 def _iter_customer_vehicles(db, customer_uid: str,
@@ -567,55 +565,150 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
 
 def get_service_prices(customer_uid: str, customer_name: str,
                        service_name: str | None = None, **_) -> dict:
-    """Return services and prices from the item catalog (public for all customers)."""
+    """
+    Return services and prices from the item catalog (public for all customers).
+    Uses cache_manager to avoid re-reading item_master on every request.
+    Falls back to a direct Firestore scan if the cache returns empty.
+    """
     try:
-        db       = get_db()
-        services = []
-        for doc in db.collection("item_master").where(
-                filter=FieldFilter("type", "==", "Service")).stream():
-            d    = doc.to_dict()
-            name = d.get("name", "")
-            if service_name and service_name.lower() not in name.lower():
-                continue
-            services.append({
-                "num":   d.get("num", ""),
-                "name":  name,
-                "group": d.get("group", ""),
-                "uom":   d.get("uom", ""),
-                "cost":  _fmt_cost(d.get("cost", 0)),
-            })
+        db      = get_db()
+        catalog = cache_manager.get_service_catalog(db)
 
-        services.sort(key=lambda s: s["name"])
+        # get_service_catalog returns None only on exception (quota/network error)
+        if catalog is None:
+            return _quota_error()
+
+        # If the catalog is empty after all fetch attempts, log it so the
+        # developer can see exactly what's in item_master
+        if not catalog:
+            logger.warning(
+                "get_service_prices: catalog is empty after all fetch attempts. "
+                "Check that item_master has documents with type='Service' (case-sensitive). "
+                "Doing a raw diagnostic scan now..."
+            )
+            try:
+                all_docs = list(db.collection("item_master").stream())
+                types_found = list({
+                    (d.to_dict().get("type") or "MISSING")
+                    for d in all_docs
+                })
+                logger.warning(
+                    "get_service_prices: item_master has %d total docs. "
+                    "type values found: %s",
+                    len(all_docs), types_found,
+                )
+            except Exception:
+                pass
+            return {
+                "filter":         service_name or "all services",
+                "total_services": 0,
+                "services":       [],
+            }
+
+        # ── Filter by service_name keyword ────────────────────────────────────
+        if service_name:
+            keyword = service_name.lower().strip()
+            words   = [w for w in keyword.split() if len(w) >= 3]  # reused in passes 2 & 3
+
+            # Pass 1: substring match  (e.g. "oil change" in "Oil Change Service")
+            services = [
+                {
+                    "num":   item.get("num", ""),
+                    "name":  item.get("name", ""),
+                    "group": item.get("group", ""),
+                    "uom":   item.get("uom", ""),
+                    "cost":  _fmt_cost(item.get("cost", 0)),
+                }
+                for item in catalog
+                if keyword in item.get("name", "").lower()
+            ]
+
+            # Pass 2: every word in keyword appears in the item name
+            # (handles "oil change" → "Change Oil", word-order differences)
+            if not services and words:
+                services = [
+                    {
+                        "num":   item.get("num", ""),
+                        "name":  item.get("name", ""),
+                        "group": item.get("group", ""),
+                        "uom":   item.get("uom", ""),
+                        "cost":  _fmt_cost(item.get("cost", 0)),
+                    }
+                    for item in catalog
+                    if all(w in item.get("name", "").lower() for w in words)
+                ]
+
+            # Pass 3: any single significant word matches
+            if not services and words:
+                for w in words:
+                    services = [
+                        {
+                            "num":   item.get("num", ""),
+                            "name":  item.get("name", ""),
+                            "group": item.get("group", ""),
+                            "uom":   item.get("uom", ""),
+                            "cost":  _fmt_cost(item.get("cost", 0)),
+                        }
+                        for item in catalog
+                        if w in item.get("name", "").lower()
+                    ]
+                    if services:
+                        break
+
+            logger.info(
+                "get_service_prices: keyword=%r → %d match(es)", keyword, len(services)
+            )
+        else:
+            services = [
+                {
+                    "num":   item.get("num", ""),
+                    "name":  item.get("name", ""),
+                    "group": item.get("group", ""),
+                    "uom":   item.get("uom", ""),
+                    "cost":  _fmt_cost(item.get("cost", 0)),
+                }
+                for item in catalog
+            ]
+
         return {
             "filter":         service_name or "all services",
             "total_services": len(services),
             "services":       services,
+            "catalog_size":   len(catalog),   # lets the AI know if catalog itself is empty
         }
 
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
+        logger.exception("get_service_prices error")
         return _db_error(e)
 
 
 def estimate_service_cost(customer_uid: str, customer_name: str,
                           service_names: list[str] | None = None, **_) -> dict:
-    """Estimate combined cost for one or more named services."""
+    """
+    Estimate combined cost for one or more named services.
+    Uses the shared service catalog cache — no extra Firestore read.
+    """
     if not service_names:
         return {
             "error": "NO_SERVICES",
             "message": "Please specify at least one service name to estimate the cost.",
         }
     try:
-        db      = get_db()
-        catalog = {}
-        for doc in db.collection("item_master").where(
-                filter=FieldFilter("type", "==", "Service")).stream():
-            d = doc.to_dict()
-            catalog[d.get("name", "").lower()] = {
-                "name": d.get("name", ""),
-                "cost": _strip_currency(d.get("cost", 0)),
-                "uom":  d.get("uom", ""),
+        db = get_db()
+        # Use cached catalog — the same data already fetched for get_service_prices
+        raw_catalog = cache_manager.get_service_catalog(db)
+        if raw_catalog is None:
+            return _quota_error()
+
+        # Build a name→item map from the cached list (lowercase keys for matching)
+        catalog: dict[str, dict] = {}
+        for item in raw_catalog:
+            catalog[item.get("name", "").lower()] = {
+                "name": item.get("name", ""),
+                "cost": _strip_currency(item.get("cost", 0)),
+                "uom":  item.get("uom", ""),
             }
 
         matched   = []
@@ -626,6 +719,7 @@ def estimate_service_cost(customer_uid: str, customer_name: str,
             key  = svc.lower().strip()
             item = catalog.get(key)
             if not item:
+                # Fuzzy partial match
                 for k, v in catalog.items():
                     if key in k or k in key:
                         item = v

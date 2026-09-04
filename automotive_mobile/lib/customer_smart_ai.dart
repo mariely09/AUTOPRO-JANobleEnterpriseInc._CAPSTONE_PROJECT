@@ -894,7 +894,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI>
           Column(
             children: [
               // ── Offline banner ──────────────────────────────────────────
-              if (!_backendOnline && _dataLoaded)
+              if (!_backendOnline)
                 Container(
                   width: double.infinity,
                   color: const Color(0xFFFFFBEB),
@@ -906,13 +906,13 @@ class _CustomerSmartAIState extends State<CustomerSmartAI>
                     children: [
                       const Icon(
                         Icons.warning_amber_rounded,
-                        size: 14,
+                        size: 16,
                         color: Color(0xFF975A16),
                       ),
                       const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
-                          'Cannot reach AI backend. Tap Retry.',
+                          'Cannot reach AI backend. Check your connection or tap Retry.',
                           style: TextStyle(
                             fontSize: 11,
                             color: Color(0xFF975A16),
@@ -958,37 +958,43 @@ class _CustomerSmartAIState extends State<CustomerSmartAI>
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: RichText(
-                          text: TextSpan(
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF9A3412),
-                              height: 1.5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'AI unavailable — daily token limit reached',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF9A3412),
+                              ),
                             ),
-                            children: [
-                              const TextSpan(
-                                text:
-                                    'AI unavailable — daily token limit reached\n',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12.5,
-                                ),
-                              ),
-                              const TextSpan(
-                                text:
-                                    'Groq free-tier quota is exhausted. Resets in ',
-                              ),
-                              TextSpan(
-                                text: _resetIn,
+                            const SizedBox(height: 3),
+                            RichText(
+                              text: TextSpan(
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: Color(0xFF9A3412),
+                                  height: 1.5,
                                 ),
+                                children: [
+                                  const TextSpan(
+                                    text:
+                                        'Groq free-tier quota is exhausted. Resets in ',
+                                  ),
+                                  TextSpan(
+                                    text: _resetIn,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const TextSpan(
+                                    text: '. Chat is disabled until then.',
+                                  ),
+                                ],
                               ),
-                              const TextSpan(
-                                text: '. Chat is disabled until then.',
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                       GestureDetector(
@@ -1607,10 +1613,10 @@ class _CustomerSmartAIState extends State<CustomerSmartAI>
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
+                    topLeft: Radius.circular(14),
                     topRight: Radius.circular(4),
-                    bottomLeft: Radius.circular(16),
-                    bottomRight: Radius.circular(16),
+                    bottomLeft: Radius.circular(14),
+                    bottomRight: Radius.circular(14),
                   ),
                   boxShadow: [
                     BoxShadow(
