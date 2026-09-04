@@ -47,7 +47,7 @@ if not firebase_admin._apps:
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
-app.secret_key = 'your-secret-key-change-this-in-production'
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'your-secret-key-change-this-in-production')
 app.jinja_env.auto_reload = True
 import jinja2
 app.jinja_loader = jinja2.FileSystemLoader(app.template_folder, encoding='utf-8')
@@ -1868,5 +1868,6 @@ def admin_archive():
 
 # ── Run ──────────────────────────────────────────────────────
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    port = int(os.environ.get('PORT', 5001))
+    app.run(debug=False, host='0.0.0.0', port=port)
 
