@@ -245,6 +245,7 @@
 (function () {
   var db = firebase.firestore();
   var _allDocs = [];
+  window._sbAllDocs = _allDocs; // expose for cache restore
 
   function _timeAgo(ts) {
     if (!ts || !ts.toMillis) return 'â€â€';
@@ -290,6 +291,10 @@
     var filter = _currentFilter;
     var body = document.getElementById('rescheduleTableBody');
     if (!body) return;
+    // Use cached window._sbAllDocs if local _allDocs is still empty (cache restore path)
+    if (!_allDocs.length && window._sbAllDocs && window._sbAllDocs.length) {
+      _allDocs = window._sbAllDocs;
+    }
 
     var docs;
     if (filter === 'all') {
@@ -687,36 +692,79 @@
   }
 
   // ── Auto-cancel past-due bookings ────────────────────────────────────────
-  // Runs on every snapshot. Cancels any Approved booking whose preferredDate
-  // has already passed and was never started (still Approved).
+  // Cancels any Approved/Pending booking that was never started when:
+  //   • preferredDate is before today, OR
+  //   • preferredDate is today AND current time is past 5:00 PM
+  // Notifies the customer, admin, and staff on each auto-cancel.
   function _autoCancelPastDue(docs) {
     var now = new Date();
+    var currentHour = now.getHours(); // 0-23, 17 = 5 PM
     var todayKey = now.getFullYear() + '-'
       + String(now.getMonth() + 1).padStart(2, '0') + '-'
       + String(now.getDate()).padStart(2, '0');
 
     docs.forEach(function(r) {
-      if (r.status !== 'Approved') return;
-      if (!r.preferredDate || r.preferredDate >= todayKey) return;
+      if (r.status !== 'Approved' && r.status !== 'Pending') return;
+      if (!r.preferredDate) return;
 
-      // Past-due — auto-cancel
+      var isPastDate  = r.preferredDate < todayKey;
+      var isToday     = r.preferredDate === todayKey;
+      var isPast5PM   = isToday && currentHour >= 17;
+
+      if (!isPastDate && !isPast5PM) return;
+
+      var cancelReason = isPastDate
+        ? 'No-show / Service date passed'
+        : 'No-show / Service not started by 5:00 PM';
+
+      // ── Update booking ──
       db.collection('service_bookings').doc(r.id).update({
         status: 'Cancelled',
         cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
         cancelledBy: 'system',
-        cancellationReason: 'No-show / Service date passed',
+        cancellationReason: cancelReason,
       }).then(function() {
-        // Notify customer
+        var plate   = r.plate || '';
+        var dateLabel = _formatDate(r.preferredDate);
+        var timeLabel = r.preferredTime ? ' at ' + r.preferredTime : '';
+        var custName  = r.customerName || 'Customer';
+
+        // ── Notify customer ──
         if (r.customerId) {
           db.collection('notifications').add({
             title: '❌ Booking Auto-Cancelled',
-            message: 'Your booking for ' + (r.plate || '') + ' on ' + _formatDate(r.preferredDate) + ' was automatically cancelled because the scheduled date has passed.',
+            message: 'Your booking for ' + plate + ' on ' + dateLabel + timeLabel
+              + ' was automatically cancelled because the service was not started by 5:00 PM.',
             type: 'warning',
             targetRole: '', targetUid: r.customerId,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             readBy: {}, isRead: false,
           });
         }
+
+        var adminStaffMsg = custName + '\'s booking for ' + plate + ' on ' + dateLabel
+          + timeLabel + ' was auto-cancelled (no-show / not started by 5:00 PM).';
+
+        // ── Notify admin ──
+        db.collection('notifications').add({
+          title: '🔔 Booking Auto-Cancelled',
+          message: adminStaffMsg,
+          type: 'warning',
+          targetRole: 'admin', targetUid: '',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          readBy: {}, isRead: false,
+        });
+
+        // ── Notify staff ──
+        db.collection('notifications').add({
+          title: '🔔 Booking Auto-Cancelled',
+          message: adminStaffMsg,
+          type: 'warning',
+          targetRole: 'staff', targetUid: '',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          readBy: {}, isRead: false,
+        });
+
       }).catch(function() {}); // silent — will retry on next snapshot
     });
   }
@@ -731,9 +779,25 @@
         data.createdAt = data.createdAt || null;
         return data;
       });
+      window._sbAllDocs = _allDocs; // keep window ref in sync
       _autoCancelPastDue(_allDocs);
       _updateStats();
       renderRescheduleList();
+      // ── Save for instant restore ──
+      try {
+        var _sbUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+        if (_sbUid) {
+          // Strip Firestore Timestamps (not serialisable) before saving
+          var _saveable = _allDocs.map(function(d) {
+            var copy = Object.assign({}, d);
+            if (copy.createdAt && typeof copy.createdAt.toMillis === 'function') {
+              copy.createdAt = { _ms: copy.createdAt.toMillis() };
+            }
+            return copy;
+          });
+          sessionStorage.setItem('bookingsCache_' + _sbUid, JSON.stringify(_saveable.slice(0, 500)));
+        }
+      } catch(e) {}
     }, function() {
       db.collection('service_bookings').get().then(function(snap) {
         _allDocs = snap.docs.map(function(d) {
@@ -746,6 +810,31 @@
         renderRescheduleList();
       });
     });
+})();
+</script>
+
+<script>
+// Cache restore for service bookings — runs after all scripts
+(function() {
+  try {
+    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+    if (!uid) return;
+    var raw = sessionStorage.getItem('bookingsCache_' + uid);
+    if (!raw) return;
+    var docs = JSON.parse(raw);
+    if (!Array.isArray(docs) || !docs.length) return;
+    // Only restore if Firestore hasn't populated _allDocs yet
+    if (window._sbAllDocs && window._sbAllDocs.length) return;
+    // Restore Timestamp-like objects
+    docs.forEach(function(d) {
+      if (d.createdAt && d.createdAt._ms) {
+        var ms = d.createdAt._ms;
+        d.createdAt = { toMillis: function() { return ms; }, seconds: Math.floor(ms / 1000) };
+      }
+    });
+    window._sbAllDocs = docs;
+    if (typeof window.renderRescheduleList === 'function') window.renderRescheduleList();
+  } catch(e) {}
 })();
 </script>
 </body>

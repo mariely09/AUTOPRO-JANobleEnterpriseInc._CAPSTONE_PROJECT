@@ -1466,26 +1466,41 @@ window._svcViewDetails = function(docId) {
           closeModal('svcDetailsModal');
           showToast('Service marked as Completed successfully!', 'success');
 
-          // Also update linked service booking to "Completed" if exists
-          if (s.bookingId) {
-            db.collection('service_bookings').doc(s.bookingId).get().then(function(bDoc) {
-              var bData = bDoc.exists ? bDoc.data() : {};
-              var customerId = bData.customerId || '';
-              bDoc.ref.update({ status: 'Completed' }).then(function() {
-                // Notify customer �X in-app
-                if (customerId) {
-                  db.collection('notifications').add({
-                    title: '? Service Completed',
-                    message: 'Your vehicle ' + plate + ' has been serviced and is now ready. Thank you for choosing AutoPro!',
-                    type: 'success',
-                    targetRole: '', targetUid: customerId,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
-                  });
-                  // Email notification
-                  if (typeof sendAlertEmail === 'function') {
-                    sendAlertEmail({ title: '? Service Completed', message: 'Your vehicle ' + plate + ' has been serviced and is now ready.', type: 'success', targetUid: customerId });
-                  }
-                }
+          // Update linked booking + notify customer (works for both booking-linked and walk-in services)
+          (function() {
+            var _plate2 = plate;
+            function _sendCompletedNotif(cid) {
+              if (!cid) return;
+              db.collection('notifications').add({
+                title: '✅ Service Completed',
+                message: 'Your vehicle ' + _plate2 + ' has been serviced and is now ready. Thank you for choosing AutoPro!',
+                type: 'success', targetRole: '', targetUid: cid,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
+              });
+              if (typeof sendAlertEmail === 'function') {
+                sendAlertEmail({ title: '✅ Service Completed', message: 'Your vehicle ' + _plate2 + ' has been serviced and is now ready.', type: 'success', targetUid: cid });
+              }
+            }
+            function _resolveOwnerAndNotify() {
+              // Resolve owner from vehicle document
+              var vehicleQuery = (s.vehicleId || '')
+                ? db.collection('vehicles').doc(s.vehicleId || '').get().then(function(d) { return d.exists ? (d.data().ownerId || '') : ''; })
+                : db.collection('vehicles').where('plate', '==', _plate2).limit(1).get().then(function(vs) { return vs.empty ? '' : (vs.docs[0].data().ownerId || ''); });
+              vehicleQuery.then(_sendCompletedNotif).catch(function() {});
+            }
+            if (s.bookingId) {
+              db.collection('service_bookings').doc(s.bookingId).get().then(function(bDoc) {
+                var bData = bDoc.exists ? bDoc.data() : {};
+                var cid = bData.customerId || '';
+                // Update booking status
+                if (bDoc.exists) bDoc.ref.update({ status: 'Completed' }).catch(function() {});
+                // Notify via customerId from booking, or fall back to vehicle owner
+                if (cid) _sendCompletedNotif(cid); else _resolveOwnerAndNotify();
+              }).catch(function() { _resolveOwnerAndNotify(); });
+            } else {
+              _resolveOwnerAndNotify();
+            }
+          })();
               }).catch(function() {});
             }).catch(function() {});
           }
@@ -1616,24 +1631,36 @@ function svcSave() {
                 if (!vSnap.empty) vSnap.docs[0].ref.update({ status: 'Under Maintenance' });
               }).catch(function() {});
             }
-            // Notify customer �X in-app + email
-            if (window._svcFromBookingId) {
-              db.collection('service_bookings').doc(window._svcFromBookingId).get().then(function(bDoc) {
-                var customerId = bDoc.exists ? (bDoc.data().customerId || '') : '';
-                if (customerId) {
-                  db.collection('notifications').add({
-                    title: '?? Vehicle Under Maintenance',
-                    message: 'Your vehicle ' + plate + ' is now under maintenance. We will notify you once the service is completed.',
-                    type: 'info',
-                    targetRole: '', targetUid: customerId,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
-                  });
-                  if (typeof sendAlertEmail === 'function') {
-                    sendAlertEmail({ title: '?? Vehicle Under Maintenance', message: 'Your vehicle ' + plate + ' is now under maintenance.', type: 'info', targetUid: customerId });
-                  }
+            // Notify customer -- Under Maintenance (booking-linked or walk-in)
+            (function() {
+              var _np = plate;
+              function _sendUM(cid) {
+                if (!cid) return;
+                db.collection('notifications').add({
+                  title: '🔧 Vehicle Under Maintenance',
+                  message: 'Your vehicle ' + _np + ' is now under maintenance. We will notify you once the service is completed.',
+                  type: 'info', targetRole: '', targetUid: cid,
+                  createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
+                });
+                if (typeof sendAlertEmail === 'function') {
+                  sendAlertEmail({ title: '🔧 Vehicle Under Maintenance', message: 'Your vehicle ' + _np + ' is now under maintenance.', type: 'info', targetUid: cid });
                 }
-              }).catch(function() {});
-            }
+              }
+              function _resolveVehicle(vid) {
+                var q = vid
+                  ? db.collection('vehicles').doc(vid).get().then(function(d) { return d.exists ? (d.data().ownerId || '') : ''; })
+                  : db.collection('vehicles').where('plate', '==', _np).limit(1).get().then(function(s) { return s.empty ? '' : (s.docs[0].data().ownerId || ''); });
+                q.then(_sendUM).catch(function() {});
+              }
+              if (window._svcFromBookingId) {
+                db.collection('service_bookings').doc(window._svcFromBookingId).get().then(function(bDoc) {
+                  var cid = bDoc.exists ? (bDoc.data().customerId || '') : '';
+                  if (cid) _sendUM(cid); else _resolveVehicle(resolvedVehicleId);
+                }).catch(function() { _resolveVehicle(resolvedVehicleId); });
+              } else {
+                _resolveVehicle(resolvedVehicleId);
+              }
+            })();
             closeModal('svcAddModal');
             showToast('Service added successfully!', 'success');
           }
@@ -1644,4 +1671,32 @@ function svcSave() {
   }
 }
 </script>
+
+<script>
+// Cache restore — runs after all scripts so render fn is defined
+(function() {
+  try {
+    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+    if (!uid) return;
+    var raw = sessionStorage.getItem('servicesCache_' + uid);
+    if (!raw) return;
+    var items = JSON.parse(raw);
+    if (!Array.isArray(items) || !items.length) return;
+    // Only restore if Firestore hasn't already loaded
+    if (window._fbServicesLoaded && (window.serviceTransactions || []).length) return;
+
+    window.serviceTransactions = items;
+    window._fbServices = items.map(function(s) {
+      return { _id: s.serviceId, plate: s.plate, assetNum: s.assetNum,
+               desc: s.assetDescription, mechanic: s.mechanicName,
+               date: s.dateServiced, status: s.status,
+               svcRows: s.svcRows || [], matRows: s.matRows || [],
+               createdAt: s.createdAt || null };
+    });
+    window._fbServicesLoaded = true;
+    if (typeof renderServicesList === 'function') renderServicesList();
+  } catch(e) {}
+})();
+</script>
+
 </html>

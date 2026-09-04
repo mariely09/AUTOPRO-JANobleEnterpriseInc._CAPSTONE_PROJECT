@@ -129,18 +129,24 @@
                     </div>
                 </div>
             </div>
-            <div class="data-table" style="overflow-x:auto;">
-                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 110px;min-width:900px;">
-                    <div style="white-space:nowrap;">Item Number</div>
-                    <div style="white-space:nowrap;">Supplier Item Code</div>
-                    <div>Item Name</div>
-                    <div>UOM</div>
-                    <div style="white-space:nowrap;">Commodity Group</div>
-                    <div style="white-space:nowrap;">Item Type</div>
-                    <div>Cost</div>
-                    <div style="text-align:center;">Actions</div>
-                </div>
-                <div id="itemMasterList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading items...</div></div>
+            <div class="data-table" style="overflow-x:auto;border-radius:14px;">
+                <table style="width:100%;min-width:1080px;border-collapse:collapse;font-size:0.88rem;font-family:inherit;">
+                  <thead>
+                    <tr style="background:#f7fafc;border-bottom:2px solid #e2e8f0;">
+                      <th style="padding:0.75rem 1rem;font-weight:700;color:#4a5568;text-align:left;white-space:nowrap;">Item Number</th>
+                      <th style="padding:0.75rem 1rem;font-weight:700;color:#4a5568;text-align:left;white-space:nowrap;">Supplier Item Code</th>
+                      <th style="padding:0.75rem 1rem;font-weight:700;color:#4a5568;text-align:left;">Item Name</th>
+                      <th style="padding:0.75rem 1rem;font-weight:700;color:#4a5568;text-align:left;">UOM</th>
+                      <th style="padding:0.75rem 1rem;font-weight:700;color:#4a5568;text-align:left;white-space:nowrap;">Commodity Group</th>
+                      <th style="padding:0.75rem 1rem;font-weight:700;color:#4a5568;text-align:left;white-space:nowrap;">Item Type</th>
+                      <th style="padding:0.75rem 1rem;font-weight:700;color:#4a5568;text-align:left;">Cost</th>
+                      <th style="padding:0.75rem 1rem;font-weight:700;color:#4a5568;text-align:center;white-space:nowrap;">Avg Monthly Issuance</th>
+                      <th style="padding:0.75rem 1rem;font-weight:700;color:#4a5568;text-align:center;white-space:nowrap;">Last Month Issuance</th>
+                      <th style="padding:0.75rem 1rem;font-weight:700;color:#4a5568;text-align:center;width:110px;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="itemMasterList"><tr><td colspan="10" style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading items...</td></tr></tbody>
+                </table>
             </div>
             </div><!-- /.data-table wrapper -->
         </div>
@@ -377,6 +383,7 @@
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -504,14 +511,19 @@
     };
     // Also run once as soon as Firestore data arrives
     document.addEventListener('DOMContentLoaded', function() {
-      var attempts = 0;
-      var poll = setInterval(function() {
-        attempts++;
-        if (window._fbItemMasterLoaded || attempts > 30) {
-          clearInterval(poll);
-          updateImStats();
-        }
-      }, 300);
+      // If already loaded from cache, run immediately; otherwise poll briefly
+      if (window._fbItemMasterLoaded) {
+        updateImStats();
+      } else {
+        var attempts = 0;
+        var poll = setInterval(function() {
+          attempts++;
+          if (window._fbItemMasterLoaded || attempts > 30) {
+            clearInterval(poll);
+            updateImStats();
+          }
+        }, 300);
+      }
     });
   })();
 
@@ -781,6 +793,39 @@
       if (d) d.remove();
     }, 500);
   };
+</script>
+
+<script>
+// ── Item Master cache restore — runs after all scripts so renderItemMasterList is defined ──
+(function() {
+  try {
+    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+    if (!uid) return;
+    var raw = sessionStorage.getItem('imCache_' + uid);
+    if (!raw) return;
+    var items = JSON.parse(raw);
+    if (!Array.isArray(items) || !items.length) return;
+
+    // Only restore if Firestore hasn't already loaded (avoids double render)
+    if (window._fbItemMasterLoaded && (window.itemMaster || []).length > 0) return;
+
+    window.itemMaster = items;
+    window._fbItemMaster = items.map(function(i) {
+      return {
+        _id: i.id, num: i.itemNum, supplierCode: i.supplierCode || '',
+        oem: i.oem || '', name: i.itemName, desc: i.description || '',
+        group: i.commodityGroup, uom: i.uom, cost: i.cost, type: i.itemType,
+        barcode: i.barcode || '', qr: i.qrcode || '', archived: i.archived || false,
+        avgMonthlyIssuance: i.avgMonthlyIssuance || 0,
+        lastMonthIssuance:  i.lastMonthIssuance  || 0,
+      };
+    });
+    window._fbItemMasterLoaded = true;
+
+    // renderItemMasterList is already defined here — call it directly
+    if (typeof renderItemMasterList === 'function') renderItemMasterList();
+  } catch(e) {}
+})();
 </script>
 </body>
 </html>

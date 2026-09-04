@@ -774,5 +774,31 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+<script>
+// Cache restore — runs after all scripts so render fn is defined
+(function() {
+  try {
+    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+    if (!uid) return;
+    var raw = sessionStorage.getItem('usersCache_' + uid);
+    if (!raw) return;
+    var items = JSON.parse(raw);
+    if (!Array.isArray(items) || !items.length) return;
+    // Only restore if Firestore hasn't already loaded
+    if (window._fbUsersLoaded && (window.users || []).length) return;
+
+    window.users = items;
+    window._fbUsers = items.map(function(u) {
+      return { _id: u.id, name: u.name, email: u.email, role: u.role,
+               status: u.status, companyName: u.companyName || '',
+               phoneNumber: u.phoneNumber || '', photoUrl: u.photoUrl || '' };
+    });
+    window._fbUsersLoaded = true;
+    if (typeof renderUsersList === 'function') renderUsersList();
+  } catch(e) {}
+})();
+</script>
+
 </body>
 </html>

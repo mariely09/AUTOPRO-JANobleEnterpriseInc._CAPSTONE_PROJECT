@@ -176,6 +176,23 @@
   let _myVehicles = []; // store for search filtering
   let _vehicleCards = []; // { plate, desc, html } for each vehicle
 
+  // ── Cache key for the vehicle card list ───────────────────
+  const _PH_CACHE_KEY = 'phVehiclesCache_' + (cpUser.uid || '');
+
+  // ── Restore cached vehicle cards immediately ──────────────
+  (function _phRestoreCache() {
+    try {
+      const raw = sessionStorage.getItem(_PH_CACHE_KEY);
+      if (!raw) return;
+      const cached = JSON.parse(raw);
+      if (!cached || !Array.isArray(cached.cards) || !cached.cards.length) return;
+      // Rebuild _vehicleCards for search to work before init() finishes
+      _vehicleCards = cached.cards;
+      document.getElementById('phVehiclesList').innerHTML =
+        _vehicleCards.map(c => c.html).join('');
+    } catch(e) {}
+  })();
+
   // -- Vehicle icon SVG based on type -----------------------
   function vehicleIconSvg(type, size) {
     const t = (type || '').toLowerCase();
@@ -186,9 +203,11 @@
     return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1l2-4h10l2 4h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/></svg>`;
   }
 
-  // Show loading immediately
-  document.getElementById('phVehiclesList').innerHTML =
-    '<div class="cu-empty" style="color:#718096;">Loading...</div>';
+  // Show loading only if no cache is available yet
+  if (!_vehicleCards.length) {
+    document.getElementById('phVehiclesList').innerHTML =
+      '<div class="cu-empty" style="color:#718096;">Loading...</div>';
+  }
 
   async function init(user) {
     try {
@@ -269,6 +288,20 @@
           return sum + num;
         }, 0);
         const detailsUrl = `pms_history_details.html?plate=${encodeURIComponent(v.plate)}&desc=${encodeURIComponent(v.desc || '—')}&type=${encodeURIComponent(v.type || '')}`;
+        // Pre-cache this vehicle's records + odometer so the details page renders instantly
+        const cacheKey = 'phdCache_' + (v.plate || '').toLowerCase().replace(/\s+/g,'_');
+        try {
+          const rawOdo = v.lastSvcOdo || v.lastServiceOdometer || '';
+          const lastSvcOdo = rawOdo ? String(rawOdo).replace(/[^0-9]/g, '') : '';
+          const cachePayload = {
+            plate: v.plate, desc: v.desc || '', type: v.type || '',
+            records: records,
+            totalCost: totalCost,
+            lastSvcOdo: lastSvcOdo,
+            savedAt: Date.now(),
+          };
+          sessionStorage.setItem(cacheKey, JSON.stringify(cachePayload));
+        } catch(e) {}
         return {
           plate: (v.plate || '').toLowerCase(),
           desc:  (v.desc  || '').toLowerCase(),
@@ -292,6 +325,14 @@
       });
 
       el.innerHTML = _vehicleCards.map(c => c.html).join('');
+
+      // ── Persist cards for instant restore on next visit ──
+      try {
+        sessionStorage.setItem(_PH_CACHE_KEY, JSON.stringify({
+          cards: _vehicleCards,
+          savedAt: Date.now(),
+        }));
+      } catch(e) {}
 
     } catch (err) {
       console.error('PMS History error:', err);

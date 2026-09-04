@@ -55,7 +55,7 @@ class PmsHistoryDetails extends StatelessWidget {
               SliverAppBar(
                 expandedHeight: 240,
                 pinned: true,
-                backgroundColor: const Color(0xFF1a202c),
+                backgroundColor: const Color(0xFF004B5F),
                 leading: IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                   onPressed: () => Navigator.pop(context),
@@ -77,8 +77,7 @@ class PmsHistoryDetails extends StatelessWidget {
                       return Container(
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Color(0xFF1a202c), Color(0xFF2d3748), Color(0xFFE8001C)],
-                            stops: [0.0, 0.55, 1.0],
+                            colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),

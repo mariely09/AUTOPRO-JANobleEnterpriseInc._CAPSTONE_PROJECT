@@ -89,12 +89,23 @@
                     <div class="stat-label">Trucks</div>
                 </div>
             </div>
-            <div class="data-table">
-                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 120px;">
-                    <div>Plate Number</div><div>Vehicle Type</div><div>Owner / Company Name</div>
-                    <div>Odometer (km)</div><div>Last Service Date</div><div>Next PMS Due</div><div>Actions</div>
-                </div>
-                <div id="assetsList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading vehicles...</div></div>
+            <div class="data-table" style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;min-width:820px;">
+                    <thead>
+                        <tr style="background:#f7fafc;border-bottom:2px solid #e2e8f0;">
+                            <th style="padding:0.75rem 1rem;text-align:left;font-size:0.82rem;font-weight:700;color:#4a5568;white-space:nowrap;">Plate Number</th>
+                            <th style="padding:0.75rem 1rem;text-align:left;font-size:0.82rem;font-weight:700;color:#4a5568;white-space:nowrap;">Vehicle Type</th>
+                            <th style="padding:0.75rem 1rem;text-align:left;font-size:0.82rem;font-weight:700;color:#4a5568;white-space:nowrap;">Owner / Company Name</th>
+                            <th style="padding:0.75rem 1rem;text-align:left;font-size:0.82rem;font-weight:700;color:#4a5568;white-space:nowrap;">Odometer (km)</th>
+                            <th style="padding:0.75rem 1rem;text-align:left;font-size:0.82rem;font-weight:700;color:#4a5568;white-space:nowrap;">Last Service Date</th>
+                            <th style="padding:0.75rem 1rem;text-align:left;font-size:0.82rem;font-weight:700;color:#4a5568;white-space:nowrap;">Next PMS Due</th>
+                            <th style="padding:0.75rem 1rem;text-align:center;font-size:0.82rem;font-weight:700;color:#4a5568;white-space:nowrap;width:120px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assetsList">
+                        <tr><td colspan="7" style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading vehicles...</td></tr>
+                    </tbody>
+                </table>
             </div>
             </div><!-- /#vTabActiveContent -->
         </div>
@@ -725,4 +736,32 @@
     e.preventDefault(); return false;
   }
 </script>
+
+<script>
+// Cache restore — runs after all scripts so render fn is defined
+(function() {
+  try {
+    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+    if (!uid) return;
+    var raw = sessionStorage.getItem('vehiclesCache_' + uid);
+    if (!raw) return;
+    var items = JSON.parse(raw);
+    if (!Array.isArray(items) || !items.length) return;
+    // Only restore if Firestore hasn't already loaded
+    if (window._fbVehiclesLoaded && (window.assets || []).length) return;
+
+    window.assets = items;
+    window._fbVehicles = items.map(function(a) {
+      return { _id: a.id, plate: a.plateNumber, plateNumber: a.plateNumber,
+               desc: a.assetDescription, assetDescription: a.assetDescription,
+               type: a.type, owner: a.owner, odometer: a.odometer,
+               lastSvcDate: a.lastServiceDate, svcFreq: a.svcFreq,
+               nextPMSDue: a.nextPMSDue, status: a.status };
+    });
+    window._fbVehiclesLoaded = true;
+    if (typeof renderAssetsList === 'function') renderAssetsList();
+  } catch(e) {}
+})();
+</script>
+
 </html>

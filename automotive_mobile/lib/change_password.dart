@@ -104,8 +104,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       _toast('Enter a new password.');
       return;
     }
-    if (newPass.length < 6) {
-      _toast('Password must be at least 6 characters.');
+    if (newPass.length < 8) {
+      _toast('Password must be at least 8 characters.');
+      return;
+    }
+    final _hasSpecial = RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]');
+    if (!_hasSpecial.hasMatch(newPass)) {
+      _toast('Password must contain at least one special character (e.g. @, #, !, \$).');
       return;
     }
     if (newPass != confirm) {
@@ -376,10 +381,31 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   hint: 'Confirm new password',
                   visible: _showConfirm,
                   onToggle: () => setState(() => _showConfirm = !_showConfirm),
+                  onChanged: (_) => setState(() {}),
+                  hasError: _confirmCtrl.text.isNotEmpty &&
+                      _newCtrl.text != _confirmCtrl.text,
                 ),
                 const SizedBox(height: 8),
+                // Inline mismatch error
+                if (_confirmCtrl.text.isNotEmpty &&
+                    _newCtrl.text != _confirmCtrl.text)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 4),
+                    child: Row(children: [
+                      Icon(Icons.error_outline, size: 14, color: Color(0xFFE8001C)),
+                      SizedBox(width: 4),
+                      Text(
+                        'Passwords do not match.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFFE8001C),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ]),
+                  ),
                 const Text(
-                  'Must be at least 6 characters.',
+                  'Must be at least 8 characters with a special character.',
                   style: TextStyle(fontSize: 11, color: Color(0xFF718096)),
                 ),
               ],
@@ -453,6 +479,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     required bool visible,
     required VoidCallback onToggle,
     void Function(String)? onChanged,
+    bool hasError = false,
   }) {
     return TextField(
       controller: controller,
@@ -481,18 +508,18 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
+          borderSide: BorderSide(color: hasError ? _red : const Color(0xFFe2e8f0)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
+          borderSide: BorderSide(color: hasError ? _red : const Color(0xFFe2e8f0)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: _red, width: 1.5),
+          borderSide: BorderSide(color: hasError ? _red : _red, width: 1.5),
         ),
         filled: true,
-        fillColor: const Color(0xFFF7F8FA),
+        fillColor: hasError ? const Color(0xFFFFF5F5) : const Color(0xFFF7F8FA),
       ),
     );
   }

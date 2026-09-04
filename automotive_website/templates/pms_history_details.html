@@ -15,9 +15,9 @@
         }
         .phd-sidebar { position: sticky; top: 24px; align-self: start; }
         .phd-vehicle-card {
-            background: linear-gradient(135deg, #1a202c 0%, #2d3748 55%, #E8001C 100%);
+            background: linear-gradient(135deg, #004B5F 0%, #EE152A 100%);
             border-radius: 16px; padding: 20px;
-            box-shadow: 0 4px 16px rgba(232,0,28,0.25); border: none;
+            box-shadow: 0 4px 16px rgba(0,75,95,0.3); border: none;
         }
         .phd-vehicle-plate { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 4px; }
         .phd-vehicle-desc  { font-size: 13px; color: rgba(255,255,255,0.65); margin-bottom: 16px; }
@@ -86,6 +86,98 @@
   const desc  = params.get('desc');
   const type  = params.get('type') || '';
 
+  // Cache key per plate
+  const _PHD_CACHE_KEY = 'phdCache_' + (plate || '').toLowerCase().replace(/\s+/g, '_');
+
+  // ── Shared render helpers ─────────────────────────────────────────────────
+  function _buildSidebarHtml(records, totalCost, lastSvcOdo) {
+    return `
+      <div class="phd-sidebar">
+        <a href="customer_pms_history.html" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#718096;text-decoration:none;margin-bottom:16px;transition:color .2s;" onmouseover="this.style.color='#E8001C'" onmouseout="this.style.color='#718096'">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Back to PMS History
+        </a>
+        <div class="phd-vehicle-card">
+          <div class="phd-vehicle-plate">${plate}</div>
+          <div class="phd-vehicle-desc">${desc || '&mdash;'}</div>
+          <div class="phd-stats">
+            <div class="phd-stat-item">
+              <div class="phd-stat-icon" style="background:rgba(0,48,135,0.08);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div>
+                <div class="phd-stat-value">${records.length}</div>
+                <div class="phd-stat-label">Service Records</div>
+              </div>
+            </div>
+            <div class="phd-stat-item">
+              <div class="phd-stat-icon" style="background:rgba(232,0,28,0.08);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
+              <div>
+                <div class="phd-stat-value">&#x20B1;${totalCost.toLocaleString('en-PH', {minimumFractionDigits:2})}</div>
+                <div class="phd-stat-label">Total Spent</div>
+              </div>
+            </div>
+            ${lastSvcOdo ? `
+            <div class="phd-stat-item">
+              <div class="phd-stat-icon" style="background:rgba(13,148,136,0.08);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div>
+                <div class="phd-stat-value">${parseInt(lastSvcOdo).toLocaleString()} km</div>
+                <div class="phd-stat-label">Last Service Odometer</div>
+              </div>
+            </div>` : ''}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function _buildRecordsHtml(records) {
+    if (!records.length) {
+      return '<div class="phd-empty"><div style="font-size:48px;margin-bottom:12px;">&#128269;</div><div>No completed services yet.</div></div>';
+    }
+    return records.map((r, idx) => {
+      const costRaw    = r.cost || r.totalCost || '';
+      const costDisplay = costRaw ? costRaw : '&mdash;';
+      return `
+        <div class="phd-record-card" style="cursor:pointer;" onclick="phdOpenModal(${idx})">
+          <div style="padding:14px;display:flex;align-items:center;gap:12px;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:13px;color:#1a202c;">${r.date || '&mdash;'}</div>
+              <div style="font-size:11px;color:#718096;margin-top:2px;">${r.mechanic || '&mdash;'}</div>
+              ${r.odometer ? `<div style="font-size:10px;color:#718096;margin-top:1px;">${r.odometer} km</div>` : ''}
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-weight:700;font-size:14px;color:#1a202c;">${costDisplay}</div>
+              <span style="background:rgba(22,163,106,0.1);color:#16a34a;font-size:9px;font-weight:600;padding:2px 8px;border-radius:20px;">Completed</span>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function _render(records, totalCost, lastSvcOdo) {
+    window._phdRecords = records;
+    const sidebarHtml = _buildSidebarHtml(records, totalCost, lastSvcOdo);
+    const recordsHtml = _buildRecordsHtml(records);
+    document.getElementById('phdMain').innerHTML = sidebarHtml + `<div class="phd-records">${recordsHtml}</div>`;
+  }
+
+  // ── Restore from cache immediately (no waiting for Firebase auth) ─────────
+  (function _phdRestoreCache() {
+    if (!plate) return;
+    try {
+      const raw = sessionStorage.getItem(_PHD_CACHE_KEY);
+      if (!raw) return;
+      const cached = JSON.parse(raw);
+      if (!cached || !Array.isArray(cached.records)) return;
+      _render(cached.records, cached.totalCost || 0, cached.lastSvcOdo || '');
+    } catch(e) {}
+  })();
+
   function vehicleIconSvg(vehicleType, size) {
     const t = (vehicleType || '').toLowerCase();
     const s = size || 24;
@@ -129,78 +221,15 @@
         if (odo) lastSvcOdo = String(odo).replace(/[^0-9]/g, '');
       }
 
-      // â”€â”€ LEFT SIDEBAR â”€â”€
-      const sidebarHtml = `
-        <div class="phd-sidebar">
-          <a href="customer_pms_history.html" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#718096;text-decoration:none;margin-bottom:16px;transition:color .2s;" onmouseover="this.style.color='#E8001C'" onmouseout="this.style.color='#718096'">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            Back to PMS History
-          </a>
-          <div class="phd-vehicle-card">
-            <div class="phd-vehicle-plate">${plate}</div>
-            <div class="phd-vehicle-desc">${desc || '&#8212;'}</div>
-            <div class="phd-stats">
-              <div class="phd-stat-item">
-                <div class="phd-stat-icon" style="background:rgba(0,48,135,0.08);">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                </div>
-                <div>
-                  <div class="phd-stat-value">${records.length}</div>
-                  <div class="phd-stat-label">Service Records</div>
-                </div>
-              </div>
-              <div class="phd-stat-item">
-                <div class="phd-stat-icon" style="background:rgba(232,0,28,0.08);">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                </div>
-                <div>
-                  <div class="phd-stat-value">&#x20B1;${totalCost.toLocaleString('en-PH', {minimumFractionDigits:2})}</div>
-                  <div class="phd-stat-label">Total Spent</div>
-                </div>
-              </div>
-              ${lastSvcOdo ? `
-              <div class="phd-stat-item">
-                <div class="phd-stat-icon" style="background:rgba(13,148,136,0.08);">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                </div>
-                <div>
-                  <div class="phd-stat-value">${parseInt(lastSvcOdo).toLocaleString()} km</div>
-                  <div class="phd-stat-label">Last Service Odometer</div>
-                </div>
-              </div>` : ''}
-            </div>
-          </div>
-        </div>
-      `;
+      // Persist fresh data back to cache (including odometer)
+      try {
+        sessionStorage.setItem(_PHD_CACHE_KEY, JSON.stringify({
+          plate, desc: desc || '', type: type || '',
+          records, totalCost, lastSvcOdo, savedAt: Date.now(),
+        }));
+      } catch(e) {}
 
-      // â”€â”€ RIGHT CONTENT â€” Records â”€â”€
-      let recordsHtml = '';
-      if (!records.length) {
-        recordsHtml = '<div class="phd-empty"><div style="font-size:48px;margin-bottom:12px;">&#128269;</div><div>No completed services yet.</div></div>';
-      } else {
-        recordsHtml = `` + records.map((r, idx) => {
-          const costRaw = r.cost || r.totalCost || '';
-          const costDisplay = costRaw ? costRaw : '&#8212;';
-          return `
-            <div class="phd-record-card" style="cursor:pointer;" onclick="phdOpenModal(${idx})">
-              <div style="padding:14px;display:flex;align-items:center;gap:12px;">
-                <div style="flex:1;min-width:0;">
-                  <div style="font-weight:700;font-size:13px;color:#1a202c;">${r.date || '&#8212;'}</div>
-                  <div style="font-size:11px;color:#718096;margin-top:2px;">${r.mechanic || '&#8212;'}</div>
-                  ${r.odometer ? `<div style="font-size:10px;color:#718096;margin-top:1px;">${r.odometer} km</div>` : ''}
-                </div>
-                <div style="text-align:right;flex-shrink:0;">
-                  <div style="font-weight:700;font-size:14px;color:#1a202c;">${costDisplay}</div>
-                  <span style="background:rgba(22,163,106,0.1);color:#16a34a;font-size:9px;font-weight:600;padding:2px 8px;border-radius:20px;">Completed</span>
-                </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
-              </div>
-            </div>`;
-        }).join('');
-      }
-
-      document.getElementById('phdMain').innerHTML = sidebarHtml + `<div class="phd-records">${recordsHtml}</div>`;
-      window._phdRecords = records;
+      _render(records, totalCost, lastSvcOdo);
 
     } catch (err) {
       console.error('Error loading PMS history:', err);

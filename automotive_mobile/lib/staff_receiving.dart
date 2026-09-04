@@ -1674,6 +1674,29 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                           'status': allReceived ? 'Awaiting Double Check' : 'Pending',
                           'receivedAt': FieldValue.serverTimestamp(),
                         });
+
+                        // ── Notify admin about the received item ──
+                        final itemName   = item['itemName'] as String? ?? '—';
+                        final itemNum    = item['itemNum']  as String? ?? '';
+                        final actualQty  = int.tryParse(qtyCtrl.text) ?? (item['expectedQty'] as int? ?? 0);
+                        final receivedBy = receivedByCtrl.text.trim();
+                        final condLabel  = condition;
+                        final numLabel   = itemNum.isNotEmpty ? ' ($itemNum)' : '';
+                        final condSuffix = condLabel != 'OK' ? ' — Condition: $condLabel' : '';
+                        final notifMsg   = '$receivedBy received $actualQty × $itemName$numLabel.$condSuffix Awaiting admin double-check.';
+                        try {
+                          await FirebaseFirestore.instance.collection('notifications').add({
+                            'title':      '📦 Item Received — Awaiting Review',
+                            'message':    notifMsg,
+                            'type':       'info',
+                            'targetRole': 'admin',
+                            'targetUid':  '',
+                            'createdAt':  FieldValue.serverTimestamp(),
+                            'readBy':     <String, bool>{},
+                            'isRead':     false,
+                          });
+                        } catch (_) {} // non-fatal — main receive already succeeded
+
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(

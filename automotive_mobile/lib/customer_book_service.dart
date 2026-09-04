@@ -223,7 +223,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       final dateStr =
           '${_preferredDate!.year}-${_preferredDate!.month.toString().padLeft(2, '0')}-${_preferredDate!.day.toString().padLeft(2, '0')}';
 
-      // Create one booking per selected vehicle — always Approved
+      // Create one booking per selected vehicle ï¿½ always Approved
       for (final vehicle in selectedVehicles) {
         final plate = vehicle['plate'] as String? ?? '';
         final vehicleDesc = vehicle['desc'] as String? ?? '';
@@ -256,7 +256,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       final vehicleBreakdown = <String>[];
       for (final vehicle in selectedVehicles) {
         final vId = vehicle['id'] as String;
-        final plate = vehicle['plate'] as String? ?? '—';
+        final plate = vehicle['plate'] as String? ?? 'ï¿½';
         final vSvcIds = _vehicleServices[vId] ?? {};
         final vNames = _services
             .where((s) => vSvcIds.contains(s['id']))
@@ -287,7 +287,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       await _sendAlertToUsers(
         db: db,
         uids: adminUids,
-        title: '?? New Booking — $vLabel',
+        title: '?? New Booking ï¿½ $vLabel',
         message: bookingMsg,
         type: 'info',
         targetRole: 'admin',
@@ -297,7 +297,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       await _sendAlertToUsers(
         db: db,
         uids: staffUids,
-        title: '?? New Booking — $vLabel',
+        title: '?? New Booking ï¿½ $vLabel',
         message: bookingMsg,
         type: 'info',
         targetRole: 'staff',
@@ -312,7 +312,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         preferredDate: _fmtDatePretty(_preferredDate!),
         preferredTime: _preferredTime!,
         notes: _notes,
-      ); // fire-and-forget — don't await so UI isn't blocked
+      ); // fire-and-forget ï¿½ don't await so UI isn't blocked
 
       // -- Notify customer: in-app only --
       await db.collection('notifications').add({
@@ -400,7 +400,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     }
   }
 
-  /// Calls Flask /api/send-booking-email — server fetches admin/staff emails
+  /// Calls Flask /api/send-booking-email ï¿½ server fetches admin/staff emails
   /// from Firestore and sends a rich HTML booking notification email.
   Future<void> _sendBookingEmail({
     required String customerName,
@@ -415,7 +415,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     try {
       final vehiclePayload = selectedVehicles.map((v) {
         final vId = v['id'] as String;
-        final plate = v['plate'] as String? ?? '—';
+        final plate = v['plate'] as String? ?? 'ï¿½';
         final desc = v['desc'] as String? ?? '';
         final svcIds = vehicleServices[vId] ?? {};
         final svcNames = services
@@ -462,12 +462,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
               flexibleSpace: Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      Color(0xFF004B5F),
-                      Color(0xFF006B7D),
-                      Color(0xFFEE152A),
-                    ],
-                    stops: [0.0, 1.0],
+                    colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -508,7 +503,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                         (v) => v['id'] == vId,
                         orElse: () => <String, dynamic>{},
                       );
-                      final plate = vehicle['plate'] as String? ?? '—';
+                      final plate = vehicle['plate'] as String? ?? 'ï¿½';
                       final desc = vehicle['desc'] as String? ?? '';
                       final selectedSvcs = _vehicleServices[vId] ?? {};
                       final selectedNames = _services
@@ -793,33 +788,51 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                   // -- Submit --
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _submitting ? null : _submitBooking,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _red,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
                         ),
-                        elevation: 4,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF004B5F).withValues(alpha: 0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: _submitting
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
+                      child: ElevatedButton(
+                        onPressed: _submitting ? null : _submitBooking,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: _submitting
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Book Service',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
-                            )
-                          : const Text(
-                              'Book Service',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -853,7 +866,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                     )
                     .toList();
 
-          // Keyboard height — shrinks modal up so nothing overflows
+          // Keyboard height ï¿½ shrinks modal up so nothing overflows
           final keyboardH = MediaQuery.of(ctx).viewInsets.bottom;
           final screenH = MediaQuery.of(ctx).size.height;
 
@@ -989,7 +1002,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                       ],
                     ),
                   ),
-                  // -- Service list — Expanded fills remaining space --
+                  // -- Service list ï¿½ Expanded fills remaining space --
                   Expanded(
                     child: filtered.isEmpty
                         ? Center(
@@ -1201,11 +1214,11 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         bestSuggestion = earliestPmsDue.subtract(const Duration(days: 3));
         if (bestSuggestion!.isBefore(tomorrow)) bestSuggestion = tomorrow;
         reason =
-            'PMS due ${_fmtDatePretty(earliestPmsDue)} — book before it\'s overdue';
+            'PMS due ${_fmtDatePretty(earliestPmsDue)} ï¿½ book before it\'s overdue';
       } else {
-        // Overdue — suggest tomorrow
+        // Overdue ï¿½ suggest tomorrow
         bestSuggestion = tomorrow;
-        reason = 'PMS is overdue — book ASAP';
+        reason = 'PMS is overdue ï¿½ book ASAP';
       }
     }
 
@@ -1287,7 +1300,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                     ),
                   ),
                   Text(
-                    '${_fmtDatePretty(suggestedDate)} — $reason',
+                    '${_fmtDatePretty(suggestedDate)} ï¿½ $reason',
                     style: const TextStyle(
                       fontSize: 11,
                       color: Color(0xFF718096),
@@ -1654,7 +1667,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     final tooltip = isPast
         ? 'This time has already passed'
         : isTaken
-        ? 'Already booked — choose another time'
+        ? 'Already booked ï¿½ choose another time'
         : '';
 
     return GestureDetector(
@@ -1759,7 +1772,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    v['plate'] as String? ?? '—',
+                    v['plate'] as String? ?? 'ï¿½',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
@@ -1868,7 +1881,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
   }
 
   Widget _serviceTile(Map<String, dynamic> s) {
-    // Legacy — kept for compatibility but not used in new flow
+    // Legacy ï¿½ kept for compatibility but not used in new flow
     return _perVehicleServiceTile('', s);
   }
 }

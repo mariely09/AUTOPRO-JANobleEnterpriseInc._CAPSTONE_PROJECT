@@ -253,6 +253,76 @@
 <script src="../static/js/admin_functions.js?v=202607180001"></script>
 <script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
+
+<script>
+// ── Cache restore for DSS — runs after all scripts ──────────
+// Stock section needs inventory + issuances; PMS section needs vehicles.
+(function() {
+  try {
+    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+    if (!uid) return;
+
+    // ── Inventory restore ──
+    var invRaw = sessionStorage.getItem('inventoryCache_' + uid);
+    if (invRaw) {
+      var inv = JSON.parse(invRaw);
+      if (Array.isArray(inv) && inv.length && !window._fbInventoryLoaded) {
+        window.inventory = inv;
+        window._fbInventoryLoaded = true;
+        window._dssInventoryReady = true;
+      }
+    }
+
+    // ── Issuances restore ──
+    var issRaw = sessionStorage.getItem('issuancesCache_' + uid);
+    if (issRaw) {
+      var iss = JSON.parse(issRaw);
+      if (Array.isArray(iss) && iss.length && !window._fbIssuancesLoaded) {
+        window.issuances = iss;
+        window._fbIssuancesLoaded = true;
+        window._dssIssuancesReady = true;
+      }
+    }
+
+    // ── Vehicles restore ──
+    var vehRaw = sessionStorage.getItem('vehiclesCache_' + uid);
+    if (vehRaw) {
+      var vehs = JSON.parse(vehRaw);
+      if (Array.isArray(vehs) && vehs.length && !window._fbVehiclesLoaded) {
+        window.assets = vehs;
+        window._fbVehicles = vehs.map(function(a) {
+          return { _id: a.id, plate: a.plateNumber, plateNumber: a.plateNumber,
+                   desc: a.assetDescription, assetDescription: a.assetDescription,
+                   type: a.type, owner: a.owner, odometer: a.odometer,
+                   lastSvcDate: a.lastServiceDate, svcFreq: a.svcFreq,
+                   nextPMSDue: a.nextPMSDue, status: a.status };
+        });
+        window._fbVehiclesLoaded = true;
+        window._dssVehiclesReady = true;
+      }
+    }
+
+    // ── Trigger render if enough data is ready ──
+    var section = window._dssPendingSection || document.body.getAttribute('data-page') || 'dss';
+    var stockReady = window._dssInventoryReady && window._dssIssuancesReady;
+    var pmsReady   = window._dssVehiclesReady;
+    if ((section === 'dss-pms' && pmsReady) || (section !== 'dss-pms' && stockReady)) {
+      window._dssDataReady  = true;
+      window._fbDSSLoaded    = true;
+      window._fbDSSPMSLoaded = true;
+      // Defer one tick so render functions from admin.js are fully defined
+      setTimeout(function() {
+        if (section === 'dss-pms') {
+          if (typeof renderDSSPMS === 'function') renderDSSPMS();
+        } else {
+          if (typeof renderDSS === 'function') renderDSS();
+        }
+      }, 0);
+    }
+  } catch(e) {}
+})();
+</script>
+
 <script>
   function switchDSSSection(section) {
     document.body.setAttribute('data-page', section);

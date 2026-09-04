@@ -44,7 +44,7 @@
         .mb-header { margin-bottom:28px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
         .mb-header-left h2 { font-size:22px; font-weight:800; color:#1a202c; margin:0 0 4px; }
         .mb-header-left p  { font-size:13px; color:#718096; margin:0; }
-        .mb-book-btn { display:inline-flex; align-items:center; gap:6px; padding:10px 18px; background:#E8001C; color:white; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; text-decoration:none; transition:all .15s; box-shadow:0 3px 12px rgba(232,0,28,0.25); }
+        .mb-book-btn { display:inline-flex; align-items:center; gap:6px; padding:10px 18px; background:linear-gradient(135deg,#004B5F 0%,#EE152A 100%); color:white; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; text-decoration:none; transition:all .15s; box-shadow:0 3px 12px rgba(0,75,95,0.3); }
         .mb-book-btn:hover { opacity:.9; transform:translateY(-1px); }
 
         .mb-table-card { background:white; border-radius:14px; border:1px solid #e2e8f0; box-shadow:0 4px 16px rgba(0,0,0,0.08); overflow:hidden; }
@@ -252,10 +252,59 @@ function _formatDate(s) {
 }
 function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// aa?aa? Booking store aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?
+// ── Booking store ─────────────────────────────────────────────
 var _bookings = {};
 var _allDocs  = [];
 var _mbFilter = 'all';
+
+// ── Cache key for this user's bookings ────────────────────────
+var _MB_CACHE_KEY = 'mbBookingsCache_';
+
+// ── Restore from sessionStorage cache so data shows instantly ─
+// Called before the Firestore listener fires.
+function _mbRestoreCache(uid) {
+  try {
+    var raw = sessionStorage.getItem(_MB_CACHE_KEY + uid);
+    if (!raw) return false;
+    var cached = JSON.parse(raw);
+    if (!cached || !cached.length) return false;
+    // Build _allDocs as plain objects with a .data() shim
+    _allDocs = cached.map(function(item) {
+      return { id: item.id, _d: item.data, data: function(){ return this._d; } };
+    });
+    _allDocs.forEach(function(doc) { _bookings[doc.id] = doc.data(); });
+    // Rebuild stat counts from cache
+    var cntApproved = 0, cntResched = 0, cntCancelled = 0;
+    _allDocs.forEach(function(doc) {
+      var d = doc.data();
+      var status = (d.status || '').toLowerCase();
+      var isResched = d.previousDate && d.previousDate !== d.preferredDate;
+      if (status === 'cancelled') cntCancelled++;
+      else if (status === 'approved' && isResched) cntResched++;
+      else if (status === 'approved') cntApproved++;
+    });
+    function _s(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
+    _s('mbCntApproved', cntApproved);
+    _s('mbCntRescheduled', cntResched);
+    _s('mbCntCancelled', cntCancelled);
+    var statsEl = document.getElementById('mbStats');
+    if (statsEl) statsEl.style.display = _allDocs.length > 0 ? 'grid' : 'none';
+    var tabBar = document.getElementById('mbTabBar');
+    if (tabBar) tabBar.style.display = 'flex';
+    _mbRender();
+    return true;
+  } catch(e) { return false; }
+}
+
+// ── Persist snapshot to sessionStorage ───────────────────────
+function _mbSaveCache(uid, docs) {
+  try {
+    var toSave = docs.map(function(doc) {
+      return { id: doc.id, data: doc.data() };
+    });
+    sessionStorage.setItem(_MB_CACHE_KEY + uid, JSON.stringify(toSave));
+  } catch(e) {}
+}
 
 // ── Pagination state ──────────────────────────────────────────
 var _mbPage = 1;
@@ -508,18 +557,104 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') mbCloseModal();
 });
 
-// aa?aa? Load bookings (real-time) aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?aa?
+// ── Auto-cancel expired bookings ─────────────────────────────────────────
+// Runs on each snapshot. Cancels Approved/Pending bookings that were never
+// started (status never moved to 'Under Maintenance') when:
+//   • preferredDate is before today, OR
+//   • preferredDate is today AND current time is past 5:00 PM
+// Notifies the customer, admin, and staff for each auto-cancel.
+function _mbAutoCancelExpired(docs, db) {
+  var now         = new Date();
+  var currentHour = now.getHours(); // 17 = 5 PM
+  var todayKey    = now.getFullYear() + '-'
+    + String(now.getMonth() + 1).padStart(2, '0') + '-'
+    + String(now.getDate()).padStart(2, '0');
+
+  docs.forEach(function(doc) {
+    var d      = doc.data();
+    var status = (d.status || '').toLowerCase();
+    if (status !== 'approved' && status !== 'pending') return;
+    if (!d.preferredDate) return;
+
+    var isPastDate = d.preferredDate < todayKey;
+    var isToday    = d.preferredDate === todayKey;
+    var isPast5PM  = isToday && currentHour >= 17;
+
+    if (!isPastDate && !isPast5PM) return;
+
+    var cancelReason = isPastDate
+      ? 'No-show / Service date passed'
+      : 'No-show / Service not started by 5:00 PM';
+
+    db.collection('service_bookings').doc(doc.id).update({
+      status: 'Cancelled',
+      cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
+      cancelledBy: 'system',
+      cancellationReason: cancelReason,
+    }).then(function() {
+      var plate     = d.plate || '';
+      var dateLabel = _formatDate(d.preferredDate);
+      var timeLabel = d.preferredTime ? ' at ' + d.preferredTime : '';
+      var custName  = d.customerName || 'Customer';
+
+      // ── Notify customer ──
+      if (d.customerId) {
+        db.collection('notifications').add({
+          title: '❌ Booking Auto-Cancelled',
+          message: 'Your booking for ' + plate + ' on ' + dateLabel + timeLabel
+            + ' was automatically cancelled because the service was not started by 5:00 PM.',
+          type: 'warning',
+          targetRole: '', targetUid: d.customerId,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          readBy: {}, isRead: false,
+        });
+      }
+
+      var adminStaffMsg = custName + '\'s booking for ' + plate + ' on ' + dateLabel
+        + timeLabel + ' was auto-cancelled (no-show / not started by 5:00 PM).';
+
+      // ── Notify admin ──
+      db.collection('notifications').add({
+        title: '🔔 Booking Auto-Cancelled',
+        message: adminStaffMsg,
+        type: 'warning',
+        targetRole: 'admin', targetUid: '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        readBy: {}, isRead: false,
+      });
+
+      // ── Notify staff ──
+      db.collection('notifications').add({
+        title: '🔔 Booking Auto-Cancelled',
+        message: adminStaffMsg,
+        type: 'warning',
+        targetRole: 'staff', targetUid: '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        readBy: {}, isRead: false,
+      });
+    }).catch(function() {}); // silent — Firestore will retry on next snapshot
+  });
+}
+
+// ── Load bookings (real-time) ──
 var _unsubscribe = null;
 
 firebase.auth().onAuthStateChanged(function(user) {
   if (!user) { window.location.href = 'login.html'; return; }
 
+  var db = firebase.firestore();
+
+  // ── Show cached data instantly while Firestore fetches ──
+  _mbRestoreCache(user.uid);
+
   if (_unsubscribe) _unsubscribe();
-  _unsubscribe = firebase.firestore()
+  _unsubscribe = db
     .collection('service_bookings')
     .where('customerId', '==', user.uid)
     .onSnapshot(function(snap) {
-      // Keep all (including cancelled) aa? filter client-side
+      // ── Auto-cancel any expired bookings first ──
+      _mbAutoCancelExpired(snap.docs, db);
+      // Keep all (including cancelled) — filter client-side
       _allDocs = snap.docs.filter(function(doc) {
         var st = (doc.data().status || '').toLowerCase();
         return st !== 'under maintenance' && st !== 'completed';
@@ -528,6 +663,9 @@ firebase.auth().onAuthStateChanged(function(user) {
         var bt = b.data().createdAt ? b.data().createdAt.toMillis() : 0;
         return bt - at;
       });
+
+      // ── Persist for instant restore on next visit ──
+      _mbSaveCache(user.uid, _allDocs);
 
       // Rebuild _bookings cache
       _allDocs.forEach(function(doc) { _bookings[doc.id] = doc.data(); });
@@ -639,6 +777,9 @@ window.mbCancelBooking = function(docId, plate) {
     if (reason) updateData.cancellationReason = reason;
     db.collection('service_bookings').doc(docId).update(updateData)
       .then(function() {
+        // Invalidate cache so the cancelled status shows instantly on next load
+        var u = firebase.auth().currentUser;
+        if (u) sessionStorage.removeItem(_MB_CACHE_KEY + u.uid);
         var d = _bookings[docId] || {};
         var cancelMsg = (d.customerName || 'Customer') + ' cancelled their booking for ' + plate + ' on ' + _formatDate(d.preferredDate || '') + '.'
           + (reason ? ' Reason: ' + reason : '');

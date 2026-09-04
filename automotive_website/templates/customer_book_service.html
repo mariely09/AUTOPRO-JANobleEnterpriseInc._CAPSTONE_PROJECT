@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -15,7 +15,7 @@
         .bs-header h2 { font-size:22px; font-weight:800; color:#1a202c; margin:0 0 4px; }
         .bs-header p { font-size:13px; color:#718096; margin:0; }
         .bs-grid { display:grid; grid-template-columns:1fr 1fr; gap:32px; }
-        .bs-col { }
+        .bs-col { display:flex; flex-direction:column; }
         .bs-section-title { font-size:12px; font-weight:700; color:#4a5568; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; }
         .bs-card { background:white; border-radius:14px; border:1.5px solid #e2e8f0; padding:14px 16px; margin-bottom:10px; cursor:pointer; transition:all .15s; display:flex; align-items:center; gap:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
         .bs-card:hover { border-color:#cbd5e0; box-shadow:0 4px 14px rgba(0,0,0,0.10); }
@@ -32,7 +32,7 @@
         .bs-date-btn.has-value { color:#1a202c; font-weight:600; border-color:#E8001C; }
         .bs-notes { width:100%; padding:14px; border:1.5px solid #e2e8f0; border-radius:14px; font-size:13px; font-family:inherit; color:#1a202c; background:white; resize:vertical; outline:none; transition:border-color .15s; min-height:80px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
         .bs-notes:focus { border-color:#E8001C; }
-        .bs-submit { width:100%; padding:16px; background:#E8001C; color:white; border:none; border-radius:14px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 4px 16px rgba(232,0,28,0.3); transition:all .15s; }
+        .bs-submit { width:100%; padding:16px; background:linear-gradient(135deg,#004B5F 0%,#EE152A 100%); color:white; border:none; border-radius:14px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 4px 16px rgba(0,75,95,0.3); transition:all .15s; }
         .bs-submit:hover { opacity:.9; transform:translateY(-1px); }
         .bs-submit:disabled { opacity:.5; cursor:not-allowed; transform:none; }
         .bs-empty { text-align:center; padding:28px; color:#718096; font-size:13px; background:white; border-radius:14px; border:1.5px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
@@ -119,6 +119,10 @@
 
 <main class="cu-main">
   <div class="bs-page">
+    <a href="customer_my_bookings.html" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#718096;text-decoration:none;margin-bottom:16px;transition:color .2s;" onmouseover="this.style.color='#E8001C'" onmouseout="this.style.color='#718096'">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to My Bookings
+    </a>
     <div class="bs-grid">
       <!-- Left column: Vehicle + Services per vehicle + Date + Notes -->
       <div class="bs-col">
@@ -303,6 +307,31 @@ function _updateSummaryCard() {
 // Load data
 firebase.auth().onAuthStateChanged(function(user){
   if (!user) { window.location.href = 'login.html'; return; }
+
+  // ── Cache restore — show vehicles instantly before Firestore loads ──
+  (function() {
+    try {
+      var uid = user.uid || '';
+      if (!uid) return;
+      var rawV = sessionStorage.getItem('bsVehiclesCache_' + uid);
+      var rawS = sessionStorage.getItem('bsServicesCache_' + uid);
+      if (rawV) {
+        var cached = JSON.parse(rawV);
+        if (Array.isArray(cached) && cached.length && !_bsVehicles.length) {
+          _bsVehicles = cached;
+          _renderVehicles();
+        }
+      }
+      if (rawS) {
+        var cachedSvc = JSON.parse(rawS);
+        if (Array.isArray(cachedSvc) && cachedSvc.length && !_bsServices.length) {
+          _bsServices = cachedSvc;
+          _renderServices();
+        }
+      }
+    } catch(e) {}
+  })();
+
   _loadBookingData(user);
 });
 
@@ -331,6 +360,15 @@ async function _loadBookingData(user) {
   _bsServices = iSnap.docs
     .map(function(d){ return Object.assign({id:d.id}, d.data()); })
     .filter(function(i){ return (i.type||i.itemType||'').toLowerCase() === 'service'; });
+
+  // ── Save to cache for instant restore on next visit ──
+  try {
+    var _bsUid = user.uid || '';
+    if (_bsUid) {
+      sessionStorage.setItem('bsVehiclesCache_' + _bsUid, JSON.stringify(_bsVehicles.slice(0, 200)));
+      sessionStorage.setItem('bsServicesCache_' + _bsUid, JSON.stringify(_bsServices.slice(0, 200)));
+    }
+  } catch(e) {}
 
   // Auto-select vehicle from URL param (e.g. ?vehicleId=xxx)
   var urlParams = new URLSearchParams(window.location.search);

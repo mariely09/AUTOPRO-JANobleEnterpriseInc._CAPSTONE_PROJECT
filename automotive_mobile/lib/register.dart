@@ -62,8 +62,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    if (password.length < 6) {
-      _showError('Password must be at least 6 characters.');
+    if (password.length < 8) {
+      _showError('Password must be at least 8 characters.');
+      return;
+    }
+
+    final _hasSpecial = RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]');
+    if (!_hasSpecial.hasMatch(password)) {
+      _showError('Password must contain at least one special character (e.g. @, #, !, \$).');
       return;
     }
 
@@ -80,7 +86,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Update display name
       await cred.user!.updateDisplayName('$firstName $lastName');
 
-      // Save user document to Firestore — status 'pending' until admin approves
+      // Save user document to Firestore ï¿½ status 'pending' until admin approves
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'uid': uid,
         'firstName': firstName,
@@ -105,7 +111,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
 
       if (!mounted) return;
-      // Sign out — they need to login with their new credentials
+      // Sign out ï¿½ they need to login with their new credentials
       await FirebaseAuth.instance.signOut();
 
       // Show success and go back to login
@@ -122,7 +128,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final msg = switch (e.code) {
         'email-already-in-use' => 'An account with this email already exists.',
         'invalid-email' => 'Please enter a valid email address.',
-        'weak-password' => 'Password is too weak. Use at least 6 characters.',
+        'weak-password' => 'Password is too weak. Use at least 8 characters with a special character.',
         _ => e.message ?? 'Registration failed.',
       };
       _showError(msg);

@@ -108,6 +108,10 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
   List<String> groups = [];
   List<String> uomList = [];
 
+  // ── Issuance stats: itemNum → { avgMonthly, lastMonth } ──
+  Map<String, _IssuanceStats> _issuanceStats = {};
+  bool _statsLoaded = false;
+
   CollectionReference get _db => FirebaseFirestore.instance.collection(_col);
 
   @override
@@ -115,6 +119,7 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     super.initState();
     _loadGroups();
     _loadUoms();
+    _loadIssuanceStats();
   }
 
   Future<void> _loadGroups() async {
@@ -139,6 +144,87 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     } catch (_) {
       if (mounted) setState(() => uomList = ['pcs', 'L', 'set', 'job', 'kg', 'box', 'pair', 'm']);
     }
+  }
+
+  // ── Compute avg monthly issuance + last month issuance per itemNum ─────────
+  // avgMonthly = total qty ÷ months from first issuance to current month (inclusive)
+  // lastMonth  = total qty issued in the previous calendar month
+  Future<void> _loadIssuanceStats() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('issuances').get();
+
+      final now = DateTime.now();
+      final nowYear  = now.year;
+      final nowMonth = now.month; // 1-indexed
+
+      // Previous calendar month (for lastMonth)
+      final prevDate = DateTime(nowYear, nowMonth - 1, 1);
+      final prevKey  = '${prevDate.year}-${prevDate.month.toString().padLeft(2, '0')}';
+
+      // monthKey → qty per itemNum
+      final buckets   = <String, Map<String, double>>{};
+      final firstKeys = <String, String>{};
+
+      for (final doc in snap.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final num  = (data['itemNum'] as String? ?? '').trim();
+        if (num.isEmpty) continue;
+        final qty  = double.tryParse(data['qty']?.toString() ?? '0') ?? 0;
+        if (qty <= 0) continue;
+        final dateStr = data['date'] as String? ?? '';
+        final ym = _parseYearMonth(dateStr);
+        if (ym == null) continue;
+        final key = '${ym.$1}-${ym.$2.toString().padLeft(2, '0')}';
+        buckets.putIfAbsent(num, () => {});
+        buckets[num]![key] = (buckets[num]![key] ?? 0) + qty;
+        if (!firstKeys.containsKey(num) || key.compareTo(firstKeys[num]!) < 0) {
+          firstKeys[num] = key;
+        }
+      }
+
+      final stats = <String, _IssuanceStats>{};
+      buckets.forEach((num, monthMap) {
+        final totalQty = monthMap.values.fold(0.0, (s, v) => s + v);
+
+        // Span: first issuance month → current month (inclusive)
+        final fk = firstKeys[num]!.split('-');
+        final firstYear  = int.parse(fk[0]);
+        final firstMonth = int.parse(fk[1]); // 1-indexed
+        var span = (nowYear - firstYear) * 12 + (nowMonth - firstMonth) + 1;
+        if (span < 1) span = 1;
+
+        final avgMonthly = (totalQty / span * 10).roundToDouble() / 10;
+        final lastMonth  = monthMap[prevKey] ?? 0.0;
+
+        stats[num] = _IssuanceStats(avgMonthly: avgMonthly, lastMonth: lastMonth);
+      });
+
+      if (mounted) setState(() { _issuanceStats = stats; _statsLoaded = true; });
+    } catch (_) {
+      if (mounted) setState(() => _statsLoaded = true);
+    }
+  }
+
+  // Returns (year, month 1-indexed) from common date string formats
+  (int, int)? _parseYearMonth(String s) {
+    if (s.isEmpty) return null;
+    // "May 7, 2026" / "May 7 2026"
+    final m1 = RegExp(r'^([A-Za-z]{3,})\s+\d+,?\s+(\d{4})').firstMatch(s);
+    if (m1 != null) {
+      const mo = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+      final idx = mo.indexOf(m1.group(1)!.substring(0,3).toLowerCase());
+      if (idx >= 0) return (int.parse(m1.group(2)!), idx + 1);
+    }
+    // "1/7/2026"
+    final m2 = RegExp(r'^(\d{1,2})/\d{1,2}/(\d{4})').firstMatch(s);
+    if (m2 != null) return (int.parse(m2.group(2)!), int.parse(m2.group(1)!));
+    // "2026-05-07"
+    final m3 = RegExp(r'^(\d{4})-(\d{2})-\d{2}').firstMatch(s);
+    if (m3 != null) return (int.parse(m3.group(1)!), int.parse(m3.group(2)!));
+    final dt = DateTime.tryParse(s);
+    if (dt != null) return (dt.year, dt.month);
+    return null;
   }
 
   // Cache domains so they're only fetched once
@@ -339,6 +425,9 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
     final isSvc = item['type'] == 'Service';
     final typeColor = isSvc ? const Color(0xFF003087) : _red;
     final typeBg    = isSvc ? const Color(0xFFebf8ff) : const Color(0xFFFFF5F5);
+    final stats     = _issuanceStats[item['num'] ?? ''];
+    final avgM      = stats?.avgMonthly ?? 0.0;
+    final lastM     = stats?.lastMonth  ?? 0.0;
 
     return GestureDetector(
       onTap: () => _showItemDetails(item),
@@ -370,6 +459,15 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                 Text(item['supplierCode']!, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
               ],
             ]),
+            // ── Issuance stats row ──
+            if (_statsLoaded && (avgM > 0 || lastM > 0)) ...[
+              const SizedBox(height: 6),
+              Row(children: [
+                _issStatBadge('Avg/mo', avgM > 0 ? _fmtQty(avgM) : '—', const Color(0xFF003087)),
+                const SizedBox(width: 6),
+                _issStatBadge('Last mo', lastM > 0 ? _fmtQty(lastM) : '—', const Color(0xFF718096)),
+              ]),
+            ],
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(_fmtCost(item['cost']!),
@@ -380,6 +478,24 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
         ]),
       ),
     );
+  }
+
+  Widget _issStatBadge(String label, String value, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Text(label, style: TextStyle(fontSize: 9, color: color.withValues(alpha: 0.8), fontWeight: FontWeight.w600)),
+      const SizedBox(width: 4),
+      Text(value, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
+    ]),
+  );
+
+  String _fmtQty(double v) {
+    if (v == v.truncateToDouble()) return v.toInt().toString();
+    return v.toStringAsFixed(1);
   }
 
   void _showItemDetails(Map<String, String> item) {
@@ -422,6 +538,31 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
                 _detailRow('UOM', item['uom']?.isNotEmpty == true ? item['uom']! : '—'),
                 _detailRow('Cost', _fmtCost(item['cost'] ?? '')),
                 _detailRow('Type', item['type'] ?? '—'),
+                // ── Issuance stats ──
+                Builder(builder: (_) {
+                  final stats  = _issuanceStats[item['num'] ?? ''];
+                  final avgM   = stats?.avgMonthly ?? 0.0;
+                  final lastM  = stats?.lastMonth  ?? 0.0;
+                  if (!_statsLoaded) return const SizedBox.shrink();
+                  return Column(children: [
+                    const Divider(height: 20),
+                    Row(children: [
+                      Expanded(child: _issStatCard(
+                        'Avg Monthly Issuance',
+                        avgM > 0 ? _fmtQty(avgM) : '—',
+                        Icons.trending_up_outlined,
+                        const Color(0xFF003087),
+                      )),
+                      const SizedBox(width: 10),
+                      Expanded(child: _issStatCard(
+                        'Last Month Issuance',
+                        lastM > 0 ? _fmtQty(lastM) : '—',
+                        Icons.calendar_month_outlined,
+                        const Color(0xFF718096),
+                      )),
+                    ]),
+                  ]);
+                }),
                 const SizedBox(height: 16),
                 // Barcode + QR buttons (Material only, and only when supplierCode exists)
                 if (!isSvc && (item['supplierCode'] ?? '').trim().isNotEmpty) ...[
@@ -613,6 +754,26 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SizedBox(width: 130, child: Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF718096), fontWeight: FontWeight.w500))),
         Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1a202c)))),
+      ]),
+    );
+  }
+
+  Widget _issStatCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Expanded(child: Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600))),
+        ]),
+        const SizedBox(height: 6),
+        Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color)),
       ]),
     );
   }
@@ -1195,4 +1356,11 @@ class AdminInventoryItemMasterBodyState extends State<AdminInventoryItemMasterBo
       ),
     );
   }
+}
+
+// ── Issuance stats model ─────────────────────────────────────────────────────
+class _IssuanceStats {
+  final double avgMonthly; // total qty ÷ months from first issuance to now
+  final double lastMonth;  // qty issued in the previous calendar month
+  const _IssuanceStats({required this.avgMonthly, required this.lastMonth});
 }

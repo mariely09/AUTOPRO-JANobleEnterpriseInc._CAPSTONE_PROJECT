@@ -3,6 +3,112 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'customer_book_service.dart';
 
+// ── Auto-cancel helper ───────────────────────────────────────────────────────
+// Runs once per snapshot. Cancels any Approved/Pending booking that was never
+// started (status still not 'Under Maintenance') when:
+//   • preferredDate is before today, OR
+//   • preferredDate is today AND current time is past 5:00 PM
+// Writes three notifications: customer, admin (targetRole), staff (targetRole).
+Future<void> _autoCancelExpiredBookings(List<QueryDocumentSnapshot> docs) async {
+  final db      = FirebaseFirestore.instance;
+  final now     = DateTime.now();
+  final todayKey = '${now.year}-${now.month.toString().padLeft(2,'0')}-${now.day.toString().padLeft(2,'0')}';
+  final isPast5PM = now.hour >= 17;
+
+  for (final doc in docs) {
+    final d      = doc.data() as Map<String, dynamic>;
+    final status = (d['status'] as String? ?? '').toLowerCase();
+    if (status != 'approved' && status != 'pending') continue;
+
+    final prefDate = d['preferredDate'] as String? ?? '';
+    if (prefDate.isEmpty) continue;
+
+    final isPastDate = prefDate.compareTo(todayKey) < 0;
+    final isToday    = prefDate == todayKey;
+
+    if (!isPastDate && !(isToday && isPast5PM)) continue;
+
+    final cancelReason = isPastDate
+        ? 'No-show / Service date passed'
+        : 'No-show / Service not started by 5:00 PM';
+
+    try {
+      await db.collection('service_bookings').doc(doc.id).update({
+        'status':             'Cancelled',
+        'cancelledAt':        FieldValue.serverTimestamp(),
+        'cancelledBy':        'system',
+        'cancellationReason': cancelReason,
+      });
+
+      final plate      = d['plate']         as String? ?? '';
+      final custName   = d['customerName']  as String? ?? 'Customer';
+      final customerId = d['customerId']    as String? ?? '';
+      final timeLabel  = (d['preferredTime'] as String? ?? '').isNotEmpty
+          ? ' at ${d['preferredTime']}'
+          : '';
+
+      // Format date for display (YYYY-MM-DD → "Mon DD, YYYY")
+      final parts = prefDate.split('-');
+      const monthsShort = [
+        'Jan','Feb','Mar','Apr','May','Jun',
+        'Jul','Aug','Sep','Oct','Nov','Dec'
+      ];
+      final dateLabel = parts.length == 3
+          ? '${monthsShort[int.parse(parts[1]) - 1]} ${int.parse(parts[2])}, ${parts[0]}'
+          : prefDate;
+
+      final customerMsg = 'Your booking for $plate on $dateLabel$timeLabel '
+          'was automatically cancelled because the service was not started by 5:00 PM.';
+      final adminStaffMsg = "$custName's booking for $plate on $dateLabel$timeLabel "
+          'was auto-cancelled (no-show / not started by 5:00 PM).';
+
+      final batch = db.batch();
+
+      // ── Notify customer ──
+      if (customerId.isNotEmpty) {
+        batch.set(db.collection('notifications').doc(), {
+          'title':      '❌ Booking Auto-Cancelled',
+          'message':    customerMsg,
+          'type':       'warning',
+          'targetRole': '',
+          'targetUid':  customerId,
+          'createdAt':  FieldValue.serverTimestamp(),
+          'readBy':     <String, bool>{},
+          'isRead':     false,
+        });
+      }
+
+      // ── Notify admin ──
+      batch.set(db.collection('notifications').doc(), {
+        'title':      '🔔 Booking Auto-Cancelled',
+        'message':    adminStaffMsg,
+        'type':       'warning',
+        'targetRole': 'admin',
+        'targetUid':  '',
+        'createdAt':  FieldValue.serverTimestamp(),
+        'readBy':     <String, bool>{},
+        'isRead':     false,
+      });
+
+      // ── Notify staff ──
+      batch.set(db.collection('notifications').doc(), {
+        'title':      '🔔 Booking Auto-Cancelled',
+        'message':    adminStaffMsg,
+        'type':       'warning',
+        'targetRole': 'staff',
+        'targetUid':  '',
+        'createdAt':  FieldValue.serverTimestamp(),
+        'readBy':     <String, bool>{},
+        'isRead':     false,
+      });
+
+      await batch.commit();
+    } catch (_) {
+      // Silent — Firestore will retry on the next snapshot
+    }
+  }
+}
+
 class CustomerMyBookings extends StatefulWidget {
   final bool embedded;
   const CustomerMyBookings({super.key, this.embedded = false});
@@ -969,18 +1075,29 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
                 borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF004B5F).withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.add, color: Color(0xFFE8001C), size: 16),
+                  Icon(Icons.add, color: Colors.white, size: 16),
                   SizedBox(width: 4),
                   Text(
                     'Book Service',
                     style: TextStyle(
-                      color: Color(0xFFE8001C),
+                      color: Colors.white,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1087,6 +1204,11 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
                 if (bTime == null) return -1;
                 return bTime.compareTo(aTime);
               });
+
+              // ── Auto-cancel expired bookings ──
+              // Fire-and-forget: runs on every snapshot so it catches
+              // bookings that expire while the app is open.
+              _autoCancelExpiredBookings(snapshot.data!.docs);
 
               // Count per status for stat chips
               int countApproved = 0, countRescheduled = 0, countCancelled = 0;

@@ -594,5 +594,32 @@ function exportIssuancesExcel() {
 }
 </script>
 
+
+<script>
+// Cache restore — runs after all scripts so render fn is defined
+(function() {
+  try {
+    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+    if (!uid) return;
+    var raw = sessionStorage.getItem('issuancesCache_' + uid);
+    if (!raw) return;
+    var items = JSON.parse(raw);
+    if (!Array.isArray(items) || !items.length) return;
+    // Only restore if Firestore hasn't already loaded
+    if (window._fbIssuances && (window.issuances || []).length) return;
+
+    window.issuances = items;
+    window._fbIssuances = items.map(function(i) {
+      return { _id: i.id, date: i.date, plate: i.plate, assetNum: i.assetNum,
+               itemNum: i.itemNum, itemName: i.itemName, itemType: i.itemType,
+               commodityGroup: i.commodityGroup, uom: i.uom,
+               qty: i.quantity, unitCost: i.unitCost, subtotal: i.subtotal,
+               createdBy: i.createdBy };
+    });
+    if (typeof renderIssuancesList === 'function') renderIssuancesList();
+  } catch(e) {}
+})();
+</script>
+
 </body>
 </html>

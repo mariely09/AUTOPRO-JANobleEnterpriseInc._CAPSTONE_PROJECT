@@ -248,7 +248,7 @@ function renderAssetsList() {
     if (!window._fbVehiclesLoaded && assetsList.innerHTML.indexOf('Loading') !== -1) return;
 
     if (assets.length === 0) {
-        assetsList.innerHTML = '<div class="table-row" style="text-align:center;color:#718096;padding:2rem;">No vehicles found.</div>';
+        assetsList.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#718096;padding:2rem;">No vehicles found.</td></tr>';
         return;
     }
 
@@ -298,7 +298,7 @@ function renderAssetsList() {
     }
 
     if (filtered.length === 0) {
-        assetsList.innerHTML = '<div class="table-row" style="text-align:center;color:#718096;padding:2rem;">No vehicles found.</div>';
+        assetsList.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#718096;padding:2rem;">No vehicles found.</td></tr>';
         return;
     }
 
@@ -343,30 +343,38 @@ function renderAssetsList() {
         }
     });
 
+    var tdStyle = 'padding:0.75rem 1rem;font-size:0.85rem;color:#1a202c;border-bottom:1px solid #f0f4f8;vertical-align:middle;';
     var rows = filtered.map(function(asset) {
-        // KM Since Last Service = currentOdometer - lastSvcOdo
-        var kmSince = '—';
-        var lastOdo = parseInt(String(asset.lastSvcOdo || asset.lastServiceOdometer || '').replace(/[^0-9]/g, '')) || 0;
-        if (asset.odometer > 0 && lastOdo > 0 && asset.odometer >= lastOdo) {
-            var diff = asset.odometer - lastOdo;
-            var color = diff >= 5000 ? '#e53e3e' : diff >= 3000 ? '#d69e2e' : '#38a169';
-            kmSince = '<span style="font-weight:700;color:' + color + ';">' + diff.toLocaleString() + ' km</span>';
-        }
-        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr 120px;">'
-            + '<div>' + asset.plateNumber + '</div>'
-            + '<div>' + (asset.type||'-') + '</div>'
-            + '<div>' + (asset.owner||'-') + '</div>'
-            + '<div>' + (asset.odometer ? asset.odometer.toLocaleString() + ' km' : '-') + '</div>'
-            + '<div>' + kmSince + '</div>'
-            + '<div>' + (asset.lastServiceDate ? new Date(asset.lastServiceDate + 'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '-') + '</div>'
-            + '<div>' + (asset.nextPMSDue ? new Date(asset.nextPMSDue + 'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '-') + '</div>'
-            + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;">'
-            +   '<button class="btn-small btn-primary" onclick="viewAssetDetails(\'' + asset.assetNum + '\')" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>'
-            +   '<button class="btn-small btn-secondary" onclick="editAsset(\'' + asset.assetNum + '\')" title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
-            +   '<button class="btn-small btn-danger" onclick="deleteAsset(\'' + asset.assetNum + '\')" title="Archive" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>'
-            + '</div></div>';
+        return '<tr>'
+            + '<td style="' + tdStyle + 'font-weight:600;">' + (asset.plateNumber||'-') + '</td>'
+            + '<td style="' + tdStyle + '">' + (asset.type||'-') + '</td>'
+            + '<td style="' + tdStyle + '">' + (asset.owner||'-') + '</td>'
+            + '<td style="' + tdStyle + '">' + (asset.odometer ? asset.odometer.toLocaleString() + ' km' : '-') + '</td>'
+            + '<td style="' + tdStyle + '">' + (asset.lastServiceDate ? new Date(asset.lastServiceDate + 'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '-') + '</td>'
+            + '<td style="' + tdStyle + '">' + (asset.nextPMSDue ? new Date(asset.nextPMSDue + 'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '-') + '</td>'
+            + '<td style="' + tdStyle + 'text-align:center;width:120px;">'
+            +   '<div style="display:flex;gap:0.25rem;justify-content:center;align-items:center;">'
+            +     '<button class="btn-small btn-primary" onclick="viewAssetDetails(\'' + asset.assetNum + '\')" title="View" style="display:flex;align-items:center;justify-content:center;padding:0.3rem 0.5rem;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>'
+            +     '<button class="btn-small btn-secondary" onclick="editAsset(\'' + asset.assetNum + '\')" title="Edit" style="display:flex;align-items:center;justify-content:center;padding:0.3rem 0.5rem;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
+            +     '<button class="btn-small btn-danger" onclick="deleteAsset(\'' + asset.assetNum + '\')" title="Archive" style="display:flex;align-items:center;justify-content:center;padding:0.3rem 0.5rem;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>'
+            +   '</div>'
+            + '</td></tr>';
     });
     apRenderPaged('assetsList', rows, 10, 'renderAssetsList');
+    // Move pagination outside tbody into the .data-table wrapper
+    var tbody = document.getElementById('assetsList');
+    if (tbody) {
+        var pagination = tbody.querySelector('.ap-pagination');
+        if (pagination) {
+            tbody.removeChild(pagination);
+            var tableWrapper = tbody.closest('.data-table');
+            if (tableWrapper) {
+                var existing = tableWrapper.querySelector('.ap-pagination');
+                if (existing) existing.remove();
+                tableWrapper.appendChild(pagination);
+            }
+        }
+    }
 }
 
 function openAssetPlateScanModal() {
@@ -1792,26 +1800,50 @@ function renderItemMasterList() {
     });
 
     if (filtered.length === 0) {
-        list.innerHTML = '<div class="table-row" style="text-align:center;color:#718096;padding:2rem;">No items found.</div>';
+        var listEl = document.getElementById('itemMasterList');
+        if (listEl) listEl.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#718096;padding:2rem;font-size:13px;">No items found.</td></tr>';
         return;
     }
 
     var rows = filtered.map(function(item) {
-        return '<div class="table-row" style="grid-template-columns:1fr 1fr 1.5fr 0.7fr 1fr 0.8fr 0.7fr 110px;min-width:900px;">'
-            + '<div><strong>' + item.itemNum + '</strong></div>'
-            + '<div>' + (item.supplierCode || '—') + '</div>'
-            + '<div>' + item.itemName + '</div>'
-            + '<div>' + (item.uom||'-') + '</div>'
-            + '<div>' + (item.commodityGroup||'-') + '</div>'
-            + '<div><span style="display:inline-block;background:'+(item.itemType==='Service'?'rgba(0,51,160,0.07)':'rgba(229,62,62,0.07)')+';color:'+(item.itemType==='Service'?'#0033A0':'#e53e3e')+';border:1.5px solid '+(item.itemType==='Service'?'#0033A0':'#e53e3e')+';padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">' + (item.itemType||'-') + '</span></div>'
-            + '<div>₱' + (parseFloat(String(item.cost||0).replace(/[₱,]/g,''))||0).toLocaleString('en-PH',{minimumFractionDigits:2}) + '</div>'
-            + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;">'
+        var avg  = item.avgMonthlyIssuance != null ? item.avgMonthlyIssuance : 0;
+        var last = item.lastMonthIssuance  != null ? item.lastMonthIssuance  : 0;
+        var avgDisplay  = avg  > 0 ? avg  : '—';
+        var lastDisplay = last > 0 ? last : '—';
+        var tdStyle = 'padding:0.75rem 1rem;border-bottom:1px solid #f0f4f8;vertical-align:middle;font-size:0.88rem;color:#1a202c;';
+        return '<tr style="transition:background .12s;" onmouseover="this.style.background=\'#fff5f5\'" onmouseout="this.style.background=\'\'">'
+            + '<td style="' + tdStyle + '"><strong>' + item.itemNum + '</strong></td>'
+            + '<td style="' + tdStyle + '">' + (item.supplierCode || '—') + '</td>'
+            + '<td style="' + tdStyle + '">' + item.itemName + '</td>'
+            + '<td style="' + tdStyle + '">' + (item.uom||'-') + '</td>'
+            + '<td style="' + tdStyle + '">' + (item.commodityGroup||'-') + '</td>'
+            + '<td style="' + tdStyle + '"><span style="display:inline-block;background:'+(item.itemType==='Service'?'rgba(0,51,160,0.07)':'rgba(229,62,62,0.07)')+';color:'+(item.itemType==='Service'?'#0033A0':'#e53e3e')+';border:1.5px solid '+(item.itemType==='Service'?'#0033A0':'#e53e3e')+';padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">' + (item.itemType||'-') + '</span></td>'
+            + '<td style="' + tdStyle + '">₱' + (parseFloat(String(item.cost||0).replace(/[₱,]/g,''))||0).toLocaleString('en-PH',{minimumFractionDigits:2}) + '</td>'
+            + '<td style="' + tdStyle + 'text-align:center;font-weight:600;color:'+(avg>0?'#003087':'#a0aec0')+';">' + avgDisplay + '</td>'
+            + '<td style="' + tdStyle + 'text-align:center;font-weight:600;color:'+(last>0?'#1a202c':'#a0aec0')+';">' + lastDisplay + '</td>'
+            + '<td style="' + tdStyle + 'text-align:center;width:110px;">'
+            +   '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;">'
             +   '<button class="btn-small btn-primary" onclick="viewItemMasterDetails(\'' + item.itemNum + '\')" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>'
             +   '<button class="btn-small btn-secondary" onclick="editItemMaster(\'' + item.itemNum + '\')" title="Edit" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>'
             +   '<button class="btn-small btn-danger" onclick="deleteItemMaster(\'' + item.itemNum + '\')" title="Archive" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></button>'
-            + '</div></div>';
+            +   '</div>'
+            + '</td></tr>';
     });
     apRenderPaged('itemMasterList', rows, 10, 'renderItemMasterList');
+    // Move pagination outside tbody into the .data-table wrapper
+    var tbody = document.getElementById('itemMasterList');
+    if (tbody) {
+        var pagination = tbody.querySelector('.ap-pagination');
+        if (pagination) {
+            tbody.removeChild(pagination);
+            var tableWrapper = tbody.closest('.data-table');
+            if (tableWrapper) {
+                var existing = tableWrapper.querySelector('.ap-pagination');
+                if (existing) existing.remove();
+                tableWrapper.appendChild(pagination);
+            }
+        }
+    }
 }
 
 function populateItemMasterDropdowns() {

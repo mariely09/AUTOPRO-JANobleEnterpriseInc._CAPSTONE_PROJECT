@@ -191,10 +191,15 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
       }).then((_) {
         final customerId = data['customerId'] as String? ?? '';
         final plate = data['plate'] as String? ?? '';
+        final custName = data['customerName'] as String? ?? 'Customer';
+        final timeLabel = (data['preferredTime'] as String? ?? '').isNotEmpty
+            ? ' at ${data['preferredTime']}' : '';
+        final dateLabel = _formatDate(prefDate);
+
         if (customerId.isNotEmpty) {
           final msg = isPastDay
-              ? 'Your booking for $plate on ${_formatDate(prefDate)} was automatically cancelled because the scheduled date has passed.'
-              : 'Your booking for $plate on ${_formatDate(prefDate)} was automatically cancelled because the service was not started by 5:00 PM.';
+              ? 'Your booking for $plate on $dateLabel was automatically cancelled because the scheduled date has passed.'
+              : 'Your booking for $plate on $dateLabel$timeLabel was automatically cancelled because the service was not started by 5:00 PM.';
           db.collection('notifications').add({
             'title': '❌ Booking Auto-Cancelled',
             'message': msg,
@@ -204,6 +209,29 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
             'readBy': <String, bool>{}, 'isRead': false,
           });
         }
+
+        final adminStaffMsg = "$custName's booking for $plate on $dateLabel$timeLabel "
+            'was auto-cancelled (no-show / not started by 5:00 PM).';
+
+        // ── Notify admin ──
+        db.collection('notifications').add({
+          'title': '🔔 Booking Auto-Cancelled',
+          'message': adminStaffMsg,
+          'type': 'warning',
+          'targetRole': 'admin', 'targetUid': '',
+          'createdAt': FieldValue.serverTimestamp(),
+          'readBy': <String, bool>{}, 'isRead': false,
+        });
+
+        // ── Notify staff ──
+        db.collection('notifications').add({
+          'title': '🔔 Booking Auto-Cancelled',
+          'message': adminStaffMsg,
+          'type': 'warning',
+          'targetRole': 'staff', 'targetUid': '',
+          'createdAt': FieldValue.serverTimestamp(),
+          'readBy': <String, bool>{}, 'isRead': false,
+        });
       }).catchError((_) {});
     }
   }

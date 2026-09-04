@@ -20,11 +20,70 @@
   let _userName = '';
   let _vehicles = [];
 
+  // ── sessionStorage cache keys (per-user) ─────────────────
+  const _cpUid = cpUser.uid || '';
+  const _CU_VEH_KEY    = 'cuVehiclesCache_'    + _cpUid;
+  const _CU_RECENT_KEY = 'cuRecentSvcCache_'   + _cpUid;
+  const _CU_STATS_KEY  = 'cuStatsCache_'       + _cpUid;
+
+  // ── Restore cached data immediately (before auth resolves) ──
+  // Removes the "Loading..." flash on every visit.
+  (function _cuRestoreCache() {
+    if (!_cpUid) return;
+    try {
+      // Vehicles list + count
+      const rawVeh = sessionStorage.getItem(_CU_VEH_KEY);
+      if (rawVeh) {
+        const c = JSON.parse(rawVeh);
+        if (c) {
+          const el = document.getElementById('cuVehiclesList');
+          if (el && c.html) el.innerHTML = c.html;
+          const countEl = document.getElementById('cuVehiclesCount');
+          if (countEl && c.count != null) countEl.textContent = c.count;
+          // Restore _vehicles so cuShowVehicle modal works immediately
+          if (Array.isArray(c.vehicles)) _vehicles = c.vehicles;
+          // Banner name from session
+          const firstName = (cpUser.name || 'Customer').trim().split(/\s+/)[0];
+          const bannerEl = document.getElementById('cuBannerName');
+          if (bannerEl) bannerEl.textContent = firstName + '!';
+          const headerEl = document.getElementById('cuHeaderName');
+          if (headerEl) headerEl.textContent = firstName;
+          const avatarEl = document.getElementById('cuAvatar');
+          if (avatarEl) {
+            const initials = (cpUser.name || '').split(' ').filter(Boolean).map(p => p[0]).join('').toUpperCase().slice(0, 2) || 'CU';
+            avatarEl.textContent = initials;
+          }
+        }
+      }
+      // Stats
+      const rawStats = sessionStorage.getItem(_CU_STATS_KEY);
+      if (rawStats) {
+        const s = JSON.parse(rawStats);
+        if (s) {
+          const set = (id, v) => { const e = document.getElementById(id); if (e && v != null) e.textContent = v; };
+          set('cuActive', s.active);
+          set('cuMaintenance', s.maintenance);
+          set('cuDueThisWeek', s.dueThisWeek);
+          set('cuDueSoon', s.dueToday);
+        }
+      }
+      // Recent services
+      const rawRecent = sessionStorage.getItem(_CU_RECENT_KEY);
+      if (rawRecent) {
+        const r = JSON.parse(rawRecent);
+        const el = document.getElementById('cuRecentServices');
+        if (el && r && r.html) el.innerHTML = r.html;
+      }
+    } catch(e) {}
+  })();
+
   // ── Init ────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
-    // Show loading state immediately
-    document.getElementById('cuVehiclesList').innerHTML =
-      '<div class="cu-empty" style="color:#718096;">Loading...</div>';
+    // Show loading only if no cache has already rendered content
+    const vehEl = document.getElementById('cuVehiclesList');
+    if (vehEl && !vehEl.children.length) {
+      vehEl.innerHTML = '<div class="cu-empty" style="color:#718096;">Loading...</div>';
+    }
 
     // Wait for Firebase Auth before querying Firestore
     firebase.auth().onAuthStateChanged((user) => {
@@ -100,15 +159,19 @@
 
   // ── Vehicles ─────────────────────────────────────────────
   function loadVehicles() {
+    const user = auth.currentUser;
     db.collection('vehicles').onSnapshot(snap => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      // Filter by owner name — match on customer's name OR company name
+      // Filter by ownerId (UID) OR owner name / company name — matches however the vehicle was registered
       _vehicles = all.filter(v => {
-        const owner = (v.owner || '').toLowerCase().trim();
-        const name = _userName.toLowerCase().trim();
+        // UID-based match (most reliable)
+        if (user && v.ownerId && v.ownerId === user.uid) return true;
+        // Name-based match (legacy / manual entry)
+        const owner   = (v.owner || '').toLowerCase().trim();
+        const name    = _userName.toLowerCase().trim();
         const company = (window._cpCompanyName || '').toLowerCase().trim();
-        return owner === name || (company && owner === company);
+        return (name && owner === name) || (company && owner === company);
       });
 
       updateStats();
@@ -187,12 +250,24 @@
     const dueThisWeek = statuses.filter(s => s === 'Due This Week').length;
     const maintenance = statuses.filter(s => s === 'Under Maintenance').length;
 
-    document.getElementById('cuTotalVehicles').textContent  = _vehicles.length;
+    const totalEl = document.getElementById('cuTotalVehicles');
+    if (totalEl) totalEl.textContent = _vehicles.length;
     document.getElementById('cuActive').textContent         = statuses.filter(s => s === 'On Track' || s === 'Scheduled').length;
     document.getElementById('cuMaintenance').textContent    = maintenance;
-    document.getElementById('cuOverdue').textContent        = overdue;
+    const overdueEl = document.getElementById('cuOverdue');
+    if (overdueEl) overdueEl.textContent = overdue;
     document.getElementById('cuDueThisWeek').textContent    = dueThisWeek;
     document.getElementById('cuDueSoon').textContent        = dueToday;
+
+    // ── Persist stats for instant restore ──
+    try {
+      sessionStorage.setItem(_CU_STATS_KEY, JSON.stringify({
+        active: statuses.filter(s => s === 'On Track' || s === 'Scheduled').length,
+        maintenance,
+        dueThisWeek,
+        dueToday,
+      }));
+    } catch(e) {}
 
   }
 
@@ -251,6 +326,15 @@
       <div class="cu-vov-body">
         <div class="cu-vov-list">${rowsHtml}</div>
       </div>`;
+
+    // ── Persist for instant restore ──
+    try {
+      sessionStorage.setItem(_CU_VEH_KEY, JSON.stringify({
+        html: el.innerHTML,
+        count: countEl ? countEl.textContent : '',
+        vehicles: _vehicles,
+      }));
+    } catch(e) {}
   }
 
   // ── Vehicle modal ─────────────────────────────────────────
@@ -466,24 +550,33 @@
     try {
       const user    = auth.currentUser;
       if (!user) return;
-      const db      = firebase.firestore();
 
-      // Get user's vehicle plates
-      const userDoc  = await db.collection('users').doc(user.uid).get();
-      const uData    = userDoc.exists ? userDoc.data() : {};
-      const uName    = (uData.name        || '').toLowerCase();
-      const cName    = (uData.companyName || '').toLowerCase();
+      // Reuse already-filtered _vehicles for plates — avoids a redundant Firestore scan
+      let plates;
+      if (_vehicles.length) {
+        plates = new Set(_vehicles.map(v => (v.plate || '').toLowerCase()).filter(Boolean));
+      } else {
+        // Fallback: fetch fresh from Firestore (handles edge case where _vehicles not yet loaded)
+        const db2   = firebase.firestore();
+        const userDoc = await db2.collection('users').doc(user.uid).get();
+        const uData   = userDoc.exists ? userDoc.data() : {};
+        const uName   = (uData.name        || '').toLowerCase();
+        const cName   = (uData.companyName || '').toLowerCase();
 
-      const vSnap = await db.collection('vehicles').get();
-      const plates = new Set(
-        vSnap.docs
-          .filter(d => {
-            const owner = (d.data().owner || '').toLowerCase();
-            return owner === uName || (cName && owner === cName);
-          })
-          .map(d => (d.data().plate || '').toLowerCase())
-          .filter(Boolean)
-      );
+        const vSnap = await db2.collection('vehicles').get();
+        plates = new Set(
+          vSnap.docs
+            .filter(d => {
+              const v     = d.data();
+              const owner = (v.owner || '').toLowerCase();
+              // Match by UID or by name
+              if (v.ownerId === user.uid) return true;
+              return (uName && owner === uName) || (cName && owner === cName);
+            })
+            .map(d => (d.data().plate || '').toLowerCase())
+            .filter(Boolean)
+        );
+      }
 
       if (!plates.size) {
         el.innerHTML = '<div class="cu-recent-empty">No completed services yet.</div>';
@@ -538,6 +631,11 @@
         </div>${!isLast ? '<div class="cu-recent-row-divider"></div>' : ''}`;
       }).join('');
 
+      // ── Persist for instant restore ──
+      try {
+        sessionStorage.setItem(_CU_RECENT_KEY, JSON.stringify({ html: el.innerHTML }));
+      } catch(e) {}
+
     } catch(e) {
       console.error('Recent services error:', e);
       const el2 = document.getElementById('cuRecentServices');
@@ -559,6 +657,12 @@
   window.sfLogout = window.cuLogout = function () {
     if (!confirm('Are you sure you want to logout?')) return;
     localStorage.setItem('_loggedOut', Date.now().toString());
+    // Clear dashboard cache so the next user doesn't see stale data
+    try {
+      sessionStorage.removeItem(_CU_VEH_KEY);
+      sessionStorage.removeItem(_CU_STATS_KEY);
+      sessionStorage.removeItem(_CU_RECENT_KEY);
+    } catch(e) {}
     auth.signOut().finally(() => {
       sessionStorage.removeItem('cpUser');
       history.replaceState(null, '', '/index.html');

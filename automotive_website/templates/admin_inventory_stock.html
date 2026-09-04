@@ -1022,4 +1022,30 @@ window.exportStockInventoryExcel = function() {
 };
 
 </script>
+
+<script>
+// Cache restore — runs after all scripts so render fn is defined
+(function() {
+  try {
+    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+    if (!uid) return;
+    var raw = sessionStorage.getItem('inventoryCache_' + uid);
+    if (!raw) return;
+    var items = JSON.parse(raw);
+    if (!Array.isArray(items) || !items.length) return;
+    // Only restore if Firestore hasn't already loaded
+    if (window._fbInventoryLoaded && (window.inventory || []).length) return;
+
+    window.inventory = items;
+    window._fbInventory = items.map(function(i) {
+      return { _id: i.id, num: i.itemNum, name: i.itemName, group: i.commodityGroup,
+               uom: i.unit, stock: i.stock, min: i.minLevel, max: i.maxLevel,
+               supplierCode: i.supplierCode || '', price: i.price || 0 };
+    });
+    window._fbInventoryLoaded = true;
+    if (typeof renderInventoryList === 'function') renderInventoryList();
+  } catch(e) {}
+})();
+</script>
+
 </html>

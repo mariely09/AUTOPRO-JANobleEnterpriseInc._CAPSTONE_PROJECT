@@ -286,6 +286,45 @@
                     </div>
                     
                     <script>
+                    // ── Restore cached dashboard data immediately ─────────────────
+                    // Shows last-known stats + tables + charts before Firestore snapshots fire.
+                    (function() {
+                        try {
+                            var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+                            if (!uid) return;
+
+                            // 1. Restore stat numbers + table HTML
+                            var cached = JSON.parse(sessionStorage.getItem('adminDashCache_' + uid) || 'null');
+                            if (cached) {
+                                var set = function(id, v) { var e = document.getElementById(id); if (e && v != null) e.textContent = v; };
+                                set('statTotalVehicles', cached.statTotalVehicles);
+                                set('statDueForPms',     cached.statDueForPms);
+                                set('statLowStock',      cached.statLowStock);
+                                set('statServicesWeek',  cached.statServicesWeek);
+                                set('statTotalUsers',    cached.statTotalUsers);
+                                var todayEl  = document.getElementById('todayServicesList');
+                                var recentEl = document.getElementById('recentServicesList');
+                                if (todayEl  && cached.todayHtml)  todayEl.innerHTML  = cached.todayHtml;
+                                if (recentEl && cached.recentHtml) recentEl.innerHTML = cached.recentHtml;
+                            }
+
+                            // 2. Hydrate window globals from data cache so charts render immediately
+                            // _adminDashRestoreDataCache is defined in admin_firebase.js
+                            var _tryRenderCharts = function() {
+                                if (typeof window._adminDashRestoreDataCache === 'function') {
+                                    var restored = window._adminDashRestoreDataCache();
+                                    if (restored && typeof window.renderDashboardCharts === 'function') {
+                                        window.renderDashboardCharts();
+                                    }
+                                }
+                            };
+                            // Try immediately (admin_firebase.js may already be parsed)
+                            // and again after DOMContentLoaded in case scripts load async
+                            _tryRenderCharts();
+                            document.addEventListener('DOMContentLoaded', _tryRenderCharts);
+                        } catch(e) {}
+                    })();
+
                     // Update greeting based on time of day
                     (function() {
                         const hour = new Date().getHours();

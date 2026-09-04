@@ -161,6 +161,12 @@
         generateWebPMSNotifications();
       }
       _updateOverviewStats();
+      _adminDashSaveDataCache('vehicles');
+      // ── Per-page vehicle cache ──
+      try {
+        var _vhUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+        if (_vhUid) sessionStorage.setItem('vehiclesCache_' + _vhUid, JSON.stringify(window.assets.slice(0, 500)));
+      } catch(e) {}
       // Render dashboard charts whenever vehicle/service data updates
       if (typeof window.renderDashboardCharts === 'function') window.renderDashboardCharts();
       // Re-render PMS calendar when vehicle data changes
@@ -223,6 +229,12 @@
       }
       _updateServiceStats();
       _updateOverviewStats();
+      _adminDashSaveDataCache('services');
+      // ── Per-page services cache ──
+      try {
+        var _svUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+        if (_svUid) sessionStorage.setItem('servicesCache_' + _svUid, JSON.stringify(window.serviceTransactions.slice(0, 500)));
+      } catch(e) {}
       if (typeof window.renderDashboardCharts === 'function') window.renderDashboardCharts();
     });
 
@@ -262,6 +274,12 @@
       }
       _updateInventoryStats();
       _updateOverviewStats();
+      _adminDashSaveDataCache('inventory');
+      // ── Per-page inventory cache ──
+      try {
+        var _invUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+        if (_invUid) sessionStorage.setItem('inventoryCache_' + _invUid, JSON.stringify(window.inventory.slice(0, 1000)));
+      } catch(e) {}
       // DSS readiness: mark inventory loaded
       window._dssInventoryReady = true;
       window._fbDSSLoaded = true;
@@ -296,6 +314,15 @@
         archived: i.archived || false,
       }));
       window._fbItemMasterLoaded = true;
+      // ── Persist item master for instant restore on next visit ──
+      try {
+        var _imUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+        if (_imUid) {
+          sessionStorage.setItem('imCache_' + _imUid, JSON.stringify(window.itemMaster.slice(0, 2000)));
+        }
+      } catch(e) {}
+      // Stamp any already-computed issuance stats onto newly loaded items
+      if (typeof window._computeItemIssuanceStats === 'function') window._computeItemIssuanceStats();
       if (typeof renderItemMasterList === 'function') {
         const section = document.querySelector('.admin-section.active');
         if (!section || section.id === 'item-master') renderItemMasterList();
@@ -327,6 +354,14 @@
         if (!section || section.id === 'issuance') renderIssuancesList();
       }
       _updateIssuanceStats();
+      // Compute per-item issuance stats (avg monthly, last month) for Item Master columns
+      _computeItemIssuanceStats();
+      _adminDashSaveDataCache('issuances');
+      // ── Per-page issuances cache ──
+      try {
+        var _issUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+        if (_issUid) sessionStorage.setItem('issuancesCache_' + _issUid, JSON.stringify(window.issuances.slice(0, 1000)));
+      } catch(e) {}
       // Re-render top parts chart when issuances change
       if (typeof window.renderDashboardCharts === 'function') window.renderDashboardCharts();
       // DSS readiness: mark issuances loaded
@@ -344,6 +379,11 @@
     // Transactions
     db.collection('transactions').orderBy('createdAt', 'desc').onSnapshot(snap => {
       window._fbTransactions = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+      // ── Cache for instant restore ──
+      try {
+        var _txUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+        if (_txUid) sessionStorage.setItem('txnCache_' + _txUid, JSON.stringify(window._fbTransactions.slice(0, 1000)));
+      } catch(e) {}
       if (typeof renderInventoryTransactions === 'function') {
         renderInventoryTransactions();
       }
@@ -370,6 +410,11 @@
         photoUrl: u.photoUrl || '',
       }));
       window._fbUsersLoaded = true;
+      // ── Cache for instant restore ──
+      try {
+        var _usUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+        if (_usUid) sessionStorage.setItem('usersCache_' + _usUid, JSON.stringify(window.users.slice(0, 1000)));
+      } catch(e) {}
       if (typeof renderUsersList === 'function') {
         const section = document.querySelector('.admin-section.active');
         if (!section || section.id === 'users') renderUsersList();
@@ -491,6 +536,28 @@
     // Recent services table → Today's Service Schedule
     _renderTodayServices(services);
     _renderRecentServices(services);
+
+    // ── Persist to sessionStorage for instant restore on next visit ──
+    var _apUid = (function() {
+      try { return (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || ''; } catch(e) { return ''; }
+    })();
+    if (_apUid) {
+      try {
+        var cacheKey = 'adminDashCache_' + _apUid;
+        var todayEl  = document.getElementById('todayServicesList');
+        var recentEl = document.getElementById('recentServicesList');
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+          statTotalVehicles : vehicles.length,
+          statDueForPms     : dueForPms,
+          statLowStock      : lowStock,
+          statServicesWeek  : servicesToday,
+          statTotalUsers    : (window._fbUsers || []).length,
+          todayHtml         : todayEl  ? todayEl.innerHTML  : '',
+          recentHtml        : recentEl ? recentEl.innerHTML : '',
+          savedAt           : Date.now(),
+        }));
+      } catch(e) {}
+    }
   }
 
   function _renderTodayServices(services) {
@@ -615,6 +682,114 @@
     _setStat('totalMaterials', iss.filter(i => i.itemType === 'Material').length);
   }
 
+  // ── Compute per-item issuance stats for Item Master columns ──────────────
+  // Sets window._itemIssuanceStats: { [itemNum]: { avgMonthly, lastMonth } }
+  //
+  // avgMonthly = total qty issued ÷ number of calendar months in the span
+  //              from the item's FIRST issuance month up to AND INCLUDING
+  //              the CURRENT month.  This includes months with zero issuances
+  //              so the average reflects true monthly consumption rate.
+  //
+  // lastMonth  = total qty issued in the previous calendar month (month before now).
+  function _computeItemIssuanceStats() {
+    var issuances = window.issuances || [];
+    var now = new Date();
+    var nowYear  = now.getFullYear();
+    var nowMonth = now.getMonth(); // 0-indexed
+
+    // Previous calendar month
+    var lastMonthDate  = new Date(nowYear, nowMonth - 1, 1);
+    var lastMonthYear  = lastMonthDate.getFullYear();
+    var lastMonthMonth = lastMonthDate.getMonth(); // 0-indexed
+    var lastMonthKey   = lastMonthYear + '-' + ('0' + (lastMonthMonth + 1)).slice(-2);
+
+    // Parse any date string → { year, month (0-indexed) } or null
+    function parseYearMonth(dateStr) {
+      if (!dateStr) return null;
+      // "May 7, 2026" / "May 7 2026"
+      var m1 = dateStr.match(/^([A-Za-z]{3,})\s+\d+,?\s+(\d{4})/);
+      if (m1) {
+        var months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+        var mo = months.indexOf(m1[1].slice(0,3).toLowerCase());
+        return mo >= 0 ? { year: parseInt(m1[2]), month: mo } : null;
+      }
+      // "1/7/2026"
+      var m2 = dateStr.match(/^(\d{1,2})\/\d{1,2}\/(\d{4})/);
+      if (m2) return { year: parseInt(m2[2]), month: parseInt(m2[1]) - 1 };
+      // "2026-05-07"
+      var m3 = dateStr.match(/^(\d{4})-(\d{2})-\d{2}/);
+      if (m3) return { year: parseInt(m3[1]), month: parseInt(m3[2]) - 1 };
+      var dt = new Date(dateStr);
+      if (!isNaN(dt)) return { year: dt.getFullYear(), month: dt.getMonth() };
+      return null;
+    }
+
+    // monthKey helper
+    function toKey(year, month) { return year + '-' + ('0' + (month + 1)).slice(-2); }
+
+    // Build per-itemNum buckets: 'YYYY-MM' → total qty
+    // Also track the earliest issuance month per item.
+    var buckets   = {}; // { itemNum: { 'YYYY-MM': qty } }
+    var firstKeys = {}; // { itemNum: 'YYYY-MM' }  earliest month seen
+
+    issuances.forEach(function(iss) {
+      var num = (iss.itemNum || '').trim();
+      if (!num) return;
+      var qty = parseFloat(iss.quantity) || 0;
+      if (!qty) return;
+      var ym = parseYearMonth(iss.date);
+      if (!ym) return;
+      var key = toKey(ym.year, ym.month);
+      if (!buckets[num]) buckets[num] = {};
+      buckets[num][key] = (buckets[num][key] || 0) + qty;
+      // Track the earliest key (string comparison works because format is YYYY-MM)
+      if (!firstKeys[num] || key < firstKeys[num]) firstKeys[num] = key;
+    });
+
+    var stats = {};
+    Object.keys(buckets).forEach(function(num) {
+      var monthMap = buckets[num];
+
+      // Total qty ever issued for this item
+      var totalQty = Object.keys(monthMap).reduce(function(s, k) { return s + monthMap[k]; }, 0);
+
+      // Number of full calendar months from first issuance through current month (inclusive)
+      var firstKey = firstKeys[num]; // 'YYYY-MM'
+      var fp = firstKey.split('-');
+      var firstYear  = parseInt(fp[0]);
+      var firstMonth = parseInt(fp[1]) - 1; // back to 0-indexed
+      // Span = months between firstMonth and nowMonth (inclusive on both ends)
+      var spanMonths = (nowYear - firstYear) * 12 + (nowMonth - firstMonth) + 1;
+      if (spanMonths < 1) spanMonths = 1;
+
+      var avgMonthly = Math.round((totalQty / spanMonths) * 10) / 10;
+
+      var lastMonth = monthMap[lastMonthKey] || 0;
+
+      stats[num] = { avgMonthly: avgMonthly, lastMonth: lastMonth };
+    });
+
+    window._itemIssuanceStats = stats;
+
+    // Stamp onto window.itemMaster for the render function
+    if (window.itemMaster) {
+      window.itemMaster.forEach(function(item) {
+        var s = stats[item.itemNum] || { avgMonthly: 0, lastMonth: 0 };
+        item.avgMonthlyIssuance = s.avgMonthly;
+        item.lastMonthIssuance  = s.lastMonth;
+      });
+    }
+
+    // Re-render Item Master if it's the active section
+    if (typeof renderItemMasterList === 'function') {
+      var section = document.querySelector('.admin-section.active');
+      if (!section || section.id === 'item-master') renderItemMasterList();
+    }
+  }
+
+  // Expose so item_master snapshot can also trigger a recompute
+  window._computeItemIssuanceStats = _computeItemIssuanceStats;
+
   function _updateTransactionStats() {
     const txns = window._fbTransactions || [];
     _setStat('txnTotal', txns.length);
@@ -630,6 +805,15 @@
     _setStat('statTotalUsers', users.length);
     _setStat('userStatActive', users.filter(u => (u.status || '').toLowerCase() === 'active').length);
     _setStat('userStatInactive', users.filter(u => (u.status || '').toLowerCase() !== 'active').length);
+    // Patch user count into dashboard cache if it exists
+    try {
+      var _apUid2 = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+      if (_apUid2) {
+        var _ck = 'adminDashCache_' + _apUid2;
+        var _cached = JSON.parse(sessionStorage.getItem(_ck) || 'null');
+        if (_cached) { _cached.statTotalUsers = users.length; sessionStorage.setItem(_ck, JSON.stringify(_cached)); }
+      }
+    } catch(e) {}
   }
 
   function _setStat(id, value) {
@@ -645,5 +829,107 @@
     if (s === 'inactive') return 'inactive';
     return 'active';
   }
+
+  // ── Dashboard data cache helpers ─────────────────────────────────────────
+  // Saves the raw Firestore arrays to sessionStorage so charts + tables can
+  // render immediately on the next page load before new snapshots arrive.
+  // Stored under one key per UID, split into 4 slots to stay under quota.
+  function _adminDashSaveDataCache(slot) {
+    try {
+      var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+      if (!uid) return;
+      var base = 'adminDashData_' + uid + '_';
+      var slim = function(arr) {
+        // Store only the fields needed by renderDashboardCharts + stats
+        return (arr || []).slice(0, 500); // cap at 500 records to stay within quota
+      };
+      if (slot === 'vehicles')  sessionStorage.setItem(base + 'vehicles',  JSON.stringify(slim(window._fbVehicles)));
+      if (slot === 'services')  sessionStorage.setItem(base + 'services',  JSON.stringify(slim(window._fbServices)));
+      if (slot === 'inventory') sessionStorage.setItem(base + 'inventory', JSON.stringify(slim(window._fbInventory)));
+      if (slot === 'issuances') sessionStorage.setItem(base + 'issuances', JSON.stringify(slim(window._fbIssuances)));
+    } catch(e) { /* quota exceeded — fail silently */ }
+  }
+
+  // Called once on page load (before DOMContentLoaded) to hydrate window globals
+  // from cache so charts can render without waiting for Firestore.
+  window._adminDashRestoreDataCache = function() {
+    try {
+      var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+      if (!uid) return false;
+      var base = 'adminDashData_' + uid + '_';
+      var vRaw = sessionStorage.getItem(base + 'vehicles');
+      var sRaw = sessionStorage.getItem(base + 'services');
+      var iRaw = sessionStorage.getItem(base + 'inventory');
+      var qRaw = sessionStorage.getItem(base + 'issuances');
+      if (!vRaw && !sRaw) return false; // nothing cached yet
+
+      if (vRaw) {
+        window._fbVehicles = JSON.parse(vRaw);
+        // Re-map to window.assets (needed by charts + stats)
+        window.assets = window._fbVehicles.map(function(v) {
+          var lastSvc = v.lastSvcDate || v.lastServiceDate || '';
+          var freq = parseInt(v.svcFreq || v.serviceFrequency) || 0;
+          var nextPMSDue = v.nextPMSDue || '';
+          if (lastSvc && freq > 0 && !nextPMSDue) {
+            var d = new Date(lastSvc);
+            if (!isNaN(d)) { d.setMonth(d.getMonth() + freq); nextPMSDue = d.toISOString().split('T')[0]; }
+          }
+          return {
+            id: v._id, assetNum: v.assetNum || v._id,
+            plateNumber: v.plate || v.plateNumber || '',
+            assetDescription: v.desc || v.assetDescription || '',
+            type: v.type || 'truck',
+            owner: v.owner || v.ownerName || '',
+            odometer: parseInt(String(v.odometer || v.odo || '0').replace(/[^0-9]/g,'')) || 0,
+            lastSvcOdo: v.lastSvcOdo || v.lastServiceOdometer || '',
+            svcFreq: v.svcFreq || v.serviceFrequency || '',
+            status: v.status || 'Active',
+            lastServiceDate: lastSvc,
+            nextPMSDue: nextPMSDue,
+            serviceFrequency: freq,
+          };
+        });
+      }
+      if (sRaw) {
+        window._fbServices = JSON.parse(sRaw);
+        window.serviceTransactions = window._fbServices.map(function(s) {
+          return {
+            serviceId: s._id, plate: s.plate || '', assetNum: s.assetNum || s.plate || '',
+            assetDescription: s.desc || s.assetDescription || s.plate || '',
+            mechanic: s.mechanic || '', mechanicName: s.mechanic || '',
+            date: s.date || s.dateServiced || '', dateServiced: s.date || s.dateServiced || '',
+            status: (s.status || 'pending').toLowerCase(),
+            svcRows: s.svcRows || [], matRows: s.matRows || [],
+            cost: s.cost || '', createdAt: s.createdAt || null,
+          };
+        });
+      }
+      if (iRaw) {
+        window._fbInventory = JSON.parse(iRaw);
+        window.inventory = window._fbInventory.map(function(i) {
+          return {
+            id: i._id, itemNum: i.num || i._id, itemName: i.name || '',
+            commodityGroup: i.group || '', unit: i.uom || '',
+            stock: parseInt(i.stock) || 0, minLevel: parseInt(i.min) || 0,
+            maxLevel: parseInt(i.max) || 0,
+            status: (parseInt(i.stock)||0) === 0 ? 'Out' :
+                    (parseInt(i.stock)||0) <= (parseInt(i.min)||0) ? 'Low' : 'OK',
+          };
+        });
+      }
+      if (qRaw) {
+        window._fbIssuances = JSON.parse(qRaw);
+        window.issuances = window._fbIssuances.map(function(i) {
+          return {
+            id: i._id, date: i.date || '', plate: i.plate || '',
+            itemNum: i.itemNum || '', itemName: i.itemName || '',
+            itemType: i.itemType || 'Material',
+            quantity: parseFloat(i.qty) || 0, unitCost: parseFloat(i.unitCost) || 0,
+          };
+        });
+      }
+      return true;
+    } catch(e) { return false; }
+  };
 
 })(); // end IIFE
