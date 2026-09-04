@@ -378,8 +378,9 @@ class _AppNotificationsState extends State<AppNotifications> {
     }
 
     try {
-      // Get admin UIDs for push targeting
+      // Get admin & staff UIDs for push targeting
       final adminIds = await _uidsForRole('admin');
+      final staffIds = await _uidsForRole('staff');
 
       // -- STOCK ALERTS --
       final stockSnap = await db.collection('stock_inventory').get();
@@ -436,7 +437,7 @@ class _AppNotificationsState extends State<AppNotifications> {
 
         if (stock == 0) {
           await _notify(
-            title: '?? URGENT: Out of Stock',
+            title: '🚨 URGENT: Out of Stock',
             message:
                 '$name is out of stock. Recommend ordering $recommendQty $uom.',
             type: 'warning',
@@ -444,14 +445,32 @@ class _AppNotificationsState extends State<AppNotifications> {
             pushTo: adminIds,
             prefKey: 'lowStock',
           );
+          await _notify(
+            title: '🚨 URGENT: Out of Stock',
+            message:
+                '$name is out of stock. Recommend ordering $recommendQty $uom.',
+            type: 'warning',
+            targetRole: 'staff',
+            pushTo: staffIds,
+            prefKey: 'lowStock',
+          );
         } else if (stock <= min) {
           await _notify(
-            title: '?? Low Stock Alert',
+            title: '⚠️ Low Stock Alert',
             message:
                 '$name is low ($stock $uom). Recommend ordering $recommendQty $uom.',
             type: 'warning',
             targetRole: 'admin',
             pushTo: adminIds,
+            prefKey: 'lowStock',
+          );
+          await _notify(
+            title: '⚠️ Low Stock Alert',
+            message:
+                '$name is low ($stock $uom). Recommend ordering $recommendQty $uom.',
+            type: 'warning',
+            targetRole: 'staff',
+            pushTo: staffIds,
             prefKey: 'lowStock',
           );
         }
@@ -484,10 +503,10 @@ class _AppNotificationsState extends State<AppNotifications> {
         );
         final daysUntil = nextMidnight.difference(today).inDays;
 
-        // Admin PMS alerts � gated by pref
+        // Admin & Staff PMS alerts — gated by pref
         if (daysUntil < 0) {
           await _notify(
-            title: '?? PMS Overdue',
+            title: '🔴 PMS Overdue',
             message:
                 '$plate is ${(-daysUntil)} day(s) overdue for maintenance.',
             type: 'warning',
@@ -495,18 +514,35 @@ class _AppNotificationsState extends State<AppNotifications> {
             pushTo: adminIds,
             prefKey: 'pmsOverdue',
           );
+          await _notify(
+            title: '🔴 PMS Overdue',
+            message:
+                '$plate is ${(-daysUntil)} day(s) overdue for maintenance.',
+            type: 'warning',
+            targetRole: 'staff',
+            pushTo: staffIds,
+            prefKey: 'pmsOverdue',
+          );
         } else if (daysUntil == 0) {
           await _notify(
-            title: '?? PMS Due Today',
+            title: '🔔 PMS Due Today',
             message: '$plate is due for maintenance today.',
             type: 'warning',
             targetRole: 'admin',
             pushTo: adminIds,
             prefKey: 'pmsDueThisWeek',
           );
+          await _notify(
+            title: '🔔 PMS Due Today',
+            message: '$plate is due for maintenance today.',
+            type: 'warning',
+            targetRole: 'staff',
+            pushTo: staffIds,
+            prefKey: 'pmsDueThisWeek',
+          );
         } else if (daysUntil <= 7) {
           await _notify(
-            title: '?? PMS Due This Week',
+            title: '📅 PMS Due This Week',
             message:
                 '$plate is due for maintenance this week ($daysUntil day(s)).',
             type: 'warning',
@@ -514,13 +550,30 @@ class _AppNotificationsState extends State<AppNotifications> {
             pushTo: adminIds,
             prefKey: 'pmsDueThisWeek',
           );
+          await _notify(
+            title: '📅 PMS Due This Week',
+            message:
+                '$plate is due for maintenance this week ($daysUntil day(s)).',
+            type: 'warning',
+            targetRole: 'staff',
+            pushTo: staffIds,
+            prefKey: 'pmsDueThisWeek',
+          );
         } else if (daysUntil <= 14) {
           await _notify(
-            title: '?? PMS Due Soon',
+            title: '🔔 PMS Due Soon',
             message: '$plate is due for maintenance in $daysUntil day(s).',
             type: 'info',
             targetRole: 'admin',
             pushTo: adminIds,
+            prefKey: 'pmsDueSoon',
+          );
+          await _notify(
+            title: '🔔 PMS Due Soon',
+            message: '$plate is due for maintenance in $daysUntil day(s).',
+            type: 'info',
+            targetRole: 'staff',
+            pushTo: staffIds,
             prefKey: 'pmsDueSoon',
           );
         }
@@ -741,6 +794,8 @@ class _AppNotificationsState extends State<AppNotifications> {
     } else if (widget.role == NotificationRole.staff) {
       if (t.contains('pms') || m.contains('pms')) {
         screen = const AdminDSS(initialTab: 1); // tab 1 = PMS scheduling
+      } else if (t.contains('stock') || m.contains('stock')) {
+        screen = const AdminDSS(initialTab: 0); // tab 0 = Stock replenishment
       } else if (t.contains('booking') || m.contains('booking')) {
         screen = const AdminServiceBookings();
       } else if (t.contains('service') || t.contains('maintenance')) {

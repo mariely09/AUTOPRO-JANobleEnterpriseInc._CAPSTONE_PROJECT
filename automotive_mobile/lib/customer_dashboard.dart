@@ -770,7 +770,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                         greet,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 16,
+                          fontSize: 13,
                           fontWeight: FontWeight.w400,
                           height: 1.2,
                         ),
@@ -779,7 +779,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                         first,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 30,
+                          fontSize: 26,
                           fontWeight: FontWeight.w900,
                           height: 1.1,
                         ),
@@ -906,45 +906,23 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
             ),
           ),
 
-          // ── Stats row pinned to bottom ──
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: Container(height: 1, color: Colors.white12),
+          // ── Stats grid ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: _customerStatCard(icon: Icons.check_circle_outline, value: '$active', label: 'Active')),
+                  const SizedBox(width: 8),
+                  Expanded(child: _customerStatCard(icon: Icons.today_outlined, value: '$dueToday', label: 'Due\nToday')),
+                  const SizedBox(width: 8),
+                  Expanded(child: _customerStatCard(icon: Icons.date_range_outlined, value: '$dueThisWeek', label: 'This\nWeek')),
+                  const SizedBox(width: 8),
+                  Expanded(child: _customerStatCard(icon: Icons.build_circle_outlined, value: '$maintenance', label: 'In Service')),
+                ],
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-                child: Row(
-                  children: [
-                    _inlineStatItem(
-                      'Active',
-                      '$active',
-                      const Color(0xFF86efac),
-                    ),
-                    _dividerLine(),
-                    _inlineStatItem(
-                      'Due Today',
-                      '$dueToday',
-                      const Color(0xFF93c5fd),
-                    ),
-                    _dividerLine(),
-                    _inlineStatItem(
-                      'Due This Week',
-                      '$dueThisWeek',
-                      const Color(0xFFfcd34d),
-                    ),
-                    _dividerLine(),
-                    _inlineStatItem(
-                      'Maintenance',
-                      '$maintenance',
-                      const Color(0xFFfcd34d),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
@@ -985,6 +963,61 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     color: Colors.white12,
     margin: const EdgeInsets.symmetric(horizontal: 4),
   );
+
+  /// Frosted-glass stat card for the customer greeting banner.
+  Widget _customerStatCard({
+    required IconData icon,
+    required String value,
+    required String label,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, color: Colors.white, size: 16),
+            ),
+            const Spacer(),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                height: 1,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+                height: 1.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _vehicleIcon(
     String type, {

@@ -411,6 +411,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
               context,
               MaterialPageRoute(builder: (_) => const AdminVehiclesList()),
             );
+          } else if (i == 3) {
+            // Profile → full-screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const UserProfile(role: UserRole.admin),
+              ),
+            ).then((_) => _loadInitials());
           } else {
             setState(() => _currentIndex = i);
           }
@@ -515,8 +523,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return _buildDashboard();
       case 1:
         return const SizedBox.shrink(); // Inventory is pushed as full-screen AdminInventoryHub
-      case 3:
-        return _buildMore();
       default:
         return _buildDashboard();
     }
@@ -556,6 +562,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               .collection('users')
                               .snapshots(),
                           builder: (context, usersSnap) {
+                            return StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('item_master')
+                                  .snapshots(),
+                              builder: (context, itemMasterSnap) {
                             final maintDocs = maintSnap.data?.docs ?? [];
                             final allServices = maintDocs.map((d) {
                               final data = d.data() as Map<String, dynamic>;
@@ -576,6 +587,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             final totalVehicles =
                                 vehicleSnap.data?.docs.length ?? 0;
                             final totalUsers = usersSnap.data?.docs.length ?? 0;
+                            final totalItems = itemMasterSnap.data?.docs.length ?? 0;
                             final stockDocs = stockSnap.data?.docs ?? [];
                             final lowStock = stockDocs.where((d) {
                               final data = d.data() as Map<String, dynamic>;
@@ -694,6 +706,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 issSnap.connectionState ==
                                     ConnectionState.waiting ||
                                 usersSnap.connectionState ==
+                                    ConnectionState.waiting ||
+                                itemMasterSnap.connectionState ==
                                     ConnectionState.waiting;
 
                             // ── Chart 1: Stacked bar — Services by Type, last 7 days ──
@@ -1141,7 +1155,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                                               const TextStyle(
                                                                 color: Colors
                                                                     .white,
-                                                                fontSize: 16,
+                                                                fontSize: 13,
                                                                 fontWeight:
                                                                     FontWeight
                                                                         .w400,
@@ -1154,12 +1168,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                                               const TextStyle(
                                                                 color: Colors
                                                                     .white,
-                                                                fontSize: 30,
+                                                                fontSize: 26,
                                                                 fontWeight:
                                                                     FontWeight
                                                                         .w900,
                                                                 height: 1.1,
                                                               ),
+                                                        ),
+                                                        const SizedBox(height: 4),
+                                                        Text(
+                                                          'Track fleet ops, inventory & maintenance.',
+                                                          style: TextStyle(
+                                                            color: Colors.white.withOpacity(0.8),
+                                                            fontSize: 10,
+                                                            height: 1.4,
+                                                          ),
                                                         ),
                                                       ],
                                                     ),
@@ -1241,80 +1264,48 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                           ),
                                         ),
 
-                                        // ── Stats row pinned to bottom ──
-                                        Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.fromLTRB(
-                                                    20,
-                                                    12,
-                                                    20,
-                                                    0,
-                                                  ),
-                                              child: Container(
-                                                height: 1,
-                                                color: Colors.white12,
+                                        // ── Stats grid ──
+                                        Padding(
+                                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              // Row 1: Total Vehicles | Total Users | Total Items
+                                              IntrinsicHeight(
+                                                child: Row(
+                                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                                  children: [
+                                                    Expanded(child: _websiteStatCard(icon: Icons.directions_car_outlined, value: isLoading ? '…' : '$totalVehicles', label: 'Total\nVehicles', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminVehiclesList())))),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(child: _websiteStatCard(icon: Icons.people_outline, value: isLoading ? '…' : '$totalUsers', label: 'Total\nUsers', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminUsers())))),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(child: _websiteStatCard(icon: Icons.inventory_2_outlined, value: isLoading ? '…' : '$totalItems', label: 'Total\nItems', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminInventoryHub())))),
+                                                  ],
+                                                ),
                                               ),
-                                            ),
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.fromLTRB(
-                                                    16,
-                                                    10,
-                                                    16,
-                                                    14,
-                                                  ),
-                                              child: Row(
-                                                children: [
-                                                  _inlineStatItem(
-                                                    'Total\nVehicles',
-                                                    isLoading
-                                                        ? '…'
-                                                        : '$totalVehicles',
-                                                    const Color(0xFF93c5fd),
-                                                  ),
-                                                  _dividerLine(),
-                                                  _inlineStatItem(
-                                                    'Total\nUsers',
-                                                    isLoading
-                                                        ? '…'
-                                                        : '$totalUsers',
-                                                    const Color(0xFFc4b5fd),
-                                                  ),
-                                                  _dividerLine(),
-                                                  _inlineStatItem(
-                                                    'PMS\nThis Week',
-                                                    isLoading
-                                                        ? '…'
-                                                        : '$dueForPms',
-                                                    const Color(0xFFfbbf24),
-                                                  ),
-                                                  _dividerLine(),
-                                                  _inlineStatItem(
-                                                    'Low\nStock',
-                                                    isLoading
-                                                        ? '…'
-                                                        : '$lowStock',
-                                                    const Color(0xFFfca5a5),
-                                                  ),
-                                                  _dividerLine(),
-                                                  _inlineStatItem(
-                                                    'Today\nService',
-                                                    isLoading
-                                                        ? '…'
-                                                        : '$servicesToday',
-                                                    const Color(0xFF86efac),
-                                                  ),
-                                                ],
+                                              const SizedBox(height: 8),
+                                              // Row 2: Due This Week | Low Stock | Services Today
+                                              IntrinsicHeight(
+                                                child: Row(
+                                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                                  children: [
+                                                    Expanded(child: _websiteStatCard(icon: Icons.build_outlined, value: isLoading ? '…' : '$dueForPms', label: 'Due\nThis Week', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDSS(initialTab: 1))))),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(child: _websiteStatCard(icon: Icons.warning_amber_outlined, value: isLoading ? '…' : '$lowStock', label: 'Low\nStock', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminInventoryStock())))),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(child: _websiteStatCard(icon: Icons.check_circle_outline, value: isLoading ? '…' : '$servicesToday', label: 'Services\nToday', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminVehicleMaintenance())))),
+                                                  ],
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
                                   ),
+                                  const SizedBox(height: 16),
+                                  // ── Quick Actions ──
+                                  _buildQuickActions(),
                                   const SizedBox(height: 16),
                                   // ── Inline calendar ──
                                   _buildInlineCalendar(),
@@ -2725,136 +2716,254 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   ),
                                   const SizedBox(height: 20),
 
-                                  // ── Today's services ──
+                                  // ── Today's Services ──
                                   Container(
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
+                                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
                                     ),
                                     child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        // ── Header ──
+                                        // Header
                                         Container(
-                                          padding: const EdgeInsets.fromLTRB(
-                                            16,
-                                            14,
-                                            16,
-                                            12,
-                                          ),
+                                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
                                           decoration: const BoxDecoration(
                                             color: Colors.white,
-                                            borderRadius: BorderRadius.vertical(
-                                              top: Radius.circular(16),
-                                            ),
-                                            border: Border(
-                                              bottom: BorderSide(
-                                                color: Color(0xFFe2e8f0),
-                                                width: 1,
-                                              ),
-                                            ),
+                                            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                            border: Border(bottom: BorderSide(color: Color(0xFFe2e8f0), width: 1)),
                                           ),
                                           child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
-                                              const Text(
-                                                "Today's Services",
-                                                style: TextStyle(
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: Color(0xFF1a202c),
-                                                ),
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    width: 28,
+                                                    height: 28,
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFFE8001C).withOpacity(0.1),
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                    child: const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFFE8001C)),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  const Text("Today's Services", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+                                                ],
                                               ),
                                               GestureDetector(
-                                                onTap: () => Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        const AdminVehiclesList(),
-                                                  ),
-                                                ),
-                                                child: const Text(
-                                                  'See all →',
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Color(0xFFE8001C),
-                                                  ),
-                                                ),
+                                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminVehicleMaintenance())),
+                                                child: const Text('See all →', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFE8001C))),
                                               ),
                                             ],
                                           ),
                                         ),
-                                        // ── Body ──
+                                        // Body
                                         if (isLoading)
-                                          const Padding(
-                                            padding: EdgeInsets.all(24),
-                                            child: Center(
-                                              child:
-                                                  CircularProgressIndicator(),
-                                            ),
-                                          )
-                                        else if (allServices
-                                            .where(
-                                              (s) =>
-                                                  (s['date'] as String? ??
-                                                      '') ==
-                                                  todayFormatted,
-                                            )
-                                            .isEmpty)
+                                          const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
+                                        else if (allServices.where((s) => (s['date'] as String? ?? '') == todayFormatted).isEmpty)
                                           const Padding(
                                             padding: EdgeInsets.all(20),
-                                            child: Center(
-                                              child: Text(
-                                                'No services for today.',
-                                                style: TextStyle(
-                                                  color: Color(0xFF718096),
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ),
+                                            child: Center(child: Text('No services for today.', style: TextStyle(color: Color(0xFF718096), fontSize: 12))),
                                           )
                                         else
                                           Column(
                                             children: allServices
-                                                .where(
-                                                  (s) =>
-                                                      (s['date'] as String? ??
-                                                          '') ==
-                                                      todayFormatted,
-                                                )
-                                                .map((s) {
-                                                  final rows =
-                                                      s['svcRows'] as List?;
-                                                  final serviceName =
-                                                      (rows != null &&
-                                                          rows.isNotEmpty)
-                                                      ? (rows.first['name']
-                                                                as String? ??
-                                                            '—')
-                                                      : (s['desc'] as String? ??
-                                                            '—');
-                                                  return _serviceRow(s);
-                                                })
-                                                .toList(),
+                                                .where((s) => (s['date'] as String? ?? '') == todayFormatted)
+                                                .toList()
+                                                .asMap()
+                                                .entries
+                                                .map((entry) {
+                                              final i = entry.key;
+                                              final s = entry.value;
+                                              final plate = s['plate'] as String? ?? '—';
+                                              final status = s['status'] as String? ?? '—';
+                                              final rows = s['svcRows'] as List?;
+                                              String service = rows != null && rows.isNotEmpty
+                                                  ? (rows.first['name'] as String? ?? '—')
+                                                  : (s['desc'] as String? ?? '—');
+                                              final statusColor = status == 'Completed'
+                                                  ? Colors.green
+                                                  : status == 'Ongoing'
+                                                  ? Colors.orange
+                                                  : const Color(0xFF718096);
+                                              final todayList = allServices.where((s) => (s['date'] as String? ?? '') == todayFormatted).toList();
+                                              final isLast = i == todayList.length - 1;
+                                              return GestureDetector(
+                                                onTap: () => _showAdminServiceDetails(s),
+                                                child: Column(
+                                                  children: [
+                                                    Padding(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                      child: Row(
+                                                        children: [
+                                                          Container(
+                                                            width: 40,
+                                                            height: 40,
+                                                            decoration: BoxDecoration(
+                                                              color: const Color(0xFF1a3560).withOpacity(0.08),
+                                                              borderRadius: BorderRadius.circular(12),
+                                                            ),
+                                                            child: const Icon(Icons.build_outlined, color: Color(0xFF1a3560), size: 18),
+                                                          ),
+                                                          const SizedBox(width: 12),
+                                                          Expanded(
+                                                            child: Column(
+                                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                                              children: [
+                                                                Text(plate, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c))),
+                                                                const SizedBox(height: 2),
+                                                                Text(service, style: const TextStyle(fontSize: 11, color: Color(0xFF718096)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                          Container(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                            decoration: BoxDecoration(
+                                                              color: statusColor.withOpacity(0.1),
+                                                              borderRadius: BorderRadius.circular(20),
+                                                            ),
+                                                            child: Text(status, style: TextStyle(fontSize: 10, color: statusColor, fontWeight: FontWeight.w600)),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    if (!isLast) const Divider(height: 1, indent: 68, endIndent: 16),
+                                                  ],
+                                                ),
+                                              );
+                                            }).toList(),
                                           ),
                                       ],
                                     ),
                                   ),
+                                  const SizedBox(height: 12),
+
+                                  // ── Recent Services (last 5 completed) ──
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 3))],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Header
+                                        Container(
+                                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                            border: Border(bottom: BorderSide(color: Color(0xFFe2e8f0), width: 1)),
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    width: 28,
+                                                    height: 28,
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFF003087).withOpacity(0.1),
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                    child: const Icon(Icons.check_circle_outline, size: 14, color: Color(0xFF003087)),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  const Text('Recent Services', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1a202c))),
+                                                ],
+                                              ),
+                                              GestureDetector(
+                                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminVehicleMaintenance())),
+                                                child: const Text('See all →', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFE8001C))),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        // Body
+                                        if (isLoading)
+                                          const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
+                                        else if (completedServices.isEmpty)
+                                          const Padding(
+                                            padding: EdgeInsets.all(20),
+                                            child: Center(child: Text('No completed services yet.', style: TextStyle(color: Color(0xFF718096), fontSize: 12))),
+                                          )
+                                        else
+                                          Column(
+                                            children: completedServices.take(5).toList().asMap().entries.map((entry) {
+                                              final i = entry.key;
+                                              final s = entry.value;
+                                              final plate = s['plate'] as String? ?? '—';
+                                              final desc = s['desc'] as String? ?? '';
+                                              final date = s['date'] as String? ?? '';
+                                              final rows = s['svcRows'] as List? ?? [];
+                                              final svcText = rows.isNotEmpty
+                                                  ? (rows.first['name'] as String? ?? '—')
+                                                  : (s['desc'] as String? ?? 'Service');
+                                              final mechanic = s['mechanic'] as String? ?? '—';
+                                              final isLast = i == (completedServices.length > 5 ? 4 : completedServices.length - 1);
+                                              return Column(
+                                                children: [
+                                                  Padding(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                    child: Row(
+                                                      children: [
+                                                        Container(
+                                                          width: 40,
+                                                          height: 40,
+                                                          decoration: BoxDecoration(
+                                                            color: const Color(0xFF1a3560).withOpacity(0.08),
+                                                            borderRadius: BorderRadius.circular(12),
+                                                          ),
+                                                          child: const Icon(Icons.build_outlined, color: Color(0xFF1a3560), size: 18),
+                                                        ),
+                                                        const SizedBox(width: 12),
+                                                        Expanded(
+                                                          child: Column(
+                                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                                            children: [
+                                                              Text(svcText, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1a202c)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                                              const SizedBox(height: 2),
+                                                              Text('$plate${desc.isNotEmpty ? ' · $desc' : ''}', style: const TextStyle(fontSize: 11, color: Color(0xFF718096)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        Column(
+                                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                                          children: [
+                                                            Container(
+                                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                              decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                                                              child: const Text('Completed', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.green)),
+                                                            ),
+                                                            if (date.isNotEmpty) ...[
+                                                              const SizedBox(height: 3),
+                                                              Text(date, style: const TextStyle(fontSize: 10, color: Color(0xFF718096))),
+                                                            ],
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  if (!isLast) const Divider(height: 1, indent: 68, endIndent: 16),
+                                                ],
+                                              );
+                                            }).toList(),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
                                 ],
                               ),
                             );
-                          },
-                        );
+                              }, // closes itemMasterSnap builder
+                            ); // closes itemMasterSnap StreamBuilder
+                          }, // closes usersSnap builder
+                        ); // closes usersSnap StreamBuilder
                       },
                     );
                   },
@@ -3898,6 +4007,85 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
+  // ── QUICK ACTIONS ──
+  Widget _buildQuickActions() {
+    final actions = [
+      (
+        icon: Icons.smart_toy_outlined,
+        label: 'DSS',
+        color: const Color(0xFF003087),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDSS())),
+      ),
+      (
+        icon: Icons.people_outline,
+        label: 'Users',
+        color: Colors.teal,
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminUsers())),
+      ),
+      (
+        icon: Icons.apps_outlined,
+        label: 'Domains',
+        color: Colors.indigo,
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDomainManagement())),
+      ),
+      (
+        icon: Icons.inventory_2_outlined,
+        label: 'Archive',
+        color: Colors.blueGrey,
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminArchive())),
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'More Actions',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1a202c)),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: actions.map((a) {
+            return Expanded(
+              child: GestureDetector(
+                onTap: a.onTap,
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: a.color.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(a.icon, color: a.color, size: 22),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        a.label,
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF1a202c)),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   // ── MORE ──
   Widget _buildMore() {
     final items = [
@@ -4610,6 +4798,62 @@ class _AdminDashboardState extends State<AdminDashboard> {
     color: Colors.white12,
     margin: const EdgeInsets.symmetric(horizontal: 4),
   );
+
+  /// Website-style frosted-glass stat card rendered inside the greeting banner.
+  Widget _websiteStatCard({
+    required IconData icon,
+    required String value,
+    required String label,
+    bool fullWidth = false,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: Colors.white, size: 18),
+            ),
+            const Spacer(),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                height: 1,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+                height: 1.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   // ── Calendar methods ──
   Future<void> _loadCalendarData() async {

@@ -132,16 +132,6 @@
         <div style="height:20px;"></div>
 
         <div class="bs-section-title">Preferred Date</div>
-        <div id="bsDateSuggestion" style="display:none;margin-bottom:10px;padding:12px;background:#f0f4ff;border:1.5px solid #bee3f8;border-radius:12px;cursor:pointer;display:flex;align-items:center;gap:10px;" onclick="bsUseSuggestion()">
-            <div style="width:32px;height:32px;background:rgba(0,48,135,0.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#003087" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-            </div>
-            <div style="flex:1;">
-                <div style="font-size:11px;font-weight:700;color:#003087;">AI Suggested Date</div>
-                <div id="bsDateSuggestionText" style="font-size:11px;color:#718096;"></div>
-            </div>
-            <span style="font-size:12px;font-weight:700;color:#003087;">Use</span>
-        </div>
 
         <!-- Custom Calendar (hidden by default, shows on click) -->
         <button class="bs-date-btn" id="bsDateBtn" onclick="bsToggleCalendar()">
@@ -381,7 +371,6 @@ async function _loadBookingData(user) {
   _renderVehicles();
   _renderServices();
   _renderPerVehicleServices();
-  _updateDateSuggestion();
   _updateSummaryCard();
 }
 
@@ -407,7 +396,6 @@ window.bsToggleVehicle = function(id) {
   }
   _renderVehicles();
   _renderPerVehicleServices();
-  _updateDateSuggestion();
   _updateSummaryCard();
 };
 
@@ -543,80 +531,6 @@ function _renderServices() {
   if (el) el.innerHTML = '';
 }
 
-var _bsSuggestedDate = '';
-function _updateDateSuggestion() {
-  var el = document.getElementById('bsDateSuggestion');
-  var txt = document.getElementById('bsDateSuggestionText');
-  if (!el || !txt) return;
-  var vehicleIds = Object.keys(_bsSelectedVehicles);
-  if (!vehicleIds.length) { el.style.display = 'none'; return; }
-
-  var vehicle = _bsVehicles.find(function(v){ return v.id === vehicleIds[0]; });
-  if (!vehicle) { el.style.display = 'none'; return; }
-
-  var lastSvc = vehicle.lastSvcDate || '';
-  var freq = parseInt(vehicle.svcFreq) || 0;
-  var now = new Date();
-  var tomorrow = new Date(now.getTime() + 86400000);
-  tomorrow.setHours(0,0,0,0);
-  var suggested = null;
-  var reason = '';
-
-  if (lastSvc && freq > 0) {
-    var lastDate = new Date(lastSvc);
-    if (!isNaN(lastDate)) {
-      var nextPms = new Date(lastDate.getFullYear(), lastDate.getMonth() + freq, lastDate.getDate());
-      if (nextPms > now) {
-        suggested = new Date(nextPms.getTime() - 3*86400000);
-        if (suggested < tomorrow) suggested = new Date(tomorrow);
-        reason = 'Based on PMS schedule (due ' + _toLocalDateStr(nextPms) + ')';
-      } else {
-        suggested = new Date(tomorrow);
-        reason = 'PMS is overdue — book ASAP';
-      }
-    }
-  }
-
-  if (!suggested) {
-    suggested = new Date(tomorrow);
-    reason = 'Next available open day';
-  }
-
-  // Shift forward past fully-booked dates (all 8 slots taken)
-  var attempts = 0;
-  while (attempts < 60) {
-    var ds = _toLocalDateStr(suggested);
-    var takenSlots = _bsBookedDates[ds] || [];
-    var isFull = takenSlots.length >= _ALL_TIME_SLOTS.length;
-    if (!isFull) break;
-    suggested = new Date(suggested.getTime() + 86400000);
-    attempts++;
-  }
-
-  _bsSuggestedDate = _toLocalDateStr(suggested);
-  txt.textContent = _fmtDatePretty(_bsSuggestedDate) + ' - ' + reason;
-  el.style.display = 'flex';
-}
-
-window.bsUseSuggestion = function() {
-  if (!_bsSuggestedDate) return;
-  _bsDate = _bsSuggestedDate;
-  _bsCalSelectedDate = _bsSuggestedDate;
-  // Reset time selection
-  _bsTime = '';
-  document.querySelectorAll('.bs-time-chip').forEach(function(c){ c.classList.remove('selected'); });
-  var arriveEl = document.getElementById('bsArriveBy');
-  if (arriveEl) arriveEl.style.display = 'none';
-  bsRenderCalendar();
-  _showSelectedDate();
-  // Hide calendar, update button
-  document.getElementById('bsCalendarWrap').style.display = 'none';
-  var btn = document.getElementById('bsDateBtn');
-  btn.classList.add('has-value');
-  document.getElementById('bsDateText').textContent = _fmtDatePretty(_bsDate);
-  _loadBookedTimesForDate(_bsDate);
-};
-
 window.bsToggleService = function(id) {
   // Legacy — no longer used
 };
@@ -643,7 +557,6 @@ async function _loadBookedDates() {
       }
     });
     bsRenderCalendar();
-    _updateDateSuggestion(); // re-evaluate suggestion now that availability data is loaded
   } catch(e) { /* ignore */ }
 }
 
@@ -897,7 +810,6 @@ window.bsSubmit = async function() {
 
     var vehicleIds = Object.keys(_bsSelectedVehicles);
     var selectedVehicles = _bsVehicles.filter(function(v){ return _bsSelectedVehicles[v.id]; });
-    var usedAiSlot = (_bsDate === _bsSuggestedDate);
     var vCount = selectedVehicles.length;
     var vLabel = vCount + ' vehicle' + (vCount > 1 ? 's' : '');
 
@@ -924,7 +836,6 @@ window.bsSubmit = async function() {
         notes: (document.getElementById('bsNotes').value||'').trim(),
         status: 'Approved',
         autoApproved: true,
-        usedAiSuggestion: usedAiSlot,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
     }

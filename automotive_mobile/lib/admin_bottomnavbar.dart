@@ -30,7 +30,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
     (icon: Icons.dashboard_outlined, label: 'Dashboard'),
     (icon: Icons.inventory_2_outlined, label: 'Inventory'),
     (icon: Icons.directions_car_outlined, label: 'Vehicles'),
-    (icon: Icons.more_horiz, label: 'More'),
+    (icon: Icons.person_outline, label: 'Profile'),
   ];
 
   @override

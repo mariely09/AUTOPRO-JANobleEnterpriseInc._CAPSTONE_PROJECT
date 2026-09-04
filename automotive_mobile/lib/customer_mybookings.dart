@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'customer_book_service.dart';
+import 'customer_bottomnavbar.dart';
+import 'customer_pms_history.dart';
+import 'profile.dart';
 
 // ── Auto-cancel helper ───────────────────────────────────────────────────────
 // Runs once per snapshot. Cancels any Approved/Pending booking that was never
@@ -1065,48 +1068,62 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [
-          GestureDetector(
-            onTap: () => Navigator.push(
+
+      ),
+      bottomNavigationBar: CustomerBottomNavBar(
+        currentIndex: 1,
+        onTap: (i) {
+          if (i == 1) return; // already here
+          if (i == 0) {
+            Navigator.pop(context);
+          } else if (i == 2) {
+            Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const CustomerBookService()),
+              MaterialPageRoute(builder: (_) => const CustomerPmsScreen()),
+            );
+          } else if (i == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const UserProfile(role: UserRole.customer),
+              ),
+            );
+          }
+        },
+      ),
+      floatingActionButton: Container(        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF002B38), Color(0xFFB30016)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF002B38).withValues(alpha: 0.45),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-            child: Container(
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF004B5F).withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.add, color: Colors.white, size: 16),
-                  SizedBox(width: 4),
-                  Text(
-                    'Book Service',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CustomerBookService()),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          highlightElevation: 0,
+          icon: const Icon(Icons.add, color: Colors.white),
+          label: const Text(
+            'Book Service',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ],
+        ),
       ),
       // Wait for Firebase Auth to be ready before querying
       body: StreamBuilder<User?>(

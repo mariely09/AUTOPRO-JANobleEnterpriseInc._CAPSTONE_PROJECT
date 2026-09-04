@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'staff_receiving.dart';
 import 'sync_indicator.dart';
+import 'staff_bottomnavbar.dart';
+import 'staff_vehicle_list.dart';
+import 'profile.dart';
+import 'barcode_scanner_screen.dart';
 
 class StaffInventory extends StatefulWidget {
   const StaffInventory({super.key});
@@ -234,6 +238,33 @@ class _StaffInventoryState extends State<StaffInventory> {
             ),
           ),
         ),
+      ),
+      bottomNavigationBar: StaffBottomNavBar(
+        currentIndex: 1,
+        onIndexChanged: (i) {
+          if (i == 1) return;
+          if (i == 0) {
+            Navigator.pop(context);
+          } else if (i == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const StaffVehicleList()),
+            );
+          } else if (i == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const UserProfile(role: UserRole.staff),
+              ),
+            );
+          }
+        },
+        onScanPressed: () async {
+          await Navigator.push<String>(
+            context,
+            MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
+          );
+        },
       ),
       body: OfflineSaveListener(
         child: IndexedStack(

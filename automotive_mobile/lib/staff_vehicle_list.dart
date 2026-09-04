@@ -4,6 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'staff_maintenance.dart';
 import 'staff_service_bookings.dart';
 import 'sync_indicator.dart';
+import 'staff_bottomnavbar.dart';
+import 'staff_inventory.dart';
+import 'profile.dart';
+import 'barcode_scanner_screen.dart';
 
 class StaffVehicleList extends StatefulWidget {
   const StaffVehicleList({super.key});
@@ -361,6 +365,33 @@ class _StaffVehicleListState extends State<StaffVehicleList> {
             ),
           ),
         ),
+      ),
+      bottomNavigationBar: StaffBottomNavBar(
+        currentIndex: 2,
+        onIndexChanged: (i) {
+          if (i == 2) return;
+          if (i == 0) {
+            Navigator.pop(context);
+          } else if (i == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const StaffInventory()),
+            );
+          } else if (i == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const UserProfile(role: UserRole.staff),
+              ),
+            );
+          }
+        },
+        onScanPressed: () async {
+          await Navigator.push<String>(
+            context,
+            MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
+          );
+        },
       ),
       body: OfflineSaveListener(
         child: IndexedStack(

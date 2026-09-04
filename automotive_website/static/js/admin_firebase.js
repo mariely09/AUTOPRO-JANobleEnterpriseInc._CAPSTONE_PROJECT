@@ -323,6 +323,8 @@
       } catch(e) {}
       // Stamp any already-computed issuance stats onto newly loaded items
       if (typeof window._computeItemIssuanceStats === 'function') window._computeItemIssuanceStats();
+      // Update Total Items stat card on the dashboard
+      if (typeof _setStat === 'function') _setStat('statTotalItems', (window._fbItemMaster || []).length);
       if (typeof renderItemMasterList === 'function') {
         const section = document.querySelector('.admin-section.active');
         if (!section || section.id === 'item-master') renderItemMasterList();
@@ -526,6 +528,8 @@
     const servicesToday = services.filter(s => (s.date || '') === todayFormatted).length;
     _setStat('statServicesWeek', servicesToday);
 
+    _setStat('statTotalItems', (window._fbItemMaster || []).length);
+
     // Update the overview stat cards directly
     const statCards = document.querySelectorAll('#overview .stat-number');
     if (statCards[0]) statCards[0].textContent = vehicles.length;
@@ -552,6 +556,7 @@
           statLowStock      : lowStock,
           statServicesWeek  : servicesToday,
           statTotalUsers    : (window._fbUsers || []).length,
+          statTotalItems    : (window._fbItemMaster || []).length,
           todayHtml         : todayEl  ? todayEl.innerHTML  : '',
           recentHtml        : recentEl ? recentEl.innerHTML : '',
           savedAt           : Date.now(),

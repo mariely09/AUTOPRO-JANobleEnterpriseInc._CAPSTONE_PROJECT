@@ -15,6 +15,13 @@ import 'admin_rag_ai.dart';
 import 'customer_smart_ai.dart';
 import 'terms_conditions.dart';
 import 'onesignal_debug.dart';
+import 'customer_bottomnavbar.dart';
+import 'customer_mybookings.dart';
+import 'customer_pms_history.dart';
+import 'staff_bottomnavbar.dart';
+import 'staff_inventory.dart';
+import 'staff_vehicle_list.dart';
+import 'barcode_scanner_screen.dart';
 
 enum UserRole { customer, staff, admin }
 
@@ -320,6 +327,59 @@ class _UserProfileState extends State<UserProfile> {
     final isStandalone = widget.role != UserRole.customer;
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
+      bottomNavigationBar: widget.role == UserRole.customer
+          ? CustomerBottomNavBar(
+              currentIndex: 3,
+              onTap: (i) {
+                if (i == 3) return; // already here
+                if (i == 0) {
+                  Navigator.pop(context);
+                } else if (i == 1) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CustomerMyBookings(),
+                    ),
+                  );
+                } else if (i == 2) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CustomerPmsScreen(),
+                    ),
+                  );
+                }
+              },
+            )
+          : widget.role == UserRole.staff
+          ? StaffBottomNavBar(
+              currentIndex: 3,
+              onIndexChanged: (i) {
+                if (i == 3) return;
+                if (i == 0) {
+                  Navigator.pop(context);
+                } else if (i == 1) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StaffInventory()),
+                  );
+                } else if (i == 2) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const StaffVehicleList()),
+                  );
+                }
+              },
+              onScanPressed: () async {
+                await Navigator.push<String>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const BarcodeScannerScreen(),
+                  ),
+                );
+              },
+            )
+          : null,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : CustomScrollView(

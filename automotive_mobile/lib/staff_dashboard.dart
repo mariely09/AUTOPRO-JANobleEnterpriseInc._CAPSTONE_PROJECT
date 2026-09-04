@@ -1737,7 +1737,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                                           greet,
                                           style: const TextStyle(
                                             color: Colors.white,
-                                            fontSize: 16,
+                                            fontSize: 13,
                                             fontWeight: FontWeight.w400,
                                             height: 1.2,
                                           ),
@@ -1746,7 +1746,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                                           firstName,
                                           style: const TextStyle(
                                             color: Colors.white,
-                                            fontSize: 30,
+                                            fontSize: 26,
                                             fontWeight: FontWeight.w900,
                                             height: 1.1,
                                           ),
@@ -1808,47 +1808,42 @@ class _StaffDashboardState extends State<StaffDashboard> {
                           ),
                         ),
 
-                        // ── Stats row pinned to bottom ──
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                              child: Container(
-                                height: 1,
-                                color: Colors.white12,
-                              ),
+                        // ── Stats grid ──
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                          child: IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: _staffStatCard(
+                                    icon: Icons.check_circle_outline,
+                                    value: isLoading ? '…' : '${todayServices.length}',
+                                    label: "Today's\nServices",
+                                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffVehicleList())),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _staffStatCard(
+                                    icon: Icons.autorenew,
+                                    value: isLoading ? '…' : '$ongoing',
+                                    label: 'Ongoing',
+                                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffVehicleList())),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _staffStatCard(
+                                    icon: Icons.warning_amber_outlined,
+                                    value: isLoading ? '…' : '$lowStock',
+                                    label: 'Low\nStock',
+                                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffInventory())),
+                                  ),
+                                ),
+                              ],
                             ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                16,
-                                10,
-                                16,
-                                14,
-                              ),
-                              child: Row(
-                                children: [
-                                  _inlineStatItem(
-                                    "Today's Svc",
-                                    isLoading ? '…' : '${todayServices.length}',
-                                    const Color(0xFF86efac),
-                                  ),
-                                  _dividerLine(),
-                                  _inlineStatItem(
-                                    'Ongoing',
-                                    isLoading ? '…' : '$ongoing',
-                                    const Color(0xFF93c5fd),
-                                  ),
-                                  _dividerLine(),
-                                  _inlineStatItem(
-                                    'Low Stock',
-                                    isLoading ? '…' : '$lowStock',
-                                    const Color(0xFFfca5a5),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ],
                     ),
@@ -2041,6 +2036,62 @@ class _StaffDashboardState extends State<StaffDashboard> {
     color: Colors.white12,
     margin: const EdgeInsets.symmetric(horizontal: 4),
   );
+
+  /// Website-style frosted-glass stat card for the greeting banner.
+  Widget _staffStatCard({
+    required IconData icon,
+    required String value,
+    required String label,
+    bool fullWidth = false,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: Colors.white, size: 18),
+            ),
+            const Spacer(),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                height: 1,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+                height: 1.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildScheduleCard(Map<String, dynamic> s) {
     final plate = s['plate'] as String? ?? '—';

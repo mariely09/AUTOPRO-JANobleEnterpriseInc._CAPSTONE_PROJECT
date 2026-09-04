@@ -247,7 +247,6 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
           'notes': _notes.trim(),
           'status': 'Approved',
           'autoApproved': true,
-          'usedAiSuggestion': false,
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
@@ -595,16 +594,36 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                               onTap: () => _showServiceModal(vId, plate),
                               child: selectedSvcs.isNotEmpty
                                   ? Container(
-                                      width: 36,
-                                      height: 36,
-                                      decoration: BoxDecoration(
-                                        color: _red,
-                                        shape: BoxShape.circle,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
                                       ),
-                                      child: const Icon(
-                                        Icons.edit_outlined,
-                                        size: 17,
-                                        color: Colors.white,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFF5F5),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: const Color(0xFFFCA5A5),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.edit_outlined,
+                                            size: 13,
+                                            color: _red,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Edit (${selectedSvcs.length})',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: _red,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     )
                                   : Container(
@@ -613,8 +632,12 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                                         vertical: 8,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF003087),
+                                        color: const Color(0xFFFFF5F5),
                                         borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: const Color(0xFFFCA5A5),
+                                          width: 1.5,
+                                        ),
                                       ),
                                       child: const Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -622,7 +645,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                                           Icon(
                                             Icons.add,
                                             size: 14,
-                                            color: Colors.white,
+                                            color: _red,
                                           ),
                                           SizedBox(width: 4),
                                           Text(
@@ -630,7 +653,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                                             style: TextStyle(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
-                                              color: Colors.white,
+                                              color: _red,
                                             ),
                                           ),
                                         ],
@@ -648,9 +671,6 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                   // -- Preferred Date --
                   _sectionTitle('Preferred Date'),
                   const SizedBox(height: 8),
-                  // AI suggestion
-                  if (_selectedVehicleIds.isNotEmpty) _buildDateSuggestion(),
-                  if (_selectedVehicleIds.isNotEmpty) const SizedBox(height: 8),
                   // Date display field (like website's "Tap to select date" button)
                   Container(
                     width: double.infinity,
@@ -1168,164 +1188,6 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildDateSuggestion() {
-    if (_selectedVehicleIds.isEmpty) return const SizedBox.shrink();
-
-    // Gather PMS data from all selected vehicles to find the best suggestion
-    DateTime? bestSuggestion;
-    String reason = '';
-    DateTime? earliestPmsDue;
-
-    for (final vId in _selectedVehicleIds) {
-      final vehicle = _vehicles.firstWhere(
-        (v) => v['id'] == vId,
-        orElse: () => <String, dynamic>{},
-      );
-      if (vehicle.isEmpty) continue;
-
-      final lastSvc = (vehicle['lastSvcDate'] ?? '').toString();
-      final freq = int.tryParse((vehicle['svcFreq'] ?? '').toString()) ?? 0;
-
-      if (lastSvc.isNotEmpty && freq > 0) {
-        final lastDate = DateTime.tryParse(lastSvc);
-        if (lastDate != null) {
-          final nextPms = DateTime(
-            lastDate.year,
-            lastDate.month + freq,
-            lastDate.day,
-          );
-          if (earliestPmsDue == null || nextPms.isBefore(earliestPmsDue)) {
-            earliestPmsDue = nextPms;
-          }
-        }
-      }
-    }
-
-    final now = DateTime.now();
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
-
-    if (earliestPmsDue != null) {
-      if (earliestPmsDue.isAfter(now)) {
-        // Suggest 3 days before earliest PMS due
-        bestSuggestion = earliestPmsDue.subtract(const Duration(days: 3));
-        if (bestSuggestion!.isBefore(tomorrow)) bestSuggestion = tomorrow;
-        reason =
-            'PMS due ${_fmtDatePretty(earliestPmsDue)} � book before it\'s overdue';
-      } else {
-        // Overdue � suggest tomorrow
-        bestSuggestion = tomorrow;
-        reason = 'PMS is overdue � book ASAP';
-      }
-    }
-
-    if (bestSuggestion == null) {
-      // Default: next available weekday (not fully booked)
-      bestSuggestion = tomorrow;
-      int attempts = 0;
-      while (attempts < 30) {
-        final dateStr =
-            '${bestSuggestion!.year}-${bestSuggestion!.month.toString().padLeft(2, '0')}-${bestSuggestion!.day.toString().padLeft(2, '0')}';
-        final isFull =
-            (_bookedDates[dateStr]?.length ?? 0) >= _allTimeSlots.length;
-        if (!isFull) break;
-        bestSuggestion = bestSuggestion!.add(const Duration(days: 1));
-        attempts++;
-      }
-      reason = 'Next available open day';
-    } else {
-      // Also check if the suggested date is fully booked ? shift forward
-      int attempts = 0;
-      while (attempts < 14) {
-        final dateStr =
-            '${bestSuggestion!.year}-${bestSuggestion!.month.toString().padLeft(2, '0')}-${bestSuggestion!.day.toString().padLeft(2, '0')}';
-        final isFull =
-            (_bookedDates[dateStr]?.length ?? 0) >= _allTimeSlots.length;
-        if (!isFull) break;
-        bestSuggestion = bestSuggestion!.add(const Duration(days: 1));
-        attempts++;
-      }
-    }
-
-    final suggestedDate = bestSuggestion!;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _preferredDate = suggestedDate;
-          _preferredTime = null; // reset time when date changes
-          _calYear = suggestedDate.year;
-          _calMonth = suggestedDate.month;
-        });
-        final dateStr =
-            '${suggestedDate.year}-${suggestedDate.month.toString().padLeft(2, '0')}-${suggestedDate.day.toString().padLeft(2, '0')}';
-        _loadBookedTimesForDate(dateStr);
-      },
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF0F4FF),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFbee3f8)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFF003087).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.auto_awesome,
-                size: 16,
-                color: Color(0xFF003087),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'AI Suggested Date',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF003087),
-                    ),
-                  ),
-                  Text(
-                    '${_fmtDatePretty(suggestedDate)} � $reason',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF718096),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF003087),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                'Use',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

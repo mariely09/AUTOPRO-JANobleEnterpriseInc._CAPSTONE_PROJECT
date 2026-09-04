@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'pms_history_details.dart';
+import 'customer_bottomnavbar.dart';
+import 'customer_mybookings.dart';
+import 'profile.dart';
 
 /// Full-screen wrapper pushed via Navigator — no dashboard chrome.
 /// AppBar: back button (left) + title + search icon (right).
@@ -101,6 +104,27 @@ class _CustomerPmsScreenState extends State<CustomerPmsScreen> {
               onPressed: () => setState(() => _searchOpen = true),
             ),
         ],
+      ),
+      bottomNavigationBar: CustomerBottomNavBar(
+        currentIndex: 2,
+        onTap: (i) {
+          if (i == 2) return; // already here
+          if (i == 0) {
+            Navigator.pop(context);
+          } else if (i == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const CustomerMyBookings()),
+            );
+          } else if (i == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const UserProfile(role: UserRole.customer),
+              ),
+            );
+          }
+        },
       ),
       body: _CustomerPmsBody(searchNotifier: _searchNotifier),
     );
