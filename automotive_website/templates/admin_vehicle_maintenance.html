@@ -40,7 +40,7 @@
         <div id="headerContainer"></div>
         
         <div class="admin-main">
-        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;padding:0.6rem 1.5rem;background:white;border-bottom:1px solid #f0f4f8;flex-shrink:0;position:relative;z-index:10;">
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;padding:0.6rem 1.5rem;background:white;border-bottom:1px solid #f0f4f8;flex-shrink:0;position:relative;z-index:2;">
                 <!-- Search -->
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -256,6 +256,27 @@
 <div id="toast"></div>
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Fix: data-table overflow:hidden clips action buttons ── */
+.data-table {
+    overflow: visible !important;
+}
+/* Keep rounded corners by clipping only the inner header row */
+.data-table > .table-row:first-child {
+    border-radius: 14px 14px 0 0;
+    overflow: hidden;
+}
+/* Action buttons: ensure they sit above other content */
+.table-row .btn-small {
+    position: relative;
+    z-index: 1;
+}
+/* Toolbar must not overlap table rows */
+.admin-main > div:first-child {
+    position: relative;
+    z-index: 5;
+}
+
 /* -- Floating label fields -- */
 .fl-field {
     position: relative;
