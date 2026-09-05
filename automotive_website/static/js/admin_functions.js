@@ -644,7 +644,7 @@ function renderServicesList() {
             + '<div>' + (s.mechanicName||'-') + '</div>'
             + '<div>₱' + ((s.totalCost||0).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2})) + '</div>'
             + '<div>' + statusBadge + '</div>'
-            + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;">' + topActions + '</div>'
+            + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;position:relative;z-index:10;">' + topActions + '</div>'
             + '</div>';
     });
     apRenderPaged('servicesList', rows, 10, 'renderServicesList');

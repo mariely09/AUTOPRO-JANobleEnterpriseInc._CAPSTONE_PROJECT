@@ -40,7 +40,7 @@
         <div id="headerContainer"></div>
         
         <div class="admin-main">
-        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;padding:0.6rem 1.5rem;background:white;border-bottom:1px solid #f0f4f8;flex-shrink:0;position:relative;z-index:2;">
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;padding:0.6rem 1.5rem;background:white;border-bottom:1px solid #f0f4f8;flex-shrink:0;">
                 <!-- Search -->
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -257,24 +257,26 @@
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Fix: data-table overflow:hidden clips action buttons ── */
+/* ── Fix: action buttons in table rows are clickable ── */
 .data-table {
     overflow: visible !important;
 }
-/* Keep rounded corners by clipping only the inner header row */
+/* Remove any stacking context from the data-table itself */
 .data-table > .table-row:first-child {
     border-radius: 14px 14px 0 0;
     overflow: hidden;
 }
-/* Action buttons: ensure they sit above other content */
-.table-row .btn-small {
+/* Action buttons sit above everything */
+.table-row .svc-actions,
+.table-row > div:last-child {
     position: relative;
-    z-index: 1;
+    z-index: 10;
 }
-/* Toolbar must not overlap table rows */
-.admin-main > div:first-child {
+.table-row .btn-small,
+.table-row button {
     position: relative;
-    z-index: 5;
+    z-index: 10;
+    pointer-events: auto;
 }
 
 /* -- Floating label fields -- */
