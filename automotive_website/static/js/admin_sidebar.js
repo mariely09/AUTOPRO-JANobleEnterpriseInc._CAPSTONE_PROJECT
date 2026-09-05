@@ -166,7 +166,7 @@ function bindHeaderControls() {
         'overview':               'Dashboard',
         'item-master':            'Item Master',
         'inventory':              'Stock Inventory',
-        'receiving':              'Receiving Items',
+        'receiving':              'Purchase Orders (PO)',
         'inventory-transactions': 'Inventory Transactions',
         'assets':                 'Vehicle List',
         'asset-servicing':        'Vehicle Maintenance',

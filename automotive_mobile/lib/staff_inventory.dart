@@ -97,7 +97,7 @@ class _StaffInventoryState extends State<StaffInventory> {
                 ),
               )
             : Text(
-                _tab == 0 ? 'Stock Inventory' : 'Receiving Items',
+                _tab == 0 ? 'Stock Inventory' : 'Purchase Orders (PO)',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -234,7 +234,7 @@ class _StaffInventoryState extends State<StaffInventory> {
           child: Container(
             color: Colors.white,
             child: Row(
-              children: [_tabBtn(0, 'Inventory'), _tabBtn(1, 'Receiving')],
+              children: [_tabBtn(0, 'Inventory'), _tabBtn(1, 'Purchase Orders (PO)')],
             ),
           ),
         ),
