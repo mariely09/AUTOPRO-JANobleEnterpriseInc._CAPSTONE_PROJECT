@@ -1290,9 +1290,13 @@
     }
 
     /* ─ Dashboard chart rows → single column ─ */
-    .dash-row-1,
-    .dash-row-2 {
+    .dash-row-1 {
         grid-template-columns: 1fr !important;
+        gap: 0.85rem !important;
+    }
+    /* Keep row-2 (3 chart cards) side by side until very small screens */
+    .dash-row-2 {
+        grid-template-columns: 1fr 1fr 1fr !important;
         gap: 0.85rem !important;
     }
 
@@ -1321,6 +1325,13 @@
     #issuance .stats-grid,
     #inventory-transactions .stats-grid {
         grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* ─ Very small phones: collapse row-2 to 1 column ─ */
+@media (max-width: 600px) {
+    .dash-row-2 {
+        grid-template-columns: 1fr !important;
     }
 }
 
