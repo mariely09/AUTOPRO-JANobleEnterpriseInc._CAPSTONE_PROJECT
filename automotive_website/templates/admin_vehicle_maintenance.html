@@ -1540,10 +1540,9 @@ window._svcViewDetails = function(docId) {
               _resolveOwnerAndNotify();
             }
           })();
-              }).catch(function() {});
-            }).catch(function() {});
-          }
-        });
+            closeModal('svcDetailsModal');
+            showToast('Service marked as Completed successfully!', 'success');
+          });
         }); // end byNamePromise.then
       }).catch(function(err) { showToast('Error: ' + err.message, 'error'); if (cBtn) { cBtn.disabled = false; cBtn.innerHTML = cBtnOrigHtml; } });
     };
