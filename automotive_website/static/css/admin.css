@@ -1282,19 +1282,23 @@
         position: relative !important;
     }
 
-    /* ─ Stats grid: 5-col → 2-col ─ */
+    /* ─ Stats grid: 6-col → 3-col at 900px ─ */
+    .dash-stats-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 0.75rem !important;
+        margin-bottom: 1rem !important;
+    }
     .stats-grid {
         grid-template-columns: repeat(2, 1fr) !important;
         gap: 0.75rem !important;
         margin-bottom: 1rem !important;
     }
 
-    /* ─ Dashboard chart rows → single column ─ */
+    /* ─ Dashboard chart rows ─ */
     .dash-row-1 {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: 1fr 1.2fr !important;
         gap: 0.85rem !important;
     }
-    /* Keep row-2 (3 chart cards) side by side until very small screens */
     .dash-row-2 {
         grid-template-columns: 1fr 1fr 1fr !important;
         gap: 0.85rem !important;
@@ -1323,8 +1327,15 @@
     }
 }
 
-/* ─ Very small phones: collapse row-2 to 1 column ─ */
+/* ─ Very small phones: collapse row-1 and row-2 to 1 column ─ */
 @media (max-width: 600px) {
+    .dash-stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.55rem !important;
+    }
+    .dash-row-1 {
+        grid-template-columns: 1fr !important;
+    }
     .dash-row-2 {
         grid-template-columns: 1fr !important;
     }
