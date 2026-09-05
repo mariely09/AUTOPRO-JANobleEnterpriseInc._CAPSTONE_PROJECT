@@ -1196,14 +1196,17 @@
         box-shadow: none !important;
     }
     .admin-sidebar.admin-sidebar-open,
-    #adminSidebar.admin-sidebar-open {
+    #adminSidebar.admin-sidebar-open,
+    #adminSidebar.asb-exp {
         transform: translateX(0) !important;
         box-shadow: 4px 0 24px rgba(0,0,0,0.15) !important;
     }
     .admin-sidebar.admin-sidebar-open .admin-nav-label,
     .admin-sidebar.admin-sidebar-open .admin-sidebar-user-info,
     #adminSidebar.admin-sidebar-open .asb-lbl,
-    #adminSidebar.admin-sidebar-open .asb-user { opacity: 1 !important; }
+    #adminSidebar.admin-sidebar-open .asb-user,
+    #adminSidebar.asb-exp .asb-lbl,
+    #adminSidebar.asb-exp .asb-user { opacity: 1 !important; }
 
     .admin-page-shell {
         min-height: 100vh !important;

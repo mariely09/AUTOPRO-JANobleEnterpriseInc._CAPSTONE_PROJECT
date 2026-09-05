@@ -88,7 +88,11 @@ function navigateTo(section) {
 function _closeSidebar() {
     const sidebar = document.getElementById('adminSidebar');
     const overlay = document.getElementById('adminSidebarOverlay');
-    if (sidebar) sidebar.classList.remove('admin-sidebar-open');
+    if (sidebar) {
+        sidebar.classList.remove('admin-sidebar-open');
+        // Also remove asb-exp on mobile so the drawer fully hides after navigation
+        if (window.innerWidth <= 900) sidebar.classList.remove('asb-exp');
+    }
     if (overlay) overlay.classList.remove('active');
 }
 
@@ -104,6 +108,19 @@ function toggleAdminSidebar() {
 window.toggleSidebarExpand = function() {
     const sidebar = document.getElementById('adminSidebar');
     if (!sidebar) return;
+
+    // On mobile/tablet (≤900px) the sidebar is a fixed drawer —
+    // use the drawer classes so the overlay also shows/hides.
+    if (window.innerWidth <= 900) {
+        const overlay = document.getElementById('adminSidebarOverlay');
+        const isOpen  = sidebar.classList.toggle('admin-sidebar-open');
+        // Keep asb-exp in sync so CSS is consistent
+        sidebar.classList.toggle('asb-exp', isOpen);
+        if (overlay) overlay.classList.toggle('active', isOpen);
+        return;
+    }
+
+    // Desktop: normal expand/collapse (icon-only ↔ full-width)
     const isExpanded = sidebar.classList.toggle('asb-exp');
     document.body.classList.toggle('sidebar-expanded', isExpanded);
     localStorage.setItem('sidebarExpanded', isExpanded ? '1' : '0');
@@ -192,13 +209,13 @@ function bindHeaderControls() {
     const overlay = document.getElementById('adminSidebarOverlay');
     if (overlay) overlay.addEventListener('click', function() {
         var sidebar = document.getElementById('adminSidebar');
-        if (_isExpandCollapsePage()) {
-            if (sidebar) sidebar.classList.remove('asb-exp');
-            document.body.classList.remove('sidebar-expanded');
-            localStorage.setItem('sidebarExpanded', '0');
-        } else {
-            if (sidebar) sidebar.classList.remove('admin-sidebar-open');
+        // Always close the mobile drawer (both class variants)
+        if (sidebar) {
+            sidebar.classList.remove('admin-sidebar-open');
+            sidebar.classList.remove('asb-exp');
         }
+        document.body.classList.remove('sidebar-expanded');
+        localStorage.setItem('sidebarExpanded', '0');
         overlay.classList.remove('active');
     });
 
