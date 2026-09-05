@@ -158,8 +158,33 @@
   }
 
   // ── Vehicles ─────────────────────────────────────────────
+  // Track under-maintenance vehicle ids/plates from service_bookings
+  window._cuUnderMaintenancePlates    = new Set();
+  window._cuUnderMaintenanceVehicleIds = new Set();
+
   function loadVehicles() {
     const user = auth.currentUser;
+
+    // ── Listen to service_bookings for Under Maintenance status ──
+    db.collection('service_bookings')
+      .where('customerId', '==', user.uid)
+      .onSnapshot(bookingSnap => {
+        window._cuUnderMaintenancePlates    = new Set();
+        window._cuUnderMaintenanceVehicleIds = new Set();
+        bookingSnap.docs.forEach(doc => {
+          const data = doc.data();
+          if ((data.status || '').toLowerCase() === 'under maintenance') {
+            if (data.plate)     window._cuUnderMaintenancePlates.add((data.plate || '').toLowerCase());
+            if (data.vehicleId) window._cuUnderMaintenanceVehicleIds.add(data.vehicleId);
+          }
+        });
+        // Re-render if vehicles already loaded
+        if (_vehicles.length) {
+          updateStats();
+          renderVehicles();
+        }
+      }, () => {}); // ignore booking stream errors silently
+
     db.collection('vehicles').onSnapshot(snap => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
@@ -223,7 +248,10 @@
   }
 
   function computeStatus(v) {
+    // Check if vehicle has an active Under Maintenance booking
     if (v.status === 'Under Maintenance') return 'Under Maintenance';
+    if (window._cuUnderMaintenancePlates    && window._cuUnderMaintenancePlates.has((v.plate || '').toLowerCase())) return 'Under Maintenance';
+    if (window._cuUnderMaintenanceVehicleIds && window._cuUnderMaintenanceVehicleIds.has(v.id)) return 'Under Maintenance';
     const lastSvc = v.lastSvcDate || '';
     const freq = parseInt(v.svcFreq) || 0;
     if (!lastSvc || !freq) return 'On Track';
@@ -244,15 +272,17 @@
   }
 
   function updateStats() {
+    // Use live computeStatus() so Due Today is always accurate regardless of stale Firestore status
     const statuses = _vehicles.map(v => computeStatus(v));
     const overdue     = statuses.filter(s => s === 'Overdue').length;
     const dueToday    = statuses.filter(s => s === 'Due Today').length;
-    const dueThisWeek = statuses.filter(s => s === 'Due This Week').length;
+    const dueThisWeek = statuses.filter(s => s === 'Due This Week' || s === 'Due Soon').length;
     const maintenance = statuses.filter(s => s === 'Under Maintenance').length;
+    const active      = statuses.filter(s => s === 'On Track' || s === 'Scheduled').length;
 
     const totalEl = document.getElementById('cuTotalVehicles');
     if (totalEl) totalEl.textContent = _vehicles.length;
-    document.getElementById('cuActive').textContent         = statuses.filter(s => s === 'On Track' || s === 'Scheduled').length;
+    document.getElementById('cuActive').textContent         = active;
     document.getElementById('cuMaintenance').textContent    = maintenance;
     const overdueEl = document.getElementById('cuOverdue');
     if (overdueEl) overdueEl.textContent = overdue;
@@ -262,13 +292,9 @@
     // ── Persist stats for instant restore ──
     try {
       sessionStorage.setItem(_CU_STATS_KEY, JSON.stringify({
-        active: statuses.filter(s => s === 'On Track' || s === 'Scheduled').length,
-        maintenance,
-        dueThisWeek,
-        dueToday,
+        active, maintenance, dueThisWeek, dueToday,
       }));
     } catch(e) {}
-
   }
 
   function statusStyle(status) {
