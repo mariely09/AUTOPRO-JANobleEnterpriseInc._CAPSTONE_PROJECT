@@ -173,8 +173,8 @@
       /* ── 1024px tablet landscape ── */
       @media (max-width: 1024px) {
         .dash-stats-grid { grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
-        .dash-row-1 { grid-template-columns: 1fr; }
-        .dash-row-2 { grid-template-columns: 1fr 1fr; }
+        .dash-row-1 { grid-template-columns: 1fr 1.2fr; }
+        .dash-row-2 { grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
         .dash-row-3 { grid-template-columns: 1fr 1fr; }
         .dash-banner-date { min-width: 90px; padding: 0.75rem 1rem; }
         #adminBannerDay { font-size: 2rem !important; }
@@ -183,12 +183,12 @@
       /* ── 768px tablet portrait ── */
       @media (max-width: 768px) {
         .dash-stats-grid { grid-template-columns: repeat(3, 1fr); gap: 0.65rem; }
-        .dash-row-1 { grid-template-columns: 1fr; }
-        .dash-row-2 { grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .dash-row-1 { grid-template-columns: 1fr 1.1fr; gap: 1rem; }
+        .dash-row-2 { grid-template-columns: 1fr 1fr 1fr; gap: 0.85rem; }
         .dash-row-3 { grid-template-columns: 1fr; gap: 1rem; }
         .admin-content { padding: 1rem !important; }
         .dash-chart-card { padding: 1rem 1.1rem; }
-        .dash-chart-canvas-wrap { height: 200px !important; }
+        .dash-chart-canvas-wrap { height: 180px !important; }
         .dash-donut-inner { flex-direction: column !important; align-items: center !important; gap: 0.75rem !important; }
       }
 
@@ -210,7 +210,6 @@
         .dash-chart-sub   { font-size: 0.68rem !important; }
         .dash-donut-inner { flex-direction: column !important; align-items: center !important; gap: 0.75rem !important; }
         .data-table { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }
-        /* greeting title font size */
         #overview .dash-greeting-title { font-size: 1.4rem !important; }
         #overview .dash-greeting-wrap { padding: 1.25rem !important; }
       }
