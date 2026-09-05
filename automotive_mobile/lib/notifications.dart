@@ -47,11 +47,18 @@ class NotifBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-    // Stream role-targeted + personal notifications, merge, count unread
-    final roleStream = FirebaseFirestore.instance
-        .collection('notifications')
-        .where('targetRole', isEqualTo: _roleString)
-        .snapshots();
+    // Customer notifications are always written with targetUid=uid and targetRole=''.
+    // Querying targetRole='customer' is a global broadcast channel — no real customer
+    // notification uses it, so customers should only stream their personal notifications.
+    // Admin and staff still use both streams (role-targeted broadcasts + personal).
+    final bool isCustomer = role == NotificationRole.customer;
+
+    final roleStream = isCustomer
+        ? const Stream<QuerySnapshot>.empty()
+        : FirebaseFirestore.instance
+              .collection('notifications')
+              .where('targetRole', isEqualTo: _roleString)
+              .snapshots();
 
     final personalStream = uid.isEmpty
         ? const Stream<QuerySnapshot>.empty()
@@ -629,7 +636,7 @@ class _AppNotificationsState extends State<AppNotifications> {
 
           if (daysUntil < 0) {
             await _notify(
-              title: '?? Your PMS is Overdue',
+              title: '🔴 Your PMS is Overdue',
               message:
                   'Your $plate is ${(-daysUntil)} day(s) overdue for maintenance.',
               type: 'warning',
@@ -639,7 +646,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             );
           } else if (daysUntil == 0) {
             await _notify(
-              title: '?? Your PMS is Due Today',
+              title: '🔔 Your PMS is Due Today',
               message: 'Your $plate is due for maintenance today.',
               type: 'warning',
               targetUid: ownerId,
@@ -648,7 +655,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             );
           } else if (daysUntil <= 7) {
             await _notify(
-              title: '?? Your PMS is Due This Week',
+              title: '📅 Your PMS is Due This Week',
               message:
                   'Your $plate is due for maintenance this week ($daysUntil day(s)).',
               type: 'warning',
@@ -658,7 +665,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             );
           } else if (daysUntil <= 14) {
             await _notify(
-              title: '?? Your PMS is Due Soon',
+              title: '🔔 Your PMS is Due Soon',
               message:
                   'Your $plate is due for maintenance in $daysUntil day(s).',
               type: 'info',
@@ -744,10 +751,19 @@ class _AppNotificationsState extends State<AppNotifications> {
   // Note: no .orderBy() on the queries � sorting is done client-side after
   // merging both streams. This avoids the need for Firestore composite indexes.
 
-  Stream<QuerySnapshot> get _stream => FirebaseFirestore.instance
-      .collection('notifications')
-      .where('targetRole', isEqualTo: _roleString)
-      .snapshots();
+  // Customer notifications are always written with targetUid=uid and targetRole=''.
+  // Querying targetRole='customer' returns a global broadcast that no real notification
+  // uses — for customers we only need the personalStream (by targetUid).
+  // Admin and staff still use both streams.
+  Stream<QuerySnapshot> get _stream {
+    if (widget.role == NotificationRole.customer) {
+      return const Stream.empty();
+    }
+    return FirebaseFirestore.instance
+        .collection('notifications')
+        .where('targetRole', isEqualTo: _roleString)
+        .snapshots();
+  }
 
   Stream<QuerySnapshot> get _personalStream {
     final uid = _uid;
@@ -867,18 +883,18 @@ class _AppNotificationsState extends State<AppNotifications> {
   // Map notification title keywords to specific emoji icons (matches website style)
   String _titleEmoji(String title, String type) {
     final t = title.toLowerCase();
-    if (t.contains('overdue')) return '??';
-    if (t.contains('due this week')) return '??';
-    if (t.contains('due soon')) return '??';
-    if (t.contains('out of stock')) return '??';
-    if (t.contains('low stock')) return '??';
-    if (t.contains('approved')) return '?';
-    if (t.contains('registration')) return '??';
-    if (t.contains('maintenance')) return '??';
-    if (type == 'success') return '?';
-    if (type == 'warning') return '??';
-    if (type == 'danger') return '??';
-    return '??';
+    if (t.contains('overdue')) return '🔴';
+    if (t.contains('due this week')) return '📅';
+    if (t.contains('due soon')) return '🔔';
+    if (t.contains('out of stock')) return '🚨';
+    if (t.contains('low stock')) return '⚠️';
+    if (t.contains('approved')) return '✅';
+    if (t.contains('registration')) return '📋';
+    if (t.contains('maintenance')) return '🔧';
+    if (type == 'success') return '✅';
+    if (type == 'warning') return '⚠️';
+    if (type == 'danger') return '🚨';
+    return '🔔';
   }
 
   String _timeAgo(Timestamp? ts) {

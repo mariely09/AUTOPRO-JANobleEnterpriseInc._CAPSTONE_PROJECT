@@ -315,7 +315,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
 
       // -- Notify customer: in-app only --
       await db.collection('notifications').add({
-        'title': '? Booking Confirmed',
+        'title': '✅ Booking Confirmed',
         'message':
             'Your service booking on ${_fmtDatePretty(_preferredDate!)} at $_preferredTime has been confirmed.\n$detailedMsg',
         'type': 'success',
@@ -334,7 +334,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '? Booking confirmed for $vCount vehicle${vCount > 1 ? 's' : ''}!',
+              'Booking successfully!',
             ),
             backgroundColor: Colors.green,
           ),
@@ -803,7 +803,12 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                     ),
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
+
+                  // -- Cost Summary --
+                  _buildCostSummary(),
+
+                  const SizedBox(height: 20),
 
                   // -- Submit --
                   SizedBox(
@@ -1049,11 +1054,11 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                               final name = (s['name'] ?? '').toString();
                               final rawCost = (s['cost'] ?? '')
                                   .toString()
-                                  .replaceAll('?', '')
+                                  .replaceAll('₱', '')
                                   .replaceAll(',', '')
                                   .trim();
                               final costDisplay = rawCost.isNotEmpty
-                                  ? '?$rawCost'
+                                  ? '₱$rawCost'
                                   : '';
                               final uom = (s['uom'] ?? '').toString();
 
@@ -1579,6 +1584,161 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     return '${_months[d.month - 1]} ${d.day}, ${d.year}';
   }
 
+  Widget _buildCostSummary() {
+    // Gather per-vehicle service costs
+    final rows = <Map<String, dynamic>>[];
+    double grandTotal = 0;
+
+    for (final vId in _selectedVehicleIds) {
+      final vehicle = _vehicles.firstWhere(
+        (v) => v['id'] == vId,
+        orElse: () => <String, dynamic>{},
+      );
+      final plate = vehicle['plate'] as String? ?? '';
+      final svcIds = _vehicleServices[vId] ?? {};
+      final selectedSvcs =
+          _services.where((s) => svcIds.contains(s['id'])).toList();
+
+      for (final svc in selectedSvcs) {
+        final name = svc['name'] as String? ?? '';
+        final rawCost = (svc['cost'] ?? '')
+            .toString()
+            .replaceAll('₱', '')
+            .replaceAll(',', '')
+            .trim();
+        final cost = double.tryParse(rawCost) ?? 0;
+        grandTotal += cost;
+        rows.add({'plate': plate, 'name': name, 'cost': cost});
+      }
+    }
+
+    // Nothing to show if no services selected
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFe2e8f0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: const [
+              Icon(Icons.receipt_long_outlined, size: 16, color: _red),
+              SizedBox(width: 6),
+              Text(
+                'Cost Summary',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1a202c),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Row for each service
+          ...rows.map((r) {
+            final cost = r['cost'] as double;
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Plate badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF5F5),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: _red.withOpacity(0.25)),
+                    ),
+                    child: Text(
+                      r['plate'] as String,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: _red,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Service name
+                  Expanded(
+                    child: Text(
+                      r['name'] as String,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF4a5568),
+                      ),
+                    ),
+                  ),
+                  // Price
+                  Text(
+                    cost > 0
+                        ? '₱${cost.toStringAsFixed(2).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}'
+                        : '—',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1a202c),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          // Divider
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Divider(color: Color(0xFFe2e8f0), height: 1),
+          ),
+          // Grand total
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Estimated Total',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1a202c),
+                ),
+              ),
+              Text(
+                grandTotal > 0
+                    ? '₱${grandTotal.toStringAsFixed(2).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}'
+                    : '—',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: _red,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Final amount may vary depending on actual service required.',
+            style: TextStyle(fontSize: 10, color: Color(0xFFa0aec0)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _sectionTitle(String title) => Text(
     title,
     style: const TextStyle(
@@ -1669,10 +1829,10 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     final name = (s['name'] ?? '').toString();
     final rawCost = (s['cost'] ?? '')
         .toString()
-        .replaceAll('?', '')
+        .replaceAll('₱', '')
         .replaceAll(',', '')
         .trim();
-    final costDisplay = rawCost.isNotEmpty ? '?$rawCost' : '';
+    final costDisplay = rawCost.isNotEmpty ? '₱$rawCost' : '';
     final uom = (s['uom'] ?? '').toString();
 
     return GestureDetector(

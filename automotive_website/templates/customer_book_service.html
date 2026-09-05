@@ -184,6 +184,20 @@
       <div class="bs-col">
         <div id="bsPerVehicleServices"></div>
         <div id="bsSummaryEmpty" class="bs-empty" style="margin-top:0;">Select vehicles to assign services.</div>
+        <!-- Cost Summary -->
+        <div id="bsCostSummary" style="display:none;margin-top:16px;background:white;border-radius:14px;border:1.5px solid #e2e8f0;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span style="font-size:13px;font-weight:700;color:#1a202c;">Cost Summary</span>
+          </div>
+          <div id="bsCostRows"></div>
+          <div style="border-top:1px solid #e2e8f0;margin:8px 0;"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:13px;font-weight:700;color:#1a202c;">Estimated Total</span>
+            <span id="bsCostTotal" style="font-size:15px;font-weight:800;color:#E8001C;">—</span>
+          </div>
+          <div style="font-size:10px;color:#a0aec0;margin-top:4px;">Final amount may vary depending on actual service required.</div>
+        </div>
         <div style="margin-top:16px;">
           <button class="bs-submit" id="bsSubmitBtn" onclick="bsSubmit()">Book Service</button>
         </div>
@@ -270,6 +284,47 @@ window.bsSelectTime = function(btn) {
 
 function _updateSummaryCard() {
   // Summary card removed — services per vehicle now shown in right column
+}
+
+function _renderCostSummary() {
+  var summaryEl = document.getElementById('bsCostSummary');
+  var rowsEl    = document.getElementById('bsCostRows');
+  var totalEl   = document.getElementById('bsCostTotal');
+  if (!summaryEl || !rowsEl || !totalEl) return;
+
+  var rows = [];
+  var grandTotal = 0;
+
+  Object.keys(_bsSelectedVehicles).forEach(function(vId) {
+    var vehicle = _bsVehicles.find(function(v){ return v.id === vId; });
+    var plate = vehicle ? (vehicle.plate || '') : '';
+    var svcs = _bsVehicleServices[vId] || {};
+    _bsServices.forEach(function(s) {
+      if (!svcs[s.id]) return;
+      var rawCost = String(s.cost || '').replace(/[₱\s,]/g,'').trim();
+      var cost = parseFloat(rawCost);
+      if (!isNaN(cost)) grandTotal += cost;
+      rows.push({ plate: plate, name: s.name || '', cost: isNaN(cost) ? null : cost });
+    });
+  });
+
+  if (!rows.length) { summaryEl.style.display = 'none'; return; }
+  summaryEl.style.display = 'block';
+
+  rowsEl.innerHTML = rows.map(function(r) {
+    var priceStr = r.cost !== null
+        ? '₱' + r.cost.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : '—';
+    return '<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;">'
+      + '<span style="flex-shrink:0;font-size:10px;font-weight:700;color:#E8001C;background:#fff5f5;border:1px solid rgba(232,0,28,0.25);border-radius:6px;padding:2px 6px;">' + _esc(r.plate) + '</span>'
+      + '<span style="flex:1;font-size:12px;color:#4a5568;">' + _esc(r.name) + '</span>'
+      + '<span style="font-size:12px;font-weight:600;color:#1a202c;white-space:nowrap;">' + priceStr + '</span>'
+      + '</div>';
+  }).join('');
+
+  totalEl.textContent = grandTotal > 0
+      ? '₱' + grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : '—';
 }
 
 // Load sidebar + header
@@ -372,6 +427,7 @@ async function _loadBookingData(user) {
   _renderServices();
   _renderPerVehicleServices();
   _updateSummaryCard();
+  _renderCostSummary();
 }
 
 function _renderVehicles() {
@@ -397,6 +453,7 @@ window.bsToggleVehicle = function(id) {
   _renderVehicles();
   _renderPerVehicleServices();
   _updateSummaryCard();
+  _renderCostSummary();
 };
 
 function _renderPerVehicleServices() {
@@ -474,6 +531,7 @@ window.bsCloseServiceModal = function() {
   document.getElementById('bsServiceModal').style.display = 'none';
   _renderPerVehicleServices();
   _updateSummaryCard();
+  _renderCostSummary();
 };
 
 function _renderModalServices() {
@@ -523,6 +581,7 @@ window.bsModalToggleService = function(serviceId) {
     _bsVehicleServices[_bsModalVehicleId][serviceId] = true;
   }
   _renderModalServices();
+  _renderCostSummary();
 };
 
 function _renderServices() {
@@ -903,7 +962,7 @@ window.bsSubmit = async function() {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
-    _toast('Booking confirmed for ' + vCount + ' vehicle(s)!', 'success');
+    _toast('Booking successfully!', 'success');
     setTimeout(function(){ window.location.href = 'customer_my_bookings.html'; }, 2000);
   } catch(e) {
     _toast('Error: '+e.message,'error');

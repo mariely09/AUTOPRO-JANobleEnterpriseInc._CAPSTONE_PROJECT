@@ -26,8 +26,13 @@ const PAGE_URLS = {
         '  .admin-header > *:not(:first-child) { width: 100% !important; margin-left: 0 !important; flex-wrap: wrap !important; gap: 0.4rem !important; }',
         // All inputs, selects inside header go full width (overrides inline width:220px etc)
         '  .admin-header input, .admin-header select { width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; }',
-        // ── Data table: horizontal scroll ──
-        '  .data-table { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }',
+        // ── Data table: horizontal scroll on the inner scroll wrapper, NOT the outer container
+        // The outer .data-table must stay overflow:visible so action buttons are clickable.
+        '  #servicesList, #assetsList, #inventoryList, #issuanceList, #itemMasterList,',
+        '  #txnList, #usersList, #domainList, #archiveList, #receivingList {',
+        '    overflow-x: auto !important; -webkit-overflow-scrolling: touch !important;',
+        '  }',
+        '  .data-table { overflow: visible !important; }',
         // Keep table rows at desktop min-width so layout isn't broken
         '  .data-table .table-row { min-width: 560px !important; font-size: 0.82rem !important; }',
         // Action button containers inside table rows

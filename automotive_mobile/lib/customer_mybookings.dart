@@ -124,8 +124,40 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
   static const _red = Color(0xFFE8001C);
   static const _blue = Color(0xFF003087);
 
-  String _statusFilter =
-      'Approved'; // default: show Approved; tap chip to filter by Rescheduled/Cancelled, tap again to reset
+  String _statusFilter = 'Approved';
+
+  // Service price lookup: name → cost (loaded once from item_master)
+  Map<String, double> _servicePrices = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadServicePrices();
+  }
+
+  Future<void> _loadServicePrices() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('item_master')
+          .get();
+      final map = <String, double>{};
+      for (final doc in snap.docs) {
+        final d = doc.data();
+        final type = ((d['type'] ?? d['itemType']) as String? ?? '').toLowerCase();
+        if (type != 'service') continue;
+        final name = (d['name'] as String? ?? '').trim();
+        if (name.isEmpty) continue;
+        final rawCost = (d['cost'] ?? '')
+            .toString()
+            .replaceAll('₱', '')
+            .replaceAll(',', '')
+            .trim();
+        final cost = double.tryParse(rawCost) ?? 0.0;
+        map[name] = cost;
+      }
+      if (mounted) setState(() => _servicePrices = map);
+    } catch (_) {}
+  }
 
   static const _months = [
     'January',
@@ -890,28 +922,33 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
                           Icons.calendar_today_outlined,
                           'Preferred Date',
                           date.isNotEmpty ? _fmtDateLong(date) : '—',
-                          const Color(0xFF003087),
+                          const Color(0xFF004B5F),
                         ),
                         _divider(),
                         _detailRow(
                           Icons.access_time_outlined,
                           'Preferred Time',
                           time.isNotEmpty ? time : '—',
-                          const Color(0xFF003087),
+                          const Color(0xFF004B5F),
                         ),
                         _divider(),
                         _detailRow(
                           Icons.build_outlined,
                           'Services',
                           services.isNotEmpty ? services.join(', ') : '—',
-                          _red,
+                          const Color(0xFF004B5F),
                         ),
+                        // ── Cost summary ──
+                        if (services.isNotEmpty) ...[
+                          _divider(),
+                          _costSummaryRow(services),
+                        ],
                         _divider(),
                         _detailRow(
                           Icons.info_outline,
                           'Status',
                           ss.label,
-                          ss.color,
+                          const Color(0xFF004B5F),
                         ),
                         // Show cancellation reason if cancelled
                         if ((status == 'cancelled' || status == 'rejected') &&
@@ -923,7 +960,7 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
                             Icons.cancel_outlined,
                             'Cancellation Reason',
                             (data['cancellationReason'] as String).trim(),
-                            const Color(0xFFE8001C),
+                            const Color(0xFF004B5F),
                           ),
                         ],
                         if (notes.isNotEmpty) ...[
@@ -932,7 +969,7 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
                             Icons.notes_outlined,
                             'Notes',
                             notes,
-                            const Color(0xFF718096),
+                            const Color(0xFF004B5F),
                           ),
                         ],
                         if (isRescheduled) ...[
@@ -941,7 +978,7 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
                             Icons.update_outlined,
                             'Rescheduled From',
                             '${_fmtDateLong(previousDate)} → ${_fmtDateLong(date)}',
-                            const Color(0xFF92400E),
+                            const Color(0xFF004B5F),
                           ),
                         ],
                       ],
@@ -986,6 +1023,115 @@ class _CustomerMyBookingsState extends State<CustomerMyBookings> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _costSummaryRow(List<String> services) {
+    double total = 0;
+    final rows = <Widget>[];
+
+    for (final name in services) {
+      final cost = _servicePrices[name] ?? 0.0;
+      total += cost;
+      final priceStr = cost > 0
+          ? '₱${cost.toStringAsFixed(2).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}'
+          : '—';
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF4a5568),
+                  ),
+                ),
+              ),
+              Text(
+                priceStr,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1a202c),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final totalStr = total > 0
+        ? '₱${total.toStringAsFixed(2).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}'
+        : '—';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFF004B5F).withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.receipt_long_outlined,
+              size: 17,
+              color: Color(0xFF004B5F),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Cost Summary',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF718096)),
+                ),
+                const SizedBox(height: 6),
+                ...rows,
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6),
+                  child: Divider(height: 1, color: Color(0xFFe2e8f0)),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Estimated Total',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1a202c),
+                      ),
+                    ),
+                    Text(
+                      totalStr,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: _red,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Final amount may vary depending on actual service required.',
+                  style: TextStyle(fontSize: 10, color: Color(0xFFa0aec0)),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

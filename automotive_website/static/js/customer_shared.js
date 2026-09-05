@@ -231,13 +231,18 @@
             return;
         }
 
+        // Clean up corrupted/replacement characters from stored titles
+        function _cleanTitle(t) {
+            return (t || '').replace(/\uFFFD|\?(?=[^\w\s]|$)/g, '').trim();
+        }
+
         listEl.innerHTML = _cuNotifs.map(function (n, i) {
             return '<div class="admin-notif-item' + (!n.read ? ' unread' : '') + '" '
                 + 'style="position:relative;padding-right:2rem;" '
                 + 'onclick="_cuMarkRead(\'' + n.id + '\',' + i + ')">'
                 + '<div class="admin-notif-icon">' + _typeIcon(n.type) + '</div>'
                 + '<div style="flex:1;min-width:0;">'
-                +   '<div class="admin-notif-title">' + (n.title || '') + '</div>'
+                +   '<div class="admin-notif-title">' + _cleanTitle(n.title) + '</div>'
                 +   '<div class="admin-notif-msg">' + (n.message || '') + '</div>'
                 +   '<div class="admin-notif-time">' + _timeAgo(n.createdAt) + '</div>'
                 + '</div>'
@@ -427,19 +432,18 @@
             }
         }).catch(function () {});
 
-        var roleQuery = db.collection('notifications')
-            .where('targetRole', '==', 'customer')
-            .limit(30);
+        // Customer notifications are always written with targetUid = uid and targetRole = ''.
+        // Querying targetRole='customer' is a global broadcast that no real notification uses —
+        // dropping it avoids showing zero-or-wrong docs and eliminates the count inflation risk.
+        // orderBy('createdAt','desc') ensures the most recent 100 docs are always returned.
         var personalQuery = db.collection('notifications')
             .where('targetUid', '==', uid)
-            .limit(20);
+            .orderBy('createdAt', 'desc')
+            .limit(100);
 
-        roleQuery.onSnapshot(function (snap) {
-            _roleDocs = snap.docs;
-            _mergeNotifs(_roleDocs, _personalDocs);
-        });
         personalQuery.onSnapshot(function (snap) {
             _personalDocs = snap.docs;
+            _roleDocs = []; // no role-targeted docs for customers
             _mergeNotifs(_roleDocs, _personalDocs);
         });
     }
