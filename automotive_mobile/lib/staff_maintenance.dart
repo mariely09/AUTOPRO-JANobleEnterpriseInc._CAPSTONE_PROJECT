@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -98,13 +98,13 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
                     ),
                   ),
                 ),
-                _sortItem('date-desc', 'Date ↓ Newest', Icons.arrow_downward),
-                _sortItem('date-asc', 'Date ↑ Oldest', Icons.arrow_upward),
-                _sortItem('plate-asc', 'Plate A→Z', Icons.sort_by_alpha),
-                _sortItem('plate-desc', 'Plate Z→A', Icons.sort_by_alpha),
-                _sortItem('mechanic-asc', 'Mechanic A→Z', Icons.person_outline),
-                _sortItem('cost-desc', 'Cost ↑ Highest', Icons.trending_up),
-                _sortItem('cost-asc', 'Cost ↓ Lowest', Icons.trending_down),
+                _sortItem('date-desc', 'Date â†“ Newest', Icons.arrow_downward),
+                _sortItem('date-asc', 'Date â†‘ Oldest', Icons.arrow_upward),
+                _sortItem('plate-asc', 'Plate Aâ†’Z', Icons.sort_by_alpha),
+                _sortItem('plate-desc', 'Plate Zâ†’A', Icons.sort_by_alpha),
+                _sortItem('mechanic-asc', 'Mechanic Aâ†’Z', Icons.person_outline),
+                _sortItem('cost-desc', 'Cost â†‘ Highest', Icons.trending_up),
+                _sortItem('cost-asc', 'Cost â†“ Lowest', Icons.trending_down),
               ],
             ),
         ],
@@ -155,7 +155,7 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
   }
 }
 
-// ── Embeddable body (used inside StaffVehicleList tabs) ──────────
+// â”€â”€ Embeddable body (used inside StaffVehicleList tabs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class StaffMaintenanceBody extends StatefulWidget {
   final String searchQuery;
   final String sortBy;
@@ -186,14 +186,11 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
   Map<String, Map<String, dynamic>> _vehicleMap = {};
   Map<String, Map<String, dynamic>> _itemMasterMap = {};
   List<Map<String, dynamic>> _allItems = []; // full list preserving duplicates
-  List<String> _serviceItems = [];
   bool _lookupLoaded = false;
   String _currentUserName = '';
   Set<String> _inactiveItemNames = {}; // names of Inactive stock items
   Map<String, int> _stockMap =
-      {}; // name.lower → current stock qty (for dropdown oos badge)
-  // Stable GlobalKeys for _ItemSearchField — keyed by row object identity
-  final _rowKeys = <int, GlobalKey>{};
+      {}; // name.lower â†’ current stock qty (for dropdown oos badge)
 
   @override
   void initState() {
@@ -262,19 +259,6 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
         'qr': data['qr'] as String? ?? '',
       };
     }).toList();
-    _serviceItems =
-        _itemMasterMap.entries
-            .where((e) {
-              final t =
-                  (e.value['type'] as String? ??
-                          e.value['itemType'] as String? ??
-                          '')
-                      .toLowerCase();
-              return t == 'service';
-            })
-            .map((e) => e.key)
-            .toList()
-          ..sort();
     // Fetch logged-in staff name
     if (uid != null) {
       final userDoc = await FirebaseFirestore.instance
@@ -283,7 +267,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
           .get();
       _currentUserName = (userDoc.data()?['name'] as String?) ?? '';
     }
-    // Load stock inventory — build stockMap (name→qty) and inactiveItemNames
+    // Load stock inventory â€” build stockMap (nameâ†’qty) and inactiveItemNames
     try {
       final stockSnap = await FirebaseFirestore.instance
           .collection('stock_inventory')
@@ -333,7 +317,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
   }
 
   Future<String> _nextSvcId() async {
-    // Timestamp-based ID — zero network calls, always instant.
+    // Timestamp-based ID â€” zero network calls, always instant.
     final now = DateTime.now();
     final stamp =
         '${now.year}'
@@ -405,7 +389,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
             ? filtered
             : filtered.where((s) => s['status'] == _statusFilter).toList();
 
-        // ── Sort ──
+        // â”€â”€ Sort â”€â”€
         // Parse "Jan 5, 2026" style dates to milliseconds for correct ordering
         int dateMs(String d) {
           try {
@@ -452,24 +436,24 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
             case 'cost-asc':
               final ca =
                   double.tryParse(
-                    (a['cost'] as String).replaceAll(RegExp(r'[₱,]'), ''),
+                    (a['cost'] as String).replaceAll(RegExp(r'[â‚±,]'), ''),
                   ) ??
                   0;
               final cb =
                   double.tryParse(
-                    (b['cost'] as String).replaceAll(RegExp(r'[₱,]'), ''),
+                    (b['cost'] as String).replaceAll(RegExp(r'[â‚±,]'), ''),
                   ) ??
                   0;
               return ca.compareTo(cb);
             case 'cost-desc':
               final ca2 =
                   double.tryParse(
-                    (a['cost'] as String).replaceAll(RegExp(r'[₱,]'), ''),
+                    (a['cost'] as String).replaceAll(RegExp(r'[â‚±,]'), ''),
                   ) ??
                   0;
               final cb2 =
                   double.tryParse(
-                    (b['cost'] as String).replaceAll(RegExp(r'[₱,]'), ''),
+                    (b['cost'] as String).replaceAll(RegExp(r'[â‚±,]'), ''),
                   ) ??
                   0;
               return cb2.compareTo(ca2);
@@ -761,7 +745,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         'Odometer Reading',
                         (s['odometer'] != null && (s['odometer'] as num?) != 0)
                             ? '${s['odometer']} km'
-                            : '—',
+                            : 'â€”',
                       ),
                       _detailRow(
                         'Total Cost',
@@ -801,7 +785,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // ── Issues Tags ──
+                      // â”€â”€ Issues Tags â”€â”€
                       if ((s['issues'] as List?)?.isNotEmpty == true) ...[
                         const Text(
                           'Vehicle Issues Reported',
@@ -1138,7 +1122,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                             FieldValue.serverTimestamp(),
                                       });
                                 }
-                                // Update vehicle on completion — prefer vehicleId direct lookup
+                                // Update vehicle on completion â€” prefer vehicleId direct lookup
                                 final mainDocForVeh = await _db
                                     .doc(s['docId'] as String)
                                     .get();
@@ -1223,7 +1207,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                       .catchError((_) {});
                                 }
 
-                                // Notify customer — Completed
+                                // Notify customer â€” Completed
                                 String customerUid =
                                     mainDataForVeh['ownerId'] as String? ?? '';
                                 if (customerUid.isEmpty &&
@@ -1274,7 +1258,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                     await FirebaseFirestore.instance
                                         .collection('notifications')
                                         .add({
-                                          'title': '✅ Service Completed',
+                                          'title': 'âœ… Service Completed',
                                           'message':
                                               'Your vehicle ${(s['plate'] as String).trim().toUpperCase()} has been serviced and is ready for pickup.',
                                           'type': 'success',
@@ -1449,7 +1433,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
         ? _vehicleMap[service!['plate']]
         : _vehicleMap[prefillPlate.toUpperCase()];
 
-    // ── Issue tags ──
+    // â”€â”€ Issue tags â”€â”€
     const presetIssues = [
       'Engine Problem',
       'Brake Issue',
@@ -1514,7 +1498,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
           'cost': TextEditingController(
             text: (d?['cost'] ?? '0')
                 .toString()
-                .replaceAll('₱', '')
+                .replaceAll('â‚±', '')
                 .replaceAll(',', '')
                 .trim(),
           ),
@@ -1531,7 +1515,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       final d = _itemMasterMap[matName];
       final rawCost = (d?['cost'] ?? materialData['cost'] ?? '0')
           .toString()
-          .replaceAll('₱', '')
+          .replaceAll('â‚±', '')
           .replaceAll(',', '')
           .trim();
       final uom = (d?['uom'] ?? materialData['uom'] ?? '').toString();
@@ -1647,7 +1631,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                 ),
                 child: Column(
                   children: [
-                    // ── Sticky header ──
+                    // â”€â”€ Sticky header â”€â”€
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
@@ -1677,7 +1661,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         ],
                       ),
                     ),
-                    // ── Scrollable content ──
+                    // â”€â”€ Scrollable content â”€â”€
                     Expanded(
                       child: SingleChildScrollView(
                         controller: scrollCtrl,
@@ -1895,7 +1879,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            // ── Odometer Reading ──
+                            // â”€â”€ Odometer Reading â”€â”€
                             TextField(
                               controller: odoCtrl,
                               keyboardType: TextInputType.number,
@@ -1906,7 +1890,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            // ── Vehicle Issues ──
+                            // â”€â”€ Vehicle Issues â”€â”€
                             const Text(
                               'Vehicle Issues',
                               style: TextStyle(
@@ -1917,7 +1901,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Optional — select all that apply',
+                              'Optional â€” select all that apply',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Colors.grey.shade500,
@@ -2196,7 +2180,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                                 0;
 
                                             // Validate material quantities using cached maxStock (already fetched when
-                                            // user selected the material — no extra network round-trip needed).
+                                            // user selected the material â€” no extra network round-trip needed).
                                             for (final r in matRows) {
                                               final name = r['name']!.text
                                                   .trim();
@@ -2241,7 +2225,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                               }
                                             }
 
-                                            // Duplicate plate check — cache only, no server fallback (keeps save instant).
+                                            // Duplicate plate check â€” cache only, no server fallback (keeps save instant).
                                             if (!isEdit) {
                                               final plateUpper = plateCtrl.text
                                                   .trim()
@@ -2266,7 +2250,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                                 hasDuplicate =
                                                     dupCheck.docs.isNotEmpty;
                                               } catch (_) {
-                                                /* cache miss — skip duplicate check */
+                                                /* cache miss â€” skip duplicate check */
                                               }
                                               if (hasDuplicate) {
                                                 setModal(() => saving = false);
@@ -2315,7 +2299,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                                 .trim()
                                                 .toUpperCase();
 
-                                            // ── Resolve vehicleId + ownerId from the vehicle ──
+                                            // â”€â”€ Resolve vehicleId + ownerId from the vehicle â”€â”€
                                             // The staff selects a plate; we derive the authoritative
                                             // vehicleId and ownerId from the vehicle document so they
                                             // are NEVER entered manually.
@@ -2367,7 +2351,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                                     vDoc.data()
                                                         as Map<String, dynamic>;
                                                 resolvedVehicleId = vDoc.id;
-                                                // ownerId is authoritative from the vehicle — never
+                                                // ownerId is authoritative from the vehicle â€” never
                                                 // trust a client-supplied value over the vehicle's own
                                                 final vehicleOwnerId =
                                                     (vData['ownerId']
@@ -2380,21 +2364,21 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                                 }
                                               }
                                             } catch (_) {
-                                              // Non-fatal — migration script fills gaps later.
+                                              // Non-fatal â€” migration script fills gaps later.
                                             }
 
                                             final data = <String, dynamic>{
                                               'id': svcId,
-                                              // ── Relational keys (authoritative) ─────────────
+                                              // â”€â”€ Relational keys (authoritative) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                                               if (resolvedVehicleId.isNotEmpty)
                                                 'vehicleId': resolvedVehicleId,
                                               if (resolvedOwnerId.isNotEmpty)
                                                 'ownerId': resolvedOwnerId,
-                                              // ── Plate (display / historical snapshot) ───────
+                                              // â”€â”€ Plate (display / historical snapshot) â”€â”€â”€â”€â”€â”€â”€
                                               'plateNumber': plateUpper,
                                               'plate':
                                                   plateUpper, // legacy alias
-                                              // ── Rest of record ───────────────────────────────
+                                              // â”€â”€ Rest of record â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                                               'desc':
                                                   foundVehicle?['desc']
                                                       as String? ??
@@ -2575,7 +2559,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                                           });
                                                     }
                                                   }
-                                                  // Notify customer — Under Maintenance
+                                                  // Notify customer â€” Under Maintenance
                                                   String maintCustomerUid =
                                                       resolvedOwnerId;
                                                   if (maintCustomerUid
@@ -2622,7 +2606,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                                           )
                                                           .add({
                                                             'title':
-                                                                '🔧 Vehicle Under Maintenance',
+                                                                'ðŸ”§ Vehicle Under Maintenance',
                                                             'message':
                                                                 'Your vehicle $plateUpper is now under maintenance. We will notify you once the service is completed.',
                                                             'type': 'info',
@@ -2698,10 +2682,6 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       'searchText',
       () => TextEditingController(text: row['name']!.text),
     );
-    final svcFieldKey = _rowKeys.putIfAbsent(
-      identityHashCode(row),
-      () => GlobalKey(),
-    );
 
     // All service items preserving same-name different-UOM entries
     final serviceItems =
@@ -2754,7 +2734,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
           : ((_itemMasterMap[name]?['uom']) ?? 'job').toString();
       row['cost']!.text = ((_itemMasterMap[name]?['cost']) ?? '0')
           .toString()
-          .replaceAll('₱', '')
+          .replaceAll('â‚±', '')
           .replaceAll(',', '')
           .trim();
       if (row['qty']!.text.isEmpty) row['qty']!.text = '1';
@@ -2809,7 +2789,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${row['uom']!.text}  •  ₱${row['cost']!.text}',
+                          '${row['uom']!.text}  â€¢  â‚±${row['cost']!.text}',
                           style: const TextStyle(
                             fontSize: 11,
                             color: Color(0xFF718096),
@@ -2833,22 +2813,79 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                       ],
                     ),
                   )
-                : _ItemSearchField(
-                    key: svcFieldKey,
-                    controller: row['searchText']!,
-                    label: 'Service Name *',
-                    items: serviceItems,
-                    filter: (item, q) {
-                      final n = (item['name'] as String).toLowerCase();
-                      final num = (item['num'] as String? ?? '').toLowerCase();
-                      return n.contains(q) || num.contains(q);
+                : Autocomplete<Map<String, dynamic>>(
+                    displayStringForOption: (item) => item['name'] as String,
+                    optionsBuilder: (value) {
+                      final q = value.text.trim().toLowerCase();
+                      if (q.isEmpty) return serviceItems.take(20);
+                      return serviceItems.where((e) {
+                        final n = (e['name'] as String).toLowerCase();
+                        final num = (e['num'] as String? ?? '').toLowerCase();
+                        return n.contains(q) || num.contains(q);
+                      }).take(12);
                     },
-                    isOutOfStock: (_) => false,
                     onSelected: (item) => applyService(
                       item['name'] as String,
                       item['uom'] as String? ?? '',
                     ),
-                    onChanged: () => setModal(() {}),
+                    fieldViewBuilder: (ctx2, ctrl, focusNode, onSubmit) {
+                      // Keep row['searchText'] in sync so applyService can read it
+                      ctrl.text = row['searchText']!.text;
+                      return TextField(
+                        controller: ctrl,
+                        focusNode: focusNode,
+                        onChanged: (v) {
+                          row['searchText']!.text = v;
+                          setModal(() {});
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Service Name *',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          isDense: true,
+                          prefixIcon: Icon(Icons.search, size: 18, color: Color(0xFF718096)),
+                        ),
+                      );
+                    },
+                    optionsViewBuilder: (ctx2, onSelected, options) => Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 8,
+                        borderRadius: BorderRadius.circular(10),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 260),
+                          child: ListView.separated(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFe2e8f0)),
+                            itemBuilder: (_, i) {
+                              final item = options.elementAt(i);
+                              final name = item['name'] as String;
+                              final uom = item['uom'] as String? ?? '';
+                              final rawCost = item['cost'];
+                              final cost = rawCost == null ? 0.0
+                                  : double.tryParse(rawCost.toString().replaceAll('â‚±','').replaceAll(',','').trim()) ?? 0.0;
+                              return InkWell(
+                                onTap: () => onSelected(item),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  child: Row(children: [
+                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c))),
+                                      if (uom.isNotEmpty || cost > 0)
+                                        Text('${uom.isNotEmpty ? uom : "â€”"}  â€¢  â‚±${cost.toStringAsFixed(2)}',
+                                          style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                                    ])),
+                                    const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF718096)),
+                                  ]),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
           ),
           SizedBox(
@@ -2873,10 +2910,6 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
   ) {
     row.putIfAbsent('maxStock', () => TextEditingController(text: '99999'));
     row.putIfAbsent('searchText', () => TextEditingController());
-    final matFieldKey = _rowKeys.putIfAbsent(
-      identityHashCode(row) + 1,
-      () => GlobalKey(),
-    );
 
     // All material items from item master (type == Material), excluding Inactive stock items
     // Use _allItems to preserve items with same name but different UOM
@@ -2904,7 +2937,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       if (isInactive || isZeroStock) {
         ScaffoldMessenger.of(ctx).showSnackBar(
           const SnackBar(
-            content: Text('⚠ This item is out of stock and cannot be added.'),
+            content: Text('âš  This item is out of stock and cannot be added.'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -2951,9 +2984,9 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       final rawCost = d['cost'];
       row['cost']!.text = rawCost == null
           ? '0'
-          : rawCost.toString().replaceAll('₱', '').replaceAll(',', '').trim();
+          : rawCost.toString().replaceAll('â‚±', '').replaceAll(',', '').trim();
       if (row['qty']!.text.isEmpty) row['qty']!.text = '1';
-      // Look up stock by item number — match name+uom from _allItems (which preserves duplicates)
+      // Look up stock by item number â€” match name+uom from _allItems (which preserves duplicates)
       // so same-name different-UOM items get the correct distinct stock record
       final uomForLookup = uom.isNotEmpty ? uom : (d['uom'] ?? '').toString();
       final matchedItem = _allItems.firstWhere(
@@ -2988,7 +3021,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       if (available == 0) {
         ScaffoldMessenger.of(ctx).showSnackBar(
           const SnackBar(
-            content: Text('⚠ This item is out of stock and cannot be added.'),
+            content: Text('âš  This item is out of stock and cannot be added.'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -3052,7 +3085,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${row['uom']!.text}  •  ₱${row['cost']!.text}',
+                          '${row['uom']!.text}  â€¢  â‚±${row['cost']!.text}',
                           style: const TextStyle(
                             fontSize: 11,
                             color: Color(0xFF718096),
@@ -3118,7 +3151,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                               ),
                               child: Text(
                                 ms == 0
-                                    ? '⚠ Out of stock'
+                                    ? 'âš  Out of stock'
                                     : 'Available stock: $ms',
                                 style: TextStyle(
                                   fontSize: 11,
@@ -3159,55 +3192,110 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                       ],
                     ),
                   )
-                : _ItemSearchField(
-                    key: matFieldKey,
-                    controller: row['searchText']!,
-                    label: 'Material Name *',
-                    items: materialItems,
-                    filter: (item, q) {
-                      final n = (item['name'] as String).toLowerCase();
-                      final num = (item['num'] as String? ?? '').toLowerCase();
-                      final sc = (item['supplierCode'] as String? ?? '')
-                          .toLowerCase();
-                      return n.contains(q) || num.contains(q) || sc.contains(q);
-                    },
-                    isOutOfStock: (item) {
-                      final n = (item['name'] as String).toLowerCase();
-                      return (_stockMap[n] ?? -1) == 0 ||
-                          _inactiveItemNames.contains(n);
+                : Autocomplete<Map<String, dynamic>>(
+                    displayStringForOption: (item) => item['name'] as String,
+                    optionsBuilder: (value) {
+                      final q = value.text.trim().toLowerCase();
+                      if (q.isEmpty) return materialItems.take(20);
+                      return materialItems.where((e) {
+                        final n = (e['name'] as String).toLowerCase();
+                        final num = (e['num'] as String? ?? '').toLowerCase();
+                        final sc = (e['supplierCode'] as String? ?? '').toLowerCase();
+                        return n.contains(q) || num.contains(q) || sc.contains(q);
+                      }).take(12);
                     },
                     onSelected: (item) => applyMaterial(
                       item['name'] as String,
                       item['uom'] as String? ?? '',
                     ),
-                    onChanged: () => setModal(() {}),
-                    trailing: IconButton(
-                      icon: const Icon(
-                        Icons.qr_code_scanner,
-                        size: 18,
-                        color: Color(0xFF003087),
-                      ),
-                      padding: EdgeInsets.zero,
-                      onPressed: () async {
-                        final result = await Navigator.push<String>(
-                          ctx,
-                          MaterialPageRoute(
-                            builder: (_) => const BarcodeScannerScreen(),
+                    fieldViewBuilder: (ctx2, ctrl, focusNode, onSubmit) {
+                      ctrl.text = row['searchText']!.text;
+                      return TextField(
+                        controller: ctrl,
+                        focusNode: focusNode,
+                        onChanged: (v) {
+                          row['searchText']!.text = v;
+                          setModal(() {});
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Material Name *',
+                          border: const OutlineInputBorder(),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          isDense: true,
+                          prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF718096)),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
+                            padding: EdgeInsets.zero,
+                            onPressed: () async {
+                              final result = await Navigator.push<String>(
+                                ctx,
+                                MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
+                              );
+                              if (result != null) {
+                                final match = _allItems.firstWhere(
+                                  (e) => e['barcode'] == result || e['qr'] == result,
+                                  orElse: () => {},
+                                );
+                                if ((match['name'] as String? ?? '').isNotEmpty) {
+                                  applyMaterial(match['name'] as String, match['uom'] as String? ?? '');
+                                }
+                              }
+                            },
                           ),
-                        );
-                        if (result != null) {
-                          final match = _allItems.firstWhere(
-                            (e) => e['barcode'] == result || e['qr'] == result,
-                            orElse: () => {},
-                          );
-                          if ((match['name'] as String? ?? '').isNotEmpty) {
-                            applyMaterial(
-                              match['name'] as String,
-                              match['uom'] as String? ?? '',
-                            );
-                          }
-                        }
-                      },
+                        ),
+                      );
+                    },
+                    optionsViewBuilder: (ctx2, onSelected, options) => Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 8,
+                        borderRadius: BorderRadius.circular(10),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 260),
+                          child: ListView.separated(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFe2e8f0)),
+                            itemBuilder: (_, i) {
+                              final item = options.elementAt(i);
+                              final name = item['name'] as String;
+                              final uom = item['uom'] as String? ?? '';
+                              final rawCost = item['cost'];
+                              final cost = rawCost == null ? 0.0
+                                  : double.tryParse(rawCost.toString().replaceAll('â‚±','').replaceAll(',','').trim()) ?? 0.0;
+                              final oos = (_stockMap[(name).toLowerCase()] ?? -1) == 0 || _inactiveItemNames.contains(name.toLowerCase());
+                              return InkWell(
+                                onTap: oos ? null : () => onSelected(item),
+                                child: Container(
+                                  color: oos ? const Color(0xFFF8F8F8) : null,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  child: Row(children: [
+                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Text(name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13,
+                                        color: oos ? const Color(0xFFa0aec0) : const Color(0xFF1a202c))),
+                                      if (uom.isNotEmpty || cost > 0)
+                                        Text('${uom.isNotEmpty ? uom : "â€”"}  â€¢  â‚±${cost.toStringAsFixed(2)}',
+                                          style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                                      if (oos)
+                                        Container(
+                                          margin: const EdgeInsets.only(top: 3),
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(color: const Color(0xFFFFF5F5), borderRadius: BorderRadius.circular(20)),
+                                          child: const Text('âš  Out of stock â€” cannot add',
+                                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.red)),
+                                        ),
+                                    ])),
+                                    oos
+                                        ? const Icon(Icons.block_outlined, size: 16, color: Color(0xFFa0aec0))
+                                        : const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF718096)),
+                                  ]),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
                     ),
                   ),
           ),
@@ -3263,9 +3351,9 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
   }
 
   String _formatCost(String raw) {
-    final clean = raw.replaceAll('₱', '').replaceAll(',', '').trim();
+    final clean = raw.replaceAll('â‚±', '').replaceAll(',', '').trim();
     final val = double.tryParse(clean);
-    if (val == null) return raw.startsWith('₱') ? raw : '₱$raw';
+    if (val == null) return raw.startsWith('â‚±') ? raw : 'â‚±$raw';
     return _fmtMoney(val);
   }
 
@@ -3278,7 +3366,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       if (i > 0 && (intPart.length - i) % 3 == 0) buffer.write(',');
       buffer.write(intPart[i]);
     }
-    return '₱$buffer.$decPart';
+    return 'â‚±$buffer.$decPart';
   }
 
   String _monthName(int m) => const [
@@ -3310,263 +3398,7 @@ class _MaxValueFormatter extends TextInputFormatter {
     if (newValue.text.isEmpty) return newValue;
     final entered = int.tryParse(newValue.text);
     if (entered == null) return oldValue;
-    if (entered > max) return oldValue; // block — don't apply the new value
+    if (entered > max) return oldValue; // block â€” don't apply the new value
     return newValue;
-  }
-}
-
-/// Search field with overlay dropdown that survives StatefulBuilder rebuilds.
-/// Pass a stable [key] (stored on the row map) to keep State alive.
-class _ItemSearchField extends StatefulWidget {
-  final TextEditingController controller;
-  final String label;
-  final List<Map<String, dynamic>> items;
-  final bool Function(Map<String, dynamic>, String) filter;
-  final bool Function(Map<String, dynamic>) isOutOfStock;
-  final void Function(Map<String, dynamic>) onSelected;
-  final Widget? trailing;
-  final VoidCallback? onChanged;
-
-  const _ItemSearchField({
-    required super.key,
-    required this.controller,
-    required this.label,
-    required this.items,
-    required this.filter,
-    required this.isOutOfStock,
-    required this.onSelected,
-    this.trailing,
-    this.onChanged,
-  });
-
-  @override
-  State<_ItemSearchField> createState() => _ItemSearchFieldState();
-}
-
-class _ItemSearchFieldState extends State<_ItemSearchField> {
-  final _layerLink = LayerLink();
-  final _focusNode = FocusNode();
-  OverlayEntry? _overlay;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.controller.addListener(_rebuild);
-    _focusNode.addListener(_onFocus);
-  }
-
-  @override
-  void dispose() {
-    _close();
-    widget.controller.removeListener(_rebuild);
-    _focusNode.removeListener(_onFocus);
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  void _rebuild() {
-    widget.onChanged?.call();
-    if (_focusNode.hasFocus) _open();
-  }
-
-  void _onFocus() {
-    if (_focusNode.hasFocus) {
-      _open();
-    } else {
-      Future.delayed(const Duration(milliseconds: 180), _close);
-    }
-  }
-
-  List<Map<String, dynamic>> get _results {
-    final q = widget.controller.text.trim().toLowerCase();
-    if (q.isEmpty) return [];
-    return widget.items.where((e) => widget.filter(e, q)).take(8).toList();
-  }
-
-  void _open() {
-    _close();
-    final results = _results;
-    final q = widget.controller.text.trim();
-    if (results.isEmpty && q.isEmpty) return;
-    final overlay = Overlay.of(context);
-    _overlay = OverlayEntry(builder: (_) => _buildOverlay(results));
-    overlay.insert(_overlay!);
-  }
-
-  void _close() {
-    _overlay?.remove();
-    _overlay?.dispose();
-    _overlay = null;
-  }
-
-  Widget _buildOverlay(List<Map<String, dynamic>> results) {
-    final mq = MediaQuery.of(context);
-    final w = mq.size.width - 48;
-    return Positioned(
-      width: 0,
-      child: CompositedTransformFollower(
-        link: _layerLink,
-        showWhenUnlinked: false,
-        offset: const Offset(0, 46),
-        child: Material(
-          elevation: 8,
-          borderRadius: BorderRadius.circular(10),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: w, maxHeight: 260),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: results.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        widget.label.contains('Service')
-                            ? 'No services found.'
-                            : 'No materials found.',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFFa0aec0),
-                        ),
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: EdgeInsets.zero,
-                      shrinkWrap: true,
-                      itemCount: results.length,
-                      separatorBuilder: (_, __) =>
-                          const Divider(height: 1, color: Color(0xFFe2e8f0)),
-                      itemBuilder: (_, i) {
-                        final item = results[i];
-                        final name = item['name'] as String;
-                        final uom = item['uom'] as String? ?? '';
-                        final rawCost = item['cost'];
-                        final cost = rawCost == null
-                            ? 0.0
-                            : double.tryParse(
-                                    rawCost
-                                        .toString()
-                                        .replaceAll('₱', '')
-                                        .replaceAll(',', '')
-                                        .trim(),
-                                  ) ??
-                                  0.0;
-                        final oos = widget.isOutOfStock(item);
-                        return InkWell(
-                          onTap: oos
-                              ? null
-                              : () {
-                                  _close();
-                                  _focusNode.unfocus();
-                                  widget.onSelected(item);
-                                },
-                          child: Container(
-                            color: oos ? const Color(0xFFF8F8F8) : null,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        name,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 13,
-                                          color: oos
-                                              ? const Color(0xFFa0aec0)
-                                              : const Color(0xFF1a202c),
-                                        ),
-                                      ),
-                                      if (uom.isNotEmpty || cost > 0)
-                                        Text(
-                                          '${uom.isNotEmpty ? uom : '—'}  •  ₱${cost.toStringAsFixed(2)}',
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            color: Color(0xFF718096),
-                                          ),
-                                        ),
-                                      if (oos)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            top: 3,
-                                          ),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFFFF5F5),
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                            ),
-                                            child: const Text(
-                                              '⚠ Out of stock — cannot add',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w700,
-                                                color: Colors.red,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                oos
-                                    ? const Icon(
-                                        Icons.block_outlined,
-                                        size: 16,
-                                        color: Color(0xFFa0aec0),
-                                      )
-                                    : const Icon(
-                                        Icons.add_circle_outline,
-                                        size: 16,
-                                        color: Color(0xFF718096),
-                                      ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: TextField(
-        controller: widget.controller,
-        focusNode: _focusNode,
-        decoration: InputDecoration(
-          labelText: widget.label,
-          border: const OutlineInputBorder(),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 10,
-          ),
-          isDense: true,
-          prefixIcon: const Icon(
-            Icons.search,
-            size: 18,
-            color: Color(0xFF718096),
-          ),
-          suffixIcon: widget.trailing,
-        ),
-      ),
-    );
   }
 }

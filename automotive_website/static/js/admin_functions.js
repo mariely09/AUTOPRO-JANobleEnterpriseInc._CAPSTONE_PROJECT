@@ -1801,15 +1801,11 @@ function renderItemMasterList() {
 
     if (filtered.length === 0) {
         var listEl = document.getElementById('itemMasterList');
-        if (listEl) listEl.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#718096;padding:2rem;font-size:13px;">No items found.</td></tr>';
+        if (listEl) listEl.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#718096;padding:2rem;font-size:13px;">No items found.</td></tr>';
         return;
     }
 
     var rows = filtered.map(function(item) {
-        var avg  = item.avgMonthlyIssuance != null ? item.avgMonthlyIssuance : 0;
-        var last = item.lastMonthIssuance  != null ? item.lastMonthIssuance  : 0;
-        var avgDisplay  = avg  > 0 ? avg  : '—';
-        var lastDisplay = last > 0 ? last : '—';
         var tdStyle = 'padding:0.75rem 1rem;border-bottom:1px solid #f0f4f8;vertical-align:middle;font-size:0.88rem;color:#1a202c;';
         return '<tr style="transition:background .12s;" onmouseover="this.style.background=\'#fff5f5\'" onmouseout="this.style.background=\'\'">'
             + '<td style="' + tdStyle + '"><strong>' + item.itemNum + '</strong></td>'
@@ -1819,8 +1815,6 @@ function renderItemMasterList() {
             + '<td style="' + tdStyle + '">' + (item.commodityGroup||'-') + '</td>'
             + '<td style="' + tdStyle + '"><span style="display:inline-block;background:'+(item.itemType==='Service'?'rgba(0,51,160,0.07)':'rgba(229,62,62,0.07)')+';color:'+(item.itemType==='Service'?'#0033A0':'#e53e3e')+';border:1.5px solid '+(item.itemType==='Service'?'#0033A0':'#e53e3e')+';padding:0.22rem 0.7rem;border-radius:20px;font-size:0.75rem;font-weight:700;white-space:nowrap;">' + (item.itemType||'-') + '</span></td>'
             + '<td style="' + tdStyle + '">₱' + (parseFloat(String(item.cost||0).replace(/[₱,]/g,''))||0).toLocaleString('en-PH',{minimumFractionDigits:2}) + '</td>'
-            + '<td style="' + tdStyle + 'text-align:center;font-weight:600;color:'+(avg>0?'#003087':'#a0aec0')+';">' + avgDisplay + '</td>'
-            + '<td style="' + tdStyle + 'text-align:center;font-weight:600;color:'+(last>0?'#1a202c':'#a0aec0')+';">' + lastDisplay + '</td>'
             + '<td style="' + tdStyle + 'text-align:center;width:110px;">'
             +   '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.25rem;">'
             +   '<button class="btn-small btn-primary" onclick="viewItemMasterDetails(\'' + item.itemNum + '\')" title="View" style="display:flex;align-items:center;justify-content:center;width:100%;padding:0.3rem 0;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>'

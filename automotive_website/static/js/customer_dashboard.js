@@ -158,9 +158,11 @@
   }
 
   // ── Vehicles ─────────────────────────────────────────────
-  // Track under-maintenance vehicle ids/plates from service_bookings
-  window._cuUnderMaintenancePlates    = new Set();
-  window._cuUnderMaintenanceVehicleIds = new Set();
+  // Track under-maintenance vehicle ids/plates from service_bookings.
+  // null = stream not yet loaded (use vehicle doc status as fallback).
+  // Set() = stream loaded but no active Under Maintenance bookings.
+  window._cuUnderMaintenancePlates    = null;
+  window._cuUnderMaintenanceVehicleIds = null;
 
   function loadVehicles() {
     const user = auth.currentUser;
@@ -169,6 +171,7 @@
     db.collection('service_bookings')
       .where('customerId', '==', user.uid)
       .onSnapshot(bookingSnap => {
+        // Replace with fresh Sets — null sentinel is only used before first snapshot
         window._cuUnderMaintenancePlates    = new Set();
         window._cuUnderMaintenanceVehicleIds = new Set();
         bookingSnap.docs.forEach(doc => {
@@ -201,10 +204,15 @@
 
       updateStats();
       renderVehicles();
-      // Load recent services once after vehicles are known
-      loadRecentServices();
+      // Load recent services only on the first vehicles snapshot
+      if (!_recentServicesStarted) {
+        _recentServicesStarted = true;
+        loadRecentServices();
+      }
     });
   }
+
+  let _recentServicesStarted = false;
 
   // ── Date format helper (e.g. "2026-06-01" → "June 1, 2026") ──
   const _MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -248,10 +256,17 @@
   }
 
   function computeStatus(v) {
-    // Check if vehicle has an active Under Maintenance booking
-    if (v.status === 'Under Maintenance') return 'Under Maintenance';
-    if (window._cuUnderMaintenancePlates    && window._cuUnderMaintenancePlates.has((v.plate || '').toLowerCase())) return 'Under Maintenance';
-    if (window._cuUnderMaintenanceVehicleIds && window._cuUnderMaintenanceVehicleIds.has(v.id)) return 'Under Maintenance';
+    // _cuUnderMaintenancePlates is null until the service_bookings stream fires.
+    // Once it fires it's a Set — empty means no active Under Maintenance bookings.
+    if (window._cuUnderMaintenancePlates === null) {
+      // Stream not loaded yet — fall back to the stale vehicle doc status
+      if (v.status === 'Under Maintenance') return 'Under Maintenance';
+    } else {
+      // Stream has fired — these sets are the ground truth.
+      // If booking moved to Completed, plate/id is no longer in the set.
+      if (window._cuUnderMaintenancePlates.has((v.plate || '').toLowerCase())) return 'Under Maintenance';
+      if (window._cuUnderMaintenanceVehicleIds && window._cuUnderMaintenanceVehicleIds.has(v.id)) return 'Under Maintenance';
+    }
     const lastSvc = v.lastSvcDate || '';
     const freq = parseInt(v.svcFreq) || 0;
     if (!lastSvc || !freq) return 'On Track';
@@ -570,103 +585,112 @@
   });
 
   // ── Recent Services ─────────────────────────────────────
+  // Uses onSnapshot so the list updates live when a maintenance doc
+  // transitions to "Completed" (admin marks service done).
+  let _recentUnsubscribe = null;
+
   async function loadRecentServices() {
     const el = document.getElementById('cuRecentServices');
     if (!el) return;
-    try {
-      const user    = auth.currentUser;
-      if (!user) return;
 
-      // Reuse already-filtered _vehicles for plates — avoids a redundant Firestore scan
-      let plates;
-      if (_vehicles.length) {
-        plates = new Set(_vehicles.map(v => (v.plate || '').toLowerCase()).filter(Boolean));
-      } else {
-        // Fallback: fetch fresh from Firestore (handles edge case where _vehicles not yet loaded)
-        const db2   = firebase.firestore();
-        const userDoc = await db2.collection('users').doc(user.uid).get();
+    const user = auth.currentUser;
+    if (!user) return;
+
+    // Build the plate set — reuse already-filtered _vehicles when available
+    let plates;
+    if (_vehicles.length) {
+      plates = new Set(_vehicles.map(v => (v.plate || '').toLowerCase()).filter(Boolean));
+    } else {
+      try {
+        const userDoc = await db.collection('users').doc(user.uid).get();
         const uData   = userDoc.exists ? userDoc.data() : {};
         const uName   = (uData.name        || '').toLowerCase();
         const cName   = (uData.companyName || '').toLowerCase();
-
-        const vSnap = await db2.collection('vehicles').get();
+        const vSnap   = await db.collection('vehicles').get();
         plates = new Set(
           vSnap.docs
             .filter(d => {
               const v     = d.data();
               const owner = (v.owner || '').toLowerCase();
-              // Match by UID or by name
               if (v.ownerId === user.uid) return true;
               return (uName && owner === uName) || (cName && owner === cName);
             })
             .map(d => (d.data().plate || '').toLowerCase())
             .filter(Boolean)
         );
+      } catch(e) {
+        console.error('Recent services — vehicle plates error:', e);
+        plates = new Set();
       }
-
-      if (!plates.size) {
-        el.innerHTML = '<div class="cu-recent-empty">No completed services yet.</div>';
-        return;
-      }
-
-      // Fetch completed maintenance records
-      const mSnap = await db.collection('maintenance').where('status', '==', 'Completed').get();
-      let records = mSnap.docs
-        .filter(d => plates.has((d.data().plate || '').toLowerCase()))
-        .map(d => ({ id: d.id, ...d.data() }));
-
-      // Sort by createdAt descending
-      records.sort((a, b) => {
-        const aTs = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
-        const bTs = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
-        return bTs - aTs;
-      });
-      records = records.slice(0, 5);
-
-      if (!records.length) {
-        el.innerHTML = '<div class="cu-recent-empty">No completed services yet.</div>';
-        return;
-      }
-
-      const buildIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a3560" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
-
-      el.innerHTML = records.map((r, i) => {
-        const plate   = r.plate || '—';
-        const desc    = r.desc  || r.vehicleDesc || '';
-        const dateStr = r.serviceDate || r.date || (r.createdAt && r.createdAt.toDate ? _fmtDateShort(r.createdAt.toDate()) : '');
-
-        // Service name: svcRows[] → services[] → serviceType/type
-        const svcRows  = Array.isArray(r.svcRows) ? r.svcRows : [];
-        const svcNames = svcRows.filter(x => x && x.name).map(x => x.name);
-        const svcs     = Array.isArray(r.services) ? r.services : [];
-        const svcText  = svcNames.length ? svcNames.join(', ')
-                       : svcs.length     ? svcs.join(', ')
-                       : (r.serviceType || r.type || 'Service');
-
-        const isLast = i === records.length - 1;
-        return `<div class="cu-recent-row">
-          <div class="cu-recent-icon">${buildIcon}</div>
-          <div style="flex:1;min-width:0;">
-            <div class="cu-recent-svc">${_escR(svcText)}</div>
-            <div class="cu-recent-plate">${_escR(plate)}${desc ? ' · ' + _escR(desc) : ''}</div>
-          </div>
-          ${dateStr ? `<div class="cu-recent-date" style="flex-shrink:0;margin:0 16px;white-space:nowrap;text-align:center;">${_escR(dateStr)}</div>` : ''}
-          <div style="flex-shrink:0;">
-            <div class="cu-recent-badge">Completed</div>
-          </div>
-        </div>${!isLast ? '<div class="cu-recent-row-divider"></div>' : ''}`;
-      }).join('');
-
-      // ── Persist for instant restore ──
-      try {
-        sessionStorage.setItem(_CU_RECENT_KEY, JSON.stringify({ html: el.innerHTML }));
-      } catch(e) {}
-
-    } catch(e) {
-      console.error('Recent services error:', e);
-      const el2 = document.getElementById('cuRecentServices');
-      if (el2) el2.innerHTML = '<div class="cu-recent-empty">Unable to load recent services.</div>';
     }
+
+    if (!plates.size) {
+      el.innerHTML = '<div class="cu-recent-empty">No completed services yet.</div>';
+      return;
+    }
+
+    // Cancel any existing listener before starting a new one
+    if (_recentUnsubscribe) { _recentUnsubscribe(); _recentUnsubscribe = null; }
+
+    // Live listener on completed maintenance docs
+    _recentUnsubscribe = db.collection('maintenance')
+      .where('status', '==', 'Completed')
+      .onSnapshot(mSnap => {
+        let records = mSnap.docs
+          .filter(d => plates.has((d.data().plate || '').toLowerCase()))
+          .map(d => ({ id: d.id, ...d.data() }));
+
+        // Sort newest first, cap at 5
+        records.sort((a, b) => {
+          const aTs = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+          const bTs = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+          return bTs - aTs;
+        });
+        records = records.slice(0, 5);
+
+        if (!records.length) {
+          el.innerHTML = '<div class="cu-recent-empty">No completed services yet.</div>';
+          return;
+        }
+
+        const buildIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a3560" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
+
+        el.innerHTML = records.map((r, i) => {
+          const plate   = r.plate || '—';
+          const desc    = r.desc  || r.vehicleDesc || '';
+          const dateStr = r.serviceDate || r.date || (r.createdAt && r.createdAt.toDate ? _fmtDateShort(r.createdAt.toDate()) : '');
+          const svcRows  = Array.isArray(r.svcRows) ? r.svcRows : [];
+          const svcNames = svcRows.filter(x => x && x.name).map(x => x.name);
+          const svcs     = Array.isArray(r.services) ? r.services : [];
+          const svcText  = svcNames.length ? svcNames.join(', ')
+                         : svcs.length     ? svcs.join(', ')
+                         : (r.serviceType || r.type || 'Service');
+          const isLast = i === records.length - 1;
+          return `<div class="cu-recent-row">
+            <div class="cu-recent-icon">${buildIcon}</div>
+            <div style="flex:1;min-width:0;">
+              <div class="cu-recent-svc">${_escR(svcText)}</div>
+              <div class="cu-recent-plate">${_escR(plate)}${desc ? ' · ' + _escR(desc) : ''}</div>
+            </div>
+            ${dateStr ? `<div class="cu-recent-date" style="flex-shrink:0;margin:0 16px;white-space:nowrap;text-align:center;">${_escR(dateStr)}</div>` : ''}
+            <div style="flex-shrink:0;"><div class="cu-recent-badge">Completed</div></div>
+          </div>${!isLast ? '<div class="cu-recent-row-divider"></div>' : ''}`;
+        }).join('');
+
+        // Also refresh the vehicle list and stats — the vehicle's status field
+        // in Firestore is updated to Active when the admin marks complete,
+        // but the onSnapshot on vehicles will handle that automatically.
+        // We trigger updateStats here as an extra safety net.
+        if (_vehicles.length) updateStats();
+
+        // Persist for instant restore on next page load
+        try {
+          sessionStorage.setItem(_CU_RECENT_KEY, JSON.stringify({ html: el.innerHTML }));
+        } catch(e) {}
+      }, e => {
+        console.error('Recent services listener error:', e);
+        el.innerHTML = '<div class="cu-recent-empty">Unable to load recent services.</div>';
+      });
   }
 
   function _fmtDateShort(d) {
