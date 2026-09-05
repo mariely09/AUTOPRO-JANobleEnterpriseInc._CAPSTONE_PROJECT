@@ -19,7 +19,7 @@ class _StaffServiceBookingsBodyState extends State<StaffServiceBookingsBody> {
     'July','August','September','October','November','December'
   ];
 
-  String _filter = 'all'; // 'all', 'Approved', 'Rescheduled', 'Dismissed'
+  String _filter = 'Approved';
 
   @override
   Widget build(BuildContext context) {
@@ -389,17 +389,16 @@ class _StaffServiceBookingsBodyState extends State<StaffServiceBookingsBody> {
 
     if (confirmed != true || !mounted) return;
 
-    await FirebaseFirestore.instance
+    // Update booking status — queues offline, resolves immediately
+    FirebaseFirestore.instance
         .collection('service_bookings')
         .doc(docId)
         .update({'status': 'Under Maintenance'});
 
-    // Notify customer — in-app
-    final bSnap = await FirebaseFirestore.instance.collection('service_bookings').doc(docId).get();
-    final bData = bSnap.data() ?? {};
-    final customerId = bData['customerId'] as String? ?? '';
+    // Notify customer using already-loaded data (no extra Firestore read)
+    final customerId = data['customerId'] as String? ?? '';
     if (customerId.isNotEmpty) {
-      await FirebaseFirestore.instance.collection('notifications').add({
+      FirebaseFirestore.instance.collection('notifications').add({
         'title': '🔧 Vehicle Under Maintenance',
         'message': 'Your vehicle $plate is now under maintenance. We will notify you once the service is completed.',
         'type': 'info',

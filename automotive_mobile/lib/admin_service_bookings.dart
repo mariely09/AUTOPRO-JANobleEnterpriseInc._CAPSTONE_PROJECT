@@ -29,7 +29,7 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
   static const _blue = Color(0xFF003087);
   static const _months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-  String _filter = 'all'; // 'all', 'Approved', 'Rescheduled', 'Dismissed'
+  String _filter = 'Approved';
   final _searchCtrl = TextEditingController();
   final String _searchQuery = '';
 
@@ -381,14 +381,16 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
 
     if (confirmed != true || !mounted) return;
 
-    // Update booking status to "Under Maintenance"
-    await FirebaseFirestore.instance.collection('service_bookings').doc(docId).update({'status': 'Under Maintenance'});
+    // Update booking status — queues offline, resolves immediately
+    FirebaseFirestore.instance
+        .collection('service_bookings')
+        .doc(docId)
+        .update({'status': 'Under Maintenance'});
 
-    // Notify customer — in-app + check vehicleUnderMaint pref
-    final bData = (await FirebaseFirestore.instance.collection('service_bookings').doc(docId).get()).data() ?? {};
-    final customerId = bData['customerId'] as String? ?? '';
+    // Notify customer using already-loaded data (no extra Firestore read)
+    final customerId = data['customerId'] as String? ?? '';
     if (customerId.isNotEmpty) {
-      await FirebaseFirestore.instance.collection('notifications').add({
+      FirebaseFirestore.instance.collection('notifications').add({
         'title': '🔧 Vehicle Under Maintenance',
         'message': 'Your vehicle $plate is now under maintenance. We will notify you once the service is completed.',
         'type': 'info',
@@ -398,7 +400,7 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
     }
 
     if (mounted) {
-      // Navigate to Vehicle Maintenance with booking data auto-filled
+      // Navigate immediately — no await needed
       Navigator.push(context, MaterialPageRoute(
         builder: (_) => AdminVehicleMaintenance(bookingData: {
           'bookingId': docId,
