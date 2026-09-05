@@ -257,26 +257,42 @@
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Fix: action buttons in table rows are clickable ── */
+/* ── Fix: buttons in action column were unclickable because:
+   1. .data-table has overflow:hidden (clips content + creates stacking context)
+   2. admin_sidebar.js injects overflow-x:auto at runtime, always winning the cascade
+   Solution: keep .data-table overflow:visible so buttons can escape the container,
+   and push the horizontal scroll down to #servicesList (the actual row wrapper). ── */
+
 .data-table {
     overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
 }
-/* Remove any stacking context from the data-table itself */
-.data-table > .table-row:first-child {
-    border-radius: 14px 14px 0 0;
-    overflow: hidden;
+
+/* Horizontal scroll lives on the inner list, not the outer card */
+#servicesList {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
 }
-/* Action buttons sit above everything */
-.table-row .svc-actions,
+
+/* Give the action cell its own stacking context above siblings */
 .table-row > div:last-child {
     position: relative;
-    z-index: 10;
+    z-index: 30;
 }
+
+/* Make sure buttons are always in the hit-test layer */
 .table-row .btn-small,
-.table-row button {
+.table-row button:not([disabled]) {
     position: relative;
-    z-index: 10;
-    pointer-events: auto;
+    z-index: 30;
+    pointer-events: auto !important;
+    cursor: pointer;
+}
+
+.table-row button[disabled] {
+    pointer-events: none !important;
+    cursor: not-allowed;
 }
 
 /* -- Floating label fields -- */

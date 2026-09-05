@@ -1306,8 +1306,13 @@
         gap: 0.75rem !important;
     }
 
-    /* ─ Data tables: horizontal scroll ─ */
+    /* ─ Data tables: outer card stays visible so action buttons work;
+       horizontal scroll moves to the inner list wrapper ─ */
     .data-table {
+        overflow: visible !important;
+    }
+    #servicesList, #assetsList, #inventoryList, #issuanceList, #itemMasterList,
+    #txnList, #usersList, #domainList, #archiveList, #receivingList {
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch !important;
     }
@@ -1406,6 +1411,10 @@ div[style*="display:grid"][style*="repeat(2,1fr)"] .btn-small {
 
 @media (max-width: 900px) {
     .data-table {
+        overflow: visible !important;
+    }
+    #servicesList, #assetsList, #inventoryList, #issuanceList, #itemMasterList,
+    #txnList, #usersList, #domainList, #archiveList, #receivingList {
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch !important;
     }
