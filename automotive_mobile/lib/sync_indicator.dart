@@ -112,10 +112,14 @@ class OfflineSaveListener extends StatefulWidget {
 
 class _OfflineSaveListenerState extends State<OfflineSaveListener> {
   StreamSubscription<void>? _sub;
+  bool _wasOffline = false;
 
   @override
   void initState() {
     super.initState();
+    _wasOffline = !SyncStatusNotifier.instance.online;
+
+    // Show toast whenever a write is queued while offline
     _sub = SyncStatusNotifier.instance.onOfflineWrite.listen((_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -135,11 +139,41 @@ class _OfflineSaveListenerState extends State<OfflineSaveListener> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ));
     });
+
+    // Show "back online" toast when connectivity is restored
+    SyncStatusNotifier.instance.addListener(_onSyncChanged);
+  }
+
+  void _onSyncChanged() {
+    if (!mounted) return;
+    final notifier = SyncStatusNotifier.instance;
+    if (_wasOffline && notifier.online) {
+      // Just came back online
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Row(children: [
+          Icon(Icons.cloud_done_outlined, color: Colors.white, size: 16),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Back online — changes are being synced.',
+              style: TextStyle(fontSize: 13),
+            ),
+          ),
+        ]),
+        backgroundColor: Colors.green.shade700,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+    }
+    _wasOffline = !notifier.online;
   }
 
   @override
   void dispose() {
     _sub?.cancel();
+    SyncStatusNotifier.instance.removeListener(_onSyncChanged);
     super.dispose();
   }
 

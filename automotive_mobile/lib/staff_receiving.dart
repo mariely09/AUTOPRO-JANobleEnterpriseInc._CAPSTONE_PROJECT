@@ -36,7 +36,10 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
         .listen((snap) {
       if (mounted) {
         setState(() {
-          _deliveries = snap.docs.map((d) => {...d.data(), 'id': d.id}).toList();
+          _deliveries = snap.docs
+              .map((d) => {...d.data(), 'id': d.id})
+              .where((d) => d['archived'] != true)
+              .toList();
           _loading = false;
         });
       }

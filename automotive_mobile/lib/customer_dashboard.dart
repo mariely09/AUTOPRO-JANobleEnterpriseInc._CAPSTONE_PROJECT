@@ -1282,9 +1282,9 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
         case 'due soon':
           return Colors.orange;
         case 'under maintenance':
-          return Colors.orange;
+          return const Color(0xFFea580c);
         default:
-          return Colors.green;
+          return const Color(0xFF16a34a);
       }
     }
 
@@ -1299,7 +1299,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
         case 'due soon':
           return 'Due Soon';
         case 'under maintenance':
-          return 'Maintenance';
+          return 'Under Maintenance';
         default:
           return 'Active';
       }
@@ -1485,8 +1485,8 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
         : status == 'Due Soon'
         ? Colors.orange
         : status == 'Under Maintenance'
-        ? Colors.orange
-        : Colors.green; // On Track + Scheduled → Active
+        ? const Color(0xFFea580c)
+        : const Color(0xFF16a34a); // On Track + Scheduled → Active
     final statusBg = status == 'Overdue'
         ? const Color(0xFFFFF5F5)
         : status == 'Due Today'
@@ -1696,8 +1696,8 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
         : status == 'Due Soon'
         ? Colors.orange
         : status == 'Under Maintenance'
-        ? Colors.orange
-        : Colors.green; // On Track + Scheduled → Active
+        ? const Color(0xFFea580c)
+        : const Color(0xFF16a34a); // On Track + Scheduled → Active
 
     // Compute next PMS
     String nextPms = '—';
