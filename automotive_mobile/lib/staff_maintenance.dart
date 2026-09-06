@@ -272,14 +272,24 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       final stockSnap = await FirebaseFirestore.instance
           .collection('stock_inventory')
           .get();
-      _stockMap = {
-        for (final d in stockSnap.docs)
-          (d['name'] as String? ?? '').toLowerCase():
-              (d['stock'] as num?)?.toInt() ?? 0,
-      };
+      // Build stockMap with three lookup strategies (in priority order):
+      //   1. item num (most accurate — unique identifier linking item_master to stock_inventory)
+      //   2. name|uom (same-name different-UOM distinction)
+      //   3. name-only fallback (for stock docs missing uom or num)
+      _stockMap = {};
+      for (final d in stockSnap.docs) {
+        final itemNum = (d['num'] as String? ?? '').trim();
+        final n = (d['name'] as String? ?? '').toLowerCase().trim();
+        final u = (d['uom'] as String? ?? '').toLowerCase().trim();
+        final qty = (d['stock'] as num?)?.toInt() ?? 0;
+        if (n.isEmpty) continue;
+        if (itemNum.isNotEmpty) _stockMap['num:$itemNum'] = qty;
+        _stockMap['$n|$u'] = qty;
+        _stockMap.putIfAbsent(n, () => qty);
+      }
       _inactiveItemNames = stockSnap.docs
           .where((d) => (d['status'] as String? ?? '') == 'Inactive')
-          .map((d) => (d['name'] as String? ?? '').toLowerCase())
+          .map((d) => (d['name'] as String? ?? '').toLowerCase().trim())
           .where((n) => n.isNotEmpty)
           .toSet();
     } catch (_) {}
@@ -2769,9 +2779,17 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                           final rawCost = item['cost'];
                           final cost = rawCost == null ? 0.0
                               : double.tryParse(rawCost.toString().replaceAll('₱', '').replaceAll(',', '').trim()) ?? 0.0;
+                          final itemNum = item['num'] as String? ?? '';
+                          // Look up stock: by item num first (most accurate), then name|uom, then name
+                          final stockQtyRaw = !isService
+                              ? (itemNum.isNotEmpty
+                                  ? (_stockMap['num:$itemNum'] ?? _stockMap['${name.toLowerCase()}|${uom.toLowerCase()}'] ?? _stockMap[name.toLowerCase()])
+                                  : (_stockMap['${name.toLowerCase()}|${uom.toLowerCase()}'] ?? _stockMap[name.toLowerCase()]))
+                              : null;
                           final oos = !isService && (
-                              (_stockMap[name.toLowerCase()] ?? -1) == 0 ||
+                              (stockQtyRaw ?? -1) == 0 ||
                               _inactiveItemNames.contains(name.toLowerCase()));
+                          final stockQty = stockQtyRaw;
                           return InkWell(
                             onTap: oos ? null : () {
                               selected = item;
@@ -2793,15 +2811,40 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                       '${uom.isNotEmpty ? uom : "—"}  ₱${cost.toStringAsFixed(2)}',
                                       style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
                                     ),
-                                  if (oos)
+                                  const SizedBox(height: 3),
+                                  if (!isService && stockQty != null)
                                     Container(
-                                      margin: const EdgeInsets.only(top: 3),
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                       decoration: BoxDecoration(
-                                          color: const Color(0xFFFFF5F5),
-                                          borderRadius: BorderRadius.circular(20)),
-                                      child: const Text('⚠ Out of stock — cannot add',
-                                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.red)),
+                                        color: stockQty == 0
+                                            ? const Color(0xFFFFF5F5)
+                                            : stockQty <= 5
+                                                ? const Color(0xFFFFFBEB)
+                                                : const Color(0xFFF0FFF4),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        stockQty == 0 ? '⚠ Out of stock — cannot add' : 'Stock: $stockQty',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: stockQty == 0
+                                              ? Colors.red
+                                              : stockQty <= 5
+                                                  ? Colors.orange
+                                                  : Colors.green,
+                                        ),
+                                      ),
+                                    )
+                                  else if (!isService && stockQty == null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF7F8FA),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: const Text('No stock record',
+                                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF718096))),
                                     ),
                                 ])),
                                 oos
@@ -3034,9 +3077,22 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
 
     Future<void> applyMaterial(String name, String uom) async {
       // Block items marked Inactive or with zero stock
-      final nameKey = name.toLowerCase();
+      final nameKey = name.toLowerCase().trim();
+      // Look up stock by item num first (most accurate), then name|uom, then name-only
+      final uomForCheck = uom.isNotEmpty ? uom : ((_itemMasterMap[name]?['uom'] ?? '') as String);
+      final stockMatchedItem = _allItems.firstWhere(
+        (e) => (e['name'] as String).toLowerCase().trim() == nameKey
+            && (e['uom'] as String? ?? '').toLowerCase().trim() == uomForCheck.toLowerCase().trim(),
+        orElse: () => _allItems.firstWhere(
+          (e) => (e['name'] as String).toLowerCase().trim() == nameKey,
+          orElse: () => <String, dynamic>{},
+        ),
+      );
+      final itemNumKey = (stockMatchedItem['num'] as String? ?? '').trim();
       final isInactive = _inactiveItemNames.contains(nameKey);
-      final stockQty = _stockMap[nameKey];
+      final stockQty = (itemNumKey.isNotEmpty ? _stockMap['num:$itemNumKey'] : null)
+          ?? _stockMap['$nameKey|${uomForCheck.toLowerCase().trim()}']
+          ?? _stockMap[nameKey];
       final isZeroStock = stockQty != null && stockQty == 0;
       if (isInactive || isZeroStock) {
         ScaffoldMessenger.of(ctx).showSnackBar(

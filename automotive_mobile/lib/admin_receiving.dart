@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'barcode_scanner_screen.dart';
+import 'sync_indicator.dart';
 
 class AdminReceiving extends StatelessWidget {
   const AdminReceiving({super.key});
@@ -151,7 +152,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
             });
           }).toList();
 
-    return Stack(children: [
+    return OfflineSaveListener(child: Stack(children: [
       // ── Main list area ──
       Column(children: [
         // Filter chips
@@ -244,12 +245,6 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
               ),
               const SizedBox(height: 10),
               _fabAction(
-                label: 'Scan Item',
-                icon: Icons.qr_code_scanner,
-                onTap: _scanAndFind,
-              ),
-              const SizedBox(height: 10),
-              _fabAction(
                 label: 'Create Purchase Order (PO)',
                 icon: Icons.add_box_outlined,
                 onTap: () { setState(() => _fabOpen = false); _showNewDeliveryModal(); },
@@ -275,7 +270,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
           ],
         ),
       ),
-    ]);
+    ]));
   }
 
   // ── Scan & find pending delivery ────────────────────────────
@@ -636,7 +631,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                         if (newQty == null || newQty == qty) return;
                         final updatedItems = List<Map<String, dynamic>>.from(items.map((i) => Map<String, dynamic>.from(i as Map)));
                         updatedItems[itemIdx] = {...updatedItems[itemIdx], 'expectedQty': newQty};
-                        await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({'items': updatedItems});
+                        await SyncStatusNotifier.instance.trackWrite(() =>
+                          FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({'items': updatedItems}));
                         if (mounted) { Navigator.pop(ctx2); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Quantity updated!'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating)); }
                       },
                       icon: const Icon(Icons.edit_outlined, size: 14),
@@ -798,10 +794,11 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
       ),
     );
     if (confirmed != true) return;
-    await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({
-      'archived': true,
-      'archivedAt': FieldValue.serverTimestamp(),
-    });
+    await SyncStatusNotifier.instance.trackWrite(() =>
+      FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({
+        'archived': true,
+        'archivedAt': FieldValue.serverTimestamp(),
+      }));
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text('Item "$itemName" archived successfully!'),
       backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
@@ -840,10 +837,11 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
       ),
     );
     if (confirmed != true) return;
-    await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({
-      'archived': true,
-      'archivedAt': FieldValue.serverTimestamp(),
-    });
+    await SyncStatusNotifier.instance.trackWrite(() =>
+      FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({
+        'archived': true,
+        'archivedAt': FieldValue.serverTimestamp(),
+      }));
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: const Text('Purchase order archived successfully!'),
       backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
@@ -1174,7 +1172,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                     Expanded(flex: 2, child: ElevatedButton.icon(
                       onPressed: () async {
                         Navigator.pop(context);
-                        await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({'status': 'Pending'});
+                        await SyncStatusNotifier.instance.trackWrite(() =>
+                          FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({'status': 'Pending'}));
                         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                           content: Text('Approved! Delivery is now Pending.'),
                           backgroundColor: Color(0xFF38a169), behavior: SnackBarBehavior.floating));
@@ -1854,12 +1853,14 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                         if (isEdit) {
                           // Approve: update items and set status to Pending
                           data['status'] = 'Pending';
-                          await FirebaseFirestore.instance.collection('deliveries')
-                              .doc(existing['id'] as String).update(data);
+                          await SyncStatusNotifier.instance.trackWrite(() =>
+                            FirebaseFirestore.instance.collection('deliveries')
+                                .doc(existing['id'] as String).update(data));
                         } else {
                           data['status'] = 'Pending';
                           data['createdAt'] = FieldValue.serverTimestamp();
-                          await FirebaseFirestore.instance.collection('deliveries').add(data);
+                          await SyncStatusNotifier.instance.trackWrite(() =>
+                            FirebaseFirestore.instance.collection('deliveries').add(data));
                         }
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
@@ -2019,12 +2020,13 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                       };
                       final allReceived = updatedItems.every((i) => i['itemStatus'] == 'Awaiting Double Check' || i['itemStatus'] == 'Approved');
                       try {
-                        await FirebaseFirestore.instance.collection('deliveries').doc(delivery['id'] as String).update({
-                          'items': updatedItems,
-                          'receivedBy': receivedByCtrl.text.trim(),
-                          'status': allReceived ? 'Awaiting Double Check' : 'Pending',
-                          'receivedAt': FieldValue.serverTimestamp(),
-                        });
+                        await SyncStatusNotifier.instance.trackWrite(() =>
+                          FirebaseFirestore.instance.collection('deliveries').doc(delivery['id'] as String).update({
+                            'items': updatedItems,
+                            'receivedBy': receivedByCtrl.text.trim(),
+                            'status': allReceived ? 'Awaiting Double Check' : 'Pending',
+                            'receivedAt': FieldValue.serverTimestamp(),
+                          }));
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
@@ -2439,13 +2441,14 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
       final allDone = items.every((i) => i['itemStatus'] == 'Approved' || i['itemStatus'] == 'Rejected');
       final deliveryStatus = allApproved ? 'Approved' : (anyRejected && allDone) ? 'Rejected' : delivery['status'];
 
-      await FirebaseFirestore.instance.collection('deliveries').doc(docId).update({
-        'items': items,
-        'status': deliveryStatus,
-        'checkedBy': checkedBy.trim(),
-        'reviewNotes': notes.trim(),
-        'reviewedAt': FieldValue.serverTimestamp(),
-      });
+      await SyncStatusNotifier.instance.trackWrite(() =>
+        FirebaseFirestore.instance.collection('deliveries').doc(docId).update({
+          'items': items,
+          'status': deliveryStatus,
+          'checkedBy': checkedBy.trim(),
+          'reviewNotes': notes.trim(),
+          'reviewedAt': FieldValue.serverTimestamp(),
+        }));
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -2498,7 +2501,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
     items[itemIdx] = {...items[itemIdx], 'itemStatus': 'Pending'};
     final allPending = items.every((i) => (i['itemStatus'] ?? 'Pending') == 'Pending' || i['itemStatus'] == null);
     final deliveryStatus = allPending ? 'Pending' : d['status'];
-    await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({'items': items, 'status': deliveryStatus});
+    await SyncStatusNotifier.instance.trackWrite(() =>
+      FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({'items': items, 'status': deliveryStatus}));
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       content: Text('Item approved! Ready for receiving.'), backgroundColor: Color(0xFF38a169), behavior: SnackBarBehavior.floating));
   }
@@ -2536,13 +2540,15 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
     if (confirmed != true) return;
     items.removeAt(itemIdx);
     if (items.isEmpty) {
-      await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).delete();
+      await SyncStatusNotifier.instance.trackWrite(() =>
+        FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).delete());
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Request rejected. Purchase order deleted.'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
     } else {
-      final allPending = items.every((i) => (i['itemStatus'] ?? 'Pending') == 'Pending' || i['itemStatus'] == null);
-      final deliveryStatus = allPending ? 'Pending' : d['status'];
-      await FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({'items': items, 'status': deliveryStatus});
+      final allPending2 = items.every((i) => (i['itemStatus'] ?? 'Pending') == 'Pending' || i['itemStatus'] == null);
+      final deliveryStatus2 = allPending2 ? 'Pending' : d['status'];
+      await SyncStatusNotifier.instance.trackWrite(() =>
+        FirebaseFirestore.instance.collection('deliveries').doc(d['id'] as String).update({'items': items, 'status': deliveryStatus2}));
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Item rejected and removed.'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
     }

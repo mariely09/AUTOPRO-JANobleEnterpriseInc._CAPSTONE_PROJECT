@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'barcode_scanner_screen.dart';
+import 'sync_indicator.dart';
 
 class StaffReceivingBody extends StatefulWidget {
   final String searchQuery;
@@ -199,7 +200,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
             });
           }).toList();
 
-    return Stack(children: [
+    return OfflineSaveListener(child: Stack(children: [
       Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -286,12 +287,6 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
               ),
               const SizedBox(height: 10),
               _fabAction(
-                label: 'Scan Item',
-                icon: Icons.qr_code_scanner,
-                onTap: _scanAndFind,
-              ),
-              const SizedBox(height: 10),
-              _fabAction(
                 label: 'Create Purchase Order (PO)',
                 icon: Icons.add_box_outlined,
                 onTap: () { setState(() => _fabOpen = false); _showNewDeliveryModal(); },
@@ -317,7 +312,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
           ],
         ),
       ),
-    ]);
+    ]));
   }
 
   Widget _chip(String label, String value, Color color, IconData icon, String filter) {
@@ -1096,16 +1091,18 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                       }).toList();
                       try {
                         if (isEdit) {
-                          await FirebaseFirestore.instance
-                              .collection('deliveries')
-                              .doc(existing['id'] as String)
-                              .update({'items': items});
+                          await SyncStatusNotifier.instance.trackWrite(() =>
+                            FirebaseFirestore.instance
+                                .collection('deliveries')
+                                .doc(existing['id'] as String)
+                                .update({'items': items}));
                         } else {
-                          await FirebaseFirestore.instance.collection('deliveries').add({
-                            'items': items,
-                            'status': 'For Admin Review',
-                            'createdAt': FieldValue.serverTimestamp(),
-                          });
+                          await SyncStatusNotifier.instance.trackWrite(() =>
+                            FirebaseFirestore.instance.collection('deliveries').add({
+                              'items': items,
+                              'status': 'For Admin Review',
+                              'createdAt': FieldValue.serverTimestamp(),
+                            }));
                         }
                         if (ctx.mounted) {
                           Navigator.pop(ctx);
@@ -1671,12 +1668,13 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                       };
                       final allReceived = updatedItems.every((i) => i['itemStatus'] == 'Awaiting Double Check' || i['itemStatus'] == 'Approved');
                       try {
-                        await FirebaseFirestore.instance.collection('deliveries').doc(delivery['id'] as String).update({
-                          'items': updatedItems,
-                          'receivedBy': receivedByCtrl.text.trim(),
-                          'status': allReceived ? 'Awaiting Double Check' : 'Pending',
-                          'receivedAt': FieldValue.serverTimestamp(),
-                        });
+                        await SyncStatusNotifier.instance.trackWrite(() =>
+                          FirebaseFirestore.instance.collection('deliveries').doc(delivery['id'] as String).update({
+                            'items': updatedItems,
+                            'receivedBy': receivedByCtrl.text.trim(),
+                            'status': allReceived ? 'Awaiting Double Check' : 'Pending',
+                            'receivedAt': FieldValue.serverTimestamp(),
+                          }));
 
                         // ── Notify admin about the received item ──
                         final itemName   = item['itemName'] as String? ?? '—';
