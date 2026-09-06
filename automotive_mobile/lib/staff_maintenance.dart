@@ -2671,6 +2671,156 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
     );
   }
 
+  // ── Item picker modal ──────────────────────────────────────────────────
+  Future<Map<String, dynamic>?> _showItemPickerModal({
+    required BuildContext ctx,
+    required List<Map<String, dynamic>> items,
+    required bool isService,
+  }) async {
+    final searchCtrl = TextEditingController();
+    Map<String, dynamic>? selected;
+
+    await showModalBottomSheet<void>(
+      context: ctx,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      builder: (_) => StatefulBuilder(
+        builder: (bCtx, setSheet) {
+          final q = searchCtrl.text.trim().toLowerCase();
+          final filtered = q.isEmpty
+              ? items
+              : items.where((e) {
+                  final n = (e['name'] as String).toLowerCase();
+                  final num = (e['num'] as String? ?? '').toLowerCase();
+                  final sc = (e['supplierCode'] as String? ?? '').toLowerCase();
+                  return n.contains(q) || num.contains(q) || sc.contains(q);
+                }).toList();
+
+          return Container(
+            height: MediaQuery.of(bCtx).size.height * 0.85,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                decoration: const BoxDecoration(
+                  color: _red,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Row(children: [
+                  Expanded(
+                    child: Text(
+                      isService ? 'Select Service' : 'Select Material',
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(bCtx),
+                    child: const Icon(Icons.close, color: Colors.white),
+                  ),
+                ]),
+              ),
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: TextField(
+                  controller: searchCtrl,
+                  autofocus: true,
+                  onChanged: (_) => setSheet(() {}),
+                  decoration: InputDecoration(
+                    hintText: isService ? 'Search services...' : 'Search materials...',
+                    prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF718096)),
+                    suffixIcon: searchCtrl.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () { searchCtrl.clear(); setSheet(() {}); },
+                          )
+                        : null,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              // Count
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                child: Row(children: [
+                  Text('${filtered.length} item${filtered.length == 1 ? '' : 's'}',
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
+                ]),
+              ),
+              // List
+              Expanded(
+                child: filtered.isEmpty
+                    ? const Center(child: Text('No items found.', style: TextStyle(color: Color(0xFF718096))))
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFe2e8f0)),
+                        itemBuilder: (_, i) {
+                          final item = filtered[i];
+                          final name = item['name'] as String;
+                          final uom = item['uom'] as String? ?? '';
+                          final rawCost = item['cost'];
+                          final cost = rawCost == null ? 0.0
+                              : double.tryParse(rawCost.toString().replaceAll('₱', '').replaceAll(',', '').trim()) ?? 0.0;
+                          final oos = !isService && (
+                              (_stockMap[name.toLowerCase()] ?? -1) == 0 ||
+                              _inactiveItemNames.contains(name.toLowerCase()));
+                          return InkWell(
+                            onTap: oos ? null : () {
+                              selected = item;
+                              Navigator.pop(bCtx);
+                            },
+                            child: Container(
+                              color: oos ? const Color(0xFFF8F8F8) : null,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                              child: Row(children: [
+                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text(name,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        color: oos ? const Color(0xFFa0aec0) : const Color(0xFF1a202c),
+                                      )),
+                                  if (uom.isNotEmpty || cost > 0)
+                                    Text(
+                                      '${uom.isNotEmpty ? uom : "—"}  ₱${cost.toStringAsFixed(2)}',
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
+                                    ),
+                                  if (oos)
+                                    Container(
+                                      margin: const EdgeInsets.only(top: 3),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                          color: const Color(0xFFFFF5F5),
+                                          borderRadius: BorderRadius.circular(20)),
+                                      child: const Text('⚠ Out of stock — cannot add',
+                                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.red)),
+                                    ),
+                                ])),
+                                oos
+                                    ? const Icon(Icons.block_outlined, size: 16, color: Color(0xFFa0aec0))
+                                    : const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF718096)),
+                              ]),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ]),
+          );
+        },
+      ),
+    );
+    return selected;
+  }
+
   Widget _svcRow(
     Map<String, TextEditingController> row,
     VoidCallback onRemove,
@@ -2813,78 +2963,32 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                       ],
                     ),
                   )
-                : Autocomplete<Map<String, dynamic>>(
-                    displayStringForOption: (item) => item['name'] as String,
-                    optionsBuilder: (value) {
-                      final q = value.text.trim().toLowerCase();
-                      if (q.isEmpty) return serviceItems.take(20);
-                      return serviceItems.where((e) {
-                        final n = (e['name'] as String).toLowerCase();
-                        final num = (e['num'] as String? ?? '').toLowerCase();
-                        return n.contains(q) || num.contains(q);
-                      }).take(12);
-                    },
-                    onSelected: (item) => applyService(
-                      item['name'] as String,
-                      item['uom'] as String? ?? '',
-                    ),
-                    fieldViewBuilder: (ctx2, ctrl, focusNode, onSubmit) {
-                      // Keep row['searchText'] in sync so applyService can read it
-                      ctrl.text = row['searchText']!.text;
-                      return TextField(
-                        controller: ctrl,
-                        focusNode: focusNode,
-                        onChanged: (v) {
-                          row['searchText']!.text = v;
-                          setModal(() {});
-                        },
-                        decoration: const InputDecoration(
-                          labelText: 'Service Name *',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                          isDense: true,
-                          prefixIcon: Icon(Icons.search, size: 18, color: Color(0xFF718096)),
-                        ),
+                : GestureDetector(
+                    onTap: () async {
+                      final picked = await _showItemPickerModal(
+                        ctx: ctx,
+                        items: serviceItems,
+                        isService: true,
                       );
+                      if (picked != null) {
+                        await applyService(picked['name'] as String, picked['uom'] as String? ?? '');
+                      }
                     },
-                    optionsViewBuilder: (ctx2, onSelected, options) => Align(
-                      alignment: Alignment.topLeft,
-                      child: Material(
-                        elevation: 8,
-                        borderRadius: BorderRadius.circular(10),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 260),
-                          child: ListView.separated(
-                            padding: EdgeInsets.zero,
-                            shrinkWrap: true,
-                            itemCount: options.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFe2e8f0)),
-                            itemBuilder: (_, i) {
-                              final item = options.elementAt(i);
-                              final name = item['name'] as String;
-                              final uom = item['uom'] as String? ?? '';
-                              final rawCost = item['cost'];
-                              final cost = rawCost == null ? 0.0
-                                  : double.tryParse(rawCost.toString().replaceAll('₱','').replaceAll(',','').trim()) ?? 0.0;
-                              return InkWell(
-                                onTap: () => onSelected(item),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                  child: Row(children: [
-                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                      Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c))),
-                                      if (uom.isNotEmpty || cost > 0)
-                                        Text('${uom.isNotEmpty ? uom : "—"}  •  ₱${cost.toStringAsFixed(2)}',
-                                          style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                                    ])),
-                                    const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF718096)),
-                                  ]),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFcbd5e0)),
                       ),
+                      child: const Row(children: [
+                        Icon(Icons.search, size: 18, color: Color(0xFF718096)),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text('Select Service...', style: TextStyle(fontSize: 13, color: Color(0xFF718096))),
+                        ),
+                        Icon(Icons.arrow_forward_ios, size: 13, color: Color(0xFF718096)),
+                      ]),
                     ),
                   ),
           ),
@@ -3192,110 +3296,54 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                       ],
                     ),
                   )
-                : Autocomplete<Map<String, dynamic>>(
-                    displayStringForOption: (item) => item['name'] as String,
-                    optionsBuilder: (value) {
-                      final q = value.text.trim().toLowerCase();
-                      if (q.isEmpty) return materialItems.take(20);
-                      return materialItems.where((e) {
-                        final n = (e['name'] as String).toLowerCase();
-                        final num = (e['num'] as String? ?? '').toLowerCase();
-                        final sc = (e['supplierCode'] as String? ?? '').toLowerCase();
-                        return n.contains(q) || num.contains(q) || sc.contains(q);
-                      }).take(12);
-                    },
-                    onSelected: (item) => applyMaterial(
-                      item['name'] as String,
-                      item['uom'] as String? ?? '',
-                    ),
-                    fieldViewBuilder: (ctx2, ctrl, focusNode, onSubmit) {
-                      ctrl.text = row['searchText']!.text;
-                      return TextField(
-                        controller: ctrl,
-                        focusNode: focusNode,
-                        onChanged: (v) {
-                          row['searchText']!.text = v;
-                          setModal(() {});
-                        },
-                        decoration: InputDecoration(
-                          labelText: 'Material Name *',
-                          border: const OutlineInputBorder(),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                          isDense: true,
-                          prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF718096)),
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
-                            padding: EdgeInsets.zero,
-                            onPressed: () async {
-                              final result = await Navigator.push<String>(
-                                ctx,
-                                MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
-                              );
-                              if (result != null) {
-                                final match = _allItems.firstWhere(
-                                  (e) => e['barcode'] == result || e['qr'] == result,
-                                  orElse: () => {},
-                                );
-                                if ((match['name'] as String? ?? '').isNotEmpty) {
-                                  applyMaterial(match['name'] as String, match['uom'] as String? ?? '');
-                                }
-                              }
-                            },
-                          ),
-                        ),
+                : GestureDetector(
+                    onTap: () async {
+                      final picked = await _showItemPickerModal(
+                        ctx: ctx,
+                        items: materialItems,
+                        isService: false,
                       );
+                      if (picked != null) {
+                        await applyMaterial(picked['name'] as String, picked['uom'] as String? ?? '');
+                      }
                     },
-                    optionsViewBuilder: (ctx2, onSelected, options) => Align(
-                      alignment: Alignment.topLeft,
-                      child: Material(
-                        elevation: 8,
-                        borderRadius: BorderRadius.circular(10),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 260),
-                          child: ListView.separated(
-                            padding: EdgeInsets.zero,
-                            shrinkWrap: true,
-                            itemCount: options.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFe2e8f0)),
-                            itemBuilder: (_, i) {
-                              final item = options.elementAt(i);
-                              final name = item['name'] as String;
-                              final uom = item['uom'] as String? ?? '';
-                              final rawCost = item['cost'];
-                              final cost = rawCost == null ? 0.0
-                                  : double.tryParse(rawCost.toString().replaceAll('₱','').replaceAll(',','').trim()) ?? 0.0;
-                              final oos = (_stockMap[(name).toLowerCase()] ?? -1) == 0 || _inactiveItemNames.contains(name.toLowerCase());
-                              return InkWell(
-                                onTap: oos ? null : () => onSelected(item),
-                                child: Container(
-                                  color: oos ? const Color(0xFFF8F8F8) : null,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                  child: Row(children: [
-                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                      Text(name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13,
-                                        color: oos ? const Color(0xFFa0aec0) : const Color(0xFF1a202c))),
-                                      if (uom.isNotEmpty || cost > 0)
-                                        Text('${uom.isNotEmpty ? uom : "—"}  •  ₱${cost.toStringAsFixed(2)}',
-                                          style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                                      if (oos)
-                                        Container(
-                                          margin: const EdgeInsets.only(top: 3),
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                          decoration: BoxDecoration(color: const Color(0xFFFFF5F5), borderRadius: BorderRadius.circular(20)),
-                                          child: const Text('⚠ Out of stock — cannot add',
-                                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.red)),
-                                        ),
-                                    ])),
-                                    oos
-                                        ? const Icon(Icons.block_outlined, size: 16, color: Color(0xFFa0aec0))
-                                        : const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF718096)),
-                                  ]),
-                                ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFcbd5e0)),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.search, size: 18, color: Color(0xFF718096)),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text('Select Material...', style: TextStyle(fontSize: 13, color: Color(0xFF718096))),
+                        ),
+                        GestureDetector(
+                          onTap: () async {
+                            final result = await Navigator.push<String>(
+                              ctx,
+                              MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
+                            );
+                            if (result != null) {
+                              final match = _allItems.firstWhere(
+                                (e) => e['barcode'] == result || e['qr'] == result,
+                                orElse: () => {},
                               );
-                            },
+                              if ((match['name'] as String? ?? '').isNotEmpty) {
+                                applyMaterial(match['name'] as String, match['uom'] as String? ?? '');
+                              }
+                            }
+                          },
+                          child: const Padding(
+                            padding: EdgeInsets.only(left: 4),
+                            child: Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
                           ),
                         ),
-                      ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.arrow_forward_ios, size: 13, color: Color(0xFF718096)),
+                      ]),
                     ),
                   ),
           ),
