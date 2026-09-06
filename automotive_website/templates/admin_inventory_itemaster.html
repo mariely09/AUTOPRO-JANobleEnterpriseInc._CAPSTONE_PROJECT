@@ -129,8 +129,8 @@
                     </div>
                 </div>
             </div>
-            <div class="data-table" style="overflow-x:auto;border-radius:14px;">
-                <table style="width:100%;min-width:900px;border-collapse:collapse;font-size:0.88rem;font-family:inherit;">
+            <div class="data-table" style="overflow-x:auto;border-radius:14px;width:100%;box-sizing:border-box;">
+                <table style="width:100%;min-width:900px;border-collapse:collapse;font-size:0.88rem;font-family:inherit;table-layout:auto;">
                   <thead>
                     <tr style="background:#f7fafc;border-bottom:2px solid #e2e8f0;">
                       <th style="padding:0.75rem 1rem;font-weight:700;color:#4a5568;text-align:left;white-space:nowrap;">Item Number</th>
@@ -479,6 +479,25 @@
   .im-toolbar    { padding: 0.6rem; }
   .stat-card     { padding: 0.7rem 0.5rem !important; }
   .stat-number   { font-size: 1.4rem !important; }
+}
+
+/* ── Table container: always scrollable, never overflows the shell ── */
+.admin-page-shell {
+  min-width: 0;
+  overflow: hidden;
+}
+.admin-main {
+  min-width: 0;
+  overflow: hidden;
+}
+.admin-content {
+  min-width: 0;
+}
+.data-table {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  box-sizing: border-box;
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
