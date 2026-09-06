@@ -141,6 +141,20 @@
       <input id="email" type="email" placeholder="Enter your email" autocomplete="email" />
     </div>
 
+    <label for="phone">Phone Number</label>
+    <div class="input-wrap">
+      <span class="icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none"
+             viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z"/>
+        </svg>
+      </span>
+      <input id="phone" type="tel" placeholder="09XX-XXX-XXXX" autocomplete="tel"
+             maxlength="13" oninput="_formatPhone(this)" inputmode="numeric" />
+    </div>
+    <p id="phoneError" style="display:none;color:#E8001C;font-size:12px;margin:5px 0 0;font-weight:600;">Enter a valid PH mobile number (e.g. 09XX-XXX-XXXX).</p>
+
     <label for="password">Password</label>
     <div class="input-wrap" style="margin-bottom:0;">
       <span class="icon">
@@ -205,7 +219,31 @@
 
 <script>
   // ââ€€ââ€€ Helpers ââ€€ââ€€
-    // -- Inline confirm-match validation --
+  // ── Phone number formatter: digits only → 09XX-XXX-XXXX ──
+  function _formatPhone(input) {
+    // Strip everything except digits
+    var digits = input.value.replace(/\D/g, '');
+    // Limit to 11 digits (Philippine mobile)
+    digits = digits.slice(0, 11);
+    // Apply mask: XXXX-XXX-XXXX
+    var formatted = '';
+    if (digits.length <= 4) {
+      formatted = digits;
+    } else if (digits.length <= 7) {
+      formatted = digits.slice(0, 4) + '-' + digits.slice(4);
+    } else {
+      formatted = digits.slice(0, 4) + '-' + digits.slice(4, 7) + '-' + digits.slice(7);
+    }
+    input.value = formatted;
+    // Inline validation
+    var errEl = document.getElementById('phoneError');
+    var valid = digits.length === 0 || (digits.length === 11 && digits.startsWith('09'));
+    if (errEl) errEl.style.display = (!valid && digits.length > 0) ? 'block' : 'none';
+    input.style.borderColor = (!valid && digits.length > 0) ? '#E8001C' : '';
+    input.style.boxShadow   = (!valid && digits.length > 0) ? '0 0 0 3px rgba(232,0,28,0.12)' : '';
+  }
+
+  // ── Inline confirm-match validation ──
   function _checkConfirmMatch() {
     var p = document.getElementById('password').value;
     var c = document.getElementById('confirmPassword').value;
@@ -245,11 +283,18 @@
     const firstName = document.getElementById('firstName').value.trim();
     const lastName  = document.getElementById('lastName').value.trim();
     const email     = document.getElementById('email').value.trim();
+    const phone     = document.getElementById('phone').value.trim();
     const password  = document.getElementById('password').value;
     const confirm   = document.getElementById('confirmPassword').value;
 
-    if (!firstName || !lastName || !email || !password || !confirm) {
+    if (!firstName || !lastName || !email || !phone || !password || !confirm) {
       showToast('Please fill in all fields.');
+      return;
+    }
+    // Validate PH mobile: must be 09XX-XXX-XXXX (13 chars with hyphens)
+    var phoneDigits = phone.replace(/\D/g, '');
+    if (phoneDigits.length !== 11 || !phoneDigits.startsWith('09')) {
+      showToast('Enter a valid PH mobile number (e.g. 09XX-XXX-XXXX).');
       return;
     }
     if (password !== confirm) {
@@ -279,14 +324,15 @@
       // 3. Save Firestore doc â€â€ status 'pending' until admin approves
       const db = firebase.firestore();
       await db.collection('users').doc(uid).set({
-        uid:       uid,
-        firstName: firstName,
-        lastName:  lastName,
-        name:      name,
-        email:     email,
-        role:      'customer',
-        status:    'active',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        uid:         uid,
+        firstName:   firstName,
+        lastName:    lastName,
+        name:        name,
+        email:       email,
+        phoneNumber: phoneDigits,
+        role:        'customer',
+        status:      'active',
+        createdAt:   firebase.firestore.FieldValue.serverTimestamp(),
       });
 
       // 3b. Notify admins about new registration

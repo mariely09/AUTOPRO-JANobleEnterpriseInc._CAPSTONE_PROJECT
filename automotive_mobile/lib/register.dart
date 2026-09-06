@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
@@ -8,6 +9,32 @@ import 'package:http/http.dart' as http;
 const _kOneSignalAppId = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
 const _kOneSignalApiKey =
     'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
+
+// Philippine mobile formatter: 09XX-XXX-XXXX
+class _PhoneFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final capped = digits.length > 11 ? digits.substring(0, 11) : digits;
+
+    String formatted;
+    if (capped.length <= 4) {
+      formatted = capped;
+    } else if (capped.length <= 7) {
+      formatted = '${capped.substring(0, 4)}-${capped.substring(4)}';
+    } else {
+      formatted = '${capped.substring(0, 4)}-${capped.substring(4, 7)}-${capped.substring(7)}';
+    }
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -20,6 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
 
@@ -36,6 +64,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
     _emailCtrl.dispose();
+    _phoneCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
     super.dispose();
@@ -45,15 +74,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final firstName = _firstNameCtrl.text.trim();
     final lastName = _lastNameCtrl.text.trim();
     final email = _emailCtrl.text.trim();
+    final phone = _phoneCtrl.text.trim();
     final password = _passwordCtrl.text.trim();
     final confirm = _confirmCtrl.text.trim();
 
     if (firstName.isEmpty ||
         lastName.isEmpty ||
         email.isEmpty ||
+        phone.isEmpty ||
         password.isEmpty ||
         confirm.isEmpty) {
       _showError('Please fill in all fields.');
+      return;
+    }
+
+    final phoneDigits = phone.replaceAll(RegExp(r'\D'), '');
+    if (phoneDigits.length != 11 || !phoneDigits.startsWith('09')) {
+      _showError('Enter a valid PH mobile number (e.g. 09XX-XXX-XXXX).');
       return;
     }
 
@@ -86,13 +123,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Update display name
       await cred.user!.updateDisplayName('$firstName $lastName');
 
-      // Save user document to Firestore � status 'pending' until admin approves
+      // Save user document to Firestore
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'uid': uid,
         'firstName': firstName,
         'lastName': lastName,
         'name': '$firstName $lastName',
         'email': email,
+        'phoneNumber': phoneDigits,
         'role': 'customer',
         'status': 'active',
         'createdAt': FieldValue.serverTimestamp(),
@@ -292,6 +330,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       decoration: _inputDecoration(
                         'Enter your email',
                         Icons.email_outlined,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Phone Number
+                    _label('Phone Number'),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        _PhoneFormatter(),
+                      ],
+                      style: _inputTextStyle,
+                      decoration: _inputDecoration(
+                        '09XX-XXX-XXXX',
+                        Icons.phone_outlined,
                       ),
                     ),
                     const SizedBox(height: 16),

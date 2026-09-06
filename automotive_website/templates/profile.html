@@ -281,6 +281,16 @@ function _renderProfile(d) {
     var companyName = d.companyName || '';
     var phone = d.phoneNumber || '';
 
+    // Format stored digits as 09XX-XXX-XXXX for display
+    function _formatPhoneDisplay(raw) {
+        var digits = (raw || '').replace(/\D/g, '').slice(0, 11);
+        if (!digits) return '';
+        if (digits.length <= 4) return digits;
+        if (digits.length <= 7) return digits.slice(0,4) + '-' + digits.slice(4);
+        return digits.slice(0,4) + '-' + digits.slice(4,7) + '-' + digits.slice(7);
+    }
+    var phoneDisplay = _formatPhoneDisplay(phone);
+
     var parts    = name.trim().split(' ').filter(Boolean);
     var initials = parts.length >= 2
         ? (parts[0][0] + parts[1][0]).toUpperCase()
@@ -326,7 +336,7 @@ function _renderProfile(d) {
         +   '<div class="profile-info-list">'
         +     _infoRow('rgba(0,75,95,0.1)', '#004B5F', '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>', 'Full Name', '<span id="pDisplayName">' + _esc(name) + '</span>')
         +     _infoRow('rgba(0,75,95,0.08)', '#004B5F', '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>', 'Email', _esc(email))
-        +     (phone ? _infoRow('rgba(0,75,95,0.08)', '#004B5F', '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4a2 2 0 0 1 1.99-2.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l.92-.87a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>', 'Phone Number', _esc(phone)) : '')
+        +     (phone ? _infoRow('rgba(0,75,95,0.08)', '#004B5F', '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4a2 2 0 0 1 1.99-2.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l.92-.87a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>', 'Phone Number', _esc(phoneDisplay)) : '')
         +     _infoRow('rgba(0,75,95,0.08)', '#004B5F', '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>', 'Role', '<span style="color:' + roleColor + ';font-weight:700;">' + _esc(roleLabel) + '</span>')
         +   '</div>'
         + '</div>'
@@ -351,7 +361,7 @@ function _renderProfile(d) {
         +     _infoEditTile('person', 'First Name', 'pFieldFirstName', _esc(firstName), false, false)
         +     _infoEditTile('person', 'Last Name',  'pFieldLastName',  _esc(lastName),  false, false)
         +     _infoEditTile('email', 'Email', 'pFieldEmail', _esc(email), false, false)
-        +     _infoEditTile('phone', 'Phone Number', 'pFieldPhone', _esc(phone), false, false)
+        +     _infoEditTile('phone', 'Phone Number', 'pFieldPhone', _esc(phoneDisplay), false, false)
         +     (role === 'customer' && companyName ? _infoEditTile('company', 'Company Name', 'pFieldCompany', _esc(companyName), false, false) : '')
         +     _infoEditTile('role', 'Role', 'pFieldRole', _esc(roleLabel), true, true)
         +   '</div>'
@@ -400,7 +410,9 @@ function _infoEditTile(type, label, fieldId, value, isLast, readOnly) {
         + '<div style="flex:1;">'
         +   '<div class="pf-info-tile-label">' + label + '</div>'
         +   '<div class="pf-info-tile-value" id="view_' + fieldId + '">' + value + '</div>'
-        +   (readOnly ? '' : '<input class="pf-edit-field" type="text" id="' + fieldId + '" value="' + value + '" style="display:none;">')
+        +   (readOnly ? '' : '<input class="pf-edit-field" type="text" id="' + fieldId + '" value="' + value + '" style="display:none;"'
+        +     (type === 'phone' ? ' inputmode="numeric" maxlength="13" oninput="_formatPhone(this)"' : '')
+        +   '>')
         + '</div>'
         + '</div>';
 }
@@ -490,7 +502,7 @@ window.saveProfile = function() {
     var name          = (firstName + ' ' + lastName).trim();
     var email         = emailEl ? emailEl.value.trim() : '';
     var companyName   = companyEl ? companyEl.value.trim() : '';
-    var phone         = phoneEl   ? phoneEl.value.trim()   : '';
+    var phone         = phoneEl   ? phoneEl.value.trim().replace(/\D/g, '') : '';
 
     if (!firstName) { _showToast('First name cannot be empty.', 'error'); return; }
     if (!lastName)  { _showToast('Last name cannot be empty.',  'error'); return; }
@@ -544,7 +556,15 @@ window.saveProfile = function() {
                     if (id === 'pFieldFirstName') view.textContent = firstName;
                     else if (id === 'pFieldLastName') view.textContent = lastName;
                     else if (id === 'pFieldEmail') view.textContent = email;
-                    else if (id === 'pFieldPhone') view.textContent = phone;
+                    else if (id === 'pFieldPhone') {
+                        // Show formatted display, store raw digits
+                        var pDigits = phone.replace(/\D/g,'').slice(0,11);
+                        var pFmt = pDigits.length <= 4 ? pDigits
+                            : pDigits.length <= 7 ? pDigits.slice(0,4)+'-'+pDigits.slice(4)
+                            : pDigits.slice(0,4)+'-'+pDigits.slice(4,7)+'-'+pDigits.slice(7);
+                        view.textContent = pFmt;
+                        if (input) input.value = pFmt;
+                    }
                     else if (id === 'pFieldCompany') view.textContent = companyName;
                     view.style.display = 'block';
                 }
@@ -609,6 +629,16 @@ window.profileLogout = function() {
 
 function _esc(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Phone formatter: digits only → 09XX-XXX-XXXX
+function _formatPhone(input) {
+    var digits = input.value.replace(/\D/g, '').slice(0, 11);
+    var formatted = '';
+    if (digits.length <= 4)      formatted = digits;
+    else if (digits.length <= 7) formatted = digits.slice(0,4) + '-' + digits.slice(4);
+    else                         formatted = digits.slice(0,4) + '-' + digits.slice(4,7) + '-' + digits.slice(7);
+    input.value = formatted;
 }
 
 function _showToast(msg, type) {
