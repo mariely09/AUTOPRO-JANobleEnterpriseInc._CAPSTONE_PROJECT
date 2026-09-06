@@ -373,13 +373,20 @@
         roleDocs.concat(personalDocs).forEach(function (d) {
             var data   = d.data();
             var readBy = data.readBy || {};
+            // readBy can be stored as Map<string,bool> OR as Array (legacy/empty) — handle both
+            var isRead = false;
+            if (Array.isArray(readBy)) {
+                isRead = readBy.indexOf(_cuUid) !== -1;
+            } else if (typeof readBy === 'object') {
+                isRead = readBy[_cuUid] === true;
+            }
             map[d.id] = {
                 id:        d.id,
                 title:     data.title   || '',
                 message:   data.message || '',
                 type:      data.type    || 'info',
                 createdAt: data.createdAt || null,
-                read:      readBy[_cuUid] === true,
+                read:      isRead,
             };
         });
         _cuNotifs = Object.values(map).sort(function (a, b) {
@@ -435,10 +442,10 @@
         // Customer notifications are always written with targetUid = uid and targetRole = ''.
         // Querying targetRole='customer' is a global broadcast that no real notification uses —
         // dropping it avoids showing zero-or-wrong docs and eliminates the count inflation risk.
-        // orderBy('createdAt','desc') ensures the most recent 100 docs are always returned.
+        // No .orderBy() — avoids requiring a Firestore composite index on targetUid+createdAt.
+        // Sorting is done client-side in _mergeNotifs after both streams are merged.
         var personalQuery = db.collection('notifications')
             .where('targetUid', '==', uid)
-            .orderBy('createdAt', 'desc')
             .limit(100);
 
         personalQuery.onSnapshot(function (snap) {

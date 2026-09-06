@@ -65,6 +65,18 @@
           set('cuMaintenance', s.maintenance);
           set('cuDueThisWeek', s.dueThisWeek);
           set('cuDueSoon', s.dueToday);
+          // Update the banner greeting if maintenance count is cached
+          if (s.maintenance > 0) {
+            const iconEl  = document.getElementById('cuBannerIcon');
+            const line1El = document.getElementById('cuBannerLine1');
+            const line2El = document.getElementById('cuBannerLine2');
+            if (iconEl && line1El && line2El) {
+              iconEl.textContent  = '🔧';
+              line1El.textContent = 'Vehicle under maintenance';
+              line1El.style.color = '#fcd34d';
+              line2El.textContent = "Your vehicle is being serviced. We'll notify you when it's done.";
+            }
+          }
         }
       }
       // Recent services
