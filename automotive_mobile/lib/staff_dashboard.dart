@@ -1898,7 +1898,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => const StaffVehicleList(),
+                                    builder: (_) => const StaffMaintenance(),
                                   ),
                                 ),
                                 child: const Text(
@@ -2111,9 +2111,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
     }
     if (service == '—') service = s['desc'] as String? ?? '—';
 
-    return GestureDetector(
-      onTap: () => _showScheduleDetails(s),
-      child: Container(
+    return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: const BoxDecoration(
           border: Border(
@@ -2141,16 +2139,18 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    plate,
+                    service,
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
                       color: Color(0xFF1a202c),
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    service,
+                    plate,
                     style: const TextStyle(
                       fontSize: 11,
                       color: Color(0xFF718096),
@@ -2176,7 +2176,6 @@ class _StaffDashboardState extends State<StaffDashboard> {
             ),
           ],
         ),
-      ),
     );
   }
 

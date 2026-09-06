@@ -2790,9 +2790,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                                   : const Color(0xFF718096);
                                               final todayList = allServices.where((s) => (s['date'] as String? ?? '') == todayFormatted).toList();
                                               final isLast = i == todayList.length - 1;
-                                              return GestureDetector(
-                                                onTap: () => _showAdminServiceDetails(s),
-                                                child: Column(
+                                              return Column(
                                                   children: [
                                                     Padding(
                                                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -2812,9 +2810,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                                             child: Column(
                                                               crossAxisAlignment: CrossAxisAlignment.start,
                                                               children: [
-                                                                Text(plate, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c))),
+                                                                Text(service, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c)), maxLines: 1, overflow: TextOverflow.ellipsis),
                                                                 const SizedBox(height: 2),
-                                                                Text(service, style: const TextStyle(fontSize: 11, color: Color(0xFF718096)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                                                Text(plate, style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
                                                               ],
                                                             ),
                                                           ),
@@ -2831,8 +2829,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                                     ),
                                                     if (!isLast) const Divider(height: 1, indent: 68, endIndent: 16),
                                                   ],
-                                                ),
-                                              );
+                                                );
                                             }).toList(),
                                           ),
                                       ],
