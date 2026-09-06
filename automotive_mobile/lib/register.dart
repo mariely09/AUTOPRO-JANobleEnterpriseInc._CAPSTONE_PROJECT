@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
@@ -8,6 +9,32 @@ import 'package:http/http.dart' as http;
 const _kOneSignalAppId = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
 const _kOneSignalApiKey =
     'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
+
+// Philippine mobile formatter: 09XX-XXX-XXXX
+class _PhoneFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final capped = digits.length > 11 ? digits.substring(0, 11) : digits;
+
+    String formatted;
+    if (capped.length <= 4) {
+      formatted = capped;
+    } else if (capped.length <= 7) {
+      formatted = '${capped.substring(0, 4)}-${capped.substring(4)}';
+    } else {
+      formatted = '${capped.substring(0, 4)}-${capped.substring(4, 7)}-${capped.substring(7)}';
+    }
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -61,6 +88,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    final phoneDigits = phone.replaceAll(RegExp(r'\D'), '');
+    if (phoneDigits.length != 11 || !phoneDigits.startsWith('09')) {
+      _showError('Enter a valid PH mobile number (e.g. 09XX-XXX-XXXX).');
+      return;
+    }
+
     if (password != confirm) {
       _showError('Passwords do not match.');
       return;
@@ -97,7 +130,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'lastName': lastName,
         'name': '$firstName $lastName',
         'email': email,
-        'phoneNumber': phone,
+        'phoneNumber': phoneDigits,
         'role': 'customer',
         'status': 'active',
         'createdAt': FieldValue.serverTimestamp(),
@@ -307,9 +340,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     TextField(
                       controller: _phoneCtrl,
                       keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        _PhoneFormatter(),
+                      ],
                       style: _inputTextStyle,
                       decoration: _inputDecoration(
-                        'Enter your phone number',
+                        '09XX-XXX-XXXX',
                         Icons.phone_outlined,
                       ),
                     ),
