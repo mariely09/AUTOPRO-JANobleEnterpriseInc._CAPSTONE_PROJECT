@@ -377,6 +377,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
   @override
   void dispose() {
     _userSub?.cancel();
+    _maintenanceSub?.cancel();
     _clockTimer.cancel();
     _svcTimer?.cancel();
     super.dispose();
@@ -716,12 +717,12 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                     return computed == 'Due This Week' || stored == 'due this week';
                   }).length,
                   maintenance: vehicles.where((v) {
-                    final s = (v['status'] ?? '').toLowerCase();
-                    if (s == 'under maintenance') return true;
-                    // Also count if this vehicle has an active Under Maintenance booking
+                    // Only use the live booking sets — v['status'] is already
+                    // set to liveStatus above so this is consistent.
                     final plate = (v['plate'] ?? '').toLowerCase();
                     final vId = v['id'] ?? '';
-                    return underMaintenancePlates.contains(plate) ||
+                    return (v['status'] ?? '').toLowerCase() == 'under maintenance' ||
+                        underMaintenancePlates.contains(plate) ||
                         underMaintenanceVehicleIds.contains(vId);
                   }).length,
                 ),
@@ -966,22 +967,22 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
             ),
           ),
 
-          // ── Stats grid ──
+          // ── Stats grid (2 × 2) ──
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: _customerStatCard(icon: Icons.check_circle_outline, value: '$active', label: 'Active')),
-                  const SizedBox(width: 8),
-                  Expanded(child: _customerStatCard(icon: Icons.today_outlined, value: '$dueToday', label: 'Due\nToday')),
-                  const SizedBox(width: 8),
-                  Expanded(child: _customerStatCard(icon: Icons.date_range_outlined, value: '$dueThisWeek', label: 'This\nWeek')),
-                  const SizedBox(width: 8),
-                  Expanded(child: _customerStatCard(icon: Icons.build_circle_outlined, value: '$maintenance', label: 'Under\nMaintenance')),
-                ],
-              ),
+            child: GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 2.6,
+              children: [
+                _customerStatCard(icon: Icons.check_circle_outline,   value: '$active',      label: 'Active'),
+                _customerStatCard(icon: Icons.today_outlined,          value: '$dueToday',    label: 'Due Today'),
+                _customerStatCard(icon: Icons.date_range_outlined,     value: '$dueThisWeek', label: 'Due This Week'),
+                _customerStatCard(icon: Icons.build_circle_outlined,   value: '$maintenance', label: 'Under Maintenance'),
+              ],
             ),
           ),
         ],
@@ -1024,7 +1025,6 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     margin: const EdgeInsets.symmetric(horizontal: 4),
   );
 
-  /// Frosted-glass stat card for the customer greeting banner.
   Widget _customerStatCard({
     required IconData icon,
     required String value,
@@ -1034,14 +1034,13 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: Colors.white.withOpacity(0.2)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
             Container(
               width: 32,
@@ -1052,25 +1051,35 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
               ),
               child: Icon(icon, color: Colors.white, size: 16),
             ),
-            const Spacer(),
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                height: 1,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
-                height: 1.3,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                      height: 1.3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
           ],
@@ -2358,6 +2367,8 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
   // ── Recent transactions cache ──
   List<Map<String, dynamic>> _recentTxns = [];
   bool _txnsLoading = true;
+  StreamSubscription<QuerySnapshot>? _maintenanceSub;
+  Set<String> _txnPlates = {}; // plates for the current user — built once
 
   Future<void> _loadServices() async {
     try {
@@ -2394,11 +2405,14 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     }
   }
 
+  /// Subscribes to completed maintenance docs for this customer's vehicles.
+  /// Re-renders Recent Services live whenever a doc transitions to Completed.
   Future<void> _loadRecentTransactions(String userName) async {
     try {
-      // Fetch customer's vehicle plates first
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
+
+      // ── Step 1: build the plate set (one-time fetch) ──
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -2413,43 +2427,56 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
       final plates = vSnap.docs
           .where((d) {
             final owner = (d.data()['owner'] as String? ?? '').toLowerCase();
-            return owner == uname || (cname.isNotEmpty && owner == cname);
+            final ownerId = (d.data()['ownerId'] as String? ?? '');
+            return owner == uname ||
+                (cname.isNotEmpty && owner == cname) ||
+                (ownerId.isNotEmpty && ownerId == uid);
           })
           .map((d) => (d.data()['plate'] as String? ?? '').toLowerCase())
           .where((p) => p.isNotEmpty)
           .toSet();
 
+      if (!mounted) return;
+
       if (plates.isEmpty) {
-        if (mounted) setState(() => _txnsLoading = false);
+        setState(() => _txnsLoading = false);
         return;
       }
 
-      final snap = await FirebaseFirestore.instance
+      // Cache the plate set so the snapshot handler can re-use it
+      _txnPlates = plates;
+
+      // ── Step 2: cancel any previous listener and start a live one ──
+      await _maintenanceSub?.cancel();
+      _maintenanceSub = FirebaseFirestore.instance
           .collection('maintenance')
           .where('status', isEqualTo: 'Completed')
-          .get();
-
-      final filtered = snap.docs
-          .where((d) {
-            final plate = (d.data()['plate'] as String? ?? '').toLowerCase();
-            return plates.contains(plate);
-          })
-          .map((d) => <String, dynamic>{...d.data(), '_id': d.id})
-          .toList();
-
-      // Sort by createdAt descending client-side
-      filtered.sort((a, b) {
-        final aTs = a['createdAt'];
-        final bTs = b['createdAt'];
-        if (aTs is Timestamp && bTs is Timestamp) return bTs.compareTo(aTs);
-        return 0;
-      });
-
-      if (mounted)
-        setState(() {
-          _recentTxns = filtered.take(5).toList();
-          _txnsLoading = false;
-        });
+          .snapshots()
+          .listen((snap) {
+            if (!mounted) return;
+            final filtered = snap.docs
+                .where((d) {
+                  final plate =
+                      (d.data()['plate'] as String? ?? '').toLowerCase();
+                  return _txnPlates.contains(plate);
+                })
+                .map((d) => <String, dynamic>{...d.data(), '_id': d.id})
+                .toList()
+              ..sort((a, b) {
+                final aTs = a['createdAt'];
+                final bTs = b['createdAt'];
+                if (aTs is Timestamp && bTs is Timestamp)
+                  return bTs.compareTo(aTs);
+                return 0;
+              });
+            setState(() {
+              _recentTxns = filtered.take(5).toList();
+              _txnsLoading = false;
+            });
+          }, onError: (e) {
+            debugPrint('❌ Transactions stream error: $e');
+            if (mounted) setState(() => _txnsLoading = false);
+          });
     } catch (e) {
       debugPrint('❌ Transactions load error: $e');
       if (mounted) setState(() => _txnsLoading = false);
