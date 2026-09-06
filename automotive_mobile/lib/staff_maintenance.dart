@@ -98,13 +98,13 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
                     ),
                   ),
                 ),
-                _sortItem('date-desc', 'Date â†“ Newest', Icons.arrow_downward),
-                _sortItem('date-asc', 'Date â†‘ Oldest', Icons.arrow_upward),
-                _sortItem('plate-asc', 'Plate Aâ†’Z', Icons.sort_by_alpha),
-                _sortItem('plate-desc', 'Plate Zâ†’A', Icons.sort_by_alpha),
-                _sortItem('mechanic-asc', 'Mechanic Aâ†’Z', Icons.person_outline),
-                _sortItem('cost-desc', 'Cost â†‘ Highest', Icons.trending_up),
-                _sortItem('cost-asc', 'Cost â†“ Lowest', Icons.trending_down),
+                _sortItem('date-desc', 'Date ↓ Newest', Icons.arrow_downward),
+                _sortItem('date-asc', 'Date ↑ Oldest', Icons.arrow_upward),
+                _sortItem('plate-asc', 'Plate A→Z', Icons.sort_by_alpha),
+                _sortItem('plate-desc', 'Plate Z→A', Icons.sort_by_alpha),
+                _sortItem('mechanic-asc', 'Mechanic A→Z', Icons.person_outline),
+                _sortItem('cost-desc', 'Cost ↑ Highest', Icons.trending_up),
+                _sortItem('cost-asc', 'Cost ↓ Lowest', Icons.trending_down),
               ],
             ),
         ],
@@ -155,7 +155,7 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
   }
 }
 
-// â”€â”€ Embeddable body (used inside StaffVehicleList tabs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Embeddable body (used inside StaffVehicleList tabs) ──────────
 class StaffMaintenanceBody extends StatefulWidget {
   final String searchQuery;
   final String sortBy;
@@ -190,7 +190,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
   String _currentUserName = '';
   Set<String> _inactiveItemNames = {}; // names of Inactive stock items
   Map<String, int> _stockMap =
-      {}; // name.lower â†’ current stock qty (for dropdown oos badge)
+      {}; // name.lower → current stock qty (for dropdown oos badge)
 
   @override
   void initState() {
@@ -267,7 +267,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
           .get();
       _currentUserName = (userDoc.data()?['name'] as String?) ?? '';
     }
-    // Load stock inventory â€” build stockMap (nameâ†’qty) and inactiveItemNames
+    // Load stock inventory — build stockMap (name→qty) and inactiveItemNames
     try {
       final stockSnap = await FirebaseFirestore.instance
           .collection('stock_inventory')
@@ -317,7 +317,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
   }
 
   Future<String> _nextSvcId() async {
-    // Timestamp-based ID â€” zero network calls, always instant.
+    // Timestamp-based ID — zero network calls, always instant.
     final now = DateTime.now();
     final stamp =
         '${now.year}'
@@ -389,7 +389,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
             ? filtered
             : filtered.where((s) => s['status'] == _statusFilter).toList();
 
-        // â”€â”€ Sort â”€â”€
+        // ── Sort ──
         // Parse "Jan 5, 2026" style dates to milliseconds for correct ordering
         int dateMs(String d) {
           try {
@@ -436,24 +436,24 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
             case 'cost-asc':
               final ca =
                   double.tryParse(
-                    (a['cost'] as String).replaceAll(RegExp(r'[â‚±,]'), ''),
+                    (a['cost'] as String).replaceAll(RegExp(r'[₱,]'), ''),
                   ) ??
                   0;
               final cb =
                   double.tryParse(
-                    (b['cost'] as String).replaceAll(RegExp(r'[â‚±,]'), ''),
+                    (b['cost'] as String).replaceAll(RegExp(r'[₱,]'), ''),
                   ) ??
                   0;
               return ca.compareTo(cb);
             case 'cost-desc':
               final ca2 =
                   double.tryParse(
-                    (a['cost'] as String).replaceAll(RegExp(r'[â‚±,]'), ''),
+                    (a['cost'] as String).replaceAll(RegExp(r'[₱,]'), ''),
                   ) ??
                   0;
               final cb2 =
                   double.tryParse(
-                    (b['cost'] as String).replaceAll(RegExp(r'[â‚±,]'), ''),
+                    (b['cost'] as String).replaceAll(RegExp(r'[₱,]'), ''),
                   ) ??
                   0;
               return cb2.compareTo(ca2);
@@ -745,7 +745,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         'Odometer Reading',
                         (s['odometer'] != null && (s['odometer'] as num?) != 0)
                             ? '${s['odometer']} km'
-                            : 'â€”',
+                            : '—',
                       ),
                       _detailRow(
                         'Total Cost',
@@ -785,7 +785,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // â”€â”€ Issues Tags â”€â”€
+                      // ── Issues Tags ──
                       if ((s['issues'] as List?)?.isNotEmpty == true) ...[
                         const Text(
                           'Vehicle Issues Reported',
@@ -1122,7 +1122,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                             FieldValue.serverTimestamp(),
                                       });
                                 }
-                                // Update vehicle on completion â€” prefer vehicleId direct lookup
+                                // Update vehicle on completion — prefer vehicleId direct lookup
                                 final mainDocForVeh = await _db
                                     .doc(s['docId'] as String)
                                     .get();
@@ -1207,7 +1207,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                       .catchError((_) {});
                                 }
 
-                                // Notify customer â€” Completed
+                                // Notify customer — Completed
                                 String customerUid =
                                     mainDataForVeh['ownerId'] as String? ?? '';
                                 if (customerUid.isEmpty &&
@@ -1258,7 +1258,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                     await FirebaseFirestore.instance
                                         .collection('notifications')
                                         .add({
-                                          'title': 'âœ… Service Completed',
+                                          'title': '✅ Service Completed',
                                           'message':
                                               'Your vehicle ${(s['plate'] as String).trim().toUpperCase()} has been serviced and is ready for pickup.',
                                           'type': 'success',
@@ -1433,7 +1433,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
         ? _vehicleMap[service!['plate']]
         : _vehicleMap[prefillPlate.toUpperCase()];
 
-    // â”€â”€ Issue tags â”€â”€
+    // ── Issue tags ──
     const presetIssues = [
       'Engine Problem',
       'Brake Issue',
@@ -1498,7 +1498,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
           'cost': TextEditingController(
             text: (d?['cost'] ?? '0')
                 .toString()
-                .replaceAll('â‚±', '')
+                .replaceAll('₱', '')
                 .replaceAll(',', '')
                 .trim(),
           ),
@@ -1515,7 +1515,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       final d = _itemMasterMap[matName];
       final rawCost = (d?['cost'] ?? materialData['cost'] ?? '0')
           .toString()
-          .replaceAll('â‚±', '')
+          .replaceAll('₱', '')
           .replaceAll(',', '')
           .trim();
       final uom = (d?['uom'] ?? materialData['uom'] ?? '').toString();
@@ -1631,7 +1631,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                 ),
                 child: Column(
                   children: [
-                    // â”€â”€ Sticky header â”€â”€
+                    // ── Sticky header ──
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
@@ -1661,7 +1661,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         ],
                       ),
                     ),
-                    // â”€â”€ Scrollable content â”€â”€
+                    // ── Scrollable content ──
                     Expanded(
                       child: SingleChildScrollView(
                         controller: scrollCtrl,
@@ -1879,7 +1879,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            // â”€â”€ Odometer Reading â”€â”€
+                            // ── Odometer Reading ──
                             TextField(
                               controller: odoCtrl,
                               keyboardType: TextInputType.number,
@@ -1890,7 +1890,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            // â”€â”€ Vehicle Issues â”€â”€
+                            // ── Vehicle Issues ──
                             const Text(
                               'Vehicle Issues',
                               style: TextStyle(
@@ -1901,7 +1901,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Optional â€” select all that apply',
+                              'Optional — select all that apply',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Colors.grey.shade500,
@@ -2180,7 +2180,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                                 0;
 
                                             // Validate material quantities using cached maxStock (already fetched when
-                                            // user selected the material â€” no extra network round-trip needed).
+                                            // user selected the material — no extra network round-trip needed).
                                             for (final r in matRows) {
                                               final name = r['name']!.text
                                                   .trim();
@@ -2225,7 +2225,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                               }
                                             }
 
-                                            // Duplicate plate check â€” cache only, no server fallback (keeps save instant).
+                                            // Duplicate plate check — cache only, no server fallback (keeps save instant).
                                             if (!isEdit) {
                                               final plateUpper = plateCtrl.text
                                                   .trim()
@@ -2250,7 +2250,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                                 hasDuplicate =
                                                     dupCheck.docs.isNotEmpty;
                                               } catch (_) {
-                                                /* cache miss â€” skip duplicate check */
+                                                /* cache miss — skip duplicate check */
                                               }
                                               if (hasDuplicate) {
                                                 setModal(() => saving = false);
@@ -2299,7 +2299,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                                 .trim()
                                                 .toUpperCase();
 
-                                            // â”€â”€ Resolve vehicleId + ownerId from the vehicle â”€â”€
+                                            // ── Resolve vehicleId + ownerId from the vehicle ──
                                             // The staff selects a plate; we derive the authoritative
                                             // vehicleId and ownerId from the vehicle document so they
                                             // are NEVER entered manually.
@@ -2351,7 +2351,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                                     vDoc.data()
                                                         as Map<String, dynamic>;
                                                 resolvedVehicleId = vDoc.id;
-                                                // ownerId is authoritative from the vehicle â€” never
+                                                // ownerId is authoritative from the vehicle — never
                                                 // trust a client-supplied value over the vehicle's own
                                                 final vehicleOwnerId =
                                                     (vData['ownerId']
@@ -2364,21 +2364,21 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                                 }
                                               }
                                             } catch (_) {
-                                              // Non-fatal â€” migration script fills gaps later.
+                                              // Non-fatal — migration script fills gaps later.
                                             }
 
                                             final data = <String, dynamic>{
                                               'id': svcId,
-                                              // â”€â”€ Relational keys (authoritative) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                                              // ── Relational keys (authoritative) ─────────────
                                               if (resolvedVehicleId.isNotEmpty)
                                                 'vehicleId': resolvedVehicleId,
                                               if (resolvedOwnerId.isNotEmpty)
                                                 'ownerId': resolvedOwnerId,
-                                              // â”€â”€ Plate (display / historical snapshot) â”€â”€â”€â”€â”€â”€â”€
+                                              // ── Plate (display / historical snapshot) ───────
                                               'plateNumber': plateUpper,
                                               'plate':
                                                   plateUpper, // legacy alias
-                                              // â”€â”€ Rest of record â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                                              // ── Rest of record ───────────────────────────────
                                               'desc':
                                                   foundVehicle?['desc']
                                                       as String? ??
@@ -2559,7 +2559,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                                           });
                                                     }
                                                   }
-                                                  // Notify customer â€” Under Maintenance
+                                                  // Notify customer — Under Maintenance
                                                   String maintCustomerUid =
                                                       resolvedOwnerId;
                                                   if (maintCustomerUid
@@ -2734,7 +2734,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
           : ((_itemMasterMap[name]?['uom']) ?? 'job').toString();
       row['cost']!.text = ((_itemMasterMap[name]?['cost']) ?? '0')
           .toString()
-          .replaceAll('â‚±', '')
+          .replaceAll('₱', '')
           .replaceAll(',', '')
           .trim();
       if (row['qty']!.text.isEmpty) row['qty']!.text = '1';
@@ -2789,7 +2789,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${row['uom']!.text}  â€¢  â‚±${row['cost']!.text}',
+                          '${row['uom']!.text}  •  ₱${row['cost']!.text}',
                           style: const TextStyle(
                             fontSize: 11,
                             color: Color(0xFF718096),
@@ -2865,7 +2865,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                               final uom = item['uom'] as String? ?? '';
                               final rawCost = item['cost'];
                               final cost = rawCost == null ? 0.0
-                                  : double.tryParse(rawCost.toString().replaceAll('â‚±','').replaceAll(',','').trim()) ?? 0.0;
+                                  : double.tryParse(rawCost.toString().replaceAll('₱','').replaceAll(',','').trim()) ?? 0.0;
                               return InkWell(
                                 onTap: () => onSelected(item),
                                 child: Padding(
@@ -2874,7 +2874,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                       Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1a202c))),
                                       if (uom.isNotEmpty || cost > 0)
-                                        Text('${uom.isNotEmpty ? uom : "â€”"}  â€¢  â‚±${cost.toStringAsFixed(2)}',
+                                        Text('${uom.isNotEmpty ? uom : "—"}  •  ₱${cost.toStringAsFixed(2)}',
                                           style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
                                     ])),
                                     const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF718096)),
@@ -2937,7 +2937,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       if (isInactive || isZeroStock) {
         ScaffoldMessenger.of(ctx).showSnackBar(
           const SnackBar(
-            content: Text('âš  This item is out of stock and cannot be added.'),
+            content: Text('⚠ This item is out of stock and cannot be added.'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -2984,9 +2984,9 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       final rawCost = d['cost'];
       row['cost']!.text = rawCost == null
           ? '0'
-          : rawCost.toString().replaceAll('â‚±', '').replaceAll(',', '').trim();
+          : rawCost.toString().replaceAll('₱', '').replaceAll(',', '').trim();
       if (row['qty']!.text.isEmpty) row['qty']!.text = '1';
-      // Look up stock by item number â€” match name+uom from _allItems (which preserves duplicates)
+      // Look up stock by item number — match name+uom from _allItems (which preserves duplicates)
       // so same-name different-UOM items get the correct distinct stock record
       final uomForLookup = uom.isNotEmpty ? uom : (d['uom'] ?? '').toString();
       final matchedItem = _allItems.firstWhere(
@@ -3021,7 +3021,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       if (available == 0) {
         ScaffoldMessenger.of(ctx).showSnackBar(
           const SnackBar(
-            content: Text('âš  This item is out of stock and cannot be added.'),
+            content: Text('⚠ This item is out of stock and cannot be added.'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -3085,7 +3085,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${row['uom']!.text}  â€¢  â‚±${row['cost']!.text}',
+                          '${row['uom']!.text}  •  ₱${row['cost']!.text}',
                           style: const TextStyle(
                             fontSize: 11,
                             color: Color(0xFF718096),
@@ -3151,7 +3151,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                               ),
                               child: Text(
                                 ms == 0
-                                    ? 'âš  Out of stock'
+                                    ? '⚠ Out of stock'
                                     : 'Available stock: $ms',
                                 style: TextStyle(
                                   fontSize: 11,
@@ -3263,7 +3263,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                               final uom = item['uom'] as String? ?? '';
                               final rawCost = item['cost'];
                               final cost = rawCost == null ? 0.0
-                                  : double.tryParse(rawCost.toString().replaceAll('â‚±','').replaceAll(',','').trim()) ?? 0.0;
+                                  : double.tryParse(rawCost.toString().replaceAll('₱','').replaceAll(',','').trim()) ?? 0.0;
                               final oos = (_stockMap[(name).toLowerCase()] ?? -1) == 0 || _inactiveItemNames.contains(name.toLowerCase());
                               return InkWell(
                                 onTap: oos ? null : () => onSelected(item),
@@ -3275,14 +3275,14 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                       Text(name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13,
                                         color: oos ? const Color(0xFFa0aec0) : const Color(0xFF1a202c))),
                                       if (uom.isNotEmpty || cost > 0)
-                                        Text('${uom.isNotEmpty ? uom : "â€”"}  â€¢  â‚±${cost.toStringAsFixed(2)}',
+                                        Text('${uom.isNotEmpty ? uom : "—"}  •  ₱${cost.toStringAsFixed(2)}',
                                           style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
                                       if (oos)
                                         Container(
                                           margin: const EdgeInsets.only(top: 3),
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                           decoration: BoxDecoration(color: const Color(0xFFFFF5F5), borderRadius: BorderRadius.circular(20)),
-                                          child: const Text('âš  Out of stock â€” cannot add',
+                                          child: const Text('⚠ Out of stock — cannot add',
                                             style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.red)),
                                         ),
                                     ])),
@@ -3351,9 +3351,9 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
   }
 
   String _formatCost(String raw) {
-    final clean = raw.replaceAll('â‚±', '').replaceAll(',', '').trim();
+    final clean = raw.replaceAll('₱', '').replaceAll(',', '').trim();
     final val = double.tryParse(clean);
-    if (val == null) return raw.startsWith('â‚±') ? raw : 'â‚±$raw';
+    if (val == null) return raw.startsWith('₱') ? raw : '₱$raw';
     return _fmtMoney(val);
   }
 
@@ -3366,7 +3366,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       if (i > 0 && (intPart.length - i) % 3 == 0) buffer.write(',');
       buffer.write(intPart[i]);
     }
-    return 'â‚±$buffer.$decPart';
+    return '₱$buffer.$decPart';
   }
 
   String _monthName(int m) => const [
@@ -3398,7 +3398,7 @@ class _MaxValueFormatter extends TextInputFormatter {
     if (newValue.text.isEmpty) return newValue;
     final entered = int.tryParse(newValue.text);
     if (entered == null) return oldValue;
-    if (entered > max) return oldValue; // block â€” don't apply the new value
+    if (entered > max) return oldValue; // block — don't apply the new value
     return newValue;
   }
 }
