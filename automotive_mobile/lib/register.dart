@@ -10,28 +10,23 @@ const _kOneSignalAppId = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
 const _kOneSignalApiKey =
     'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
 
-// Philippine mobile formatter: 09XX-XXX-XXXX
+// Philippine mobile formatter: +63 locked prefix + 10 digits = +63XXXXXXXXXX
 class _PhoneFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
-    final capped = digits.length > 11 ? digits.substring(0, 11) : digits;
-
-    String formatted;
-    if (capped.length <= 4) {
-      formatted = capped;
-    } else if (capped.length <= 7) {
-      formatted = '${capped.substring(0, 4)}-${capped.substring(4)}';
-    } else {
-      formatted = '${capped.substring(0, 4)}-${capped.substring(4, 7)}-${capped.substring(7)}';
-    }
-
+    String raw = newValue.text;
+    // Always keep +63 prefix
+    if (!raw.startsWith('+63')) raw = '+63';
+    // Extract only the digits after +63, max 10
+    final digits = raw.substring(3).replaceAll(RegExp(r'\D'), '');
+    final capped = digits.length > 10 ? digits.substring(0, 10) : digits;
+    final result = '+63$capped';
     return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
+      text: result,
+      selection: TextSelection.collapsed(offset: result.length),
     );
   }
 }
@@ -58,6 +53,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _loading = false;
 
   static const _red = Color(0xFFE8001C);
+
+  @override
+  void initState() {
+    super.initState();
+    _phoneCtrl.text = '+63';
+  }
 
   @override
   void dispose() {
@@ -89,8 +90,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     final phoneDigits = phone.replaceAll(RegExp(r'\D'), '');
-    if (phoneDigits.length != 11 || !phoneDigits.startsWith('09')) {
-      _showError('Enter a valid PH mobile number (e.g. 09XX-XXX-XXXX).');
+    if (!phone.startsWith('+63') || phoneDigits.length != 12) {
+      _showError('Enter a valid PH mobile number (e.g. +639171234567).');
       return;
     }
 
@@ -130,7 +131,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'lastName': lastName,
         'name': '$firstName $lastName',
         'email': email,
-        'phoneNumber': phoneDigits,
+        'phoneNumber': phone,
         'role': 'customer',
         'status': 'active',
         'createdAt': FieldValue.serverTimestamp(),
@@ -340,15 +341,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     TextField(
                       controller: _phoneCtrl,
                       keyboardType: TextInputType.phone,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        _PhoneFormatter(),
-                      ],
+                      inputFormatters: [_PhoneFormatter()],
                       style: _inputTextStyle,
                       decoration: _inputDecoration(
-                        '09XX-XXX-XXXX',
+                        '+63XXXXXXXXXX',
                         Icons.phone_outlined,
                       ),
+                      onTap: () {
+                        // Keep cursor after +63 prefix
+                        if (_phoneCtrl.text.isEmpty) {
+                          _phoneCtrl.text = '+63';
+                        }
+                        final pos = _phoneCtrl.text.length;
+                        _phoneCtrl.selection = TextSelection.collapsed(offset: pos);
+                      },
                     ),
                     const SizedBox(height: 16),
 
