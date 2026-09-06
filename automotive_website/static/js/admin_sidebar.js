@@ -328,6 +328,37 @@ function bindHeaderControls() {
                         document.body.classList.add('sidebar-expanded');
                     }
                 }
+                // ── Populate profile instantly from sessionStorage ──
+                (function() {
+                    var sess = JSON.parse(
+                        sessionStorage.getItem('apUser') ||
+                        sessionStorage.getItem('spUser') ||
+                        sessionStorage.getItem('cpUser') || '{}'
+                    );
+                    var name  = sess.name  || 'Administrator';
+                    var email = sess.email || '';
+                    var parts = name.trim().split(' ').filter(Boolean);
+                    var ini   = parts.length >= 2
+                        ? (parts[0][0] + parts[1][0]).toUpperCase()
+                        : (parts[0] ? parts[0].slice(0, 2).toUpperCase() : 'AD');
+
+                    var nameEl    = document.getElementById('sidebarName');
+                    var emailEl   = document.getElementById('sidebarEmail');
+                    var avatarEl  = document.getElementById('sidebarAvatar');
+                    var menuName  = document.getElementById('adminAvatarName');
+                    var menuEmail = document.getElementById('adminAvatarEmail');
+
+                    if (nameEl)    nameEl.textContent    = name;
+                    if (emailEl)   emailEl.textContent   = email;
+                    if (menuName)  menuName.textContent  = name;
+                    if (menuEmail) menuEmail.textContent = email;
+
+                    if (sess.photoUrl && avatarEl) {
+                        avatarEl.innerHTML = '<img src="' + sess.photoUrl + '" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+                    } else if (avatarEl) {
+                        avatarEl.textContent = ini;
+                    }
+                })();
             })
         : Promise.resolve();
 
