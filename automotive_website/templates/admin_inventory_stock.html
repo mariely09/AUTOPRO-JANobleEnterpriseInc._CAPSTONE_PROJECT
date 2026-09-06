@@ -377,7 +377,7 @@
                 </div>
                 <div id="invPreviewInfo" style="font-size:0.83rem;color:#4a5568;"></div>
             </div>
-            <div id="invAlreadyExists" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:0.75rem 1rem;font-size:0.83rem;color:#92400e;">?? This item already exists in stock inventory. Use Edit to update it.</div>
+            <div id="invAlreadyExists" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:0.75rem 1rem;font-size:0.83rem;color:#92400e;">This item already exists in stock inventory. Use Edit to update it.</div>
             <div id="invNotFound" style="display:none;background:#fff5f5;border:1px solid #fed7d7;border-radius:10px;padding:0.75rem 1rem;font-size:0.83rem;color:#c53030;">No item found in Item Master.</div>
             <!-- Stock level fields — shown after item found -->
             <div id="invStockFields" style="display:none;display:flex;flex-direction:column;gap:0.75rem;">
@@ -656,7 +656,7 @@ function stockSearchMasterItem(query) {
             return matchesQuery && ((i.itemType||'').toLowerCase() === 'service' || (i.commodityGroup||'').toLowerCase() === 'autoservice');
         });
         if (isService) {
-            notFoundEl.innerHTML = '?? Service items and AutoService group items do not require stock tracking.';
+            notFoundEl.innerHTML = 'Service items and AutoService group items do not require stock tracking.';
             notFoundEl.style.background = '#fffbeb';
             notFoundEl.style.borderColor = '#fcd34d';
             notFoundEl.style.color = '#92400e';
@@ -680,7 +680,7 @@ function stockSearchMasterItem(query) {
             var borderColor = inStock ? '#fcd34d' : '#e2e8f0';
             var bgColor = inStock ? '#fffbeb' : 'white';
             var badge = inStock
-                ? '<span style="display:inline-flex;align-items:center;gap:0.25rem;background:#fef3c7;color:#92400e;font-size:0.7rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:20px;margin-left:0.4rem;">? Already in Stock</span>'
+                ? '<span style="display:inline-flex;align-items:center;gap:0.25rem;background:#fef3c7;color:#92400e;font-size:0.7rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:20px;margin-left:0.4rem;">Already in Stock</span>'
                 : '';
             var clickHandler = inStock
                 ? 'invSelectItem(\'' + safeNum + '\')'
@@ -714,7 +714,7 @@ function invSelectItem(itemNum) {
     var exists = inv.some(function(i) { return (i.itemNum||'').toLowerCase() === (found.itemNum||'').toLowerCase(); });
     if (exists) {
         _addFoundMaster = null;
-        alreadyEl.innerHTML = '?? <strong>"' + (found.itemName||found.itemNum) + '"</strong> already exists in stock inventory. Use <strong>Edit</strong> to update its stock levels.';
+        alreadyEl.innerHTML = '<strong>"' + (found.itemName||found.itemNum) + '"</strong> already exists in stock inventory. Use <strong>Edit</strong> to update its stock levels.';
         alreadyEl.style.display = 'block';
         previewEl.style.display = 'none';
         fieldsEl.style.display = 'none';
