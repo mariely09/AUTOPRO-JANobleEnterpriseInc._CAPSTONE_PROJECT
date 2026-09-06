@@ -281,13 +281,17 @@ function _renderProfile(d) {
     var companyName = d.companyName || '';
     var phone = d.phoneNumber || '';
 
-    // Format stored digits as 09XX-XXX-XXXX for display
+    // Display phone as-is (already stored as +63XXXXXXXXXX)
     function _formatPhoneDisplay(raw) {
-        var digits = (raw || '').replace(/\D/g, '').slice(0, 11);
-        if (!digits) return '';
-        if (digits.length <= 4) return digits;
-        if (digits.length <= 7) return digits.slice(0,4) + '-' + digits.slice(4);
-        return digits.slice(0,4) + '-' + digits.slice(4,7) + '-' + digits.slice(7);
+        if (!raw) return '';
+        // Already in +63 format — return as-is
+        if (raw.startsWith('+63')) return raw;
+        // Legacy: stored as 09XXXXXXXXX → convert to +63
+        var digits = raw.replace(/\D/g, '');
+        if (digits.length === 11 && digits.startsWith('09')) {
+            return '+63' + digits.slice(1);
+        }
+        return raw;
     }
     var phoneDisplay = _formatPhoneDisplay(phone);
 
@@ -361,7 +365,7 @@ function _renderProfile(d) {
         +     _infoEditTile('person', 'First Name', 'pFieldFirstName', _esc(firstName), false, false)
         +     _infoEditTile('person', 'Last Name',  'pFieldLastName',  _esc(lastName),  false, false)
         +     _infoEditTile('email', 'Email', 'pFieldEmail', _esc(email), false, false)
-        +     _infoEditTile('phone', 'Phone Number', 'pFieldPhone', _esc(phoneDisplay), false, false)
+        +     _infoEditTile('phone', 'Phone Number', 'pFieldPhone', _esc(phoneDisplay || '+63'), false, false)
         +     (role === 'customer' && companyName ? _infoEditTile('company', 'Company Name', 'pFieldCompany', _esc(companyName), false, false) : '')
         +     _infoEditTile('role', 'Role', 'pFieldRole', _esc(roleLabel), true, true)
         +   '</div>'
@@ -410,8 +414,13 @@ function _infoEditTile(type, label, fieldId, value, isLast, readOnly) {
         + '<div style="flex:1;">'
         +   '<div class="pf-info-tile-label">' + label + '</div>'
         +   '<div class="pf-info-tile-value" id="view_' + fieldId + '">' + value + '</div>'
-        +   (readOnly ? '' : '<input class="pf-edit-field" type="text" id="' + fieldId + '" value="' + value + '" style="display:none;"'
-        +     (type === 'phone' ? ' inputmode="numeric" maxlength="13" oninput="_formatPhone(this)"' : '')
+        +   (readOnly ? '' : '<input class="pf-edit-field" type="tel" id="' + fieldId + '" value="' + value + '" style="display:none;"'
+        +     (type === 'phone' ? ' inputmode="numeric" maxlength="13"'
+        +       + ' oninput="(function(el){var pos=el.selectionStart;var raw=el.value;if(!raw.startsWith(\'+63\'))raw=\'+63\';var digits=raw.slice(3).replace(/\\D/g,\'\').slice(0,10);el.value=\'+63\'+digits;var np=Math.max(3,pos);el.setSelectionRange(np,np);})(this)"'
+        +       + ' onkeydown="(function(el,e){var s=el.selectionStart,en=el.selectionEnd;if((e.key===\'Backspace\'||e.key===\'Delete\')&&s<=3&&en<=3)e.preventDefault();})(this,event)"'
+        +       + ' onclick="if(this.selectionStart<3)this.setSelectionRange(3,3)"'
+        +       + ' onfocus="if(this.selectionStart<3)this.setSelectionRange(3,3)"'
+        +     : '')
         +   '>')
         + '</div>'
         + '</div>';
@@ -474,7 +483,7 @@ window.cancelEditMode = function() {
     if (lastNameInput)  lastNameInput.value  = window._pOrigLastName  || '';
     if (emailInput)     emailInput.value     = window._pOrigEmail     || '';
     if (companyInput)   companyInput.value   = window._pOrigCompany   || '';
-    if (phoneInput)     phoneInput.value     = window._pOrigPhone     || '';
+    if (phoneInput)     phoneInput.value     = window._pOrigPhone || '+63';
 
     ['pFieldFirstName', 'pFieldLastName', 'pFieldEmail', 'pFieldPhone', 'pFieldCompany'].forEach(function(id) {
         var view = document.getElementById('view_' + id);
@@ -502,7 +511,7 @@ window.saveProfile = function() {
     var name          = (firstName + ' ' + lastName).trim();
     var email         = emailEl ? emailEl.value.trim() : '';
     var companyName   = companyEl ? companyEl.value.trim() : '';
-    var phone         = phoneEl   ? phoneEl.value.trim().replace(/\D/g, '') : '';
+    var phone         = phoneEl   ? phoneEl.value.trim() : '';
 
     if (!firstName) { _showToast('First name cannot be empty.', 'error'); return; }
     if (!lastName)  { _showToast('Last name cannot be empty.',  'error'); return; }
@@ -557,13 +566,8 @@ window.saveProfile = function() {
                     else if (id === 'pFieldLastName') view.textContent = lastName;
                     else if (id === 'pFieldEmail') view.textContent = email;
                     else if (id === 'pFieldPhone') {
-                        // Show formatted display, store raw digits
-                        var pDigits = phone.replace(/\D/g,'').slice(0,11);
-                        var pFmt = pDigits.length <= 4 ? pDigits
-                            : pDigits.length <= 7 ? pDigits.slice(0,4)+'-'+pDigits.slice(4)
-                            : pDigits.slice(0,4)+'-'+pDigits.slice(4,7)+'-'+pDigits.slice(7);
-                        view.textContent = pFmt;
-                        if (input) input.value = pFmt;
+                        view.textContent = phone;
+                        if (input) input.value = phone || '+63';
                     }
                     else if (id === 'pFieldCompany') view.textContent = companyName;
                     view.style.display = 'block';
@@ -629,16 +633,6 @@ window.profileLogout = function() {
 
 function _esc(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// Phone formatter: digits only → 09XX-XXX-XXXX
-function _formatPhone(input) {
-    var digits = input.value.replace(/\D/g, '').slice(0, 11);
-    var formatted = '';
-    if (digits.length <= 4)      formatted = digits;
-    else if (digits.length <= 7) formatted = digits.slice(0,4) + '-' + digits.slice(4);
-    else                         formatted = digits.slice(0,4) + '-' + digits.slice(4,7) + '-' + digits.slice(7);
-    input.value = formatted;
 }
 
 function _showToast(msg, type) {
