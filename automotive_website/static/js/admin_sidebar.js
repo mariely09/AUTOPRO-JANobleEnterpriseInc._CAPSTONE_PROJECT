@@ -282,8 +282,12 @@ function bindHeaderControls() {
 
                     // Also update sidebar
                     const sidebarNameEl   = document.getElementById('sidebarName');
+                    const sidebarEmailEl  = document.getElementById('sidebarEmail');
                     const sidebarAvatarEl = document.getElementById('sidebarAvatar');
-                    if (sidebarNameEl) sidebarNameEl.textContent = name;
+                    const menuEmailEl     = document.getElementById('adminAvatarEmail');
+                    if (sidebarNameEl)  sidebarNameEl.textContent  = name;
+                    if (sidebarEmailEl) sidebarEmailEl.textContent = email || (doc.exists && doc.data().email) || '';
+                    if (menuEmailEl)    menuEmailEl.textContent    = email || (doc.exists && doc.data().email) || '';
                     applyAvatar(sidebarAvatarEl, initials, photoUrl);
 
                     // Sync photoUrl to sessionStorage
