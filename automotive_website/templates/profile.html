@@ -414,14 +414,17 @@ function _infoEditTile(type, label, fieldId, value, isLast, readOnly) {
         + '<div style="flex:1;">'
         +   '<div class="pf-info-tile-label">' + label + '</div>'
         +   '<div class="pf-info-tile-value" id="view_' + fieldId + '">' + value + '</div>'
-        +   (readOnly ? '' : '<input class="pf-edit-field" type="tel" id="' + fieldId + '" value="' + value + '" style="display:none;"'
-        +     (type === 'phone' ? ' inputmode="numeric" maxlength="13"'
-        +       + ' oninput="(function(el){var pos=el.selectionStart;var raw=el.value;if(!raw.startsWith(\'+63\'))raw=\'+63\';var digits=raw.slice(3).replace(/\\D/g,\'\').slice(0,10);el.value=\'+63\'+digits;var np=Math.max(3,pos);el.setSelectionRange(np,np);})(this)"'
-        +       + ' onkeydown="(function(el,e){var s=el.selectionStart,en=el.selectionEnd;if((e.key===\'Backspace\'||e.key===\'Delete\')&&s<=3&&en<=3)e.preventDefault();})(this,event)"'
-        +       + ' onclick="if(this.selectionStart<3)this.setSelectionRange(3,3)"'
-        +       + ' onfocus="if(this.selectionStart<3)this.setSelectionRange(3,3)"'
-        +     : '')
-        +   '>')
+        +   (readOnly ? '' : (
+              '<input class="pf-edit-field" type="tel" id="' + fieldId + '" value="' + value + '" style="display:none;"'
+              + (type === 'phone'
+                  ? ' inputmode="numeric" maxlength="13"'
+                    + ' oninput="(function(el){var pos=el.selectionStart;var raw=el.value;if(!raw.startsWith(\'+63\'))raw=\'+63\';var digits=raw.slice(3).replace(/\\D/g,\'\').slice(0,10);el.value=\'+63\'+digits;var np=Math.max(3,pos);el.setSelectionRange(np,np);})(this)"'
+                    + ' onkeydown="(function(el,e){var s=el.selectionStart,en=el.selectionEnd;if((e.key===\'Backspace\'||e.key===\'Delete\')&&s<=3&&en<=3)e.preventDefault();})(this,event)"'
+                    + ' onclick="if(this.selectionStart<3)this.setSelectionRange(3,3)"'
+                    + ' onfocus="if(this.selectionStart<3)this.setSelectionRange(3,3)"'
+                  : '')
+              + '>'
+            ))
         + '</div>'
         + '</div>';
 }
