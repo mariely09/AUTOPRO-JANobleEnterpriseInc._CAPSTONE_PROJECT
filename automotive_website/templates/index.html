@@ -383,12 +383,25 @@
         </p>
         <div style="display:flex;flex-direction:column;align-items:flex-start;gap:10px;">
           <div style="background:white;border-radius:14px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.10);display:inline-block;">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=http%3A%2F%2F192.168.1.9%3A5001%2Fdownload%2Fautopro.apk&color=1a202c&bgcolor=ffffff&margin=2&qzone=1"
-                 alt="Scan to download AutoPro APK" width="130" height="130"
+            <img id="apkQrImg" alt="Scan to download AutoPro APK" width="130" height="130"
                  style="display:block;border-radius:6px;" />
           </div>
           <p style="font-size:12px;color:#a0aec0;margin:0;">Scan to download the app</p>
         </div>
+        <script>
+        (function() {
+          var apkUrl = window.location.origin + '/download/autopro.apk';
+          var qrApi  = 'https://api.qrserver.com/v1/create-qr-code/'
+                     + '?size=130x130'
+                     + '&data=' + encodeURIComponent(apkUrl)
+                     + '&color=1a202c&bgcolor=ffffff&margin=2&qzone=1';
+          var img = document.getElementById('apkQrImg');
+          if (img) {
+            img.src = qrApi;
+            img.title = apkUrl;
+          }
+        })();
+        </script>
       </div>
 
       <!-- Right: 3 phone mockups -->
