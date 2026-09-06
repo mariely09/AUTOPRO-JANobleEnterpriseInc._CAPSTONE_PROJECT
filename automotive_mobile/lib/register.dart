@@ -20,6 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
 
@@ -36,6 +37,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
     _emailCtrl.dispose();
+    _phoneCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
     super.dispose();
@@ -45,12 +47,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final firstName = _firstNameCtrl.text.trim();
     final lastName = _lastNameCtrl.text.trim();
     final email = _emailCtrl.text.trim();
+    final phone = _phoneCtrl.text.trim();
     final password = _passwordCtrl.text.trim();
     final confirm = _confirmCtrl.text.trim();
 
     if (firstName.isEmpty ||
         lastName.isEmpty ||
         email.isEmpty ||
+        phone.isEmpty ||
         password.isEmpty ||
         confirm.isEmpty) {
       _showError('Please fill in all fields.');
@@ -86,13 +90,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Update display name
       await cred.user!.updateDisplayName('$firstName $lastName');
 
-      // Save user document to Firestore � status 'pending' until admin approves
+      // Save user document to Firestore
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'uid': uid,
         'firstName': firstName,
         'lastName': lastName,
         'name': '$firstName $lastName',
         'email': email,
+        'phoneNumber': phone,
         'role': 'customer',
         'status': 'active',
         'createdAt': FieldValue.serverTimestamp(),
@@ -292,6 +297,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       decoration: _inputDecoration(
                         'Enter your email',
                         Icons.email_outlined,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Phone Number
+                    _label('Phone Number'),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      style: _inputTextStyle,
+                      decoration: _inputDecoration(
+                        'Enter your phone number',
+                        Icons.phone_outlined,
                       ),
                     ),
                     const SizedBox(height: 16),
