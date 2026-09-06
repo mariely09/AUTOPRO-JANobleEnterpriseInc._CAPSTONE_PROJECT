@@ -250,15 +250,35 @@ function bindHeaderControls() {
                     const ini = parts.length >= 2
                         ? (parts[0][0] + parts[1][0]).toUpperCase()
                         : parts[0].slice(0, 2).toUpperCase();
-                    if (avatar) avatar.textContent = ini;
+                    // Apply photo from sessionStorage immediately if available
+                    if (sess.photoUrl && avatar) {
+                        avatar.innerHTML = '<img src="' + sess.photoUrl + '" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+                    } else if (avatar) {
+                        avatar.textContent = ini;
+                    }
                     if (nameEl) nameEl.textContent = sessName;
                     if (topbarName) topbarName.textContent = sessName;
+
+                    // Also apply to sidebar avatar immediately from sessionStorage
+                    const sidebarAv = document.getElementById('sidebarAvatar');
+                    if (sidebarAv) {
+                        if (sess.photoUrl) {
+                            sidebarAv.innerHTML = '<img src="' + sess.photoUrl + '" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+                        } else {
+                            sidebarAv.textContent = ini;
+                        }
+                    }
+                    const sidebarEmailEl2 = document.getElementById('sidebarEmail');
+                    const menuEmailEl2    = document.getElementById('adminAvatarEmail');
+                    if (sidebarEmailEl2) sidebarEmailEl2.textContent = sess.email || '';
+                    if (menuEmailEl2)    menuEmailEl2.textContent    = sess.email || '';
                 }
 
                 // Then update from Firestore
                 firebase.firestore().collection('users').doc(user.uid).get().then(doc => {
                     const name     = (doc.exists && doc.data().name)     ? doc.data().name     : sessName || user.email || '';
-                    const photoUrl = (doc.exists && doc.data().photoUrl) ? doc.data().photoUrl : '';
+                    // Prefer Firestore photoUrl, fall back to sessionStorage so photo never disappears
+                    const photoUrl = (doc.exists && doc.data().photoUrl) ? doc.data().photoUrl : (sess.photoUrl || '');
                     if (!name) return;
                     const parts    = name.trim().split(' ').filter(Boolean);
                     const initials = parts.length >= 2
@@ -286,8 +306,8 @@ function bindHeaderControls() {
                     const sidebarAvatarEl = document.getElementById('sidebarAvatar');
                     const menuEmailEl     = document.getElementById('adminAvatarEmail');
                     if (sidebarNameEl)  sidebarNameEl.textContent  = name;
-                    if (sidebarEmailEl) sidebarEmailEl.textContent = email || (doc.exists && doc.data().email) || '';
-                    if (menuEmailEl)    menuEmailEl.textContent    = email || (doc.exists && doc.data().email) || '';
+                    if (sidebarEmailEl) sidebarEmailEl.textContent = (doc.exists && doc.data().email) || sess.email || '';
+                    if (menuEmailEl)    menuEmailEl.textContent    = (doc.exists && doc.data().email) || sess.email || '';
                     applyAvatar(sidebarAvatarEl, initials, photoUrl);
 
                     // Sync photoUrl to sessionStorage
