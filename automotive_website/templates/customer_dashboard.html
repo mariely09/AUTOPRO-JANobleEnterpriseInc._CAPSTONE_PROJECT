@@ -1485,6 +1485,9 @@ function _updateBannerFromCalEvents() {
     var todayEvts = _calEvents[todayKey] || [];
     var hasPms     = todayEvts.some(function(e) { return e.type === 'pms'; });
     var hasBooking = todayEvts.some(function(e) { return e.type === 'booking'; });
+    // Check if any vehicle is currently under maintenance (from live sets)
+    var hasMaint = (window._cuUnderMaintenancePlates && window._cuUnderMaintenancePlates.size > 0) ||
+                   (window._cuUnderMaintenanceVehicleIds && window._cuUnderMaintenanceVehicleIds.size > 0);
 
     var iconEl  = document.getElementById('cuBannerIcon');
     var line1El = document.getElementById('cuBannerLine1');
@@ -1506,6 +1509,11 @@ function _updateBannerFromCalEvents() {
         line1El.textContent = 'Service scheduled today';
         line1El.style.color = '#fcd34d';
         line2El.textContent = 'Your appointment is ready. Drive safe!';
+    } else if (hasMaint) {
+        iconEl.textContent  = '🔧';
+        line1El.textContent = 'Vehicle under maintenance';
+        line1El.style.color = '#fcd34d';
+        line2El.textContent = 'Your vehicle is being serviced. We\'ll notify you when it\'s done.';
     } else {
         iconEl.textContent  = '✅';
         line1El.textContent = 'All clear today';

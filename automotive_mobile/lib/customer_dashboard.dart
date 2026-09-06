@@ -276,6 +276,11 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     }
     _subscribeToUser();
     Future.delayed(const Duration(seconds: 2), _runOnceStatusRefresh);
+    // If user name is already cached, kick off recent transactions immediately
+    // without waiting for the Firestore snapshot (avoids infinite loading state)
+    if (_cachedName.isNotEmpty) {
+      _loadRecentTransactions(_cachedName);
+    }
     // Init inline calendar
     final now = DateTime.now();
     _calYear = now.year;
@@ -341,8 +346,10 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                   : name.split(' ').first;
               _companyName = companyName;
             });
-          // Reload calendar/agenda when user name first resolves or changes
-          if (nameChanged && name.isNotEmpty) {
+          // Reload calendar/agenda when user name first resolves or changes.
+          // Also runs on first snapshot even if name matches cache — ensures
+          // _loadRecentTransactions fires at least once per session.
+          if (name.isNotEmpty && (nameChanged || _recentTxns.isEmpty && _txnsLoading)) {
             _loadCalendarData();
             _loadRecentTransactions(name);
           }
@@ -592,14 +599,40 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
         await _refreshVehicleStatuses(snap.docs, _userName);
       },
       child: StreamBuilder<QuerySnapshot>(
+        // ── maintenance collection: Ongoing records (staff/admin side) ──
+        stream: FirebaseFirestore.instance
+            .collection('maintenance')
+            .where('status', isEqualTo: 'Ongoing')
+            .snapshots(),
+        builder: (context, maintSnap) {
+          // Build sets of plates/vehicleIds from ongoing maintenance records
+          final maintPlates = <String>{};
+          final maintVehicleIds = <String>{};
+          for (final doc in maintSnap.data?.docs ?? []) {
+            final data = doc.data() as Map<String, dynamic>;
+            final plate     = (data['plate'] as String? ?? (data['plateNumber'] as String? ?? '')).toLowerCase();
+            final vehicleId = data['vehicleId'] as String? ?? '';
+            final ownerId   = data['ownerId']   as String? ?? '';
+            // Include if ownerId matches current user, or we'll cross-check plate/vehicleId
+            // against the vehicle list below — store all for now, filter in vehicles builder
+            if (plate.isNotEmpty)     maintPlates.add(plate);
+            if (vehicleId.isNotEmpty) maintVehicleIds.add(vehicleId);
+            // Also include if ownerId matches current user
+            if (ownerId.isNotEmpty && ownerId == (FirebaseAuth.instance.currentUser?.uid ?? '')) {
+              if (plate.isNotEmpty)     maintPlates.add(plate);
+              if (vehicleId.isNotEmpty) maintVehicleIds.add(vehicleId);
+            }
+          }
+
+        return StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('service_bookings')
             .where('customerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid ?? '')
             .snapshots(),
         builder: (context, bookingSnap) {
           // Collect vehicle IDs/plates that are currently Under Maintenance from bookings
-          final underMaintenancePlates = <String>{};
-          final underMaintenanceVehicleIds = <String>{};
+          final underMaintenancePlates = <String>{...maintPlates};
+          final underMaintenanceVehicleIds = <String>{...maintVehicleIds};
           for (final doc in bookingSnap.data?.docs ?? []) {
             final data = doc.data() as Map<String, dynamic>;
             final status = (data['status'] as String? ?? '').toLowerCase();
@@ -743,9 +776,11 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
             ),
           );
         },
-      ); // closes vehicles StreamBuilder
-        }, // closes bookings StreamBuilder builder
-      ), // closes bookings StreamBuilder
+        );
+        },
+        );
+        },
+      ),
     );
   }
 
@@ -908,6 +943,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                 final hasBooking = todayEvents.any(
                   (e) => e['type'] == 'booking',
                 );
+                final hasMaintenance = maintenance > 0;
 
                 final String icon;
                 final String line1;
@@ -925,6 +961,10 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                   icon = '📅';
                   line1 = 'Service scheduled today';
                   line2 = 'Your appointment is ready. Drive safe!';
+                } else if (hasMaintenance) {
+                  icon = '🔧';
+                  line1 = 'Vehicle under maintenance';
+                  line2 = 'Your vehicle is being serviced. We\'ll notify you when it\'s done.';
                 } else {
                   icon = '✅';
                   line1 = 'All clear today';
@@ -943,7 +983,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                           Text(
                             line1,
                             style: TextStyle(
-                              color: (hasPms || hasBooking)
+                              color: (hasPms || hasBooking || hasMaintenance)
                                   ? const Color(0xFFfcd34d)
                                   : Colors.white70,
                               fontSize: 12,
@@ -2420,6 +2460,8 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
       final uname = (userDoc.data()?['name'] as String? ?? '').toLowerCase();
       final cname = (userDoc.data()?['companyName'] as String? ?? '')
           .toLowerCase();
+      // Use the passed-in name as well, in case Firestore doc hasn't updated yet
+      final resolvedName = uname.isNotEmpty ? uname : userName.toLowerCase();
 
       final vSnap = await FirebaseFirestore.instance
           .collection('vehicles')
@@ -2428,7 +2470,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
           .where((d) {
             final owner = (d.data()['owner'] as String? ?? '').toLowerCase();
             final ownerId = (d.data()['ownerId'] as String? ?? '');
-            return owner == uname ||
+            return owner == resolvedName ||
                 (cname.isNotEmpty && owner == cname) ||
                 (ownerId.isNotEmpty && ownerId == uid);
           })
@@ -2456,9 +2498,13 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
             if (!mounted) return;
             final filtered = snap.docs
                 .where((d) {
-                  final plate =
-                      (d.data()['plate'] as String? ?? '').toLowerCase();
-                  return _txnPlates.contains(plate);
+                  final data = d.data();
+                  final plate = (data['plate'] as String? ?? '').toLowerCase();
+                  final docOwnerId = data['ownerId'] as String? ?? '';
+                  // Match by plate (primary) or by ownerId (fallback for records
+                  // that may not have the correct plate stored)
+                  return _txnPlates.contains(plate) ||
+                      (docOwnerId.isNotEmpty && docOwnerId == uid);
                 })
                 .map((d) => <String, dynamic>{...d.data(), '_id': d.id})
                 .toList()

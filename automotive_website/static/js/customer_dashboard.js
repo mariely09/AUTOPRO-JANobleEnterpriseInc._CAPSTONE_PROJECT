@@ -188,6 +188,46 @@
         }
       }, () => {}); // ignore booking stream errors silently
 
+    // ── Also listen to maintenance collection for Ongoing records ──
+    // This catches vehicles put Under Maintenance by staff/admin directly,
+    // even when the service_bookings entry hasn't been updated yet.
+    db.collection('maintenance')
+      .where('status', '==', 'Ongoing')
+      .onSnapshot(maintSnap => {
+        if (!window._cuUnderMaintenancePlates) window._cuUnderMaintenancePlates = new Set();
+        if (!window._cuUnderMaintenanceVehicleIds) window._cuUnderMaintenanceVehicleIds = new Set();
+        // Get the current customer's vehicle plates/ids to filter
+        const myPlates = new Set(_vehicles.map(v => (v.plate || '').toLowerCase()).filter(Boolean));
+        const myIds    = new Set(_vehicles.map(v => v.id).filter(Boolean));
+        // Remove previously added maintenance entries (refresh from scratch for this source)
+        // We keep a separate set to track what was added by maintenance stream
+        if (!window._cuMaintMaintenancePlates) window._cuMaintMaintenancePlates = new Set();
+        if (!window._cuMaintMaintenanceIds)    window._cuMaintMaintenanceIds    = new Set();
+        // Remove old maintenance-sourced entries from the shared sets
+        window._cuMaintMaintenancePlates.forEach(p => window._cuUnderMaintenancePlates.delete(p));
+        window._cuMaintMaintenanceIds.forEach(id => window._cuUnderMaintenanceVehicleIds.delete(id));
+        window._cuMaintMaintenancePlates.clear();
+        window._cuMaintMaintenanceIds.clear();
+        // Add current Ongoing maintenance entries that belong to this customer
+        maintSnap.docs.forEach(doc => {
+          const data = doc.data();
+          const plate     = (data.plate || data.plateNumber || '').toLowerCase();
+          const vehicleId = data.vehicleId || '';
+          const ownerId   = data.ownerId   || '';
+          // Match by plate, vehicleId, or ownerId
+          const isOwner = (plate && myPlates.has(plate)) ||
+                          (vehicleId && myIds.has(vehicleId)) ||
+                          (ownerId && user && ownerId === user.uid);
+          if (!isOwner) return;
+          if (plate)     { window._cuUnderMaintenancePlates.add(plate);    window._cuMaintMaintenancePlates.add(plate); }
+          if (vehicleId) { window._cuUnderMaintenanceVehicleIds.add(vehicleId); window._cuMaintMaintenanceIds.add(vehicleId); }
+        });
+        if (_vehicles.length) {
+          updateStats();
+          renderVehicles();
+        }
+      }, () => {});
+
     db.collection('vehicles').onSnapshot(snap => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
@@ -310,6 +350,8 @@
         active, maintenance, dueThisWeek, dueToday,
       }));
     } catch(e) {}
+    // Refresh the greeting banner whenever stats change (e.g. vehicle goes Under Maintenance)
+    if (typeof _updateBannerFromCalEvents === 'function') _updateBannerFromCalEvents();
   }
 
   function statusStyle(status) {
