@@ -2094,6 +2094,26 @@ function viewItemMasterDetails(itemNum) {
         };
     }
 
+    // Add to Stock button — only for Material type, only if NOT already in stock_inventory
+    var addStockBtn = document.getElementById('imDetailAddStockBtn');
+    if (addStockBtn) {
+        var isAlreadyInStock = false;
+        if (!isSvc) {
+            var inv = window.inventory || [];
+            isAlreadyInStock = inv.some(function(i) {
+                return (i.itemNum || '').toLowerCase() === (item.itemNum || '').toLowerCase();
+            });
+        }
+        // Show only for Materials not yet in stock
+        addStockBtn.style.display = (!isSvc && !isAlreadyInStock) ? 'flex' : 'none';
+        addStockBtn.onclick = function() {
+            closeModal('itemMasterDetailsModal');
+            if (typeof openAddInventoryModalWithItem === 'function') {
+                openAddInventoryModalWithItem(item);
+            }
+        };
+    }
+
     document.getElementById('itemMasterDetailsModal').classList.add('active');
 }
 
