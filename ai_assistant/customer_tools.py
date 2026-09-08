@@ -45,7 +45,7 @@ import cache_manager
 logger = logging.getLogger(__name__)
 
 
-# ── Firestore quota guard ─────────────────────────────────────────────────────
+# -- Firestore quota guard -----------------------------------------------------
 
 def _is_firestore_quota(exc: Exception) -> bool:
     msg = str(exc).lower()
@@ -66,7 +66,7 @@ def _quota_error() -> dict:
     }
 
 
-# ── Privacy / error helpers ───────────────────────────────────────────────────
+# -- Privacy / error helpers ---------------------------------------------------
 
 def _privacy_error() -> dict:
     return {
@@ -78,7 +78,7 @@ def _db_error(exc: Exception) -> dict:
     return {"error": "DB_ERROR", "message": "A database error occurred. Please try again."}
 
 
-# ── Currency helpers ──────────────────────────────────────────────────────────
+# -- Currency helpers ----------------------------------------------------------
 
 def _strip_currency(value) -> float:
     if isinstance(value, (int, float)):
@@ -96,7 +96,7 @@ def _fmt_cost(value) -> str:
     return f"₱{amount:,.2f}" if amount else "—"
 
 
-# ── Field normalisation ───────────────────────────────────────────────────────
+# -- Field normalisation -------------------------------------------------------
 
 def _get_plate(d: dict) -> str:
     return (d.get("plateNumber") or d.get("plate") or "").strip()
@@ -112,7 +112,7 @@ def _get_svc_freq(d: dict) -> str:
     return str(val).strip() if val is not None else ""
 
 
-# ── Shared helpers ────────────────────────────────────────────────────────────
+# -- Shared helpers ------------------------------------------------------------
 
 def _resolve_company_name(db, customer_uid: str) -> str:
     return cache_manager.get_company_name(db, customer_uid)
@@ -195,9 +195,9 @@ def _verify_booking_ownership(db, customer_uid: str, booking_id: str) -> bool:
         return False
 
 
-# ════════════════════════════════════════════════════════════════════════════
-#  TOOL 1 — My Vehicles
-# ════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------------
+#  TOOL 1 - My Vehicles
+# ----------------------------------------------------------------------------
 
 def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
     """
@@ -253,9 +253,9 @@ def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
         return _db_error(e)
 
 
-# ════════════════════════════════════════════════════════════════════════════
-#  TOOL 2 — My Service / Maintenance History
-# ════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------------
+#  TOOL 2 - My Service / Maintenance History
+# ----------------------------------------------------------------------------
 
 def get_my_service_history(customer_uid: str, customer_name: str,
                            plate: str | None = None,
@@ -295,14 +295,14 @@ def get_my_service_history(customer_uid: str, customer_name: str,
         seen_doc_ids: set = set()
         all_docs: list    = []
 
-        # ── Step A: ownerId query (post-migration records) ────────────────────
+        # -- Step A: ownerId query (post-migration records) --------------------
         for doc in db.collection("maintenance").where(
                 filter=FieldFilter("ownerId", "==", customer_uid)).stream():
             if doc.id not in seen_doc_ids:
                 seen_doc_ids.add(doc.id)
                 all_docs.append(doc)
 
-        # ── Step B: plate-based fallback (pre-migration records) ─────────────
+        # -- Step B: plate-based fallback (pre-migration records) -------------
         all_plates = _get_customer_plates(db, customer_uid, customer_name, company_name)
         if all_plates:
             for i in range(0, len(all_plates), 10):
@@ -332,7 +332,7 @@ def get_my_service_history(customer_uid: str, customer_name: str,
                 "by_vehicle": {},
             }
 
-        # ── Plate filter (verify ownership) ──────────────────────────────────
+        # -- Plate filter (verify ownership) ----------------------------------
         if plate:
             plate_upper = plate.upper()
             authorized  = {p.upper() for p in all_plates}
@@ -352,7 +352,7 @@ def get_my_service_history(customer_uid: str, customer_name: str,
                     doc.to_dict().get("plate") or "").upper() == plate_upper
             ]
 
-        # ── Build result ──────────────────────────────────────────────────────
+        # -- Build result ------------------------------------------------------
         jobs       = []
         by_vehicle: dict = defaultdict(list)
 
@@ -394,9 +394,9 @@ def get_my_service_history(customer_uid: str, customer_name: str,
                 "status":      d.get("status", ""),
                 "cost":        _fmt_cost(d.get("cost", 0)),
                 "cost_raw":    cost,
-                # Customer-visible services (name only — no internal unit costs)
+                # Customer-visible services (name only - no internal unit costs)
                 "services":    [r.get("name", "") for r in (d.get("svcRows") or [])],
-                # Customer-visible materials (name only — no supplier/purchase info)
+                # Customer-visible materials (name only - no supplier/purchase info)
                 "materials":   [r.get("name", "") for r in (d.get("matRows") or [])],
             }
             jobs.append(job)
@@ -435,9 +435,9 @@ def get_my_service_history(customer_uid: str, customer_name: str,
         return _db_error(e)
 
 
-# ════════════════════════════════════════════════════════════════════════════
-#  TOOL 3 — Maintenance Recommendations / PMS Status
-# ════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------------
+#  TOOL 3 - Maintenance Recommendations / PMS Status
+# ----------------------------------------------------------------------------
 
 def get_service_recommendations(customer_uid: str, customer_name: str, **_) -> dict:
     """
@@ -566,9 +566,9 @@ def get_service_recommendations(customer_uid: str, customer_name: str, **_) -> d
         return _db_error(e)
 
 
-# ════════════════════════════════════════════════════════════════════════════
-#  TOOL 4 — Service Prices (public)
-# ════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------------
+#  TOOL 4 - Service Prices (public)
+# ----------------------------------------------------------------------------
 
 def get_service_prices(customer_uid: str, customer_name: str,
                        service_name: str | None = None, **_) -> dict:
@@ -595,10 +595,41 @@ def get_service_prices(customer_uid: str, customer_name: str,
                 "catalog_size":   0,
             }
 
-        # Filter by keyword using 3-pass matching
+        # Filter by keyword using synonym expansion + 3-pass matching
         if service_name:
             keyword = service_name.lower().strip()
-            words   = [w for w in keyword.split() if len(w) >= 3]
+
+            # Synonym map: common customer terms -> actual catalog keyword
+            SYNONYMS = {
+                "pms":              "oil",
+                "preventive maintenance": "oil",
+                "tune up":          "oil",
+                "tune-up":          "oil",
+                "lube":             "oil",
+                "lubrication":      "oil",
+                "oil service":      "oil",
+                "change oil":       "oil",
+                "oil change":       "oil",
+                "atf":              "atf",
+                "transmission oil": "trans",
+                "gear oil":         "gear oil",
+                "coolant flush":    "coolant",
+                "radiator flush":   "coolant",
+                "brake fluid":      "brake",
+                "brakes":           "brake",
+                "tire rotation":    "tire",
+                "tyre":             "tire",
+                "aircon":           "aircon",
+                "air con":          "aircon",
+                "ac service":       "aircon",
+                "wheel alignment":  "alignment",
+                "balancing":        "balance",
+            }
+            # Expand keyword using synonym map
+            expanded = SYNONYMS.get(keyword, keyword)
+            words = [w for w in expanded.split() if len(w) >= 3]
+            # Also keep original words as fallback
+            orig_words = [w for w in keyword.split() if len(w) >= 3]
 
             def _make_item(item):
                 return {
@@ -609,16 +640,20 @@ def get_service_prices(customer_uid: str, customer_name: str,
                     "cost":  _fmt_cost(item.get("cost", 0)),
                 }
 
-            # Pass 1: substring
+            # Pass 1: substring match on expanded keyword
             services = [_make_item(i) for i in catalog
-                        if keyword in i.get("name", "").lower()]
-            # Pass 2: all words present
+                        if expanded in i.get("name", "").lower()]
+            # Pass 2: all expanded words present
             if not services and words:
                 services = [_make_item(i) for i in catalog
                             if all(w in i.get("name", "").lower() for w in words)]
-            # Pass 3: any significant word
-            if not services and words:
-                for w in words:
+            # Pass 3: original keyword substring
+            if not services:
+                services = [_make_item(i) for i in catalog
+                            if keyword in i.get("name", "").lower()]
+            # Pass 4: original words (any significant word)
+            if not services and orig_words:
+                for w in orig_words:
                     services = [_make_item(i) for i in catalog
                                 if w in i.get("name", "").lower()]
                     if services:
@@ -649,9 +684,9 @@ def get_service_prices(customer_uid: str, customer_name: str,
         return _db_error(e)
 
 
-# ════════════════════════════════════════════════════════════════════════════
-#  TOOL 5 — Customer-Visible Materials
-# ════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------------
+#  TOOL 5 - Customer-Visible Materials
+# ----------------------------------------------------------------------------
 
 def get_customer_materials(customer_uid: str, customer_name: str,
                            material_name: str | None = None, **_) -> dict:
@@ -687,7 +722,7 @@ def get_customer_materials(customer_uid: str, customer_name: str,
                 .stream()
             )
         if not docs:
-            # Full scan fallback — filter in Python
+            # Full scan fallback - filter in Python
             all_docs = list(db.collection("item_master").stream())
             docs = [
                 d for d in all_docs
@@ -743,9 +778,9 @@ def get_customer_materials(customer_uid: str, customer_name: str,
         return _db_error(e)
 
 
-# ════════════════════════════════════════════════════════════════════════════
-#  TOOL 6 — Check Booking Availability
-# ════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------------
+#  TOOL 6 - Check Booking Availability
+# ----------------------------------------------------------------------------
 
 def check_booking_availability(customer_uid: str, customer_name: str,
                                 preferred_date: str,
@@ -837,9 +872,9 @@ def check_booking_availability(customer_uid: str, customer_name: str,
         return _db_error(e)
 
 
-# ════════════════════════════════════════════════════════════════════════════
-#  TOOL 7 — Create Customer Booking
-# ════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------------
+#  TOOL 7 - Create Customer Booking
+# ----------------------------------------------------------------------------
 
 def create_customer_booking(customer_uid: str, customer_name: str,
                             plate: str,
@@ -861,7 +896,7 @@ def create_customer_booking(customer_uid: str, customer_name: str,
     The booking is only created after ALL checks pass. The function returns
     the actual database result — never claims success before it happens.
     """
-    # ── Validate required fields ──────────────────────────────────────────────
+    # -- Validate required fields ----------------------------------------------
     missing = []
     if not plate:
         missing.append("vehicle plate")
@@ -881,7 +916,7 @@ def create_customer_booking(customer_uid: str, customer_name: str,
         db           = get_db()
         company_name = _resolve_company_name(db, customer_uid)
 
-        # ── Check 1: vehicle ownership ────────────────────────────────────────
+        # -- Check 1: vehicle ownership ----------------------------------------
         if not _verify_vehicle_ownership(db, customer_uid, customer_name,
                                          company_name, plate):
             logger.warning(
@@ -896,7 +931,7 @@ def create_customer_booking(customer_uid: str, customer_name: str,
                 ),
             }
 
-        # ── Check 2: services exist in catalog ────────────────────────────────
+        # -- Check 2: services exist in catalog --------------------------------
         catalog = cache_manager.get_service_catalog(db)
         if catalog is None:
             return _quota_error()
@@ -929,7 +964,7 @@ def create_customer_booking(customer_uid: str, customer_name: str,
                 "invalid_services": invalid_services,
             }
 
-        # ── Check 3: validate and parse date ─────────────────────────────────
+        # -- Check 3: validate and parse date ---------------------------------
         try:
             req_date = _parse_date_flexible(preferred_date)
         except ValueError as ve:
@@ -943,7 +978,7 @@ def create_customer_booking(customer_uid: str, customer_name: str,
 
         date_str = req_date.strftime("%Y-%m-%d")
 
-        # ── Check 4: availability ─────────────────────────────────────────────
+        # -- Check 4: availability ---------------------------------------------
         avail = check_booking_availability(
             customer_uid=customer_uid,
             customer_name=customer_name,
@@ -974,7 +1009,7 @@ def create_customer_booking(customer_uid: str, customer_name: str,
                     ),
                 }
 
-        # ── Get vehicle description for the booking record ────────────────────
+        # -- Get vehicle description for the booking record --------------------
         vehicle_desc = ""
         for doc in _iter_customer_vehicles(db, customer_uid, customer_name, company_name):
             d = doc.to_dict()
@@ -982,7 +1017,7 @@ def create_customer_booking(customer_uid: str, customer_name: str,
                 vehicle_desc = _get_desc(d)
                 break
 
-        # ── Create the booking ────────────────────────────────────────────────
+        # -- Create the booking ------------------------------------------------
         booking_data = {
             "customerId":    customer_uid,
             "customerName":  customer_name,
@@ -1051,9 +1086,9 @@ def create_customer_booking(customer_uid: str, customer_name: str,
         }
 
 
-# ════════════════════════════════════════════════════════════════════════════
-#  TOOL 8 — My Bookings
-# ════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------------
+#  TOOL 8 - My Bookings
+# ----------------------------------------------------------------------------
 
 def get_my_bookings(customer_uid: str, customer_name: str,
                     filter_status: str | None = None,
@@ -1120,7 +1155,7 @@ def get_my_bookings(customer_uid: str, customer_name: str,
                 "notes":      d.get("notes", ""),
             })
 
-        # Pass 1: Firebase UID (most reliable — matches after booking created by AI)
+        # Pass 1: Firebase UID (most reliable - matches after booking created by AI)
         for doc in db.collection("service_bookings").where(
                 filter=FieldFilter("customerId", "==", customer_uid)).stream():
             _add(doc)
@@ -1172,9 +1207,9 @@ def get_my_bookings(customer_uid: str, customer_name: str,
         return _db_error(e)
 
 
-# ════════════════════════════════════════════════════════════════════════════
-#  TOOL 9 — Update (Reschedule) My Booking
-# ════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------------
+#  TOOL 9 - Update (Reschedule) My Booking
+# ----------------------------------------------------------------------------
 
 def update_my_booking(customer_uid: str, customer_name: str,
                       booking_id: str,
@@ -1209,7 +1244,7 @@ def update_my_booking(customer_uid: str, customer_name: str,
     try:
         db = get_db()
 
-        # ── Check 1: booking exists ───────────────────────────────────────────
+        # -- Check 1: booking exists -------------------------------------------
         doc_ref = db.collection("service_bookings").document(booking_id)
         doc     = doc_ref.get()
         if not doc.exists:
@@ -1220,7 +1255,7 @@ def update_my_booking(customer_uid: str, customer_name: str,
 
         d = doc.to_dict()
 
-        # ── Check 2: ownership ────────────────────────────────────────────────
+        # -- Check 2: ownership ------------------------------------------------
         booking_owner_id = (d.get("customerId") or "").strip()
         if booking_owner_id != customer_uid:
             logger.warning(
@@ -1229,7 +1264,7 @@ def update_my_booking(customer_uid: str, customer_name: str,
             )
             return _privacy_error()
 
-        # ── Check 3: status allows update ─────────────────────────────────────
+        # -- Check 3: status allows update -------------------------------------
         current_status = (d.get("status") or "").lower()
         if current_status in ("completed", "cancelled", "rejected"):
             return {
@@ -1242,7 +1277,7 @@ def update_my_booking(customer_uid: str, customer_name: str,
 
         updates: dict = {"updatedAt": datetime.utcnow().isoformat()}
 
-        # ── Check 4 & 5: new date/time validation + availability ──────────────
+        # -- Check 4 & 5: new date/time validation + availability --------------
         if new_date:
             try:
                 req_date = _parse_date_flexible(new_date)
@@ -1283,7 +1318,7 @@ def update_my_booking(customer_uid: str, customer_name: str,
                 updates["preferredTime"] = new_time
 
         elif new_time:
-            # Only time is changing — check availability on the existing date
+            # Only time is changing - check availability on the existing date
             existing_date = d.get("preferredDate", "")
             avail = check_booking_availability(
                 customer_uid=customer_uid,
@@ -1304,7 +1339,7 @@ def update_my_booking(customer_uid: str, customer_name: str,
         if new_notes is not None:
             updates["notes"] = new_notes
 
-        # ── Perform the update ────────────────────────────────────────────────
+        # -- Perform the update ------------------------------------------------
         doc_ref.update(updates)
 
         # Read back to confirm
@@ -1342,9 +1377,9 @@ def update_my_booking(customer_uid: str, customer_name: str,
         }
 
 
-# ════════════════════════════════════════════════════════════════════════════
-#  TOOL 10 — Cancel My Booking
-# ════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------------
+#  TOOL 10 - Cancel My Booking
+# ----------------------------------------------------------------------------
 
 def cancel_my_booking(customer_uid: str, customer_name: str,
                       booking_id: str,
@@ -1370,7 +1405,7 @@ def cancel_my_booking(customer_uid: str, customer_name: str,
     try:
         db = get_db()
 
-        # ── Check 1: booking exists ───────────────────────────────────────────
+        # -- Check 1: booking exists -------------------------------------------
         doc_ref = db.collection("service_bookings").document(booking_id)
         doc     = doc_ref.get()
         if not doc.exists:
@@ -1381,7 +1416,7 @@ def cancel_my_booking(customer_uid: str, customer_name: str,
 
         d = doc.to_dict()
 
-        # ── Check 2: ownership ────────────────────────────────────────────────
+        # -- Check 2: ownership ------------------------------------------------
         booking_owner_id = (d.get("customerId") or "").strip()
         if booking_owner_id != customer_uid:
             logger.warning(
@@ -1390,7 +1425,7 @@ def cancel_my_booking(customer_uid: str, customer_name: str,
             )
             return _privacy_error()
 
-        # ── Check 3: status eligible for cancellation ─────────────────────────
+        # -- Check 3: status eligible for cancellation -------------------------
         current_status = (d.get("status") or "").lower()
         if current_status == "cancelled":
             return {
@@ -1407,7 +1442,7 @@ def cancel_my_booking(customer_uid: str, customer_name: str,
                 ),
             }
 
-        # ── Perform cancellation ──────────────────────────────────────────────
+        # -- Perform cancellation ----------------------------------------------
         cancel_data = {
             "status":       "Cancelled",
             "cancelledAt":  datetime.utcnow().isoformat(),
@@ -1459,9 +1494,9 @@ def cancel_my_booking(customer_uid: str, customer_name: str,
         }
 
 
-# ════════════════════════════════════════════════════════════════════════════
-#  TOOL 11 — Estimate Service Cost
-# ════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------------
+#  TOOL 11 - Estimate Service Cost
+# ----------------------------------------------------------------------------
 
 def estimate_service_cost(customer_uid: str, customer_name: str,
                           service_names: list[str] | None = None, **_) -> dict:
@@ -1528,9 +1563,9 @@ def estimate_service_cost(customer_uid: str, customer_name: str,
         return _db_error(e)
 
 
-# ════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------------
 #  Date parsing helper
-# ════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------------
 
 def _parse_date_flexible(date_str: str) -> datetime:
     """
@@ -1544,7 +1579,7 @@ def _parse_date_flexible(date_str: str) -> datetime:
 
     s = date_str.strip()
 
-    # ── Natural language ──────────────────────────────────────────────────────
+    # -- Natural language ------------------------------------------------------
     s_lower = s.lower()
     now = datetime.now()
 
@@ -1561,7 +1596,7 @@ def _parse_date_flexible(date_str: str) -> datetime:
                 return (now + timedelta(days=days_ahead)).replace(
                     hour=0, minute=0, second=0, microsecond=0)
 
-    # ── ISO format: YYYY-MM-DD ────────────────────────────────────────────────
+    # -- ISO format: YYYY-MM-DD ------------------------------------------------
     import re as _re
     m = _re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
     if m:
@@ -1570,7 +1605,7 @@ def _parse_date_flexible(date_str: str) -> datetime:
         except ValueError:
             pass
 
-    # ── MM/DD/YYYY ────────────────────────────────────────────────────────────
+    # -- MM/DD/YYYY ------------------------------------------------------------
     m2 = _re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})", s)
     if m2:
         try:
@@ -1578,7 +1613,7 @@ def _parse_date_flexible(date_str: str) -> datetime:
         except ValueError:
             pass
 
-    # ── Month name formats ────────────────────────────────────────────────────
+    # -- Month name formats ----------------------------------------------------
     MONTHS = ["january","february","march","april","may","june",
               "july","august","september","october","november","december"]
     MONTHS_SHORT = ["jan","feb","mar","apr","may","jun",
@@ -1594,7 +1629,7 @@ def _parse_date_flexible(date_str: str) -> datetime:
             except ValueError:
                 pass
 
-    # Day-of-week (e.g. "Friday") — assume next occurrence
+    # Day-of-week (e.g. "Friday") - assume next occurrence
     day_names = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]
     for i, dn in enumerate(day_names):
         if s_lower == dn:
@@ -1609,11 +1644,11 @@ def _parse_date_flexible(date_str: str) -> datetime:
     )
 
 
-# ════════════════════════════════════════════════════════════════════════════
-#  Tool Schemas — LLM-facing definitions
-#  customer_uid and customer_name are NOT listed as parameters — they are
+# ----------------------------------------------------------------------------
+#  Tool Schemas - LLM-facing definitions
+#  customer_uid and customer_name are NOT listed as parameters - they are
 #  always injected server-side to prevent identity spoofing.
-# ════════════════════════════════════════════════════════════════════════════
+# ----------------------------------------------------------------------------
 
 CUSTOMER_TOOL_SCHEMAS = [
     {

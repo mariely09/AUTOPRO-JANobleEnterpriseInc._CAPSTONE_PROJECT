@@ -22,7 +22,7 @@ Model selection:
 import re
 from config import settings
 
-# ── Intent constants ──────────────────────────────────────────────────────────
+# -- Intent constants ----------------------------------------------------------
 DATABASE_LOOKUP        = "DATABASE_LOOKUP"
 DATABASE_CALCULATION   = "DATABASE_CALCULATION"
 SIMPLE_DB_EXPLANATION  = "SIMPLE_DB_EXPLANATION"
@@ -31,7 +31,7 @@ COMPLEX_ANALYSIS       = "COMPLEX_ANALYSIS"
 REPORT_GENERATION      = "REPORT_GENERATION"
 UNKNOWN                = "UNKNOWN"
 
-# ── Customer-specific intent constants ────────────────────────────────────────
+# -- Customer-specific intent constants ----------------------------------------
 MY_VEHICLES                = "MY_VEHICLES"
 MY_SERVICE_HISTORY         = "MY_SERVICE_HISTORY"
 MY_BOOKINGS                = "MY_BOOKINGS"
@@ -54,9 +54,9 @@ _SECONDARY_INTENTS = {COMPLEX_ANALYSIS}
 _NO_LLM_INTENTS = {DATABASE_LOOKUP, DATABASE_CALCULATION}
 
 
-# ── Compiled patterns ─────────────────────────────────────────────────────────
+# -- Compiled patterns ---------------------------------------------------------
 
-# DATABASE_LOOKUP — common structured-data requests
+# DATABASE_LOOKUP - common structured-data requests
 _DB_LOOKUP = re.compile(
     r"\b("
     r"show(\s+my|\s+all|\s+the)?\s+(vehicles?|fleet|cars?|trucks?|vans?|suvs?|"
@@ -75,7 +75,7 @@ _DB_LOOKUP = re.compile(
     r"pms\s+(status|schedule|due|overdue)|"
     r"(vehicle|car)\s+(status|list|registered|active|inactive)|"
     r"(booking|appointment)\s+(status|list|pending|confirmed|completed)|"
-    # ── Service pricing queries ───────────────────────────────────────────────
+    # -- Service pricing queries -----------------------------------------------
     r"how\s+much\s+(is|for|does|would|are)|"
     r"(price|cost|rate|fee)\s+(of|for)\s+\w|"
     r"(service\s+price[s]?|service\s+rate[s]?|service\s+cost[s]?|pricing)|"
@@ -86,7 +86,7 @@ _DB_LOOKUP = re.compile(
     re.IGNORECASE,
 )
 
-# DATABASE_CALCULATION — "how many / count / total" questions
+# DATABASE_CALCULATION - "how many / count / total" questions
 _DB_CALC = re.compile(
     r"\b(how\s+many|count\s+(of\s+)?|total\s+(number\s+of\s+)?)\s*"
     r"(vehicles?|cars?|bookings?|appointments?|services?|maintenance|jobs?|"
@@ -94,7 +94,7 @@ _DB_CALC = re.compile(
     re.IGNORECASE,
 )
 
-# REPORT_GENERATION — explicit report requests
+# REPORT_GENERATION - explicit report requests
 _REPORT = re.compile(
     r"\b(generate|create|make|build|produce|export|download|get)\s+"
     r"(a\s+|an\s+|the\s+)?"
@@ -106,7 +106,7 @@ _REPORT = re.compile(
     re.IGNORECASE,
 )
 
-# COMPLEX_ANALYSIS — multi-source reasoning, prioritisation
+# COMPLEX_ANALYSIS - multi-source reasoning, prioritisation
 _COMPLEX = re.compile(
     r"\b("
     r"(based\s+on|given|considering|looking\s+at)\s+(my|the|all)?\s*"
@@ -125,7 +125,7 @@ _COMPLEX = re.compile(
     re.IGNORECASE,
 )
 
-# GENERAL_AI_QUESTION — educational / general knowledge
+# GENERAL_AI_QUESTION - educational / general knowledge
 _GENERAL = re.compile(
     r"\b("
     r"what\s+is\s+(preventive|pms|regular|scheduled|routine|major)\s+maintenance|"
@@ -142,9 +142,9 @@ _GENERAL = re.compile(
 )
 
 
-# ── Public classifier ─────────────────────────────────────────────────────────
+# -- Public classifier ---------------------------------------------------------
 
-# ── Customer intent patterns ──────────────────────────────────────────────────
+# -- Customer intent patterns --------------------------------------------------
 
 _CUSTOMER_MY_VEHICLES = re.compile(
     r"\b(my\s+(vehicles?|cars?|fleet|truck|van|suv|motorbike|motorcycle)"
