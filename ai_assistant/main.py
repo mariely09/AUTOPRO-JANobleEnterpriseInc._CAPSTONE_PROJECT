@@ -9,9 +9,15 @@ from schemas import ChatRequest, ChatResponse, CustomerChatRequest, SessionInfoR
 from client import chat as llm_chat, AllKeysRateLimitedError as _AllKeysRateLimitedError, InvalidApiKeyError as _InvalidApiKeyError
 from intent_classifier import classify_and_run
 from model_router import (
-    classify_intent, select_model, needs_llm,
+    classify_intent, classify_customer_intent, select_model, needs_llm,
     DATABASE_LOOKUP, DATABASE_CALCULATION, GENERAL_AI_QUESTION,
     COMPLEX_ANALYSIS, REPORT_GENERATION, UNKNOWN,
+    # Customer intents
+    MY_VEHICLES, MY_SERVICE_HISTORY, MY_BOOKINGS,
+    SERVICE_RECOMMENDATION, SERVICE_PRICES, CUSTOMER_MATERIALS,
+    SERVICE_COST, MAINTENANCE_REMINDER,
+    BOOK_SERVICE, UPDATE_BOOKING, CANCEL_BOOKING,
+    GENERAL_SERVICE_INFORMATION, GENERAL_CUSTOMER_SUPPORT, GENERAL_CONVERSATION,
 )
 from session_store import (
     get_history, append_turn, clear_session, session_info, active_session_count
@@ -26,7 +32,7 @@ app = FastAPI(
     description="AI assistant with server-side conversational memory",
 )
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
+# â”€â”€ CORS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Required so the Flutter web app (running in a browser) can call this API
 # directly. Also covers the Flutter mobile web build and any other web clients.
 app.add_middleware(
@@ -38,13 +44,13 @@ app.add_middleware(
 )
 
 
-# ── Rate-limit helper ─────────────────────────────────────────────────────────
+# â”€â”€ Rate-limit helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _parse_rate_limit_reset(error_message: str) -> str:
     """
     Extract the reset time from a Groq RateLimitError message.
-    e.g. 'Please try again in 15m46.944s' → 'about 15 minutes'
-         'Please try again in 1h30m.'     → 'about 1 hour and 30 minutes'
+    e.g. 'Please try again in 15m46.944s' â†’ 'about 15 minutes'
+         'Please try again in 1h30m.'     â†’ 'about 1 hour and 30 minutes'
     """
     hours   = re.search(r'in\s+(\d+)h', error_message)
     minutes = re.search(r'in\s+(?:\d+h\s*)?(\d+)m', error_message)
@@ -68,7 +74,7 @@ def _rate_limit_reply(error_message: str) -> dict:
     return {
         "rate_limited": True,
         "reply": (
-            f"⚠️ The AI service has reached its daily usage limit (Groq free tier).\n\n"
+            f"âš ï¸ The AI service has reached its daily usage limit (Groq free tier).\n\n"
             f"It will automatically reset in {reset_in}.\n\n"
             f"Please try again later."
         ),
@@ -136,7 +142,7 @@ def _invalid_key_reply() -> dict:
     }
 
 
-# ── Health ────────────────────────────────────────────────────────────────────
+# â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/health")
 def health():
@@ -153,7 +159,7 @@ def health():
     }
 
 
-# ── Usage / quota endpoints ───────────────────────────────────────────────────
+# â”€â”€ Usage / quota endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/usage/customer/{customer_uid}")
 def get_customer_usage(customer_uid: str):
@@ -183,7 +189,7 @@ def invalidate_cache(key: str | None = None):
 @app.get("/debug/item-master")
 def debug_item_master():
     """
-    Diagnostic endpoint — shows what's in the item_master Firestore collection.
+    Diagnostic endpoint â€” shows what's in the item_master Firestore collection.
     Use this when the service catalog appears empty in the AI assistant.
     Returns the first 100 documents with their name, type, group, and cost fields.
     """
@@ -215,7 +221,7 @@ def debug_item_master():
         return {"error": str(exc)}
 
 
-# ── Session management ────────────────────────────────────────────────────────
+# â”€â”€ Session management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.get("/session/{session_id}", response_model=SessionInfoResponse)
 def get_session_info(session_id: str):
@@ -230,7 +236,7 @@ def delete_session(session_id: str):
     return {"success": True, "session_id": session_id, "message": "Session cleared"}
 
 
-# ── Admin chat ────────────────────────────────────────────────────────────────
+# â”€â”€ Admin chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.post("/admin/chat", response_model=ChatResponse)
 def admin_chat(req: ChatRequest):
@@ -242,9 +248,9 @@ def admin_chat(req: ChatRequest):
       2. Check admin daily usage limit (high/unlimited by default).
       3. Classify intent using deterministic rules (zero tokens).
       4. Try the admin fast-path classifier for obvious DB queries.
-         — If matched and intent is DATABASE_LOOKUP/CALCULATION: return the
+         â€” If matched and intent is DATABASE_LOOKUP/CALCULATION: return the
            data directly with a template reply (0 LLM tokens).
-         — If matched but still needs phrasing: call 8B with data already fetched.
+         â€” If matched but still needs phrasing: call 8B with data already fetched.
       5. Otherwise: full LLM tool-calling loop with selected model.
       6. Record token usage against the admin's daily limit.
       7. Append exchange to session store.
@@ -254,7 +260,7 @@ def admin_chat(req: ChatRequest):
     admin_id   = session_id[:20]   # stable identifier for usage tracking
 
     try:
-        # ── Step 2: daily usage check ─────────────────────────────────────────
+        # â”€â”€ Step 2: daily usage check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         limit_check = usage_limiter.check_limit(admin_id, role="admin")
         if not limit_check["allowed"]:
             return ChatResponse(
@@ -267,18 +273,18 @@ def admin_chat(req: ChatRequest):
         server_history    = get_history(session_id)
         effective_history = _merge_history(server_history, req.history)
 
-        # ── Step 3: intent classification (deterministic, 0 tokens) ──────────
+        # â”€â”€ Step 3: intent classification (deterministic, 0 tokens) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         intent      = classify_intent(req.message)
         chosen_model = select_model(intent)
 
-        # ── Step 4: admin fast-path (pre-fetches DB data before any LLM call) ─
+        # â”€â”€ Step 4: admin fast-path (pre-fetches DB data before any LLM call) â”€
         fast_path = classify_and_run(req.message)
 
         if fast_path:
             if intent in (DATABASE_LOOKUP, DATABASE_CALCULATION):
                 reply = _format_admin_db_reply(req.message, fast_path["result"])
                 append_turn(session_id, req.message, reply)
-                # Zero LLM tokens — record request count only
+                # Zero LLM tokens â€” record request count only
                 token_tracker.record(
                     user_id=admin_id,
                     role="admin",
@@ -321,7 +327,7 @@ def admin_chat(req: ChatRequest):
             reply = result["reply"]
             tool_calls_out = result["tool_calls"]
 
-        # ── Record usage against daily limit ──────────────────────────────────
+        # â”€â”€ Record usage against daily limit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         _record_llm_usage_admin(result, admin_id)
 
         append_turn(session_id, req.message, reply)
@@ -382,7 +388,7 @@ def _record_llm_usage_admin(result: dict, admin_id: str) -> None:
 def _format_admin_db_reply(message: str, result: dict) -> str:
     """
     Build a direct template response for admin DATABASE_LOOKUP requests.
-    No LLM involved — zero tokens consumed.
+    No LLM involved â€” zero tokens consumed.
     """
     msg_l = message.lower()
 
@@ -392,7 +398,7 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
         if count == 0:
             return "All items are currently at acceptable stock levels. No items are below the reorder point."
         items = result.get("items", [])[:10]
-        lines = [f"**{it['name']}** — Stock: {it['stock']} {it['uom']} (Reorder: {it['reorder']})"
+        lines = [f"**{it['name']}** â€” Stock: {it['stock']} {it['uom']} (Reorder: {it['reorder']})"
                  for it in items]
         tail = f"\n\n*...and {count - 10} more items.*" if count > 10 else ""
         return f"There are **{count}** item(s) at or below the reorder point:\n\n" + "\n".join(lines) + tail
@@ -423,8 +429,8 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
         breakdown = ", ".join(f"{v} {k}" for k, v in by_status.items()) if by_status else ""
         return (
             f"**Maintenance Summary:** {total} total job(s)"
-            + (f" — {breakdown}" if breakdown else "")
-            + (f"\n\n**Total Cost:** ₱{total_cost:,.2f}" if total_cost else "")
+            + (f" â€” {breakdown}" if breakdown else "")
+            + (f"\n\n**Total Cost:** â‚±{total_cost:,.2f}" if total_cost else "")
         )
 
     # Bookings
@@ -441,7 +447,7 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
     return f"Here is the data retrieved:\n\n```\n{json.dumps(result, indent=2)[:1500]}\n```"
 
 
-# ── Admin report ──────────────────────────────────────────────────────────────
+# â”€â”€ Admin report â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.post("/admin/report")
 async def admin_report(request: Request,
@@ -478,7 +484,7 @@ async def admin_report(request: Request,
             if isinstance(body, dict) and body:
                 filters = body
         except Exception:
-            pass  # no body or not JSON — treat as no filters
+            pass  # no body or not JSON â€” treat as no filters
 
 
         if report_type not in REPORT_CONFIG:
@@ -541,16 +547,10 @@ async def admin_report(request: Request,
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Customer chat ─────────────────────────────────────────────────────────────
-
-# ── Customer system prompt — SLIM base (~600 tokens) ─────────────────────────
-# The full USER MANUAL is stored separately in CUSTOMER_MANUAL_CONTEXT and
-# injected into the system prompt ONLY when the query is about app/website usage.
-# For data queries (vehicles, history, bookings, pricing) it is NOT sent,
-# saving ~900–1,000 input tokens per call.
+# â”€â”€ Customer chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 CUSTOMER_MANUAL_CONTEXT = """
-CALTEX AUTOPRO — USER MANUAL (CUSTOMER SECTIONS)
+CALTEX AUTOPRO â€” USER MANUAL (CUSTOMER SECTIONS)
 
 Caltex AutoPro is an automotive service management system for JA Noble Enterprise INC,
 Caltex San Pedro, Laguna. It has a web app and a mobile app (Android/iOS).
@@ -569,12 +569,12 @@ PMS History Tab (history icon, bottom right): tap a vehicle to see completed ser
 mechanic, materials, cost. Smart AI: robot button at the bottom. Bookings tab: all
 pending/confirmed/completed appointments. Book Service via bottom navigation.
 
-PROFILE: Tap avatar (top right) → view name, email, role. Edit Profile to update name
-or photo. Change Password: enter current + new. Notifications: Profile → Notifications to
+PROFILE: Tap avatar (top right) â†’ view name, email, role. Edit Profile to update name
+or photo. Change Password: enter current + new. Notifications: Profile â†’ Notifications to
 toggle PMS Overdue, Due This Week, Due Soon, Service Updates alerts.
 
 NOTIFICATIONS: Bell icon shows unread count. Tap to view/mark read. Push notifications
-via OneSignal (mobile) — enable in phone settings and app preferences.
+via OneSignal (mobile) â€” enable in phone settings and app preferences.
 
 FAQ:
 - Can't log in? Check email/password or use Forgot Password.
@@ -583,9 +583,11 @@ FAQ:
 - How to check service history? Website: PMS History tab. Mobile: PMS History (bottom right).
 - How to book? Mobile: Book Service in bottom nav. Pick vehicle, services, date, confirm.
 - How to view bookings? Tap Bookings tab / My Bookings.
-- Profile photo? Tap avatar → Profile → tap avatar photo → gallery.
-- What is "Due Soon"? Next scheduled maintenance is approaching — plan a service appointment.
+- Profile photo? Tap avatar â†’ Profile â†’ tap avatar photo â†’ gallery.
+- What is "Due Soon"? Next scheduled maintenance is approaching â€” plan a service appointment.
 - Service Frequency? Number of months between recommended maintenance services.
+- Can I reschedule? Yes â€” ask the AI assistant to reschedule and provide your booking ID, new date, and time.
+- Can I cancel? Yes â€” ask the AI assistant to cancel and provide your booking ID.
 
 Contact & Support: caltexautopro2026@gmail.com
 """
@@ -608,90 +610,114 @@ _MANUAL_KEYWORDS = re.compile(
 def _build_customer_system_prompt(message: str) -> str:
     """
     Build the system prompt for a customer request.
-
-    For DATA queries (vehicles, history, bookings, pricing) — return the slim
-    base prompt only (~600 tokens).
-
-    For HOW-TO / APP-USAGE queries — append the USER MANUAL section (~300 tokens,
-    trimmed from the original ~1,000-token version). This avoids sending ~700–900
-    extra tokens on every single data request.
+    Includes the user manual only for how-to/app-usage queries to save tokens.
     """
-    base = """You are the friendly vehicle assistant for a Caltex AutoPro customer at JA Noble Enterprise Inc., Caltex San Pedro, Laguna.
+    base = """You are the friendly vehicle and service assistant for a Caltex AutoPro customer at JA Noble Enterprise Inc., Caltex San Pedro, Laguna.
 
 Your personality: warm, helpful, and conversational. Keep answers concise but complete. Use a natural, human tone.
 
-STRICT SCOPE RESTRICTION — HIGHEST PRIORITY:
+STRICT SCOPE RESTRICTION â€” HIGHEST PRIORITY:
 You ONLY answer questions about:
 - The customer's own registered vehicles and PMS status
 - Their completed service history and costs
-- Their service bookings and appointments
+- Their service bookings and appointments (including creating, rescheduling, cancelling)
 - Service offerings and pricing from this shop
+- Materials/products offered by the shop (customer-visible info only)
+- Maintenance recommendations based on their actual vehicle data
 - How to use the Caltex AutoPro mobile app or website
 
-If asked ANYTHING outside this scope — sports, news, general knowledge, coding, math, weather, geography, or any non-system topic — respond ONLY:
+If asked ANYTHING outside this scope â€” sports, news, general knowledge, coding, math, weather, geography, or any non-system topic â€” respond ONLY:
 "I can only answer questions related to the Automotive Service and Inventory Management System."
 
-PRIVACY & DATA ACCESS — ABSOLUTE RULES:
+PRIVACY & DATA ACCESS â€” ABSOLUTE RULES:
 1. NEVER show another customer's data. If asked about another person, respond ONLY:
    "I can only show information for your own account."
-2. NEVER show inventory, stock levels, supplier data, issuances, deliveries, or admin data.
+2. NEVER reveal internal inventory data: stock quantities, min/max stock levels, reorder points,
+   supplier names, supplier prices, purchase costs, inventory transactions, DSS recommendations.
    If asked, respond ONLY: "I can only answer questions related to the Automotive Service and Inventory Management System."
 3. NEVER generate PDF or Excel reports. If asked, respond ONLY:
    "I can only answer questions related to the Automotive Service and Inventory Management System."
-4. "all MY vehicles" / "list my vehicles" = customer-scoped → always call get_my_vehicles.
-   Only refuse if the query clearly asks for system-wide data across all customers.
-5. Symbols/garbage-only messages → "I didn't quite catch that. Could you rephrase your question about your vehicles, bookings, or services?"
+4. NEVER reveal admin-only information: issuances, deliveries, staff lists, admin-facing data.
+5. "all MY vehicles" / "list my vehicles" = customer-scoped â†’ always call get_my_vehicles.
+6. Symbols/garbage-only messages â†’ "I didn't quite catch that. Could you rephrase your question about your vehicles, bookings, or services?"
 
-RULES:
-1. Only access data belonging to this customer. Call tools for data — never invent records.
+BOOKING WORKFLOW RULES:
+1. When customer wants to book a service, collect ALL required info BEFORE calling create_customer_booking:
+   - Vehicle plate (must be one of their registered vehicles â€” call get_my_vehicles if unknown)
+   - Service(s) to book (must exist in catalog â€” call get_service_prices if uncertain)
+   - Preferred date
+   - Preferred time
+2. Always call check_booking_availability BEFORE create_customer_booking to verify the slot.
+3. NEVER claim a booking was created until create_customer_booking returns success=True.
+4. If create_customer_booking returns an error, tell the customer the specific reason and offer alternatives.
+5. For reschedule: get the booking_id from get_my_bookings, then call update_my_booking.
+6. For cancellation: get the booking_id from get_my_bookings, then call cancel_my_booking.
+7. NEVER modify or cancel a booking that does not belong to this customer.
+
+MATERIALS (INVENTORY) PRIVACY RULES:
+- get_customer_materials returns ONLY: product name, group, UOM, customer price.
+- NEVER state stock quantities, even if asked ("how many engine oils are in stock?") â†’ refuse.
+- NEVER reveal supplier names ("who supplies your oil?") â†’ refuse.
+- NEVER reveal purchase/supplier prices.
+
+MAINTENANCE RECOMMENDATIONS:
+- Always use get_service_recommendations for maintenance status/reminders.
+- Clearly state that recommendations are based on recorded data, NOT guaranteed requirements.
+- If data is insufficient, say so â€” never invent a maintenance schedule.
+
+GENERAL RULES:
+1. Only access data belonging to this customer. Call tools for data â€” never invent records.
 2. If a tool returns no data, say so warmly.
-3. Never show admin-only data (stock, deliveries, issuances).
-4. For cost estimates, always call estimate_service_cost — do not guess prices.
-5. Use conversation history for follow-up questions.
-6. If history is empty and user asks "what was my previous question?" → respond ONLY:
+3. For cost estimates, always call estimate_service_cost â€” do not guess prices.
+4. Use conversation history for follow-up questions.
+5. If history is empty and user asks "what was my previous question?" â†’ respond ONLY:
    "There's no previous conversation in this session. Feel free to ask me anything about your vehicles, bookings, or services!"
-7. If a user references another person's data (Juan Dela Cruz, another customer, bookings of [name]), respond ONLY:
+6. Reformatting follow-ups ("make it a list", "simplify") â†’ reformat previous answer, NO tool calls.
+7. If a tool returns {"error": "QUOTA_EXCEEDED"}, respond ONLY:
+   "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
+8. If a tool returns {"error": "ACCESS_DENIED"}, respond ONLY:
    "I can only show information for your own account."
-8. Inventory/warehouse/report queries → respond ONLY:
-   "I can only answer questions related to the Automotive Service and Inventory Management System."
-9. Reformatting follow-ups ("make it a list", "simplify") → reformat previous answer, NO tool calls.
-10. If a tool returns {"error": "QUOTA_EXCEEDED"} or any error containing "quota" or "QUOTA_EXCEEDED",
-    respond ONLY: "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
-    Do NOT guess or invent any data values.
 
-SERVICE HISTORY (when get_my_service_history returns data):
+SERVICE HISTORY FORMAT (when get_my_service_history returns data):
 - Open: "Here's your service history! You have [N] completed record[s] with a total spend of [total]."
-- Number each job: **[N]. [Date] — [Plate]** → Services / Materials (omit if empty) / Cost
-- More than 10 jobs → show 10 most recent, note "Showing your 10 most recent records."
-- No jobs → "It looks like you don't have any completed service records on file yet. Once your first service is completed at our shop, it will appear here!"
+- Number each job: **[N]. [Date] â€” [Plate]** â†’ Services / Materials (omit if empty) / Cost
+- More than 10 jobs â†’ show 10 most recent, note "Showing your 10 most recent records."
+- No jobs â†’ "It looks like you don't have any completed service records on file yet. Once your first service is completed at our shop, it will appear here!"
 
-VEHICLES (when get_my_vehicles returns data):
-- "Here are your registered vehicles:" then for each: **[Plate] — [Desc]** → Status / Last Service / Frequency
+VEHICLES FORMAT (when get_my_vehicles returns data):
+- "Here are your registered vehicles:" then for each: **[Plate] â€” [Desc]** â†’ Status / Last Service / Frequency
 - Close with a brief note about any overdue or due-soon vehicles.
 
+BOOKING CONFIRMATION FORMAT:
+- After successful create_customer_booking: confirm Vehicle, Service, Date, Time, Booking ID, Status.
+- Never say "your booking was created" unless the tool returned success=True.
+
 TOOL MAPPING:
-- "my vehicles", "my fleet", "my cars", "fleet summary" → get_my_vehicles
-- "service history", "past services", "spent", "pms history", "maintenance records" → get_my_service_history
-- "PMS", "next service", "overdue", "due soon", "pms status" → get_my_pms_status
-- "my bookings", "my appointments", "upcoming service" → get_my_bookings
-- "how much is", "price of", "cost of", "service prices", "services offered" → get_service_prices
-- "estimate", "how much would X and Y cost" → estimate_service_cost
+- "my vehicles", "my fleet", "my cars" â†’ get_my_vehicles
+- "service history", "past services", "spent", "pms history" â†’ get_my_service_history
+- "what maintenance do I need", "is my car due", "PMS status", "due soon" â†’ get_service_recommendations
+- "my bookings", "my appointments", "upcoming service" â†’ get_my_bookings
+- "how much is", "price of", "services offered", "list services" â†’ get_service_prices
+- "do you sell oil", "what materials", "products available" â†’ get_customer_materials
+- "book a service", "schedule appointment", "I want to book" â†’ booking workflow (collect info â†’ check_booking_availability â†’ create_customer_booking)
+- "reschedule", "move my appointment" â†’ update_my_booking
+- "cancel my booking", "cancel my appointment" â†’ cancel_my_booking
+- "how much would X cost", "estimate cost" â†’ estimate_service_cost
 
 WHEN TOOL RETURNS EMPTY DATA:
-- get_service_prices returns total_services=0 AND catalog_size=0 → say: "Our service pricing catalog hasn't been set up yet. Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."
-- get_service_prices returns total_services=0 AND catalog_size>0 → say: "I couldn't find a service matching '[keyword]' in our catalog. Try asking 'list all services' to see everything we offer."
-- get_my_vehicles returns total_vehicles=0 → say: "You don't have any registered vehicles on file yet."
-- get_my_service_history returns total_jobs=0 → say the standard "no completed service records" message.
-- Any tool returns {"error": "QUOTA_EXCEEDED"} → say: "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
+- get_service_prices returns total_services=0 AND catalog_size=0 â†’ "Our service pricing catalog hasn't been set up yet. Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."
+- get_service_prices returns total_services=0 AND catalog_size>0 â†’ "I couldn't find a service matching '[keyword]' in our catalog. Try asking 'list all services' to see everything we offer."
+- get_my_vehicles returns total_vehicles=0 â†’ "You don't have any registered vehicles on file yet."
+- get_my_service_history returns total_jobs=0 â†’ standard "no completed service records" message.
+- get_my_bookings returns total=0 â†’ "You don't have any service bookings on file."
+- get_customer_materials returns total_materials=0 â†’ "I couldn't find that material/product in our catalog."
+- Any tool returns {"error": "QUOTA_EXCEEDED"} â†’ "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
 """
     if _MANUAL_KEYWORDS.search(message):
         return base + "\n\n" + CUSTOMER_MANUAL_CONTEXT
     return base
 
 
-# Keep the old name so existing code that references CUSTOMER_SYSTEM_PROMPT
-# still works (used in _run_customer_chat to build per-request prompt).
-# _run_customer_chat already calls _build_customer_system_prompt() directly.
 CUSTOMER_SYSTEM_PROMPT = _build_customer_system_prompt("")  # fallback reference only
 
 
@@ -700,15 +726,11 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     """
     Core customer LLM loop.
 
-    Before calling the LLM:
-      1. Check if the intent is DATABASE_LOOKUP / DATABASE_CALCULATION.
-         If so, call the appropriate customer tool directly and return a
-         template response — 0 LLM tokens.
-      2. Otherwise select model (8B default, 70B only for COMPLEX_ANALYSIS)
-         and run the normal tool-calling loop.
+    Tries the direct-DB path first (0 LLM tokens) for recognized intents.
+    Falls back to the full LLM tool-calling loop otherwise.
 
-    Customer identity (customer_uid, customer_name) is always injected
-    server-side.  The LLM cannot override these values.
+    Security: customer_uid and customer_name are ALWAYS injected server-side.
+    The LLM cannot override them through tool arguments.
     """
     import json
     from groq import Groq, BadRequestError, RateLimitError, AuthenticationError
@@ -716,10 +738,9 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     from customer_tools import CUSTOMER_TOOL_SCHEMAS, CUSTOMER_TOOL_FUNCTIONS
     import time as _time
 
-    # ── Step 1: direct DB path for simple lookups (0 LLM tokens) ─────────────
+    # â”€â”€ Step 1: direct DB path for simple lookups (0 LLM tokens) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     direct = _customer_direct_lookup(message, customer_uid, customer_name, intent)
     if direct is not None:
-        # Direct DB path uses 0 LLM tokens — only count as 1 request
         token_tracker.record(
             user_id=customer_uid,
             role="customer",
@@ -731,13 +752,12 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
         usage_limiter.record_usage(customer_uid, "customer", 0, 0)
         return direct
 
-    # ── Step 1b: out-of-scope pre-check (0 LLM tokens) ───────────────────────
-    # Block admin/inventory/report queries and other off-topic messages before
-    # reaching the LLM — this prevents 500 errors from bad Groq calls.
+    # â”€â”€ Step 1b: out-of-scope pre-check (0 LLM tokens) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     _OUT_OF_SCOPE_RE = re.compile(
         r"\b(inventory|stock\s+level|stock\s+status|reorder|issuance|"
         r"supplier|delivery|deliveries|warehouse|purchase\s+order|"
-        r"generate\s+(a\s+)?(report|pdf|excel|summary)|"
+        r"how\s+many.*(in\s+stock|stock\s+level|bottles|pieces|units)"
+        r"|generate\s+(a\s+)?(report|pdf|excel|summary)|"
         r"inventory\s+report|maintenance\s+report|service\s+report|"
         r"all\s+(customers?|users?|accounts?)|"
         r"other\s+customer|another\s+customer|"
@@ -745,7 +765,14 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
         r"calculate|formula|recipe|joke|game|movie|music))\b",
         re.IGNORECASE,
     )
-    if _OUT_OF_SCOPE_RE.search(message):
+    # Special case: stock quantity questions must be blocked even if phrased nicely
+    _STOCK_QTY_RE = re.compile(
+        r"\b(how\s+many\s+(bottles?|liters?|litres?|pieces?|units?|cans?|drums?)"
+        r"|how\s+much\s+.*(in\s+stock|stock|inventory)"
+        r"|current\s+stock|stock\s+quantity|quantity\s+(of|in)|in\s+stock)\b",
+        re.IGNORECASE,
+    )
+    if _OUT_OF_SCOPE_RE.search(message) or _STOCK_QTY_RE.search(message):
         return {
             "reply": "I can only answer questions related to your vehicles, service history, bookings, and service pricing for the Caltex AutoPro system.",
             "tool_calls": [],
@@ -753,20 +780,16 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
             "intent": intent,
         }
 
-    # ── Step 2: select model ──────────────────────────────────────────────────
+    # â”€â”€ Step 2: select model â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     chosen_model = (settings.GROQ_MODEL_SECONDARY
                     if intent == COMPLEX_ANALYSIS
                     else settings.GROQ_MODEL_PRIMARY)
 
     def _call(msgs, tools=None):
-        """Call Groq with the selected model."""
         from client import RateLimitedError as _RLE, InvalidApiKeyError as _IKE
         api_key = settings.GROQ_API_KEY
         if not api_key:
-            raise _IKE(
-                "No Groq API key configured. "
-                "Set GROQ_API_KEY in the Render environment variables."
-            )
+            raise _IKE("No Groq API key configured.")
         try:
             client = Groq(api_key=api_key)
             kwargs: dict = {
@@ -778,23 +801,15 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                 kwargs["tools"] = tools
             return client.chat.completions.create(**kwargs)
         except AuthenticationError as exc:
-            raise _IKE(
-                "The Groq API key is invalid or has been revoked. "
-                "Please update GROQ_API_KEY in the Render environment variables."
-            ) from exc
+            raise _IKE("The Groq API key is invalid or has been revoked.") from exc
         except RateLimitError as exc:
-            raise _RLE(
-                "The AI service has reached its daily usage limit (Groq free tier). "
-                "Please try again later."
-            ) from exc
+            raise _RLE("The AI service has reached its daily usage limit.") from exc
         except Exception as exc:
             _s = str(exc).lower()
             if ("model_not_found" in _s or "does not exist" in _s
                     or "404" in _s or "no access to it" in _s):
                 raise _IKE(
-                    f"The AI model '{chosen_model}' is no longer available on Groq. "
-                    "Please update GROQ_MODEL_PRIMARY in the Render environment "
-                    "variables to a currently supported model."
+                    f"The AI model '{chosen_model}' is no longer available on Groq."
                 ) from exc
             raise
 
@@ -818,17 +833,14 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     final_reply = ""
     t0 = _time.time()
 
-    # Detect pricing queries to nudge the model if it stalls
-    import re as _re
-    _is_pricing_query = bool(_re.search(
-        r"how\s+much\s+is|price\s+of|cost\s+of|how\s+much.*service|"
-        r"service\s+price|pricing|how\s+much\s+does|how\s+much\s+would|"
-        r"estimate.*cost|cost.*estimate",
-        message, _re.IGNORECASE
+    # Nudge model for pricing queries that stall
+    _is_pricing_query = bool(re.search(
+        r"how\s+much\s+(is|for|does|would)|price\s+of|service\s+price|pricing",
+        message, re.IGNORECASE,
     ))
 
     last_response = None
-    for _turn in range(5):
+    for _turn in range(6):
         try:
             response = _call(messages, tools=CUSTOMER_TOOL_SCHEMAS)
             last_response = response
@@ -854,6 +866,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                     "model": chosen_model,
                     "intent": intent,
                 }
+
         msg  = response.choices[0].message
         asst: dict = {"role": "assistant", "content": msg.content or ""}
         if msg.tool_calls:
@@ -884,6 +897,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                 result = {"error": f"Unknown tool '{fn_name}'"}
             else:
                 try:
+                    # Security: ALWAYS remove any uid/name the LLM may have injected
                     fn_args.pop("customer_uid", None)
                     fn_args.pop("customer_name", None)
                     result = fn(
@@ -900,7 +914,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
             max_chars   = settings.GROQ_MAX_TOOL_RESULT_CHARS
             if len(result_json) > max_chars:
                 result_json = result_json[:max_chars] + \
-                    '... [TRUNCATED — summarise from data shown]"}'
+                    '... [TRUNCATED â€” summarise from data shown]"}'
 
             messages.append({
                 "role":         "tool",
@@ -914,66 +928,66 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                                    False, _time.time() - t0)
 
     return {
-        "reply": final_reply,
+        "reply":      final_reply,
         "tool_calls": tool_log,
-        "model": chosen_model,
-        "intent": intent,
+        "model":      chosen_model,
+        "intent":     intent,
     }
 
 
 def _customer_direct_lookup(message: str, customer_uid: str,
                             customer_name: str, intent: str) -> dict | None:
     """
-    Attempt to answer a customer DB query entirely without calling the LLM.
-
-    Returns a dict with reply + tool_calls if a direct answer was built,
-    or None to fall through to the LLM loop.
-
-    Only handles DATABASE_LOOKUP and DATABASE_CALCULATION intents.
+    Answer a customer DB query entirely without calling the LLM (0 tokens).
+    Returns dict with reply + tool_calls if handled, or None to fall through.
     Authorization is enforced by the customer_tools functions.
     """
-    if intent not in (DATABASE_LOOKUP, DATABASE_CALCULATION):
+    # Only handle data-retrieval intents in the direct path
+    _DIRECT_INTENTS = {
+        MY_VEHICLES, MY_SERVICE_HISTORY, MY_BOOKINGS,
+        SERVICE_PRICES, SERVICE_COST, MAINTENANCE_REMINDER,
+        SERVICE_RECOMMENDATION,
+        # Also catch legacy generic intents that map to customer data
+        DATABASE_LOOKUP, DATABASE_CALCULATION,
+    }
+    if intent not in _DIRECT_INTENTS:
         return None
 
     msg_l = message.lower()
     from customer_tools import (
         get_my_vehicles, get_my_service_history,
-        get_my_pms_status, get_my_bookings, get_service_prices,
+        get_service_recommendations, get_my_bookings,
+        get_service_prices,
     )
 
-    # ── My vehicles ───────────────────────────────────────────────────────────
-    if re.search(
+    # â”€â”€ MY_VEHICLES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    if intent == MY_VEHICLES or re.search(
         r"(my\s+(vehicles?|cars?|fleet|truck|van|suv)"
         r"|list\s+(my\s+)?(vehicles?|cars?|fleet)"
         r"|show\s+(my\s+)?(vehicles?|cars?|fleet)"
-        r"|how\s+many\s+(vehicles?|cars?)\s+(do\s+i|i\s+have))",
+        r"|how\s+many\s+(vehicles?|cars?)\s+(do\s+i|i\s+have)"
+        r"|plate\s+number|my\s+plate"
+        r"|registered\s+(vehicles?|cars?)|vehicles?\s+registered\s+to\s+me)",
         msg_l,
     ):
         result = get_my_vehicles(customer_uid=customer_uid, customer_name=customer_name)
         if result.get("error") == "QUOTA_EXCEEDED":
-            return {
-                "reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.",
-                "tool_calls": [{"tool": "get_my_vehicles", "args": {}, "result": result}],
-                "model": "none",
-                "intent": intent,
-            }
+            return {"reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.", "tool_calls": [{"tool": "get_my_vehicles", "args": {}, "result": result}], "model": "none", "intent": intent}
         if result.get("error"):
-            return {
-                "reply": "I'm having trouble retrieving your vehicles right now. Please try again in a moment.",
-                "tool_calls": [{"tool": "get_my_vehicles", "args": {}, "result": result}],
-                "model": "none",
-                "intent": intent,
-            }
+            return {"reply": "I'm having trouble retrieving your vehicles right now. Please try again.", "tool_calls": [{"tool": "get_my_vehicles", "args": {}, "result": result}], "model": "none", "intent": intent}
         total = result.get("total_vehicles", 0)
         if total == 0:
             reply = "You don't have any registered vehicles on file yet."
         else:
             vehicles = result.get("vehicles", [])
-            lines = []
+            lines    = []
             for v in vehicles:
                 status = v.get("status", "Active")
                 last   = v.get("lastSvcDate", "")
-                line   = f"**{v.get('plate','')} — {v.get('desc','')}**\nStatus: {status}"
+                make_model = ""
+                if v.get("make") or v.get("model"):
+                    make_model = f" ({v.get('make','')} {v.get('model','')})".strip()
+                line = f"**{v.get('plate','')} â€” {v.get('desc','')}{make_model}**\nStatus: {status}"
                 if last:
                     line += f" | Last Service: {last}"
                 lines.append(line)
@@ -983,119 +997,90 @@ def _customer_direct_lookup(message: str, customer_uid: str,
             body     = "\n\n".join(lines)
             footer   = ""
             if overdue:
-                footer += f"\n\n⚠️ **{len(overdue)} vehicle(s) overdue** for maintenance."
+                footer += f"\n\nâš ï¸ **{len(overdue)} vehicle(s) overdue** for maintenance."
             if due_soon:
-                footer += f"\n\n🔔 **{len(due_soon)} vehicle(s) due soon** — consider scheduling a service."
+                footer += f"\n\nðŸ”” **{len(due_soon)} vehicle(s) due soon** â€” consider scheduling a service."
             reply = header + body + footer
-        return {
-            "reply": reply,
-            "tool_calls": [{"tool": "get_my_vehicles", "args": {}, "result": result}],
-            "model": "none",
-            "intent": intent,
-        }
+        return {"reply": reply, "tool_calls": [{"tool": "get_my_vehicles", "args": {}, "result": result}], "model": "none", "intent": intent}
 
-    # ── My service history — grouped by vehicle ───────────────────────────────
-    if re.search(
+    # â”€â”€ MY_SERVICE_HISTORY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    if intent == MY_SERVICE_HISTORY or re.search(
         r"\b(my\s+service\s+history|my\s+(pms|maintenance)\s+history"
         r"|past\s+services?|service\s+records?|completed\s+services?"
-        r"|service\s+history\s+per\s+(car|vehicle|plate)"
+        r"|service\s+history\s+per\s+(car|vehicle)"
         r"|show\s+(all\s+)?my\s+service"
         r"|when\s+(was|is)\s+(my\s+)?(last|latest)\s+(service|oil|maintenance|pms))\b",
         msg_l,
     ):
         result = get_my_service_history(customer_uid=customer_uid, customer_name=customer_name)
         if result.get("error") == "QUOTA_EXCEEDED":
-            return {
-                "reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.",
-                "tool_calls": [{"tool": "get_my_service_history", "args": {}, "result": result}],
-                "model": "none",
-                "intent": intent,
-            }
+            return {"reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.", "tool_calls": [{"tool": "get_my_service_history", "args": {}, "result": result}], "model": "none", "intent": intent}
         if result.get("error"):
-            return {
-                "reply": "I'm having trouble retrieving your service history right now. Please try again in a moment.",
-                "tool_calls": [{"tool": "get_my_service_history", "args": {}, "result": result}],
-                "model": "none",
-                "intent": intent,
-            }
+            return {"reply": "I'm having trouble retrieving your service history right now. Please try again.", "tool_calls": [{"tool": "get_my_service_history", "args": {}, "result": result}], "model": "none", "intent": intent}
         total   = result.get("total_jobs", 0)
-        total_c = result.get("total_cost", "₱0.00")
+        total_c = result.get("total_cost", "â‚±0.00")
         if total == 0:
             reply = ("It looks like you don't have any completed service records on file yet. "
                      "Once your first service is completed at our shop, it will appear here!")
         else:
             by_vehicle = result.get("by_vehicle", {})
             if by_vehicle and len(by_vehicle) > 1:
-                # Multiple vehicles — group reply by plate
-                header = (
-                    f"Here's your complete service history across "
-                    f"**{len(by_vehicle)} vehicle(s)** — "
-                    f"**{total}** completed record(s), total spend **{total_c}**.\n\n"
-                )
+                header   = (f"Here's your complete service history across **{len(by_vehicle)} vehicle(s)** â€” "
+                            f"**{total}** completed record(s), total spend **{total_c}**.\n\n")
                 sections = []
                 for plate_key, plate_jobs in by_vehicle.items():
                     plate_total = sum(j.get("cost_raw", 0) for j in plate_jobs)
-                    plate_cost  = f"₱{plate_total:,.2f}" if plate_total else "—"
-                    section = f"**{plate_key}** — {len(plate_jobs)} record(s), subtotal {plate_cost}\n"
-                    job_lines = []
-                    for j in plate_jobs[:10]:  # cap per-vehicle at 10 lines
-                        svcs = ", ".join(j.get("services", [])) or "—"
-                        job_lines.append(
-                            f"  • {j.get('date','')} | {svcs} | {j.get('cost','—')}"
-                        )
+                    plate_cost  = f"â‚±{plate_total:,.2f}" if plate_total else "â€”"
+                    section     = f"**{plate_key}** â€” {len(plate_jobs)} record(s), subtotal {plate_cost}\n"
+                    job_lines   = []
+                    for j in plate_jobs[:10]:
+                        svcs = ", ".join(j.get("services", [])) or "â€”"
+                        job_lines.append(f"  â€¢ {j.get('date','')} | {svcs} | {j.get('cost','â€”')}")
                     section += "\n".join(job_lines)
                     if len(plate_jobs) > 10:
                         section += f"\n  *(+{len(plate_jobs)-10} more records)*"
                     sections.append(section)
                 reply = header + "\n\n".join(sections)
             else:
-                # Single vehicle or flat list — original numbered format
-                jobs  = result.get("jobs", [])
-                shown = jobs[:10]
+                jobs   = result.get("jobs", [])
+                shown  = jobs[:10]
                 header = f"Here's your service history! You have **{total}** completed record(s) with a total spend of **{total_c}**.\n\n"
                 lines  = []
                 for i, j in enumerate(shown, 1):
-                    svcs = ", ".join(j.get("services", [])) or "—"
-                    lines.append(
-                        f"**{i}. {j.get('date','')} — {j.get('plate','')}**\n"
-                        f"Services: {svcs}\nCost: {j.get('cost','—')}"
-                    )
+                    svcs = ", ".join(j.get("services", [])) or "â€”"
+                    mats = ", ".join(j.get("materials", [])) or ""
+                    line = (f"**{i}. {j.get('date','')} â€” {j.get('plate','')}**\n"
+                            f"Services: {svcs}")
+                    if mats:
+                        line += f"\nMaterials: {mats}"
+                    line += f"\nCost: {j.get('cost','â€”')}"
+                    lines.append(line)
                 body  = "\n\n".join(lines)
                 tail  = "\n\n*Showing your 10 most recent records.*" if total > 10 else ""
                 reply = header + body + tail
-        return {
-            "reply": reply,
-            "tool_calls": [{"tool": "get_my_service_history", "args": {}, "result": result}],
-            "model": "none",
-            "intent": intent,
-        }
+        return {"reply": reply, "tool_calls": [{"tool": "get_my_service_history", "args": {}, "result": result}], "model": "none", "intent": intent}
 
-    # ── My bookings ───────────────────────────────────────────────────────────
-    if re.search(
+    # â”€â”€ MY_BOOKINGS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    if intent == MY_BOOKINGS or re.search(
         r"\b(my\s+(bookings?|appointments?)"
         r"|show\s+(my\s+)?(bookings?|appointments?)"
         r"|upcoming\s+(service|appointment|booking)"
         r"|did\s+i\s+(book|schedule))\b",
         msg_l,
     ):
-        result = get_my_bookings(customer_uid=customer_uid, customer_name=customer_name)
+        upcoming = "upcoming" in msg_l or "next" in msg_l
+        result   = get_my_bookings(customer_uid=customer_uid, customer_name=customer_name,
+                                   upcoming_only=upcoming)
         if result.get("error") == "QUOTA_EXCEEDED":
-            return {
-                "reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.",
-                "tool_calls": [{"tool": "get_my_bookings", "args": {}, "result": result}],
-                "model": "none",
-                "intent": intent,
-            }
+            return {"reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.", "tool_calls": [{"tool": "get_my_bookings", "args": {}, "result": result}], "model": "none", "intent": intent}
         if result.get("error"):
-            return {
-                "reply": "I'm having trouble retrieving your bookings right now. Please try again in a moment.",
-                "tool_calls": [{"tool": "get_my_bookings", "args": {}, "result": result}],
-                "model": "none",
-                "intent": intent,
-            }
+            return {"reply": "I'm having trouble retrieving your bookings right now. Please try again.", "tool_calls": [{"tool": "get_my_bookings", "args": {}, "result": result}], "model": "none", "intent": intent}
         total = result.get("total", 0)
         if total == 0:
-            reply = "You don't have any service bookings on file."
+            if upcoming:
+                reply = "You don't have any upcoming service bookings."
+            else:
+                reply = "You don't have any service bookings on file."
         else:
             bookings  = result.get("bookings", [])
             shown     = bookings[:10]
@@ -1105,39 +1090,67 @@ def _customer_direct_lookup(message: str, customer_uid: str,
             if pending or confirmed:
                 header += f" ({pending} pending, {confirmed} confirmed/in-progress)"
             header += ":\n\n"
-            lines  = []
+            lines = []
             for b in shown:
+                bid = b.get("booking_id", "")
+                bid_str = f"\nBooking ID: `{bid}`" if bid else ""
                 lines.append(
-                    f"**{b.get('date','')} {b.get('time','')} — {b.get('plate','')}**\n"
-                    f"Services: {b.get('services','—')} | Status: {b.get('status','—')}"
+                    f"**{b.get('date','')} {b.get('time','')} â€” {b.get('plate','')}**\n"
+                    f"Services: {b.get('services','â€”')} | Status: {b.get('status','â€”')}"
+                    f"{bid_str}"
                 )
             reply = header + "\n\n".join(lines)
-        return {
-            "reply": reply,
-            "tool_calls": [{"tool": "get_my_bookings", "args": {}, "result": result}],
-            "model": "none",
-            "intent": intent,
-        }
+        return {"reply": reply, "tool_calls": [{"tool": "get_my_bookings", "args": {}, "result": result}], "model": "none", "intent": intent}
 
-    # ── Service prices (full pricing lookup — by name or all) ─────────────────
-    if re.search(
-        r"\b(how\s+much\s+(is|for|does|would)|price\s+of|cost\s+of|"
-        r"how\s+much.*service|service\s+price|pricing|"
-        r"how\s+much\s+does|how\s+much\s+would|estimate.*cost|cost.*estimate|"
-        r"how\s+many\s+services?|list\s+(all\s+)?services?|"
-        r"services?\s+(offered|available|you\s+offer)|what\s+services?)\b",
+    # â”€â”€ SERVICE_RECOMMENDATION / MAINTENANCE_REMINDER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    if intent in (SERVICE_RECOMMENDATION, MAINTENANCE_REMINDER) or re.search(
+        r"\b(is\s+my\s+car\s+due|maintenance\s+(due|reminder|schedule|needed)"
+        r"|what\s+maintenance\s+do\s+i\s+need|when\s+should\s+i\s+(get|service)"
+        r"|overdue\s+maintenance|pms\s+(overdue|due|schedule))\b",
         msg_l,
     ):
-        # Try to extract a specific service keyword from the message
+        result = get_service_recommendations(customer_uid=customer_uid, customer_name=customer_name)
+        if result.get("error") == "QUOTA_EXCEEDED":
+            return {"reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.", "tool_calls": [{"tool": "get_service_recommendations", "args": {}, "result": result}], "model": "none", "intent": intent}
+        if result.get("error"):
+            return {"reply": "I'm having trouble retrieving your maintenance information right now. Please try again.", "tool_calls": [{"tool": "get_service_recommendations", "args": {}, "result": result}], "model": "none", "intent": intent}
+        total   = result.get("total_vehicles", 0)
+        if total == 0:
+            reply = "You don't have any registered vehicles on file, so I can't provide maintenance recommendations yet."
+        else:
+            vehicles = result.get("vehicles", [])
+            overdue  = result.get("overdue", 0)
+            due_soon = result.get("due_soon", 0)
+            on_track = result.get("on_track", 0)
+            header   = f"Here are the maintenance recommendations for your **{total}** vehicle(s):\n\n"
+            lines    = []
+            for v in vehicles:
+                lines.append(
+                    f"**{v.get('plate','')} â€” {v.get('desc','')}**\n"
+                    f"{v.get('recommendation','No data available.')}"
+                )
+            disclaimer = f"\n\n*{result.get('disclaimer','')}*" if result.get("disclaimer") else ""
+            book_prompt = ""
+            if overdue > 0 or due_soon > 0:
+                book_prompt = "\n\nðŸ’¡ Would you like to **book a service appointment**? Just say \"I want to book a service\" and I'll help you schedule one."
+            reply = header + "\n\n".join(lines) + disclaimer + book_prompt
+        return {"reply": reply, "tool_calls": [{"tool": "get_service_recommendations", "args": {}, "result": result}], "model": "none", "intent": intent}
+
+    # â”€â”€ SERVICE_PRICES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    if intent == SERVICE_PRICES or re.search(
+        r"\b(how\s+much\s+(is|for|does|would)|price\s+(of|for)|"
+        r"service\s+price[s]?|how\s+many\s+services?|list\s+(all\s+)?services?|"
+        r"services?\s+(offered|available|you\s+offer)|what\s+services?\b)",
+        msg_l,
+    ):
         import re as _re2
-        _svc_kw = None
+        _svc_kw  = None
         _kw_match = _re2.search(
             r"how\s+much\s+(?:is|for|does)?\s+(?:a\s+|an\s+|the\s+)?(.+?)(?:\s+(?:service|cost|price|fee))?\s*\??$",
             msg_l,
         )
         if _kw_match:
             _candidate = _kw_match.group(1).strip()
-            # Only use as keyword if it looks like a service name (not a generic word)
             if len(_candidate) >= 3 and _candidate not in (
                 "service", "services", "price", "prices", "cost", "costs", "it", "that"
             ):
@@ -1149,77 +1162,39 @@ def _customer_direct_lookup(message: str, customer_uid: str,
             service_name=_svc_kw,
         )
         if result.get("error") == "QUOTA_EXCEEDED":
-            return {
-                "reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.",
-                "tool_calls": [{"tool": "get_service_prices", "args": {}, "result": result}],
-                "model": "none",
-                "intent": intent,
-            }
+            return {"reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.", "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
         if result.get("error"):
-            return {
-                "reply": (
-                    "I wasn't able to retrieve service pricing right now. "
-                    "Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."
-                ),
-                "tool_calls": [{"tool": "get_service_prices", "args": {}, "result": result}],
-                "model": "none",
-                "intent": intent,
-            }
-        services = result.get("services", [])
-        total    = result.get("total_services", 0)
-        catalog_size = result.get("catalog_size", -1)   # -1 means field absent (old cached)
-
+            return {"reply": "I wasn't able to retrieve service pricing right now. Please contact us at caltexautopro2026@gmail.com or visit the shop.", "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
+        services     = result.get("services", [])
+        total        = result.get("total_services", 0)
+        catalog_size = result.get("catalog_size", -1)
         if total == 0:
             if catalog_size == 0:
-                # The whole item_master catalog is empty — data not yet seeded
-                reply = (
-                    "Our service pricing catalog hasn't been set up yet. "
-                    "Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."
-                )
+                reply = "Our service pricing catalog hasn't been set up yet. Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."
             elif _svc_kw:
-                # We have a catalog but this specific service wasn't found —
-                # show a helpful "closest matches" or suggest listing all
-                reply = (
-                    f"I couldn't find a service matching **\"{_svc_kw}\"** in our catalog. "
-                    f"Try asking *\"list all services\"* to see everything we offer, "
-                    f"or contact us at caltexautopro2026@gmail.com for details."
-                )
+                reply = (f"I couldn't find a service matching **\"{_svc_kw}\"** in our catalog. "
+                         f"Try asking *\"list all services\"* to see everything we offer, "
+                         f"or contact us at caltexautopro2026@gmail.com for details.")
             else:
-                reply = (
-                    "I wasn't able to find pricing information in our system at the moment. "
-                    "Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."
-                )
+                reply = "I wasn't able to find pricing information in our system. Please contact us at caltexautopro2026@gmail.com."
         elif _svc_kw and len(services) <= 5:
-            # Specific service lookup — show inline results
             lines = [f"- **{s['name']}**: {s['cost']}" for s in services]
-            reply = (
-                f"Here's the pricing for services matching **\"{_svc_kw}\"**:\n\n"
-                + "\n".join(lines)
-            )
+            reply = f"Here's the pricing for services matching **\"{_svc_kw}\"**:\n\n" + "\n".join(lines)
         else:
-            # Full catalog or many results
             shown = services[:20]
             lines = [f"- **{s['name']}**: {s['cost']}" for s in shown]
             tail  = f"\n\n*Showing {len(shown)} of {total} services.*" if total > 20 else ""
-            reply = (
-                f"Here are our available services and prices ({total} total):\n\n"
-                + "\n".join(lines) + tail
-            )
-        return {
-            "reply": reply,
-            "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}],
-            "model": "none",
-            "intent": intent,
-        }
+            reply = (f"Here are our available services and prices ({total} total):\n\n"
+                     + "\n".join(lines) + tail)
+        return {"reply": reply, "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
 
-    # No direct match — fall through to LLM
+    # No direct match â€” fall through to LLM
     return None
 
 
 def _record_customer_usage(response, model: str, intent: str,
                            customer_uid: str, success: bool,
                            elapsed_s: float) -> None:
-    """Extract token counts from a Groq response and record them."""
     try:
         usage = getattr(response, "usage", None)
         if usage:
@@ -1235,7 +1210,6 @@ def _record_customer_usage(response, model: str, intent: str,
                 response_ms=elapsed_s * 1000,
                 success=success,
             )
-            # Also update the per-user daily usage limiter
             usage_limiter.record_usage(customer_uid, "customer", input_t, output_t)
     except Exception:
         pass
@@ -1244,18 +1218,22 @@ def _record_customer_usage(response, model: str, intent: str,
 @app.post("/customer/chat", response_model=ChatResponse)
 def customer_chat_endpoint(req: CustomerChatRequest):
     """
-    Customer AI chat with server-side conversational memory.
-    Scoped strictly to the logged-in customer's own data.
+    Customer AI chat â€” scoped strictly to the logged-in customer's own data.
 
     Flow:
-      1. Validate customer_uid and customer_name.
-      2. Check customer daily usage limit — block if exceeded.
-      3. Classify intent using deterministic rules (0 tokens).
-      4. Try direct DB path for DATABASE_LOOKUP/CALCULATION (0 LLM tokens).
-      5. If LLM needed: select model (8B default, 70B for COMPLEX_ANALYSIS).
-      6. Run tool-calling loop.
-      7. Record token usage against the daily limit.
+      1. Validate customer_uid and customer_name (required â€” auth enforcement).
+      2. Check customer daily usage limit.
+      3. Classify intent using customer-specific deterministic rules (0 tokens).
+      4. Try direct DB path for data retrieval intents (0 LLM tokens).
+      5. Out-of-scope pre-check (blocks inventory/report/off-topic before LLM).
+      6. Full LLM tool-calling loop if needed (customer_tools only, UID injected).
+      7. Record token usage.
       8. Return reply + session_id.
+
+    Security:
+      - customer_uid is NEVER taken from the LLM or message content.
+      - Every tool independently enforces the customer_uid filter.
+      - Cross-customer data access is impossible via tool arguments.
     """
     if not req.customer_uid or not req.customer_name:
         raise HTTPException(
@@ -1273,8 +1251,7 @@ def customer_chat_endpoint(req: CustomerChatRequest):
     import unicodedata as _ucd
     _stripped = req.message.strip()
     _meaningful_chars = sum(
-        1 for c in _stripped
-        if _ucd.category(c).startswith(('L', 'N'))
+        1 for c in _stripped if _ucd.category(c).startswith(('L', 'N'))
     )
     if len(_stripped) > 0 and _meaningful_chars == 0:
         session_id = req.session_id or f"customer-{req.customer_uid}"
@@ -1286,7 +1263,7 @@ def customer_chat_endpoint(req: CustomerChatRequest):
     session_id = req.session_id or f"customer-{req.customer_uid}"
 
     try:
-        # ── Step 2: daily usage limit check (before any DB or LLM call) ──────
+        # â”€â”€ Step 2: daily usage limit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         limit_check = usage_limiter.check_limit(req.customer_uid, role="customer")
         if not limit_check["allowed"]:
             token_tracker.record(
@@ -1304,8 +1281,8 @@ def customer_chat_endpoint(req: CustomerChatRequest):
         server_history    = get_history(session_id)
         effective_history = _merge_history(server_history, req.history)
 
-        # Classify intent (deterministic, 0 tokens)
-        intent = classify_intent(req.message)
+        # â”€â”€ Step 3: customer intent classification (deterministic, 0 tokens) â”€â”€
+        intent = classify_customer_intent(req.message)
 
         result = _run_customer_chat(
             message=req.message,
@@ -1352,7 +1329,8 @@ def customer_chat_endpoint(req: CustomerChatRequest):
         )
 
 
-# ── Shared helpers ────────────────────────────────────────────────────────────
+# â”€â”€ Shared helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 def _merge_history(server: list[dict], client: list[dict] | None) -> list[dict]:
     """
@@ -1360,12 +1338,11 @@ def _merge_history(server: list[dict], client: list[dict] | None) -> list[dict]:
 
     Strategy:
     - Server history is the authoritative long-term memory.
-    - If the client sends history too, we use whichever is longer, preferring
+    - If the client sends history too, use whichever is longer, preferring
       server history on tie.
     - Strips any messages missing a 'role' key (Groq rejects them).
     - Caps at GROQ_MAX_HISTORY_MSGS (default 6) to keep context windows and
-      token consumption manageable. 6 messages = 3 turns — enough for
-      follow-up questions while saving tokens vs larger caps.
+      token consumption manageable.
     """
     clean_server = [m for m in server if isinstance(m, dict) and "role" in m]
     clean_client = [m for m in (client or []) if isinstance(m, dict) and "role" in m]
@@ -1374,4 +1351,3 @@ def _merge_history(server: list[dict], client: list[dict] | None) -> list[dict]:
 
     limit = _settings.GROQ_MAX_HISTORY_MSGS
     return base[-limit:] if len(base) > limit else base
-

@@ -85,13 +85,13 @@ class _AiStatusFabState extends State<_AiStatusFab>
   @override
   Widget build(BuildContext context) {
     final statusColor = _online
-        ? const Color(0xFF4ade80)
+        ? const Color(0xFF22c55e)
         : const Color(0xFFF97316);
 
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, _) {
-        // Compute phase for the second (offset) ring — matches admin AppBar
+        // Phase offset for second ring — staggered for smooth multi-ring look
         final phase = (_ctrl.value + 0.45) % 1.0;
 
         return SizedBox(
@@ -101,16 +101,23 @@ class _AiStatusFabState extends State<_AiStatusFab>
             alignment: Alignment.center,
             clipBehavior: Clip.none,
             children: [
-              // Outer pulse ring — expands & fades out
+              // White backdrop so rings always render on white, not the dashboard gradient
+              Container(
+                width: 96,
+                height: 96,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                ),
+              ),
+              // Outer pulse ring — expands & fades out (outlined style)
               Container(
                 width: 58 + (_ctrl.value * 28),
                 height: 58 + (_ctrl.value * 28),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: statusColor.withOpacity(
-                      (1 - _ctrl.value) * 0.55,
-                    ),
+                    color: statusColor.withOpacity((1 - _ctrl.value) * 0.55),
                     width: 2,
                   ),
                 ),
@@ -122,14 +129,12 @@ class _AiStatusFabState extends State<_AiStatusFab>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: statusColor.withOpacity(
-                      (1 - phase) * 0.55,
-                    ),
+                    color: statusColor.withOpacity((1 - phase) * 0.55),
                     width: 1.5,
                   ),
                 ),
               ),
-              // Main button — white circle with status-colour border
+              // Button
               GestureDetector(
                 onTap: widget.onTap,
                 onLongPressStart: (_) => widget.onDragStart?.call(),
@@ -146,18 +151,15 @@ class _AiStatusFabState extends State<_AiStatusFab>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white,
-                      border: Border.all(
-                        color: statusColor,
-                        width: 2.5,
-                      ),
+                      border: Border.all(color: statusColor, width: 3),
                       boxShadow: [
                         BoxShadow(
-                          color: statusColor.withOpacity(0.45),
+                          color: statusColor.withOpacity(0.35),
                           blurRadius: 10,
                           spreadRadius: 1,
                         ),
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.10),
+                          color: Colors.black.withOpacity(0.15),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
@@ -187,10 +189,7 @@ class _AiStatusFabState extends State<_AiStatusFab>
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: statusColor,
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 2,
-                              ),
+                              border: Border.all(color: Colors.white, width: 2),
                               boxShadow: [
                                 BoxShadow(
                                   color: statusColor.withOpacity(0.8),

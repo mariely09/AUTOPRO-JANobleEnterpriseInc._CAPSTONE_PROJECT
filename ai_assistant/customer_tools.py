@@ -1,48 +1,42 @@
 """
 Customer AI tools — strictly scoped to the logged-in customer's own data.
 
+SECURITY MODEL
+==============
+customer_uid is ALWAYS injected server-side from the authenticated Firebase
+session. The LLM cannot override it through function arguments. Every tool
+that touches customer-specific data uses customer_uid as the primary filter.
+
 VEHICLE OWNERSHIP MODEL
 =======================
 Vehicles are linked to customers via TWO complementary fields:
 
-  ownerId  — Firebase Auth UID written on new vehicles (authoritative,
-             added via migration script for legacy docs).
+  ownerId  — Firebase Auth UID written on new vehicles (authoritative).
   owner    — Human-readable name / company name typed by admin at creation.
 
-RETRIEVAL STRATEGY (applied to get_my_vehicles, get_my_pms_status,
-                    and _get_customer_plates for service history)
-===================================================================
+RETRIEVAL STRATEGY (4-pass lookup)
+====================================
 Pass 0 — Firestore query:  ownerId == customer_uid      (UID, most reliable)
 Pass 1 — Firestore query:  owner   == customer_name     (exact name)
 Pass 2 — Firestore query:  owner   == companyName       (company, if different)
-Pass 3 — Case-insensitive full scan of all remaining docs  (catches typos /
-                                                             casing mismatches
-                                                             from manual input)
-All passes deduplicate by document ID.
+Pass 3 — Case-insensitive full scan  (catches typos / casing mismatches)
 
-PLATE NORMALISATION
-===================
-Vehicle documents may store the plate as:
-  • plate       (Flutter admin, web staff)
-  • plateNumber (web admin script.js)
-Both are read — whichever is non-empty is used.
+BOOKING WORKFLOW
+================
+1. check_booking_availability() — verify slot is free before committing
+2. create_customer_booking()    — creates the booking only after all checks pass
+3. update_my_booking()          — reschedule; verifies ownership + availability
+4. cancel_my_booking()          — cancel; verifies ownership + eligible status
 
-SERVICE HISTORY STRATEGY
-========================
-Step 1 — Collect every plate belonging to this customer (4-pass above).
-Step 2 — Query maintenance WHERE plate IN [plates]  (chunked ≤10, Firestore limit).
-Step 3 — Keep only status == "Completed".
-Step 4 — Group by plate so the reply shows history per vehicle.
-
-SECURITY
-========
-customer_uid and customer_name are injected server-side from the authenticated
-Firebase session. The LLM cannot override them through function arguments.
-No data from other customers is ever returned.
+MATERIALS (CUSTOMER-VISIBLE)
+=============================
+get_customer_materials() returns customer-facing product info ONLY.
+It NEVER exposes: stock quantity, min/max/reorder levels, supplier info,
+purchase cost, inventory transactions, or DSS recommendations.
 """
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 from firestore_client import get_db
 from google.cloud.firestore_v1.base_query import FieldFilter
@@ -81,7 +75,7 @@ def _privacy_error() -> dict:
     }
 
 def _db_error(exc: Exception) -> dict:
-    return {"error": "DB_ERROR", "message": str(exc)}
+    return {"error": "DB_ERROR", "message": "A database error occurred. Please try again."}
 
 
 # ── Currency helpers ──────────────────────────────────────────────────────────
@@ -105,19 +99,15 @@ def _fmt_cost(value) -> str:
 # ── Field normalisation ───────────────────────────────────────────────────────
 
 def _get_plate(d: dict) -> str:
-    """Return the plate number — canonical plateNumber first, then legacy plate."""
     return (d.get("plateNumber") or d.get("plate") or "").strip()
 
 def _get_desc(d: dict) -> str:
-    """Return the vehicle description — canonical description first, then legacy fields."""
     return (d.get("description") or d.get("desc") or d.get("assetDescription") or "").strip()
 
 def _get_last_svc_date(d: dict) -> str:
-    """Return the last service date — canonical lastServiceDate first, then legacy."""
     return (d.get("lastServiceDate") or d.get("lastSvcDate") or "").strip()
 
 def _get_svc_freq(d: dict) -> str:
-    """Return the service frequency — canonical serviceFrequency first, then legacy svcFreq."""
     val = d.get("serviceFrequency") or d.get("svcFreq")
     return str(val).strip() if val is not None else ""
 
@@ -125,32 +115,21 @@ def _get_svc_freq(d: dict) -> str:
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
 def _resolve_company_name(db, customer_uid: str) -> str:
-    """
-    Look up the customer's companyName from their users document.
-    Result is cached for 5 minutes to avoid repeated single-doc reads.
-    """
     return cache_manager.get_company_name(db, customer_uid)
 
 
 def _iter_customer_vehicles(db, customer_uid: str,
                              customer_name: str, company_name: str):
     """
-    Yield every Firestore vehicle document that belongs to this customer.
-
-    Pass 0 — ownerId == customer_uid        (Firebase UID, authoritative)
-    Pass 1 — owner   == customer_name       (exact string match)
-    Pass 2 — owner   == company_name        (exact, only when company differs)
-    Pass 3 — case-insensitive full scan     (always runs; catches casing /
-                                             abbreviation mismatches left by
-                                             manual admin data entry)
-
-    Documents already yielded are tracked by doc ID so there are no duplicates.
+    Yield every Firestore vehicle document belonging to this customer.
+    4-pass: UID → exact name → company name → case-insensitive scan.
+    Deduplicates by document ID.
     """
-    seen: set         = set()
-    name_lower        = customer_name.lower().strip()
-    company_lower     = company_name.lower().strip() if company_name else ""
+    seen: set     = set()
+    name_lower    = customer_name.lower().strip()
+    company_lower = company_name.lower().strip() if company_name else ""
 
-    # Pass 0: UID-based — most reliable, uses ownerId field
+    # Pass 0: UID-based
     for doc in db.collection("vehicles").where(
             filter=FieldFilter("ownerId", "==", customer_uid)).stream():
         if doc.id not in seen:
@@ -164,7 +143,7 @@ def _iter_customer_vehicles(db, customer_uid: str,
             seen.add(doc.id)
             yield doc
 
-    # Pass 2: company name (when different from personal name)
+    # Pass 2: company name
     if company_name and company_lower != name_lower:
         for doc in db.collection("vehicles").where(
                 filter=FieldFilter("owner", "==", company_name)).stream():
@@ -172,7 +151,7 @@ def _iter_customer_vehicles(db, customer_uid: str,
                 seen.add(doc.id)
                 yield doc
 
-    # Pass 3: case-insensitive full scan — catches ANY remaining mismatch
+    # Pass 3: case-insensitive full scan
     for doc in db.collection("vehicles").stream():
         if doc.id in seen:
             continue
@@ -185,35 +164,46 @@ def _iter_customer_vehicles(db, customer_uid: str,
 
 def _get_customer_plates(db, customer_uid: str,
                           customer_name: str, company_name: str) -> list:
-    """
-    Return ALL plate numbers for vehicles owned by this customer.
-
-    Reads both 'plate' and 'plateNumber' fields so vehicles created by
-    different parts of the app (Flutter admin uses 'plate', web admin uses
-    'plateNumber') are all captured.
-    """
     plates = []
     for doc in _iter_customer_vehicles(db, customer_uid, customer_name, company_name):
         p = _get_plate(doc.to_dict())
         if p and p not in plates:
             plates.append(p)
-
     logger.info(
-        "_get_customer_plates: uid=%s owner=%r company=%r → %d plate(s): %s",
-        customer_uid, customer_name, company_name, len(plates), plates,
+        "_get_customer_plates: uid=%s → %d plate(s): %s",
+        customer_uid, len(plates), plates,
     )
     return plates
 
 
-# ── Customer tools ────────────────────────────────────────────────────────────
+def _verify_vehicle_ownership(db, customer_uid: str, customer_name: str,
+                               company_name: str, plate: str) -> bool:
+    """Return True if the given plate belongs to this customer."""
+    owned = _get_customer_plates(db, customer_uid, customer_name, company_name)
+    return plate.upper() in {p.upper() for p in owned}
+
+
+def _verify_booking_ownership(db, customer_uid: str, booking_id: str) -> bool:
+    """Return True if the booking belongs to this customer (by UID)."""
+    try:
+        doc = db.collection("service_bookings").document(booking_id).get()
+        if not doc.exists:
+            return False
+        d = doc.to_dict()
+        return (d.get("customerId") or "").strip() == customer_uid
+    except Exception:
+        return False
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  TOOL 1 — My Vehicles
+# ════════════════════════════════════════════════════════════════════════════
 
 def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
     """
-    Return ALL vehicles belonging to this customer with their PMS status.
-
-    Uses 4-pass lookup (UID → exact name → company name → case-insensitive
-    scan) so every vehicle is found regardless of how the owner field was
-    entered by the admin.
+    Return ALL vehicles belonging to this customer.
+    Uses 4-pass lookup so every vehicle is found regardless of how the
+    owner field was entered by the admin.
     """
     if not customer_uid and not customer_name:
         return _privacy_error()
@@ -228,18 +218,23 @@ def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
         for doc in _iter_customer_vehicles(db, customer_uid, customer_name, company_name):
             d = doc.to_dict()
             vehicles.append({
+                "vehicleId":   doc.id,
                 "plate":       _get_plate(d),
+                "make":        d.get("make", ""),
+                "model":       d.get("model", ""),
+                "year":        d.get("year", ""),
                 "desc":        _get_desc(d),
                 "type":        d.get("type", ""),
                 "status":      d.get("status", "Active"),
                 "lastSvcDate": _get_last_svc_date(d),
                 "svcFreq":     _get_svc_freq(d),
                 "odo":         (d.get("odo") or d.get("odometer") or ""),
+                "color":       d.get("color", ""),
             })
 
         logger.info(
-            "get_my_vehicles: found %d vehicle(s) for uid=%s name=%r",
-            len(vehicles), customer_uid, customer_name,
+            "get_my_vehicles: found %d vehicle(s) for uid=%s",
+            len(vehicles), customer_uid,
         )
 
         from collections import Counter
@@ -258,85 +253,89 @@ def get_my_vehicles(customer_uid: str, customer_name: str, **_) -> dict:
         return _db_error(e)
 
 
+# ════════════════════════════════════════════════════════════════════════════
+#  TOOL 2 — My Service / Maintenance History
+# ════════════════════════════════════════════════════════════════════════════
+
 def get_my_service_history(customer_uid: str, customer_name: str,
-                           plate: str | None = None, **_) -> dict:
+                           plate: str | None = None,
+                           service_type: str | None = None,
+                           year: int | None = None,
+                           recent: int | None = None,
+                           **_) -> dict:
     """
     Return ALL completed maintenance records for this customer's vehicles,
-    grouped by vehicle/plate.
+    grouped by vehicle.
 
-    Flow (after migration):
-      Step A — PRIMARY (fast, O(1) query):
-               Query maintenance WHERE ownerId == customer_uid.
-               This is the canonical path after migration.
-      Step B — FALLBACK (for pre-migration records):
-               Resolve all vehicle plates via 4-pass vehicle lookup,
-               then query maintenance WHERE plate IN [plates].
-               Deduplicates results so the same record is never shown twice.
+    Flow:
+      Step A — PRIMARY: Query maintenance WHERE ownerId == customer_uid.
+      Step B — FALLBACK: Resolve all vehicle plates (4-pass), then query
+               maintenance WHERE plate IN [plates]. Deduplicates with Step A.
 
-    Security: ownerId is injected server-side from the authenticated session.
-    The LLM cannot override it.  Records are filtered to only include
-    maintenance.ownerId == customer_uid OR records for plates that belong to
-    this customer's vehicles (verified via vehicle.ownerId).
+    Security: ownerId is injected server-side; records from other customers
+    are filtered out even when matched by plate.
+
+    Optional filters:
+      plate        — narrow to one vehicle (must belong to this customer)
+      service_type — keyword filter on service name (e.g. "oil change")
+      year         — filter by calendar year of service date
+      recent       — return only the N most recent records
     """
     if not customer_uid and not customer_name:
         return _privacy_error()
 
-    logger.info("get_my_service_history: uid=%s name=%r plate=%r",
-                customer_uid, customer_name, plate)
+    logger.info(
+        "get_my_service_history: uid=%s name=%r plate=%r svc=%r year=%r recent=%r",
+        customer_uid, customer_name, plate, service_type, year, recent,
+    )
 
     try:
         db           = get_db()
         company_name = _resolve_company_name(db, customer_uid)
-
         seen_doc_ids: set = set()
         all_docs: list    = []
 
-        # ── Step A: primary path — query by ownerId (post-migration records) ─
+        # ── Step A: ownerId query (post-migration records) ────────────────────
         for doc in db.collection("maintenance").where(
                 filter=FieldFilter("ownerId", "==", customer_uid)).stream():
             if doc.id not in seen_doc_ids:
                 seen_doc_ids.add(doc.id)
                 all_docs.append(doc)
 
-        # ── Step B: fallback — plate-based lookup (pre-migration records) ────
+        # ── Step B: plate-based fallback (pre-migration records) ─────────────
         all_plates = _get_customer_plates(db, customer_uid, customer_name, company_name)
         if all_plates:
             for i in range(0, len(all_plates), 10):
                 chunk = all_plates[i:i + 10]
-                # Query both plateNumber (canonical) and plate (legacy)
                 for field in ("plateNumber", "plate"):
                     for doc in db.collection("maintenance").where(
                             filter=FieldFilter(field, "in", chunk)).stream():
                         if doc.id not in seen_doc_ids:
-                            # Security: only include if the record's ownerId
-                            # matches this customer OR has no ownerId yet
                             d = doc.to_dict()
                             record_oid = (d.get("ownerId") or "").strip()
+                            # Security: reject records explicitly owned by someone else
                             if record_oid and record_oid != customer_uid:
-                                continue  # belongs to a different customer
+                                continue
                             seen_doc_ids.add(doc.id)
                             all_docs.append(doc)
-        else:
-            if not all_docs:
-                logger.warning(
-                    "get_my_service_history: zero vehicles AND zero ownerId "
-                    "maintenance records for uid=%s name=%r",
-                    customer_uid, customer_name,
-                )
-                return {
-                    "owner":      customer_name,
-                    "plate":      plate or "all vehicles",
-                    "total_jobs": 0,
-                    "total_cost": "₱0.00",
-                    "jobs":       [],
-                    "by_vehicle": {},
-                }
+        elif not all_docs:
+            logger.warning(
+                "get_my_service_history: zero vehicles and zero ownerId records "
+                "for uid=%s name=%r", customer_uid, customer_name,
+            )
+            return {
+                "owner":      customer_name,
+                "plate":      plate or "all vehicles",
+                "total_jobs": 0,
+                "total_cost": "₱0.00",
+                "jobs":       [],
+                "by_vehicle": {},
+            }
 
-        # Narrow to a specific plate when the customer asks for one vehicle
+        # ── Plate filter (verify ownership) ──────────────────────────────────
         if plate:
             plate_upper = plate.upper()
-            # Verify this plate belongs to this customer
-            authorized = {p.upper() for p in all_plates}
+            authorized  = {p.upper() for p in all_plates}
             if plate_upper not in authorized:
                 return {
                     "owner":      customer_name,
@@ -362,35 +361,61 @@ def get_my_service_history(customer_uid: str, customer_name: str,
             if (d.get("status") or "").strip().lower() != "completed":
                 continue
 
+            # Service type keyword filter
+            if service_type:
+                kw    = service_type.lower()
+                svc_names = " ".join(
+                    r.get("name", "").lower()
+                    for r in (d.get("svcRows") or [])
+                )
+                desc_text = _get_desc(d).lower()
+                if kw not in svc_names and kw not in desc_text:
+                    continue
+
             cost      = _strip_currency(d.get("cost", 0))
-            # Use canonical plateNumber first, fall back to legacy plate
             job_plate = (d.get("plateNumber") or d.get("plate") or "").strip()
+            job_date  = d.get("date", "")
+
+            # Year filter
+            if year:
+                try:
+                    job_year = int(job_date[:4]) if job_date else 0
+                    if job_year != year:
+                        continue
+                except (ValueError, IndexError):
+                    continue
+
             job = {
-                "id":        d.get("id", doc.id),
-                "plate":     job_plate,
-                "desc":      _get_desc(d),
-                "date":      d.get("date", ""),
-                "mechanic":  d.get("mechanic", ""),
-                "status":    d.get("status", ""),
-                "cost":      _fmt_cost(d.get("cost", 0)),
-                "cost_raw":  cost,
-                "services":  [r.get("name", "") for r in (d.get("svcRows") or [])],
-                "materials": [r.get("name", "") for r in (d.get("matRows") or [])],
+                "id":          d.get("id", doc.id),
+                "plate":       job_plate,
+                "desc":        _get_desc(d),
+                "date":        job_date,
+                "mechanic":    d.get("mechanic", ""),
+                "status":      d.get("status", ""),
+                "cost":        _fmt_cost(d.get("cost", 0)),
+                "cost_raw":    cost,
+                # Customer-visible services (name only — no internal unit costs)
+                "services":    [r.get("name", "") for r in (d.get("svcRows") or [])],
+                # Customer-visible materials (name only — no supplier/purchase info)
+                "materials":   [r.get("name", "") for r in (d.get("matRows") or [])],
             }
             jobs.append(job)
             if job_plate:
                 by_vehicle[job_plate].append(job)
 
-        # Sort each group newest-first
+        # Sort newest-first
         jobs.sort(key=lambda j: j["date"], reverse=True)
         for grp in by_vehicle.values():
             grp.sort(key=lambda j: j["date"], reverse=True)
 
+        # Recent filter
+        if recent and recent > 0:
+            jobs = jobs[:recent]
+
         total_cost = sum(j["cost_raw"] for j in jobs)
 
         logger.info(
-            "get_my_service_history: %d completed job(s) across %d vehicle(s) "
-            "for uid=%s",
+            "get_my_service_history: %d completed job(s) across %d vehicle(s) for uid=%s",
             len(jobs), len(by_vehicle), customer_uid,
         )
 
@@ -399,8 +424,8 @@ def get_my_service_history(customer_uid: str, customer_name: str,
             "plate":      plate or "all vehicles",
             "total_jobs": len(jobs),
             "total_cost": _fmt_cost(total_cost),
-            "jobs":       jobs,          # flat list sorted newest-first
-            "by_vehicle": dict(by_vehicle),  # grouped by plate for per-car display
+            "jobs":       jobs,
+            "by_vehicle": dict(by_vehicle),
         }
 
     except Exception as e:
@@ -410,10 +435,19 @@ def get_my_service_history(customer_uid: str, customer_name: str,
         return _db_error(e)
 
 
-def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
+# ════════════════════════════════════════════════════════════════════════════
+#  TOOL 3 — Maintenance Recommendations / PMS Status
+# ════════════════════════════════════════════════════════════════════════════
+
+def get_service_recommendations(customer_uid: str, customer_name: str, **_) -> dict:
     """
-    Return PMS schedule status for EACH of this customer's vehicles.
-    Uses the same 4-pass lookup as get_my_vehicles.
+    Return maintenance recommendations for each of the customer's vehicles
+    based on actual system data: vehicle lastServiceDate, serviceFrequency,
+    and completed maintenance history.
+
+    The recommendations are labelled as SYSTEM RECOMMENDATIONS — not
+    guaranteed service requirements. Recommendations are only generated
+    when sufficient data exists; otherwise the function says so explicitly.
     """
     if not customer_uid and not customer_name:
         return _privacy_error()
@@ -426,26 +460,30 @@ def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
 
         for doc in _iter_customer_vehicles(db, customer_uid, customer_name, company_name):
             d        = doc.to_dict()
+            plate    = _get_plate(d)
+            desc     = _get_desc(d)
             last_svc = _get_last_svc_date(d)
             svc_freq = _get_svc_freq(d)
 
-            next_pms   = ""
-            days_until = None
+            next_pms    = ""
+            days_until  = None
+            urgency     = "Active"
+            months_freq = None
+
             try:
                 if last_svc and svc_freq:
-                    months  = int(svc_freq)
-                    last_dt = datetime.fromisoformat(last_svc)
-                    next_dt = datetime(
-                        last_dt.year + (last_dt.month + months - 1) // 12,
-                        (last_dt.month + months - 1) % 12 + 1,
-                        last_dt.day,
-                    )
-                    next_pms   = next_dt.strftime("%b %d, %Y")
-                    days_until = (next_dt - now).days
+                    months_freq = int(svc_freq)
+                    last_dt     = datetime.fromisoformat(last_svc)
+                    # Compute next PMS date (add serviceFrequency months)
+                    next_month  = last_dt.month + months_freq
+                    next_year   = last_dt.year + (next_month - 1) // 12
+                    next_month  = (next_month - 1) % 12 + 1
+                    next_dt     = last_dt.replace(year=next_year, month=next_month)
+                    next_pms    = next_dt.strftime("%b %d, %Y")
+                    days_until  = (next_dt - now).days
             except Exception:
                 pass
 
-            urgency = "Active"
             if days_until is not None:
                 if days_until < 0:
                     urgency = "Overdue"
@@ -453,42 +491,584 @@ def get_my_pms_status(customer_uid: str, customer_name: str, **_) -> dict:
                     urgency = "Due This Week"
                 elif days_until <= 30:
                     urgency = "Due Soon"
+                else:
+                    urgency = "On Track"
+
+            # Build recommendation text
+            if days_until is None:
+                if not last_svc:
+                    recommendation = (
+                        "Insufficient data — no last service date recorded for this vehicle. "
+                        "Please visit the shop for an initial assessment."
+                    )
+                elif not svc_freq:
+                    recommendation = (
+                        "Insufficient data — no service frequency set for this vehicle. "
+                        "Please contact the shop to set a maintenance schedule."
+                    )
+                else:
+                    recommendation = "Unable to compute next service date from available data."
+            elif days_until < 0:
+                recommendation = (
+                    f"⚠️ OVERDUE — This vehicle is {abs(days_until)} day(s) past its scheduled "
+                    f"maintenance date ({next_pms}). Service is recommended as soon as possible."
+                )
+            elif days_until <= 7:
+                recommendation = (
+                    f"🔴 DUE THIS WEEK — Scheduled maintenance is due on {next_pms} "
+                    f"({days_until} day(s) away). Please schedule a service appointment."
+                )
+            elif days_until <= 30:
+                recommendation = (
+                    f"🟡 DUE SOON — Scheduled maintenance is due on {next_pms} "
+                    f"({days_until} day(s) away). Consider booking in advance."
+                )
+            else:
+                recommendation = (
+                    f"✅ ON TRACK — Next scheduled maintenance is on {next_pms} "
+                    f"({days_until} day(s) away)."
+                )
 
             vehicles.append({
-                "plate":       _get_plate(d),
-                "desc":        _get_desc(d),
-                "status":      d.get("status", "Active"),
-                "lastSvcDate": last_svc,
-                "nextPMS":     next_pms,
-                "daysUntil":   days_until,
-                "urgency":     urgency,
+                "plate":          plate,
+                "desc":           desc,
+                "status":         d.get("status", "Active"),
+                "lastSvcDate":    last_svc,
+                "svcFreqMonths":  months_freq,
+                "nextPMS":        next_pms,
+                "daysUntil":      days_until,
+                "urgency":        urgency,
+                "recommendation": recommendation,
             })
 
         overdue  = [v for v in vehicles if v["urgency"] == "Overdue"]
         due_soon = [v for v in vehicles if v["urgency"] in ("Due This Week", "Due Soon")]
+        on_track = [v for v in vehicles if v["urgency"] == "On Track"]
 
         return {
-            "owner":    customer_name,
-            "total":    len(vehicles),
-            "overdue":  len(overdue),
-            "due_soon": len(due_soon),
-            "vehicles": vehicles,
+            "owner":          customer_name,
+            "total_vehicles": len(vehicles),
+            "overdue":        len(overdue),
+            "due_soon":       len(due_soon),
+            "on_track":       len(on_track),
+            "vehicles":       vehicles,
+            "disclaimer":     (
+                "These are system recommendations based on recorded service dates and "
+                "frequency settings. They are not guaranteed service requirements. "
+                "Consult the shop for a professional assessment."
+            ),
         }
 
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        logger.exception("get_my_pms_status error")
+        logger.exception("get_service_recommendations error")
         return _db_error(e)
 
 
-def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
-    """
-    Return this customer's service bookings (all statuses).
+# ════════════════════════════════════════════════════════════════════════════
+#  TOOL 4 — Service Prices (public)
+# ════════════════════════════════════════════════════════════════════════════
 
-    Pass 1: customerId == customer_uid        (UID — most reliable)
-    Pass 2: customerName == customer_name/companyName
-    Pass 3: case-insensitive scan             (only when 1+2 found nothing)
+def get_service_prices(customer_uid: str, customer_name: str,
+                       service_name: str | None = None, **_) -> dict:
+    """
+    Return services and prices from the item catalog (public for all customers).
+    Prices are retrieved from the database — never invented.
+    """
+    try:
+        db      = get_db()
+        catalog = cache_manager.get_service_catalog(db)
+
+        if catalog is None:
+            return _quota_error()
+
+        if not catalog:
+            logger.warning(
+                "get_service_prices: catalog empty. "
+                "Check item_master has documents with type='Service'."
+            )
+            return {
+                "filter":         service_name or "all services",
+                "total_services": 0,
+                "services":       [],
+                "catalog_size":   0,
+            }
+
+        # Filter by keyword using 3-pass matching
+        if service_name:
+            keyword = service_name.lower().strip()
+            words   = [w for w in keyword.split() if len(w) >= 3]
+
+            def _make_item(item):
+                return {
+                    "num":   item.get("num", ""),
+                    "name":  item.get("name", ""),
+                    "group": item.get("group", ""),
+                    "uom":   item.get("uom", ""),
+                    "cost":  _fmt_cost(item.get("cost", 0)),
+                }
+
+            # Pass 1: substring
+            services = [_make_item(i) for i in catalog
+                        if keyword in i.get("name", "").lower()]
+            # Pass 2: all words present
+            if not services and words:
+                services = [_make_item(i) for i in catalog
+                            if all(w in i.get("name", "").lower() for w in words)]
+            # Pass 3: any significant word
+            if not services and words:
+                for w in words:
+                    services = [_make_item(i) for i in catalog
+                                if w in i.get("name", "").lower()]
+                    if services:
+                        break
+        else:
+            services = [
+                {
+                    "num":   item.get("num", ""),
+                    "name":  item.get("name", ""),
+                    "group": item.get("group", ""),
+                    "uom":   item.get("uom", ""),
+                    "cost":  _fmt_cost(item.get("cost", 0)),
+                }
+                for item in catalog
+            ]
+
+        return {
+            "filter":         service_name or "all services",
+            "total_services": len(services),
+            "services":       services,
+            "catalog_size":   len(catalog),
+        }
+
+    except Exception as e:
+        if _is_firestore_quota(e):
+            return _quota_error()
+        logger.exception("get_service_prices error")
+        return _db_error(e)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  TOOL 5 — Customer-Visible Materials
+# ════════════════════════════════════════════════════════════════════════════
+
+def get_customer_materials(customer_uid: str, customer_name: str,
+                           material_name: str | None = None, **_) -> dict:
+    """
+    Return customer-facing material/product information from item_master.
+
+    STRICT PRIVACY: NEVER exposes:
+      - Stock quantity (stock, min, max, reorder)
+      - Supplier information
+      - Purchase price / unit cost
+      - Inventory transactions or stock movements
+      - DSS stock replenishment recommendations
+      - Any admin-only inventory fields
+
+    Only returns: name, description, customer price (cost), UOM, availability
+    status if explicitly set as a customer-visible field.
+    """
+    try:
+        db = get_db()
+        from google.cloud.firestore_v1.base_query import FieldFilter as FF
+
+        # Fetch materials from item_master (type = "Material" or "material")
+        docs = list(
+            db.collection("item_master")
+            .where(filter=FF("type", "==", "Material"))
+            .stream()
+        )
+        if not docs:
+            # Try lowercase variant
+            docs = list(
+                db.collection("item_master")
+                .where(filter=FF("type", "==", "material"))
+                .stream()
+            )
+        if not docs:
+            # Full scan fallback — filter in Python
+            all_docs = list(db.collection("item_master").stream())
+            docs = [
+                d for d in all_docs
+                if (d.to_dict().get("type") or "").strip().lower() == "material"
+            ]
+
+        # Build customer-visible list (NEVER include internal fields)
+        materials = []
+        for doc in docs:
+            d = doc.to_dict()
+            materials.append({
+                "name":         d.get("name", ""),
+                "group":        d.get("group", ""),
+                "uom":          d.get("uom", ""),
+                # "cost" here is the customer-facing price, NOT the purchase price
+                "customer_price": _fmt_cost(d.get("cost", 0)),
+                # Availability: only expose if there is a customer-visible status field
+                # NEVER expose raw stock numbers
+                "available":    d.get("customerVisible", True),
+            })
+
+        materials.sort(key=lambda m: m["name"])
+
+        # Keyword filter
+        if material_name:
+            kw   = material_name.lower().strip()
+            wds  = [w for w in kw.split() if len(w) >= 3]
+            matched = [m for m in materials if kw in m["name"].lower()]
+            if not matched and wds:
+                matched = [m for m in materials
+                           if all(w in m["name"].lower() for w in wds)]
+            if not matched and wds:
+                for w in wds:
+                    matched = [m for m in materials if w in m["name"].lower()]
+                    if matched:
+                        break
+            materials = matched
+
+        return {
+            "filter":          material_name or "all materials",
+            "total_materials": len(materials),
+            "materials":       materials,
+            "note": (
+                "Stock quantities and supplier information are not available "
+                "through the customer assistant."
+            ),
+        }
+
+    except Exception as e:
+        if _is_firestore_quota(e):
+            return _quota_error()
+        logger.exception("get_customer_materials error")
+        return _db_error(e)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  TOOL 6 — Check Booking Availability
+# ════════════════════════════════════════════════════════════════════════════
+
+def check_booking_availability(customer_uid: str, customer_name: str,
+                                preferred_date: str,
+                                preferred_time: str | None = None,
+                                **_) -> dict:
+    """
+    Check whether a requested date/time slot is available for booking.
+    Returns available time slots for the requested date.
+    Does NOT create a booking — only checks availability.
+    """
+    if not preferred_date:
+        return {
+            "error": "MISSING_DATE",
+            "message": "Please provide a preferred date to check availability.",
+        }
+
+    try:
+        db = get_db()
+
+        # Parse and validate the requested date
+        try:
+            req_date = _parse_date_flexible(preferred_date)
+        except ValueError as ve:
+            return {
+                "error":   "INVALID_DATE",
+                "message": str(ve),
+            }
+
+        # Don't allow past dates
+        if req_date.date() < datetime.now().date():
+            return {
+                "error":   "PAST_DATE",
+                "message": "The requested date is in the past. Please choose a future date.",
+            }
+
+        date_str = req_date.strftime("%Y-%m-%d")
+
+        # Fetch bookings for that date to count occupancy
+        existing = []
+        for doc in db.collection("service_bookings").where(
+                filter=FieldFilter("preferredDate", "==", date_str)).stream():
+            d = doc.to_dict()
+            status = (d.get("status") or "").lower()
+            if status not in ("cancelled", "rejected"):
+                existing.append({
+                    "time":   d.get("preferredTime", ""),
+                    "status": d.get("status", ""),
+                })
+
+        # Also try YYYY-MM-DD formatted as "Month D, YYYY" (format variations)
+        human_date = req_date.strftime("%B %-d, %Y") if hasattr(req_date, "strftime") else date_str
+        for doc in db.collection("service_bookings").where(
+                filter=FieldFilter("preferredDate", "==", human_date)).stream():
+            d = doc.to_dict()
+            status = (d.get("status") or "").lower()
+            if status not in ("cancelled", "rejected"):
+                existing.append({
+                    "time":   d.get("preferredTime", ""),
+                    "status": d.get("status", ""),
+                })
+
+        booked_times = {b["time"].lower().strip() for b in existing if b["time"]}
+
+        # Standard available time slots
+        all_slots = [
+            "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
+            "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM",
+        ]
+        available_slots = [s for s in all_slots if s.lower() not in booked_times]
+
+        requested_slot_available = None
+        if preferred_time:
+            requested_slot_available = preferred_time.lower().strip() not in booked_times
+
+        return {
+            "date":                    date_str,
+            "date_display":            req_date.strftime("%B %d, %Y"),
+            "total_bookings_that_day": len(existing),
+            "available_slots":         available_slots,
+            "requested_time":          preferred_time,
+            "requested_time_available": requested_slot_available,
+            "is_available":            len(available_slots) > 0,
+        }
+
+    except Exception as e:
+        if _is_firestore_quota(e):
+            return _quota_error()
+        logger.exception("check_booking_availability error")
+        return _db_error(e)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  TOOL 7 — Create Customer Booking
+# ════════════════════════════════════════════════════════════════════════════
+
+def create_customer_booking(customer_uid: str, customer_name: str,
+                            plate: str,
+                            services: list[str],
+                            preferred_date: str,
+                            preferred_time: str,
+                            notes: str | None = None,
+                            **_) -> dict:
+    """
+    Create a new service booking for the authenticated customer.
+
+    Pre-creation checks (ALL must pass):
+      1. plate belongs to this customer (ownership verified via 4-pass lookup)
+      2. All requested services exist in the item catalog
+      3. preferred_date is valid and not in the past
+      4. preferred_time slot is not already fully booked
+      5. All required fields are present
+
+    The booking is only created after ALL checks pass. The function returns
+    the actual database result — never claims success before it happens.
+    """
+    # ── Validate required fields ──────────────────────────────────────────────
+    missing = []
+    if not plate:
+        missing.append("vehicle plate")
+    if not services or len(services) == 0:
+        missing.append("service(s)")
+    if not preferred_date:
+        missing.append("preferred date")
+    if not preferred_time:
+        missing.append("preferred time")
+    if missing:
+        return {
+            "error":   "MISSING_FIELDS",
+            "message": f"Missing required information: {', '.join(missing)}.",
+        }
+
+    try:
+        db           = get_db()
+        company_name = _resolve_company_name(db, customer_uid)
+
+        # ── Check 1: vehicle ownership ────────────────────────────────────────
+        if not _verify_vehicle_ownership(db, customer_uid, customer_name,
+                                         company_name, plate):
+            logger.warning(
+                "create_customer_booking: plate %s does not belong to uid=%s",
+                plate, customer_uid,
+            )
+            return {
+                "error":   "VEHICLE_NOT_OWNED",
+                "message": (
+                    f"Vehicle with plate {plate} is not registered under your account. "
+                    "Please check your vehicles or contact the shop."
+                ),
+            }
+
+        # ── Check 2: services exist in catalog ────────────────────────────────
+        catalog = cache_manager.get_service_catalog(db)
+        if catalog is None:
+            return _quota_error()
+
+        catalog_names_lower = {item.get("name", "").lower() for item in catalog}
+        invalid_services = []
+        for svc in services:
+            svc_lower = svc.lower().strip()
+            # Accept fuzzy partial match (e.g. "oil change" matches "Change Oil Service")
+            found = any(svc_lower in cn or cn in svc_lower
+                        for cn in catalog_names_lower)
+            if not found:
+                # Try word overlap
+                words = [w for w in svc_lower.split() if len(w) >= 3]
+                found = any(
+                    all(w in cn for w in words)
+                    for cn in catalog_names_lower
+                ) if words else False
+            if not found:
+                invalid_services.append(svc)
+
+        if invalid_services:
+            return {
+                "error":    "SERVICE_NOT_FOUND",
+                "message":  (
+                    f"The following service(s) were not found in our catalog: "
+                    f"{', '.join(invalid_services)}. "
+                    f"Please ask for the service list to see available options."
+                ),
+                "invalid_services": invalid_services,
+            }
+
+        # ── Check 3: validate and parse date ─────────────────────────────────
+        try:
+            req_date = _parse_date_flexible(preferred_date)
+        except ValueError as ve:
+            return {"error": "INVALID_DATE", "message": str(ve)}
+
+        if req_date.date() < datetime.now().date():
+            return {
+                "error":   "PAST_DATE",
+                "message": "The requested date is in the past. Please choose a future date.",
+            }
+
+        date_str = req_date.strftime("%Y-%m-%d")
+
+        # ── Check 4: availability ─────────────────────────────────────────────
+        avail = check_booking_availability(
+            customer_uid=customer_uid,
+            customer_name=customer_name,
+            preferred_date=date_str,
+            preferred_time=preferred_time,
+        )
+        if avail.get("error"):
+            return avail
+
+        if avail.get("requested_time_available") is False:
+            available_slots = avail.get("available_slots", [])
+            if available_slots:
+                return {
+                    "error":            "TIME_NOT_AVAILABLE",
+                    "message":          (
+                        f"The {preferred_time} slot on {req_date.strftime('%B %d, %Y')} "
+                        f"is not available. Please choose from the available slots."
+                    ),
+                    "available_slots":  available_slots,
+                    "requested_date":   req_date.strftime("%B %d, %Y"),
+                }
+            else:
+                return {
+                    "error":   "DATE_FULLY_BOOKED",
+                    "message": (
+                        f"{req_date.strftime('%B %d, %Y')} is fully booked. "
+                        f"Please choose a different date."
+                    ),
+                }
+
+        # ── Get vehicle description for the booking record ────────────────────
+        vehicle_desc = ""
+        for doc in _iter_customer_vehicles(db, customer_uid, customer_name, company_name):
+            d = doc.to_dict()
+            if _get_plate(d).upper() == plate.upper():
+                vehicle_desc = _get_desc(d)
+                break
+
+        # ── Create the booking ────────────────────────────────────────────────
+        booking_data = {
+            "customerId":    customer_uid,
+            "customerName":  customer_name,
+            "plate":         plate.upper(),
+            "vehicleDesc":   vehicle_desc,
+            "services":      services,
+            "preferredDate": date_str,
+            "preferredTime": preferred_time,
+            "status":        "Pending",
+            "notes":         notes or "",
+            "createdAt":     datetime.utcnow().isoformat(),
+            "createdBy":     "customer_ai",
+        }
+
+        doc_ref = db.collection("service_bookings").document()
+        doc_ref.set(booking_data)
+
+        # Verify the write actually succeeded by reading it back
+        written = doc_ref.get()
+        if not written.exists:
+            logger.error(
+                "create_customer_booking: write verification failed for uid=%s",
+                customer_uid,
+            )
+            return {
+                "error":   "DB_WRITE_FAILED",
+                "message": (
+                    "Your booking could not be saved due to a database error. "
+                    "Please try again or contact the shop."
+                ),
+            }
+
+        booking_id = doc_ref.id
+        logger.info(
+            "create_customer_booking: booking %s created for uid=%s plate=%s date=%s time=%s",
+            booking_id, customer_uid, plate, date_str, preferred_time,
+        )
+
+        return {
+            "success":      True,
+            "booking_id":   booking_id,
+            "customer":     customer_name,
+            "plate":        plate.upper(),
+            "vehicle":      vehicle_desc,
+            "services":     services,
+            "date":         req_date.strftime("%B %d, %Y"),
+            "time":         preferred_time,
+            "status":       "Pending",
+            "notes":        notes or "",
+            "message":      (
+                f"Your booking has been successfully created. "
+                f"Booking ID: {booking_id}. "
+                f"Status: Pending. "
+                f"We look forward to serving you on "
+                f"{req_date.strftime('%B %d, %Y')} at {preferred_time}."
+            ),
+        }
+
+    except Exception as e:
+        if _is_firestore_quota(e):
+            return _quota_error()
+        logger.exception("create_customer_booking error")
+        return {
+            "error":   "DB_ERROR",
+            "message": "Your booking could not be created due to a database error. Please try again.",
+        }
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  TOOL 8 — My Bookings
+# ════════════════════════════════════════════════════════════════════════════
+
+def get_my_bookings(customer_uid: str, customer_name: str,
+                    filter_status: str | None = None,
+                    upcoming_only: bool = False,
+                    **_) -> dict:
+    """
+    Return this customer's service bookings.
+
+    Pass 1: customerId == customer_uid  (UID — most reliable)
+    Pass 2: customerName == customer_name / companyName
+    Pass 3: case-insensitive scan (last resort)
+
+    Optional filters:
+      filter_status  — e.g. "Pending", "Confirmed", "Completed", "Cancelled"
+      upcoming_only  — if True, return only future bookings (date >= today)
     """
     if not customer_uid and not customer_name:
         return _privacy_error()
@@ -501,6 +1081,7 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
 
         bookings   = []
         seen_b_ids = set()
+        today_str  = datetime.now().strftime("%Y-%m-%d")
 
         def _add(doc):
             if doc.id in seen_b_ids:
@@ -508,16 +1089,38 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
             seen_b_ids.add(doc.id)
             d    = doc.to_dict()
             svcs = d.get("services", [])
+            status = d.get("status", "")
+
+            # Filter by status if requested
+            if filter_status and status.lower() != filter_status.lower():
+                return
+
+            b_date = d.get("preferredDate", "")
+
+            # Upcoming filter: only bookings on or after today
+            if upcoming_only:
+                try:
+                    # Handle both YYYY-MM-DD and "Month D, YYYY" formats
+                    b_dt = _parse_date_flexible(b_date) if b_date else None
+                    if b_dt and b_dt.date() < datetime.now().date():
+                        return
+                    if not b_date:
+                        return
+                except Exception:
+                    pass
+
             bookings.append({
-                "date":     d.get("preferredDate", ""),
-                "time":     d.get("preferredTime", ""),
-                "plate":    d.get("plate", ""),
-                "vehicle":  d.get("vehicleDesc", ""),
-                "services": ", ".join(svcs) if isinstance(svcs, list) else str(svcs),
-                "status":   d.get("status", ""),
+                "booking_id": doc.id,
+                "date":       b_date,
+                "time":       d.get("preferredTime", ""),
+                "plate":      d.get("plate", ""),
+                "vehicle":    d.get("vehicleDesc", ""),
+                "services":   ", ".join(svcs) if isinstance(svcs, list) else str(svcs),
+                "status":     status,
+                "notes":      d.get("notes", ""),
             })
 
-        # Pass 1: Firebase UID
+        # Pass 1: Firebase UID (most reliable — matches after booking created by AI)
         for doc in db.collection("service_bookings").where(
                 filter=FieldFilter("customerId", "==", customer_uid)).stream():
             _add(doc)
@@ -544,15 +1147,21 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
                     _add(doc)
 
         bookings.sort(key=lambda b: b["date"], reverse=True)
+
         pending   = [b for b in bookings if (b["status"] or "").lower() == "pending"]
         confirmed = [b for b in bookings if (b["status"] or "").lower() in
                      ("confirmed", "in progress", "ongoing")]
+        completed = [b for b in bookings if (b["status"] or "").lower() == "completed"]
+        cancelled = [b for b in bookings if (b["status"] or "").lower() in
+                     ("cancelled", "rejected")]
 
         return {
             "owner":     customer_name,
             "total":     len(bookings),
             "pending":   len(pending),
             "confirmed": len(confirmed),
+            "completed": len(completed),
+            "cancelled": len(cancelled),
             "bookings":  bookings,
         }
 
@@ -563,146 +1172,314 @@ def get_my_bookings(customer_uid: str, customer_name: str, **_) -> dict:
         return _db_error(e)
 
 
-def get_service_prices(customer_uid: str, customer_name: str,
-                       service_name: str | None = None, **_) -> dict:
+# ════════════════════════════════════════════════════════════════════════════
+#  TOOL 9 — Update (Reschedule) My Booking
+# ════════════════════════════════════════════════════════════════════════════
+
+def update_my_booking(customer_uid: str, customer_name: str,
+                      booking_id: str,
+                      new_date: str | None = None,
+                      new_time: str | None = None,
+                      new_notes: str | None = None,
+                      **_) -> dict:
     """
-    Return services and prices from the item catalog (public for all customers).
-    Uses cache_manager to avoid re-reading item_master on every request.
-    Falls back to a direct Firestore scan if the cache returns empty.
+    Reschedule or update notes for the authenticated customer's own booking.
+
+    Pre-update checks:
+      1. Booking exists
+      2. Booking belongs to this customer (customerId == customer_uid)
+      3. Booking status allows rescheduling (Pending or Confirmed only)
+      4. New date is valid and not in the past
+      5. New time slot is available
+
+    The update is ONLY performed after ALL checks pass.
     """
+    if not booking_id:
+        return {
+            "error":   "MISSING_BOOKING_ID",
+            "message": "Please provide a booking ID to reschedule.",
+        }
+
+    if not new_date and not new_time and new_notes is None:
+        return {
+            "error":   "NOTHING_TO_UPDATE",
+            "message": "Please provide a new date, time, or notes to update your booking.",
+        }
+
     try:
-        db      = get_db()
-        catalog = cache_manager.get_service_catalog(db)
+        db = get_db()
 
-        # get_service_catalog returns None only on exception (quota/network error)
-        if catalog is None:
-            return _quota_error()
-
-        # If the catalog is empty after all fetch attempts, log it so the
-        # developer can see exactly what's in item_master
-        if not catalog:
-            logger.warning(
-                "get_service_prices: catalog is empty after all fetch attempts. "
-                "Check that item_master has documents with type='Service' (case-sensitive). "
-                "Doing a raw diagnostic scan now..."
-            )
-            try:
-                all_docs = list(db.collection("item_master").stream())
-                types_found = list({
-                    (d.to_dict().get("type") or "MISSING")
-                    for d in all_docs
-                })
-                logger.warning(
-                    "get_service_prices: item_master has %d total docs. "
-                    "type values found: %s",
-                    len(all_docs), types_found,
-                )
-            except Exception:
-                pass
+        # ── Check 1: booking exists ───────────────────────────────────────────
+        doc_ref = db.collection("service_bookings").document(booking_id)
+        doc     = doc_ref.get()
+        if not doc.exists:
             return {
-                "filter":         service_name or "all services",
-                "total_services": 0,
-                "services":       [],
+                "error":   "BOOKING_NOT_FOUND",
+                "message": "No booking found with that ID.",
             }
 
-        # ── Filter by service_name keyword ────────────────────────────────────
-        if service_name:
-            keyword = service_name.lower().strip()
-            words   = [w for w in keyword.split() if len(w) >= 3]  # reused in passes 2 & 3
+        d = doc.to_dict()
 
-            # Pass 1: substring match  (e.g. "oil change" in "Oil Change Service")
-            services = [
-                {
-                    "num":   item.get("num", ""),
-                    "name":  item.get("name", ""),
-                    "group": item.get("group", ""),
-                    "uom":   item.get("uom", ""),
-                    "cost":  _fmt_cost(item.get("cost", 0)),
-                }
-                for item in catalog
-                if keyword in item.get("name", "").lower()
-            ]
-
-            # Pass 2: every word in keyword appears in the item name
-            # (handles "oil change" → "Change Oil", word-order differences)
-            if not services and words:
-                services = [
-                    {
-                        "num":   item.get("num", ""),
-                        "name":  item.get("name", ""),
-                        "group": item.get("group", ""),
-                        "uom":   item.get("uom", ""),
-                        "cost":  _fmt_cost(item.get("cost", 0)),
-                    }
-                    for item in catalog
-                    if all(w in item.get("name", "").lower() for w in words)
-                ]
-
-            # Pass 3: any single significant word matches
-            if not services and words:
-                for w in words:
-                    services = [
-                        {
-                            "num":   item.get("num", ""),
-                            "name":  item.get("name", ""),
-                            "group": item.get("group", ""),
-                            "uom":   item.get("uom", ""),
-                            "cost":  _fmt_cost(item.get("cost", 0)),
-                        }
-                        for item in catalog
-                        if w in item.get("name", "").lower()
-                    ]
-                    if services:
-                        break
-
-            logger.info(
-                "get_service_prices: keyword=%r → %d match(es)", keyword, len(services)
+        # ── Check 2: ownership ────────────────────────────────────────────────
+        booking_owner_id = (d.get("customerId") or "").strip()
+        if booking_owner_id != customer_uid:
+            logger.warning(
+                "update_my_booking: uid=%s attempted to modify booking %s owned by %s",
+                customer_uid, booking_id, booking_owner_id,
             )
-        else:
-            services = [
-                {
-                    "num":   item.get("num", ""),
-                    "name":  item.get("name", ""),
-                    "group": item.get("group", ""),
-                    "uom":   item.get("uom", ""),
-                    "cost":  _fmt_cost(item.get("cost", 0)),
+            return _privacy_error()
+
+        # ── Check 3: status allows update ─────────────────────────────────────
+        current_status = (d.get("status") or "").lower()
+        if current_status in ("completed", "cancelled", "rejected"):
+            return {
+                "error":   "BOOKING_NOT_EDITABLE",
+                "message": (
+                    f"This booking cannot be rescheduled because its status is "
+                    f"'{d.get('status', '')}'. Only Pending or Confirmed bookings can be rescheduled."
+                ),
+            }
+
+        updates: dict = {"updatedAt": datetime.utcnow().isoformat()}
+
+        # ── Check 4 & 5: new date/time validation + availability ──────────────
+        if new_date:
+            try:
+                req_date = _parse_date_flexible(new_date)
+            except ValueError as ve:
+                return {"error": "INVALID_DATE", "message": str(ve)}
+
+            if req_date.date() < datetime.now().date():
+                return {
+                    "error":   "PAST_DATE",
+                    "message": "The new date is in the past. Please choose a future date.",
                 }
-                for item in catalog
-            ]
+
+            date_str = req_date.strftime("%Y-%m-%d")
+            check_time = new_time or d.get("preferredTime", "")
+            avail = check_booking_availability(
+                customer_uid=customer_uid,
+                customer_name=customer_name,
+                preferred_date=date_str,
+                preferred_time=check_time,
+            )
+
+            if avail.get("error"):
+                return avail
+
+            if check_time and avail.get("requested_time_available") is False:
+                # Exclude the current booking itself from "taken" count
+                return {
+                    "error":           "TIME_NOT_AVAILABLE",
+                    "message":         (
+                        f"The {check_time} slot on {req_date.strftime('%B %d, %Y')} "
+                        f"is not available. Please choose from the available slots."
+                    ),
+                    "available_slots": avail.get("available_slots", []),
+                }
+
+            updates["preferredDate"] = date_str
+            if new_time:
+                updates["preferredTime"] = new_time
+
+        elif new_time:
+            # Only time is changing — check availability on the existing date
+            existing_date = d.get("preferredDate", "")
+            avail = check_booking_availability(
+                customer_uid=customer_uid,
+                customer_name=customer_name,
+                preferred_date=existing_date,
+                preferred_time=new_time,
+            )
+            if avail.get("requested_time_available") is False:
+                return {
+                    "error":           "TIME_NOT_AVAILABLE",
+                    "message":         (
+                        f"The {new_time} slot on {existing_date} is not available."
+                    ),
+                    "available_slots": avail.get("available_slots", []),
+                }
+            updates["preferredTime"] = new_time
+
+        if new_notes is not None:
+            updates["notes"] = new_notes
+
+        # ── Perform the update ────────────────────────────────────────────────
+        doc_ref.update(updates)
+
+        # Read back to confirm
+        updated = doc_ref.get()
+        if not updated.exists:
+            return {
+                "error":   "DB_WRITE_FAILED",
+                "message": "The booking update could not be confirmed. Please try again.",
+            }
+
+        ud = updated.to_dict()
+        logger.info(
+            "update_my_booking: booking %s updated by uid=%s → %s",
+            booking_id, customer_uid, updates,
+        )
 
         return {
-            "filter":         service_name or "all services",
-            "total_services": len(services),
-            "services":       services,
-            "catalog_size":   len(catalog),   # lets the AI know if catalog itself is empty
+            "success":    True,
+            "booking_id": booking_id,
+            "plate":      ud.get("plate", ""),
+            "services":   ud.get("services", []),
+            "new_date":   ud.get("preferredDate", ""),
+            "new_time":   ud.get("preferredTime", ""),
+            "status":     ud.get("status", ""),
+            "message":    "Your booking has been successfully updated.",
         }
 
     except Exception as e:
         if _is_firestore_quota(e):
             return _quota_error()
-        logger.exception("get_service_prices error")
-        return _db_error(e)
+        logger.exception("update_my_booking error")
+        return {
+            "error":   "DB_ERROR",
+            "message": "Your booking could not be updated due to a database error. Please try again.",
+        }
 
+
+# ════════════════════════════════════════════════════════════════════════════
+#  TOOL 10 — Cancel My Booking
+# ════════════════════════════════════════════════════════════════════════════
+
+def cancel_my_booking(customer_uid: str, customer_name: str,
+                      booking_id: str,
+                      reason: str | None = None,
+                      **_) -> dict:
+    """
+    Cancel the authenticated customer's own booking.
+
+    Pre-cancellation checks:
+      1. Booking exists
+      2. Booking belongs to this customer (customerId == customer_uid)
+      3. Booking status is eligible for cancellation (Pending or Confirmed)
+
+    Status is only updated after ALL checks pass and Firestore write succeeds.
+    The AI is told of the outcome from the database response — never assumed.
+    """
+    if not booking_id:
+        return {
+            "error":   "MISSING_BOOKING_ID",
+            "message": "Please provide a booking ID to cancel.",
+        }
+
+    try:
+        db = get_db()
+
+        # ── Check 1: booking exists ───────────────────────────────────────────
+        doc_ref = db.collection("service_bookings").document(booking_id)
+        doc     = doc_ref.get()
+        if not doc.exists:
+            return {
+                "error":   "BOOKING_NOT_FOUND",
+                "message": "No booking found with that ID.",
+            }
+
+        d = doc.to_dict()
+
+        # ── Check 2: ownership ────────────────────────────────────────────────
+        booking_owner_id = (d.get("customerId") or "").strip()
+        if booking_owner_id != customer_uid:
+            logger.warning(
+                "cancel_my_booking: uid=%s attempted to cancel booking %s owned by %s",
+                customer_uid, booking_id, booking_owner_id,
+            )
+            return _privacy_error()
+
+        # ── Check 3: status eligible for cancellation ─────────────────────────
+        current_status = (d.get("status") or "").lower()
+        if current_status == "cancelled":
+            return {
+                "error":   "ALREADY_CANCELLED",
+                "message": "This booking has already been cancelled.",
+            }
+        if current_status in ("completed", "rejected"):
+            return {
+                "error":   "CANNOT_CANCEL",
+                "message": (
+                    f"This booking cannot be cancelled because its status is "
+                    f"'{d.get('status', '')}'. "
+                    f"Only Pending or Confirmed bookings can be cancelled."
+                ),
+            }
+
+        # ── Perform cancellation ──────────────────────────────────────────────
+        cancel_data = {
+            "status":       "Cancelled",
+            "cancelledAt":  datetime.utcnow().isoformat(),
+            "cancelledBy":  "customer",
+            "cancelReason": reason or "",
+        }
+        doc_ref.update(cancel_data)
+
+        # Read back to confirm the write
+        updated = doc_ref.get()
+        if not updated.exists:
+            return {
+                "error":   "DB_WRITE_FAILED",
+                "message": "The cancellation could not be confirmed. Please try again.",
+            }
+
+        ud     = updated.to_dict()
+        status = ud.get("status", "")
+
+        if status.lower() != "cancelled":
+            return {
+                "error":   "CANCEL_FAILED",
+                "message": "The cancellation could not be completed. Please contact the shop.",
+            }
+
+        logger.info(
+            "cancel_my_booking: booking %s cancelled by uid=%s",
+            booking_id, customer_uid,
+        )
+
+        return {
+            "success":    True,
+            "booking_id": booking_id,
+            "plate":      ud.get("plate", ""),
+            "services":   ud.get("services", []),
+            "date":       ud.get("preferredDate", ""),
+            "time":       ud.get("preferredTime", ""),
+            "status":     "Cancelled",
+            "message":    "Your booking has been successfully cancelled.",
+        }
+
+    except Exception as e:
+        if _is_firestore_quota(e):
+            return _quota_error()
+        logger.exception("cancel_my_booking error")
+        return {
+            "error":   "DB_ERROR",
+            "message": "Your booking could not be cancelled due to a database error. Please try again.",
+        }
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  TOOL 11 — Estimate Service Cost
+# ════════════════════════════════════════════════════════════════════════════
 
 def estimate_service_cost(customer_uid: str, customer_name: str,
                           service_names: list[str] | None = None, **_) -> dict:
     """
-    Estimate combined cost for one or more named services.
-    Uses the shared service catalog cache — no extra Firestore read.
+    Estimate combined cost for one or more named services using actual catalog prices.
+    Never invents prices — returns an error for services not found in the catalog.
     """
     if not service_names:
         return {
-            "error": "NO_SERVICES",
+            "error":   "NO_SERVICES",
             "message": "Please specify at least one service name to estimate the cost.",
         }
     try:
-        db = get_db()
-        # Use cached catalog — the same data already fetched for get_service_prices
+        db         = get_db()
         raw_catalog = cache_manager.get_service_catalog(db)
         if raw_catalog is None:
             return _quota_error()
 
-        # Build a name→item map from the cached list (lowercase keys for matching)
         catalog: dict[str, dict] = {}
         for item in raw_catalog:
             catalog[item.get("name", "").lower()] = {
@@ -719,7 +1496,6 @@ def estimate_service_cost(customer_uid: str, customer_name: str,
             key  = svc.lower().strip()
             item = catalog.get(key)
             if not item:
-                # Fuzzy partial match
                 for k, v in catalog.items():
                     if key in k or k in key:
                         item = v
@@ -752,9 +1528,92 @@ def estimate_service_cost(customer_uid: str, customer_name: str,
         return _db_error(e)
 
 
-# ── Tool schemas ──────────────────────────────────────────────────────────────
-# customer_uid and customer_name are NOT listed as parameters — injected
-# server-side so the LLM cannot substitute a different customer's identity.
+# ════════════════════════════════════════════════════════════════════════════
+#  Date parsing helper
+# ════════════════════════════════════════════════════════════════════════════
+
+def _parse_date_flexible(date_str: str) -> datetime:
+    """
+    Parse a date string in various formats into a datetime object.
+    Raises ValueError with a friendly message if parsing fails.
+    Supported: YYYY-MM-DD, MM/DD/YYYY, "March 10, 2026", "Mar 10, 2026",
+               "next Monday", "tomorrow", "Friday".
+    """
+    if not date_str:
+        raise ValueError("Please provide a valid date.")
+
+    s = date_str.strip()
+
+    # ── Natural language ──────────────────────────────────────────────────────
+    s_lower = s.lower()
+    now = datetime.now()
+
+    if s_lower == "today":
+        return now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if s_lower == "tomorrow":
+        return (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    if "next" in s_lower:
+        day_names = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]
+        for i, dn in enumerate(day_names):
+            if dn in s_lower:
+                today_wd = now.weekday()
+                days_ahead = (i - today_wd) % 7 or 7
+                return (now + timedelta(days=days_ahead)).replace(
+                    hour=0, minute=0, second=0, microsecond=0)
+
+    # ── ISO format: YYYY-MM-DD ────────────────────────────────────────────────
+    import re as _re
+    m = _re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
+    if m:
+        try:
+            return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except ValueError:
+            pass
+
+    # ── MM/DD/YYYY ────────────────────────────────────────────────────────────
+    m2 = _re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})", s)
+    if m2:
+        try:
+            return datetime(int(m2.group(3)), int(m2.group(1)), int(m2.group(2)))
+        except ValueError:
+            pass
+
+    # ── Month name formats ────────────────────────────────────────────────────
+    MONTHS = ["january","february","march","april","may","june",
+              "july","august","september","october","november","december"]
+    MONTHS_SHORT = ["jan","feb","mar","apr","may","jun",
+                    "jul","aug","sep","oct","nov","dec"]
+
+    m3 = _re.match(r"^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})", s)
+    if m3:
+        mo_str = m3.group(1).lower()[:3]
+        if mo_str in MONTHS_SHORT:
+            mo = MONTHS_SHORT.index(mo_str) + 1
+            try:
+                return datetime(int(m3.group(3)), mo, int(m3.group(2)))
+            except ValueError:
+                pass
+
+    # Day-of-week (e.g. "Friday") — assume next occurrence
+    day_names = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]
+    for i, dn in enumerate(day_names):
+        if s_lower == dn:
+            today_wd    = now.weekday()
+            days_ahead  = (i - today_wd) % 7 or 7
+            return (now + timedelta(days=days_ahead)).replace(
+                hour=0, minute=0, second=0, microsecond=0)
+
+    raise ValueError(
+        f"I couldn't understand the date '{date_str}'. "
+        "Please use a format like 'March 10, 2026', '2026-03-10', or 'MM/DD/YYYY'."
+    )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  Tool Schemas — LLM-facing definitions
+#  customer_uid and customer_name are NOT listed as parameters — they are
+#  always injected server-side to prevent identity spoofing.
+# ════════════════════════════════════════════════════════════════════════════
 
 CUSTOMER_TOOL_SCHEMAS = [
     {
@@ -762,11 +1621,9 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "get_my_vehicles",
             "description": (
-                "Return ALL vehicles registered under the logged-in customer, "
-                "including PMS status (Active, Overdue, Due Soon, Under Maintenance). "
-                "ALWAYS use this when the customer asks about THEIR OWN vehicles — "
-                "'all my vehicles', 'my fleet', 'my cars', 'list my vehicles', "
-                "'show all my vehicles', 'how many vehicles do I have', 'fleet summary'."
+                "Return ALL vehicles registered under the logged-in customer. "
+                "Use when customer asks about their own vehicles, fleet, cars, plate numbers, "
+                "vehicle status, or how many vehicles they have."
             ),
             "parameters": {
                 "type": "object",
@@ -781,24 +1638,29 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "get_my_service_history",
             "description": (
-                "Return ALL completed maintenance/service records for ALL of the "
-                "customer's vehicles, grouped by vehicle. "
-                "Shows each vehicle's jobs with date, services performed, materials, "
-                "cost per job, and total spend. "
-                "Use for: 'service history', 'past services', 'how much have I spent', "
-                "'maintenance records', 'show my service history', 'pms history', "
-                "'completed maintenance', 'service records per car', 'show history per car'. "
-                "Optionally filter by a specific plate number."
+                "Return completed maintenance/service records for the customer's vehicles. "
+                "Use for: service history, past services, last oil change, maintenance records, "
+                "how much spent, services performed, PMS history. "
+                "Optionally filter by plate, service type keyword, year, or limit to N recent records."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "plate": {
                         "type": "string",
-                        "description": (
-                            "Specific plate number to filter by. "
-                            "Omit to get history for ALL vehicles."
-                        ),
+                        "description": "Vehicle plate to filter by. Omit for all vehicles.",
+                    },
+                    "service_type": {
+                        "type": "string",
+                        "description": "Keyword to filter by service type, e.g. 'oil change', 'brake'.",
+                    },
+                    "year": {
+                        "type": "integer",
+                        "description": "Calendar year to filter by, e.g. 2026.",
+                    },
+                    "recent": {
+                        "type": "integer",
+                        "description": "Return only the N most recent records.",
                     },
                 },
                 "required": [],
@@ -809,30 +1671,12 @@ CUSTOMER_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
-            "name": "get_my_pms_status",
+            "name": "get_service_recommendations",
             "description": (
-                "Return PMS schedule status for EACH of the customer's vehicles: "
-                "last service date, next PMS due date, days until due (negative = overdue). "
-                "Use for: 'when is my next PMS', 'which cars are overdue', "
-                "'PMS schedule', 'maintenance due', 'due soon'."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": False,
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_my_bookings",
-            "description": (
-                "Return the customer's own service booking appointments — pending, "
-                "confirmed, or completed. "
-                "Use for: 'my bookings', 'my appointments', 'upcoming service', "
-                "'did I book a service', 'show my bookings'."
+                "Return maintenance recommendations for the customer's vehicles based on "
+                "lastServiceDate and serviceFrequency from the database. "
+                "Use for: 'what maintenance do I need', 'is my car due', 'when should I service', "
+                "'overdue maintenance', 'upcoming PMS', 'maintenance reminder'."
             ),
             "parameters": {
                 "type": "object",
@@ -847,16 +1691,17 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "get_service_prices",
             "description": (
-                "Return services and prices from the shop catalog (public for all customers). "
-                "Use for: 'how much is a change oil', 'list of services', 'service prices', "
-                "'what services do you offer', 'how much is [service name]'."
+                "Return services and prices from the shop catalog. "
+                "Use for: 'how much is X', 'service prices', 'what services do you offer', "
+                "'list all services', 'price of oil change'. "
+                "Prices come from the database — never invented."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "Keyword to filter. E.g. 'oil change', 'brake'. Omit to list all.",
+                        "description": "Keyword to filter. Omit to list all.",
                     },
                 },
                 "required": [],
@@ -867,11 +1712,186 @@ CUSTOMER_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "get_customer_materials",
+            "description": (
+                "Return customer-visible materials/products offered by the shop. "
+                "Use for: 'do you sell engine oil', 'what products do you have', "
+                "'materials available'. "
+                "NEVER reveals stock quantities, supplier info, or purchase prices."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "material_name": {
+                        "type": "string",
+                        "description": "Keyword to filter. Omit for all materials.",
+                    },
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_booking_availability",
+            "description": (
+                "Check available time slots for a given date before creating a booking. "
+                "Call this BEFORE create_customer_booking to verify the slot is free."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "preferred_date": {
+                        "type": "string",
+                        "description": "Date to check, e.g. '2026-03-10', 'March 10, 2026'.",
+                    },
+                    "preferred_time": {
+                        "type": "string",
+                        "description": "Specific time slot to check, e.g. '9:00 AM'. Optional.",
+                    },
+                },
+                "required": ["preferred_date"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_customer_booking",
+            "description": (
+                "Create a service booking for the authenticated customer. "
+                "ONLY call after collecting: vehicle plate, service(s), date, and time. "
+                "Verify vehicle ownership and slot availability automatically. "
+                "Never create a booking without all required fields."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "plate": {
+                        "type": "string",
+                        "description": "Vehicle plate number. Must belong to this customer.",
+                    },
+                    "services": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of services to book, e.g. ['Change Oil', 'PMS'].",
+                    },
+                    "preferred_date": {
+                        "type": "string",
+                        "description": "Date of service, e.g. '2026-03-10' or 'March 10, 2026'.",
+                    },
+                    "preferred_time": {
+                        "type": "string",
+                        "description": "Time slot, e.g. '9:00 AM'.",
+                    },
+                    "notes": {
+                        "type": "string",
+                        "description": "Optional additional notes.",
+                    },
+                },
+                "required": ["plate", "services", "preferred_date", "preferred_time"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_my_bookings",
+            "description": (
+                "Return the customer's own service booking appointments. "
+                "Use for: 'my bookings', 'upcoming appointments', 'booking status', "
+                "'when is my next service', 'show my appointments'. "
+                "Optionally filter by status or upcoming only."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filter_status": {
+                        "type": "string",
+                        "description": "Filter by status: 'Pending', 'Confirmed', 'Completed', 'Cancelled'.",
+                    },
+                    "upcoming_only": {
+                        "type": "boolean",
+                        "description": "If true, return only future bookings.",
+                    },
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_my_booking",
+            "description": (
+                "Reschedule or update notes for the authenticated customer's own booking. "
+                "Use for: 'move my appointment', 'reschedule my booking', 'change my booking date'. "
+                "Verifies ownership before updating. Never modifies another customer's booking."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "booking_id": {
+                        "type": "string",
+                        "description": "The booking document ID to update.",
+                    },
+                    "new_date": {
+                        "type": "string",
+                        "description": "New preferred date, e.g. '2026-03-15'.",
+                    },
+                    "new_time": {
+                        "type": "string",
+                        "description": "New preferred time, e.g. '10:00 AM'.",
+                    },
+                    "new_notes": {
+                        "type": "string",
+                        "description": "Updated notes for the booking.",
+                    },
+                },
+                "required": ["booking_id"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "cancel_my_booking",
+            "description": (
+                "Cancel the authenticated customer's own booking. "
+                "Use for: 'cancel my appointment', 'cancel my booking'. "
+                "Verifies ownership before cancelling. Never cancels another customer's booking."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "booking_id": {
+                        "type": "string",
+                        "description": "The booking document ID to cancel.",
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Optional reason for cancellation.",
+                    },
+                },
+                "required": ["booking_id"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "estimate_service_cost",
             "description": (
-                "Estimate combined cost for one or more named services. "
-                "Use when the customer asks: 'how much would a change oil and brake cost?', "
-                "'estimate cost for X and Y', 'if I get X and Y, how much total?'."
+                "Estimate combined cost for one or more named services using actual catalog prices. "
+                "Use when: 'how much would X and Y cost', 'estimate cost for', 'combined price'. "
+                "Never invents prices."
             ),
             "parameters": {
                 "type": "object",
@@ -890,10 +1910,17 @@ CUSTOMER_TOOL_SCHEMAS = [
 ]
 
 CUSTOMER_TOOL_FUNCTIONS = {
-    "get_my_vehicles":        get_my_vehicles,
-    "get_my_service_history": get_my_service_history,
-    "get_my_pms_status":      get_my_pms_status,
-    "get_my_bookings":        get_my_bookings,
-    "get_service_prices":     get_service_prices,
-    "estimate_service_cost":  estimate_service_cost,
+    "get_my_vehicles":            get_my_vehicles,
+    "get_my_service_history":     get_my_service_history,
+    "get_service_recommendations": get_service_recommendations,
+    "get_service_prices":         get_service_prices,
+    "get_customer_materials":     get_customer_materials,
+    "check_booking_availability": check_booking_availability,
+    "create_customer_booking":    create_customer_booking,
+    "get_my_bookings":            get_my_bookings,
+    "update_my_booking":          update_my_booking,
+    "cancel_my_booking":          cancel_my_booking,
+    "estimate_service_cost":      estimate_service_cost,
+    # Legacy alias kept for backward compatibility with existing session history
+    "get_my_pms_status":          get_service_recommendations,
 }

@@ -31,6 +31,22 @@ COMPLEX_ANALYSIS       = "COMPLEX_ANALYSIS"
 REPORT_GENERATION      = "REPORT_GENERATION"
 UNKNOWN                = "UNKNOWN"
 
+# ── Customer-specific intent constants ────────────────────────────────────────
+MY_VEHICLES                = "MY_VEHICLES"
+MY_SERVICE_HISTORY         = "MY_SERVICE_HISTORY"
+MY_BOOKINGS                = "MY_BOOKINGS"
+SERVICE_RECOMMENDATION     = "SERVICE_RECOMMENDATION"
+SERVICE_PRICES             = "SERVICE_PRICES"
+CUSTOMER_MATERIALS         = "CUSTOMER_MATERIALS"
+SERVICE_COST               = "SERVICE_COST"
+MAINTENANCE_REMINDER       = "MAINTENANCE_REMINDER"
+BOOK_SERVICE               = "BOOK_SERVICE"
+UPDATE_BOOKING             = "UPDATE_BOOKING"
+CANCEL_BOOKING             = "CANCEL_BOOKING"
+GENERAL_SERVICE_INFORMATION = "GENERAL_SERVICE_INFORMATION"
+GENERAL_CUSTOMER_SUPPORT   = "GENERAL_CUSTOMER_SUPPORT"
+GENERAL_CONVERSATION       = "GENERAL_CONVERSATION"
+
 # Intents that use the SECONDARY (70B) model
 _SECONDARY_INTENTS = {COMPLEX_ANALYSIS}
 
@@ -127,6 +143,184 @@ _GENERAL = re.compile(
 
 
 # ── Public classifier ─────────────────────────────────────────────────────────
+
+# ── Customer intent patterns ──────────────────────────────────────────────────
+
+_CUSTOMER_MY_VEHICLES = re.compile(
+    r"\b(my\s+(vehicles?|cars?|fleet|truck|van|suv|motorbike|motorcycle)"
+    r"|list\s+(my\s+)?(vehicles?|cars?|fleet)"
+    r"|show\s+(my\s+)?(vehicles?|cars?|fleet)"
+    r"|what\s+(vehicles?|cars?)\s+(do\s+i|i\s+have)"
+    r"|how\s+many\s+(vehicles?|cars?)\s+(do\s+i|i\s+have)"
+    r"|plate\s+number|my\s+plate"
+    r"|registered\s+(vehicles?|cars?)|vehicles?\s+registered\s+to\s+me"
+    r"|tell\s+me\s+about\s+my\s+(toyota|honda|ford|nissan|mitsubishi|isuzu|suzuki))\b",
+    re.IGNORECASE,
+)
+
+_CUSTOMER_MY_HISTORY = re.compile(
+    r"\b(my\s+service\s+history|my\s+(pms|maintenance)\s+history"
+    r"|past\s+services?|service\s+records?|completed\s+services?"
+    r"|my\s+last\s+(service|oil\s+change|maintenance|pms|check)"
+    r"|when\s+(was|is)\s+(my\s+)?(last|latest)\s+(service|oil|maintenance|pms)"
+    r"|show\s+(all\s+)?my\s+service"
+    r"|how\s+much\s+(did\s+i|have\s+i)\s+spent?(\s+on)?"
+    r"|total\s+(spend|spending|cost)\s+(on\s+)?(maintenance|service)"
+    r"|services\s+(performed|done)\s+on\s+my"
+    r"|service\s+history\s+(this\s+year|last\s+year|for\s+(my|this)))\b",
+    re.IGNORECASE,
+)
+
+_CUSTOMER_MY_BOOKINGS = re.compile(
+    r"\b(my\s+(bookings?|appointments?)"
+    r"|show\s+(my\s+)?(bookings?|appointments?)"
+    r"|upcoming\s+(service|appointment|booking)"
+    r"|my\s+next\s+(service|appointment|booking)"
+    r"|when\s+is\s+my\s+next\s+(service|appointment)"
+    r"|do\s+i\s+have\s+any\s+(upcoming\s+)?(bookings?|appointments?)"
+    r"|did\s+i\s+(book|schedule|have\s+a\s+booking)"
+    r"|status\s+of\s+my\s+booking)\b",
+    re.IGNORECASE,
+)
+
+_SERVICE_RECOMMENDATION = re.compile(
+    r"\b(what\s+maintenance\s+(do\s+i|does\s+my|should\s+my)"
+    r"|maintenance\s+(recommendation|needed|due|schedule)"
+    r"|what\s+service\s+should\s+i\s+get"
+    r"|is\s+my\s+car\s+due"
+    r"|when\s+should\s+i\s+(get|have|do|schedule)\s+(an?\s+)?(oil\s+change|maintenance|service|pms)"
+    r"|what\s+should\s+i\s+have\s+checked"
+    r"|next\s+(maintenance|service|pms)\s+(for|due)"
+    r"|recommend(ation)?s?\s+(for|on)\s+(maintenance|service)"
+    r"|service\s+recommendation)\b",
+    re.IGNORECASE,
+)
+
+_SERVICE_PRICES = re.compile(
+    r"\b(how\s+much\s+(is|for|does|would|are)"
+    r"|price\s+(of|for)"
+    r"|service\s+price[s]?"
+    r"|what\s+services?\s+(do\s+you\s+offer|are\s+available|can\s+i\s+book)"
+    r"|list\s+(all\s+)?services?"
+    r"|services?\s+(offered|available|you\s+offer)"
+    r"|how\s+much\s+(is|for)\s+(a|an|the)?\s*pms"
+    r"|show\s+(me\s+)?(your\s+)?service\s+prices?)\b",
+    re.IGNORECASE,
+)
+
+_CUSTOMER_MATERIALS = re.compile(
+    r"\b(do\s+you\s+(sell|carry|have|offer)\s+"
+    r"(engine\s+oil|oil|brake\s+fluid|coolant|tire|parts?|materials?|products?)"
+    r"|what\s+(materials?|products?|parts?)\s+do\s+you\s+(have|offer|sell|carry)"
+    r"|engine\s+oil\s+(available|for\s+sale)"
+    r"|products?\s+(available|for\s+sale|offered))\b",
+    re.IGNORECASE,
+)
+
+_SERVICE_COST = re.compile(
+    r"\b(how\s+much\s+(did|have)\s+i\s+(spend|spent|pay|paid)"
+    r"|total\s+(cost|spend|spending|amount)\s+.*(service|maintenance|this\s+year)"
+    r"|how\s+much\s+was\s+my\s+last\s+service"
+    r"|cost\s+of\s+my\s+(last|previous|recent)\s+(service|maintenance)"
+    r"|how\s+much\s+would\s+(a|an)\s+.+cost"
+    r"|estimate\s+(the\s+)?cost\s+for)\b",
+    re.IGNORECASE,
+)
+
+_MAINTENANCE_REMINDER = re.compile(
+    r"\b(is\s+my\s+car\s+due\s+(for)?\s+maintenance"
+    r"|what\s+maintenance\s+is\s+coming\s+up"
+    r"|when\s+should\s+i\s+get\s+my\s+next\s+service"
+    r"|overdue\s+maintenance|pms\s+(overdue|due|reminder)"
+    r"|is\s+my\s+car\s+overdue"
+    r"|maintenance\s+(reminder|alert|notification)"
+    r"|due\s+(for\s+)?(maintenance|service|pms)"
+    r"|upcoming\s+(maintenance|service|pms))\b",
+    re.IGNORECASE,
+)
+
+_BOOK_SERVICE = re.compile(
+    r"\b(i\s+want\s+to\s+book"
+    r"|book\s+(me\s+)?(a\s+|an\s+)?(service|appointment|pms|oil\s+change|maintenance)"
+    r"|book\s+me\s+(a\s+|an\s+)?"
+    r"|schedule\s+(me\s+)?(a\s+|an\s+)?(service|appointment|maintenance|pms)"
+    r"|schedule\s+(a\s+|an\s+)?(pms|oil\s+change|service|maintenance|appointment)\s+(for|on)"
+    r"|make\s+(a\s+|an\s+)?(booking|appointment|reservation)"
+    r"|i\s+(need|want)\s+to\s+(schedule|book)\s+(a|an)?"
+    r"|how\s+do\s+i\s+book"
+    r"|can\s+i\s+book)\b",
+    re.IGNORECASE,
+)
+
+_UPDATE_BOOKING = re.compile(
+    r"\b(reschedule\s+(my\s+)?(booking|appointment)"
+    r"|move\s+my\s+(appointment|booking)"
+    r"|change\s+my\s+(appointment|booking)\s+(date|time|schedule)"
+    r"|update\s+my\s+(booking|appointment)"
+    r"|can\s+i\s+reschedule"
+    r"|i\s+want\s+to\s+reschedule)\b",
+    re.IGNORECASE,
+)
+
+_CANCEL_BOOKING = re.compile(
+    r"\b(cancel\s+(my\s+)?(booking|appointment)"
+    r"|i\s+want\s+to\s+cancel"
+    r"|can\s+i\s+cancel\s+my\s+(booking|appointment)"
+    r"|how\s+do\s+i\s+cancel)\b",
+    re.IGNORECASE,
+)
+
+_GENERAL_SERVICE_INFO = re.compile(
+    r"\b(what\s+services?\s+do\s+you\s+offer"
+    r"|what\s+can\s+i\s+book"
+    r"|how\s+does\s+booking\s+work"
+    r"|what\s+information\s+do\s+i\s+need\s+to\s+(provide|book)"
+    r"|how\s+do\s+i\s+(book|cancel|reschedule)"
+    r"|can\s+i\s+(reschedule|cancel)\s+(my\s+)?(appointment|booking)"
+    r"|what\s+is\s+(pms|preventive\s+maintenance|change\s+oil))\b",
+    re.IGNORECASE,
+)
+
+
+def classify_customer_intent(message: str) -> str:
+    """
+    Classify a CUSTOMER message into a customer-specific intent.
+    Returns a customer intent constant, or falls back to classify_intent()
+    for generic admin/general intents.
+    Never calls an LLM.
+    """
+    t = message.strip()
+
+    if _CANCEL_BOOKING.search(t):
+        return CANCEL_BOOKING
+    if _UPDATE_BOOKING.search(t):
+        return UPDATE_BOOKING
+    if _BOOK_SERVICE.search(t):
+        return BOOK_SERVICE
+    if _MAINTENANCE_REMINDER.search(t):
+        return MAINTENANCE_REMINDER
+    if _SERVICE_RECOMMENDATION.search(t):
+        return SERVICE_RECOMMENDATION
+    if _CUSTOMER_MY_VEHICLES.search(t):
+        return MY_VEHICLES
+    if _CUSTOMER_MY_HISTORY.search(t):
+        return MY_SERVICE_HISTORY
+    if _CUSTOMER_MY_BOOKINGS.search(t):
+        return MY_BOOKINGS
+    if _SERVICE_COST.search(t):
+        return SERVICE_COST
+    if _CUSTOMER_MATERIALS.search(t):
+        return CUSTOMER_MATERIALS
+    if _SERVICE_PRICES.search(t):
+        return SERVICE_PRICES
+    if _GENERAL_SERVICE_INFO.search(t):
+        return GENERAL_SERVICE_INFORMATION
+    # Fall through to generic classification for COMPLEX_ANALYSIS / GENERAL_AI_QUESTION
+    generic = classify_intent(t)
+    if generic in (DATABASE_LOOKUP, DATABASE_CALCULATION):
+        return MY_SERVICE_HISTORY  # map ambiguous DB queries to service history
+    return generic
+
 
 def classify_intent(message: str) -> str:
     """
