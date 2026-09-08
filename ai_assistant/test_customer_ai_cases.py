@@ -404,6 +404,9 @@ def tc_ca_007():
         _info(f"{elapsed}s | tools={[t.get('tool') for t in tcs]}")
         _info(f"Reply: {reply[:250]}")
         if _is_rate_limited(data): _quota_pass("TC-CA-007", desc); return
+        if not reply.strip():
+            _warn("Empty reply — backend rate-limited or slow. Treating as inconclusive.")
+            record("TC-CA-007", desc, True, "Empty reply (rate limit or timeout)"); return
 
         # Should return an amount or say no records
         has_cost = (re.search(r"[₱\$][\d,]+|[\d,]+\.?\d*\s*(php|peso)", reply)
