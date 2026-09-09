@@ -2,12 +2,14 @@
 LLM client using Groq (ONLY external AI provider).
 
 Calls Groq with intelligent model routing:
-  - Llama 3.1 8B Instant  → primary / default model
-  - Llama 3.3 70B Versatile → secondary, used only for COMPLEX_ANALYSIS
+  - qwen/qwen3.6-27b → primary / default model
+  - qwen/qwen3.6-27b → secondary (same model; override via GROQ_MODEL_SECONDARY env)
 
 Token usage is recorded after every call via token_tracker.
 Rate-limit errors (HTTP 429) are surfaced as RateLimitedError so main.py
 returns a friendly message instead of a 500.
+AuthenticationError (HTTP 401) → InvalidApiKeyError.
+Model-not-found (HTTP 404)     → InvalidApiKeyError with a model-specific message.
 """
 import json
 import logging
@@ -354,24 +356,38 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None,
             pass
         return resp
     except AuthenticationError as exc:
-        logger.error("Groq AuthenticationError — invalid or revoked API key: %s", exc)
+        logger.error(
+            "Groq AuthenticationError (HTTP 401) — invalid or revoked API key. "
+            "Raw error: %s", exc,
+        )
         raise InvalidApiKeyError(
             "The Groq API key is invalid or has been revoked. "
             "Please update GROQ_API_KEY in the Render environment variables."
         ) from exc
     except RateLimitError as exc:
+        logger.warning("Groq RateLimitError (HTTP 429): %s", exc)
         raise RateLimitedError(
             "The AI service has reached its daily usage limit (Groq free tier). "
             "Please try again later."
         ) from exc
     except Exception as exc:
         if _is_model_not_found(exc):
-            logger.error("Groq model_not_found: %s — model=%s", exc, chosen_model)
+            logger.error(
+                "Groq model_not_found for model=%s — check GROQ_MODEL_PRIMARY / "
+                "GROQ_MODEL_SECONDARY env vars. Raw error: %s",
+                chosen_model, exc,
+            )
             raise InvalidApiKeyError(
                 f"The AI model '{chosen_model}' is no longer available on Groq. "
                 "Please update GROQ_MODEL_PRIMARY / GROQ_MODEL_SECONDARY in the "
                 "Render environment variables to a currently supported model."
             ) from exc
+        # Log the full exception so the real Groq error is visible in server
+        # logs during development — the caller decides what to show the user.
+        logger.error(
+            "Groq API call failed (model=%s). %s: %s",
+            chosen_model, type(exc).__name__, exc,
+        )
         raise
 
 

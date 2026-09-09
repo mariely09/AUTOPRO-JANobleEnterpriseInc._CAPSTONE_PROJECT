@@ -103,7 +103,11 @@ def _is_rate_limit(exc: Exception) -> bool:
         # can't help (org-level limit), so we surface the friendly message
         # instead of letting it become a 500.
         or "413" in exc_str
-        or ("token" in exc_str and "limit" in exc_str)
+        # Match Groq's exact rate-limit phrases — intentionally narrow to avoid
+        # catching InvalidApiKeyError or model-not-found messages that happen
+        # to contain generic words like "token" and "limit".
+        or "rate_limit_exceeded" in exc_str
+        or "rate limit exceeded" in exc_str
         or "request too large" in exc_str
         or "too large for model" in exc_str
         # Firestore free-tier quota (ResourceExhausted / 429 from gRPC)
@@ -114,7 +118,15 @@ def _is_rate_limit(exc: Exception) -> bool:
 
 
 def _is_invalid_key(exc: Exception) -> bool:
-    """Return True if the exception is a Groq authentication / invalid-key error."""
+    """
+    Return True if the exception is a Groq authentication / invalid-key error.
+
+    NOTE: model-not-found (404) errors are intentionally NOT matched here.
+    client.py already wraps those as InvalidApiKeyError with a specific message,
+    so isinstance() catches them. Adding raw string checks for "model_not_found"
+    or "does not exist" risks catching unrelated exceptions and masking the real
+    error with the generic config-issue reply.
+    """
     from client import InvalidApiKeyError
     if isinstance(exc, InvalidApiKeyError):
         return True
@@ -123,19 +135,28 @@ def _is_invalid_key(exc: Exception) -> bool:
     return (
         "authentication" in cls_name
         or "invalidapikey" in cls_name
+        or "authenticationerror" in cls_name
         or "401" in exc_str
         or "invalid api key" in exc_str
         or "invalid_api_key" in exc_str
         or "revoked" in exc_str
         or "unauthorized" in exc_str
-        or "model_not_found" in exc_str
-        or "does not exist" in exc_str
-        or "no access to it" in exc_str
     )
 
 
-def _invalid_key_reply() -> dict:
-    """Build a structured response for an invalid/revoked API key or missing model."""
+def _invalid_key_reply(exc: Exception | None = None) -> dict:
+    """
+    Build a structured response for an invalid/revoked API key or missing model.
+    Logs the underlying exception (without the key value) so the real cause is
+    visible in server logs during development.
+    """
+    import logging as _log
+    _log.getLogger(__name__).error(
+        "AI config error → returning config-issue reply to client. "
+        "Cause: %s: %s",
+        type(exc).__name__ if exc else "unknown",
+        exc if exc else "(no exception provided)",
+    )
     return {
         "rate_limited": False,
         "reply": (
@@ -450,7 +471,7 @@ def admin_chat(req: ChatRequest):
                 reset_in=rl["reset_in"],
             )
         if _is_invalid_key(e):
-            ik = _invalid_key_reply()
+            ik = _invalid_key_reply(e)
             return ChatResponse(
                 reply=ik["reply"],
                 session_id=session_id,
@@ -465,8 +486,6 @@ def admin_chat(req: ChatRequest):
             _perf["intent"] = "UNKNOWN"
         perf_metrics.log_summary(_perf)
         perf_metrics.pop()
-
-
 def _record_llm_usage_admin(result: dict, admin_id: str) -> None:
     """Extract token counts from an LLM result dict and record them for the admin."""
     try:
@@ -888,6 +907,8 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
 
     def _call(msgs, tools=None):
         from client import RateLimitedError as _RLE, InvalidApiKeyError as _IKE, get_groq_client
+        import logging as _log
+        _clog = _log.getLogger(__name__)
         api_key = settings.GROQ_API_KEY
         if not api_key:
             raise _IKE("No Groq API key configured.")
@@ -915,16 +936,30 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                 pass
             return resp
         except AuthenticationError as exc:
+            _clog.error(
+                "Customer chat — Groq AuthenticationError (HTTP 401). "
+                "Raw error: %s", exc,
+            )
             raise _IKE("The Groq API key is invalid or has been revoked.") from exc
         except RateLimitError as exc:
+            _clog.warning("Customer chat — Groq RateLimitError (HTTP 429): %s", exc)
             raise _RLE("The AI service has reached its daily usage limit.") from exc
         except Exception as exc:
             _s = str(exc).lower()
             if ("model_not_found" in _s or "does not exist" in _s
                     or "404" in _s or "no access to it" in _s):
+                _clog.error(
+                    "Customer chat — Groq model_not_found for model=%s. "
+                    "Raw error: %s", chosen_model, exc,
+                )
                 raise _IKE(
                     f"The AI model '{chosen_model}' is no longer available on Groq."
                 ) from exc
+            # Log the real error before re-raising so it appears in server logs.
+            _clog.error(
+                "Customer chat — Groq API call failed (model=%s). %s: %s",
+                chosen_model, type(exc).__name__, exc,
+            )
             raise
 
     def _strip_null(raw: str) -> dict:
@@ -1535,7 +1570,7 @@ def customer_chat_endpoint(req: CustomerChatRequest):
                 reset_in=rl["reset_in"],
             )
         if _is_invalid_key(e):
-            ik = _invalid_key_reply()
+            ik = _invalid_key_reply(e)
             return ChatResponse(
                 reply=ik["reply"],
                 session_id=session_id,
@@ -1574,3 +1609,76 @@ def _merge_history(server: list[dict], client: list[dict] | None) -> list[dict]:
 
     limit = _settings.GROQ_MAX_HISTORY_MSGS
     return base[-limit:] if len(base) > limit else base
+
+
+# -- Debug: Groq connectivity test --------------------------------------------
+
+@app.get("/debug/test-groq")
+def debug_test_groq():
+    """
+    Verify the complete Groq API request flow without sending a real chat message.
+
+    Makes a minimal call (1 output token) to confirm:
+      - GROQ_API_KEY is present and accepted by Groq
+      - The configured model (GROQ_MODEL_PRIMARY) exists and is accessible
+      - The SDK / network path is working end-to-end
+
+    NEVER returns the raw API key — only the masked last-4 characters.
+    Safe to call during development; not intended for production traffic checks.
+    """
+    import time as _time
+    from api_key_manager import mask_key
+
+    api_key   = _settings.GROQ_API_KEY
+    model     = _settings.GROQ_MODEL_PRIMARY
+    key_hint  = mask_key(api_key) if api_key else "(not set)"
+
+    if not api_key:
+        return {
+            "ok":      False,
+            "model":   model,
+            "key":     key_hint,
+            "error":   "GROQ_API_KEY is not set in the environment / .env file.",
+            "elapsed_ms": 0,
+        }
+
+    t0 = _time.time()
+    try:
+        from client import get_groq_client
+        client = get_groq_client(api_key)
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": "Reply with the single word: OK"}],
+            max_tokens=5,
+            # Keep thinking disabled consistent with all other calls.
+            chat_template_kwargs={"enable_thinking": False},
+        )
+        elapsed_ms = round((_time.time() - t0) * 1000)
+        content    = (resp.choices[0].message.content or "").strip()
+        usage      = getattr(resp, "usage", None)
+        return {
+            "ok":           True,
+            "model":        model,
+            "key":          key_hint,
+            "reply":        content,
+            "prompt_tokens":     getattr(usage, "prompt_tokens",     None),
+            "completion_tokens": getattr(usage, "completion_tokens", None),
+            "elapsed_ms":   elapsed_ms,
+        }
+    except Exception as exc:
+        import logging as _log
+        _log.getLogger(__name__).error(
+            "debug/test-groq failed. model=%s key=%s — %s: %s",
+            model, key_hint, type(exc).__name__, exc,
+        )
+        elapsed_ms = round((_time.time() - t0) * 1000)
+        return {
+            "ok":         False,
+            "model":      model,
+            "key":        key_hint,
+            "error_type": type(exc).__name__,
+            # Surface the Groq error message so devs can see the real cause,
+            # but never include the API key value itself.
+            "error":      str(exc).replace(api_key, "***") if api_key in str(exc) else str(exc),
+            "elapsed_ms": elapsed_ms,
+        }
