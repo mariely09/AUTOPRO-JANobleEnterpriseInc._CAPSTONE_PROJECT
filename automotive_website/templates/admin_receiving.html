@@ -162,7 +162,25 @@
                 <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:90px 90px 1.1fr 1.6fr 0.7fr 0.7fr 0.8fr 0.9fr 140px 120px;">
                     <div>Order Date</div><div>Received<br>Date</div><div>Supplier Code</div><div>Item Description</div><div>Stock</div><div>Order Qty</div><div>Price</div><div>Subtotal</div><div>Status</div><div>Actions</div>
                 </div>
-                <div id="deliveriesList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading deliveries...</div></div>
+                <div id="deliveriesList">
+                    <!-- Skeleton rows — visible instantly while Firestore loads -->
+                    <div id="rcvSkeleton">
+                      <style>
+                        @keyframes rcvShimmer { 0% { background-position:-600px 0; } 100% { background-position:600px 0; } }
+                        .rcv-skel-row { display:grid; grid-template-columns:90px 90px 1.1fr 1.6fr 0.7fr 0.7fr 0.8fr 0.9fr 140px 120px; padding:13px 16px; border-bottom:1px solid #f0f4f8; align-items:center; gap:0; }
+                        .rcv-skel-cell { height:13px; border-radius:6px; background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%); background-size:600px 100%; animation:rcvShimmer 1.4s infinite linear; margin-right:20px; }
+                        .rcv-skel-cell.short  { width:55%; }
+                        .rcv-skel-cell.medium { width:75%; }
+                        .rcv-skel-cell.badge  { width:80px; height:20px; border-radius:20px; }
+                        .rcv-skel-cell.btn    { width:90px; height:24px; border-radius:7px; }
+                      </style>
+                      <div class="rcv-skel-row"><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell badge"></div><div class="rcv-skel-cell btn"></div></div>
+                      <div class="rcv-skel-row"><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell badge"></div><div class="rcv-skel-cell btn"></div></div>
+                      <div class="rcv-skel-row"><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell badge"></div><div class="rcv-skel-cell btn"></div></div>
+                      <div class="rcv-skel-row"><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell badge"></div><div class="rcv-skel-cell btn"></div></div>
+                      <div class="rcv-skel-row"><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell badge"></div><div class="rcv-skel-cell btn"></div></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div><!-- /.admin-page-shell -->
@@ -687,6 +705,9 @@ window._renderList = function _renderList() {
 
   var el = document.getElementById('deliveriesList');
   if (!el) return;
+  // Remove skeleton on first real render
+  var skel = document.getElementById('rcvSkeleton');
+  if (skel) skel.remove();
   if (!list.length) { el.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">No deliveries found.</div>'; _apPages['deliveriesList'] = 1; return; }
   var sc = { 'Pending':['#718096','rgba(113,128,150,0.1)'], 'For Admin Review':['#E8001C','rgba(232,0,28,0.08)'], 'Awaiting Double Check':['#d69e2e','rgba(214,158,46,0.1)'], 'Approved':['#38a169','rgba(56,161,105,0.1)'], 'Rejected':['#E8001C','rgba(232,0,28,0.1)'] };
   var rows = [];
@@ -872,47 +893,154 @@ function _ivInfoCard(label, value, valueColor) {
     + '</div>';
 }
 
-db.collection('deliveries').orderBy('createdAt','desc').onSnapshot(function(snap) {
-  // Exclude archived deliveries from the active list
-  _allDeliveries = snap.docs
-    .map(function(d){ return Object.assign({id:d.id},d.data()); })
-    .filter(function(d){ return !d.archived; });
-  // Enrich items with cost + stock from item_master and stock_inventory
-  Promise.all([
-    db.collection('item_master').where('type','==','Material').get(),
-    db.collection('stock_inventory').get()
-  ]).then(function(results) {
-    var numToCost = {}, numToStock = {};
-    results[0].docs.forEach(function(d) {
-      var data = d.data(); var n = data.num||'';
-      if (n) numToCost[n] = parseFloat((data.cost||'0').toString().replace(/[₱,]/g,''))||0;
+  // ── Enrich delivery items with _cost and _stock from already-loaded globals ──
+  // admin_firebase.js pre-loads item_master → window._fbItemMaster
+  //                            stock_inventory → window._fbInventory
+  // We read from those instead of firing two extra .get() calls per page visit.
+  function _enrichDeliveries(deliveries) {
+    var numToCost  = {};
+    var numToStock = {};
+    (window._fbItemMaster || []).forEach(function(item) {
+      var n = item.num || item.itemNum || '';
+      if (n) numToCost[n] = parseFloat((item.cost || '0').toString().replace(/[₱,]/g, '')) || 0;
     });
-    results[1].docs.forEach(function(d) {
-      var data = d.data(); var n = data.num||'';
-      if (n) numToStock[n] = parseInt(data.stock)||0;
+    (window._fbInventory || []).forEach(function(item) {
+      var n = item.num || item.itemNum || '';
+      if (n) numToStock[n] = parseInt(item.stock) || 0;
     });
-    _allDeliveries.forEach(function(del) {
-      (del.items||[]).forEach(function(item) {
-        var n = item.itemNum||'';
-        item._cost = numToCost[n]||0;
-        // Use stockAtReceive (frozen at receive time) if available; otherwise use live stock
+    deliveries.forEach(function(del) {
+      (del.items || []).forEach(function(item) {
+        var n = item.itemNum || '';
+        item._cost = numToCost[n] || 0;
         if (item.stockAtReceive !== undefined && item.stockAtReceive !== null) {
           item._stock = item.stockAtReceive;
         } else {
-          item._stock = numToStock[n] !== undefined ? numToStock[n] : null;
+          item._stock = (numToStock[n] !== undefined) ? numToStock[n] : null;
         }
       });
     });
+  }
+
+  // ── Called by admin_firebase.js whenever deliveries snapshot updates ──────
+  window._rcvOnDeliveries = function(docs) {
+    _allDeliveries = docs;
+    _enrichDeliveries(_allDeliveries);
     _updateStats(); _populateMonthFilter(); _renderList();
-  }).catch(function() {
+  };
+
+  // ── Fast path: use already-loaded window._fbDeliveries ──────────────────
+  // The global listener in admin_firebase.js starts at login and fires before
+  // the user navigates here. If data is ready, paint instantly (0 ms).
+  // If not ready yet, poll every 100 ms (max 4 s) then fall back to .get().
+  function _loadFromGlobal() {
+    var docs = window._fbDeliveries;
+    if (!docs || !docs.length) return false;
+    _allDeliveries = docs;
+    _enrichDeliveries(_allDeliveries);
     _updateStats(); _populateMonthFilter(); _renderList();
-  });
-}, function() {
-  db.collection('deliveries').get().then(function(snap) {
-    _allDeliveries = snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
-    _updateStats(); _populateMonthFilter(); _renderList();
-  });
-});
+    return true;
+  }
+
+  if (!_loadFromGlobal()) {
+    var _rcvPollCount = 0;
+    var _rcvPoll = setInterval(function() {
+      _rcvPollCount++;
+      if (_loadFromGlobal() || _rcvPollCount >= 40) {
+        clearInterval(_rcvPoll);
+        // Hard fallback: direct Firestore .get() if global listener hasn't fired in 4 s
+        if (!_allDeliveries.length) {
+          Promise.all([
+            db.collection('deliveries').orderBy('createdAt', 'desc').get(),
+            db.collection('item_master').where('type', '==', 'Material').get(),
+            db.collection('stock_inventory').get()
+          ]).then(function(results) {
+            _allDeliveries = results[0].docs
+              .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
+              .filter(function(d) { return !d.archived; });
+            var numToCost = {}, numToStock = {};
+            results[1].docs.forEach(function(d) {
+              var data = d.data(); var n = data.num || '';
+              if (n) numToCost[n] = parseFloat((data.cost || '0').toString().replace(/[₱,]/g, '')) || 0;
+            });
+            results[2].docs.forEach(function(d) {
+              var data = d.data(); var n = data.num || '';
+              if (n) numToStock[n] = parseInt(data.stock) || 0;
+            });
+            _allDeliveries.forEach(function(del) {
+              (del.items || []).forEach(function(item) {
+                var n = item.itemNum || '';
+                item._cost = numToCost[n] || 0;
+                item._stock = (item.stockAtReceive !== undefined && item.stockAtReceive !== null)
+                  ? item.stockAtReceive
+                  : (numToStock[n] !== undefined ? numToStock[n] : null);
+              });
+            });
+            _updateStats(); _populateMonthFilter(); _renderList();
+          }).catch(function() {
+            _renderList();
+          });
+        }
+      }
+    }, 100);
+  }
+</script>
+<script>
+// ── Instant cache restore — runs before DOMContentLoaded ──────────────────
+// Paints stale data from sessionStorage immediately so the table isn't blank
+// while admin_firebase.js waits for the Firestore snapshot to return.
+(function() {
+  try {
+    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+    if (!uid) return;
+    var raw = sessionStorage.getItem('deliveriesCache_' + uid);
+    if (!raw) return;
+    var docs = JSON.parse(raw);
+    if (!Array.isArray(docs) || !docs.length) return;
+
+    // Restore serialised Timestamps
+    docs.forEach(function(d) {
+      ['createdAt', 'receivedAt', 'archivedAt'].forEach(function(k) {
+        if (d[k] && d[k]._ms) {
+          var ms = d[k]._ms;
+          d[k] = { toMillis: function() { return ms; }, seconds: Math.floor(ms / 1000) };
+        }
+      });
+    });
+
+    // Only paint if global listener hasn't already populated _allDeliveries
+    if (!window._fbDeliveries || !window._fbDeliveries.length) {
+      window._fbDeliveries = docs;
+
+      // Paint stats immediately from cache
+      (function() {
+        var s = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+        var pending = 0, forReview = 0, awaiting = 0, approved = 0, rejected = 0;
+        docs.forEach(function(d) {
+          var ds = d.status || 'Pending';
+          (d.items || []).forEach(function(item) {
+            switch (item.itemStatus || ds) {
+              case 'Pending':               pending++;  break;
+              case 'For Admin Review':      forReview++; break;
+              case 'Awaiting Double Check': awaiting++; break;
+              case 'Approved':              approved++; break;
+              case 'Rejected':              rejected++; break;
+            }
+          });
+        });
+        s('statPending',   pending);
+        s('statForReview', forReview);
+        s('statAwaiting',  awaiting);
+        s('statApproved',  approved);
+        s('statRejected',  rejected);
+      })();
+
+      // Render table from cache; live snapshot will overwrite shortly
+      if (typeof window._rcvOnDeliveries === 'function') {
+        window._rcvOnDeliveries(docs);
+      }
+    }
+  } catch(e) {}
+})();
 </script>
 <script>
 function _loadItemMaster() {
