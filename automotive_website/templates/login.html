@@ -111,6 +111,15 @@
       console.log('Auth state: Google redirect sign-in in progress — deferring');
       return;
     }
+    
+    // If an active login is in progress, don't sign out
+    let loginInProgress = false;
+    try { loginInProgress = sessionStorage.getItem('loginInProgress') === '1'; } catch (_) {}
+    if (loginInProgress) {
+      console.log('Auth state: Login in progress — deferring');
+      return;
+    }
+    
     if (user) {
       // Stale session (e.g. user pressed back to this page) — sign out so the
       // back button can never restore a logged-in dashboard state.
@@ -220,6 +229,9 @@
       return;
     }
 
+    // Mark login as in progress to prevent onAuthStateChanged from interfering
+    sessionStorage.setItem('loginInProgress', '1');
+    
     setLoading(signinBtn, true, signinDefault);
     try {
       // Pre-check: verify the email exists in Firestore before attempting auth
@@ -325,6 +337,7 @@
       // Block inactive users
       if (status === 'inactive') {
         console.log('Step 13: Account is inactive - signing out');
+        sessionStorage.removeItem('loginInProgress');
         await firebase.auth().signOut();
         showToast('Your account has been deactivated. Please contact the administrator.');
         setLoading(signinBtn, false, signinDefault);
@@ -334,6 +347,7 @@
       // Block pending users
       if (status === 'pending') {
         console.log('Step 13: Account is pending approval - signing out');
+        sessionStorage.removeItem('loginInProgress');
         await firebase.auth().signOut();
         showToast('Your account is pending admin approval. You will be notified by email once approved.', 'error');
         setLoading(signinBtn, false, signinDefault);
@@ -407,6 +421,7 @@
       }
       
       showToast(msg);
+      sessionStorage.removeItem('loginInProgress');
       _loginAttempts++;
       if (_loginAttempts >= MAX_ATTEMPTS) {
         _lockoutUntil = Date.now() + (LOCKOUT_SECONDS * 1000);
