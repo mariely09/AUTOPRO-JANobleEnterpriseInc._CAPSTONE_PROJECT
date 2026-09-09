@@ -1,0 +1,16 @@
+* [33mef7c141[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m ai assistant: change pipeline and optimize performance
+* [33m3f7b304[m ai assistant - quick query fixed
+* [33me80f67b[m ai assistant - limit token usage and optimization
+* [33m7b8125c[m update: ai assistant - booking service & ui
+* [33md2887e6[m ai assistant - booking service
+* [33m99ba1c9[m ai assistant - customer asked for list of prices
+* [33me187d1c[m ai asssistant customer booking
+* [33m5c850c5[m Fix: test TC-CA-007 empty reply guard; add e2e local test
+* [33mcd92f9f[m Fix: customer AI encoding + synonym expansion for service prices
+* [33mf35f421[m Update: customer ai backend
+* [33m2bc09ad[m update
+* [33mc68ca16[m update
+* [33mb22f784[m update
+* [33mcb2719a[m update
+*   [33md047af7[m Merge branch 'main' of https://github.com/mariely09/CALTEX-AUTOPRO_CAPSTONE_PROJECT
+[32m|[m[33m\[m  
