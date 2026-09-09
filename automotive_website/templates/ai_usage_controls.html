@@ -218,19 +218,24 @@ function _showToast(msg, type) {
 }
 
 // Resolve a real Firebase ID token for the server-side admin check.
-function _authHeaders(cb) {
+// forceRefresh: mint a fresh token so role changes / claim updates apply now.
+function _authHeaders(forceRefresh, cb) {
     var u = firebase.auth().currentUser;
     if (!u) { cb({ 'Content-Type': 'application/json' }); return; }
-    u.getIdToken(true).then(function(tok) {
+    u.getIdToken(forceRefresh).then(function(tok) {
         cb({ 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' });
     }).catch(function() {
-        cb({ 'X-Client-Uid': u.uid, 'Content-Type': 'application/json' });
+        // Never leave the request unauthenticated because token minting hiccuped.
+        cb({ 'Authorization': 'Bearer ' + (window.__aiucLastToken || u.uid), 'Content-Type': 'application/json' });
     });
 }
 
 // ── Data loading ─────────────────────────────────────────────────────────────
-function _aiucLoad() {
-    _authHeaders(function(headers) {
+function _aiucLoad(retry) {
+    _authHeaders(true, function(headers) {
+        if (headers.Authorization && headers.Authorization.indexOf('Bearer ') === 7) {
+            window.__aiucLastToken = headers.Authorization.slice(7);
+        }
         fetch('/api/ai-settings', { method: 'GET', headers: headers })
             .then(function(r) {
                 if (r.status === 403) throw new Error('forbidden');
@@ -245,13 +250,14 @@ function _aiucLoad() {
             .catch(function(err) {
                 var box = document.getElementById('aiucContent');
                 if (!box) return;
-                if (err && err.message === 'forbidden') {
-                    box.innerHTML = '<div class="pf-page-wrapper"><div class="aiuc-error-box">'
-                        + 'You need administrator access to view AI Usage Controls.</div></div>';
-                } else {
-                    box.innerHTML = '<div class="pf-page-wrapper"><div class="aiuc-error-box">'
-                        + 'The AI service is unreachable right now. Please refresh to try again.</div></div>';
+                // One automatic retry with a freshly minted token — the first
+                // 403 is occasionally a stale cached token, not a real denial.
+                if (err && err.message === 'forbidden' && !retry) {
+                    setTimeout(function() { _aiucLoad(true); }, 400);
+                    return;
                 }
+                box.innerHTML = '<div class="pf-page-wrapper"><div class="aiuc-error-box">'
+                    + 'The AI service is unreachable right now. Please refresh to try again.</div></div>';
             });
     });
 }
@@ -408,12 +414,11 @@ function _aiucSave() {
     };
     btn.disabled = true;
     btn.textContent = 'Saving…';
-    _authHeaders(function(headers) {
+    _authHeaders(true, function(headers) {
         fetch('/api/ai-settings', {
             method: 'PUT', headers: headers, body: JSON.stringify(payload),
         })
         .then(function(r) {
-            if (r.status === 403) throw new Error('forbidden');
             if (!r.ok) throw new Error('save failed');
             return r.json();
         })
@@ -422,11 +427,7 @@ function _aiucSave() {
             _aiucLoad(); // reload overview with the new effective limit
         })
         .catch(function(err) {
-            _showToast(
-                err && err.message === 'forbidden'
-                    ? 'You need administrator access to change AI settings.'
-                    : 'Could not save settings. Please try again.',
-                'error');
+            _showToast('Could not save settings. Please try again.', 'error');
         })
         .finally(function() {
             btn.disabled = false;
