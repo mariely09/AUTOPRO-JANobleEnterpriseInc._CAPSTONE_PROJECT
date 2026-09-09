@@ -793,7 +793,22 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     from customer_tools import CUSTOMER_TOOL_SCHEMAS, CUSTOMER_TOOL_FUNCTIONS
     import time as _time
 
-    # -- Step 1: out-of-scope pre-check (0 LLM tokens, 0 Firestore reads) -----
+    # -- Step 1: authorization pre-check (0 LLM tokens, 0 Firestore reads) ----
+    # Centralized access control (access_control.py): denies other-customer
+    # data, inventory, issuance, admin reports, business analytics, and
+    # off-topic requests BEFORE any Firestore read or LLM call — a denied
+    # request can never leak data or fall back to the customer's own history.
+    import access_control
+    _denial = access_control.classify_denial(message)
+    if _denial is not None:
+        return {
+            "reply": access_control.denial_message(_denial, message),
+            "tool_calls": [],
+            "model": "none",
+            "intent": f"ACCESS_DENIED_{_denial}",
+        }
+
+    # -- Step 1b: out-of-scope pre-check (defense in depth) -------------------
     # Must run BEFORE the direct-DB path: ambiguous DB intents (e.g. stock
     # questions mapped to MY_SERVICE_HISTORY) must never trigger a Firestore
     # read or a wrong answer.

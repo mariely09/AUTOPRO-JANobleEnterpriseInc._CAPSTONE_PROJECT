@@ -25,9 +25,12 @@ if not _SERVICE_ACCOUNT_PATH or not os.path.exists(_SERVICE_ACCOUNT_PATH):
         os.path.join(os.path.dirname(__file__), 'serviceAccountKey.json'),
         os.path.join(os.path.dirname(__file__), '..', 'serviceAccountKey.json'),
         os.path.join(os.path.dirname(__file__), '..', 'AI_ASSISTANT', 'serviceAccountKey.json'),
+        # ai_assistant service folder (same Firebase project — shared Admin SDK)
+        os.path.join(os.path.dirname(__file__), '..', 'ai_assistant', 'caltex-autopro-1e664-firebase-adminsdk-fbsvc-07b4fc625e.json'),
+        os.path.join(os.path.dirname(__file__), '..', 'ai_assistant', 'serviceAccountKey.json'),
         os.path.join(os.path.dirname(__file__), 'firebase-credentials.json'),
         os.path.join(os.path.dirname(__file__), '..', 'firebase-credentials.json'),
-        os.path.join(os.path.expanduser('~'), 'serviceAccountKey.json'),
+        os.path.expanduser(os.path.join('~', 'serviceAccountKey.json')),
     ]
     for _p in _SEARCH_PATHS:
         if os.path.exists(_p):
@@ -832,7 +835,13 @@ def _sanitise_admin_reply(reply: str) -> str:
 # or change AI settings.
 
 def _require_admin():
-    """Verify the Bearer ID token and return (uid, claims) for an admin, or None."""
+    """
+    Verify the caller is an authenticated admin and return their claims,
+    or None. Checks, in order:
+      1. Bearer Firebase ID token — admin via custom claim (admin/role), or
+      2. the Firestore `users/{uid}.role == 'admin'` (via the shared
+         ai_assistant/firebase_client module already used by this app).
+    """
     auth_header = request.headers.get('Authorization', '')
     token = auth_header[7:].strip() if auth_header.startswith('Bearer ') else ''
     if not token:
@@ -841,19 +850,26 @@ def _require_admin():
         claims = fb_auth.verify_id_token(token)
     except Exception:
         return None
-    # Admin role: custom claim, Firestore users doc, or verified web session.
+
+    # 1. Custom claims, if present.
     if claims.get('admin') or claims.get('role') == 'admin':
         return claims
+
+    # 2. Firestore role lookup via this app's own Firebase Admin client
+    #    (initialized at startup). The earlier version imported a
+    #    `firestore_client` module that doesn't exist in this service, which
+    #    raised ModuleNotFoundError and silently failed every admin check.
     try:
-        from firestore_client import get_db as _get_admin_db
-        udoc = _get_admin_db().collection('users').document(claims['uid']).get()
-        if udoc.exists and (udoc.to_dict().get('role') or '').lower() == 'admin':
-            return claims
+        from firebase_admin import firestore as _fa
+        _db = _fa.client()
+        udoc = _db.collection('users').document(claims['uid']).get()
+        if udoc.exists:
+            role = (udoc.to_dict().get('role') or '').strip().lower()
+            if role == 'admin':
+                return claims
     except Exception:
         pass
-    sess = session.get('user') or {}
-    if (sess.get('role') or '').lower() == 'admin' and sess.get('uid') == claims.get('uid'):
-        return claims
+
     return None
 
 
@@ -1216,6 +1232,17 @@ def ai_generate_report():
     """
     from flask import send_file
     import io as _io
+
+    # ── Admin-only enforcement (independent of the AI intent router) ─────────
+    # Report generation is an administrative feature. Even if a customer
+    # reaches this endpoint directly, the request is rejected before any
+    # report data is retrieved or generated.
+    if _require_admin() is None:
+        return jsonify({
+            'success': False,
+            'error': ('Sorry, administrative report generation is only '
+                      'available to authorized administrators.'),
+        }), 403
 
     data        = request.get_json(silent=True) or {}
     report_type = data.get('report_type', '').strip().lower()
