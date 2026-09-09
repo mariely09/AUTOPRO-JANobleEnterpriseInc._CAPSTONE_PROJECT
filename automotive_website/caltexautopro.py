@@ -51,6 +51,9 @@ if not firebase_admin._apps:
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'your-secret-key-change-this-in-production')
+# Always pick up template edits without a server restart (Flask otherwise
+# disables auto-reload when debug=False).
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.jinja_env.auto_reload = True
 import jinja2
 app.jinja_loader = jinja2.FileSystemLoader(app.template_folder, encoding='utf-8')

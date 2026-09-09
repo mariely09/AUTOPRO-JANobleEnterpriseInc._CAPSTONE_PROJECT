@@ -19,6 +19,8 @@ body {
 
 a { text-decoration: none; }
 
+html, body { overflow-x: hidden; }
+
 /* ── Nav ── */
 .nav {
   position: fixed;
@@ -44,6 +46,35 @@ a { text-decoration: none; }
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0; /* allow the brand to shrink instead of overflowing */
+}
+
+/* Brand text (moved out of inline styles so breakpoints can control it) */
+.nav-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+  min-width: 0;
+}
+
+.nav-company {
+  font-size: 14px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-tagline {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: 2px;
+  white-space: nowrap;
 }
 
 .nav-logo {
@@ -140,17 +171,19 @@ a { text-decoration: none; }
 .hero-content { flex: 1; max-width: 560px; }
 
 .hero-badge {
-  display: inline-block;
-  background: rgba(232,0,28,0.2);
-  color: #fc8181;
-  border: 1px solid rgba(232,0,28,0.35);
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.92);
+  border: 1.5px solid rgba(255,255,255,0.22);
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
   margin-bottom: 20px;
+  max-width: 100%;
 }
 
 .hero-title {
@@ -407,29 +440,56 @@ a { text-decoration: none; }
 .footer-copy { font-size: 12px; color: rgba(255,255,255,0.4); }
 
 /* ── Responsive ── */
+@media (max-width: 1024px) {
+  .nav-company { font-size: 13px; }
+  .nav-btn-outline { padding: 7px 16px; }
+  .nav-btn { padding: 8px 18px; }
+}
+
 @media (max-width: 900px) {
+  /* Nav — tighten paddings, smaller type */
+  .nav { padding: 0 4%; height: 60px; }
+  .nav-company { font-size: 12.5px; letter-spacing: 0.5px; }
+  .nav-tagline { font-size: 9px; letter-spacing: 1.5px; }
+  .nav-actions { gap: 8px; }
+  .nav-btn-outline { padding: 7px 15px; font-size: 13px; }
+  .nav-btn { padding: 8px 17px; font-size: 13px; }
+
   .hero { flex-direction: column; padding: 100px 5% 48px; text-align: center; gap: 40px; }
   .hero-content { max-width: 100%; }
   .hero-sub { margin: 0 auto 28px; }
   .hero-actions { justify-content: center; }
   .hero-visual { width: 100%; max-width: 480px; margin: 0 auto; }
   .features-grid, .roles-grid { grid-template-columns: 1fr 1fr; }
+
+  /* Get the App — keep all 3 phones but scale them down so they fit */
+  #get-app > div { grid-template-columns: 1fr !important; gap: 48px !important; }
+  #get-app > div > div:last-child { transform: scale(0.85); transform-origin: center top; margin-top: -40px; }
 }
 
 @media (max-width: 600px) {
-  /* Nav */
-  .nav { padding: 0 4%; height: 56px; }
-  .nav-btn-outline { padding: 6px 14px; font-size: 13px; }
-  .nav-btn { padding: 6px 16px; font-size: 13px; }
+  /* Nav — compact: shrink brand text further, tighten buttons */
+  .nav { padding: 0 4%; height: 56px; gap: 8px; }
+  .nav-brand-text { max-width: calc(100vw - 230px); } /* leave room for the two buttons */
+  .nav-company { font-size: 11.5px; }
+  .nav-tagline { font-size: 8px; letter-spacing: 1px; margin-top: 1px; }
+  .nav-btn-outline { padding: 6px 12px; font-size: 12.5px; }
+  .nav-btn { padding: 7px 14px; font-size: 12.5px; }
 
   /* Hero */
   .hero { padding: 88px 5% 40px; gap: 32px; }
-  .hero-badge { font-size: 10px; padding: 8px 14px; }
+  .hero-badge { font-size: 10px; padding: 8px 14px; gap: 8px; letter-spacing: 0.2px; }
   .hero-title { font-size: clamp(1.8rem, 7vw, 2.4rem); margin-bottom: 14px; }
   .hero-title-line { margin: 10px auto 16px; }
   .hero-sub { font-size: 14px; margin-bottom: 24px; }
-  .hero-actions { flex-direction: column; gap: 10px; }
+  .hero-actions { flex-direction: column; gap: 10px; width: 100%; max-width: 340px; margin: 0 auto; }
   .btn-primary, .btn-outline { width: 100%; text-align: center; padding: 14px 20px; border-radius: 12px; }
+
+  /* Services carousel */
+  #services { padding: 56px 4% !important; }
+  #svcPrev, #svcNext { width: 38px; height: 38px; }
+  #svcPrev { left: -8px; }
+  #svcNext { right: -8px; }
 
   /* Sections */
   .features, .roles { padding: 60px 5%; }
@@ -438,12 +498,21 @@ a { text-decoration: none; }
   .feature-card { padding: 22px 20px; }
   .role-card { padding: 28px 20px; }
 
+  /* Get the App — hide the side phones on small screens, keep the center one
+     (child 1 is the decorative glow, child 2 = left phone, last = right phone) */
+  #get-app { padding: 56px 4% !important; }
+  #get-app > div > div:last-child { transform: none; margin-top: 0; }
+  #get-app > div > div:last-child > div:nth-child(2),
+  #get-app > div > div:last-child > div:last-child { display: none !important; }
+  #get-app h2 br { display: none; } /* let the headline wrap naturally */
+
   /* CTA */
   .cta { padding: 60px 5%; }
   .cta h2 { font-size: 1.5rem; }
   .btn-primary.large { width: 100%; text-align: center; padding: 14px 20px; border-radius: 12px; }
 
   /* Footer grid → single column on mobile */
+  footer { padding: 44px 5% 24px !important; }
   footer > div > div:first-child {
     grid-template-columns: 1fr !important;
     gap: 32px !important;
@@ -456,6 +525,15 @@ a { text-decoration: none; }
 }
 
 @media (max-width: 400px) {
+  /* Nav — very narrow screens: stack tagline away, smallest buttons */
+  .nav { height: 54px; }
+  .nav-brand-text { max-width: calc(100vw - 190px); }
+  .nav-company { font-size: 10.5px; }
+  .nav-tagline { display: none; } /* keep the bar on one clean line */
+  .nav-actions { gap: 6px; }
+  .nav-btn-outline { padding: 6px 10px; font-size: 12px; }
+  .nav-btn { padding: 7px 12px; font-size: 12px; }
+
   .hero-title { font-size: 1.6rem; }
   .hero-badge { font-size: 9px; padding: 7px 12px; }
 }

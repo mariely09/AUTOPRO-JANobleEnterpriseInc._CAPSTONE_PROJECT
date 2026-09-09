@@ -424,6 +424,78 @@
       _updateUserStats();
     });
 
+    // Service Bookings — loaded globally so admin_service_bookings.html
+    // can paint instantly from window._fbBookings instead of waiting for
+    // its own per-page onSnapshot to return.
+    db.collection('service_bookings').orderBy('createdAt', 'desc').onSnapshot(snap => {
+      window._fbBookings = snap.docs.map(d => { var data = d.data(); data.id = d.id; return data; });
+      // Persist for instant cache restore
+      try {
+        var _bkUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+        if (_bkUid) {
+          var _bkSave = window._fbBookings.map(function(d) {
+            var copy = Object.assign({}, d);
+            if (copy.createdAt && typeof copy.createdAt.toMillis === 'function') {
+              copy.createdAt = { _ms: copy.createdAt.toMillis() };
+            }
+            return copy;
+          });
+          sessionStorage.setItem('bookingsCache_' + _bkUid, JSON.stringify(_bkSave.slice(0, 500)));
+        }
+      } catch(e) {}
+      // If the bookings page is open, update it live
+      if (typeof window.renderRescheduleList === 'function') {
+        window._sbAllDocs = window._fbBookings;
+        // Sync stats
+        if (typeof window._sbUpdateStats === 'function') window._sbUpdateStats();
+        window.renderRescheduleList();
+      }
+    }, function() {
+      // Fallback: one-shot get if listener fails
+      db.collection('service_bookings').orderBy('createdAt', 'desc').get().then(function(snap) {
+        window._fbBookings = snap.docs.map(d => { var data = d.data(); data.id = d.id; return data; });
+        if (typeof window.renderRescheduleList === 'function') {
+          window._sbAllDocs = window._fbBookings;
+          if (typeof window._sbUpdateStats === 'function') window._sbUpdateStats();
+          window.renderRescheduleList();
+        }
+      });
+    });
+
+    // Deliveries (Receiving / PO) — loaded globally so admin_receiving.html
+    // can paint instantly from window._fbDeliveries instead of waiting for
+    // its own per-page onSnapshot + two extra .get() calls on every visit.
+    db.collection('deliveries').orderBy('createdAt', 'desc').onSnapshot(snap => {
+      window._fbDeliveries = snap.docs
+        .map(d => { const data = d.data(); data.id = d.id; return data; })
+        .filter(d => !d.archived);
+      // Persist to sessionStorage (strip non-serialisable Timestamps)
+      try {
+        const _dlUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+        if (_dlUid) {
+          const _dlSave = window._fbDeliveries.map(function(d) {
+            const copy = Object.assign({}, d);
+            ['createdAt','receivedAt','archivedAt'].forEach(function(k) {
+              if (copy[k] && typeof copy[k].toMillis === 'function') {
+                copy[k] = { _ms: copy[k].toMillis() };
+              }
+            });
+            return copy;
+          });
+          sessionStorage.setItem('deliveriesCache_' + _dlUid, JSON.stringify(_dlSave.slice(0, 500)));
+        }
+      } catch(e) {}
+      // If the receiving page is open, refresh it live
+      if (typeof window._rcvOnDeliveries === 'function') window._rcvOnDeliveries(window._fbDeliveries);
+    }, function() {
+      db.collection('deliveries').orderBy('createdAt', 'desc').get().then(snap => {
+        window._fbDeliveries = snap.docs
+          .map(d => { const data = d.data(); data.id = d.id; return data; })
+          .filter(d => !d.archived);
+        if (typeof window._rcvOnDeliveries === 'function') window._rcvOnDeliveries(window._fbDeliveries);
+      });
+    });
+
     // Domains
     db.collection('domains').onSnapshot(snap => {
       window._fbDomains = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
