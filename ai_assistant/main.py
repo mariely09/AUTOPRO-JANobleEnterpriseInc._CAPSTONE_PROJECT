@@ -842,6 +842,18 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
             "intent": intent,
         }
 
+    # -- Step 1b+: deterministic booking fast path (0 LLM tokens) -------------
+    # Gathers plate/service/date/time for booking requests, asks ONLY for the
+    # missing details, finds earliest available slots, and books via the
+    # existing customer_tools (all ownership/availability checks preserved).
+    if intent in (BOOK_SERVICE, UNKNOWN, SERVICE_RECOMMENDATION):
+        import booking_gather
+        gathered = booking_gather.try_handle_booking(
+            message, customer_uid, customer_name, history,
+        )
+        if gathered is not None:
+            return gathered
+
     # -- Step 1c: direct DB path for simple lookups (0 LLM tokens) ------------
     direct = _customer_direct_lookup(message, customer_uid, customer_name, intent)
     if direct is not None:
