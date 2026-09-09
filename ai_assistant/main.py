@@ -29,6 +29,7 @@ import token_tracker
 import usage_limiter
 import ai_settings
 import cache_manager
+from reasoning_utils import strip_reasoning as _strip_reasoning
 
 app = FastAPI(
     title="Caltex AutoPro AI",
@@ -219,6 +220,7 @@ def get_ai_settings():
             "customers_at_limit":     at_limit,
             "customer_ai_status":     "Active" if settings_now.get("customer_ai_enabled", True) else "Paused",
             "next_reset":             usage_limiter._next_manila_midnight_str(),
+            "token_reset_hour":       int(settings_now.get("token_reset_hour", 0) or 0),
             "active_customers_today": len(customers),
         },
     }
@@ -226,7 +228,9 @@ def get_ai_settings():
 
 class AiSettingsUpdate(BaseModel):
     customer_ai_enabled:     bool | None = None
+    pause_reason:            str | None = None   # shown in customer chat when paused
     customer_token_limit:    int | None = None
+    token_reset_hour:        int | None = None   # 0-23 Manila time; 0 = midnight
     dev_access_enabled:      bool | None = None
     dev_bypass_token_limit:  bool | None = None
     dev_access_while_paused: bool | None = None
@@ -240,6 +244,22 @@ def put_ai_settings(update: AiSettingsUpdate):
         raise HTTPException(status_code=400, detail="No valid settings provided.")
     saved = ai_settings.save_settings(updates)
     return {"success": True, "settings": saved}
+
+
+@app.get("/ai-settings/public")
+def get_ai_settings_public():
+    """
+    Unauthenticated endpoint consumed by the customer chat screen to determine
+    whether the admin has paused the AI and, if so, why.
+    Only exposes the minimum required fields — no usage stats, no token limits.
+    """
+    s = ai_settings.get_settings()
+    enabled = bool(s.get("customer_ai_enabled", True))
+    reason  = str(s.get("pause_reason", "") or "")
+    return {
+        "customer_ai_enabled": enabled,
+        "pause_reason": reason if not enabled else "",
+    }
 
 
 @app.get("/cache/stats")
@@ -867,6 +887,10 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                     "model":      chosen_model,
                     "messages":   msgs,
                     "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
+                    # Qwen3-family: disable internal thinking at the template
+                    # level — reasoning tokens are never generated, so the
+                    # customer gets the answer faster and cheaper.
+                    "chat_template_kwargs": {"enable_thinking": False},
                 }
                 if tools:
                     kwargs["tools"] = tools
@@ -950,7 +974,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                                        True, _time.time() - t0)
                 request_cache.end_request(_bucket)
                 return {
-                    "reply": fb.choices[0].message.content
+                    "reply": _strip_reasoning(fb.choices[0].message.content or "")
                              or "I couldn't retrieve that information. Please try rephrasing.",
                     "tool_calls": tool_log,
                     "model": chosen_model,
@@ -966,6 +990,9 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                 }
 
         msg  = response.choices[0].message
+        # Defense in depth: strip any <think>...</think> reasoning the model
+        # emitted BEFORE it can reach the reply, session history, or caches.
+        msg.content = _strip_reasoning(msg.content or "")
         asst: dict = {"role": "assistant", "content": msg.content or ""}
         if msg.tool_calls:
             asst["tool_calls"] = [tc.model_dump() for tc in msg.tool_calls]

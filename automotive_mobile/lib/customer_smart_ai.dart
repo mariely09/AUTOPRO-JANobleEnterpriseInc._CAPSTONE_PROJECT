@@ -21,7 +21,7 @@ const _kCustFlaskBase = String.fromEnvironment(
 
 // ── Per-customer daily token limit ────────────────────────────────────────────
 // Customers are limited to 2 000 tokens per day to prevent abuse.
-const _kCustomerDailyTokenLimit = 2000;
+const _kCustomerDailyTokenLimit = 0; // 0 = unlimited
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Static chat store — survives page navigation (cleared on logout/refresh/delete)
@@ -247,10 +247,12 @@ class CustomerChatStore {
   }
 
   static Future<bool> isTokenLimitReached(String uid) async {
+    if (_kCustomerDailyTokenLimit <= 0) return false; // unlimited
     return (await getUsedTokens(uid)) >= _kCustomerDailyTokenLimit;
   }
 
   static Future<int> tokenLimitRemaining(String uid) async {
+    if (_kCustomerDailyTokenLimit <= 0) return 999999; // unlimited
     final used = await getUsedTokens(uid);
     return (_kCustomerDailyTokenLimit - used).clamp(
       0,

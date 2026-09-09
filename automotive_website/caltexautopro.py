@@ -894,7 +894,8 @@ def api_ai_settings_put():
         return jsonify({'success': False, 'error': 'Admin authentication required.'}), 403
     data = request.get_json(silent=True) or {}
     allowed = {
-        'customer_ai_enabled', 'customer_token_limit', 'dev_access_enabled',
+        'customer_ai_enabled', 'pause_reason', 'customer_token_limit',
+        'token_reset_hour', 'dev_access_enabled',
         'dev_bypass_token_limit', 'dev_access_while_paused',
     }
     payload = {k: v for k, v in data.items() if k in allowed}
@@ -907,6 +908,22 @@ def api_ai_settings_put():
     except Exception:
         return jsonify({'success': False,
                         'error': 'Could not save AI settings. Please try again.'}), 503
+
+
+@app.route('/api/ai-settings/public', methods=['GET'])
+def api_ai_settings_public():
+    """
+    Unauthenticated proxy for the customer-facing AI pause check.
+    Returns only customer_ai_enabled and pause_reason — no token limits or
+    usage data.  Called by the customer chat screen on startup.
+    """
+    try:
+        resp = _requests_lib.get(f'{_AI_BACKEND_URL}/ai-settings/public', timeout=15)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except Exception:
+        # Fail open — don't block the customer chat if the backend is cold-starting.
+        return jsonify({'customer_ai_enabled': True, 'pause_reason': ''})
 
 
 @app.route('/api/ai-chat', methods=['POST'])

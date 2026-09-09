@@ -322,7 +322,7 @@
   // ?? Per-customer daily token limit ?????????????????????????????????????????
   // Customers are limited to 2 000 tokens per day to prevent abuse.
   // Usage is tracked in localStorage under 'ai_cust_tokens_{uid}_{date}'.
-  const _CUSTOMER_DAILY_TOKEN_LIMIT = 2000;
+  const _CUSTOMER_DAILY_TOKEN_LIMIT = 0; // 0 = unlimited
 
   function _tokenDateKey(uid) {
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -337,10 +337,10 @@
     catch(e) {}
   }
   function _isTokenLimitReached(uid) {
-    return _getUsedTokens(uid) >= _CUSTOMER_DAILY_TOKEN_LIMIT;
+    return _CUSTOMER_DAILY_TOKEN_LIMIT > 0 && _getUsedTokens(uid) >= _CUSTOMER_DAILY_TOKEN_LIMIT;
   }
   function _tokenLimitRemaining(uid) {
-    return Math.max(0, _CUSTOMER_DAILY_TOKEN_LIMIT - _getUsedTokens(uid));
+    return _CUSTOMER_DAILY_TOKEN_LIMIT > 0 ? Math.max(0, _CUSTOMER_DAILY_TOKEN_LIMIT - _getUsedTokens(uid)) : null;
   }
 
   // ?? Send button enable/disable based on input content ???????????????????????

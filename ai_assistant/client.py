@@ -13,6 +13,8 @@ import json
 import logging
 import re
 import time
+
+from reasoning_utils import strip_reasoning
 from groq import Groq, BadRequestError, RateLimitError, AuthenticationError
 from config import settings
 from firestore_tools import TOOL_SCHEMAS, TOOL_FUNCTIONS
@@ -336,6 +338,10 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None,
                 "model":      chosen_model,
                 "messages":   messages,
                 "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
+                # Qwen3-family: disable the internal thinking mode at the
+                # template level so reasoning tokens are never generated
+                # (faster AND cheaper — they never count against output).
+                "chat_template_kwargs": {"enable_thinking": False},
             }
             if tools:
                 kwargs["tools"] = tools
@@ -484,6 +490,10 @@ def chat(user_message: str, history: list[dict] | None = None,
             }
 
         msg = response.choices[0].message
+        # Defense in depth: even with thinking disabled, strip any
+        # <think>...</think> reasoning the model still emitted so the
+        # customer only ever sees the final answer.
+        msg.content = strip_reasoning(msg.content or "")
         assistant_msg: dict = {"role": "assistant", "content": msg.content or ""}
         if msg.tool_calls:
             assistant_msg["tool_calls"] = [tc.model_dump() for tc in msg.tool_calls]
@@ -550,7 +560,8 @@ def chat(user_message: str, history: list[dict] | None = None,
                 correction_resp = _call_groq(correction_messages, model=chosen_model)
                 _record_usage(correction_resp, chosen_model, intent, user_id, True,
                               time.time() - t0)
-                final_reply = correction_resp.choices[0].message.content or final_reply
+                final_reply = strip_reasoning(
+                    correction_resp.choices[0].message.content or "") or final_reply
                 check = verify_reply(final_reply, tool_call_log)
             except Exception:
                 # Correction is best-effort; never let it kill the original answer

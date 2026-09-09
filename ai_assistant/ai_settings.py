@@ -38,7 +38,9 @@ _PERSIST = os.getenv("AI_SETTINGS_PERSIST", "1") not in ("0", "false", "False")
 
 DEFAULTS: dict = {
     "customer_ai_enabled":     True,
+    "pause_reason":            "",     # human-readable reason shown in customer chat
     "customer_token_limit":    0,      # 0 = use CUSTOMER_DAILY_TOKEN_LIMIT env
+    "token_reset_hour":        0,      # 0–23 (Manila time); 0 = midnight (default)
     "dev_access_enabled":      False,
     "dev_bypass_token_limit":  False,
     "dev_access_while_paused": False,
@@ -106,6 +108,13 @@ def save_settings(updates: dict) -> dict:
                 v = max(0, int(v))
             except (TypeError, ValueError):
                 continue
+        elif k == "token_reset_hour":
+            try:
+                v = max(0, min(23, int(v)))
+            except (TypeError, ValueError):
+                continue
+        elif k == "pause_reason":
+            v = str(v)[:500] if v is not None else ""
         elif k in ("customer_ai_enabled", "dev_access_enabled",
                    "dev_bypass_token_limit", "dev_access_while_paused"):
             v = bool(v)
@@ -133,9 +142,22 @@ def is_customer_ai_enabled() -> bool:
     return bool(_load().get("customer_ai_enabled", True))
 
 
+def get_pause_reason() -> str:
+    """Human-readable reason stored by the admin when AI is paused."""
+    return str(_load().get("pause_reason", "") or "")
+
+
 def customer_token_limit() -> int:
     """0 means 'no admin override' — usage_limiter falls back to its env value."""
     return int(_load().get("customer_token_limit", 0) or 0)
+
+
+def get_token_reset_hour() -> int:
+    """Hour (0-23, Manila time) at which the daily quota resets. Default 0 = midnight."""
+    try:
+        return max(0, min(23, int(_load().get("token_reset_hour", 0) or 0)))
+    except (TypeError, ValueError):
+        return 0
 
 
 def dev_access_allowed(paused: bool) -> bool:
