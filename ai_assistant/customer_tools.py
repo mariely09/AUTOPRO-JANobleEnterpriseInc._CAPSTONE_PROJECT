@@ -873,6 +873,216 @@ def check_booking_availability(customer_uid: str, customer_name: str,
 
 
 # ----------------------------------------------------------------------------
+#  TOOL 6B - Get Suggested Booking Dates (Based on Service History)
+# ----------------------------------------------------------------------------
+
+def suggest_booking_date(customer_uid: str, customer_name: str,
+                        plate: str,
+                        service_type: str | None = None,
+                        **_) -> dict:
+    """
+    Suggest optimal booking dates for a vehicle based on:
+    1. Service history (last service date + frequency)
+    2. Service type (oil change intervals differ from other services)
+    3. Current availability
+
+    Returns suggested dates with reasoning based on actual vehicle data.
+    """
+    if not plate:
+        return {
+            "error": "MISSING_PLATE",
+            "message": "Please specify which vehicle you'd like to book service for.",
+        }
+
+    try:
+        db = get_db()
+        company_name = _resolve_company_name(db, customer_uid)
+        
+        # Verify ownership
+        if not _verify_vehicle_ownership(db, customer_uid, customer_name, company_name, plate):
+            return {
+                "error": "VEHICLE_NOT_OWNED",
+                "message": f"Vehicle with plate {plate} is not registered under your account.",
+            }
+
+        # Get vehicle details and service frequency
+        vehicle_data = None
+        for doc in _iter_customer_vehicles(db, customer_uid, customer_name, company_name):
+            d = doc.to_dict()
+            if _get_plate(d).upper() == plate.upper():
+                vehicle_data = {
+                    "plate": _get_plate(d),
+                    "desc": _get_desc(d),
+                    "last_service_date": _get_last_svc_date(d),
+                    "service_frequency_months": _get_svc_freq(d),
+                    "status": d.get("status", "Active"),
+                }
+                break
+
+        if not vehicle_data:
+            return {
+                "error": "VEHICLE_NOT_FOUND",
+                "message": f"Could not retrieve data for vehicle {plate}.",
+            }
+
+        # Get last service for this specific service type if provided
+        last_service_date = None
+        service_context = ""
+        
+        if service_type:
+            # Query maintenance history for this specific service
+            service_history = get_my_service_history(
+                customer_uid=customer_uid,
+                customer_name=customer_name,
+                plate=plate,
+                service_type=service_type,
+                recent=1
+            )
+            
+            if service_history.get("jobs") and len(service_history["jobs"]) > 0:
+                last_job = service_history["jobs"][0]
+                last_service_date = last_job.get("date")
+                service_context = f"Your last {service_type} was on {last_service_date}."
+
+        # If no specific service history, use vehicle's general last service date
+        if not last_service_date:
+            last_service_date = vehicle_data.get("last_service_date")
+            if last_service_date:
+                service_context = f"Your vehicle's last recorded service was on {last_service_date}."
+
+        # Calculate recommended date based on service frequency
+        now = datetime.now()
+        suggested_dates = []
+        reasoning = []
+
+        # Determine service interval (in months)
+        interval_months = 3  # default for oil change
+        
+        if service_type:
+            service_lower = service_type.lower()
+            if any(kw in service_lower for kw in ["oil", "change oil", "pms", "preventive"]):
+                interval_months = 3  # Oil change every 3 months
+                reasoning.append("Oil change services are typically recommended every 3 months or 5,000 km.")
+            elif any(kw in service_lower for kw in ["tire", "tyre", "alignment", "balance"]):
+                interval_months = 6  # Tire services every 6 months
+                reasoning.append("Tire and alignment services are recommended every 6 months.")
+            elif any(kw in service_lower for kw in ["brake", "brakes"]):
+                interval_months = 6  # Brake service every 6 months
+                reasoning.append("Brake system checks are recommended every 6 months.")
+            elif any(kw in service_lower for kw in ["coolant", "radiator", "flush"]):
+                interval_months = 12  # Coolant service yearly
+                reasoning.append("Coolant system service is typically recommended annually.")
+            else:
+                # Use vehicle's service frequency if set
+                if vehicle_data.get("service_frequency_months"):
+                    try:
+                        interval_months = int(vehicle_data["service_frequency_months"])
+                    except (ValueError, TypeError):
+                        pass
+
+        # Use vehicle's configured frequency if no service type specified
+        elif vehicle_data.get("service_frequency_months"):
+            try:
+                interval_months = int(vehicle_data["service_frequency_months"])
+                reasoning.append(f"Based on your vehicle's service frequency of {interval_months} months.")
+            except (ValueError, TypeError):
+                pass
+
+        # Calculate next recommended date
+        if last_service_date:
+            try:
+                last_dt = datetime.fromisoformat(last_service_date)
+                # Calculate next service date
+                next_month = last_dt.month + interval_months
+                next_year = last_dt.year + (next_month - 1) // 12
+                next_month = (next_month - 1) % 12 + 1
+                recommended_date = last_dt.replace(year=next_year, month=next_month)
+                
+                days_until = (recommended_date - now).days
+                
+                if days_until < 0:
+                    reasoning.append(f"⚠️ Your service is overdue by {abs(days_until)} days.")
+                    # Suggest earliest available date
+                    recommended_date = now + timedelta(days=1)
+                elif days_until <= 7:
+                    reasoning.append(f"🔴 Your service is due in {days_until} days.")
+                elif days_until <= 30:
+                    reasoning.append(f"🟡 Your service is coming up in {days_until} days.")
+                else:
+                    reasoning.append(f"✅ Your next service is recommended in {days_until} days.")
+                
+                # Find available slots around the recommended date
+                check_dates = [
+                    recommended_date,
+                    recommended_date + timedelta(days=1),
+                    recommended_date + timedelta(days=2),
+                    recommended_date - timedelta(days=1) if days_until <= 7 else recommended_date + timedelta(days=3),
+                ]
+                
+                for check_date in check_dates:
+                    if check_date.date() < now.date():
+                        continue
+                    
+                    avail = check_booking_availability(
+                        customer_uid=customer_uid,
+                        customer_name=customer_name,
+                        preferred_date=check_date.strftime("%Y-%m-%d"),
+                    )
+                    
+                    if avail.get("is_available") and len(avail.get("available_slots", [])) > 0:
+                        suggested_dates.append({
+                            "date": check_date.strftime("%Y-%m-%d"),
+                            "date_display": check_date.strftime("%B %d, %Y (%A)"),
+                            "available_slots": avail["available_slots"],
+                            "is_recommended": check_date == recommended_date,
+                        })
+                        
+            except Exception as e:
+                logger.warning(f"suggest_booking_date: date calculation error: {e}")
+
+        # If no dates calculated from history, suggest next week
+        if not suggested_dates:
+            reasoning.append("Based on general maintenance guidelines.")
+            for days_ahead in [7, 8, 9, 10, 14]:
+                check_date = now + timedelta(days=days_ahead)
+                
+                avail = check_booking_availability(
+                    customer_uid=customer_uid,
+                    customer_name=customer_name,
+                    preferred_date=check_date.strftime("%Y-%m-%d"),
+                )
+                
+                if avail.get("is_available") and len(avail.get("available_slots", [])) > 0:
+                    suggested_dates.append({
+                        "date": check_date.strftime("%Y-%m-%d"),
+                        "date_display": check_date.strftime("%B %d, %Y (%A)"),
+                        "available_slots": avail["available_slots"],
+                        "is_recommended": days_ahead == 7,
+                    })
+
+        return {
+            "vehicle_plate": vehicle_data["plate"],
+            "vehicle_desc": vehicle_data["desc"],
+            "service_type": service_type or "general service",
+            "last_service_date": last_service_date,
+            "service_context": service_context,
+            "interval_months": interval_months,
+            "suggested_dates": suggested_dates[:4],  # Top 4 suggestions
+            "reasoning": reasoning,
+            "message": (
+                f"Based on your vehicle's service history and the recommended "
+                f"{interval_months}-month interval, here are the best available dates."
+            ),
+        }
+
+    except Exception as e:
+        if _is_firestore_quota(e):
+            return _quota_error()
+        logger.exception("suggest_booking_date error")
+        return _db_error(e)
+
+
+# ----------------------------------------------------------------------------
 #  TOOL 7 - Create Customer Booking
 # ----------------------------------------------------------------------------
 
@@ -1671,6 +1881,34 @@ CUSTOMER_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "suggest_booking_date",
+            "description": (
+                "Suggest optimal booking dates for a vehicle based on service history, "
+                "maintenance intervals, and current availability. "
+                "Use when customer asks: 'when should I book', 'what's a good date', "
+                "'suggest a date for service', or when helping them choose a booking date. "
+                "Returns intelligent suggestions based on last service date and service type."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "plate": {
+                        "type": "string",
+                        "description": "Vehicle plate number to check service history for.",
+                    },
+                    "service_type": {
+                        "type": "string",
+                        "description": "Type of service (e.g., 'oil change', 'PMS', 'brake service'). Optional.",
+                    },
+                },
+                "required": ["plate"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_my_service_history",
             "description": (
                 "Return completed maintenance/service records for the customer's vehicles. "
@@ -1950,6 +2188,7 @@ CUSTOMER_TOOL_FUNCTIONS = {
     "get_service_recommendations": get_service_recommendations,
     "get_service_prices":         get_service_prices,
     "get_customer_materials":     get_customer_materials,
+    "suggest_booking_date":       suggest_booking_date,
     "check_booking_availability": check_booking_availability,
     "create_customer_booking":    create_customer_booking,
     "get_my_bookings":            get_my_bookings,
