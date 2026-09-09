@@ -330,9 +330,9 @@
       <span id="aiFabPulseOuter" style="position:absolute;width:58px;height:58px;border-radius:50%;border:2px solid #22c55e;opacity:0;animation:aiFabRingPulse 1.8s ease-out infinite;pointer-events:none;"></span>
       <span id="aiFabPulseInner" style="position:absolute;width:58px;height:58px;border-radius:50%;border:1.5px solid #22c55e;opacity:0;animation:aiFabRingPulse 1.8s ease-out 0.45s infinite;pointer-events:none;"></span>
       <button id="aiFab" onclick="toggleSmartAI()"
-        style="width:58px;height:58px;background:linear-gradient(135deg, #004B5F 0%, #EE152A 100%);border:2.5px solid #22c55e;border-radius:50%;cursor:pointer;
+        style="width:58px;height:58px;background:#ffffff;border:2.5px solid #22c55e;border-radius:50%;cursor:pointer;
                display:flex;align-items:center;justify-content:center;
-               box-shadow:0 4px 20px rgba(0,75,95,0.4),0 0 0 0 rgba(0,75,95,0.15);
+               box-shadow:0 4px 20px rgba(0,0,0,0.15),0 0 0 0 rgba(0,75,95,0.15);
                transition:transform .2s,box-shadow .2s,border-color .3s;
                padding:3px;overflow:hidden;position:relative;"
         onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
@@ -845,7 +845,7 @@ function _updateFabIcon(open) {
         fab.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
         if (dot) dot.style.display = 'none';
     } else {
-        fab.style.background = 'linear-gradient(135deg, #004B5F 0%, #EE152A 100%)';
+        fab.style.background = '#ffffff';
         fab.style.border = 'none';
         fab.style.overflow = 'hidden';
         fab.style.padding = '3px';
@@ -1034,13 +1034,15 @@ function _aiFallback(q) {
         return list.length?'PMS Overdue ('+list.length+'):\n'+list.map(function(v){return '• '+(v.plate||'—')+' — '+(v.desc||'—');}).join('\n')+'\n\nPlease schedule a service soon!':'None of your vehicles are overdue for PMS. ✅';
     }
     // Pricing
-    if (ql.indexOf('how much')!==-1||ql.indexOf('price')!==-1||ql.indexOf('cost of')!==-1||ql.indexOf('oil change')!==-1||ql.indexOf('change oil')!==-1)
-        return 'For service pricing, please ask when the AI service is online — it can look up exact prices from the catalog.';
-    // Booking (offline fallback — direct the customer to the real booking flow)
-    if (ql.indexOf('book')!==-1||ql.indexOf('schedule')!==-1||ql.indexOf('appointment')!==-1)
-        return 'I\u2019d be happy to help you book a service! Booking is available while the AI service is online — please try again shortly, or use the Book Service tab to schedule directly.';
+    if (ql.indexOf('how much')!==-1||ql.indexOf('price')!==-1||ql.indexOf('cost of')!==-1||ql.indexOf('oil change')!==-1||ql.indexOf('change oil')!==-1||ql.indexOf('services do you offer')!==-1||ql.indexOf('what services')!==-1)
+        return 'For service pricing and a full list of services, please ask when the AI service is online — it can look up exact prices and availability from our catalog.';
+    // Booking / scheduling — handle all scheduling-related questions
+    if (ql.indexOf('book')!==-1||ql.indexOf('schedule')!==-1||ql.indexOf('appointment')!==-1||
+        ql.indexOf('earliest')!==-1||ql.indexOf('when can')!==-1||ql.indexOf('when will')!==-1||
+        ql.indexOf('upcoming')!==-1||ql.indexOf('reserve')!==-1||ql.indexOf('next available')!==-1)
+        return 'To check available service dates or make a booking, please use the **Book Service** tab in the navigation menu.\n\nFor AI-powered scheduling suggestions based on your vehicle history, please ask when the AI service is online.';
     // Fallback — short, honest, capability-based (no fabricated fleet summary)
-    return 'I\u2019m not able to help with that request. I can assist with your vehicles, PMS status, service history, bookings, and service pricing.';
+    return 'I\u2019m not sure how to answer that. I can help with your vehicle status, PMS records, service history, bookings, and service pricing. For detailed answers, please ask when the AI service is online.';
 }
 
 // ── Send ──────────────────────────────────────────────────────────────────

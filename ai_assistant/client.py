@@ -21,6 +21,28 @@ import token_tracker
 
 logger = logging.getLogger(__name__)
 
+# Reused Groq client — constructing Groq(api_key=...) per call forces a fresh
+# TLS handshake + connection setup on every request (~0.2-0.5 s of avoidable
+# latency). One client is created per API key and reused for the process
+# lifetime; a key change swaps the cached client.
+_groq_client_cache: dict[str, "Groq"] = {}
+
+
+def get_groq_client(api_key: str | None = None) -> "Groq":
+    """Return a process-level cached Groq client (keyed by API key)."""
+    key = api_key or settings.GROQ_API_KEY
+    if not key:
+        raise InvalidApiKeyError(
+            "No Groq API key configured. "
+            "Set GROQ_API_KEY in the Render environment variables."
+        )
+    cached = _groq_client_cache.get(key)
+    if cached is None:
+        # timeout: fail fast instead of the SDK's 600 s default hang.
+        cached = Groq(api_key=key, timeout=settings.GROQ_TIMEOUT_SECONDS)
+        _groq_client_cache[key] = cached
+    return cached
+
 
 class RateLimitedError(Exception):
     """Raised when the Groq API key hits its daily/minute rate limit."""
@@ -307,15 +329,24 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None,
     chosen_model = model or settings.GROQ_MODEL_PRIMARY
 
     try:
-        client = Groq(api_key=api_key)
-        kwargs: dict = {
-            "model":      chosen_model,
-            "messages":   messages,
-            "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
-        }
-        if tools:
-            kwargs["tools"] = tools
-        return client.chat.completions.create(**kwargs)
+        import perf_metrics
+        with perf_metrics.groq_timer():
+            client = get_groq_client(api_key)
+            kwargs: dict = {
+                "model":      chosen_model,
+                "messages":   messages,
+                "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
+            }
+            if tools:
+                kwargs["tools"] = tools
+            resp = client.chat.completions.create(**kwargs)
+        try:
+            u = resp.usage
+            perf_metrics.record_usage(getattr(u, "prompt_tokens", 0) or 0,
+                                      getattr(u, "completion_tokens", 0) or 0)
+        except Exception:
+            pass
+        return resp
     except AuthenticationError as exc:
         logger.error("Groq AuthenticationError — invalid or revoked API key: %s", exc)
         raise InvalidApiKeyError(
@@ -372,6 +403,11 @@ def chat(user_message: str, history: list[dict] | None = None,
     from model_router import GENERAL_AI_QUESTION, COMPLEX_ANALYSIS
     from input_guard import truncate_message, build_request_context
 
+    # Request-level memoization for read-only tools (dedupes repeated calls).
+    import request_cache
+    _bucket = request_cache.begin_request()
+    tool_fns = request_cache.memoize(TOOL_FUNCTIONS, _bucket)
+
     # Oversized-input guard — a pasted document must never flood the model.
     safe_message = truncate_message(user_message, settings.MAX_INPUT_CHARS)
 
@@ -405,7 +441,7 @@ def chat(user_message: str, history: list[dict] | None = None,
     t0 = time.time()
     call_succeeded = True
 
-    for _ in range(5):
+    for _ in range(max(1, settings.MAX_TOOL_LOOP_TURNS)):
         try:
             response = _call_groq(messages, tools=TOOL_SCHEMAS, model=chosen_model)
         except (RateLimitError, AllKeysRateLimitedError):
@@ -423,6 +459,7 @@ def chat(user_message: str, history: list[dict] | None = None,
                                   time.time() - t0)
                     final_reply = fallback.choices[0].message.content or \
                         "I could not retrieve that information. Please try rephrasing."
+                    request_cache.end_request(_bucket)
                     return {
                         "reply": final_reply,
                         "tool_calls": tool_call_log,
@@ -436,6 +473,7 @@ def chat(user_message: str, history: list[dict] | None = None,
                 except Exception as fallback_err:
                     logger.error("Fallback call also failed: %s", fallback_err)
 
+            request_cache.end_request(_bucket)
             return {
                 "reply": "I could not retrieve that information. Please try rephrasing your question.",
                 "tool_calls": tool_call_log,
@@ -461,7 +499,7 @@ def chat(user_message: str, history: list[dict] | None = None,
             fn_name = call.function.name
             fn_args = _strip_null_args(call.function.arguments or "")
 
-            fn = TOOL_FUNCTIONS.get(fn_name)
+            fn = tool_fns.get(fn_name)
             if fn is None:
                 result = {"error": f"Unknown tool '{fn_name}'"}
             else:
@@ -486,6 +524,8 @@ def chat(user_message: str, history: list[dict] | None = None,
             })
     else:
         final_reply = "Sorry, I had trouble completing that request."
+
+    request_cache.end_request(_bucket)
 
     if tool_call_log:
         check = verify_reply(final_reply, tool_call_log)

@@ -886,7 +886,7 @@
         ? `Under maintenance:\n` + list.map(v => `??${v.plate} ??${v.desc}`).join('\n')
         : 'None of your vehicles are currently under maintenance.';
     }
-    if (ql.includes('pms') || ql.includes('next service') || ql.includes('schedule')) {
+    if (ql.includes('pms') || ql.includes('next service') || ql.includes('next pms')) {
       if (!_myVehicles.length) return 'No vehicles found under your account.';
       const active = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'active').length;
       const over   = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'overdue').length;
@@ -896,8 +896,11 @@
     }
 
     // ?? Bookings ?????????????????????????????????????????????????????????
-    if (ql.includes('booking') || ql.includes('appointment') || ql.includes('schedule') || ql.includes('upcoming')) {
-      return 'To view your service bookings, tap the **Bookings** tab in the app or go to **My Bookings** on the website. I can also look up your bookings ??please ask while the AI service is online.';
+    // Bookings / scheduling
+    if (ql.includes('booking') || ql.includes('appointment') || ql.includes('schedule') ||
+        ql.includes('earliest') || ql.includes('upcoming') || ql.includes('when can') ||
+        ql.includes('when will') || ql.includes('book a') || ql.includes('reserve')) {
+      return 'To check available service dates or make a booking, please use the **Book Service** tab in the navigation menu.\n\nFor AI-powered scheduling suggestions based on your vehicle history, please ask when the AI service is online.';
     }
 
     // ?? Pricing / services ???????????????????????????????????????????????
@@ -909,15 +912,7 @@
 
     // ?? Default for in-scope but offline ????????????????????????????????
     if (!_myVehicles.length) return 'No vehicles found under your account. Please check if your account is properly set up.';
-    // Fallback — short and honest. Only give a fleet overview when one was explicitly asked for.
-    if (ql.includes('fleet summary') || ql.includes('fleet status') || (ql.includes('fleet') && ql.includes('summary'))) {
-      const fActive = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'active').length;
-      const fOver   = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'overdue').length;
-      const fSoon   = _myVehicles.filter(v => ['pms due soon','due soon','due this week'].includes((v.status||'').toLowerCase())).length;
-      const fMaint  = _myVehicles.filter(v => (v.status||'').toLowerCase().includes('maintenance')).length;
-      return `Fleet Summary:\n??Total vehicles: ${_myVehicles.length}\n??Active: ${fActive}\n??Under Maintenance: ${fMaint}\n??PMS Overdue: ${fOver}\n??Due Soon: ${fSoon}`;
-    }
-    return `I\u2019m not able to help with that request while offline. I can assist with your vehicles, PMS status, service history, and bookings.\n\nFor detailed answers, please try again when the AI service is online.`;
+    return "I\u2019m not sure how to answer that while the AI service is offline. I can help with your vehicle status, PMS records, service history, and bookings. Please try again when online for detailed answers.";
   }
 
   const _BOT_AVATAR_SVG = '<img src="../static/img/AI_LOGO.png" width="32" height="32" style="object-fit:cover;border-radius:50%;display:block;" alt="AI">';

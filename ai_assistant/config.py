@@ -62,6 +62,19 @@ class Settings:
     # 6 messages = 3 turns — sufficient for follow-ups while saving tokens.
     GROQ_MAX_HISTORY_MSGS: int = int(os.getenv("GROQ_MAX_HISTORY_MSGS", "6"))
 
+    # ── Latency optimisation ─────────────────────────────────────────────────
+    # Explicit timeout for every Groq API call (seconds). Without this the SDK
+    # default is 600 s — a stalled request silently hangs for minutes and, in a
+    # 5–6 iteration tool loop, can stall a whole chat for several minutes.
+    GROQ_TIMEOUT_SECONDS: int = int(os.getenv("GROQ_TIMEOUT_SECONDS", "30"))
+
+    # Max iterations of the LLM tool loop. Each iteration is a full Groq
+    # round-trip (system prompt + schemas + history re-sent every time), so
+    # latency and tokens grow linearly with the loop length. 3 iterations is
+    # enough for every flow the assistant actually performs (lookup → answer,
+    # availability → create booking → confirm).
+    MAX_TOOL_LOOP_TURNS: int = int(os.getenv("MAX_TOOL_LOOP_TURNS", "3"))
+
     # ── Token-budget optimisation ─────────────────────────────────────────────
     # Max characters accepted for a single user message. Larger inputs are
     # truncated gracefully (guard against pasted documents flooding the LLM).

@@ -274,6 +274,8 @@ def admin_chat(req: ChatRequest):
     session_id = req.session_id or str(uuid.uuid4())
     admin_id   = session_id[:20]   # stable identifier for usage tracking
 
+    import perf_metrics
+    _perf = perf_metrics.push(admin_id, "admin", "?")
     try:
         # -- Step 2: daily usage check -----------------------------------------
         limit_check = usage_limiter.check_limit(admin_id, role="admin")
@@ -289,11 +291,15 @@ def admin_chat(req: ChatRequest):
         effective_history = _merge_history(server_history, req.history)
 
         # -- Step 3: intent classification (deterministic, 0 tokens) ----------
-        intent      = classify_intent(req.message)
-        chosen_model = select_model(intent)
+        with perf_metrics.stage("intent"):
+            intent = classify_intent(req.message)
+        _perf["intent"] = intent
+        with perf_metrics.stage("context"):
+            chosen_model = select_model(intent)
 
         # -- Step 4: admin fast-path (pre-fetches DB data before any LLM call) -
-        fast_path = classify_and_run(req.message)
+        with perf_metrics.stage("firestore"):
+            fast_path = classify_and_run(req.message)
 
         if fast_path:
             if intent in (DATABASE_LOOKUP, DATABASE_CALCULATION):
@@ -354,6 +360,7 @@ def admin_chat(req: ChatRequest):
         )
 
     except Exception as e:
+        _perf["intent"] = str(e)[:60]
         if _is_rate_limit(e):
             rl = _rate_limit_reply(str(e))
             token_tracker.record(
@@ -379,6 +386,11 @@ def admin_chat(req: ChatRequest):
             reply="I'm having trouble processing your request right now. Please try again in a moment.",
             session_id=session_id,
         )
+    finally:
+        if _perf.get("intent") in (None, "?"):
+            _perf["intent"] = "UNKNOWN"
+        perf_metrics.log_summary(_perf)
+        perf_metrics.pop()
 
 
 def _record_llm_usage_admin(result: dict, admin_id: str) -> None:
@@ -774,20 +786,29 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                     else settings.GROQ_MODEL_PRIMARY)
 
     def _call(msgs, tools=None):
-        from client import RateLimitedError as _RLE, InvalidApiKeyError as _IKE
+        from client import RateLimitedError as _RLE, InvalidApiKeyError as _IKE, get_groq_client
         api_key = settings.GROQ_API_KEY
         if not api_key:
             raise _IKE("No Groq API key configured.")
         try:
-            client = Groq(api_key=api_key)
-            kwargs: dict = {
-                "model":      chosen_model,
-                "messages":   msgs,
-                "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
-            }
-            if tools:
-                kwargs["tools"] = tools
-            return client.chat.completions.create(**kwargs)
+            import perf_metrics
+            with perf_metrics.groq_timer():
+                client = get_groq_client(api_key)
+                kwargs: dict = {
+                    "model":      chosen_model,
+                    "messages":   msgs,
+                    "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
+                }
+                if tools:
+                    kwargs["tools"] = tools
+                resp = client.chat.completions.create(**kwargs)
+            try:
+                u = resp.usage
+                perf_metrics.record_usage(getattr(u, "prompt_tokens", 0) or 0,
+                                          getattr(u, "completion_tokens", 0) or 0)
+            except Exception:
+                pass
+            return resp
         except AuthenticationError as exc:
             raise _IKE("The Groq API key is invalid or has been revoked.") from exc
         except RateLimitError as exc:
@@ -829,6 +850,12 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     )
     message = safe_message
 
+    # Request-level memoization: identical tool calls within this one chat
+    # turn reuse the first result instead of re-querying Firestore (spec #6).
+    import request_cache
+    _bucket = request_cache.begin_request()
+    tool_fns = request_cache.memoize(CUSTOMER_TOOL_FUNCTIONS, _bucket)
+
     tool_log    = []
     final_reply = ""
     t0 = _time.time()
@@ -840,7 +867,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     ))
 
     last_response = None
-    for _turn in range(6):
+    for _turn in range(max(1, settings.MAX_TOOL_LOOP_TURNS)):
         try:
             response = _call(messages, tools=CUSTOMER_TOOL_SCHEMAS)
             last_response = response
@@ -852,6 +879,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                 last_response = fb
                 _record_customer_usage(fb, chosen_model, intent, customer_uid,
                                        True, _time.time() - t0)
+                request_cache.end_request(_bucket)
                 return {
                     "reply": fb.choices[0].message.content
                              or "I couldn't retrieve that information. Please try rephrasing.",
@@ -860,6 +888,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                     "intent": intent,
                 }
             except Exception:
+                request_cache.end_request(_bucket)
                 return {
                     "reply": "I couldn't retrieve that information. Please try rephrasing.",
                     "tool_calls": tool_log,
@@ -898,7 +927,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
         for call in msg.tool_calls:
             fn_name = call.function.name
             fn_args = _strip_null(call.function.arguments or "")
-            fn      = CUSTOMER_TOOL_FUNCTIONS.get(fn_name)
+            fn      = tool_fns.get(fn_name)
 
             if fn is None:
                 result = {"error": f"Unknown tool '{fn_name}'"}
@@ -933,6 +962,8 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
         if last_response:
             _record_customer_usage(last_response, chosen_model, intent, customer_uid,
                                    False, _time.time() - t0)
+
+    request_cache.end_request(_bucket)
 
     return {
         "reply":      final_reply,
@@ -1294,6 +1325,8 @@ def customer_chat_endpoint(req: CustomerChatRequest):
 
     session_id = req.session_id or f"customer-{req.customer_uid}"
 
+    import perf_metrics
+    _perf = perf_metrics.push(req.customer_uid, "customer", "?")
     try:
         # -- Step 2: daily usage limit -----------------------------------------
         limit_check = usage_limiter.check_limit(req.customer_uid, role="customer")
@@ -1314,7 +1347,9 @@ def customer_chat_endpoint(req: CustomerChatRequest):
         effective_history = _merge_history(server_history, req.history)
 
         # -- Step 3: customer intent classification (deterministic, 0 tokens) --
-        intent = classify_customer_intent(req.message)
+        with perf_metrics.stage("intent"):
+            intent = classify_customer_intent(req.message)
+        _perf["intent"] = intent
 
         result = _run_customer_chat(
             message=req.message,
@@ -1359,6 +1394,11 @@ def customer_chat_endpoint(req: CustomerChatRequest):
             reply="I'm having trouble processing your request right now. Please try again in a moment, or contact us at caltexautopro2026@gmail.com if the issue persists.",
             session_id=session_id,
         )
+    finally:
+        if _perf.get("intent") == "?":
+            _perf["intent"] = "ERROR"
+        perf_metrics.log_summary(_perf)
+        perf_metrics.pop()
 
 
 # -- Shared helpers ------------------------------------------------------------

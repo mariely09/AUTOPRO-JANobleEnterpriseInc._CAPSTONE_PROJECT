@@ -815,7 +815,7 @@
   function _aiProcessQuery(q) {
     const ql = q.toLowerCase();
     if (!_aiVehicles.length) return 'No vehicles are registered under your name yet.';
-    if (ql.includes('maintenance') || ql.includes('serviced')) {
+    if (ql.includes('maintenance') || ql.includes('serviced') || ql.includes('under repair')) {
       const list = _aiVehicles.filter(v => (v.status || '').toLowerCase().includes('maintenance'));
       return list.length ? 'Under maintenance:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n')
         : 'None of your vehicles are currently under maintenance. ✅';
@@ -825,12 +825,12 @@
       return list.length ? 'PMS Overdue:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n') + '\n\nPlease schedule a service soon!'
         : 'No vehicles are overdue for PMS. ✅';
     }
-    if (ql.includes('due soon') || ql.includes('upcoming')) {
+    if (ql.includes('due soon') || ql.includes('due this week')) {
       const list = _aiVehicles.filter(v => v.status === 'PMS Due Soon');
       return list.length ? 'PMS Due Soon:\n' + list.map(v => `• ${v.plate} — ${v.desc}`).join('\n')
         : 'No vehicles have PMS due soon. ✅';
     }
-    if (ql.includes('history') || ql.includes('service record') || ql.includes('completed')) {
+    if (ql.includes('history') || ql.includes('service record') || ql.includes('completed') || ql.includes('past service')) {
       const done = _aiMaintenance.filter(m => (m.status || '').toLowerCase() === 'completed');
       if (!done.length) return 'No completed service records found for your vehicles.';
       const total = done.reduce((s, r) => {
@@ -839,21 +839,36 @@
       }, 0);
       return `You have ${done.length} completed service record${done.length !== 1 ? 's' : ''}.\nTotal spent: ₱${total.toLocaleString('en-PH', {minimumFractionDigits:2})}\n\nGo to "PMS History" tab to view full details.`;
     }
-    if (ql.includes('fleet summary') || ql.includes('fleet status')) {
+    if (ql.includes('fleet summary') || ql.includes('fleet status') || (ql.includes('fleet') && ql.includes('summary'))) {
       const active = _aiVehicles.filter(v => v.status === 'Active').length;
       const maint  = _aiVehicles.filter(v => (v.status || '').includes('Maintenance')).length;
       const over   = _aiVehicles.filter(v => v.status === 'Overdue').length;
       const soon   = _aiVehicles.filter(v => v.status === 'PMS Due Soon').length;
       return `Fleet Summary:\n✅ Active: ${active}\n🔧 Under Maintenance: ${maint}\n⚠️ PMS Overdue: ${over}\n📅 Due Soon: ${soon}\n🚗 Total: ${_aiVehicles.length}`;
     }
-    if (ql.includes('vehicle') || ql.includes('fleet') || ql.includes('list') || ql.includes('all my')) {
+    // Bookings / scheduling — handle before the generic vehicle/fleet block
+    if (ql.includes('booking') || ql.includes('appointment') || ql.includes('schedule') ||
+        ql.includes('earliest') || ql.includes('upcoming') || ql.includes('when can') ||
+        ql.includes('when will') || ql.includes('book a') || ql.includes('reserve')) {
+      return 'To check available service dates or make a booking, please use the Book Service tab in the navigation menu.\n\nFor AI-powered scheduling suggestions based on your vehicle history, please ask when the AI service is online.';
+    }
+    if (ql.includes('my vehicle') || ql.includes('my fleet') || ql.includes('my car') ||
+        ql.includes('list my') || ql.includes('show my vehicle') || ql.includes('all my vehicle') ||
+        ql.includes('registered vehicle')) {
       const lines = _aiVehicles.map(v => {
         const e = v.status === 'Active' ? '✅' : v.status === 'Under Maintenance' ? '🔧' : v.status === 'Overdue' ? '⚠️' : v.status === 'PMS Due Soon' ? '📅' : '•';
         return `${e} ${v.plate} — ${v.desc} (${v.status || 'Active'})`;
       }).join('\n');
       return `Your fleet (${_aiVehicles.length} vehicle${_aiVehicles.length !== 1 ? 's' : ''}):\n${lines}`;
     }
-    return 'I\u2019m not able to help with that request. I can assist with vehicle status, PMS overdue/due soon, vehicles under maintenance, and service history.\n\nTry asking: "Which vehicles are overdue?"';
+    if (ql.includes('pms') || ql.includes('next service') || ql.includes('next pms')) {
+      const active = _aiVehicles.filter(v => v.status === 'Active').length;
+      const maint  = _aiVehicles.filter(v => (v.status || '').includes('Maintenance')).length;
+      const over   = _aiVehicles.filter(v => v.status === 'Overdue').length;
+      const soon   = _aiVehicles.filter(v => v.status === 'PMS Due Soon').length;
+      return `PMS Status:\n✅ Active: ${active}\n🔧 Under Maintenance: ${maint}\n⚠️ PMS Overdue: ${over}\n📅 Due Soon: ${soon}\n🚗 Total: ${_aiVehicles.length}`;
+    }
+    return 'I\u2019m not sure how to answer that. I can help with your vehicle status, PMS records, service history, and bookings.\n\nFor detailed or complex questions, please ask when the AI service is online.';
   }
 
   window.cuAISend = function (preset) {
