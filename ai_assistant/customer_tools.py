@@ -1966,7 +1966,8 @@ CUSTOMER_TOOL_SCHEMAS = [
             "description": (
                 "Return services and prices from the shop catalog. "
                 "Use for: 'how much is X', 'service prices', 'what services do you offer', "
-                "'list all services', 'price of oil change'. "
+                "'list all services', 'show all prices', 'complete price list'. "
+                "IMPORTANT: If customer asks for 'all' or 'complete list', call with service_name=None to return EVERYTHING. "
                 "Prices come from the database — never invented."
             ),
             "parameters": {
@@ -1974,7 +1975,7 @@ CUSTOMER_TOOL_SCHEMAS = [
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "Keyword to filter. Omit to list all.",
+                        "description": "Keyword to filter (e.g., 'oil', 'brake'). Omit or leave empty for complete catalog.",
                     },
                 },
                 "required": [],
@@ -1989,7 +1990,8 @@ CUSTOMER_TOOL_SCHEMAS = [
             "description": (
                 "Return customer-visible materials/products offered by the shop. "
                 "Use for: 'do you sell engine oil', 'what products do you have', "
-                "'materials available'. "
+                "'materials available', 'show all products', 'complete material list'. "
+                "IMPORTANT: If customer asks for 'all' or 'complete list', call with material_name=None to return EVERYTHING. "
                 "NEVER reveals stock quantities, supplier info, or purchase prices."
             ),
             "parameters": {
@@ -1997,7 +1999,7 @@ CUSTOMER_TOOL_SCHEMAS = [
                 "properties": {
                     "material_name": {
                         "type": "string",
-                        "description": "Keyword to filter. Omit for all materials.",
+                        "description": "Keyword to filter (e.g., 'oil', 'filter'). Omit or leave empty for complete catalog.",
                     },
                 },
                 "required": [],
