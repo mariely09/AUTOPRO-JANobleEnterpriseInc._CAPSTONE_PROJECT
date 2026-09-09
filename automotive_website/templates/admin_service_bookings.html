@@ -274,47 +274,6 @@
 <script src="../static/js/admin_functions.js?v=202607180001"></script>
 <script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
-
-<!-- ── Step 1: Restore cached data instantly (before Firestore responds) ── -->
-<script>
-(function() {
-  try {
-    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
-    if (!uid) return;
-    var raw = sessionStorage.getItem('bookingsCache_' + uid);
-    if (!raw) return;
-    var docs = JSON.parse(raw);
-    if (!Array.isArray(docs) || !docs.length) return;
-
-    // Restore serialised Timestamp-like objects
-    docs.forEach(function(d) {
-      if (d.createdAt && d.createdAt._ms) {
-        var ms = d.createdAt._ms;
-        d.createdAt = { toMillis: function() { return ms; }, seconds: Math.floor(ms / 1000) };
-      }
-    });
-
-    window._sbAllDocs = docs;
-
-    // Paint stats from cache immediately
-    (function() {
-      var s = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
-      var rescheduled = docs.filter(function(d){ return d.status === 'Approved' && d.previousDate && d.previousDate !== d.preferredDate; }).length;
-      var approved    = docs.filter(function(d){ return d.status === 'Approved' && !(d.previousDate && d.previousDate !== d.preferredDate); }).length;
-      var cancelled   = docs.filter(function(d){ return d.status === 'Cancelled' || d.status === 'Dismissed'; }).length;
-      s('sbStatTotal',       approved + rescheduled + cancelled);
-      s('sbStatApproved',    approved);
-      s('sbStatRescheduled', rescheduled);
-      s('sbStatCancelled',   cancelled);
-    })();
-
-    // Render table from cache; live Firestore snapshot will overwrite shortly
-    if (typeof window.renderRescheduleList === 'function') {
-      window.renderRescheduleList();
-    }
-  } catch(e) {}
-})();
-</script>
 <script>
 (function () {
   var db = firebase.firestore();
@@ -893,6 +852,37 @@
   }
 })();
 </script>
+<!-- ── Instant cache restore — runs AFTER all scripts so render fn is defined ── -->
+<script>
+(function() {
+  try {
+    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+    if (!uid) return;
+    var raw = sessionStorage.getItem('bookingsCache_' + uid);
+    if (!raw) return;
+    var docs = JSON.parse(raw);
+    if (!Array.isArray(docs) || !docs.length) return;
 
+    // Skip if global listener already populated data
+    if (window._fbBookings && window._fbBookings.length) return;
+
+    // Restore serialised Timestamps
+    docs.forEach(function(d) {
+      if (d.createdAt && d.createdAt._ms) {
+        var ms = d.createdAt._ms;
+        d.createdAt = { toMillis: function() { return ms; }, seconds: Math.floor(ms / 1000) };
+      }
+    });
+
+    // Inject into the global so _loadFromGlobal picks it up
+    window._fbBookings = docs;
+
+    // renderRescheduleList IS defined here because all scripts above have run
+    if (typeof window.renderRescheduleList === 'function') {
+      window.renderRescheduleList();
+    }
+  } catch(e) {}
+})();
+</script>
 </body>
 </html>
