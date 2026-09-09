@@ -12,9 +12,9 @@
   <!-- Nav -->
   <nav class="nav">
     <div class="nav-brand">
-      <div style="display:flex;flex-direction:column;line-height:1;">
-        <span style="font-size:14px;font-weight:900;color:#fff;letter-spacing:1px;">JA Noble Enterprise Inc.</span>
-        <span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.6);letter-spacing:2px;text-transform:uppercase;margin-top:2px;">Caltex San Pedro</span>
+      <div class="nav-brand-text">
+        <span class="nav-company">JA Noble Enterprise Inc.</span>
+        <span class="nav-tagline">Caltex San Pedro</span>
       </div>
     </div>
     <div class="nav-actions">
@@ -26,7 +26,7 @@
   <!-- Hero -->
   <section class="hero">
     <div class="hero-content">
-      <div class="hero-badge" style="display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,0.14);border:1.5px solid rgba(255,255,255,0.22);border-radius:30px;padding:10px 20px;font-size:11px;font-weight:600;letter-spacing:0.3px;color:rgba(255,255,255,0.92);">
+      <div class="hero-badge">
         <img src="../static/img/LOGO_CALTEX.png" alt="Caltex" style="width:16px;height:16px;object-fit:contain;" />
         Authorized Caltex Service Partner
       </div>
@@ -102,12 +102,28 @@
         flex-direction: column;
         align-items: center;
         text-align: center;
-        gap: 14px;
-        padding: 8px 4px;
+        gap: 12px;
+        padding: 24px 14px 20px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        transition: transform .25s, box-shadow .25s, border-color .25s;
+      }
+      .svc-item:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 14px 30px rgba(0,0,0,0.10);
+        border-color: rgba(232,0,28,0.35);
+      }
+      /* Loading / empty placeholders should not look like cards */
+      #svcLoading {
+        background: transparent;
+        border: none;
+        box-shadow: none;
       }
       .svc-circle {
-        width: 100px;
-        height: 100px;
+        width: 84px;
+        height: 84px;
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -118,20 +134,23 @@
         flex-shrink: 0;
       }
       .svc-item:hover .svc-circle {
-        transform: translateY(-6px) scale(1.04);
+        transform: translateY(-4px) scale(1.04);
         box-shadow: 0 12px 28px rgba(0,0,0,0.13);
       }
       .svc-name {
-        font-size: 14px;
-        font-weight: 700;
+        font-size: 13.5px;
+        font-weight: 800;
         color: #1a202c;
-        line-height: 1.2;
+        line-height: 1.25;
       }
       .svc-desc {
-        font-size: 12px;
+        font-size: 11.5px;
         color: #718096;
-        line-height: 1.6;
-        max-width: 140px;
+        line-height: 1.55;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
       }
       .svc-dot {
         width: 8px;
@@ -156,9 +175,11 @@
         .svc-item { flex: 0 0 calc((100% - 28px * 2) / 3); }
       }
       @media (max-width: 600px) {
-        .svc-item { flex: 0 0 calc((100% - 28px) / 2); }
-        .svc-circle { width: 80px; height: 80px; }
-        .svc-circle svg { width: 26px; height: 26px; }
+        .svc-item { flex: 0 0 calc((100% - 28px) / 2); padding: 18px 10px 16px; gap: 10px; }
+        .svc-circle { width: 64px; height: 64px; }
+        .svc-circle svg { width: 24px; height: 24px; }
+        .svc-name { font-size: 12.5px; }
+        .svc-desc { font-size: 10.5px; }
         #svcPrev { left: -12px; }
         #svcNext { right: -12px; }
       }
@@ -271,6 +292,24 @@
       return '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>';
     }
 
+    // ── Fallback descriptions so every service card shows one ────────────
+    function _svcDefaultDesc(name) {
+      var n = (name || '').toLowerCase();
+      if (n.includes('oil') || n.includes('lube'))            return 'Engine oil & filter change using genuine Caltex lubricants.';
+      if (n.includes('pms') || n.includes('preventive') || n.includes('maintenance')) return 'Scheduled check-up to keep your vehicle running smoothly.';
+      if (n.includes('coolant') || n.includes('radiator') || n.includes('flush')) return 'Cooling system flush & refill for optimal engine temperature.';
+      if (n.includes('tire') || n.includes('wheel') || n.includes('tyre')) return 'Tire mounting, rotation, balancing & wheel alignment.';
+      if (n.includes('brake'))                                return 'Brake inspection, pad replacement & fluid top-up.';
+      if (n.includes('transmission') || n.includes('differential')) return 'Transmission & differential fluid service.';
+      if (n.includes('aircon') || n.includes('a/c') || n.includes('ac ') || n.includes('air')) return 'A/C cleaning, freon recharge & cooling performance check.';
+      if (n.includes('underchassis') || n.includes('chassis') || n.includes('lubrication')) return 'Underchassis inspection & lubrication of key components.';
+      if (n.includes('battery') || n.includes('electrical'))  return 'Battery testing, replacement & electrical system check.';
+      if (n.includes('filter'))                               return 'Air, oil & fuel filter replacement.';
+      if (n.includes('wiper') || n.includes('washer'))        return 'Wiper blade replacement & washer system check.';
+      if (n.includes('inspection') || n.includes('check') || n.includes('light')) return 'Comprehensive multi-point vehicle inspection.';
+      return 'Professional service by our Caltex-certified technicians.';
+    }
+
     // ── Load services from Firestore and build carousel items ─────────────
     (function() {
       if (!firebase.apps.length) {
@@ -292,7 +331,7 @@
             var data = d.data();
             if ((data.type || '').toLowerCase() !== 'service') return;
             if (!data.name || data.archived) return;
-            services.push({ id: d.id, name: data.name, desc: data.desc || '' });
+            services.push({ id: d.id, name: data.name, desc: data.desc || _svcDefaultDesc(data.name) });
           });
           services.sort(function(a, b) { return a.name.localeCompare(b.name); });
 
@@ -312,7 +351,7 @@
               +   '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="' + pal.stroke + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + icon + '</svg>'
               + '</div>'
               + '<div class="svc-name">' + s.name + '</div>'
-              + (s.desc ? '<div class="svc-desc">' + s.desc + '</div>' : '')
+              + '<div class="svc-desc">' + s.desc + '</div>'
               + '</div>';
           }).join('');
 
@@ -341,7 +380,7 @@
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           </div>
           <h3>Caltex Authorized</h3>
-          <p>We use only genuine Caltex-grade lubricants and parts â€â€ so your vehicle gets the quality it deserves every single visit.</p>
+          <p>We use only genuine Caltex-grade lubricants and parts — so your vehicle gets the quality it deserves every single visit.</p>
         </div>
 
         <div class="role-card staff">
@@ -349,7 +388,7 @@
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
           <h3>Expert Mechanics</h3>
-          <p>Our certified technicians are trained to handle all vehicle types â€â€ from daily commuters to heavy-duty fleet trucks.</p>
+          <p>Our certified technicians are trained to handle all vehicle types — from daily commuters to heavy-duty fleet trucks.</p>
         </div>
 
         <div class="role-card customer">
@@ -357,7 +396,7 @@
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
           </div>
           <h3>Track via App</h3>
-          <p>Monitor your vehicle's service history, upcoming PMS schedules, and real-time updates â€â€ all from your phone.</p>
+          <p>Monitor your vehicle's service history, upcoming PMS schedules, and real-time updates — all from your phone.</p>
         </div>
 
       </div>
@@ -365,7 +404,7 @@
   </section>
 
   <!-- Get the App Section -->
-  <section id="get-app" style="background:#f4f6f8;padding:80px 5%;position:relative;">
+  <section id="get-app" style="background:#f4f6f8;padding:80px 5%;position:relative;overflow:hidden;">
 
     <div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1.4fr;gap:64px;align-items:center;position:relative;z-index:1;">
 
@@ -737,7 +776,7 @@
 
 
   <!-- Footer -->
-  <footer style="background:linear-gradient(135deg,#004B5F 0%,#EE152A 100%);padding:56px 5% 28px;border-top:3px solid #EE152A;">
+  <footer style="background:linear-gradient(135deg,#004B5F 0%,#EE152A 100%);padding:56px 5% 28px;border-top:3px solid #EE152A;overflow:hidden;">
     <div style="max-width:1100px;margin:0 auto;">
 
       <!-- Top row: brand + nav columns -->
@@ -753,7 +792,7 @@
             </div>
           </div>
           <p style="font-size:13px;color:rgba(255,255,255,0.55);line-height:1.7;max-width:280px;margin:0 0 20px;">
-            Your trusted Caltex authorized service center â€â€ delivering expert automotive care for individuals and corporate fleets.
+            Your trusted Caltex authorized service center — delivering expert automotive care for individuals and corporate fleets.
           </p>
           <!-- Contact info -->
           <div style="display:flex;flex-direction:column;gap:7px;">
@@ -776,6 +815,7 @@
             <a href="index.html#services" style="font-size:13px;color:rgba(255,255,255,0.6);transition:color .2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">Our Services</a>
             <a href="login.html" style="font-size:13px;color:rgba(255,255,255,0.6);transition:color .2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">Sign In</a>
             <a href="regsiter.html" style="font-size:13px;color:rgba(255,255,255,0.6);transition:color .2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">Create Account</a>
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSfsHeXB55-yusz8VYvu0Om8andC5gQ_p0o97Ts0R3hYmbFJzA/viewform" target="_blank" rel="noopener" style="font-size:13px;color:rgba(255,255,255,0.6);transition:color .2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">Feedback</a>
           </div>
         </div>
 
@@ -799,6 +839,8 @@
           <a href="privacy_policy.html" style="color:rgba(255,255,255,0.4);transition:color .2s;text-decoration:underline;text-underline-offset:2px;" onmouseover="this.style.color='rgba(255,255,255,0.75)'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">Privacy Policy</a>
           <span style="color:rgba(255,255,255,0.2);">·</span>
           <a href="terms_condiion.html" style="color:rgba(255,255,255,0.4);transition:color .2s;text-decoration:underline;text-underline-offset:2px;" onmouseover="this.style.color='rgba(255,255,255,0.75)'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">Terms &amp; Conditions</a>
+          <span style="color:rgba(255,255,255,0.2);">·</span>
+          <a href="https://docs.google.com/forms/d/e/1FAIpQLSfsHeXB55-yusz8VYvu0Om8andC5gQ_p0o97Ts0R3hYmbFJzA/viewform" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.4);transition:color .2s;text-decoration:underline;text-underline-offset:2px;" onmouseover="this.style.color='rgba(255,255,255,0.75)'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">Feedback</a>
         </div>
       </div>
 

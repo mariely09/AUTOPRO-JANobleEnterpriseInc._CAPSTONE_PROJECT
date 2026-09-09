@@ -178,6 +178,7 @@ const GoogleSignInModule = {
     console.log('GoogleSignInModule initialized');
     this.setupGoogleButton();
     _gsInjectOtpOverlay();
+    this.checkRedirectResult();
   },
 
   setupGoogleButton: function() {
@@ -197,68 +198,160 @@ const GoogleSignInModule = {
       provider.addScope('email');
       provider.setCustomParameters({ prompt: 'select_account' }); // always show account picker
 
-      const result = await firebase.auth().signInWithPopup(provider);
-      const user = result.user;
+      let user = null;
+      try {
+        const result = await firebase.auth().signInWithPopup(provider);
+        user = result.user;
+      } catch (popupError) {
+        const code = popupError && popupError.code;
+        const popupBlocked = (
+          code === 'auth/popup-blocked' ||
+          code === 'auth/popup-failed-to-open'
+        );
+        if (!popupBlocked) throw popupError;
 
-      // Lookup user in Firestore
-      const userData = await this.getOrCreateUser(user);
-
-      // Validate status
-      if (userData.status === 'inactive') {
-        await firebase.auth().signOut();
-        this.showToast('Your account has been deactivated. Please contact the administrator.', 'error');
-        this.setButtonLoading(googleBtn, false);
-        return;
+        // Popup blocked (embedded browser, strict blocker, in-app webview…)
+        // → fall back to a full-page redirect, which cannot be blocked.
+        console.log('Popup blocked (' + code + ') — falling back to signInWithRedirect');
+        sessionStorage.setItem('pendingGoogleSignIn', '1');
+        // Safety net: if navigation never happens (some embedded webviews abort
+        // external redirects), restore the button instead of spinning forever.
+        // In normal browsers the page navigates away and this never fires.
+        setTimeout(() => {
+          if (firebase.auth().currentUser) return; // redirect completed elsewhere
+          try { sessionStorage.removeItem('pendingGoogleSignIn'); } catch (_) {}
+          this.setButtonLoading(googleBtn, false);
+          this.showToast('Could not open Google Sign-In here. Please open this page in Chrome or Edge.', 'error');
+        }, 8000);
+        try {
+          await firebase.auth().signInWithRedirect(provider);
+        } catch (redirectError) {
+          sessionStorage.removeItem('pendingGoogleSignIn');
+          throw redirectError;
+        }
+        return; // page navigates away — flow continues in checkRedirectResult()
       }
-      if (userData.status === 'pending') {
-        await firebase.auth().signOut();
-        this.showToast('Your account is pending admin approval. You will be notified once approved.', 'error');
-        this.setButtonLoading(googleBtn, false);
-        return;
-      }
 
-      // Store pending data — will complete after OTP
-      this._pendingUser     = user;
-      this._pendingUserData = userData;
-
-      this.setButtonLoading(googleBtn, false);
-
-      // Send OTP to verified Google email
-      this.showToast('Sending verification code to ' + user.email + '…', 'success');
-      await _gsSendOtp(user.email, user.displayName || '');
-
-      // Show OTP overlay
-      _gsShowOtpOverlay(user.email);
-
-      // Wire up verify button
-      const verifyBtn = document.getElementById('_gsOtpVerifyBtn');
-      const resendBtn = document.getElementById('_gsResendBtn');
-
-      // Remove old listeners
-      const newVerify = verifyBtn.cloneNode(true);
-      verifyBtn.parentNode.replaceChild(newVerify, verifyBtn);
-      const newResend = resendBtn.cloneNode(true);
-      resendBtn.parentNode.replaceChild(newResend, resendBtn);
-
-      document.getElementById('_gsOtpVerifyBtn').addEventListener('click', () => this._verifyAndContinue());
-      document.getElementById('_gsResendBtn').addEventListener('click', () => this._resendOtp());
-      _gsBindOtpInputs(); // re-bind after cloneNode
+      await this._continueAfterGoogleAuth(user, googleBtn);
 
     } catch (error) {
       console.error('Google Sign-In error:', error);
-      let msg = 'Sign-in failed. Please try again.';
-      if (error.code === 'auth/popup-closed-by-user') {
-        this.setButtonLoading(googleBtn, false);
-        return;
-      }
-      if (error.message && error.message.includes('not found')) {
-        msg = 'User account not found. Please contact the administrator.';
-      } else if (error.message && error.message.includes('inactive')) {
-        msg = 'Your account has been deactivated.';
-      }
-      this.showToast(msg, 'error');
       this.setButtonLoading(googleBtn, false);
+      const code = error && error.code;
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        return; // user closed the picker — stay silent
+      }
+      this.showToast(this._friendlyError(error), 'error');
     }
+  },
+
+  // Runs after Google auth succeeded (via popup OR redirect): validate the
+  // Firestore account, then start the OTP verification step.
+  _continueAfterGoogleAuth: async function(user, googleBtn) {
+    // Lookup user in Firestore
+    const userData = await this.getOrCreateUser(user);
+
+    // Validate status
+    if (userData.status === 'inactive') {
+      await firebase.auth().signOut();
+      this.showToast('Your account has been deactivated. Please contact the administrator.', 'error');
+      this.setButtonLoading(googleBtn, false);
+      return;
+    }
+    if (userData.status === 'pending') {
+      await firebase.auth().signOut();
+      this.showToast('Your account is pending admin approval. You will be notified once approved.', 'error');
+      this.setButtonLoading(googleBtn, false);
+      return;
+    }
+
+    // Store pending data — will complete after OTP
+    this._pendingUser     = user;
+    this._pendingUserData = userData;
+
+    this.setButtonLoading(googleBtn, false);
+
+    // Send OTP to verified Google email
+    this.showToast('Sending verification code to ' + user.email + '…', 'success');
+    await _gsSendOtp(user.email, user.displayName || '');
+
+    // Show OTP overlay
+    _gsShowOtpOverlay(user.email);
+
+    // Wire up verify button
+    const verifyBtn = document.getElementById('_gsOtpVerifyBtn');
+    const resendBtn = document.getElementById('_gsResendBtn');
+
+    // Remove old listeners
+    const newVerify = verifyBtn.cloneNode(true);
+    verifyBtn.parentNode.replaceChild(newVerify, verifyBtn);
+    const newResend = resendBtn.cloneNode(true);
+    resendBtn.parentNode.replaceChild(newResend, resendBtn);
+
+    document.getElementById('_gsOtpVerifyBtn').addEventListener('click', () => this._verifyAndContinue());
+    document.getElementById('_gsResendBtn').addEventListener('click', () => this._resendOtp());
+    _gsBindOtpInputs(); // re-bind after cloneNode
+  },
+
+  // Completes a sign-in that went through the full-page redirect fallback.
+  // Called on every page load — resolves immediately when no redirect happened.
+  checkRedirectResult: async function() {
+    let pending = false;
+    try { pending = sessionStorage.getItem('pendingGoogleSignIn') === '1'; } catch (_) {}
+
+    let result = null;
+    try {
+      result = await firebase.auth().getRedirectResult();
+    } catch (e) {
+      console.error('getRedirectResult error:', e);
+      if (pending) {
+        try { sessionStorage.removeItem('pendingGoogleSignIn'); } catch (_) {}
+        this.showToast(this._friendlyError(e), 'error');
+      }
+      return;
+    }
+
+    if (!result || !result.user) return; // no redirect flow just completed
+
+    if (!pending) {
+      // A redirect returned a user but we did not initiate it — reset cleanly.
+      console.log('Unexpected redirect result — signing out');
+      try { await firebase.auth().signOut(); } catch (_) {}
+      return;
+    }
+
+    try { sessionStorage.removeItem('pendingGoogleSignIn'); } catch (_) {}
+    console.log('Google Sign-In redirect result received:', result.user.uid);
+
+    const googleBtn = document.getElementById('googleBtn');
+    this.setButtonLoading(googleBtn, true);
+    try {
+      await this._continueAfterGoogleAuth(result.user, googleBtn);
+    } catch (e) {
+      console.error('Google redirect sign-in error:', e);
+      this.setButtonLoading(googleBtn, false);
+      this.showToast(this._friendlyError(e), 'error');
+    }
+  },
+
+  // Maps Firebase/flow errors to clear, user-friendly messages.
+  _friendlyError: function(error) {
+    const code = (error && error.code) || '';
+    const msg  = (error && error.message) || '';
+
+    if (code === 'auth/unauthorized-domain') {
+      return 'This domain is not authorized for Google Sign-In. Add it in Firebase Console → Authentication → Settings → Authorized domains.';
+    }
+    if (code === 'auth/operation-not-supported-in-this-environment') {
+      return 'Google Sign-In is not available here. Please open this page in a normal browser (http:// or https://).';
+    }
+    if (code === 'auth/network-request-failed') {
+      return 'Network error. Please check your internet connection.';
+    }
+    if (msg.includes('not found')) return 'User account not found. Please contact the administrator.';
+    if (msg.includes('inactive'))   return 'Your account has been deactivated.';
+    if (msg.includes('pending'))    return 'Your account is pending admin approval.';
+    return 'Sign-in failed. Please try again.';
   },
 
   _verifyAndContinue: async function() {
