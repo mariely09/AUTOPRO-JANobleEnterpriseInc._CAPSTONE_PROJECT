@@ -5,9 +5,11 @@ import time
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from schemas import ChatRequest, ChatResponse, CustomerChatRequest, SessionInfoResponse
 from client import chat as llm_chat, AllKeysRateLimitedError as _AllKeysRateLimitedError, InvalidApiKeyError as _InvalidApiKeyError
 from intent_classifier import classify_and_run
+from input_normalizer import normalize as _normalize_input
 from model_router import (
     classify_intent, classify_customer_intent, select_model, needs_llm,
     DATABASE_LOOKUP, DATABASE_CALCULATION, GENERAL_AI_QUESTION,
@@ -25,6 +27,7 @@ from session_store import (
 from config import settings as _settings  # for token-limit constants in _merge_history
 import token_tracker
 import usage_limiter
+import ai_settings
 import cache_manager
 
 app = FastAPI(
@@ -173,6 +176,72 @@ def get_admin_usage():
     return usage_limiter.get_all_usage()
 
 
+@app.get("/usage/log")
+def get_usage_log(n: int = 50):
+    """
+    Admin AI usage monitoring: recent per-request token logs (no content).
+    Records user id, role, model, intent, input/output/total tokens,
+    latency, success — from actual Groq usage data when available.
+    """
+    return {
+        "summary": token_tracker.get_daily_summary(),
+        "recent": token_tracker.get_recent_log(max(1, min(n, 200))),
+        "answer_cache": __import__("answer_cache").stats(),
+    }
+
+
+# -- Admin AI Usage Controls (Profile → Settings → AI Usage Controls) ----------
+
+@app.get("/ai-settings")
+def get_ai_settings():
+    """
+    Current runtime AI settings + a usage overview for the admin controls page.
+    Called through the Flask proxy (which restricts it to admin clients).
+    """
+    settings_now = ai_settings.get_settings()
+
+    # Usage overview — today's per-user counters (in-memory mirror, 0 reads).
+    overview = usage_limiter.get_all_usage()
+    customers = {uid: e for uid, e in overview.get("users", {}).items()
+                 if e.get("role") == "customer"}
+    override   = settings_now.get("customer_token_limit", 0)
+    eff_limit  = override if override > 0 else usage_limiter.CUSTOMER_DAILY_TOKEN_LIMIT
+    at_limit   = 0
+    if eff_limit > 0:
+        at_limit = sum(1 for e in customers.values()
+                       if int(e.get("tokens", 0)) >= eff_limit)
+
+    return {
+        "settings": settings_now,
+        "overview": {
+            "customer_tokens_used":   sum(int(e.get("tokens", 0)) for e in customers.values()),
+            "customer_token_limit":   eff_limit,
+            "customers_at_limit":     at_limit,
+            "customer_ai_status":     "Active" if settings_now.get("customer_ai_enabled", True) else "Paused",
+            "next_reset":             usage_limiter._next_manila_midnight_str(),
+            "active_customers_today": len(customers),
+        },
+    }
+
+
+class AiSettingsUpdate(BaseModel):
+    customer_ai_enabled:     bool | None = None
+    customer_token_limit:    int | None = None
+    dev_access_enabled:      bool | None = None
+    dev_bypass_token_limit:  bool | None = None
+    dev_access_while_paused: bool | None = None
+
+
+@app.put("/ai-settings")
+def put_ai_settings(update: AiSettingsUpdate):
+    """Persist admin changes from the AI Usage Controls page."""
+    updates = {k: v for k, v in update.model_dump().items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No valid settings provided.")
+    saved = ai_settings.save_settings(updates)
+    return {"success": True, "settings": saved}
+
+
 @app.get("/cache/stats")
 def get_cache_stats():
     """Return current Firestore cache state (admin debug endpoint)."""
@@ -259,6 +328,8 @@ def admin_chat(req: ChatRequest):
     session_id = req.session_id or str(uuid.uuid4())
     admin_id   = session_id[:20]   # stable identifier for usage tracking
 
+    import perf_metrics
+    _perf = perf_metrics.push(admin_id, "admin", "?")
     try:
         # -- Step 2: daily usage check -----------------------------------------
         limit_check = usage_limiter.check_limit(admin_id, role="admin")
@@ -274,11 +345,15 @@ def admin_chat(req: ChatRequest):
         effective_history = _merge_history(server_history, req.history)
 
         # -- Step 3: intent classification (deterministic, 0 tokens) ----------
-        intent      = classify_intent(req.message)
-        chosen_model = select_model(intent)
+        with perf_metrics.stage("intent"):
+            intent = classify_intent(req.message)
+        _perf["intent"] = intent
+        with perf_metrics.stage("context"):
+            chosen_model = select_model(intent)
 
         # -- Step 4: admin fast-path (pre-fetches DB data before any LLM call) -
-        fast_path = classify_and_run(req.message)
+        with perf_metrics.stage("firestore"):
+            fast_path = classify_and_run(req.message)
 
         if fast_path:
             if intent in (DATABASE_LOOKUP, DATABASE_CALCULATION):
@@ -339,6 +414,7 @@ def admin_chat(req: ChatRequest):
         )
 
     except Exception as e:
+        _perf["intent"] = str(e)[:60]
         if _is_rate_limit(e):
             rl = _rate_limit_reply(str(e))
             token_tracker.record(
@@ -364,6 +440,11 @@ def admin_chat(req: ChatRequest):
             reply="I'm having trouble processing your request right now. Please try again in a moment.",
             session_id=session_id,
         )
+    finally:
+        if _perf.get("intent") in (None, "?"):
+            _perf["intent"] = "UNKNOWN"
+        perf_metrics.log_summary(_perf)
+        perf_metrics.pop()
 
 
 def _record_llm_usage_admin(result: dict, admin_id: str) -> None:
@@ -390,10 +471,10 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
     Build a direct template response for admin DATABASE_LOOKUP requests.
     No LLM involved  -  zero tokens consumed.
     """
-    msg_l = message.lower()
+    msg_l = _normalize_input(message) or message.lower()
 
     # Low stock
-    if "low" in msg_l and "stock" in msg_l or "reorder" in msg_l:
+    if "low" in msg_l and "stock" in msg_l or "reorder" in msg_l or "restock" in msg_l:
         count = result.get("low_stock_count", len(result.get("items", [])))
         if count == 0:
             return "All items are currently at acceptable stock levels. No items are below the reorder point."
@@ -440,6 +521,22 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
         breakdown = ", ".join(f"{v} {k}" for k, v in by_status.items()) if by_status else ""
         return f"There are **{total}** booking(s) in the system." + (
             f"\n\n**By status:** {breakdown}" if breakdown else ""
+        )
+
+    # Inventory / stock list
+    if "inventory" in msg_l or "stock" in msg_l or "items" in msg_l:
+        total = result.get("total_items", len(result.get("items", [])))
+        items = result.get("items", [])
+        low   = sum(1 for it in items if (it.get("status") or "").lower() == "low")
+        lines = [
+            f"**{it['name']}**  -  Stock: {it['stock']} {it.get('uom','')}"
+            for it in items[:10]
+        ]
+        tail = f"\n\n*...and {total - 10} more items.*" if total > 10 else ""
+        return (
+            f"Here are **{total}** inventory item(s)"
+            + (f" ({low} flagged Low)." if low else ".")
+            + "\n\n" + "\n".join(lines) + tail
         )
 
     # Generic fallback: return a short summary
@@ -592,6 +689,29 @@ FAQ:
 Contact & Support: caltexautopro2026@gmail.com
 """
 
+# -- Out-of-scope patterns (customer chat) — compiled once at module level ----
+_OUT_OF_SCOPE_RE = re.compile(
+    r"\b(inventory|stock\s+level|stock\s+status|stock\s+is\s+low|"
+    r"low\s+stock|running\s+low|almost\s+out|nearly\s+out|"
+    r"reorder|restock\w*|replenish\w*|issuance|"
+    r"supplier|delivery|deliveries|warehouse|purchase\s+order|"
+    r"how\s+many.*(in\s+stock|stock\s+level|bottles|pieces|units)"
+    r"|generate\s+(a\s+)?(report|pdf|excel|summary)|"
+    r"inventory\s+report|maintenance\s+report|service\s+report|"
+    r"all\s+(customers?|users?|accounts?)|"
+    r"other\s+customer|another\s+customer|"
+    r"(weather|news|sports|politics|geography|math|coding|programming|"
+    r"calculate|formula|recipe|joke|game|movie|music))\b",
+    re.IGNORECASE,
+)
+# Special case: stock quantity questions must be blocked even if phrased nicely
+_STOCK_QTY_RE = re.compile(
+    r"\b(how\s+many\s+(bottles?|liters?|litres?|pieces?|units?|cans?|drums?)"
+    r"|how\s+much\s+.*(in\s+stock|stock|inventory)"
+    r"|current\s+stock|stock\s+quantity|quantity\s+(of|in)|in\s+stock)\b",
+    re.IGNORECASE,
+)
+
 _MANUAL_KEYWORDS = re.compile(
     r"\b(how\s+(do|can|to|would)\s+i|where\s+(is|can|do)|how\s+to\s+use|"
     r"how\s+do\s+i\s+(book|log\s*in|sign\s*up|register|change\s+password|"
@@ -612,160 +732,41 @@ def _build_customer_system_prompt(message: str) -> str:
     Build the system prompt for a customer request.
     Includes the user manual only for how-to/app-usage queries to save tokens.
     """
-    base = """You are the friendly vehicle and service assistant for a Caltex AutoPro customer at JA Noble Enterprise Inc., Caltex San Pedro, Laguna.
+    base = """You are the friendly vehicle/service assistant for a Caltex AutoPro customer (JA Noble Enterprise Inc., Caltex San Pedro, Laguna). Warm, concise, natural tone.
 
-Your personality: warm, helpful, and conversational. Keep answers concise but complete. Use a natural, human tone.
+SCOPE — only: customer's own vehicles/PMS status, their service history & costs, their bookings (create/reschedule/cancel), shop services & pricing, customer-visible materials, maintenance recommendations from their data, app/website how-to. Anything else (news, sports, general knowledge, coding, math, weather) → respond ONLY: "I can only answer questions related to the Automotive Service and Inventory Management System."
 
-STRICT SCOPE RESTRICTION  -  HIGHEST PRIORITY:
-You ONLY answer questions about:
-- The customer's own registered vehicles and PMS status
-- Their completed service history and costs
-- Their service bookings and appointments (including creating, rescheduling, cancelling)
-- Service offerings and pricing from this shop
-- Materials/products offered by the shop (customer-visible info only)
-- Maintenance recommendations based on their actual vehicle data
-- How to use the Caltex AutoPro mobile app or website
+PRIVACY (absolute):
+- Another person's data → ONLY: "I can only show information for your own account."
+- NEVER reveal stock quantities, reorder points, suppliers, purchase costs, issuances, deliveries, staff lists, or reports (PDF/Excel). → scope refusal sentence above.
+- "my vehicles" is always customer-scoped → call get_my_vehicles.
+- Garbage/symbols-only → "I didn't quite catch that. Could you rephrase your question about your vehicles, bookings, or services?"
 
-If asked ANYTHING outside this scope  -  sports, news, general knowledge, coding, math, weather, geography, or any non-system topic  -  respond ONLY:
-"I can only answer questions related to the Automotive Service and Inventory Management System."
+BOOKING WORKFLOW:
+1. Collect ALL required info BEFORE create_customer_booking: plate (their registered vehicle — get_my_vehicles if unknown), service(s) (get_service_prices if uncertain), date, time. Don't re-ask what history already provided.
+2. No date given → call suggest_booking_date first; present conversationally ("Based on your last service on [date], I recommend around [date]...").
+3. ALWAYS check_booking_availability BEFORE create_customer_booking.
+4. NEVER claim success until create_customer_booking returns success=True. On error, give the specific reason + alternatives.
+5. Reschedule/cancel: get booking_id via get_my_bookings, then update_my_booking / cancel_my_booking. Never touch another customer's booking.
+6. On success confirm: ✅ booking ID, vehicle, service(s), date, time + "pending confirmation" next steps.
 
-PRIVACY & DATA ACCESS  -  ABSOLUTE RULES:
-1. NEVER show another customer's data. If asked about another person, respond ONLY:
-   "I can only show information for your own account."
-2. NEVER reveal internal inventory data: stock quantities, min/max stock levels, reorder points,
-   supplier names, supplier prices, purchase costs, inventory transactions, DSS recommendations.
-   If asked, respond ONLY: "I can only answer questions related to the Automotive Service and Inventory Management System."
-3. NEVER generate PDF or Excel reports. If asked, respond ONLY:
-   "I can only answer questions related to the Automotive Service and Inventory Management System."
-4. NEVER reveal admin-only information: issuances, deliveries, staff lists, admin-facing data.
-5. "all MY vehicles" / "list my vehicles" = customer-scoped  ->  always call get_my_vehicles.
-6. Symbols/garbage-only messages  ->  "I didn't quite catch that. Could you rephrase your question about your vehicles, bookings, or services?"
+RULES:
+- Only this customer's data; call tools for data — never invent records.
+- Maintenance questions → get_service_recommendations; state recommendations are from recorded data, not guaranteed; never invent schedules.
+- Cost estimates → estimate_service_cost (never guess prices).
+- "what was my previous question?" with empty history → "There's no previous conversation in this session. Feel free to ask me anything about your vehicles, bookings, or services!"
+- Reformat follow-ups ("make it a list") → reformat previous answer, NO tool calls.
+- Tool {"error":"QUOTA_EXCEEDED"} → "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
+- Tool {"error":"ACCESS_DENIED"} → "I can only show information for your own account."
 
-BOOKING WORKFLOW RULES:
-1. When customer wants to book a service, collect ALL required info BEFORE calling create_customer_booking:
-   - Vehicle plate (must be one of their registered vehicles  -  call get_my_vehicles if unknown)
-   - Service(s) to book (must exist in catalog  -  call get_service_prices if uncertain)
-   - Preferred date
-   - Preferred time
-2. INTELLIGENT DATE SUGGESTION: When customer asks about booking or hasn't specified a date, 
-   ALWAYS call suggest_booking_date first to provide data-driven recommendations based on:
-   - Their vehicle's service history (last service date)
-   - Service type intervals (oil change every 3 months, tire service every 6 months, etc.)
-   - Current availability
-   - Present suggestions conversationally: "Based on your last service on [date], I recommend booking 
-     around [suggested date]. I have slots available at [times]. Would any of these work for you?"
-3. Always call check_booking_availability BEFORE create_customer_booking to verify the slot.
-4. NEVER claim a booking was created until create_customer_booking returns success=True.
-5. If create_customer_booking returns an error, tell the customer the specific reason and offer alternatives.
-6. For reschedule: get the booking_id from get_my_bookings, then call update_my_booking.
-7. For cancellation: get the booking_id from get_my_bookings, then call cancel_my_booking.
-8. NEVER modify or cancel a booking that does not belong to this customer.
-9. CONVERSATION MEMORY: Use conversation history to remember details. If customer mentions their vehicle 
-   earlier in the conversation, use that plate number. If they mention a service type, remember it.
-   Ask for missing details only - don't re-ask for information already provided.
-10. CONFIRMATION MESSAGE: After successful booking, provide a warm, detailed confirmation including:
-    - ✅ Booking confirmation with booking ID
-    - Vehicle details (plate + description)
-    - Service(s) booked
-    - Date and time
-    - Next steps: "Your booking is now pending confirmation. Our team will review and confirm your 
-      appointment shortly. You can check your booking status anytime by asking 'show my bookings'."
+TOOL MAPPING: my vehicles/fleet/cars→get_my_vehicles; service history/past services/spent/pms history→get_my_service_history; what maintenance do I need/is my car due/PMS status/due soon→get_service_recommendations; my bookings/upcoming service→get_my_bookings; prices/how much is/services offered→get_service_prices ("all"/"complete list"→NO filter); materials/products/oil prices→get_customer_materials ("all"→NO filter); suggest a date/when should I book→suggest_booking_date; book a service→booking workflow above; reschedule→update_my_booking; cancel→cancel_my_booking; estimate cost→estimate_service_cost.
 
-MATERIALS (INVENTORY) PRIVACY RULES:
-- get_customer_materials returns ONLY: product name, group, UOM, customer price.
-- NEVER state stock quantities, even if asked ("how many engine oils are in stock?")  ->  refuse.
-- NEVER reveal supplier names ("who supplies your oil?")  ->  refuse.
-- NEVER reveal purchase/supplier prices.
-
-MAINTENANCE RECOMMENDATIONS:
-- Always use get_service_recommendations for maintenance status/reminders.
-- Clearly state that recommendations are based on recorded data, NOT guaranteed requirements.
-- If data is insufficient, say so  -  never invent a maintenance schedule.
-
-GENERAL RULES:
-1. Only access data belonging to this customer. Call tools for data  -  never invent records.
-2. If a tool returns no data, say so warmly.
-3. For cost estimates, always call estimate_service_cost  -  do not guess prices.
-4. Use conversation history for follow-up questions.
-5. If history is empty and user asks "what was my previous question?"  ->  respond ONLY:
-   "There's no previous conversation in this session. Feel free to ask me anything about your vehicles, bookings, or services!"
-6. Reformatting follow-ups ("make it a list", "simplify")  ->  reformat previous answer, NO tool calls.
-7. If a tool returns {"error": "QUOTA_EXCEEDED"}, respond ONLY:
-   "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
-8. If a tool returns {"error": "ACCESS_DENIED"}, respond ONLY:
-   "I can only show information for your own account."
-
-SERVICE HISTORY FORMAT (when get_my_service_history returns data):
-- Open: "Here's your service history! You have [N] completed record[s] with a total spend of [total]."
-- Number each job: **[N]. [Date]  -  [Plate]**  ->  Services / Materials (omit if empty) / Cost
-- More than 10 jobs  ->  show 10 most recent, note "Showing your 10 most recent records."
-- No jobs  ->  "It looks like you don't have any completed service records on file yet. Once your first service is completed at our shop, it will appear here!"
-
-VEHICLES FORMAT (when get_my_vehicles returns data):
-- "Here are your registered vehicles:" then for each: **[Plate]  -  [Desc]**  ->  Status / Last Service / Frequency
-- Close with a brief note about any overdue or due-soon vehicles.
-
-BOOKING CONFIRMATION FORMAT:
-- After successful create_customer_booking: confirm Vehicle, Service, Date, Time, Booking ID, Status.
-- Never say "your booking was created" unless the tool returned success=True.
-
-TOOL MAPPING:
-- "my vehicles", "my fleet", "my cars"  ->  get_my_vehicles
-- "service history", "past services", "spent", "pms history"  ->  get_my_service_history
-- "what maintenance do I need", "is my car due", "PMS status", "due soon"  ->  get_service_recommendations
-- "my bookings", "my appointments", "upcoming service"  ->  get_my_bookings
-- "how much is", "price of", "services offered", "list services"  ->  get_service_prices
-- "show all prices", "complete price list", "all service prices"  ->  get_service_prices (NO filter)
-- "list all services", "show all services", "what services"  ->  get_service_prices (NO filter)
-- "lubricant prices", "oil prices", "brake fluid prices"  ->  get_customer_materials (with filter)
-- "show all materials", "all products", "complete material list"  ->  get_customer_materials (NO filter)
-- "do you sell oil", "what materials", "products available"  ->  get_customer_materials
-- "when should I book", "what's a good date", "suggest a date", "recommend a date"  ->  suggest_booking_date
-- "book a service", "schedule appointment", "I want to book"  ->  booking workflow:
-  * First: call suggest_booking_date (if no date specified) for intelligent recommendations
-  * Then: collect all required info (plate, services, date, time)
-  * Next: call check_booking_availability to verify the slot
-  * Finally: call create_customer_booking to complete the booking
-- "reschedule", "move my appointment"  ->  update_my_booking
-- "cancel my booking", "cancel my appointment"  ->  cancel_my_booking
-- "how much would X cost", "estimate cost"  ->  estimate_service_cost
-
-PRICING & CATALOG DISPLAY RULES:
-When customer asks for "all prices", "complete list", "show all services", or similar:
-1. Call get_service_prices() WITHOUT any filter parameter (service_name=None)
-2. Present the COMPLETE list organized by category/group if available
-3. Format as a well-structured list with prices clearly visible
-4. If the list is very long (>30 items), organize by groups and show all items
-5. NEVER say "the list is too long" - always show the complete catalog
-6. Example format:
-   "Here's our complete service catalog with prices:
-   
-   **Lubricant Services:**
-   • Change Oil - ₱500.00
-   • ATF Service - ₱1,200.00
-   
-   **Tire Services:**
-   • Tire Rotation - ₱300.00
-   • Wheel Alignment - ₱800.00
-   
-   [Continue with all services...]"
-
-For materials:
-1. Call get_customer_materials() WITHOUT filter for "all materials/products"
-2. Organize by group (Lubricants, Filters, Brake Parts, etc.)
-3. Show complete list with customer prices
-4. Example: "Here are all our available products with prices: ..."
-
-IMPORTANT: When customer wants "all" or "complete list", they expect to see EVERYTHING, not a summary or subset.
-
-WHEN TOOL RETURNS EMPTY DATA:
-- get_service_prices returns total_services=0 AND catalog_size=0  ->  "Our service pricing catalog hasn't been set up yet. Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."
-- get_service_prices returns total_services=0 AND catalog_size>0  ->  "I couldn't find a service matching '[keyword]' in our catalog. Try asking 'list all services' to see everything we offer."
-- get_my_vehicles returns total_vehicles=0  ->  "You don't have any registered vehicles on file yet."
-- get_my_service_history returns total_jobs=0  ->  standard "no completed service records" message.
-- get_my_bookings returns total=0  ->  "You don't have any service bookings on file."
-- get_customer_materials returns total_materials=0  ->  "I couldn't find that material/product in our catalog."
-- Any tool returns {"error": "QUOTA_EXCEEDED"}  ->  "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
+DISPLAY:
+- "all services/prices" → call with NO filter, show EVERYTHING grouped by category (e.g. "**Lubricant Services:**\n• Change Oil - ₱500.00"), never say the list is too long.
+- Materials: show name/group/UOM/customer price only — NEVER stock quantities or supplier info, even if asked.
+- Service history format: "Here's your service history! You have [N] completed record(s) with a total spend of [total]." then **[N]. [Date] - [Plate]** / Services / Materials / Cost; >10 jobs → 10 most recent + note; none → warm no-records message.
+- Vehicles format: "Here are your registered vehicles:" then **[Plate] - [Desc]** / Status / Last Service / Frequency; close with overdue/due-soon note.
+- Empty results: no vehicles→"You don't have any registered vehicles on file yet."; no bookings→"You don't have any service bookings on file."; prices empty+catalog empty→"Our service pricing catalog hasn't been set up yet. Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."; price keyword no match→suggest "list all services"; materials no match→"I couldn't find that material/product in our catalog."
 """
     if _MANUAL_KEYWORDS.search(message):
         return base + "\n\n" + CUSTOMER_MANUAL_CONTEXT
@@ -792,7 +793,21 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     from customer_tools import CUSTOMER_TOOL_SCHEMAS, CUSTOMER_TOOL_FUNCTIONS
     import time as _time
 
-    # -- Step 1: direct DB path for simple lookups (0 LLM tokens) -------------
+    # -- Step 1: out-of-scope pre-check (0 LLM tokens, 0 Firestore reads) -----
+    # Must run BEFORE the direct-DB path: ambiguous DB intents (e.g. stock
+    # questions mapped to MY_SERVICE_HISTORY) must never trigger a Firestore
+    # read or a wrong answer.
+    # Normalize for blocking checks only (typo'd scope probes like "inventry")
+    _norm_message = _normalize_input(message) or message
+    if _OUT_OF_SCOPE_RE.search(_norm_message) or _STOCK_QTY_RE.search(_norm_message):
+        return {
+            "reply": "I can only answer questions related to your vehicles, service history, bookings, and service pricing for the Caltex AutoPro system.",
+            "tool_calls": [],
+            "model": "none",
+            "intent": intent,
+        }
+
+    # -- Step 1c: direct DB path for simple lookups (0 LLM tokens) ------------
     direct = _customer_direct_lookup(message, customer_uid, customer_name, intent)
     if direct is not None:
         token_tracker.record(
@@ -806,33 +821,18 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
         usage_limiter.record_usage(customer_uid, "customer", 0, 0)
         return direct
 
-    # -- Step 1b: out-of-scope pre-check (0 LLM tokens) -----------------------
-    _OUT_OF_SCOPE_RE = re.compile(
-        r"\b(inventory|stock\s+level|stock\s+status|reorder|issuance|"
-        r"supplier|delivery|deliveries|warehouse|purchase\s+order|"
-        r"how\s+many.*(in\s+stock|stock\s+level|bottles|pieces|units)"
-        r"|generate\s+(a\s+)?(report|pdf|excel|summary)|"
-        r"inventory\s+report|maintenance\s+report|service\s+report|"
-        r"all\s+(customers?|users?|accounts?)|"
-        r"other\s+customer|another\s+customer|"
-        r"(weather|news|sports|politics|geography|math|coding|programming|"
-        r"calculate|formula|recipe|joke|game|movie|music))\b",
-        re.IGNORECASE,
-    )
-    # Special case: stock quantity questions must be blocked even if phrased nicely
-    _STOCK_QTY_RE = re.compile(
-        r"\b(how\s+many\s+(bottles?|liters?|litres?|pieces?|units?|cans?|drums?)"
-        r"|how\s+much\s+.*(in\s+stock|stock|inventory)"
-        r"|current\s+stock|stock\s+quantity|quantity\s+(of|in)|in\s+stock)\b",
-        re.IGNORECASE,
-    )
-    if _OUT_OF_SCOPE_RE.search(message) or _STOCK_QTY_RE.search(message):
-        return {
-            "reply": "I can only answer questions related to your vehicles, service history, bookings, and service pricing for the Caltex AutoPro system.",
-            "tool_calls": [],
-            "model": "none",
-            "intent": intent,
-        }
+    # -- Step 1d: answer cache for repeated NON-PERSONAL questions ------------
+    # Only general-educational intents are cached (never personal data).
+    if intent in (GENERAL_AI_QUESTION, GENERAL_SERVICE_INFORMATION):
+        import answer_cache
+        cached = answer_cache.get(message)
+        if cached is not None:
+            token_tracker.record(
+                user_id=customer_uid, role="customer", model="cache",
+                intent=intent, input_tokens=0, output_tokens=0,
+            )
+            usage_limiter.record_usage(customer_uid, "customer", 0, 0)
+            return {"reply": cached, "tool_calls": [], "model": "cache", "intent": intent}
 
     # -- Step 2: select model --------------------------------------------------
     chosen_model = (settings.GROQ_MODEL_SECONDARY
@@ -840,20 +840,29 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                     else settings.GROQ_MODEL_PRIMARY)
 
     def _call(msgs, tools=None):
-        from client import RateLimitedError as _RLE, InvalidApiKeyError as _IKE
+        from client import RateLimitedError as _RLE, InvalidApiKeyError as _IKE, get_groq_client
         api_key = settings.GROQ_API_KEY
         if not api_key:
             raise _IKE("No Groq API key configured.")
         try:
-            client = Groq(api_key=api_key)
-            kwargs: dict = {
-                "model":      chosen_model,
-                "messages":   msgs,
-                "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
-            }
-            if tools:
-                kwargs["tools"] = tools
-            return client.chat.completions.create(**kwargs)
+            import perf_metrics
+            with perf_metrics.groq_timer():
+                client = get_groq_client(api_key)
+                kwargs: dict = {
+                    "model":      chosen_model,
+                    "messages":   msgs,
+                    "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
+                }
+                if tools:
+                    kwargs["tools"] = tools
+                resp = client.chat.completions.create(**kwargs)
+            try:
+                u = resp.usage
+                perf_metrics.record_usage(getattr(u, "prompt_tokens", 0) or 0,
+                                          getattr(u, "completion_tokens", 0) or 0)
+            except Exception:
+                pass
+            return resp
         except AuthenticationError as exc:
             raise _IKE("The Groq API key is invalid or has been revoked.") from exc
         except RateLimitError as exc:
@@ -878,10 +887,28 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
             return {}
         return {k: v for k, v in args.items() if v is not None and v != ""}
 
-    messages = [{"role": "system", "content": _build_customer_system_prompt(message)}]
-    trimmed = history[-settings.GROQ_MAX_HISTORY_MSGS:] if len(history) > settings.GROQ_MAX_HISTORY_MSGS else history
-    messages.extend(trimmed)
-    messages.append({"role": "user", "content": message})
+    from input_guard import truncate_message, build_request_context
+
+    # Oversized-input guard — never send pasted documents to the model whole.
+    safe_message = truncate_message(message, settings.MAX_INPUT_CHARS)
+
+    # Per-request token budget: system prompt + sanitized history + message,
+    # trimmed deterministically before any Groq call.
+    messages, _budget_stats = build_request_context(
+        _build_customer_system_prompt(safe_message),
+        history,
+        safe_message,
+        history_max_msgs=settings.GROQ_MAX_HISTORY_MSGS,
+        history_msg_max_chars=settings.HISTORY_MSG_MAX_CHARS,
+        budget_tokens=settings.CUSTOMER_MAX_REQUEST_TOKENS,
+    )
+    message = safe_message
+
+    # Request-level memoization: identical tool calls within this one chat
+    # turn reuse the first result instead of re-querying Firestore (spec #6).
+    import request_cache
+    _bucket = request_cache.begin_request()
+    tool_fns = request_cache.memoize(CUSTOMER_TOOL_FUNCTIONS, _bucket)
 
     tool_log    = []
     final_reply = ""
@@ -894,7 +921,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     ))
 
     last_response = None
-    for _turn in range(6):
+    for _turn in range(max(1, settings.MAX_TOOL_LOOP_TURNS)):
         try:
             response = _call(messages, tools=CUSTOMER_TOOL_SCHEMAS)
             last_response = response
@@ -906,6 +933,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                 last_response = fb
                 _record_customer_usage(fb, chosen_model, intent, customer_uid,
                                        True, _time.time() - t0)
+                request_cache.end_request(_bucket)
                 return {
                     "reply": fb.choices[0].message.content
                              or "I couldn't retrieve that information. Please try rephrasing.",
@@ -914,6 +942,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                     "intent": intent,
                 }
             except Exception:
+                request_cache.end_request(_bucket)
                 return {
                     "reply": "I couldn't retrieve that information. Please try rephrasing.",
                     "tool_calls": tool_log,
@@ -940,12 +969,19 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
             final_reply = msg.content or ""
             _record_customer_usage(response, chosen_model, intent, customer_uid,
                                    True, _time.time() - t0)
+            # Cache the answer for identical future non-personal questions
+            if intent in (GENERAL_AI_QUESTION, GENERAL_SERVICE_INFORMATION):
+                try:
+                    import answer_cache
+                    answer_cache.put(message, final_reply)
+                except Exception:
+                    pass
             break
 
         for call in msg.tool_calls:
             fn_name = call.function.name
             fn_args = _strip_null(call.function.arguments or "")
-            fn      = CUSTOMER_TOOL_FUNCTIONS.get(fn_name)
+            fn      = tool_fns.get(fn_name)
 
             if fn is None:
                 result = {"error": f"Unknown tool '{fn_name}'"}
@@ -981,6 +1017,8 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
             _record_customer_usage(last_response, chosen_model, intent, customer_uid,
                                    False, _time.time() - t0)
 
+    request_cache.end_request(_bucket)
+
     return {
         "reply":      final_reply,
         "tool_calls": tool_log,
@@ -1007,7 +1045,7 @@ def _customer_direct_lookup(message: str, customer_uid: str,
     if intent not in _DIRECT_INTENTS:
         return None
 
-    msg_l = message.lower()
+    msg_l = _normalize_input(message) or message.lower()
     from customer_tools import (
         get_my_vehicles, get_my_service_history,
         get_service_recommendations, get_my_bookings,
@@ -1341,9 +1379,38 @@ def customer_chat_endpoint(req: CustomerChatRequest):
 
     session_id = req.session_id or f"customer-{req.customer_uid}"
 
+    import perf_metrics
+    _perf = perf_metrics.push(req.customer_uid, "customer", "?")
     try:
+        # -- Step 1.5: admin runtime controls (ai_settings) ---------------------
+        # customer_ai_enabled=False pauses the Customer AI for regular customers.
+        # Developer/test accounts may be exempted via the admin's AI Usage
+        # Controls (Profile → Settings → AI Usage Controls).
+        import ai_settings
+        _ai_enabled = ai_settings.is_customer_ai_enabled()
+        _is_dev_user = False
+        if not _ai_enabled:
+            _is_dev_user = (
+                (req.is_dev_user or False)
+                and ai_settings.dev_access_allowed(paused=True)
+            )
+            if not _is_dev_user:
+                perf_metrics.record_usage(0, 0)
+                return ChatResponse(
+                    reply=("The AI Assistant is temporarily unavailable. "
+                           "Please try again later."),
+                    session_id=session_id,
+                    rate_limited=True,
+                    reset_in="midnight",
+                )
+        elif req.is_dev_user and ai_settings.dev_access_allowed(paused=False):
+            _is_dev_user = True
+
         # -- Step 2: daily usage limit -----------------------------------------
-        limit_check = usage_limiter.check_limit(req.customer_uid, role="customer")
+        _dev_bypass = _is_dev_user and ai_settings.dev_bypasses_token_limit()
+        limit_check = usage_limiter.check_limit(
+            req.customer_uid, role="customer", bypass_token_limit=_dev_bypass,
+        )
         if not limit_check["allowed"]:
             token_tracker.record(
                 user_id=req.customer_uid, role="customer",
@@ -1361,7 +1428,9 @@ def customer_chat_endpoint(req: CustomerChatRequest):
         effective_history = _merge_history(server_history, req.history)
 
         # -- Step 3: customer intent classification (deterministic, 0 tokens) --
-        intent = classify_customer_intent(req.message)
+        with perf_metrics.stage("intent"):
+            intent = classify_customer_intent(req.message)
+        _perf["intent"] = intent
 
         result = _run_customer_chat(
             message=req.message,
@@ -1406,6 +1475,11 @@ def customer_chat_endpoint(req: CustomerChatRequest):
             reply="I'm having trouble processing your request right now. Please try again in a moment, or contact us at caltexautopro2026@gmail.com if the issue persists.",
             session_id=session_id,
         )
+    finally:
+        if _perf.get("intent") == "?":
+            _perf["intent"] = "ERROR"
+        perf_metrics.log_summary(_perf)
+        perf_metrics.pop()
 
 
 # -- Shared helpers ------------------------------------------------------------

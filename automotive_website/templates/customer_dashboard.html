@@ -297,9 +297,9 @@
                 <div style="font-size:15px;font-weight:800;color:#1a202c;margin-bottom:5px;letter-spacing:-0.2px;">AI Assistant</div>
                 <div id="aiWelcomeSub" style="font-size:12.5px;color:#94a3b8;line-height:1.65;max-width:280px;margin:0 auto;">Ask me anything about your vehicles — PMS status, maintenance history, and more.</div>
                 <div style="display:flex;flex-direction:column;gap:8px;padding:18px 0 4px;" id="aiSuggestions">
-                    <button class="ai-suggest-pill" data-q="Show my service history">Show my complete service history</button>
-                    <button class="ai-suggest-pill" data-q="List all my vehicles">List all my registered vehicles</button>
-                    <button class="ai-suggest-pill" data-q="How much is an Oil Change service?">What services do you offer and what are the prices?</button>
+                    <button class="ai-suggest-pill" data-q="Show my complete service history">Show my complete service history</button>
+                    <button class="ai-suggest-pill" data-q="List all my registered vehicles">List all my registered vehicles</button>
+                    <button class="ai-suggest-pill" data-q="What services do you offer and what are the prices?">What services do you offer and what are the prices?</button>
                 </div>
             </div>
         </div>
@@ -326,17 +326,20 @@
     </div>
     <!-- FAB toggle button -->
     <div id="aiFabWrap" style="position:relative;display:inline-flex;">
+      <!-- Animated pulse rings (status-coloured — rings live on the BUBBLE only) -->
+      <span id="aiFabPulseOuter" style="position:absolute;width:58px;height:58px;border-radius:50%;border:2px solid #22c55e;opacity:0;animation:aiFabRingPulse 1.8s ease-out infinite;pointer-events:none;"></span>
+      <span id="aiFabPulseInner" style="position:absolute;width:58px;height:58px;border-radius:50%;border:1.5px solid #22c55e;opacity:0;animation:aiFabRingPulse 1.8s ease-out 0.45s infinite;pointer-events:none;"></span>
       <button id="aiFab" onclick="toggleSmartAI()"
-        style="width:58px;height:58px;background:linear-gradient(135deg, #004B5F 0%, #EE152A 100%);border:none;border-radius:50%;cursor:pointer;
+        style="width:58px;height:58px;background:#ffffff;border:2.5px solid #22c55e;border-radius:50%;cursor:pointer;
                display:flex;align-items:center;justify-content:center;
-               box-shadow:0 4px 20px rgba(0,75,95,0.4),0 0 0 0 rgba(0,75,95,0.15);
-               transition:transform .2s,box-shadow .2s;
-               padding:3px;overflow:hidden;"
+               box-shadow:0 4px 20px rgba(0,0,0,0.15),0 0 0 0 rgba(0,75,95,0.15);
+               transition:transform .2s,box-shadow .2s,border-color .3s;
+               padding:3px;overflow:hidden;position:relative;"
         onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
           <img id="aiFabImg" src="../static/img/AI_LOGO.png"
                style="width:52px;height:52px;object-fit:cover;border-radius:50%;display:block;" alt="AI">
       </button>
-      <!-- Green online indicator dot on customer FAB -->
+      <!-- Online indicator dot on customer FAB -->
       <span id="aiFabOnlineDot"
         style="position:absolute;bottom:3px;right:3px;width:13px;height:13px;
                border-radius:50%;background:#22c55e !important;border:2.5px solid white;
@@ -594,6 +597,7 @@
 }
 
 @keyframes aiPanelIn { from{opacity:0;transform:translateY(16px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+@keyframes aiFabRingPulse { 0%{transform:scale(1);opacity:0.55} 100%{transform:scale(1.65);opacity:0} }
 @keyframes aiBounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
 .ai-bubble-user { max-width:80%;padding:10px 14px;border-radius:16px 4px 16px 16px;background:linear-gradient(135deg,#E8001C 0%,#c0001a 100%);color:white;font-size:12.5px;line-height:1.65;align-self:flex-end;white-space:pre-wrap;box-shadow:0 3px 12px rgba(232,0,28,0.25); }
 .ai-bubble-bot  { max-width:82%;padding:10px 14px;border-radius:4px 16px 16px 16px;background:white;color:#1a202c;font-size:12.5px;line-height:1.65;align-self:flex-start;white-space:pre-wrap;box-shadow:0 2px 12px rgba(0,0,0,0.07);border:1px solid rgba(226,232,240,0.6); }
@@ -624,25 +628,75 @@
 // ── AI Assistant Widget — fully fixed version ─────────────────────────────────
 var _aiVehicles = [], _aiMaintenance = [], _aiLoaded = false;
 var _aiPanelOpen = false;
+var _aiOnline = false; // tracks current AI backend status for bubble restore
 var _aiChatHistory = [];
 var _aiCurrentUid = null;
 var _aiResolvedName = '';   // resolved from Firestore (not just sessionStorage)
-var _aiSessionId = null;    // server-side session key
+var _aiSessionId = null;    // stable conversation id
 var _aiRateLimited = false;
-
+var _aiSavedSig = null;     // dedupe guard: signature of the last saved history
 // ── localStorage persistence ──────────────────────────────────────────────
 function _aiStorKey(uid)   { return 'ai_widget_chat_'   + uid; }
 function _aiActiveKey(uid) { return 'ai_widget_active_' + uid; }
+
+// Stable local conversation id — generated ONCE per conversation (New Chat),
+// then reused across refresh/navigation so messages always land in the same
+// history slot instead of creating duplicate entries.
+function _aiLocalId() {
+    return 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+}
+function _aiIsLocal(id) { return !id || id.indexOf('local_') === 0; }
+
+// Rename a conversation in place when the server assigns its real session id,
+// so the local entry and the server-id entry never appear as two items.
+function _aiMigrateSessionId(oldId, newId) {
+    if (!_aiCurrentUid || !oldId || !newId || oldId === newId) return;
+    try {
+        var sessions = _aiLoadSessions(_aiCurrentUid);
+        var changed = false;
+        for (var i = 0; i < sessions.length; i++) {
+            if (sessions[i].id === oldId) { sessions[i].id = newId; changed = true; }
+        }
+        if (changed) {
+            var seen = {};
+            sessions = sessions.filter(function(s) {
+                if (seen[s.id]) return false;
+                seen[s.id] = true;
+                return true;
+            });
+            localStorage.setItem(_aiStorKey(_aiCurrentUid), JSON.stringify(sessions));
+        }
+        var activeRaw = localStorage.getItem(_aiActiveKey(_aiCurrentUid));
+        if (activeRaw) {
+            var active = JSON.parse(activeRaw);
+            if (active && active.id === oldId) {
+                active.id = newId;
+                localStorage.setItem(_aiActiveKey(_aiCurrentUid), JSON.stringify(active));
+            }
+        }
+    } catch(e){}
+}
 
 function _aiLoadSessions(uid) {
     try { var r = localStorage.getItem(_aiStorKey(uid)); return r ? JSON.parse(r) : []; } catch(e) { return []; }
 }
 
 // Save current chat: upsert into history list AND write active slot.
+// Idempotent: skips the write when nothing changed since the last save.
 function _aiSaveChat() {
     if (!_aiCurrentUid || !_aiChatHistory.length) return;
+    // Logout guard — after the session is cleared, pagehide/unload handlers
+    // must not write the chat back into storage.
     try {
-        var sid = _aiSessionId || ('w_' + _aiCurrentUid);
+        if (!sessionStorage.getItem('cpUser') && !sessionStorage.getItem('spUser')) return;
+    } catch(e) {}
+    try {
+        // Dedupe guard — avoid re-writing identical state on every event
+        var sig = _aiSessionId + '|' + _aiChatHistory.length + '|' +
+                  (_aiChatHistory[_aiChatHistory.length-1] ? _aiChatHistory[_aiChatHistory.length-1].text : '');
+        if (sig === _aiSavedSig) return;
+        _aiSavedSig = sig;
+        var sid = _aiSessionId || ('local_' + _aiCurrentUid);
         var entry = { id: sid, ts: Date.now(), messages: _aiChatHistory.slice() };
         // Active slot — always overwrite
         localStorage.setItem(_aiActiveKey(_aiCurrentUid), JSON.stringify(entry));
@@ -659,11 +713,20 @@ function _aiSaveChat() {
 function _aiRestoreSession(uid) {
     try {
         var raw = localStorage.getItem(_aiActiveKey(uid));
-        if (!raw) return;
+        if (!raw) { _aiSessionId = _aiLocalId(); return; }
         var session = JSON.parse(raw);
-        if (!session || !session.messages || !session.messages.length) return;
-        _aiChatHistory = session.messages.slice();
-        if (session.id && session.id.indexOf('w_') !== 0) _aiSessionId = session.id;
+        if (!session || !session.messages || !session.messages.length) { _aiSessionId = _aiLocalId(); return; }
+        _aiSessionId = session.id || _aiLocalId(); // reuse the SAME conversation id
+        // Dedupe restored messages (consecutive same-role rows from older saves)
+        var msgs = session.messages.filter(function(m){ return m && m.text; });
+        var clean = [];
+        for (var i = 0; i < msgs.length; i++) {
+            var prev = clean[clean.length-1];
+            if (prev && prev.role === msgs[i].role && prev.text === msgs[i].text) continue;
+            clean.push(msgs[i]);
+        }
+        _aiChatHistory = clean;
+        _aiSavedSig = null;
         // Render messages
         var msgs = document.getElementById('aiMessages');
         var welcome = _aiWelcomeNode || document.getElementById('aiWelcome');
@@ -702,7 +765,11 @@ window.aiDeleteAllChats = function() {
         localStorage.removeItem(_aiStorKey(_aiCurrentUid));
         localStorage.removeItem(_aiActiveKey(_aiCurrentUid));
     }
-    if (_aiSessionId) { fetch('/api/ai-session/'+_aiSessionId,{method:'DELETE'}).catch(function(){}); _aiSessionId=null; }
+    if (_aiSessionId && !_aiIsLocal(_aiSessionId)) {
+        fetch('/api/ai-session/'+_aiSessionId,{method:'DELETE'}).catch(function(){});
+    }
+    _aiSessionId = _aiLocalId();
+    _aiSavedSig = null;
     _aiRateLimited = false;
     _aiChatHistory = [];
     _aiRebuildWelcome();
@@ -718,13 +785,12 @@ function _aiRenderHistory() {
     if (!sessions.length) { list.innerHTML='<div style="text-align:center;padding:40px 20px;color:#94a3b8;font-size:13px;">No chat history yet.<br>Start a conversation!</div>'; return; }
     var html='',today=new Date(),todayStr=today.toDateString(),yest=new Date(today);
     yest.setDate(today.getDate()-1); var yestStr=yest.toDateString(),lastLabel='';
-    var activeSid = _aiSessionId || ('w_' + _aiCurrentUid);
     sessions.forEach(function(s){
         var d=new Date(s.ts),label=d.toDateString()===todayStr?'Today':d.toDateString()===yestStr?'Yesterday':d.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'});
         if(label!==lastLabel){html+='<div style="font-size:10.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin:10px 0 6px;">'+label+'</div>';lastLabel=label;}
         var first=null; for(var i=0;i<s.messages.length;i++){if(s.messages[i].role==='user'){first=s.messages[i];break;}}
         var preview=first?first.text:'(empty)',time=d.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});
-        var isActive = s.id === activeSid;
+        var isActive = s.id === _aiSessionId;
         var baseStyle='background:#f8f9fb;border:1.5px solid #e8edf2;border-radius:11px;padding:10px 12px;margin-bottom:7px;cursor:pointer;';
         if(isActive) baseStyle='background:#fff0f0;border:1.5px solid #E8001C;border-radius:11px;padding:10px 12px;margin-bottom:7px;cursor:pointer;';
         html+='<div style="'+baseStyle+'" data-sid="'+_aiEscH(s.id)+'" onmouseover="if(!this.dataset.active){this.style.background=\'#fff5f5\';this.style.borderColor=\'#E8001C\';}" onmouseout="if(!this.dataset.active){this.style.background=\'#f8f9fb\';this.style.borderColor=\'#e8edf2\';}"'+(isActive?' data-active="1"':'')+' onclick="aiLoadSession(\''+_aiEscH(s.id)+'\')">'
@@ -742,8 +808,9 @@ window.aiLoadSession = function(sid) {
     if(welcome&&welcome.parentNode===msgs) msgs.removeChild(welcome);
     msgs.innerHTML='';
     document.getElementById('aiChips').style.display='none';
+    _aiSavedSig = null; // force the next save to persist the switch
     _aiChatHistory=session.messages.slice();
-    _aiSessionId=(session.id&&session.id.indexOf('w_')!==0)?session.id:null;
+    _aiSessionId=session.id; // selected conversation becomes the active one
     _aiChatHistory.forEach(function(m){ _aiAddBubble(m.text, m.role==='user'); });
     setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 60);
     // Persist as active slot so page reload restores this session
@@ -779,12 +846,14 @@ function _updateFabIcon(open) {
         fab.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
         if (dot) dot.style.display = 'none';
     } else {
-        fab.style.background = 'linear-gradient(135deg, #004B5F 0%, #EE152A 100%)';
-        fab.style.border = 'none';
+        fab.style.background = '#ffffff';
+        fab.style.border = '2.5px solid ' + (_aiOnline ? '#22c55e' : '#f97316');
         fab.style.overflow = 'hidden';
         fab.style.padding = '3px';
         fab.innerHTML = '<img id="aiFabImg" src="../static/img/AI_LOGO.png" style="width:52px;height:52px;object-fit:cover;border-radius:50%;display:block;" alt="AI">';
         if (dot) dot.style.display = 'block';
+        // Sync pulse rings and dot colour
+        _aiApplyStatusTheme(_aiOnline);
     }
 }
 
@@ -968,13 +1037,15 @@ function _aiFallback(q) {
         return list.length?'PMS Overdue ('+list.length+'):\n'+list.map(function(v){return '• '+(v.plate||'—')+' — '+(v.desc||'—');}).join('\n')+'\n\nPlease schedule a service soon!':'None of your vehicles are overdue for PMS. ✅';
     }
     // Pricing
-    if (ql.indexOf('how much')!==-1||ql.indexOf('price')!==-1||ql.indexOf('cost of')!==-1||ql.indexOf('oil change')!==-1||ql.indexOf('change oil')!==-1)
-        return 'For service pricing, please ask when the AI service is online — it can look up exact prices from the catalog.';
-    // Fleet summary fallback
-    var active=_aiVehicles.filter(function(v){return (v.status==='Active'||v.status==='On Track');}).length;
-    var maint=_aiVehicles.filter(function(v){return v.status&&v.status.toLowerCase().indexOf('maintenance')!==-1;}).length;
-    var over=_aiVehicles.filter(function(v){return (v.status||'').toLowerCase()==='overdue';}).length;
-    return 'Fleet Summary:\n✅ Active: '+active+'\n🔧 Under Maintenance: '+maint+'\n⚠️ PMS Overdue: '+over+'\n🚗 Total: '+_aiVehicles.length;
+    if (ql.indexOf('how much')!==-1||ql.indexOf('price')!==-1||ql.indexOf('cost of')!==-1||ql.indexOf('oil change')!==-1||ql.indexOf('change oil')!==-1||ql.indexOf('services do you offer')!==-1||ql.indexOf('what services')!==-1)
+        return 'For service pricing and a full list of services, please ask when the AI service is online — it can look up exact prices and availability from our catalog.';
+    // Booking / scheduling — handle all scheduling-related questions
+    if (ql.indexOf('book')!==-1||ql.indexOf('schedule')!==-1||ql.indexOf('appointment')!==-1||
+        ql.indexOf('earliest')!==-1||ql.indexOf('when can')!==-1||ql.indexOf('when will')!==-1||
+        ql.indexOf('upcoming')!==-1||ql.indexOf('reserve')!==-1||ql.indexOf('next available')!==-1)
+        return 'To check available service dates or make a booking, please use the **Book Service** tab in the navigation menu.\n\nFor AI-powered scheduling suggestions based on your vehicle history, please ask when the AI service is online.';
+    // Fallback — short, honest, capability-based (no fabricated fleet summary)
+    return 'I\u2019m not sure how to answer that. I can help with your vehicle status, PMS records, service history, bookings, and service pricing. For detailed answers, please ask when the AI service is online.';
 }
 
 // ── Send ──────────────────────────────────────────────────────────────────
@@ -993,9 +1064,10 @@ window.aiSend = async function(preset) {
     }
     document.getElementById('aiChips').style.display = 'none';
 
-    _aiChatHistory.push({role:'user',text:text,ts:Date.now()});
+    if (_aiChatHistory.push({role:'user',text:text,ts:Date.now()}) && false) { /* unreachable */ }
     _aiAddBubble(text, true);
     input.value=''; input.style.height='auto';
+    _aiSavedSig = null; // user message changed state — allow the save
     _aiSaveChat(); // persist user message immediately
 
     if (!_aiLoaded) {
@@ -1028,7 +1100,12 @@ window.aiSend = async function(preset) {
             var inp=document.getElementById('aiInput'); if(inp){inp.disabled=true;inp.placeholder='AI unavailable — daily limit reached';}
             var sb=document.getElementById('aiSendBtn'); if(sb){sb.disabled=true;sb.style.opacity='0.45';}
         } else if (data.answer) {
-            if (data.session_id) _aiSessionId = data.session_id;
+            // Adopt the server session id (only once, while still on a local id)
+            // so the history entry is renamed in place — never duplicated.
+            if (data.session_id && _aiIsLocal(_aiSessionId)) {
+                _aiMigrateSessionId(_aiSessionId, data.session_id);
+                _aiSessionId = data.session_id;
+            }
             _aiChatHistory.push({role:'bot',text:data.answer,ts:Date.now()});
             _aiAddBubble(data.answer, false);
         } else if (data.offline || !data.success) {
@@ -1052,7 +1129,13 @@ window.aiSend = async function(preset) {
 // ── New Chat — saves current session to history then starts fresh ─────────
 window.aiNewChat = function() {
     if (_aiChatHistory.length) _aiSaveChat();
-    if (_aiSessionId) { fetch('/api/ai-session/'+_aiSessionId,{method:'DELETE'}).catch(function(){}); _aiSessionId=null; }
+    if (_aiSessionId && !_aiIsLocal(_aiSessionId)) {
+        fetch('/api/ai-session/'+_aiSessionId,{method:'DELETE'}).catch(function(){});
+    }
+    // Genuinely NEW conversation id so history never merges with the old chat.
+    // No empty entry is written until the user sends the first message.
+    _aiSessionId = _aiLocalId();
+    _aiSavedSig = null;
     // Remove active slot so next page-load doesn't restore the old session
     if (_aiCurrentUid) localStorage.removeItem(_aiActiveKey(_aiCurrentUid));
     _aiRateLimited = false;
@@ -1069,20 +1152,50 @@ function _aiCheckHealth(isRetry) {
     .then(function(d){
         var dot=document.getElementById('aiStatusDot'), txt=document.getElementById('aiStatusTxt');
         if(d.online){
+            _aiOnline = true;
             if(dot){dot.style.background='#4ade80';dot.style.boxShadow='0 0 6px rgba(74,222,128,0.8)';}
             if(txt) txt.textContent='Online';
+            _aiApplyStatusTheme(true);
         } else {
-            if(dot){dot.style.background='#d69e2e';dot.style.boxShadow='0 0 6px rgba(214,158,46,0.8)';}
+            _aiOnline = false;
+            if(dot){dot.style.background='#f97316';dot.style.boxShadow='0 0 6px rgba(249,115,22,0.8)';}
             if(txt) txt.textContent='Local mode';
+            _aiApplyStatusTheme(false);
         }
     }).catch(function(){
         clearTimeout(timer);
+        _aiOnline = false;
         var dot=document.getElementById('aiStatusDot'),txt=document.getElementById('aiStatusTxt');
-        if(dot){dot.style.background='#d69e2e';dot.style.boxShadow='0 0 6px rgba(214,158,46,0.8)';}
+        if(dot){dot.style.background='#f97316';dot.style.boxShadow='0 0 6px rgba(249,115,22,0.8)';}
         if(txt) txt.textContent='Local mode';
+        _aiApplyStatusTheme(false);
         // If this was the first attempt, retry once after 60 s — Render may still be waking up
         if (!isRetry) setTimeout(function(){ _aiCheckHealth(true); }, 60000);
     });
+}
+
+// ── Online / local-data status theme — drives the floating bubble colours ──
+// GREEN  = online AI actually reachable;  ORANGE = local-data fallback mode.
+function _aiApplyStatusTheme(online) {
+    var color       = online ? '#22c55e' : '#f97316';
+    var glowShadow  = online ? '0 0 8px rgba(34,197,94,0.45),0 2px 8px rgba(0,0,0,0.15)'
+                             : '0 0 8px rgba(249,115,22,0.45),0 2px 8px rgba(0,0,0,0.15)';
+    var fab         = document.getElementById('aiFab');
+    var fabDot      = document.getElementById('aiFabOnlineDot');
+    var pulseO      = document.getElementById('aiFabPulseOuter');
+    var pulseI      = document.getElementById('aiFabPulseInner');
+    // FAB border — only while the panel is closed (panel-open shows the X icon)
+    if (fab && !_aiPanelOpen) {
+        fab.style.background = '#ffffff';
+        fab.style.border = '2.5px solid ' + color;
+        fab.style.boxShadow = online
+            ? '0 4px 20px rgba(0,0,0,0.15),0 0 10px rgba(34,197,94,0.45)'
+            : '0 4px 20px rgba(0,0,0,0.15),0 0 10px rgba(249,115,22,0.45)';
+    }
+    if (fabDot) { fabDot.style.background = color; fabDot.style.boxShadow = online ? '0 0 6px rgba(34,197,94,0.7)' : '0 0 6px rgba(249,115,22,0.7)'; }
+    // Animated pulse rings on the floating bubble — status-coloured
+    if (pulseO) pulseO.style.borderColor = color;
+    if (pulseI) pulseI.style.borderColor = color;
 }
 
 // ── Init on auth state ────────────────────────────────────────────────────

@@ -584,12 +584,12 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "get_stock_levels",
-            "description": "List all stock/inventory items with current quantity levels. Use for queries about materials, parts, stock, or supplies. Filter by group (e.g. 'Lubricants') or status ('OK', 'Low').",
+            "description": "Stock/inventory items with quantities. Use for materials/parts/supplies queries. Filter by group or status.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "group":  {"type": "string", "description": "Commodity group. Only include when filtering."},
-                    "status": {"type": "string", "description": "Stock status. Only include when filtering."},
+                    "group":  {"type": "string", "description": "Commodity group filter."},
+                    "status": {"type": "string", "description": "Stock status filter (OK/Low)."},
                 },
                 "required": [], "additionalProperties": False,
             },
@@ -599,7 +599,7 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "get_low_stock_items",
-            "description": "Return items at or below reorder point. Use for low stock or reorder alerts.",
+            "description": "Items at/below reorder point. Low-stock and reorder queries.",
             "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False},
         },
     },
@@ -607,12 +607,12 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "get_item_catalog",
-            "description": "List all catalog items (Materials and Services). Pass item_type='Service' for services list, item_type='Material' for parts. Omit for everything.",
+            "description": "Catalog items (Materials + Services) with prices. item_type='Service'|'Material' to filter; omit for all.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "item_type": {"type": "string", "enum": ["Material", "Service"], "description": "Filter by type."},
-                    "group":     {"type": "string", "description": "Commodity group. Only include when filtering."},
+                    "item_type": {"type": "string", "enum": ["Material", "Service"], "description": "Type filter."},
+                    "group":     {"type": "string", "description": "Commodity group filter."},
                 },
                 "required": [], "additionalProperties": False,
             },
@@ -623,30 +623,23 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "get_maintenance_jobs",
             "description": (
-                "List maintenance/service jobs with vehicle details (resolved from plate), "
-                "services performed, and materials used. "
-                "Filter by status, plate, or owner name. "
-                "Use owner to get ALL service history for a specific customer — "
-                "the tool resolves all plates belonging to that owner automatically."
+                "Maintenance/service jobs with vehicle details, services, materials. "
+                "Filter by status/plate/owner (owner = all vehicles of that customer)."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "status": {
                         "type": "string",
-                        "description": "Job status (e.g. 'Completed', 'In Progress'). Only include when filtering.",
+                        "description": "Job status filter, e.g. 'Completed', 'In Progress'.",
                     },
                     "plate": {
                         "type": "string",
-                        "description": "Vehicle plate number. Only include when filtering by a specific vehicle.",
+                        "description": "Vehicle plate filter.",
                     },
                     "owner": {
                         "type": "string",
-                        "description": (
-                            "Owner / customer name to filter by. "
-                            "Returns jobs for ALL vehicles registered under this owner. "
-                            "Use when admin asks about a specific customer's service history."
-                        ),
+                        "description": "Customer name filter — jobs for ALL their vehicles.",
                     },
                 },
                 "required": [], "additionalProperties": False,
@@ -657,7 +650,7 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "get_maintenance_summary",
-            "description": "Get counts of maintenance jobs by status and total cost. Use for high-level overview.",
+            "description": "Maintenance job counts by status + total cost. High-level overview.",
             "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False},
         },
     },
@@ -665,11 +658,11 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "get_service_bookings",
-            "description": "List customer service bookings with full customer name, email, vehicle details, and requested services — all resolved from foreign keys. Filter by status.",
+            "description": "Customer service bookings (name, email, vehicle, services resolved). Filter by status.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "status": {"type": "string", "description": "Booking status. Only include when filtering."},
+                    "status": {"type": "string", "description": "Booking status filter."},
                 },
                 "required": [], "additionalProperties": False,
             },
@@ -679,12 +672,12 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "get_issuances",
-            "description": "List materials and services issued per maintenance job, with vehicle details resolved from plate. Filter by maintenance_id (e.g. 'SVC-001') or plate.",
+            "description": "Materials/services issued per maintenance job. Filter by maintenance_id or plate.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "maintenance_id": {"type": "string", "description": "Maintenance job ID (e.g. 'SVC-001'). Only include when filtering by job."},
-                    "plate":          {"type": "string", "description": "Vehicle plate. Only include when filtering by vehicle."},
+                    "maintenance_id": {"type": "string", "description": "Maintenance job ID filter, e.g. 'SVC-001'."},
+                    "plate":          {"type": "string", "description": "Vehicle plate filter."},
                 },
                 "required": [], "additionalProperties": False,
             },
@@ -694,11 +687,11 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "get_deliveries",
-            "description": "List supplier deliveries with full item details embedded. Filter by status.",
+            "description": "Supplier deliveries with item details. Filter by status.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "status": {"type": "string", "description": "Delivery status. Only include when filtering."},
+                    "status": {"type": "string", "description": "Delivery status filter."},
                 },
                 "required": [], "additionalProperties": False,
             },
@@ -709,23 +702,19 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "get_vehicles",
             "description": (
-                "List registered fleet vehicles with owner, status, last service date, "
-                "and odometer. Filter by status and/or owner name. "
-                "Use owner to see all vehicles belonging to a specific customer."
+                "Registered fleet vehicles (owner, status, last service, odometer). "
+                "Filter by status and/or owner (customer's vehicles)."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "status": {
                         "type": "string",
-                        "description": "Vehicle PMS status. Only include when filtering.",
+                        "description": "PMS status filter.",
                     },
                     "owner": {
                         "type": "string",
-                        "description": (
-                            "Owner / customer name to filter by (case-insensitive). "
-                            "Only include when the admin asks about a specific customer's vehicles."
-                        ),
+                        "description": "Customer name filter (case-insensitive).",
                     },
                 },
                 "required": [], "additionalProperties": False,
@@ -736,11 +725,11 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "get_user_count",
-            "description": "Count users by role ('customer', 'admin', 'staff'). Omit role for total.",
+            "description": "Count users by role (customer/admin/staff). Omit role for total.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "role": {"type": "string", "description": "User role. Only include when filtering."},
+                    "role": {"type": "string", "description": "User role filter: customer | admin | staff."},
                 },
                 "required": [], "additionalProperties": False,
             },

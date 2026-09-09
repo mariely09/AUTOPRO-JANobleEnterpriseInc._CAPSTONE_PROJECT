@@ -33,7 +33,8 @@ class Settings:
 
     # ── Model routing ─────────────────────────────────────────────────────────
     # PRIMARY (default): Qwen3.6 27B — fast, replaces deprecated llama-3.1-8b-instant.
-    GROQ_MODEL_PRIMARY: str = os.getenv("GROQ_MODEL_PRIMARY", "qwen/qwen3.6-27b")
+    # GROQ_MODEL is the canonical env alias; GROQ_MODEL_PRIMARY kept for back-compat.
+    GROQ_MODEL_PRIMARY: str = os.getenv("GROQ_MODEL", None) or os.getenv("GROQ_MODEL_PRIMARY", "qwen/qwen3.6-27b")
 
     # SECONDARY: Qwen3 32B — reserved for complex reasoning tasks.
     # Replaces deprecated llama-3.3-70b-versatile.
@@ -60,6 +61,34 @@ class Settings:
     # Maximum number of history messages to include in each LLM request.
     # 6 messages = 3 turns — sufficient for follow-ups while saving tokens.
     GROQ_MAX_HISTORY_MSGS: int = int(os.getenv("GROQ_MAX_HISTORY_MSGS", "6"))
+
+    # ── Latency optimisation ─────────────────────────────────────────────────
+    # Explicit timeout for every Groq API call (seconds). Without this the SDK
+    # default is 600 s — a stalled request silently hangs for minutes and, in a
+    # 5–6 iteration tool loop, can stall a whole chat for several minutes.
+    GROQ_TIMEOUT_SECONDS: int = int(os.getenv("GROQ_TIMEOUT_SECONDS", "30"))
+
+    # Max iterations of the LLM tool loop. Each iteration is a full Groq
+    # round-trip (system prompt + schemas + history re-sent every time), so
+    # latency and tokens grow linearly with the loop length. 3 iterations is
+    # enough for every flow the assistant actually performs (lookup → answer,
+    # availability → create booking → confirm).
+    MAX_TOOL_LOOP_TURNS: int = int(os.getenv("MAX_TOOL_LOOP_TURNS", "3"))
+
+    # ── Token-budget optimisation ─────────────────────────────────────────────
+    # Max characters accepted for a single user message. Larger inputs are
+    # truncated gracefully (guard against pasted documents flooding the LLM).
+    MAX_INPUT_CHARS: int = int(os.getenv("MAX_INPUT_CHARS", "2000"))
+
+    # Per-REQUEST token budgets (system prompt + tool schemas + history +
+    # message estimate). When a request would exceed the budget, history is
+    # trimmed first, then older tool-result content, before the call is made.
+    CUSTOMER_MAX_REQUEST_TOKENS: int = int(os.getenv("CUSTOMER_MAX_REQUEST_TOKENS", "6000"))
+    ADMIN_MAX_REQUEST_TOKENS:    int = int(os.getenv("ADMIN_MAX_REQUEST_TOKENS",    "8000"))
+
+    # Per-message content cap inside history (chars). Old turns are compacted
+    # to this size before being re-sent to the model.
+    HISTORY_MSG_MAX_CHARS: int = int(os.getenv("HISTORY_MSG_MAX_CHARS", "600"))
 
     # ── Firebase / Firestore ──────────────────────────────────────────────────
     FIREBASE_CREDENTIALS_PATH: str = os.getenv(

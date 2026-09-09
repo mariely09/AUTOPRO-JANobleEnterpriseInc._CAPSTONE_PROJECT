@@ -248,25 +248,77 @@
 (function() {
 var _ragInitials = 'AD';
 var _ragReady = false;
-var _ragSessionId = null;  // server-side session key — sent back on each request
+var _ragSessionId = null;  // stable conversation id — sent back on each request
 var _ragRateLimited = false;
 var _ragCurrentUid  = null; // Firebase UID — set after auth resolves
 var _ragMessages    = [];   // structured JS array — mirrors DOM, survives close/reopen
+var _ragSavedSig    = null; // dedupe guard: signature of the last saved _ragMessages
 
 // ── localStorage history helpers ──────────────────────────────────────────
 function _ragActiveKey(uid)  { return 'rag_ai_active_'  + uid; }
 function _ragStorageKey(uid) { return 'rag_ai_chat_'    + uid; }
+
+// Stable local conversation id — generated ONCE per conversation (New Chat),
+// then reused across refresh/navigation so the same conversation is always
+// written to the same history slot instead of creating duplicates.
+function _ragLocalId() {
+  return 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+}
+function _ragIsLocal(id) { return !id || id.indexOf('local_') === 0; }
 
 function _ragLoadAllSessions(uid) {
   try { var r = localStorage.getItem(_ragStorageKey(uid)); return r ? JSON.parse(r) : []; }
   catch(e) { return []; }
 }
 
+// Rename a conversation in place (history list + active slot) when the server
+// assigns its real session id. Prevents the same conversation from appearing
+// as two history entries (old local id + new server id).
+function _ragMigrateSessionId(oldId, newId) {
+  if (!_ragCurrentUid || !oldId || !newId || oldId === newId) return;
+  try {
+    var sessions = _ragLoadAllSessions(_ragCurrentUid);
+    var changed = false;
+    for (var i = 0; i < sessions.length; i++) {
+      if (sessions[i].id === oldId) { sessions[i].id = newId; changed = true; }
+    }
+    if (changed) {
+      // Drop entries duplicated by the rename — keep the renamed (live) one.
+      var seen = {};
+      sessions = sessions.filter(function(s) {
+        if (seen[s.id]) return false;
+        seen[s.id] = true;
+        return true;
+      });
+      localStorage.setItem(_ragStorageKey(_ragCurrentUid), JSON.stringify(sessions));
+    }
+    var activeRaw = localStorage.getItem(_ragActiveKey(_ragCurrentUid));
+    if (activeRaw) {
+      var active = JSON.parse(activeRaw);
+      if (active && active.id === oldId) {
+        active.id = newId;
+        localStorage.setItem(_ragActiveKey(_ragCurrentUid), JSON.stringify(active));
+      }
+    }
+  } catch(e) {}
+}
+
 // Save: writes structured _ragMessages array (not DOM scraping) to both
-// the active slot and the history list.
+// the active slot and the history list. Idempotent: skips the write when
+// nothing changed since the last save.
 function _ragSaveChat() {
   if (!_ragCurrentUid || !_ragMessages.length) return;
+  // Logout guard — after the session is cleared, pagehide/unload handlers
+  // must not write the chat back into storage.
   try {
+    if (!sessionStorage.getItem('apUser') && !sessionStorage.getItem('spUser')) return;
+  } catch(e) {}
+  try {
+    // Dedupe guard — avoid re-writing identical state on every event
+    var sig = _ragSessionId + '|' + _ragMessages.length + '|' +
+              (_ragMessages[_ragMessages.length-1] ? _ragMessages[_ragMessages.length-1].text : '');
+    if (sig === _ragSavedSig) return;
+    _ragSavedSig = sig;
     var sid = _ragSessionId || ('local_' + _ragCurrentUid);
     var entry = { id: sid, ts: Date.now(), messages: _ragMessages.slice() };
     localStorage.setItem(_ragActiveKey(_ragCurrentUid), JSON.stringify(entry));
@@ -282,11 +334,19 @@ function _ragSaveChat() {
 function _ragRestoreSession(uid) {
   try {
     var raw = localStorage.getItem(_ragActiveKey(uid));
-    if (!raw) return;
+    if (!raw) { _ragSessionId = _ragLocalId(); return; }
     var session = JSON.parse(raw);
-    if (!session || !session.messages || !session.messages.length) return;
-    _ragMessages = session.messages.slice();
-    if (session.id && !session.id.startsWith('local_')) _ragSessionId = session.id;
+    if (!session || !session.messages || !session.messages.length) { _ragSessionId = _ragLocalId(); return; }
+    _ragSessionId = session.id || _ragLocalId(); // reuse the SAME conversation id
+    // Dedupe restored messages (consecutive same-role rows from older saves)
+    var msgs = session.messages.filter(function(m){ return m && m.text; });
+    var clean = [];
+    for (var i = 0; i < msgs.length; i++) {
+      var prev = clean[clean.length-1];
+      if (prev && prev.role === msgs[i].role && prev.text === msgs[i].text) continue;
+      clean.push(msgs[i]);
+    }
+    _ragMessages = clean;
     // Render into the chat DOM
     var chat = document.getElementById('ragAiChat');
     if (!chat) return;
@@ -299,8 +359,9 @@ function _ragRestoreSession(uid) {
         m.role === 'user' ? _ragEsc(m.text) : _ragMarkdown(m.text)
       );
     });
+    _ragSavedSig = null;
     setTimeout(function(){ chat.scrollTop = chat.scrollHeight; }, 60);
-  } catch(e) {}
+  } catch(e) { _ragSessionId = _ragLocalId(); }
 }
 
 function _ragEscHtml(s) {
@@ -345,7 +406,7 @@ function _ragLoadSession(sid) {
   var sessions = _ragCurrentUid ? _ragLoadAllSessions(_ragCurrentUid) : [];
   var session  = sessions.find(function(s){ return s.id === sid; });
   if (!session || !session.messages || !session.messages.length) return;
-  _ragSessionId = (!session.id.startsWith('local_')) ? session.id : null;
+  _ragSessionId = session.id; // selected conversation becomes the active one
   _ragMessages  = session.messages.slice(); // sync structured array
   var chat = document.getElementById('ragAiChat');
   var wb   = document.getElementById('ragWelcomeBlock');
@@ -356,6 +417,7 @@ function _ragLoadSession(sid) {
                m.role === 'user' ? _ragEsc(m.text) : _ragMarkdown(m.text));
   });
   setTimeout(function(){ chat.scrollTop = chat.scrollHeight; }, 60);
+  _ragSavedSig = null; // force the next save to persist the switch
   // Persist restored session as active slot
   _ragSaveChat();
   ragCloseHistory();
@@ -385,10 +447,11 @@ window.ragDeleteAllHistory = function() {
     localStorage.removeItem(_ragStorageKey(_ragCurrentUid));
     localStorage.removeItem(_ragActiveKey(_ragCurrentUid));
   }
-  if (_ragSessionId) {
+  if (_ragSessionId && !_ragIsLocal(_ragSessionId)) {
     fetch('/api/ai-session/' + _ragSessionId, { method: 'DELETE' }).catch(function(){});
-    _ragSessionId = null;
   }
+  _ragSessionId = _ragLocalId(); // fresh id for the next conversation
+  _ragSavedSig  = null;
   _ragMessages = [];
   _ragRenderHistoryList();
 };
@@ -660,6 +723,7 @@ window.ragAiSend = function(preset) {
   _ragMessages.push({ role: 'user', text: text });
   input.value=''; input.style.height='auto';
   _ragTyping();
+  _ragSavedSig = null; // user message changed state — allow the save
   // Persist user message immediately
   _ragSaveChat();
 
@@ -676,8 +740,12 @@ window.ragAiSend = function(preset) {
   .then(function(res) { return res.json(); })
   .then(function(data) {
     _ragRemoveTyping();
-    // Persist the session_id returned by the backend for memory continuity
-    if (data.session_id) { _ragSessionId = data.session_id; }
+    // Adopt the server session id (only once, when we're still on a local id)
+    // so the history entry is renamed in place — never duplicated.
+    if (data.session_id && _ragIsLocal(_ragSessionId)) {
+      _ragMigrateSessionId(_ragSessionId, data.session_id);
+      _ragSessionId = data.session_id;
+    }
 
     // ── Rate limit notice ─────────────────────────────────────────────────
     if (data.rate_limited) {
@@ -836,11 +904,14 @@ window.ragAiSend = function(preset) {
 window.ragNewChat = function() {
   // Save current session to history before starting fresh
   _ragSaveChat();
-  // Clear server-side session memory
-  if (_ragSessionId) {
+  // Clear server-side session memory (only for real server sessions)
+  if (_ragSessionId && !_ragIsLocal(_ragSessionId)) {
     fetch('/api/ai-session/' + _ragSessionId, { method: 'DELETE' }).catch(function(){});
-    _ragSessionId = null;
   }
+  // Genuinely NEW conversation id so history never merges with the old chat.
+  // No empty entry is written until the user sends the first message.
+  _ragSessionId = _ragLocalId();
+  _ragSavedSig  = null;
   // Remove active slot so re-opening doesn't restore the old session
   if (_ragCurrentUid) localStorage.removeItem(_ragActiveKey(_ragCurrentUid));
   _ragSetRateLimited(false);
@@ -853,11 +924,12 @@ window.ragNewChat = function() {
 window.ragAiClear = function() {
   // Save current session to history before clearing so it's accessible in the drawer
   _ragSaveChat();
-  // Clear server-side session memory
-  if (_ragSessionId) {
+  // Clear server-side session memory (only for real server sessions)
+  if (_ragSessionId && !_ragIsLocal(_ragSessionId)) {
     fetch('/api/ai-session/' + _ragSessionId, { method: 'DELETE' }).catch(function(){});
-    _ragSessionId = null;
   }
+  _ragSessionId = _ragLocalId();
+  _ragSavedSig  = null;
   // Remove active slot so re-opening doesn't restore the cleared session
   if (_ragCurrentUid) localStorage.removeItem(_ragActiveKey(_ragCurrentUid));
   _ragSetRateLimited(false);
@@ -1129,8 +1201,9 @@ function _ragProcess(query) {
   if (meaningful < 2) {
     return ret("I didn't quite catch that. Could you rephrase your question about the fleet, inventory, or services?");
   }
-  // Fleet summary
-  if(q.includes('fleet summary')||q.includes('summary')||q.includes('overview')){
+  // Fleet summary — ONLY for an explicit "fleet summary" request.
+  // A bare "summary/overview" must NOT hijack unrelated questions.
+  if(q.includes('fleet summary')||q.includes('fleet overview')||(q.includes('fleet')&&q.includes('summary'))){
     var tot=assets.length,ov=assets.filter(isOverdue).length,mt=assets.filter(isMaint).length,ds=assets.filter(isDueSoon).length,ac=assets.filter(isActive).length,ls=inventory.filter(isLowStock).length;
     return ret('<strong>Fleet Summary</strong><br>• Vehicles: <strong>'+tot+'</strong> (Active: '+ac+', Maintenance: '+mt+')<br>• PMS Overdue: <strong>'+ov+'</strong>, Due Soon: <strong>'+ds+'</strong><br>• Low Stock Items: <strong>'+ls+'</strong><br>• Services: <strong>'+services.length+'</strong>');
   }
@@ -1216,8 +1289,12 @@ function _ragProcess(query) {
     var adm=users.filter(function(u){return u.role==='admin';}).length,stf=users.filter(function(u){return u.role==='staff';}).length,cus=users.filter(function(u){return u.role==='customer';}).length;
     return ret('<strong>Users ('+users.length+')</strong><br>• Admin: '+adm+'<br>• Staff: '+stf+'<br>• Customer: '+cus);
   }
-  // Fallback
-  return ret('<strong>AI backend offline</strong> — running in local mode.<br><span style="font-size:11px;color:#718096;">Local mode supports: <em>fleet summary, overdue, due soon, low stock, inventory, materials, cost, pending, fast moving, users</em>.<br>For full natural language queries, start the AI backend (<code>start.bat</code>).</span>');
+  // Fallback — short, honest, capability-based (no fabricated data)
+  var capabilities = 'I can help with vehicles & PMS status, maintenance records, inventory/stock levels, bookings, users, and PDF/Excel report generation.';
+  if(q.includes('fleet')||q.includes('vehicle')){
+    return ret(capabilities+'<br><br>For a fleet overview, try <em>"Fleet Summary"</em>.');
+  }
+  return ret('I\u2019m not able to help with that request in local mode. '+capabilities+'<br><br>For full natural-language answers, start the AI backend (<code>start.bat</code>).');
 }
 
 })();

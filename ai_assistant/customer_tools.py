@@ -1866,9 +1866,8 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "get_my_vehicles",
             "description": (
-                "Return ALL vehicles registered under the logged-in customer. "
-                "Use when customer asks about their own vehicles, fleet, cars, plate numbers, "
-                "vehicle status, or how many vehicles they have."
+                "Customer's own registered vehicles. Use for: my vehicles/cars/fleet, "
+                "plate numbers, vehicle status, how many vehicles I have."
             ),
             "parameters": {
                 "type": "object",
@@ -1883,22 +1882,19 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "suggest_booking_date",
             "description": (
-                "Suggest optimal booking dates for a vehicle based on service history, "
-                "maintenance intervals, and current availability. "
-                "Use when customer asks: 'when should I book', 'what's a good date', "
-                "'suggest a date for service', or when helping them choose a booking date. "
-                "Returns intelligent suggestions based on last service date and service type."
+                "Suggest booking dates from service history + intervals. Use for: "
+                "'when should I book', 'suggest a date', or when helping pick a booking date."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "plate": {
                         "type": "string",
-                        "description": "Vehicle plate number to check service history for.",
+                        "description": "Plate number.",
                     },
                     "service_type": {
                         "type": "string",
-                        "description": "Type of service (e.g., 'oil change', 'PMS', 'brake service'). Optional.",
+                        "description": "Optional service type.",
                     },
                 },
                 "required": ["plate"],
@@ -1911,29 +1907,28 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "get_my_service_history",
             "description": (
-                "Return completed maintenance/service records for the customer's vehicles. "
-                "Use for: service history, past services, last oil change, maintenance records, "
-                "how much spent, services performed, PMS history. "
-                "Optionally filter by plate, service type keyword, year, or limit to N recent records."
+                "Completed service records for the customer's vehicles. Use for: service "
+                "history, past services, last oil change, PMS history, how much spent. "
+                "Optional filters: plate, service_type, year, recent(N)."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "plate": {
                         "type": "string",
-                        "description": "Vehicle plate to filter by. Omit for all vehicles.",
+                        "description": "Plate filter. Omit = all vehicles.",
                     },
                     "service_type": {
                         "type": "string",
-                        "description": "Keyword to filter by service type, e.g. 'oil change', 'brake'.",
+                        "description": "Service keyword filter.",
                     },
                     "year": {
                         "type": "integer",
-                        "description": "Calendar year to filter by, e.g. 2026.",
+                        "description": "Year filter.",
                     },
                     "recent": {
                         "type": "integer",
-                        "description": "Return only the N most recent records.",
+                        "description": "Return N most recent.",
                     },
                 },
                 "required": [],
@@ -1946,10 +1941,8 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "get_service_recommendations",
             "description": (
-                "Return maintenance recommendations for the customer's vehicles based on "
-                "lastServiceDate and serviceFrequency from the database. "
-                "Use for: 'what maintenance do I need', 'is my car due', 'when should I service', "
-                "'overdue maintenance', 'upcoming PMS', 'maintenance reminder'."
+                "Maintenance status per vehicle (from lastServiceDate + serviceFrequency). "
+                "Use for: 'is my car due', 'next PMS', 'overdue', 'maintenance reminder'."
             ),
             "parameters": {
                 "type": "object",
@@ -1964,18 +1957,16 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "get_service_prices",
             "description": (
-                "Return services and prices from the shop catalog. "
-                "Use for: 'how much is X', 'service prices', 'what services do you offer', "
-                "'list all services', 'show all prices', 'complete price list'. "
-                "IMPORTANT: If customer asks for 'all' or 'complete list', call with service_name=None to return EVERYTHING. "
-                "Prices come from the database — never invented."
+                "Service catalog with prices. Use for: 'how much is X', 'service prices', "
+                "'list all services'. For 'all'/complete list call with service_name=None. "
+                "Prices from the database — never invented."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "service_name": {
                         "type": "string",
-                        "description": "Keyword to filter (e.g., 'oil', 'brake'). Omit or leave empty for complete catalog.",
+                        "description": "Keyword filter. Omit = full catalog.",
                     },
                 },
                 "required": [],
@@ -1988,18 +1979,16 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "get_customer_materials",
             "description": (
-                "Return customer-visible materials/products offered by the shop. "
-                "Use for: 'do you sell engine oil', 'what products do you have', "
-                "'materials available', 'show all products', 'complete material list'. "
-                "IMPORTANT: If customer asks for 'all' or 'complete list', call with material_name=None to return EVERYTHING. "
-                "NEVER reveals stock quantities, supplier info, or purchase prices."
+                "Customer-visible products/materials. Use for: 'do you sell oil', "
+                "'what products do you have'. For 'all' call with material_name=None. "
+                "Never reveals stock quantities, suppliers, or purchase prices."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "material_name": {
                         "type": "string",
-                        "description": "Keyword to filter (e.g., 'oil', 'filter'). Omit or leave empty for complete catalog.",
+                        "description": "Keyword filter. Omit = full catalog.",
                     },
                 },
                 "required": [],
@@ -2012,19 +2001,18 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "check_booking_availability",
             "description": (
-                "Check available time slots for a given date before creating a booking. "
-                "Call this BEFORE create_customer_booking to verify the slot is free."
+                "Check available time slots for a date. Call BEFORE create_customer_booking."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "preferred_date": {
                         "type": "string",
-                        "description": "Date to check, e.g. '2026-03-10', 'March 10, 2026'.",
+                        "description": "Date, e.g. '2026-03-10'.",
                     },
                     "preferred_time": {
                         "type": "string",
-                        "description": "Specific time slot to check, e.g. '9:00 AM'. Optional.",
+                        "description": "Optional time, e.g. '9:00 AM'.",
                     },
                 },
                 "required": ["preferred_date"],
@@ -2037,26 +2025,24 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "create_customer_booking",
             "description": (
-                "Create a service booking for the authenticated customer. "
-                "ONLY call after collecting: vehicle plate, service(s), date, and time. "
-                "Verify vehicle ownership and slot availability automatically. "
-                "Never create a booking without all required fields."
+                "Create a booking for this customer. ONLY call after collecting plate, "
+                "service(s), date, and time. Ownership + slot verified automatically."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "plate": {
                         "type": "string",
-                        "description": "Vehicle plate number. Must belong to this customer.",
+                        "description": "Vehicle plate (must belong to this customer).",
                     },
                     "services": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "List of services to book, e.g. ['Change Oil', 'PMS'].",
+                        "description": "Services to book, e.g. ['Change Oil', 'PMS'].",
                     },
                     "preferred_date": {
                         "type": "string",
-                        "description": "Date of service, e.g. '2026-03-10' or 'March 10, 2026'.",
+                        "description": "Date, e.g. '2026-03-10'.",
                     },
                     "preferred_time": {
                         "type": "string",
@@ -2064,7 +2050,7 @@ CUSTOMER_TOOL_SCHEMAS = [
                     },
                     "notes": {
                         "type": "string",
-                        "description": "Optional additional notes.",
+                        "description": "Optional notes.",
                     },
                 },
                 "required": ["plate", "services", "preferred_date", "preferred_time"],
@@ -2077,21 +2063,19 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "get_my_bookings",
             "description": (
-                "Return the customer's own service booking appointments. "
-                "Use for: 'my bookings', 'upcoming appointments', 'booking status', "
-                "'when is my next service', 'show my appointments'. "
-                "Optionally filter by status or upcoming only."
+                "Customer's own bookings. Use for: 'my bookings', 'upcoming appointments', "
+                "'booking status'. Optional: filter_status, upcoming_only."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "filter_status": {
                         "type": "string",
-                        "description": "Filter by status: 'Pending', 'Confirmed', 'Completed', 'Cancelled'.",
+                        "description": "Pending | Confirmed | Completed | Cancelled.",
                     },
                     "upcoming_only": {
                         "type": "boolean",
-                        "description": "If true, return only future bookings.",
+                        "description": "True = only future bookings.",
                     },
                 },
                 "required": [],
@@ -2104,28 +2088,27 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "update_my_booking",
             "description": (
-                "Reschedule or update notes for the authenticated customer's own booking. "
-                "Use for: 'move my appointment', 'reschedule my booking', 'change my booking date'. "
-                "Verifies ownership before updating. Never modifies another customer's booking."
+                "Reschedule/update the customer's own booking. Use for: 'move/reschedule "
+                "my appointment'. Ownership verified; never touches others' bookings."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "booking_id": {
                         "type": "string",
-                        "description": "The booking document ID to update.",
+                        "description": "Booking document ID.",
                     },
                     "new_date": {
                         "type": "string",
-                        "description": "New preferred date, e.g. '2026-03-15'.",
+                        "description": "New date.",
                     },
                     "new_time": {
                         "type": "string",
-                        "description": "New preferred time, e.g. '10:00 AM'.",
+                        "description": "New time.",
                     },
                     "new_notes": {
                         "type": "string",
-                        "description": "Updated notes for the booking.",
+                        "description": "Updated notes.",
                     },
                 },
                 "required": ["booking_id"],
@@ -2138,9 +2121,8 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "cancel_my_booking",
             "description": (
-                "Cancel the authenticated customer's own booking. "
-                "Use for: 'cancel my appointment', 'cancel my booking'. "
-                "Verifies ownership before cancelling. Never cancels another customer's booking."
+                "Cancel the customer's own booking. Use for: 'cancel my booking'. "
+                "Ownership verified; never cancels others' bookings."
             ),
             "parameters": {
                 "type": "object",
@@ -2164,9 +2146,8 @@ CUSTOMER_TOOL_SCHEMAS = [
         "function": {
             "name": "estimate_service_cost",
             "description": (
-                "Estimate combined cost for one or more named services using actual catalog prices. "
-                "Use when: 'how much would X and Y cost', 'estimate cost for', 'combined price'. "
-                "Never invents prices."
+                "Combined cost of named services from actual catalog prices. Use for: "
+                "'how much would X and Y cost'. Never invents prices."
             ),
             "parameters": {
                 "type": "object",
@@ -2174,7 +2155,7 @@ CUSTOMER_TOOL_SCHEMAS = [
                     "service_names": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "List of service names to estimate combined cost for.",
+                        "description": "Service names to estimate.",
                     },
                 },
                 "required": ["service_names"],

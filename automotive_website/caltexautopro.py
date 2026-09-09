@@ -65,6 +65,7 @@ _AUTHENTICATED_PAGES = {
     'staff_dashboard', 'staff_inventory', 'staff_maintenance', 'staff_vehicle_list',
     'customer_dashboard', 'customer_pms_history', 'customer_book_service',
     'pms_history_details', 'notifications', 'profile', 'change_password',
+    'ai_usage_controls',
     'help_support',
 }
 
@@ -702,6 +703,10 @@ def notifications():
 def profile():
     return render_template('profile.html')
 
+@app.route('/ai_usage_controls.html')
+def ai_usage_controls():
+    return render_template('ai_usage_controls.html')
+
 @app.route('/change_password.html')
 def change_password():
     return render_template('change_password.html')
@@ -818,6 +823,74 @@ def _sanitise_admin_reply(reply: str) -> str:
             pass
 
     return cleaned or reply
+
+
+# ── AI Usage Controls (Profile → Settings → AI Usage Controls) ──────────────
+# Server-side proxy to the ai_assistant settings + usage endpoints. The
+# frontend NEVER talks to the AI service directly, and every call here is
+# verified against Firebase ID tokens so only authenticated admins can read
+# or change AI settings.
+
+def _require_admin():
+    """Verify the Bearer ID token and return (uid, claims) for an admin, or None."""
+    auth_header = request.headers.get('Authorization', '')
+    token = auth_header[7:].strip() if auth_header.startswith('Bearer ') else ''
+    if not token:
+        return None
+    try:
+        claims = fb_auth.verify_id_token(token)
+    except Exception:
+        return None
+    # Admin role: custom claim, Firestore users doc, or verified web session.
+    if claims.get('admin') or claims.get('role') == 'admin':
+        return claims
+    try:
+        from firestore_client import get_db as _get_admin_db
+        udoc = _get_admin_db().collection('users').document(claims['uid']).get()
+        if udoc.exists and (udoc.to_dict().get('role') or '').lower() == 'admin':
+            return claims
+    except Exception:
+        pass
+    sess = session.get('user') or {}
+    if (sess.get('role') or '').lower() == 'admin' and sess.get('uid') == claims.get('uid'):
+        return claims
+    return None
+
+
+@app.route('/api/ai-settings', methods=['GET'])
+def api_ai_settings_get():
+    claims = _require_admin()
+    if not claims:
+        return jsonify({'success': False, 'error': 'Admin authentication required.'}), 403
+    try:
+        resp = _requests_lib.get(f'{_AI_BACKEND_URL}/ai-settings', timeout=30)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except Exception:
+        return jsonify({'success': False,
+                        'error': 'The AI service is unreachable right now. Please try again.'}), 503
+
+
+@app.route('/api/ai-settings', methods=['PUT'])
+def api_ai_settings_put():
+    claims = _require_admin()
+    if not claims:
+        return jsonify({'success': False, 'error': 'Admin authentication required.'}), 403
+    data = request.get_json(silent=True) or {}
+    allowed = {
+        'customer_ai_enabled', 'customer_token_limit', 'dev_access_enabled',
+        'dev_bypass_token_limit', 'dev_access_while_paused',
+    }
+    payload = {k: v for k, v in data.items() if k in allowed}
+    if not payload:
+        return jsonify({'success': False, 'error': 'No valid settings provided.'}), 400
+    try:
+        resp = _requests_lib.put(f'{_AI_BACKEND_URL}/ai-settings', json=payload, timeout=30)
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except Exception:
+        return jsonify({'success': False,
+                        'error': 'Could not save AI settings. Please try again.'}), 503
 
 
 @app.route('/api/ai-chat', methods=['POST'])

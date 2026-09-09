@@ -11,6 +11,7 @@ returns a friendly message instead of a 500.
 """
 import json
 import logging
+import re
 import time
 from groq import Groq, BadRequestError, RateLimitError, AuthenticationError
 from config import settings
@@ -19,6 +20,28 @@ from verifier import verify_reply
 import token_tracker
 
 logger = logging.getLogger(__name__)
+
+# Reused Groq client — constructing Groq(api_key=...) per call forces a fresh
+# TLS handshake + connection setup on every request (~0.2-0.5 s of avoidable
+# latency). One client is created per API key and reused for the process
+# lifetime; a key change swaps the cached client.
+_groq_client_cache: dict[str, "Groq"] = {}
+
+
+def get_groq_client(api_key: str | None = None) -> "Groq":
+    """Return a process-level cached Groq client (keyed by API key)."""
+    key = api_key or settings.GROQ_API_KEY
+    if not key:
+        raise InvalidApiKeyError(
+            "No Groq API key configured. "
+            "Set GROQ_API_KEY in the Render environment variables."
+        )
+    cached = _groq_client_cache.get(key)
+    if cached is None:
+        # timeout: fail fast instead of the SDK's 600 s default hang.
+        cached = Groq(api_key=key, timeout=settings.GROQ_TIMEOUT_SECONDS)
+        _groq_client_cache[key] = cached
+    return cached
 
 
 class RateLimitedError(Exception):
@@ -228,59 +251,50 @@ Examples of valid Filipino queries:
   "anong mga serbisyo" → what services
   "mga booking ngayong buwan" → bookings this month
 
-If a user asks ANYTHING outside this scope — including but not limited to:
-general knowledge, sports, current events, unrelated news, history, science, coding,
-math, recipes, weather, entertainment, or any other non-system topic —
-you MUST respond with ONLY this exact text, nothing else:
+If asked ANYTHING outside this scope (general knowledge, sports, news, science, coding,
+math, recipes, weather, entertainment, or any non-system topic), respond with ONLY:
 "I can only answer questions related to the Automotive Service and Inventory Management System."
+Nothing else — no elaboration, no partial answers, no alternatives.
 
-Do NOT elaborate, apologize, or add any additional information.
-Do NOT attempt to answer even partially.
-Do NOT say "I don't know" or offer alternatives.
-Just return that one sentence and nothing more.
+TOOLS (deterministic routing already answers most data lookups; you are the fallback):
+- get_stock_levels / get_low_stock_items: inventory & low-stock queries
+- get_item_catalog: materials+services catalog/prices (item_type='Service'|'Material')
+- get_maintenance_jobs / get_maintenance_summary: service records, costs, revenue
+- get_service_bookings: customer bookings; get_deliveries: supplier deliveries
+- get_vehicles: fleet; get_user_count: users by role
 
-The data you have access to:
-- Stock/Inventory: physical parts and supplies with current stock levels (use get_stock_levels, get_low_stock_items)
-- Item Catalog: master list of all Materials and Services offered with prices (use get_item_catalog)
-- Maintenance Jobs: service/repair records per vehicle including costs (use get_maintenance_jobs, get_maintenance_summary)
-- Service Bookings: customer appointment bookings (use get_service_bookings)
-- Deliveries: supplier delivery records (use get_deliveries)
-- Vehicles: registered fleet vehicles (use get_vehicles)
-- Users: staff and customer accounts (use get_user_count)
+Rules:
+1. Use only tool-returned data. Never invent numbers, names, or records.
+2. For any list/count/total/ranking, call the appropriate tool first.
+3. Tool returns no data → "I could not find that information in the database."
+4. Answer conversationally; use a table for multiple records; lead with the answer.
+5. NEVER include tool parameters you don't have a value for — omit them.
+6. Use conversation history for follow-ups. Revenue/earnings/cost questions are IN-SCOPE via maintenance/booking data.
+7. Filipino (Tagalog) questions: respond in Filipino or English, whichever is clearer.
 
-Rules for in-scope questions:
-1. Use only data returned by tool calls. Never invent numbers, names, or records.
-2. For any list, count, total, or ranking — ALWAYS call the appropriate tool first.
-3. If a tool returns no data, say "I could not find that information in the database."
-4. Answer conversationally and naturally, in plain language.
-5. Use a table when listing multiple records (items, vehicles, bookings).
-6. Assume the user has administrator privileges.
-7. Be concise. Lead with the direct answer, then supporting detail.
-8. When calling tools, NEVER include parameters you don't have a value for — omit them entirely.
-9. Use conversation history to understand follow-up questions.
-10. Revenue, earnings, income, sales, and total cost questions are IN-SCOPE — answer them using maintenance job or booking data.
-11. If the user writes in Filipino (Tagalog), respond in Filipino or English (whichever is clearer).
+CRITICAL — Reformatting follow-ups ("make it a list", "simplify"): DO NOT call tools;
+simply reformat your PREVIOUS answer.
 
-CRITICAL — Reformatting follow-ups:
-If the user says "make it a list", "number them", "show as bullets", "simplify" or similar,
-DO NOT call any tools. Simply reformat your PREVIOUS answer in the requested style.
+Keyword mappings (English/Filipino): materials|parts|supplies|stock items|inventory→get_stock_levels;
+services|serbisyo→get_item_catalog(item_type='Service'); all items|catalog|price list→get_item_catalog;
+low stock|reorder|running low→get_low_stock_items; maintenance|repair jobs|service records|trabaho|ayos→
+get_maintenance_jobs/get_maintenance_summary; bookings|appointments→get_service_bookings;
+deliveries→get_deliveries; vehicles|fleet|sasakyan→get_vehicles; users|customers|staff→get_user_count;
+sales|revenue|earnings|income|kita|magkano|bayad→get_maintenance_jobs (cost) or get_service_bookings.
 
-Keyword mappings (English and Filipino):
-- "materials", "parts", "supplies", "stock items", "inventory" → get_stock_levels
-- "services", "service list", "what services", "serbisyo" → get_item_catalog with item_type='Service'
-- "all items", "catalog", "price list" → get_item_catalog
-- "low stock", "reorder", "running low" → get_low_stock_items
-- "maintenance", "repair jobs", "service records", "trabaho", "ayos" → get_maintenance_jobs or get_maintenance_summary
-- "bookings", "appointments", "booking", "mga appointment" → get_service_bookings
-- "deliveries", "supplier deliveries", "delivery" → get_deliveries
-- "vehicles", "fleet", "sasakyan", "mga sasakyan" → get_vehicles
-- "users", "customers", "staff", "how many users", "mga user" → get_user_count
-- "sales", "revenue", "earnings", "income", "total sum", "total cost", "total na kinita",
-  "magkano", "kita", "bayad", "total na kita" → get_maintenance_jobs (for cost data) or get_service_bookings
-- "summary of sales", "sales this month", "income this month", "kita ngayong buwan",
-  "total services", "how much earned" → get_maintenance_summary or get_maintenance_jobs
+"""
 
-""" + _build_report_prompt()
+# REPORT_PROMPT_BLOCK — appended to the system prompt ONLY for report-related
+# requests (see chat()).  Appending unconditionally cost ~1,700 tokens on every
+# admin call, even "show inventory".
+REPORT_PROMPT_BLOCK = _build_report_prompt()
+
+# Matches report-generation requests for conditional prompt injection
+_REPORT_REQUEST_RE = re.compile(
+    r"\b(generate|create|make|build|produce|export|download|print)\b[^\n]{0,40}\b"
+    r"(report|pdf|excel|xlsx|spreadsheet)\b|\b(report|pdf|excel)\s+report\b",
+    re.IGNORECASE,
+)
 
 def _is_model_not_found(exc: Exception) -> bool:
     """Return True if the Groq error is a model_not_found / 404."""
@@ -315,15 +329,24 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None,
     chosen_model = model or settings.GROQ_MODEL_PRIMARY
 
     try:
-        client = Groq(api_key=api_key)
-        kwargs: dict = {
-            "model":      chosen_model,
-            "messages":   messages,
-            "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
-        }
-        if tools:
-            kwargs["tools"] = tools
-        return client.chat.completions.create(**kwargs)
+        import perf_metrics
+        with perf_metrics.groq_timer():
+            client = get_groq_client(api_key)
+            kwargs: dict = {
+                "model":      chosen_model,
+                "messages":   messages,
+                "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
+            }
+            if tools:
+                kwargs["tools"] = tools
+            resp = client.chat.completions.create(**kwargs)
+        try:
+            u = resp.usage
+            perf_metrics.record_usage(getattr(u, "prompt_tokens", 0) or 0,
+                                      getattr(u, "completion_tokens", 0) or 0)
+        except Exception:
+            pass
+        return resp
     except AuthenticationError as exc:
         logger.error("Groq AuthenticationError — invalid or revoked API key: %s", exc)
         raise InvalidApiKeyError(
@@ -378,6 +401,15 @@ def chat(user_message: str, history: list[dict] | None = None,
     user_id — admin session or UID; used only for token-usage logging.
     """
     from model_router import GENERAL_AI_QUESTION, COMPLEX_ANALYSIS
+    from input_guard import truncate_message, build_request_context
+
+    # Request-level memoization for read-only tools (dedupes repeated calls).
+    import request_cache
+    _bucket = request_cache.begin_request()
+    tool_fns = request_cache.memoize(TOOL_FUNCTIONS, _bucket)
+
+    # Oversized-input guard — a pasted document must never flood the model.
+    safe_message = truncate_message(user_message, settings.MAX_INPUT_CHARS)
 
     # Trim history to GROQ_MAX_HISTORY_MSGS before building the payload.
     trimmed_history: list[dict] = []
@@ -387,16 +419,29 @@ def chat(user_message: str, history: list[dict] | None = None,
 
     chosen_model = model or settings.GROQ_MODEL_PRIMARY
 
-    messages = [{"role": "system", "content": ADMIN_SYSTEM_PROMPT}]
-    messages.extend(trimmed_history)
-    messages.append({"role": "user", "content": user_message})
+    # Conditional report block: the ~1,700-token report instructions are only
+    # needed when the user is actually requesting a report.
+    system_prompt = ADMIN_SYSTEM_PROMPT
+    if _REPORT_REQUEST_RE.search(safe_message):
+        system_prompt += REPORT_PROMPT_BLOCK
+
+    # Per-request token budget: trims history deterministically rather than
+    # sending an oversized context to Groq.
+    messages, _budget_stats = build_request_context(
+        system_prompt,
+        trimmed_history,
+        safe_message,
+        history_max_msgs=settings.GROQ_MAX_HISTORY_MSGS,
+        history_msg_max_chars=settings.HISTORY_MSG_MAX_CHARS,
+        budget_tokens=settings.ADMIN_MAX_REQUEST_TOKENS,
+    )
 
     tool_call_log = []
     final_reply = ""
     t0 = time.time()
     call_succeeded = True
 
-    for _ in range(5):
+    for _ in range(max(1, settings.MAX_TOOL_LOOP_TURNS)):
         try:
             response = _call_groq(messages, tools=TOOL_SCHEMAS, model=chosen_model)
         except (RateLimitError, AllKeysRateLimitedError):
@@ -414,6 +459,7 @@ def chat(user_message: str, history: list[dict] | None = None,
                                   time.time() - t0)
                     final_reply = fallback.choices[0].message.content or \
                         "I could not retrieve that information. Please try rephrasing."
+                    request_cache.end_request(_bucket)
                     return {
                         "reply": final_reply,
                         "tool_calls": tool_call_log,
@@ -427,6 +473,7 @@ def chat(user_message: str, history: list[dict] | None = None,
                 except Exception as fallback_err:
                     logger.error("Fallback call also failed: %s", fallback_err)
 
+            request_cache.end_request(_bucket)
             return {
                 "reply": "I could not retrieve that information. Please try rephrasing your question.",
                 "tool_calls": tool_call_log,
@@ -452,7 +499,7 @@ def chat(user_message: str, history: list[dict] | None = None,
             fn_name = call.function.name
             fn_args = _strip_null_args(call.function.arguments or "")
 
-            fn = TOOL_FUNCTIONS.get(fn_name)
+            fn = tool_fns.get(fn_name)
             if fn is None:
                 result = {"error": f"Unknown tool '{fn_name}'"}
             else:
@@ -478,9 +525,16 @@ def chat(user_message: str, history: list[dict] | None = None,
     else:
         final_reply = "Sorry, I had trouble completing that request."
 
+    request_cache.end_request(_bucket)
+
     if tool_call_log:
         check = verify_reply(final_reply, tool_call_log)
         if not check["verified"] and not _retry:
+            # Token-efficient correction: send ONLY the tool data (compacted) +
+            # correction instruction — NOT the entire previous conversation.
+            compact_results = json.dumps(tool_call_log, default=str)
+            if len(compact_results) > 2500:
+                compact_results = compact_results[:2500] + '... [truncated]'
             correction_prompt = (
                 f"Your previous answer contained number(s) that do not match the data "
                 f"retrieved: {check['unsupported_numbers']}. "
@@ -488,12 +542,19 @@ def chat(user_message: str, history: list[dict] | None = None,
                 f"Re-answer the original question using ONLY these numbers. "
                 f"If you cannot answer accurately with this data, say so explicitly."
             )
-            messages.append({"role": "user", "content": correction_prompt})
-            correction_resp = _call_groq(messages, model=chosen_model)
-            _record_usage(correction_resp, chosen_model, intent, user_id, True,
-                          time.time() - t0)
-            final_reply = correction_resp.choices[0].message.content or final_reply
-            check = verify_reply(final_reply, tool_call_log)
+            correction_messages = [
+                {"role": "system", "content": "Answer using ONLY the provided tool data. Be concise."},
+                {"role": "user", "content": f"Original question: {user_message}\n\nTool data: {compact_results}\n\n{correction_prompt}"},
+            ]
+            try:
+                correction_resp = _call_groq(correction_messages, model=chosen_model)
+                _record_usage(correction_resp, chosen_model, intent, user_id, True,
+                              time.time() - t0)
+                final_reply = correction_resp.choices[0].message.content or final_reply
+                check = verify_reply(final_reply, tool_call_log)
+            except Exception:
+                # Correction is best-effort; never let it kill the original answer
+                logger.warning("Correction pass failed; keeping original reply", exc_info=True)
 
         return {
             "reply":                final_reply,

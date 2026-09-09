@@ -21,6 +21,10 @@ class CustomerChatRequest(BaseModel):
     customer_name: str                 # Display name (used for Firestore owner field matching)
     session_id: str | None = None
     history: list[dict] | None = None
+    # Developer/test flag from the calling client. Only honored when the admin
+    # has enabled Developer/Test Access in AI Usage Controls — it can never
+    # grant access by itself.
+    is_dev_user: bool = False
 
 
 class SessionInfoResponse(BaseModel):

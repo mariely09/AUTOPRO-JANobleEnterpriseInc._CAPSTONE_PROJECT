@@ -101,15 +101,6 @@ class _AiStatusFabState extends State<_AiStatusFab>
             alignment: Alignment.center,
             clipBehavior: Clip.none,
             children: [
-              // White backdrop so rings always render on white, not the dashboard gradient
-              Container(
-                width: 96,
-                height: 96,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                ),
-              ),
               // Outer pulse ring — expands & fades out (outlined style)
               Container(
                 width: 58 + (_ctrl.value * 28),

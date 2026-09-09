@@ -231,11 +231,8 @@
 <div class="ai-panel-header">
     <!-- Subtle shine overlay -->
     <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.1) 0%,transparent 65%);pointer-events:none;"></div>
-    <!-- Bot avatar -->
+    <!-- Bot avatar — clean static logo (rings animation lives on the floating bubble only) -->
     <div style="position:relative;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-        <!-- Animated pulse rings -->
-        <span id="aiHdrPulseOuter" style="position:absolute;width:36px;height:36px;border-radius:50%;border:2px solid #22c55e;opacity:0;animation:aiRingPulse 1.8s ease-out infinite;pointer-events:none;"></span>
-        <span id="aiHdrPulseInner" style="position:absolute;width:36px;height:36px;border-radius:50%;border:1.5px solid #22c55e;opacity:0;animation:aiRingPulse 1.8s ease-out 0.45s infinite;pointer-events:none;"></span>
         <div id="aiHdrAvatarRing" style="width:36px;height:36px;border-radius:50%;overflow:hidden;border:2.5px solid #22c55e;flex-shrink:0;box-shadow:0 0 8px rgba(34,197,94,0.45),0 2px 8px rgba(0,0,0,0.15);background:white;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;transition:border-color 0.3s,box-shadow 0.3s;">
             <img src="../static/img/AI_LOGO.png" style="width:28px;height:28px;object-fit:contain;display:block;" alt="AI Assistant" />
         </div>
@@ -314,8 +311,9 @@
   let _resolvedCustomerName = cpUser.name || '';
   let _chatHistory = [];
   let _sessionId   = null;
-  let _localSessionId = null;   // unique ID for this chat session before server assigns one
+  let _localSessionId = null;   // stable ID for this conversation before server assigns one
   let _rateLimited = false;
+  let _savedSig   = null;       // dedupe guard: signature of the last saved history
   // Persistent reference so getElementById still works after the node is detached
   const _welcomeNode = document.getElementById('aiWelcome');
   let _currentUid  = null;
@@ -383,9 +381,20 @@
   }
 
   // Save the live session into both the active-slot AND the history list.
+  // Idempotent: skips the write when nothing changed since the last save.
   function _saveChat() {
     if (!_currentUid || !_chatHistory.length) return;
+    // Logout guard — after the session is cleared, pagehide/unload handlers
+    // must not write the chat back into storage.
     try {
+      if (!sessionStorage.getItem('cpUser') && !sessionStorage.getItem('spUser')) return;
+    } catch(e) {}
+    try {
+      // Dedupe guard — avoid re-writing identical state on every event
+      var sig = _effectiveSid() + '|' + _chatHistory.length + '|' +
+                (_chatHistory[_chatHistory.length-1] ? _chatHistory[_chatHistory.length-1].text : '');
+      if (sig === _savedSig) return;
+      _savedSig = sig;
       var sid = _effectiveSid();
       var entry = { id: sid, ts: Date.now(), messages: _chatHistory.slice() };
 
@@ -439,11 +448,10 @@
   function _restoreActiveSession(uid) {
     try {
       var raw = localStorage.getItem(_activeKey(uid));
-      if (!raw) return false;
+      if (!raw) { _localSessionId = _newLocalId(); return false; }
       var session = JSON.parse(raw);
-      if (!session || !session.messages || !session.messages.length) return false;
-      _chatHistory = session.messages.slice();
-      // Restore the IDs so _saveChat() keeps writing to the same slot
+      if (!session || !session.messages || !session.messages.length) { _localSessionId = _newLocalId(); return false; }
+      // Reuse the SAME conversation id so _saveChat() keeps writing to the same slot
       if (session.id && !session.id.startsWith('local_')) {
         _sessionId      = session.id;
         _localSessionId = null;
@@ -451,6 +459,16 @@
         _sessionId      = null;
         _localSessionId = session.id || _newLocalId();
       }
+      // Dedupe restored messages (consecutive same-role rows from older saves)
+      var msgs = session.messages.filter(function(m){ return m && m.text; });
+      var clean = [];
+      for (var i = 0; i < msgs.length; i++) {
+        var prev = clean[clean.length-1];
+        if (prev && prev.role === msgs[i].role && prev.text === msgs[i].text) continue;
+        clean.push(msgs[i]);
+      }
+      _chatHistory = clean;
+      _savedSig = null;
       // Render
       var welcome = _welcomeNode;
       if (welcome) welcome.style.display = 'none';
@@ -541,6 +559,7 @@
     var session = sessions.find(function(s){ return s.id === sid; });
     if (!session || !session.messages || !session.messages.length) return;
     _setRateLimited(false);
+    _savedSig = null; // force the next save to persist the switch
     _chatHistory = session.messages.slice();
     // Restore IDs so subsequent saves go back to the same slot
     if (session.id && !session.id.startsWith('local_')) {
@@ -867,7 +886,7 @@
         ? `Under maintenance:\n` + list.map(v => `??${v.plate} ??${v.desc}`).join('\n')
         : 'None of your vehicles are currently under maintenance.';
     }
-    if (ql.includes('pms') || ql.includes('next service') || ql.includes('schedule')) {
+    if (ql.includes('pms') || ql.includes('next service') || ql.includes('next pms')) {
       if (!_myVehicles.length) return 'No vehicles found under your account.';
       const active = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'active').length;
       const over   = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'overdue').length;
@@ -877,8 +896,11 @@
     }
 
     // ?? Bookings ?????????????????????????????????????????????????????????
-    if (ql.includes('booking') || ql.includes('appointment') || ql.includes('schedule') || ql.includes('upcoming')) {
-      return 'To view your service bookings, tap the **Bookings** tab in the app or go to **My Bookings** on the website. I can also look up your bookings ??please ask while the AI service is online.';
+    // Bookings / scheduling
+    if (ql.includes('booking') || ql.includes('appointment') || ql.includes('schedule') ||
+        ql.includes('earliest') || ql.includes('upcoming') || ql.includes('when can') ||
+        ql.includes('when will') || ql.includes('book a') || ql.includes('reserve')) {
+      return 'To check available service dates or make a booking, please use the **Book Service** tab in the navigation menu.\n\nFor AI-powered scheduling suggestions based on your vehicle history, please ask when the AI service is online.';
     }
 
     // ?? Pricing / services ???????????????????????????????????????????????
@@ -890,11 +912,7 @@
 
     // ?? Default for in-scope but offline ????????????????????????????????
     if (!_myVehicles.length) return 'No vehicles found under your account. Please check if your account is properly set up.';
-    const active = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'active').length;
-    const over   = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'overdue').length;
-    const soon   = _myVehicles.filter(v => ['pms due soon','due soon','due this week'].includes((v.status||'').toLowerCase())).length;
-    const maint  = _myVehicles.filter(v => (v.status||'').toLowerCase().includes('maintenance')).length;
-    return `Here's a quick summary of your fleet:\n??Total vehicles: ${_myVehicles.length}\n??Active: ${active}\n??Under Maintenance: ${maint}\n??PMS Overdue: ${over}\n??Due Soon: ${soon}\n\nFor detailed answers, please ask when the AI service is online.`;
+    return "I\u2019m not sure how to answer that while the AI service is offline. I can help with your vehicle status, PMS records, service history, and bookings. Please try again when online for detailed answers.";
   }
 
   const _BOT_AVATAR_SVG = '<img src="../static/img/AI_LOGO.png" width="32" height="32" style="object-fit:cover;border-radius:50%;display:block;" alt="AI">';
@@ -975,6 +993,7 @@
 
     _addBubbleAndSave(text, 'user');
     if (input) { input.value = ''; input.style.height = 'auto'; }
+    _savedSig = null; // user message changed state — allow the save
     // Save immediately after user message so it persists even if AI call fails
     _saveChat();
 
@@ -1022,6 +1041,7 @@
           _sessionId      = data.session_id;
           _localSessionId = null;
         }
+        _savedSig = null; // history changed — allow the save
         _addBubbleAndSave(data.answer, 'bot');
         // Track tokens used: estimate ~1 token per 4 chars (user msg + reply)
         if (_currentUid) {
@@ -1052,12 +1072,14 @@
   window.newChat = function () {
     // Save current chat to history first (so it appears in the drawer)
     if (_chatHistory.length) _saveChat();
-    // Clear server-side session memory
+    // Clear server-side session memory (only for real server sessions)
     if (_sessionId) { fetch('/api/ai-session/' + _sessionId, {method:'DELETE'}).catch(function(){}); }
-    // Reset IDs — generate a fresh local ID immediately so the new session
-    // gets its own unique slot in history (prevents duplicates)
+    // Generate a genuinely NEW conversation id so the new chat gets its own
+    // unique slot in history (prevents duplicates). No empty entry is written
+    // until the user actually sends the first message.
     _sessionId      = null;
     _localSessionId = _newLocalId();
+    _savedSig       = null;
     // Remove active slot so page-restore doesn't bring back the old chat
     if (_currentUid) localStorage.removeItem(_activeKey(_currentUid));
     _setRateLimited(false);

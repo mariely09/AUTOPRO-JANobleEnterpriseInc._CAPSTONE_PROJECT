@@ -16,10 +16,13 @@ import threading
 import time
 from collections import OrderedDict
 
-MAX_TURNS          = 6     # user+assistant pairs kept per session
-                           # 6 turns = 3 full exchanges — sufficient for follow-ups
-                           # while saving tokens vs the old 8-turn cap
-SESSION_TTL_MINUTES = 60   # idle sessions expire after this many minutes
+MAX_TURNS            = 6     # user+assistant pairs kept per session
+                            # 6 turns = 3 full exchanges — sufficient for follow-ups
+                            # while saving tokens vs the old 8-turn cap
+SESSION_TTL_MINUTES  = 60    # idle sessions expire after this many minutes
+# Cap stored assistant replies so long table answers are not re-sent to the
+# LLM verbatim on every subsequent turn (history bloat → token bloat).
+MAX_STORED_REPLY_CHARS = 800
 
 _lock = threading.Lock()
 
@@ -52,8 +55,11 @@ def append_turn(session_id: str, user_message: str, assistant_reply: str) -> Non
             _store[session_id] = {"turns": [], "last_active": time.time()}
 
         entry = _store[session_id]
-        entry["turns"].append({"role": "user",      "content": user_message})
-        entry["turns"].append({"role": "assistant",  "content": assistant_reply})
+        entry["turns"].append({"role": "user",      "content": user_message[:MAX_STORED_REPLY_CHARS]})
+        reply = assistant_reply
+        if len(reply) > MAX_STORED_REPLY_CHARS:
+            reply = reply[:MAX_STORED_REPLY_CHARS].rstrip() + " …"
+        entry["turns"].append({"role": "assistant",  "content": reply})
 
         # Keep only the last MAX_TURNS pairs (2 messages each)
         max_messages = MAX_TURNS * 2
