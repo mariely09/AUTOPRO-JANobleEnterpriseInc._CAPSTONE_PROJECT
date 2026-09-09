@@ -103,17 +103,27 @@
   firebase.initializeApp(firebaseConfig);
 
   firebase.auth().onAuthStateChanged((user) => {
-    if (user) {
-      console.log('Auth state: User logged in', user.uid);
-    } else {
-      console.log('Auth state: No user');
-      // Clear all session data so back button cannot restore a logged-in state
-      sessionStorage.removeItem('apUser');
-      sessionStorage.removeItem('spUser');
-      sessionStorage.removeItem('cpUser');
-      // Replace current history entry so back button from login cannot return to dashboard
-      history.replaceState(null, '', '/login.html');
+    // If a Google redirect sign-in is in progress, don't touch session state —
+    // GoogleSignInModule.checkRedirectResult() will finish the flow.
+    let pendingGoogle = false;
+    try { pendingGoogle = sessionStorage.getItem('pendingGoogleSignIn') === '1'; } catch (_) {}
+    if (pendingGoogle) {
+      console.log('Auth state: Google redirect sign-in in progress — deferring');
+      return;
     }
+    if (user) {
+      // Stale session (e.g. user pressed back to this page) — sign out so the
+      // back button can never restore a logged-in dashboard state.
+      console.log('Auth state: Stale user on login page — signing out', user.uid);
+      firebase.auth().signOut();
+    }
+    console.log('Auth state: No user');
+    // Clear all session data so back button cannot restore a logged-in state
+    sessionStorage.removeItem('apUser');
+    sessionStorage.removeItem('spUser');
+    sessionStorage.removeItem('cpUser');
+    // Replace current history entry so back button from login cannot return to dashboard
+    history.replaceState(null, '', '/login.html');
   });
 
   // Prevent bfcache from restoring dashboard pages when back is pressed from login

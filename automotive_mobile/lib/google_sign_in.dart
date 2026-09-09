@@ -36,6 +36,14 @@ class GoogleSignInHelper {
     } on PlatformException catch (e) {
       debugPrint('⚠️ GoogleSignIn.signIn PlatformException: ${e.code} — ${e.message}');
       _throwReadableGoogleError(e);
+    } catch (e) {
+      // google_sign_in v7+ surfaces most failures as plain exceptions
+      debugPrint('⚠️ GoogleSignIn.signIn error: $e');
+      final s = e.toString().toLowerCase();
+      if (s.contains('canceled') || s.contains('cancelled')) {
+        throw Exception('sign_in_canceled'); // caller stays silent
+      }
+      rethrow;
     }
     if (googleUser == null) return null; // user cancelled
 
@@ -106,7 +114,17 @@ class GoogleSignInHelper {
   static Never _throwReadableGoogleError(PlatformException e) {
     switch (e.code) {
       case 'sign_in_failed':
-        // Most common: network issue or mis-configured OAuth client
+        // Most common: network issue or mis-configured OAuth client.
+        // DEVELOPER_ERROR → the app's SHA-1/package name is not registered in
+        // the Firebase console for this machine's signing key.
+        final detail = (e.message ?? e.code).toLowerCase();
+        if (detail.contains('developer_error') || detail.contains('12500')) {
+          throw Exception(
+            'Google sign-in is not configured for this build. '
+            'Ask the developer to add this device\'s SHA-1 fingerprint '
+            'in Firebase Console → Authentication → Sign-in method → Google.',
+          );
+        }
         throw Exception(
           'Google sign-in failed. Please check your internet connection and try again.\n'
           '(Detail: ${e.message ?? e.code})',
