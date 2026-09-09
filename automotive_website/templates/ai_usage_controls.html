@@ -154,6 +154,12 @@ if (!firebase.apps.length) {
 </script>
 
 <script>
+// Role guard passed — reveal the admin layout immediately (the CSS above
+// keeps it hidden to avoid flashing the wrong layout for non-admins).
+document.getElementById('adminWrap').style.display = 'flex';
+</script>
+
+<script>
 // ── Bootstrap admin chrome (sidebar + header), same pattern as profile.html ──
 (function() {
     function loadScript(src) {
@@ -253,7 +259,8 @@ function _aiucLoad() {
 // ── UI building blocks ───────────────────────────────────────────────────────
 function _aiucSwitch(id, checked) {
     return '<label class="aiuc-switch">'
-        + '<input type="checkbox" id="' + id + '"' + (checked ? ' checked' : '') + ' onchange="_aiucDirty=true">'
+        + '<input type="checkbox" id="' + id + '"' + (checked ? ' checked' : '')
+        + ' onchange="_aiucDirty=true;_aiucSyncCascade()">'
         + '<span class="aiuc-slider"></span></label>';
 }
 
