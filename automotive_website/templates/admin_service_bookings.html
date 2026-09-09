@@ -131,7 +131,40 @@
                     <div>Actions</div>
                 </div>
                 <div id="rescheduleTableBody">
-                    <div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading...</div>
+                    <!-- Skeleton rows shown instantly while Firestore loads -->
+                    <div id="sbSkeleton" style="padding:0;">
+                      <style>
+                        @keyframes sbShimmer {
+                          0%   { background-position: -600px 0; }
+                          100% { background-position: 600px 0; }
+                        }
+                        .sb-skel-row {
+                          display: grid;
+                          grid-template-columns: 1fr 1.5fr 1.5fr 1fr 0.8fr 1fr 140px;
+                          gap: 0;
+                          padding: 14px 16px;
+                          border-bottom: 1px solid #f0f4f8;
+                          align-items: center;
+                        }
+                        .sb-skel-cell {
+                          height: 14px;
+                          border-radius: 6px;
+                          background: linear-gradient(90deg, #f0f4f8 25%, #e2e8f0 50%, #f0f4f8 75%);
+                          background-size: 600px 100%;
+                          animation: sbShimmer 1.4s infinite linear;
+                          margin-right: 24px;
+                        }
+                        .sb-skel-cell.short  { width: 55%; }
+                        .sb-skel-cell.medium { width: 75%; }
+                        .sb-skel-cell.badge  { width: 64px; height: 20px; border-radius: 20px; }
+                        .sb-skel-cell.btn    { width: 80px; height: 26px; border-radius: 7px; }
+                      </style>
+                      <div class="sb-skel-row"><div class="sb-skel-cell short"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell badge"></div><div class="sb-skel-cell btn"></div></div>
+                      <div class="sb-skel-row"><div class="sb-skel-cell short"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell badge"></div><div class="sb-skel-cell btn"></div></div>
+                      <div class="sb-skel-row"><div class="sb-skel-cell short"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell badge"></div><div class="sb-skel-cell btn"></div></div>
+                      <div class="sb-skel-row"><div class="sb-skel-cell short"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell badge"></div><div class="sb-skel-cell btn"></div></div>
+                      <div class="sb-skel-row"><div class="sb-skel-cell short"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell badge"></div><div class="sb-skel-cell btn"></div></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -241,6 +274,47 @@
 <script src="../static/js/admin_functions.js?v=202607180001"></script>
 <script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
+
+<!-- ── Step 1: Restore cached data instantly (before Firestore responds) ── -->
+<script>
+(function() {
+  try {
+    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+    if (!uid) return;
+    var raw = sessionStorage.getItem('bookingsCache_' + uid);
+    if (!raw) return;
+    var docs = JSON.parse(raw);
+    if (!Array.isArray(docs) || !docs.length) return;
+
+    // Restore serialised Timestamp-like objects
+    docs.forEach(function(d) {
+      if (d.createdAt && d.createdAt._ms) {
+        var ms = d.createdAt._ms;
+        d.createdAt = { toMillis: function() { return ms; }, seconds: Math.floor(ms / 1000) };
+      }
+    });
+
+    window._sbAllDocs = docs;
+
+    // Paint stats from cache immediately
+    (function() {
+      var s = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+      var rescheduled = docs.filter(function(d){ return d.status === 'Approved' && d.previousDate && d.previousDate !== d.preferredDate; }).length;
+      var approved    = docs.filter(function(d){ return d.status === 'Approved' && !(d.previousDate && d.previousDate !== d.preferredDate); }).length;
+      var cancelled   = docs.filter(function(d){ return d.status === 'Cancelled' || d.status === 'Dismissed'; }).length;
+      s('sbStatTotal',       approved + rescheduled + cancelled);
+      s('sbStatApproved',    approved);
+      s('sbStatRescheduled', rescheduled);
+      s('sbStatCancelled',   cancelled);
+    })();
+
+    // Render table from cache; live Firestore snapshot will overwrite shortly
+    if (typeof window.renderRescheduleList === 'function') {
+      window.renderRescheduleList();
+    }
+  } catch(e) {}
+})();
+</script>
 <script>
 (function () {
   var db = firebase.firestore();
@@ -295,6 +369,10 @@
     if (!_allDocs.length && window._sbAllDocs && window._sbAllDocs.length) {
       _allDocs = window._sbAllDocs;
     }
+
+    // Remove skeleton on first real render
+    var skel = document.getElementById('sbSkeleton');
+    if (skel) skel.remove();
 
     var docs;
     if (filter === 'all') {
@@ -813,29 +891,5 @@
 })();
 </script>
 
-<script>
-// Cache restore for service bookings — runs after all scripts
-(function() {
-  try {
-    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
-    if (!uid) return;
-    var raw = sessionStorage.getItem('bookingsCache_' + uid);
-    if (!raw) return;
-    var docs = JSON.parse(raw);
-    if (!Array.isArray(docs) || !docs.length) return;
-    // Only restore if Firestore hasn't populated _allDocs yet
-    if (window._sbAllDocs && window._sbAllDocs.length) return;
-    // Restore Timestamp-like objects
-    docs.forEach(function(d) {
-      if (d.createdAt && d.createdAt._ms) {
-        var ms = d.createdAt._ms;
-        d.createdAt = { toMillis: function() { return ms; }, seconds: Math.floor(ms / 1000) };
-      }
-    });
-    window._sbAllDocs = docs;
-    if (typeof window.renderRescheduleList === 'function') window.renderRescheduleList();
-  } catch(e) {}
-})();
-</script>
 </body>
 </html>
