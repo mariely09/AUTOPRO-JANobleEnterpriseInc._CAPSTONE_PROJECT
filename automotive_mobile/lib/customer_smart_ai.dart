@@ -24,31 +24,102 @@ const _kCustomerDailyTokenLimit = 2000;
 class CustomerChatStore {
   static final List<_ChatMsg> messages = [];
   static String? sessionId;
+  static String? localSessionId; // stable local conversation id (pre server assignment)
   static bool rateLimited = false;
   static String resetIn = '';
+  static String? _lastSavedSig; // dedupe guard: signature of the last save
 
   // SharedPreferences key helpers
   static String _activeKey(String uid) => 'cust_ai_active_$uid';
   static String _storageKey(String uid) => 'cust_ai_chat_$uid';
+
+  /// Stable unique id for a NEW conversation. Generated once per conversation
+  /// (on New Chat), then reused across restarts so every write for the same
+  /// conversation lands on the same history slot instead of duplicating it.
+  static String newLocalId() =>
+      'local_${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecondsSinceEpoch % 46656).toRadixString(36)}';
+
+  /// The id under which this conversation is currently stored.
+  static String? get effectiveSid => sessionId ?? localSessionId;
+
+  static void clear() {
+    messages.clear();
+    sessionId = null;
+    localSessionId = null;
+    rateLimited = false;
+    resetIn = '';
+    _lastSavedSig = null;
+  }
+
+  /// Begin a genuinely NEW conversation (New Chat): fresh unique id, old chat
+  /// stays in history. Nothing is persisted until the first message is sent.
+  static void startNewSession() {
+    clear();
+    localSessionId = newLocalId();
+  }
+
+  /// Rename the stored conversation (history list + active slot) when the
+  /// server assigns its real session id, so the same conversation never
+  /// appears as two history entries.
+  static Future<void> adoptServerSession(String uid, String serverId) async {
+    final oldId = effectiveSid;
+    if (oldId == null || oldId == serverId) {
+      sessionId = serverId;
+      localSessionId = null;
+      return;
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Rename in the history list
+      final all = await loadAllSessions(uid);
+      final idx = all.indexWhere((s) => s['id'] == oldId);
+      if (idx >= 0) all[idx]['id'] = serverId;
+      // Drop an older entry already stored under the server id (past duplicates)
+      all.removeWhere((s) => s['id'] == serverId && all.indexOf(s) != idx);
+      await prefs.setString(_storageKey(uid), jsonEncode(all));
+      // Rename in the active slot
+      final raw = prefs.getString(_activeKey(uid));
+      if (raw != null) {
+        final entry = jsonDecode(raw) as Map<String, dynamic>;
+        if (entry['id'] == oldId) {
+          entry['id'] = serverId;
+          await prefs.setString(_activeKey(uid), jsonEncode(entry));
+        }
+      }
+    } catch (_) {}
+    sessionId = serverId;
+    localSessionId = null;
+    _lastSavedSig = null;
+  }
+
+  static void clearActiveSessionOnly() {
+    messages.clear();
+    sessionId = null;
+    localSessionId = null;
+    rateLimited = false;
+    resetIn = '';
+    _lastSavedSig = null;
+  }
+
+
   static String _tokenKey(String uid) {
     final today = DateTime.now().toIso8601String().substring(0, 10);
     return 'cust_ai_tokens_${uid}_$today';
   }
 
-  static void clear() {
-    messages.clear();
-    sessionId = null;
-    rateLimited = false;
-    resetIn = '';
-  }
-
   /// Persist current in-memory messages as the active session + upsert into
-  /// the history list.
+  /// the history list. Idempotent: skips the write when nothing changed
+  /// since the last save.
   static Future<void> saveChat(String uid) async {
     if (messages.isEmpty) return;
     try {
+      // Dedupe guard — avoid re-writing identical state on every event
+      final sig = '${effectiveSid ?? ''}|${messages.length}|${messages.last.text}';
+      if (sig == _lastSavedSig) return;
+      _lastSavedSig = sig;
       final prefs = await SharedPreferences.getInstance();
-      final sid = sessionId ?? 'local_$uid';
+      final sid = effectiveSid ?? newLocalId();
+      if (sessionId == null && localSessionId == null) localSessionId = sid;
       final entry = {
         'id': sid,
         'ts': DateTime.now().millisecondsSinceEpoch,
@@ -92,23 +163,45 @@ class CustomerChatStore {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_activeKey(uid));
-      if (raw == null) return false;
+      if (raw == null) {
+        localSessionId ??= newLocalId();
+        return false;
+      }
       final entry = jsonDecode(raw) as Map<String, dynamic>;
       final msgs =
           (entry['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      if (msgs.isEmpty) return false;
-      messages.clear();
-      for (final m in msgs) {
-        messages.add(
-          _ChatMsg(
-            role: m['role'] as String? ?? 'ai',
-            text: m['text'] as String? ?? '',
-          ),
-        );
+      if (msgs.isEmpty) {
+        localSessionId ??= newLocalId();
+        return false;
       }
       final sid = entry['id'] as String?;
-      sessionId = (sid != null && !sid.startsWith('local_')) ? sid : null;
-      return true;
+      // Reuse the SAME conversation id so saves keep writing to the same slot
+      if (sid != null && !sid.startsWith('local_')) {
+        sessionId = sid;
+        localSessionId = null;
+      } else {
+        sessionId = null;
+        localSessionId = sid ?? newLocalId();
+      }
+      // Dedupe restored messages (consecutive same-role rows from older saves)
+      messages.clear();
+      String? prevRole;
+      String? prevText;
+      for (final m in msgs) {
+        final role = m['role'] as String? ?? 'ai';
+        final text = m['text'] as String? ?? '';
+        if (role == prevRole && text == prevText) continue; // duplicate row
+        messages.add(
+          _ChatMsg(
+            role: role,
+            text: text,
+          ),
+        );
+        prevRole = role;
+        prevText = text;
+      }
+      _lastSavedSig = null;
+      return messages.isNotEmpty;
     } catch (_) {
       return false;
     }
@@ -170,15 +263,10 @@ class CustomerSmartAI extends StatefulWidget {
   State<CustomerSmartAI> createState() => _CustomerSmartAIState();
 }
 
-class _CustomerSmartAIState extends State<CustomerSmartAI>
-    with SingleTickerProviderStateMixin {
+class _CustomerSmartAIState extends State<CustomerSmartAI> {
   // ── Brand colours ─────────────────────────────────────────────────────────
   static const _red = Color(0xFFE8001C);
   static const _bg = Color(0xFFF7F8FA);
-
-  // ── Pulsing ring animation for the AppBar avatar ──────────────────────────
-  late final AnimationController _pulseCtrl;
-  late final Animation<double> _pulseAnim;
 
   final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
@@ -214,14 +302,6 @@ class _CustomerSmartAIState extends State<CustomerSmartAI>
   @override
   void initState() {
     super.initState();
-    // Pulse animation — repeats to produce the expanding ring effect
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat();
-    _pulseAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeOut),
-    );
     _eagerRestoreSession(); // restore messages ASAP — skips the welcome flash
     _loadIdentity();
     _checkBackend(silent: true);
@@ -247,7 +327,6 @@ class _CustomerSmartAIState extends State<CustomerSmartAI>
 
   @override
   void dispose() {
-    _pulseCtrl.dispose();
     // Save chat on widget dispose (navigation away)
     if (_customerUid.isNotEmpty && CustomerChatStore.messages.isNotEmpty) {
       CustomerChatStore.saveChat(_customerUid);
@@ -372,22 +451,35 @@ class _CustomerSmartAIState extends State<CustomerSmartAI>
     final msgs =
         (session['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     if (msgs.isEmpty) return;
-    CustomerChatStore.sessionId =
-        (session['id'] as String?)?.startsWith('local_') == false
-        ? session['id'] as String?
-        : null;
+    final sid = session['id'] as String?;
+    // Selected conversation becomes the active one — keep its id so new
+    // messages append to the SAME history entry.
+    if (sid != null && !sid.startsWith('local_')) {
+      CustomerChatStore.sessionId = sid;
+      CustomerChatStore.localSessionId = null;
+    } else {
+      CustomerChatStore.sessionId = null;
+      CustomerChatStore.localSessionId = sid;
+    }
     setState(() {
       CustomerChatStore.messages.clear();
+      String? prevRole;
+      String? prevText;
       for (final m in msgs) {
-        CustomerChatStore.messages.add(
-          _ChatMsg(
-            role: m['role'] as String? ?? 'ai',
-            text: m['text'] as String? ?? '',
-          ),
-        );
+        final role = m['role'] as String? ?? 'ai';
+        final text = m['text'] as String? ?? '';
+        if (role == prevRole && text == prevText) continue; // skip duplicates
+        CustomerChatStore.messages.add(_ChatMsg(role: role, text: text));
+        prevRole = role;
+        prevText = text;
       }
+      CustomerChatStore._lastSavedSig = null; // persist the switch
       _historyOpen = false;
     });
+    // Persist as active slot so app restart reopens this conversation
+    if (_customerUid.isNotEmpty) {
+      await CustomerChatStore.saveChat(_customerUid);
+    }
     _scrollToBottom();
   }
 
@@ -451,15 +543,18 @@ class _CustomerSmartAIState extends State<CustomerSmartAI>
       await CustomerChatStore.saveChat(_customerUid);
       await CustomerChatStore.clearActiveSlot(_customerUid);
     }
-    // Clear server-side session memory
-    if (_sessionId != null) {
+    // Clear server-side session memory (only real server sessions)
+    final oldSid = _sessionId;
+    if (oldSid != null && !oldSid.startsWith('local_')) {
       http
-          .delete(Uri.parse('$_kCustAiBaseUrl/session/$_sessionId'))
+          .delete(Uri.parse('$_kCustAiBaseUrl/session/$oldSid'))
           .catchError((_) => http.Response('', 200));
     }
     if (mounted) {
       setState(() {
-        CustomerChatStore.clear();
+        // Genuinely NEW conversation id — old chat stays in history.
+        // No empty entry is written until the first message is sent.
+        CustomerChatStore.startNewSession();
       });
       // Scroll to top so the welcome screen is fully visible
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -547,6 +642,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI>
       _loading = true;
     });
     _scrollToBottom();
+    CustomerChatStore._lastSavedSig = null; // user message changed state
 
     // Save user message immediately
     if (_customerUid.isNotEmpty) await CustomerChatStore.saveChat(_customerUid);
@@ -570,8 +666,13 @@ class _CustomerSmartAIState extends State<CustomerSmartAI>
         final reply = (data['reply'] as String? ?? '').trim();
         final answer = reply.isNotEmpty ? reply : 'No response generated.';
 
-        if (data['session_id'] != null) {
-          _sessionId = data['session_id'] as String;
+        // Adopt the server session id in place (rename stored history entry)
+        // so no duplicate history item is created.
+        final serverId = data['session_id'] as String?;
+        if (serverId != null && serverId.isNotEmpty && _customerUid.isNotEmpty) {
+          await CustomerChatStore.adoptServerSession(_customerUid, serverId);
+        } else if (serverId != null && serverId.isNotEmpty) {
+          _sessionId = serverId;
         }
 
         if (data['rate_limited'] == true) {
@@ -715,89 +816,30 @@ class _CustomerSmartAIState extends State<CustomerSmartAI>
         iconTheme: const IconThemeData(color: Colors.white),
         title: Row(
           children: [
-            // AI logo in AppBar with animated pulse ring
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                // Outer pulse ring
-                AnimatedBuilder(
-                  animation: _pulseAnim,
-                  builder: (_, __) {
-                    final color = _backendOnline
-                        ? const Color(0xFF4ade80)
-                        : const Color(0xFFF97316);
-                    return Container(
-                      width: 40 + (_pulseAnim.value * 22),
-                      height: 40 + (_pulseAnim.value * 22),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: color.withValues(
-                            alpha: (1 - _pulseAnim.value) * 0.55,
-                          ),
-                          width: 2,
-                        ),
-                      ),
-                    );
-                  },
+            // AI logo in AppBar — clean STATIC logo (moving rings live on the
+            // dashboard floating bubble only); border still reflects status.
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                border: Border.all(
+                  color: _backendOnline
+                      ? const Color(0xFF4ade80)
+                      : const Color(0xFFF97316),
+                  width: 2.5,
                 ),
-                // Inner pulse ring (offset by half a period)
-                AnimatedBuilder(
-                  animation: _pulseAnim,
-                  builder: (_, __) {
-                    final phase = (_pulseAnim.value + 0.45) % 1.0;
-                    final color = _backendOnline
-                        ? const Color(0xFF4ade80)
-                        : const Color(0xFFF97316);
-                    return Container(
-                      width: 40 + (phase * 22),
-                      height: 40 + (phase * 22),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: color.withValues(alpha: (1 - phase) * 0.55),
-                          width: 1.5,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                // Avatar circle with status-colour border
-                Container(
-                  width: 40,
-                  height: 40,
-                  margin: const EdgeInsets.only(right: 0),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white,
-                    border: Border.all(
-                      color: _backendOnline
-                          ? const Color(0xFF4ade80)
-                          : const Color(0xFFF97316),
-                      width: 2.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (_backendOnline
-                                ? const Color(0xFF4ade80)
-                                : const Color(0xFFF97316))
-                            .withValues(alpha: 0.5),
-                        blurRadius: 8,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
-                  child: ClipOval(
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Image.asset(
-                        'assets/img/AI_LOGO.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
+              ),
+              child: ClipOval(
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Image.asset(
+                    'assets/img/AI_LOGO.png',
+                    fit: BoxFit.contain,
                   ),
                 ),
-              ],
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -872,9 +914,10 @@ class _CustomerSmartAIState extends State<CustomerSmartAI>
               icon: const Icon(Icons.delete_outline, color: Colors.white),
               tooltip: 'Clear chat',
               onPressed: () async {
-                if (_sessionId != null) {
+                final oldSid = _sessionId;
+                if (oldSid != null && !oldSid.startsWith('local_')) {
                   http
-                      .delete(Uri.parse('$_kCustAiBaseUrl/session/$_sessionId'))
+                      .delete(Uri.parse('$_kCustAiBaseUrl/session/$oldSid'))
                       .catchError((_) => http.Response('', 200));
                 }
                 if (_customerUid.isNotEmpty) {
@@ -882,7 +925,8 @@ class _CustomerSmartAIState extends State<CustomerSmartAI>
                   await CustomerChatStore.clearActiveSlot(_customerUid);
                 }
                 setState(() {
-                  CustomerChatStore.clear();
+                  // Genuinely NEW conversation id — old chat stays in history.
+                  CustomerChatStore.startNewSession();
                 });
               },
             ),
@@ -1348,8 +1392,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI>
                             '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}';
                         final isActive =
                             s['id'] ==
-                            (CustomerChatStore.sessionId ??
-                                'local_$_customerUid');
+                            CustomerChatStore.effectiveSid;
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

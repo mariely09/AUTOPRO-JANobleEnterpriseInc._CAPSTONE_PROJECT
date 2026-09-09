@@ -425,8 +425,11 @@ window.adminAvatarLogout = function() {
             var u = JSON.parse(stored);
             if (u && u.uid) {
                 localStorage.removeItem('rag_chat_' + u.uid);
+                localStorage.removeItem('rag_ai_active_' + u.uid);
                 localStorage.removeItem('ai_chat_' + u.uid);
+                localStorage.removeItem('ai_active_' + u.uid);
                 localStorage.removeItem('ai_widget_chat_' + u.uid);
+                localStorage.removeItem('ai_widget_active_' + u.uid);
             }
         }
     } catch(e) {}

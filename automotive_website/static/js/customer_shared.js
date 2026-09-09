@@ -102,8 +102,11 @@
                 var cpUser = JSON.parse(stored);
                 if (cpUser && cpUser.uid) {
                     localStorage.removeItem('ai_chat_' + cpUser.uid);
+                    localStorage.removeItem('ai_active_' + cpUser.uid);
                     localStorage.removeItem('ai_widget_chat_' + cpUser.uid);
+                    localStorage.removeItem('ai_widget_active_' + cpUser.uid);
                     localStorage.removeItem('rag_chat_' + cpUser.uid);
+                    localStorage.removeItem('rag_ai_active_' + cpUser.uid);
                 }
             }
         } catch(e) {}

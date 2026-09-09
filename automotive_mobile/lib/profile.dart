@@ -1193,6 +1193,14 @@ class _UserProfileState extends State<UserProfile> {
           ),
           TextButton(
             onPressed: () async {
+              // End the active AI chat session in the UI. History entries
+              // remain on device (per-UID) but the active slot is cleared so
+              // the next login starts fresh instead of restoring this chat.
+              final uid = FirebaseAuth.instance.currentUser?.uid;
+              if (uid != null && uid.isNotEmpty) {
+                await AdminChatStore.clearActiveSlot(uid);
+                await CustomerChatStore.clearActiveSlot(uid);
+              }
               AdminChatStore.clear();
               CustomerChatStore.clear();
               await FirebaseAuth.instance.signOut();

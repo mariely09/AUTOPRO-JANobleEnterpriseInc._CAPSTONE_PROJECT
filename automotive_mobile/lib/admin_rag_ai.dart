@@ -142,27 +142,87 @@ String? _extractMonthFromMessage(String message) {
 class AdminChatStore {
   static final List<_ChatMessage> messages = [];
   static String? sessionId;
+  static String? localSessionId; // stable local conversation id (pre server assignment)
   static bool rateLimited = false;
   static String resetIn = '';
+  static String? _lastSavedSig; // dedupe guard: signature of the last save
 
   // SharedPreferences key helpers
   static String _activeKey(String uid) => 'rag_ai_active_$uid';
   static String _storageKey(String uid) => 'rag_ai_chat_$uid';
 
+  /// Stable unique id for a NEW conversation. Generated once per conversation
+  /// (on New Chat), then reused across restarts so every write for the same
+  /// conversation lands on the same history slot instead of duplicating it.
+  static String newLocalId() =>
+      'local_${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecondsSinceEpoch % 46656).toRadixString(36)}';
+
+  /// The id under which this conversation is currently stored.
+  static String? get effectiveSid => sessionId ?? localSessionId;
+
   static void clear() {
     messages.clear();
     sessionId = null;
+    localSessionId = null;
     rateLimited = false;
     resetIn = '';
+    _lastSavedSig = null;
+  }
+
+  /// Begin a genuinely NEW conversation (New Chat): fresh unique id, old chat
+  /// stays in history. Nothing is persisted until the first message is sent.
+  static void startNewSession() {
+    clear();
+    localSessionId = newLocalId();
+  }
+
+  /// Rename the stored conversation (history list + active slot) when the
+  /// server assigns its real session id, so the same conversation never
+  /// appears as two history entries.
+  static Future<void> adoptServerSession(String uid, String serverId) async {
+    final oldId = effectiveSid;
+    if (oldId == null || oldId == serverId) {
+      sessionId = serverId;
+      localSessionId = null;
+      return;
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Rename in the history list
+      final all = await loadAllSessions(uid);
+      final idx = all.indexWhere((s) => s['id'] == oldId);
+      if (idx >= 0) all[idx]['id'] = serverId;
+      // Drop an older entry already stored under the server id (past duplicates)
+      all.removeWhere((s) => s['id'] == serverId && all.indexOf(s) != idx);
+      await prefs.setString(_storageKey(uid), jsonEncode(all));
+      // Rename in the active slot
+      final raw = prefs.getString(_activeKey(uid));
+      if (raw != null) {
+        final entry = jsonDecode(raw) as Map<String, dynamic>;
+        if (entry['id'] == oldId) {
+          entry['id'] = serverId;
+          await prefs.setString(_activeKey(uid), jsonEncode(entry));
+        }
+      }
+    } catch (_) {}
+    sessionId = serverId;
+    localSessionId = null;
+    _lastSavedSig = null;
   }
 
   /// Persist current in-memory messages as the active session + upsert into
   /// the history list. Call after every AI reply and on clear/page-exit.
+  /// Idempotent: skips the write when nothing changed since the last save.
   static Future<void> saveChat(String uid) async {
     if (messages.isEmpty) return;
     try {
+      // Dedupe guard — avoid re-writing identical state on every event
+      final sig = '${effectiveSid ?? ''}|${messages.length}|${messages.last.text ?? ''}';
+      if (sig == _lastSavedSig) return;
+      _lastSavedSig = sig;
       final prefs = await SharedPreferences.getInstance();
-      final sid = sessionId ?? 'local_$uid';
+      final sid = effectiveSid ?? newLocalId();
+      if (sessionId == null && localSessionId == null) localSessionId = sid;
       final entry = {
         'id': sid,
         'ts': DateTime.now().millisecondsSinceEpoch,
@@ -223,23 +283,40 @@ class AdminChatStore {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_activeKey(uid));
-      if (raw == null) return false;
+      if (raw == null) {
+        localSessionId ??= newLocalId();
+        return false;
+      }
       final entry = jsonDecode(raw) as Map<String, dynamic>;
       final msgs =
           (entry['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      if (msgs.isEmpty) return false;
-      messages.clear();
-      for (final m in msgs) {
-        messages.add(
-          _ChatMessage(
-            role: m['role'] as String? ?? 'ai',
-            text: m['text'] as String? ?? '',
-          ),
-        );
+      if (msgs.isEmpty) {
+        localSessionId ??= newLocalId();
+        return false;
       }
       final sid = entry['id'] as String?;
-      sessionId = (sid != null && !sid.startsWith('local_')) ? sid : null;
-      return true;
+      // Reuse the SAME conversation id so saves keep writing to the same slot
+      if (sid != null && !sid.startsWith('local_')) {
+        sessionId = sid;
+        localSessionId = null;
+      } else {
+        sessionId = null;
+        localSessionId = sid ?? newLocalId();
+      }
+      // Dedupe restored messages (consecutive same-role rows from older saves)
+      messages.clear();
+      String? prevRole;
+      String? prevText;
+      for (final m in msgs) {
+        final role = m['role'] as String? ?? 'ai';
+        final text = m['text'] as String? ?? '';
+        if (role == prevRole && text == prevText) continue; // duplicate row
+        messages.add(_ChatMessage(role: role, text: text));
+        prevRole = role;
+        prevText = text;
+      }
+      _lastSavedSig = null;
+      return messages.isNotEmpty;
     } catch (_) {
       return false;
     }
@@ -402,20 +479,29 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
     final msgs =
         (session['messages'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     if (msgs.isEmpty) return;
-    AdminChatStore.sessionId =
-        (session['id'] as String?)?.startsWith('local_') == false
-        ? session['id'] as String?
-        : null;
+    final sid = session['id'] as String?;
+    // Selected conversation becomes the active one — keep its id so new
+    // messages append to the SAME history entry.
+    if (sid != null && !sid.startsWith('local_')) {
+      AdminChatStore.sessionId = sid;
+      AdminChatStore.localSessionId = null;
+    } else {
+      AdminChatStore.sessionId = null;
+      AdminChatStore.localSessionId = sid;
+    }
     setState(() {
       AdminChatStore.messages.clear();
+      String? prevRole;
+      String? prevText;
       for (final m in msgs) {
-        AdminChatStore.messages.add(
-          _ChatMessage(
-            role: m['role'] as String? ?? 'ai',
-            text: m['text'] as String? ?? '',
-          ),
-        );
+        final role = m['role'] as String? ?? 'ai';
+        final text = m['text'] as String? ?? '';
+        if (role == prevRole && text == prevText) continue; // skip duplicates
+        AdminChatStore.messages.add(_ChatMessage(role: role, text: text));
+        prevRole = role;
+        prevText = text;
       }
+      AdminChatStore._lastSavedSig = null; // force the next save to persist the switch
       _historyOpen = false;
     });
     _scrollToBottom();
@@ -459,12 +545,13 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
     if (_currentUid.isNotEmpty) {
       await AdminChatStore.clearAllHistory(_currentUid);
       // Also clear server session
-      if (_sessionId != null) {
+      if (_sessionId != null && !_sessionId!.startsWith('local_')) {
         http
             .delete(Uri.parse('$_kAiBaseUrl/session/$_sessionId'))
             .catchError((_) => http.Response('', 200));
       }
       AdminChatStore.clear();
+      AdminChatStore.localSessionId = AdminChatStore.newLocalId();
     }
     if (mounted)
       setState(() {
@@ -517,6 +604,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
       _loading = true;
     });
     _scrollToBottom();
+    AdminChatStore._lastSavedSig = null; // user message changed state
 
     // session memory is handled server-side via _sessionId
 
@@ -536,9 +624,13 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         final rawReply = (data['reply'] as String? ?? '').trim();
 
-        // Persist session_id for continuity across turns
-        if (data['session_id'] != null) {
-          _sessionId = data['session_id'] as String;
+        // Persist session_id for continuity across turns — adopt it in place
+        // (rename stored history entry) so no duplicate history item is created.
+        final serverId = data['session_id'] as String?;
+        if (serverId != null && serverId.isNotEmpty && _currentUid.isNotEmpty) {
+          await AdminChatStore.adoptServerSession(_currentUid, serverId);
+        } else if (serverId != null && serverId.isNotEmpty) {
+          _sessionId = serverId;
         }
 
         // Handle rate limit
@@ -1381,15 +1473,18 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
                 await AdminChatStore.saveChat(_currentUid);
                 await AdminChatStore.clearActiveSlot(_currentUid);
               }
-              // Clear server-side session memory
-              if (_sessionId != null) {
+              // Clear server-side session memory (only real server sessions)
+              final oldSid = _sessionId;
+              if (oldSid != null && !oldSid.startsWith('local_')) {
                 http
-                    .delete(Uri.parse('$_kAiBaseUrl/session/$_sessionId'))
+                    .delete(Uri.parse('$_kAiBaseUrl/session/$oldSid'))
                     .catchError((_) => http.Response('', 200));
               }
               if (mounted) {
                 setState(() {
-                  AdminChatStore.clear();
+                  // Genuinely NEW conversation id — old chat stays in history.
+                  // No empty entry is written until the first message is sent.
+                  AdminChatStore.startNewSession();
                   _history.clear();
                 });
               }
@@ -1411,14 +1506,15 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
                   await AdminChatStore.saveChat(_currentUid);
                   await AdminChatStore.clearActiveSlot(_currentUid);
                 }
-                // Clear server-side session memory
-                if (_sessionId != null) {
+                // Clear server-side session memory (only real server sessions)
+                final oldSid = _sessionId;
+                if (oldSid != null && !oldSid.startsWith('local_')) {
                   http
-                      .delete(Uri.parse('$_kAiBaseUrl/session/$_sessionId'))
+                      .delete(Uri.parse('$_kAiBaseUrl/session/$oldSid'))
                       .catchError((_) => http.Response('', 200));
                 }
                 setState(() {
-                  AdminChatStore.clear();
+                  AdminChatStore.startNewSession();
                   _history.clear();
                 });
               },
@@ -1747,8 +1843,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
                                     '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
                                 final isActive =
                                     s['id'] ==
-                                    (AdminChatStore.sessionId ??
-                                        'local_$_currentUid');
+                                    AdminChatStore.effectiveSid;
                                 return GestureDetector(
                                   onTap: () => _loadSession(s),
                                   child: Container(
