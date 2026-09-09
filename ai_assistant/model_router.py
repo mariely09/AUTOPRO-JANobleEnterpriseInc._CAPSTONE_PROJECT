@@ -137,6 +137,7 @@ _COMPLEX = re.compile(
 _GENERAL = re.compile(
     r"\b("
     r"what\s+is\s+(preventive|pms|regular|scheduled|routine|major)\s+maintenance|"
+    r"what\s+(is|are|does)\s+(an?\s+)?(oil\s+change|change\s+oil|tune-?up)|"
     r"what\s+(is|are)\s+(engine\s+oil|transmission|coolant|brake\s+fluid|tire\s+rotation)|"
     r"(why|how)\s+(is|does|should|do)\s+.*(oil|maintenance|service|tire|brake|coolant|engine)|"
     r"what\s+does\s+(pms|preventive|regular\s+service|tune-?up|oil\s+change)\s+(mean|involve|include)|"
