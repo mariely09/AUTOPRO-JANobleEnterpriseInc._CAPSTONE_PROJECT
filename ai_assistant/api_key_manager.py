@@ -503,7 +503,7 @@ class ApiKeyManager:
         try:
             from groq import Groq
             client = Groq(api_key=plain_key)
-            model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+            model = os.getenv("GROQ_MODEL", os.getenv("GROQ_MODEL_PRIMARY", "qwen/qwen3.6-27b"))
             resp = client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": "ping"}],

@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Usage Controls</title>
+    <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
+    <link rel="stylesheet" href="../static/css/style.css">
+    <link rel="stylesheet" href="../static/css/admin.css">
+    <link rel="stylesheet" href="../static/css/customer_dashboard.css">
+    <link rel="stylesheet" href="../static/css/profile.css">
+    <style>
+        body {
+            background: #F7F8FA !important;
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: unset !important;
+            justify-content: unset !important;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        #adminWrap { display: none; }
+
+        /* ── Page-specific styles ─────────────────────────────────────────── */
+        .aiuc-section { margin-bottom: 20px; }
+        .aiuc-section-title {
+            font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em;
+            text-transform: uppercase; color: #718096; margin: 0 0 10px 2px;
+        }
+        .aiuc-row {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 16px; padding: 14px 0; border-bottom: 1px solid #EDF0F4;
+        }
+        .aiuc-row:last-child { border-bottom: none; }
+        .aiuc-row-label { font-size: 0.9rem; font-weight: 600; color: #1a202c; }
+        .aiuc-row-sub   { font-size: 0.78rem; color: #718096; margin-top: 3px; line-height: 1.45; }
+        .aiuc-select {
+            border: 1px solid #D9E0E8; border-radius: 10px; background: #fff;
+            padding: 8px 12px; font-size: 0.85rem; font-weight: 600; color: #1a202c;
+            min-width: 150px; cursor: pointer; outline: none;
+        }
+        .aiuc-input {
+            border: 1px solid #D9E0E8; border-radius: 10px; background: #fff;
+            padding: 8px 12px; font-size: 0.85rem; font-weight: 600; color: #1a202c;
+            width: 130px; text-align: right; outline: none;
+        }
+        .aiuc-input:focus, .aiuc-select:focus { border-color: #E8001C; }
+        .aiuc-input:disabled, .aiuc-select:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        /* iOS-style toggle switch */
+        .aiuc-switch { position: relative; display: inline-block; width: 46px; height: 26px; flex-shrink: 0; }
+        .aiuc-switch input { opacity: 0; width: 0; height: 0; }
+        .aiuc-slider {
+            position: absolute; cursor: pointer; inset: 0;
+            background: #CBD5E0; border-radius: 26px; transition: background 0.2s;
+        }
+        .aiuc-slider:before {
+            content: ""; position: absolute; height: 20px; width: 20px;
+            left: 3px; top: 3px; background: #fff; border-radius: 50%;
+            transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .aiuc-switch input:checked + .aiuc-slider { background: #38a169; }
+        .aiuc-switch input:disabled + .aiuc-slider { opacity: 0.45; cursor: not-allowed; }
+        .aiuc-switch input:checked + .aiuc-slider:before { transform: translateX(20px); }
+
+        /* Usage overview grid */
+        .aiuc-overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+        .aiuc-stat {
+            background: #F7F8FA; border: 1px solid #EDF0F4; border-radius: 12px;
+            padding: 14px 16px;
+        }
+        .aiuc-stat-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #718096; }
+        .aiuc-stat-value { font-size: 1.25rem; font-weight: 800; color: #1a202c; margin-top: 4px; }
+        .aiuc-stat-value.aiuc-ok   { color: #38a169; }
+        .aiuc-stat-value.aiuc-warn { color: #dd6b20; }
+
+        .aiuc-save-btn {
+            background: #E8001C; color: #fff; border: none; border-radius: 12px;
+            padding: 12px 28px; font-size: 0.9rem; font-weight: 700; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 8px; transition: opacity 0.15s;
+        }
+        .aiuc-save-btn:hover { opacity: 0.9; }
+        .aiuc-save-btn:disabled { opacity: 0.55; cursor: wait; }
+
+        .aiuc-loading { text-align: center; color: #718096; padding: 48px 0; font-size: 0.9rem; }
+        .aiuc-error-box {
+            background: #FFF5F5; border: 1px solid #FED7D7; color: #C53030;
+            border-radius: 12px; padding: 14px 18px; font-size: 0.85rem; margin-bottom: 16px;
+        }
+        .aiuc-reset-note { font-size: 0.78rem; color: #718096; margin-top: 6px; }
+    </style>
+</head>
+<body class="portal-body" data-page="ai_usage_controls">
+<script>
+// Instant auth guard — blocks bfcache back-navigation after logout
+(function() {
+  var logoutTime = localStorage.getItem('_loggedOut');
+  var loginTime  = localStorage.getItem('_loggedIn');
+  if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+    return;
+  }
+  var ap = sessionStorage.getItem('apUser');
+  if (!ap) {
+    document.documentElement.style.display = 'none';
+    window.location.replace('/login.html');
+  }
+  // Admin-only page: customers/staff are redirected to their profile.
+  try {
+    if (JSON.parse(ap || '{}').role !== 'admin') window.location.replace('/profile.html');
+  } catch (e) { window.location.replace('/login.html'); }
+})();
+</script>
+
+<!-- Admin layout -->
+<div id="adminWrap" style="flex-direction:row;width:100%;min-height:100vh;" class="admin-dashboard">
+    <div id="sidebarContainer"></div>
+
+    <div class="admin-page-shell" style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh;">
+        <div id="headerContainer"></div>
+
+        <div class="admin-main">
+            <div class="admin-content" style="overflow-y:auto;">
+                <div id="aiucContent">
+                    <div class="pf-page-wrapper"><div class="aiuc-loading">Loading AI settings…</div></div>
+                </div>
+            </div>
+        </div>
+    </div><!-- /.admin-page-shell -->
+</div>
+
+<div id="toast"></div>
+
+<script src="../static/js/data.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+if (!firebase.apps.length) {
+    firebase.initializeApp({
+        apiKey: "AIzaSyCaoJWbwJk0Xi694ARHpdHhiNjT0SpASRs",
+        authDomain: "caltex-autopro-1e664.firebaseapp.com",
+        projectId: "caltex-autopro-1e664",
+        storageBucket: "caltex-autopro-1e664.firebasestorage.app",
+        messagingSenderId: "930140433367",
+        appId: "1:930140433367:web:cf67bfa388fa517422b992"
+    });
+}
+</script>
+
+<script>
+// Role guard passed — reveal the admin layout immediately (the CSS above
+// keeps it hidden to avoid flashing the wrong layout for non-admins).
+document.getElementById('adminWrap').style.display = 'flex';
+</script>
+
+<script>
+// ── Bootstrap admin chrome (sidebar + header), same pattern as profile.html ──
+(function() {
+    function loadScript(src) {
+        return new Promise(function(resolve) {
+            var s = document.createElement('script');
+            s.src = src; s.onload = resolve; s.onerror = resolve;
+            document.body.appendChild(s);
+        });
+    }
+    var sess = {};
+    try { sess = JSON.parse(sessionStorage.getItem('apUser') || '{}'); } catch (e) {}
+    var name = sess.name || 'Administrator';
+    var parts = name.trim().split(' ').filter(Boolean);
+    var ini = parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : (parts[0] ? parts[0][0].toUpperCase() : 'AD');
+
+    loadScript('../static/js/data.js')
+        .then(function() { return loadScript('../static/js/admin_sidebar.js'); })
+        .then(function() { return new Promise(function(r) { setTimeout(r, 500); }); })
+        .then(function() {
+            var nameEl = document.getElementById('adminName');
+            var avatarEl = document.getElementById('adminAvatar');
+            var avatarMenuName = document.getElementById('adminAvatarName');
+            var sidebarNameEl = document.getElementById('sidebarName');
+            var sidebarAvatarEl = document.getElementById('sidebarAvatar');
+            if (nameEl) nameEl.textContent = name;
+            if (avatarEl) avatarEl.textContent = ini;
+            if (avatarMenuName) avatarMenuName.textContent = name;
+            if (sidebarNameEl) sidebarNameEl.textContent = name;
+            if (sidebarAvatarEl) sidebarAvatarEl.textContent = ini;
+            var pt = document.getElementById('pageTitle');
+            if (pt) pt.textContent = 'Profile';
+        })
+        .then(function() { return loadScript('../static/js/admin_firebase.js'); })
+        .then(function() { return loadScript('../static/js/admin_functions.js'); })
+        .then(function() { return loadScript('../static/js/admin.js'); });
+})();
+</script>
+
+<script>
+// ── State + helpers ──────────────────────────────────────────────────────────
+var _aiucSettings = null;
+var _aiucOverview = null;
+var _aiucDirty = false;
+var _aiucBackendOk = false; // true once we've confirmed backend is reachable
+
+// ── Default settings — used when backend is offline ───────────────────────
+var _AIUC_DEFAULTS = {
+    customer_ai_enabled:     true,
+    customer_token_limit:    0,
+    dev_access_enabled:      false,
+    dev_bypass_token_limit:  false,
+    dev_access_while_paused: false,
+};
+var _AIUC_OVERVIEW_DEFAULTS = {
+    customer_tokens_used:    0,
+    customer_token_limit:    0,
+    customers_at_limit:      0,
+    customer_ai_status:      'Active',
+    next_reset:              '—',
+    active_customers_today:  0,
+};
+var _AIUC_LOCAL_KEY = 'aiuc_settings_cache';
+
+function _aiucLoadLocal() {
+    try {
+        var raw = localStorage.getItem(_AIUC_LOCAL_KEY);
+        if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return null;
+}
+function _aiucSaveLocal(settings) {
+    try { localStorage.setItem(_AIUC_LOCAL_KEY, JSON.stringify(settings)); } catch (e) {}
+}
+
+function _esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _showToast(msg, type) {
+    var t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.className = 'toast-visible toast-' + (type || 'success');
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(function() { t.className = ''; }, 3000);
+}
+
+// Resolve a real Firebase ID token for the server-side admin check.
+function _authHeaders(forceRefresh, cb) {
+    var u = firebase.auth().currentUser;
+    if (!u) { cb({ 'Content-Type': 'application/json' }); return; }
+    u.getIdToken(forceRefresh).then(function(tok) {
+        cb({ 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' });
+    }).catch(function() {
+        cb({ 'Authorization': 'Bearer ' + (window.__aiucLastToken || u.uid), 'Content-Type': 'application/json' });
+    });
+}
+
+// ── Show/hide backend status banner (non-blocking) ────────────────────────
+function _aiucSetBanner(msg) {
+    var box = document.getElementById('aiucErrorBox');
+    if (!box) return;
+    if (!msg) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="aiuc-error-box" style="margin-bottom:14px;">' + msg + '</div>';
+}
+
+// ── Firestore helpers — read & write ai_settings/global directly ──────────
+// This bypasses the Flask proxy and the AI backend entirely, so the page
+// works regardless of whether the AI backend is running.
+var _db = null;
+function _getDb() {
+    if (!_db) _db = firebase.firestore();
+    return _db;
+}
+var _AIUC_FS_COLLECTION = 'ai_settings';
+var _AIUC_FS_DOC        = 'global';
+
+function _aiucFsLoad(cb) {
+    _getDb().collection(_AIUC_FS_COLLECTION).doc(_AIUC_FS_DOC).get()
+        .then(function(snap) {
+            var data = snap.exists ? (snap.data() || {}) : {};
+            cb(null, data);
+        })
+        .catch(function(err) { cb(err, null); });
+}
+
+function _aiucFsSave(payload, cb) {
+    _getDb().collection(_AIUC_FS_COLLECTION).doc(_AIUC_FS_DOC)
+        .set(payload, { merge: true })
+        .then(function() { cb(null); })
+        .catch(function(err) { cb(err); });
+}
+
+// ── Data loading — reads directly from Firestore, no proxy needed ─────────
+function _aiucLoad() {
+    // Render immediately with cache/defaults so the UI is never blank
+    var cached = _aiucLoadLocal();
+    if (!_aiucSettings) {
+        _aiucSettings = cached
+            ? Object.assign({}, _AIUC_DEFAULTS, cached)
+            : Object.assign({}, _AIUC_DEFAULTS);
+    }
+    if (!_aiucOverview) {
+        _aiucOverview = Object.assign({}, _AIUC_OVERVIEW_DEFAULTS);
+    }
+    _aiucRender();
+
+    // Sync from Firestore in the background
+    _aiucFsLoad(function(err, data) {
+        if (err) {
+            // Still show the UI — just keep the cached/default values
+            _aiucSetBanner('<strong>Note:</strong> Could not load live settings from the database. Showing last known values.');
+            return;
+        }
+        // Merge Firestore data over defaults
+        var merged = Object.assign({}, _AIUC_DEFAULTS);
+        ['customer_ai_enabled','customer_token_limit','dev_access_enabled',
+         'dev_bypass_token_limit','dev_access_while_paused'].forEach(function(k) {
+            if (k in data && data[k] !== null && data[k] !== undefined) {
+                merged[k] = data[k];
+            }
+        });
+        _aiucSettings = merged;
+        _aiucSaveLocal(merged);
+        _aiucRender();
+        _aiucSetBanner('');
+    });
+}
+
+// ── UI building blocks ───────────────────────────────────────────────────────
+function _aiucSwitch(id, checked) {
+    return '<label class="aiuc-switch">'
+        + '<input type="checkbox" id="' + id + '"' + (checked ? ' checked' : '')
+        + ' onchange="_aiucDirty=true;_aiucSyncCascade()">'
+        + '<span class="aiuc-slider"></span></label>';
+}
+
+function _aiucRow(label, sub, controlHtml) {
+    return '<div class="aiuc-row">'
+        + '<div><div class="aiuc-row-label">' + label + '</div>'
+        + (sub ? '<div class="aiuc-row-sub">' + sub + '</div>' : '')
+        + '</div>' + controlHtml + '</div>';
+}
+
+function _aiucSection(title, inner) {
+    return '<div class="aiuc-section">'
+        + '<div class="profile-section-card">'
+        +   '<div class="profile-section-head">'
+        +     '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#004B5F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
+        +     '<span class="profile-section-head-title">' + title + '</span>'
+        +   '</div>'
+        +   inner
+        + '</div></div>';
+}
+
+function _aiucStat(label, value, cls) {
+    return '<div class="aiuc-stat"><div class="aiuc-stat-label">' + label + '</div>'
+        + '<div class="aiuc-stat-value' + (cls ? ' ' + cls : '') + '">' + value + '</div></div>';
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function _aiucRender() {
+    var s = _aiucSettings, o = _aiucOverview;
+    var limitVal = (typeof s.customer_token_limit === 'number' && s.customer_token_limit > 0)
+        ? s.customer_token_limit : 30000;
+
+    var limitEnabledHtml = _aiucSwitch('aiucLimitEnabled', !!s.customer_token_limit && s.customer_token_limit > 0)
+        + '<input type="number" id="aiucTokenLimit" class="aiuc-input" min="1000" step="1000"'
+        +       ' value="' + limitVal + '"'
+        +       (s.customer_token_limit > 0 ? '' : ' disabled') + '>';
+
+    var devOn = !!s.dev_access_enabled;
+    var devHtml = _aiucSwitch('aiucDevAccess', devOn)
+        + '<div style="display:flex;flex-direction:column;gap:10px;">'
+        +   '<div style="display:flex;align-items:center;gap:10px;">'
+        +     '<span style="font-size:0.8rem;color:#4a5568;max-width:230px;">Allow Developer/Test users to bypass customer token limit</span>'
+        +     _aiucSwitch('aiucDevBypass', !!s.dev_bypass_token_limit)
+        +   '</div>'
+        +   '<div style="display:flex;align-items:center;gap:10px;">'
+        +     '<span style="font-size:0.8rem;color:#4a5568;max-width:230px;">Allow Developer/Test users while Customer AI is paused</span>'
+        +     _aiucSwitch('aiucDevWhilePaused', !!s.dev_access_while_paused)
+        +   '</div>'
+        + '</div>';
+
+    var html = '<div class="pf-page-wrapper">'
+        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">'
+        +   '<a href="profile.html" style="color:#718096;display:inline-flex;align-items:center;" title="Back to Profile">'
+        +     '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'
+        +   '</a>'
+        +   '<span style="font-size:0.8rem;color:#718096;">Profile <span style="margin:0 4px;">/</span> Settings <span style="margin:0 4px;">/</span> <strong style="color:#1a202c;">AI Usage Controls</strong></span>'
+        + '</div>'
+        + '<div id="aiucErrorBox"></div>'
+
+        // CUSTOMER AI ACCESS
+        + _aiucSection('Customer AI Access',
+            _aiucRow('Customer AI Status',
+                     'Temporarily prevents customers from using the AI Assistant.',
+                     '<span id="aiucStatusPill" style="font-size:0.8rem;font-weight:700;color:'
+                       + (s.customer_ai_enabled ? '#38a169' : '#dd6b20') + ';">'
+                       + (s.customer_ai_enabled ? 'ON' : 'PAUSED') + '</span>'
+                       + _aiucSwitch('aiucCustomerAI', !!s.customer_ai_enabled)))
+
+        // CUSTOMER TOKEN LIMIT
+        + _aiucSection('Customer Token Limit',
+            _aiucRow('Enable Customer Token Limit',
+                     'Controls the maximum number of AI tokens a customer can use during each quota period.',
+                     limitEnabledHtml))
+
+        // TOKEN RESET
+        + _aiucSection('Token Reset',
+            _aiucRow('Reset Frequency', '', '<select class="aiuc-select" id="aiucResetFreq" disabled><option>Daily</option></select>')
+            + _aiucRow('Reset Time', '', '<select class="aiuc-select" id="aiucResetTime" disabled><option>12:00 AM</option></select>')
+            + _aiucRow('Timezone', '', '<select class="aiuc-select" id="aiucTimezone" disabled><option>Asia/Manila</option></select>')
+            + '<div class="aiuc-reset-note">Next reset: <strong>' + _esc(o.next_reset || '—') + '</strong>'
+            + ' — reset schedule is fixed to midnight Philippine time and cannot be changed here.</div>')
+
+        // DEVELOPER / TEST ACCESS
+        + _aiucSection('Developer / Test Access',
+            _aiucRow('Developer/Test Access',
+                     'Allows authorized developer/test accounts to test the Customer AI without consuming the customer quota.',
+                     devHtml))
+
+        // USAGE OVERVIEW
+        + _aiucSection('Usage Overview',
+            '<div class="aiuc-overview">'
+            + _aiucStat('Customer Tokens Used', (o.customer_tokens_used || 0).toLocaleString())
+            + _aiucStat('Customer Token Limit', (o.customer_token_limit || 0) > 0 ? (o.customer_token_limit).toLocaleString() + ' / customer' : 'Default')
+            + _aiucStat('Customers at Limit', o.customers_at_limit || 0, (o.customers_at_limit || 0) > 0 ? 'aiuc-warn' : '')
+            + _aiucStat('Customer AI Status', o.customer_ai_status || 'Active', o.customer_ai_status === 'Active' ? 'aiuc-ok' : 'aiuc-warn')
+            + '</div>'
+            + '<div class="aiuc-reset-note">Next reset: ' + _esc(o.next_reset || '—') + '</div>')
+
+        // Save bar
+        + '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px;">'
+        +   '<button class="aiuc-save-btn" id="aiucSaveBtn" onclick="_aiucSave()">Save Changes</button>'
+        + '</div>'
+        + '</div>';
+
+    var box = document.getElementById('aiucContent');
+    if (box) box.innerHTML = html;
+
+    // Cascade: customer AI off → dev sub-toggles honor "while paused" state.
+    _aiucSyncCascade();
+}
+
+function _aiucSyncCascade() {
+    var custAI  = document.getElementById('aiucCustomerAI');
+    var devOn   = document.getElementById('aiucDevAccess');
+    var limitOn = document.getElementById('aiucLimitEnabled');
+    if (!custAI || !devOn || !limitOn) return;
+
+    var limitInput = document.getElementById('aiucTokenLimit');
+    limitInput.disabled = !limitOn.checked;
+
+    var bypass  = document.getElementById('aiucDevBypass');
+    var whileP  = document.getElementById('aiucDevWhilePaused');
+    bypass.disabled  = !devOn.checked;
+    whileP.disabled  = !devOn.checked;
+
+    var statusPill = document.getElementById('aiucStatusPill');
+    if (statusPill) {
+        statusPill.textContent = custAI.checked ? 'ON' : 'PAUSED';
+        statusPill.style.color = custAI.checked ? '#38a169' : '#dd6b20';
+    }
+}
+
+// ── Save ─────────────────────────────────────────────────────────────────────
+function _aiucSave() {
+    var btn = document.getElementById('aiucSaveBtn');
+    if (!btn) return;
+    var payload = {
+        customer_ai_enabled:     !!document.getElementById('aiucCustomerAI').checked,
+        customer_token_limit:    document.getElementById('aiucLimitEnabled').checked
+                                    ? Math.max(1000, parseInt(document.getElementById('aiucTokenLimit').value, 10) || 0)
+                                    : 0,
+        dev_access_enabled:      !!document.getElementById('aiucDevAccess').checked,
+        dev_bypass_token_limit:  !!document.getElementById('aiucDevBypass').checked,
+        dev_access_while_paused: !!document.getElementById('aiucDevWhilePaused').checked,
+    };
+
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    // Write directly to Firestore — no proxy, no AI backend dependency
+    _aiucFsSave(payload, function(err) {
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+        if (err) {
+            _showToast('Could not save settings. Please try again.', 'error');
+            return;
+        }
+        // Keep local cache in sync
+        _aiucSettings = Object.assign({}, _aiucSettings, payload);
+        _aiucSaveLocal(_aiucSettings);
+        _aiucSetBanner('');
+        _showToast('Settings saved successfully.', 'success');
+
+        // Also notify the AI backend so its in-memory cache refreshes
+        // (best-effort — failure here is silent since Firestore is the source of truth)
+        _authHeaders(false, function(headers) {
+            fetch('/api/ai-settings', {
+                method: 'PUT', headers: headers, body: JSON.stringify(payload),
+            }).catch(function() { /* silent — Firestore already saved */ });
+        });
+    });
+}
+
+// Load once Firebase auth resolves.
+firebase.auth().onAuthStateChanged(function(user) {
+    if (user) {
+        _aiucLoad();
+    } else {
+        var hasSession = sessionStorage.getItem('apUser');
+        if (!hasSession) window.location.replace('/login.html');
+    }
+});
+</script>
+</body>
+</html>

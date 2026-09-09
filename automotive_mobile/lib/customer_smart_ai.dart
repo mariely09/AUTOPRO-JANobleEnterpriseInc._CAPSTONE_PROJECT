@@ -13,9 +13,15 @@ const _kCustAiBaseUrl = String.fromEnvironment(
   defaultValue: 'https://caltex-autopro-capstone-project.onrender.com',
 );
 
+// Flask/website backend — used to read the admin AI-pause status.
+const _kCustFlaskBase = String.fromEnvironment(
+  'FLASK_API_URL',
+  defaultValue: 'https://caltex-autopro.onrender.com',
+);
+
 // ── Per-customer daily token limit ────────────────────────────────────────────
 // Customers are limited to 2 000 tokens per day to prevent abuse.
-const _kCustomerDailyTokenLimit = 2000;
+const _kCustomerDailyTokenLimit = 0; // 0 = unlimited
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Static chat store — survives page navigation (cleared on logout/refresh/delete)
@@ -241,10 +247,12 @@ class CustomerChatStore {
   }
 
   static Future<bool> isTokenLimitReached(String uid) async {
+    if (_kCustomerDailyTokenLimit <= 0) return false; // unlimited
     return (await getUsedTokens(uid)) >= _kCustomerDailyTokenLimit;
   }
 
   static Future<int> tokenLimitRemaining(String uid) async {
+    if (_kCustomerDailyTokenLimit <= 0) return 999999; // unlimited
     final used = await getUsedTokens(uid);
     return (_kCustomerDailyTokenLimit - used).clamp(
       0,
@@ -285,6 +293,10 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   bool _tokenLimitReached = false;
   int _tokensRemaining = _kCustomerDailyTokenLimit;
 
+  // ── Admin AI-pause state ───────────────────────────────────────────────────
+  bool _aiPaused = false;
+  String _aiPauseReason = '';
+
   // ── History drawer state ───────────────────────────────────────────────────
   bool _historyOpen = false;
   List<Map<String, dynamic>> _historySessions = [];
@@ -318,11 +330,28 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     if (restored && mounted) setState(() {});
   }
 
-  /// Checks the backend AI key status on startup.
-  /// Previously checked backend AI key status on startup.
-  /// Removed after AI Settings management feature was deleted.
+  /// Checks the backend admin AI-settings to see if customer AI access
+  /// has been paused by the admin, and retrieves the pause reason to show
+  /// as a notice in the chat.
   Future<void> _checkAiStatus() async {
-    // No-op: AI Settings feature has been removed
+    try {
+      final resp = await http
+          .get(Uri.parse('$_kCustFlaskBase/api/ai-settings/public'))
+          .timeout(const Duration(seconds: 15));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        final enabled = (data['customer_ai_enabled'] as bool?) ?? true;
+        final reason = (data['pause_reason'] as String?) ?? '';
+        if (mounted) {
+          setState(() {
+            _aiPaused = !enabled;
+            _aiPauseReason = reason;
+          });
+        }
+      }
+    } catch (_) {
+      // Silently fail — don't show errors for the status check
+    }
   }
 
   @override
@@ -610,7 +639,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   // ─────────────────────────────────────────────────────────────────────────
   Future<void> _send([String? preset]) async {
     final text = (preset ?? _inputCtrl.text).trim();
-    if (text.isEmpty || _loading || _rateLimited) return;
+    if (text.isEmpty || _loading || _rateLimited || _aiPaused) return;
 
     // ── Customer daily token limit check ─────────────────────────────────
     if (_tokenLimitReached) return;
@@ -978,6 +1007,59 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                   ),
                 ),
 
+              // ── Admin AI-paused banner ──────────────────────────────────
+              if (_aiPaused)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFF7ED),
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFFFB923C), width: 2),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.pause_circle_filled,
+                        size: 18,
+                        color: Color(0xFF9A3412),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'AI Assistant is temporarily unavailable',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF9A3412),
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              _aiPauseReason.isNotEmpty
+                                  ? _aiPauseReason
+                                  : 'The AI Assistant has been temporarily paused by the admin. Please try again later.',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF9A3412),
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               // ── Groq rate-limit banner ──────────────────────────────────
               if (_rateLimited)
                 Container(
@@ -1193,8 +1275,10 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                       _FocusInputBar(
                         inputCtrl: _inputCtrl,
                         loading: _loading,
-                        rateLimited: _rateLimited || _tokenLimitReached,
-                        hint: _tokenLimitReached
+                        rateLimited: _rateLimited || _tokenLimitReached || _aiPaused,
+                        hint: _aiPaused
+                            ? 'AI Assistant is temporarily unavailable'
+                            : _tokenLimitReached
                             ? 'Daily message limit reached — resets tomorrow'
                             : _rateLimited
                             ? 'AI unavailable — daily limit reached'

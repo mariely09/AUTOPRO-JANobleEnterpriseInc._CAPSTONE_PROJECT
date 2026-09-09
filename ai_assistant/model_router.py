@@ -256,7 +256,15 @@ _MAINTENANCE_REMINDER = re.compile(
 )
 
 _BOOK_SERVICE = re.compile(
-    r"\b(i\s+want\s+to\s+book"
+    r"\b(earliest\s+(?:available\s+|possible\s+)?(schedule|slot|appointment|booking|date|time)"
+    r"|soonest\s+(?:available\s+)?(schedule|slot|appointment)"
+    r"|first\s+available"
+    r"|asap\s+(booking|schedule|appointment)"
+    r"|pa\s*book|pabook|pa\s*schedule|paschedule"
+    r"|set\s+(up\s+)?an?\s+(appointment|booking)"
+    r"|when\s+can\s+i\s+(book|schedule|come\s+in)"
+    r"|schedule\s+(?:ng\s+)?my\s+service"
+    r"|i\s+want\s+to\s+book"
     r"|book\s+(me\s+)?(a\s+|an\s+)?(service|appointment|pms|oil\s+change|maintenance)"
     r"|book\s+me\s+(a\s+|an\s+)?"
     r"|schedule\s+(me\s+)?(a\s+|an\s+)?(service|appointment|maintenance|pms)"
@@ -346,7 +354,22 @@ def classify_customer_intent(message: str) -> str:
     # Fall through to generic classification for COMPLEX_ANALYSIS / GENERAL_AI_QUESTION
     generic = classify_intent(t)
     if generic in (DATABASE_LOOKUP, DATABASE_CALCULATION):
-        return MY_SERVICE_HISTORY  # map ambiguous DB queries to service history
+        # Only remap to MY_SERVICE_HISTORY when the message clearly refers to
+        # the customer's OWN data (self-reference keyword present).
+        # Queries about other customers, inventory, or admin data must NOT be
+        # remapped — access_control.classify_denial will block them, but
+        # routing them to MY_SERVICE_HISTORY first can cause a data leak if
+        # the denial check has any gap.
+        _SELF_REF_ROUTER = re.compile(
+            r"\b(my|mine|ko|akin|aking|sakin|ako|i\s+have|i\s+spent|"
+            r"i\s+paid|my\s+car|my\s+vehicle|my\s+plate|my\s+booking)\b",
+            re.IGNORECASE,
+        )
+        if _SELF_REF_ROUTER.search(t):
+            return MY_SERVICE_HISTORY
+        # No self-reference — keep as DATABASE_LOOKUP so access_control can
+        # block it before any Firestore read happens.
+        return DATABASE_LOOKUP
     return generic
 
 

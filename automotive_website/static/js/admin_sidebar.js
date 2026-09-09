@@ -158,6 +158,7 @@ const EXPAND_COLLAPSE_PAGES = [
     'change_password.html',
     'notifications.html',
     'help_support.html',
+    'ai_usage_controls.html',
 ];
 
 function _isExpandCollapsePage() {
@@ -186,6 +187,7 @@ function bindHeaderControls() {
         'change_password':        'Change Password',
         'notifications':          'Notifications',
         'help_support':           'Help & Support',
+        'ai_usage_controls':      'AI Usage Controls',
     };
     var titleEl = document.getElementById('adminPageTitle');
     if (titleEl) {

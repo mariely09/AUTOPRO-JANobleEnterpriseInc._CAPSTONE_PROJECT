@@ -15,6 +15,7 @@ import 'admin_rag_ai.dart';
 import 'customer_smart_ai.dart';
 import 'terms_conditions.dart';
 import 'onesignal_debug.dart';
+import 'ai_usage_controls.dart';
 import 'customer_bottomnavbar.dart';
 import 'customer_mybookings.dart';
 import 'customer_pms_history.dart';
@@ -879,6 +880,21 @@ class _UserProfileState extends State<UserProfile> {
                                   MaterialPageRoute(
                                     builder: (_) =>
                                         const OneSignalDebugScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          if (widget.role == UserRole.admin)
+                            _actionTile(
+                              Icons.smart_toy_outlined,
+                              'AI Usage Controls',
+                              'Customer AI status, token limits, reset schedule',
+                              () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const AiUsageControlsScreen(),
                                   ),
                                 );
                               },

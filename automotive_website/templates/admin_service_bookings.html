@@ -131,7 +131,40 @@
                     <div>Actions</div>
                 </div>
                 <div id="rescheduleTableBody">
-                    <div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading...</div>
+                    <!-- Skeleton rows shown instantly while Firestore loads -->
+                    <div id="sbSkeleton" style="padding:0;">
+                      <style>
+                        @keyframes sbShimmer {
+                          0%   { background-position: -600px 0; }
+                          100% { background-position: 600px 0; }
+                        }
+                        .sb-skel-row {
+                          display: grid;
+                          grid-template-columns: 1fr 1.5fr 1.5fr 1fr 0.8fr 1fr 140px;
+                          gap: 0;
+                          padding: 14px 16px;
+                          border-bottom: 1px solid #f0f4f8;
+                          align-items: center;
+                        }
+                        .sb-skel-cell {
+                          height: 14px;
+                          border-radius: 6px;
+                          background: linear-gradient(90deg, #f0f4f8 25%, #e2e8f0 50%, #f0f4f8 75%);
+                          background-size: 600px 100%;
+                          animation: sbShimmer 1.4s infinite linear;
+                          margin-right: 24px;
+                        }
+                        .sb-skel-cell.short  { width: 55%; }
+                        .sb-skel-cell.medium { width: 75%; }
+                        .sb-skel-cell.badge  { width: 64px; height: 20px; border-radius: 20px; }
+                        .sb-skel-cell.btn    { width: 80px; height: 26px; border-radius: 7px; }
+                      </style>
+                      <div class="sb-skel-row"><div class="sb-skel-cell short"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell badge"></div><div class="sb-skel-cell btn"></div></div>
+                      <div class="sb-skel-row"><div class="sb-skel-cell short"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell badge"></div><div class="sb-skel-cell btn"></div></div>
+                      <div class="sb-skel-row"><div class="sb-skel-cell short"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell badge"></div><div class="sb-skel-cell btn"></div></div>
+                      <div class="sb-skel-row"><div class="sb-skel-cell short"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell badge"></div><div class="sb-skel-cell btn"></div></div>
+                      <div class="sb-skel-row"><div class="sb-skel-cell short"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell medium"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell short"></div><div class="sb-skel-cell badge"></div><div class="sb-skel-cell btn"></div></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -295,6 +328,10 @@
     if (!_allDocs.length && window._sbAllDocs && window._sbAllDocs.length) {
       _allDocs = window._sbAllDocs;
     }
+
+    // Remove skeleton on first real render
+    var skel = document.getElementById('sbSkeleton');
+    if (skel) skel.remove();
 
     var docs;
     if (filter === 'all') {
@@ -690,6 +727,11 @@
     s('sbStatRescheduled', rescheduled);
     s('sbStatCancelled', cancelled);
   }
+  // Expose so admin_firebase.js global listener can call stats refresh from outside this IIFE
+  window._sbUpdateStats = function() {
+    if (window._sbAllDocs && window._sbAllDocs.length) _allDocs = window._sbAllDocs;
+    _updateStats();
+  };
 
   // ── Auto-cancel past-due bookings ────────────────────────────────────────
   // Cancels any Approved/Pending booking that was never started when:
@@ -769,52 +811,49 @@
     });
   }
 
-  // Real-time listener on service_bookings
-  db.collection('service_bookings')
-    .orderBy('createdAt', 'desc')
-    .onSnapshot(function(snap) {
-      _allDocs = snap.docs.map(function(d) {
-        var data = d.data();
-        data.id = d.id;
-        data.createdAt = data.createdAt || null;
-        return data;
-      });
-      window._sbAllDocs = _allDocs; // keep window ref in sync
-      _autoCancelPastDue(_allDocs);
-      _updateStats();
-      renderRescheduleList();
-      // ── Save for instant restore ──
-      try {
-        var _sbUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
-        if (_sbUid) {
-          // Strip Firestore Timestamps (not serialisable) before saving
-          var _saveable = _allDocs.map(function(d) {
-            var copy = Object.assign({}, d);
-            if (copy.createdAt && typeof copy.createdAt.toMillis === 'function') {
-              copy.createdAt = { _ms: copy.createdAt.toMillis() };
-            }
-            return copy;
-          });
-          sessionStorage.setItem('bookingsCache_' + _sbUid, JSON.stringify(_saveable.slice(0, 500)));
+  // ── Data loading — use globally pre-loaded data from admin_firebase.js ──────
+  // admin_firebase.js already listens to service_bookings and stores it in
+  // window._fbBookings. We just read from there instead of opening a second
+  // Firestore connection per page, which was causing the visible delay.
+  function _loadFromGlobal() {
+    var docs = window._fbBookings || [];
+    if (!docs.length) return false;
+    _allDocs = docs;
+    window._sbAllDocs = _allDocs;
+    _autoCancelPastDue(_allDocs);
+    _updateStats();
+    renderRescheduleList();
+    return true;
+  }
+
+  // Try immediately (data may already be loaded from another tab/section)
+  if (!_loadFromGlobal()) {
+    // Data not ready yet — poll briefly until admin_firebase.js listener fires
+    var _sbPollCount = 0;
+    var _sbPoll = setInterval(function() {
+      _sbPollCount++;
+      if (_loadFromGlobal() || _sbPollCount >= 40) {
+        clearInterval(_sbPoll);
+        // If still empty after 4s, fall back to a direct one-shot get
+        if (!_allDocs.length) {
+          db.collection('service_bookings').orderBy('createdAt', 'desc').get()
+            .then(function(snap) {
+              _allDocs = snap.docs.map(function(d) {
+                var data = d.data(); data.id = d.id; return data;
+              });
+              window._sbAllDocs = _allDocs;
+              _autoCancelPastDue(_allDocs);
+              _updateStats();
+              renderRescheduleList();
+            });
         }
-      } catch(e) {}
-    }, function() {
-      db.collection('service_bookings').get().then(function(snap) {
-        _allDocs = snap.docs.map(function(d) {
-          var data = d.data();
-          data.id = d.id;
-          return data;
-        });
-        _autoCancelPastDue(_allDocs);
-        _updateStats();
-        renderRescheduleList();
-      });
-    });
+      }
+    }, 100); // check every 100ms
+  }
 })();
 </script>
-
+<!-- ── Instant cache restore — runs AFTER all scripts so render fn is defined ── -->
 <script>
-// Cache restore for service bookings — runs after all scripts
 (function() {
   try {
     var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
@@ -823,17 +862,25 @@
     if (!raw) return;
     var docs = JSON.parse(raw);
     if (!Array.isArray(docs) || !docs.length) return;
-    // Only restore if Firestore hasn't populated _allDocs yet
-    if (window._sbAllDocs && window._sbAllDocs.length) return;
-    // Restore Timestamp-like objects
+
+    // Skip if global listener already populated data
+    if (window._fbBookings && window._fbBookings.length) return;
+
+    // Restore serialised Timestamps
     docs.forEach(function(d) {
       if (d.createdAt && d.createdAt._ms) {
         var ms = d.createdAt._ms;
         d.createdAt = { toMillis: function() { return ms; }, seconds: Math.floor(ms / 1000) };
       }
     });
-    window._sbAllDocs = docs;
-    if (typeof window.renderRescheduleList === 'function') window.renderRescheduleList();
+
+    // Inject into the global so _loadFromGlobal picks it up
+    window._fbBookings = docs;
+
+    // renderRescheduleList IS defined here because all scripts above have run
+    if (typeof window.renderRescheduleList === 'function') {
+      window.renderRescheduleList();
+    }
   } catch(e) {}
 })();
 </script>
