@@ -41,23 +41,32 @@ def _is_taglish(text: str) -> bool:
 # ── Other-customer detection ─────────────────────────────────────────────────
 # Filipino possessive "ni <Name>" / "nina <Names>" / "kay <Name>"
 _FIL_OWNER = re.compile(
-    r"\b(?:ni|nina|kay|kina)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)", re.UNICODE,
+    r"\b(?:ni|nina|kay|kina)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)", re.UNICODE | re.IGNORECASE,
 )
 
 # English patterns: "<Name>'s <thing>" / "<Name>s' <thing>" — the possessive
 # is MANDATORY so "What are my bookings" can never match. Separate patterns
 # below cover "of customer <Name>" and "belong(s) to <name>".
 _EN_OWNER = re.compile(
-    r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)(?:'s|s')\s+"
+    r"\b([A-Za-z][a-z]+(?:\s+[A-Za-z][a-z]+)*)(?:'s|s')\s+"
     r"(bookings?|vehicles?|cars?|maintenance|history|records?|profile|account|"
     r"pms|services?|appointments?|information|details?|data)",
+    re.IGNORECASE,
 )
 
-# "of customer <name>" / "belong(s) to <name>" — <name> is a capitalized
-# person-name run that must NOT be a self-reference pronoun.
+# "of customer <name>" / "belong(s) to <name>" / "bookings of <name>" /
+# "show <name>'s" — works on both original (capitalized) and normalised
+# (lowercased) text because IGNORECASE is set and the name group accepts
+# lower-case letters too.
 _EN_OWNER2 = re.compile(
-    r"(?:\bof\s+(?:customer|client|user)\s+|\bbelong(?:s)?\s+to\s+)"
-    r"([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*|another\s+customer|other\s+customers?)",
+    r"(?:"
+    r"\bof\s+(?:customer|client|user)\s+"          # "of customer Carla"
+    r"|\bbelong(?:s)?\s+to\s+"                     # "belongs to Juan"
+    r"|\bshow\s+(?:the\s+)?(?:bookings?|history|vehicles?|records?|maintenance)\s+of\s+"  # "show bookings of"
+    r"|\b(?:bookings?|history|vehicles?|records?|maintenance)\s+of\s+(?:customer\s+|client\s+)?"  # "bookings of customer"
+    r")"
+    r"([A-Za-z][a-z]+(?:\s+[A-Za-z][a-z]+)*|another\s+customer|other\s+customers?)",
+    re.IGNORECASE,
 )
 
 # Self-reference pronouns — if the message refers to the customer themselves
@@ -81,10 +90,31 @@ _OTHER_CUSTOMER = re.compile(
 # Proper names of people (heuristic: two capitalized words, or single
 # capitalized word that is a known first name and NOT a system term)
 _KNOWN_FIRST_NAMES = {
+    # Common English names
     "juan", "maria", "jose", "pedro", "ana", "anna", "james", "john", "jane",
     "mike", "michael", "david", "chris", "christopher", "daniel", "mark",
     "paul", "tony", "lisa", "grace", "joy", "angel", "karen", "sharon",
     "jim", "jun", "nena", "ningning", "rosa", "lorna", "beth",
+    # Additional common Filipino names (covers the demo/test cases)
+    "carla", "carlo", "carlos", "jessica", "jennifer", "maricel", "maricon",
+    "rhea", "rhen", "rhenz", "myra", "mylene", "vanessa", "veronica",
+    "cherry", "charry", "charlene", "clarisse", "clarise", "clarice",
+    "joanne", "joanna", "joane", "dianne", "diana", "diane", "raquel",
+    "marilou", "maribel", "maricel", "maricris", "maricar", "maricor",
+    "eden", "edna", "evelyn", "elvie", "elaine", "elisa", "elisea",
+    "ferdinand", "felimon", "felicidad", "felicia", "fely",
+    "george", "gerald", "geraldine", "gloria", "grace",
+    "henry", "harold", "harvey", "helen", "herma", "herminia",
+    "irma", "imelda", "iris", "isabel", "isabelita",
+    "liza", "lizabeth", "luz", "lurdes", "lourdes",
+    "noel", "noemi", "norma", "nora", "norbert",
+    "oliver", "olivia", "oscar", "ofelia",
+    "perla", "patricia", "patrick", "peter",
+    "ramon", "ramos", "randy", "raymond", "rhoda", "richard", "roberto",
+    "roger", "rolando", "romeo", "ronald", "rosario", "rose", "roselyn",
+    "sonia", "susan", "susana", "stella",
+    "victor", "victoria", "villafranca", "vincent",
+    "william", "willy", "winnie",
 }
 # Words that look like names but are system terms — never treat as people.
 _NOT_NAMES = {

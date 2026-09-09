@@ -1049,12 +1049,28 @@ def _customer_direct_lookup(message: str, customer_uid: str,
     Returns dict with reply + tool_calls if handled, or None to fall through.
     Authorization is enforced by the customer_tools functions.
     """
+    # ── Safety guard: never execute a direct DB lookup for a message that
+    # access_control would deny.  This is a defence-in-depth check — Step 1
+    # in _run_customer_chat already calls classify_denial, but intent routing
+    # in model_router or a future change could theoretically slip a denied
+    # query through to here.  Zero cost (pure regex, no I/O).
+    import access_control as _ac
+    _guard = _ac.classify_denial(message)
+    if _guard is not None:
+        return {
+            "reply":      _ac.denial_message(_guard, message),
+            "tool_calls": [],
+            "model":      "none",
+            "intent":     f"ACCESS_DENIED_{_guard}",
+        }
+
     # Only handle data-retrieval intents in the direct path
     _DIRECT_INTENTS = {
         MY_VEHICLES, MY_SERVICE_HISTORY, MY_BOOKINGS,
         SERVICE_PRICES, SERVICE_COST, MAINTENANCE_REMINDER,
         SERVICE_RECOMMENDATION,
-        # Also catch legacy generic intents that map to customer data
+        # DATABASE_LOOKUP is now only routed here when a self-reference
+        # keyword is present (see model_router.classify_customer_intent).
         DATABASE_LOOKUP, DATABASE_CALCULATION,
     }
     if intent not in _DIRECT_INTENTS:

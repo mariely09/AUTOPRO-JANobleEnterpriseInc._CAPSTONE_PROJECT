@@ -265,7 +265,7 @@
             <img src="../static/img/AI_LOGO.png" width="72" height="72" style="object-fit:cover;display:block;" alt="AI Assistant" />
         </div>
         <div class="ai-welcome-title">AI Assistant</div>
-        <div class="ai-welcome-sub" id="aiWelcomeSub">Ask me anything about your vehicles ??PMS status, maintenance history, bookings, and more.</div>
+        <div class="ai-welcome-sub" id="aiWelcomeSub">Ask me anything about your vehicles &mdash; PMS status, maintenance history, bookings, and more.</div>
         <div class="ai-suggestions" id="aiSuggestions">
             <button class="ai-suggest-pill" data-q="Show my complete service history">Show my complete service history</button>
             <button class="ai-suggest-pill" data-q="List all my registered vehicles">List all my registered vehicles</button>
@@ -278,7 +278,7 @@
 
 <div class="ai-input-bar">
     <div class="ai-input-wrap">
-        <textarea class="ai-input" id="aiInput" placeholder="Ask about your vehicles, bookings, or services?? rows="1"
+        <textarea class="ai-input" id="aiInput" placeholder="Ask about your vehicles, bookings, or services..." rows="1"
             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send();}"
             oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';_updateSendBtn();"></textarea>
         <button class="ai-send" id="aiSendBtn" onclick="send()" disabled style="opacity:0.45;cursor:not-allowed;">
@@ -286,7 +286,7 @@
         </button>
     </div>
 </div>
-<div class="ai-hint">Enter to send &nbsp;繚&nbsp; Shift+Enter for new line</div>
+<div class="ai-hint">Enter to send &nbsp;&middot;&nbsp; Shift+Enter for new line</div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -614,7 +614,7 @@
       input.disabled    = false;
       input.value       = '';
       input.style.height = 'auto';
-      input.placeholder  = 'Ask about your vehicles, bookings, or services??;
+      input.placeholder  = 'Ask about your vehicles, bookings, or services...';
       // Remove any stale disabled attribute left by rate-limit
       input.removeAttribute('disabled');
     }
@@ -642,7 +642,7 @@
     const used      = _getUsedTokens(uid);
     const input     = document.getElementById('aiInput');
     const sendBtn   = document.getElementById('aiSendBtn') || document.querySelector('.ai-send');
-    if (input)   { input.disabled = true; input.placeholder = 'Daily message limit reached ??resets tomorrow'; }
+    if (input)   { input.disabled = true; input.placeholder = 'Daily message limit reached \u2014 resets tomorrow'; }
     if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.45'; sendBtn.style.cursor = 'not-allowed'; }
     const b = document.createElement('div');
     b.id = 'aiTokenLimitBanner';
@@ -670,7 +670,7 @@
       'font-size:11.5px;color:#92400e;flex-shrink:0;display:flex;align-items:center;gap:8px;';
     w.innerHTML =
       '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="#92400e" style="flex-shrink:0;"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>' +
-      '<span>You\'re running low ??approximately <strong>' + remaining + '</strong> tokens remaining today.</span>';
+      '<span>You\'re running low \u2014 approximately <strong>' + remaining + '</strong> tokens remaining today.</span>';
     const inputBar = document.querySelector('.ai-input-bar');
     if (inputBar) inputBar.parentNode.insertBefore(w, inputBar);
   }
@@ -681,7 +681,7 @@
     const sendBtn = document.getElementById('aiSendBtn') || document.querySelector('.ai-send');
     const banner  = document.getElementById('aiRateBanner');
     if (limited) {
-      if (input)   { input.disabled = true; input.placeholder = 'AI unavailable ??daily limit reached'; }
+      if (input)   { input.disabled = true; input.placeholder = 'AI unavailable \u2014 daily limit reached'; }
       if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.45'; sendBtn.style.cursor = 'not-allowed'; }
       if (!banner) {
         const b = document.createElement('div');
@@ -691,13 +691,13 @@
           'font-size:12.5px;color:#9a3412;flex-shrink:0;display:flex;align-items:flex-start;gap:10px;line-height:1.55;';
         b.innerHTML =
           '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#9a3412" style="flex-shrink:0;margin-top:2px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
-          '<div><strong style="display:block;font-size:13px;margin-bottom:2px;">AI unavailable ??daily token limit reached</strong>' +
+          '<div><strong style="display:block;font-size:13px;margin-bottom:2px;">AI unavailable \u2014 daily token limit reached</strong>' +
           'Groq free-tier quota exhausted. Resets in <strong>' + (resetIn || 'some time') + '</strong>. Chat is disabled until then.</div>';
         const inputBar = document.querySelector('.ai-input-bar');
         if (inputBar) inputBar.parentNode.insertBefore(b, inputBar);
       }
     } else {
-      if (input)   { input.disabled = false; input.placeholder = 'Ask about your vehicles, bookings, or services??; }
+      if (input)   { input.disabled = false; input.placeholder = 'Ask about your vehicles, bookings, or services...'; }
       if (banner)  banner.remove();
       _updateSendBtn();
     }
@@ -778,7 +778,7 @@
         _customerInitials = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : parts[0][0].toUpperCase();
       }
       document.getElementById('aiWelcomeSub').textContent = _myVehicles.length
-        ? `Ask me anything about your ${_myVehicles.length} vehicle${_myVehicles.length !== 1 ? 's' : ''} ??PMS status, maintenance history, and more.`
+        ? `Ask me anything about your ${_myVehicles.length} vehicle${_myVehicles.length !== 1 ? 's' : ''} \u2014 PMS status, maintenance history, and more.`
         : 'No vehicles found under your account.';
       if (_myVehicles.length) {
         const plates = _myVehicles.map(v => v.plate).filter(Boolean).slice(0, 10);
@@ -797,39 +797,48 @@
   function _localFallback(q) {
     const ql = q.toLowerCase().trim();
 
-    // ?? Out-of-scope: inventory, stock levels ????????????????????????????
+    // Out-of-scope: inventory / stock
     if (ql.includes('inventory') || ql.includes('stock level') || ql.includes('stock') ||
         ql.includes('reorder') || ql.includes('supplier') || ql.includes('issuance') ||
         ql.includes('warehouse') || ql.includes('purchase order')) {
-      return "I can only answer questions related to the Automotive Service and Inventory Management System.";
+      return "Sorry, inventory and stock information is only available to authorized staff or administrators. I can still help you with your vehicles, service history, bookings, and pricing.";
     }
 
-    // ?? Out-of-scope: reports ????????????????????????????????????????????
+    // Out-of-scope: reports
     if ((ql.includes('report') || ql.includes('generate') || ql.includes('pdf') || ql.includes('excel')) &&
         !ql.includes('my service') && !ql.includes('my vehicle') && !ql.includes('my booking')) {
-      return "I can only answer questions related to the Automotive Service and Inventory Management System.";
+      return "Sorry, administrative report generation is only available to authorized administrators. I can help you with your own service history or bookings instead.";
     }
 
-    // ?? Privacy: asking about another customer ???????????????????????????
-    if (ql.includes("another customer") || ql.includes("juan dela cruz") ||
-        ql.includes("someone else") || ql.includes("other customer") ||
-        (ql.includes("customer") && (ql.includes("booking") || ql.includes("history") || ql.includes("vehicle")) &&
-         !ql.includes("my"))) {
-      return "I can only show information for your own account.";
+    // Privacy: asking about another customer
+    const _hasOtherCustomer = (
+      ql.includes("another customer") ||
+      ql.includes("other customer") ||
+      ql.includes("someone else") ||
+      ql.includes("all customers") ||
+      ql.includes("of customer ") ||
+      ql.includes("bookings of ") ||
+      ql.includes("history of ") ||
+      /\bshow\s+(the\s+)?(bookings?|history|records?|vehicles?)\s+of\b/.test(ql) ||
+      /\b\w+\s+villafranca\b|\b\w+\s+dela\s+cruz\b|\b\w+\s+santos\b/.test(ql) ||
+      (ql.includes("customer") && (ql.includes("booking") || ql.includes("history") || ql.includes("vehicle") || ql.includes("record")) && !ql.includes("my"))
+    );
+    if (_hasOtherCustomer) {
+      return "Sorry, you don\u2019t have access to other customers\u2019 information. I can only help with information related to your own account, vehicles, maintenance history, and bookings.";
     }
 
-    // ?? Out-of-scope: general knowledge ?????????????????????????????????
+    // Out-of-scope: general knowledge
     const outOfScope = ['capital of','weather','news','sport','math','cod','recipe',
       'movie','music','game','history of','who is','what country','population',
       'translate','currency','stock market','crypto','bitcoin'];
     if (outOfScope.some(k => ql.includes(k))) {
-      return "I can only answer questions related to the Automotive Service and Inventory Management System.";
+      return "I can only answer questions related to the Caltex AutoPro Automotive Service system \u2014 your vehicles, PMS history, bookings, and service pricing.";
     }
 
-    // ?? Garbage / symbols only ???????????????????????????????????????????
+    // Garbage / symbols only
     const meaningfulChars = (q.match(/[a-zA-Z0-9]/g) || []).length;
     if (meaningfulChars < 2) {
-      return "I didn't understand that. Please type a question about your vehicles, bookings, or services.";
+      return "I\u2019m not sure what you mean. Please type a question about your vehicles, bookings, or services.";
     }
 
     // ?? No chat history context ??????????????????????????????????????????
@@ -852,10 +861,10 @@
       if (!done.length) return "You don't have any completed service records yet.";
       const total = done.reduce((s, r) => {
         const raw = r.totalCost || r.cost || '0';
-        return s + (parseFloat(String(raw).replace(/[??\s]/g, '')) || 0);
+        return s + (parseFloat(String(raw).replace(/[^0-9.]/g, '')) || 0);
       }, 0);
       return `You have ${done.length} completed service record${done.length !== 1 ? 's' : ''}. ` +
-             `Total spent: ??{total.toLocaleString('en-PH', {minimumFractionDigits:2})}\n\n` +
+             `Total spent: \u20B1${total.toLocaleString('en-PH', {minimumFractionDigits:2})}\n\n` +
              `Go to the "PMS History" tab to view full details.`;
     }
 
@@ -863,7 +872,7 @@
     if (ql.includes('my vehicle') || ql.includes('my fleet') || ql.includes('my car') ||
         ql.includes('list my') || ql.includes('show my vehicle') || ql.includes('fleet summary')) {
       if (!_myVehicles.length) return "No vehicles are registered under your account yet.";
-      const lines = _myVehicles.map(v => `??${v.plate || '??} ??${v.desc || v.type || '??} (${v.status || 'Active'})`).join('\n');
+      const lines = _myVehicles.map(v => `\u2022 ${v.plate || '?'} \u2022 ${v.desc || v.type || '?'} (${v.status || 'Active'})`).join('\n');
       return `Your fleet (${_myVehicles.length} vehicle${_myVehicles.length !== 1 ? 's' : ''}):\n${lines}`;
     }
 
@@ -892,7 +901,7 @@
       const over   = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'overdue').length;
       const soon   = _myVehicles.filter(v => ['pms due soon','due soon','due this week'].includes((v.status||'').toLowerCase())).length;
       const maint  = _myVehicles.filter(v => (v.status||'').toLowerCase().includes('maintenance')).length;
-      return `PMS Status for your fleet:\n??Active: ${active}\n??Under Maintenance: ${maint}\n??PMS Overdue: ${over}\n??Due Soon: ${soon}\n??Total: ${_myVehicles.length}`;
+      return `PMS Status for your fleet:\n\u2022 Active: ${active}\n\u2022 Under Maintenance: ${maint}\n\u2022 PMS Overdue: ${over}\n\u2022 Due Soon: ${soon}\n\u2022 Total: ${_myVehicles.length}`;
     }
 
     // ?? Bookings ?????????????????????????????????????????????????????????
@@ -907,7 +916,7 @@
     if (ql.includes('price') || ql.includes('cost') || ql.includes('how much') ||
         ql.includes('service') || ql.includes('oil change') || ql.includes('change oil') ||
         ql.includes('estimate') || ql.includes('offer')) {
-      return 'For service pricing and estimates, please ask when the AI service is online ??it can look up exact prices from the catalog. Common services include: Change Oil, Brake Service, Battery Check, Tire Rotation, and more.';
+      return 'For service pricing and estimates, please ask when the AI service is online \u2014 it can look up exact prices from the catalog. Common services include: Change Oil, Brake Service, Battery Check, Tire Rotation, and more.';
     }
 
     // ?? Default for in-scope but offline ????????????????????????????????
@@ -928,7 +937,7 @@
     s = s.replace(/`([^`\n]+?)`/g, '<code style="background:#f1f5f9;padding:1px 5px;border-radius:4px;font-family:monospace;font-size:0.92em;">$1</code>');
     s = s.replace(/^### (.+)$/gm, '<div style="font-weight:700;font-size:13.5px;margin:8px 0 3px;color:#1a202c;">$1</div>');
     s = s.replace(/^## (.+)$/gm,  '<div style="font-weight:700;font-size:14px;margin:8px 0 3px;color:#1a202c;">$1</div>');
-    s = s.replace(/^[\-\*?兡 (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;flex-shrink:0;">??/span><span>$1</span></div>');
+    s = s.replace(/^[\-\*\u2022] (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;flex-shrink:0;">\u2022</span><span>$1</span></div>');
     s = s.replace(/^(\d+)\. (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;font-weight:700;flex-shrink:0;min-width:16px;">$1.</span><span>$2</span></div>');
     s = s.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid #e2e8f0;margin:8px 0;">');
     s = s.replace(/\n\n/g, '<div style="height:6px;"></div>');
@@ -998,7 +1007,7 @@
     _saveChat();
 
     if (!_dataLoaded) {
-      _addBubbleAndSave('Still loading your profile ??please try again in a moment.', 'bot');
+      _addBubbleAndSave('Still loading your profile \u2014 please try again in a moment.', 'bot');
       _saveChat();
       _isSending = false;
       return;
@@ -1030,7 +1039,7 @@
         rlBub.style.cssText = 'background:#fff7ed;border:1.5px solid #fb923c;color:#9a3412;max-width:90%;';
         rlBub.innerHTML = '<strong>AI Unavailable</strong><br><span style="font-size:12px;">Daily token limit reached. Resets in <strong>' + (data.reset_in || 'some time') + '</strong>.</span>';
         rlRow.appendChild(rlBub); msgs2.appendChild(rlRow); rlRow.scrollIntoView({ behavior: 'smooth' });
-        _chatHistory.push({ role: 'bot', text: 'AI Unavailable ??Daily token limit reached.', ts: Date.now() });
+        _chatHistory.push({ role: 'bot', text: 'AI Unavailable \u2014 Daily token limit reached.', ts: Date.now() });
       } else if (data.answer) {
         if (data.session_id) {
           // Server assigned a real session ID — migrate the history entry from
