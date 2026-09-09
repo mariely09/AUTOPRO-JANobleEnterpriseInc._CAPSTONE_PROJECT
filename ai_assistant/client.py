@@ -32,6 +32,39 @@ logger = logging.getLogger(__name__)
 _groq_client_cache: dict[str, "Groq"] = {}
 
 
+# Probe ONCE per process whether the installed Groq SDK accepts
+# `chat_template_kwargs` (newer SDKs pass it through to Groq, where Qwen3
+# models use it to disable the internal thinking mode — faster AND cheaper
+# because reasoning tokens are never generated). Older SDKs (e.g. 1.5.0)
+# raise TypeError; we then fall back to a plain call for the process lifetime.
+_thinking_disable_supported: bool | None = None
+
+
+def create_with_optional_thinking_disable(client: "Groq", kwargs: dict):
+    """
+    Call client.chat.completions.create(**kwargs), adding the Qwen3
+    thinking-disable parameter only when the installed SDK supports it.
+    Never lets the SDK-arg mismatch escape as a user-facing error.
+    """
+    global _thinking_disable_supported
+    if _thinking_disable_supported is not False:
+        try:
+            return client.chat.completions.create(
+                **kwargs, chat_template_kwargs={"enable_thinking": False}
+            )
+        except TypeError as exc:
+            if "chat_template_kwargs" in str(exc):
+                _thinking_disable_supported = False
+                logger.info(
+                    "Installed Groq SDK does not support chat_template_kwargs — "
+                    "falling back to plain calls (thinking disabled at the "
+                    "prompt/output level instead)."
+                )
+            else:
+                raise
+    return client.chat.completions.create(**kwargs)
+
+
 def get_groq_client(api_key: str | None = None) -> "Groq":
     """Return a process-level cached Groq client (keyed by API key)."""
     key = api_key or settings.GROQ_API_KEY
@@ -340,14 +373,10 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None,
                 "model":      chosen_model,
                 "messages":   messages,
                 "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
-                # Qwen3-family: disable the internal thinking mode at the
-                # template level so reasoning tokens are never generated
-                # (faster AND cheaper — they never count against output).
-                "chat_template_kwargs": {"enable_thinking": False},
             }
             if tools:
                 kwargs["tools"] = tools
-            resp = client.chat.completions.create(**kwargs)
+            resp = create_with_optional_thinking_disable(client, kwargs)
         try:
             u = resp.usage
             perf_metrics.record_usage(getattr(u, "prompt_tokens", 0) or 0,

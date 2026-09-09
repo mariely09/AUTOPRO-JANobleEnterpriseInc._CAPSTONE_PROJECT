@@ -173,7 +173,15 @@ _INVENTORY_RE = re.compile(
     r"how\s+many\s+(bottles?|liters?|litres?|pieces?|units?|cans?|drums?)|"
     r"how\s+much\s+\S+\s+(do\s+you\s+have|is\s+available|available)|"
     r"brake\s+pads?\s+(in\s+)?stock|may\s+stock|stock\s+pa|"
-    r"meron\s+pa\s+ba\s+kayong|mayroon\s+pa\s+ba\s+kayong)\b",
+    r"meron\s+pa\s+ba\s+kayong|mayroon\s+pa\s+ba\s+kayong|"
+    # "what products are running low" / "what parts are almost out" /
+    # "which items are running low" — stock-depletion phrasings without the
+    # word "stock" itself.
+    r"(products?|parts?|items?|materials?)\s+(are\s+)?(running\s+low|"
+    r"almost\s+(out|gone)|nearly\s+(out|gone)|out\s+of\s+stock|"
+    r"need(s)?\s+(reSTOCKING|reORDER|rePLENISH\w*)|"
+    r"low\s+on\s+stock)|"
+    r"running\s+low\s+on\s+(products?|parts?|items?|materials?|stock))\b",
     re.IGNORECASE,
 )
 

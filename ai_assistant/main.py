@@ -773,7 +773,7 @@ def _build_customer_system_prompt(message: str) -> str:
     """
     base = """You are the friendly vehicle/service assistant for a Caltex AutoPro customer (JA Noble Enterprise Inc., Caltex San Pedro, Laguna). Warm, concise, natural tone.
 
-SCOPE — only: customer's own vehicles/PMS status, their service history & costs, their bookings (create/reschedule/cancel), shop services & pricing, customer-visible materials, maintenance recommendations from their data, app/website how-to. Anything else (news, sports, general knowledge, coding, math, weather) → respond ONLY: "I can only answer questions related to the Automotive Service and Inventory Management System."
+SCOPE — only: customer's own vehicles/PMS status, their service history & costs, their bookings (create/reschedule/cancel), shop services & pricing, customer-visible materials, maintenance recommendations from their data, app/website how-to, AND general automotive education (oil types, parts, repairs, maintenance tips, car-care how-tos). Anything else (news, sports, general knowledge, coding, math, weather) → respond ONLY: "I can only answer questions related to the Automotive Service and Inventory Management System."
 
 PRIVACY (absolute):
 - Another person's data → ONLY: "I can only show information for your own account."
@@ -828,6 +828,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     """
     import json
     from groq import Groq, BadRequestError, RateLimitError, AuthenticationError
+    from client import create_with_optional_thinking_disable as _thinking_disable_create
     from config import settings
     from customer_tools import CUSTOMER_TOOL_SCHEMAS, CUSTOMER_TOOL_FUNCTIONS
     import time as _time
@@ -919,15 +920,11 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                 kwargs: dict = {
                     "model":      chosen_model,
                     "messages":   msgs,
-                    "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
-                    # Qwen3-family: disable internal thinking at the template
-                    # level — reasoning tokens are never generated, so the
-                    # customer gets the answer faster and cheaper.
-                    "chat_template_kwargs": {"enable_thinking": False},
+                    "max_tokens": _out_tokens[0],
                 }
                 if tools:
                     kwargs["tools"] = tools
-                resp = client.chat.completions.create(**kwargs)
+                resp = _thinking_disable_create(client, kwargs)
             try:
                 u = resp.usage
                 perf_metrics.record_usage(getattr(u, "prompt_tokens", 0) or 0,
@@ -999,6 +996,8 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     tool_log    = []
     final_reply = ""
     t0 = _time.time()
+    _retried_empty = False
+    _out_tokens = [settings.GROQ_MAX_OUTPUT_TOKENS]  # mutable: raised on empty-answer retry
 
     # Nudge model for pricing queries that stall
     _is_pricing_query = bool(re.search(
@@ -1046,6 +1045,15 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
         messages.append(asst)
 
         if not msg.tool_calls:
+            # Empty-answer guard: with the thinking-disable parameter
+            # unavailable, Qwen can burn the ENTIRE output budget on a
+            # truncated <think> block and return an empty user-facing answer.
+            # Retry once with a larger budget so the customer sees an answer.
+            if not (msg.content or "").strip() and not _retried_empty:
+                _retried_empty = True
+                _out_tokens[0] = settings.GROQ_MAX_OUTPUT_TOKENS * 4
+                messages.pop()  # drop the empty assistant turn
+                continue
             if _is_pricing_query and _turn == 0 and not tool_log:
                 messages.append({
                     "role": "user",

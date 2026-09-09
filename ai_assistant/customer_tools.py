@@ -830,8 +830,13 @@ def check_booking_availability(customer_uid: str, customer_name: str,
                     "status": d.get("status", ""),
                 })
 
-        # Also try YYYY-MM-DD formatted as "Month D, YYYY" (format variations)
-        human_date = req_date.strftime("%B %-d, %Y") if hasattr(req_date, "strftime") else date_str
+        # Also try YYYY-MM-DD formatted as "Month D, YYYY" (format variations).
+        # NOTE: %-d (day without zero-padding) is Linux-only; Windows strftime
+        # raises ValueError — build it portably instead.
+        if hasattr(req_date, "strftime"):
+            human_date = f"{req_date.strftime('%B')} {req_date.day}, {req_date.strftime('%Y')}"
+        else:
+            human_date = date_str
         for doc in db.collection("service_bookings").where(
                 filter=FieldFilter("preferredDate", "==", human_date)).stream():
             d = doc.to_dict()

@@ -202,6 +202,25 @@ def try_handle_booking(message: str, customer_uid: str, customer_name: str,
     t = text.lower()
     earliest = bool(_EARLIEST_RE.search(text))
 
+    # Informational-question gate: a question ABOUT a service is not a
+    # booking REQUEST. "What does a transmission flush do?" / "How much is an
+    # oil change?" must be answered, not hijacked into the booking flow.
+    # Only fall through when there is no concrete booking signal alongside it.
+    _QUESTION_RE = re.compile(
+        r"\b(what\s+(is|are|does|do)|what's|how\s+(does|do|much|often)|why\s+is|"
+        r"explain|meaning\s+of|difference\s+between|ano\s+po?\s+ba|ano\s+ba|"
+        r"magkano)\b",
+        re.IGNORECASE,
+    )
+    _has_booking_signal = bool(
+        _EARLIEST_RE.search(text) or _DATE_WORDS_RE.search(text)
+        or _TIME_RE.search(text) or _PLATE_RE.search(text)
+        or re.search(r"\b(book|booking|schedule|sched|reserve|reservation|"
+                     r"pa-book|pabook|i-book)\b", t)
+    )
+    if _QUESTION_RE.search(t) and not _has_booking_signal:
+        return None  # informational — let the normal pipeline answer it
+
     # ── Collect required fields from message + recent history ────────────────
     plate = _extract_plate(text)
     services = _extract_service(text)
