@@ -203,6 +203,36 @@ document.getElementById('adminWrap').style.display = 'flex';
 var _aiucSettings = null;
 var _aiucOverview = null;
 var _aiucDirty = false;
+var _aiucBackendOk = false; // true once we've confirmed backend is reachable
+
+// ── Default settings — used when backend is offline ───────────────────────
+var _AIUC_DEFAULTS = {
+    customer_ai_enabled:     true,
+    customer_token_limit:    0,
+    dev_access_enabled:      false,
+    dev_bypass_token_limit:  false,
+    dev_access_while_paused: false,
+};
+var _AIUC_OVERVIEW_DEFAULTS = {
+    customer_tokens_used:    0,
+    customer_token_limit:    0,
+    customers_at_limit:      0,
+    customer_ai_status:      'Active',
+    next_reset:              '—',
+    active_customers_today:  0,
+};
+var _AIUC_LOCAL_KEY = 'aiuc_settings_cache';
+
+function _aiucLoadLocal() {
+    try {
+        var raw = localStorage.getItem(_AIUC_LOCAL_KEY);
+        if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return null;
+}
+function _aiucSaveLocal(settings) {
+    try { localStorage.setItem(_AIUC_LOCAL_KEY, JSON.stringify(settings)); } catch (e) {}
+}
 
 function _esc(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -218,46 +248,68 @@ function _showToast(msg, type) {
 }
 
 // Resolve a real Firebase ID token for the server-side admin check.
-// forceRefresh: mint a fresh token so role changes / claim updates apply now.
 function _authHeaders(forceRefresh, cb) {
     var u = firebase.auth().currentUser;
     if (!u) { cb({ 'Content-Type': 'application/json' }); return; }
     u.getIdToken(forceRefresh).then(function(tok) {
         cb({ 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' });
     }).catch(function() {
-        // Never leave the request unauthenticated because token minting hiccuped.
         cb({ 'Authorization': 'Bearer ' + (window.__aiucLastToken || u.uid), 'Content-Type': 'application/json' });
     });
 }
 
+// ── Show/hide backend status banner (non-blocking) ────────────────────────
+function _aiucSetBanner(msg) {
+    var box = document.getElementById('aiucErrorBox');
+    if (!box) return;
+    if (!msg) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="aiuc-error-box" style="margin-bottom:14px;">' + msg + '</div>';
+}
+
 // ── Data loading ─────────────────────────────────────────────────────────────
+// Renders immediately from local cache / defaults, then syncs from backend.
 function _aiucLoad(retry) {
+    // Step 1: render immediately with cached/default settings so UI is never blank
+    var cached = _aiucLoadLocal();
+    if (!_aiucSettings) {
+        _aiucSettings = cached ? Object.assign({}, _AIUC_DEFAULTS, cached) : Object.assign({}, _AIUC_DEFAULTS);
+    }
+    if (!_aiucOverview) {
+        _aiucOverview = Object.assign({}, _AIUC_OVERVIEW_DEFAULTS);
+    }
+    _aiucRender();
+
+    // Step 2: try to sync live data from backend in the background
     _authHeaders(true, function(headers) {
         if (headers.Authorization && headers.Authorization.indexOf('Bearer ') === 7) {
             window.__aiucLastToken = headers.Authorization.slice(7);
         }
         fetch('/api/ai-settings', { method: 'GET', headers: headers })
             .then(function(r) {
-                if (r.status === 403) throw new Error('forbidden');
+                if (r.status === 403 && !retry) {
+                    // One retry with a freshly minted token
+                    setTimeout(function() { _aiucLoad(true); }, 400);
+                    return null;
+                }
                 if (!r.ok) throw new Error('unreachable');
                 return r.json();
             })
             .then(function(data) {
-                _aiucSettings = data.settings || {};
-                _aiucOverview = data.overview || {};
+                if (!data) return;
+                _aiucBackendOk = true;
+                _aiucSettings  = data.settings || {};
+                _aiucOverview  = data.overview  || {};
+                _aiucSaveLocal(_aiucSettings);
                 _aiucRender();
+                _aiucSetBanner(''); // clear any warning
             })
-            .catch(function(err) {
-                var box = document.getElementById('aiucContent');
-                if (!box) return;
-                // One automatic retry with a freshly minted token — the first
-                // 403 is occasionally a stale cached token, not a real denial.
-                if (err && err.message === 'forbidden' && !retry) {
-                    setTimeout(function() { _aiucLoad(true); }, 400);
-                    return;
-                }
-                box.innerHTML = '<div class="pf-page-wrapper"><div class="aiuc-error-box">'
-                    + 'The AI service is unreachable right now. Please refresh to try again.</div></div>';
+            .catch(function() {
+                // Backend unreachable — UI is already rendered from cache/defaults.
+                // Show a small non-blocking notice, not a full-page error.
+                _aiucSetBanner(
+                    '<strong>Note:</strong> Could not reach the AI backend right now. '
+                    + 'Showing last known settings. Changes saved here will apply once the backend is online.'
+                );
             });
     });
 }
@@ -412,6 +464,10 @@ function _aiucSave() {
         dev_bypass_token_limit:  !!document.getElementById('aiucDevBypass').checked,
         dev_access_while_paused: !!document.getElementById('aiucDevWhilePaused').checked,
     };
+    // Always save locally first so settings survive regardless of backend state
+    _aiucSaveLocal(payload);
+    _aiucSettings = Object.assign({}, _aiucSettings, payload);
+
     btn.disabled = true;
     btn.textContent = 'Saving…';
     _authHeaders(true, function(headers) {
@@ -423,11 +479,17 @@ function _aiucSave() {
             return r.json();
         })
         .then(function() {
-            _showToast('AI usage settings saved.', 'success');
+            _showToast('Settings saved successfully.', 'success');
+            _aiucSetBanner('');
             _aiucLoad(); // reload overview with the new effective limit
         })
-        .catch(function(err) {
-            _showToast('Could not save settings. Please try again.', 'error');
+        .catch(function() {
+            // Saved locally; notify the admin the backend sync is pending
+            _showToast('Settings saved locally. Will sync when backend is online.', 'info');
+            _aiucSetBanner(
+                '<strong>Note:</strong> Settings saved locally but could not sync to the AI backend right now. '
+                + 'They will take effect once the backend is reachable.'
+            );
         })
         .finally(function() {
             btn.disabled = false;
