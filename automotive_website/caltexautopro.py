@@ -1230,6 +1230,17 @@ def ai_generate_report():
     from flask import send_file
     import io as _io
 
+    # ── Admin-only enforcement (independent of the AI intent router) ─────────
+    # Report generation is an administrative feature. Even if a customer
+    # reaches this endpoint directly, the request is rejected before any
+    # report data is retrieved or generated.
+    if _require_admin() is None:
+        return jsonify({
+            'success': False,
+            'error': ('Sorry, administrative report generation is only '
+                      'available to authorized administrators.'),
+        }), 403
+
     data        = request.get_json(silent=True) or {}
     report_type = data.get('report_type', '').strip().lower()
     file_format = (data.get('format', 'pdf') or 'pdf').strip().lower().replace('xlsx', 'excel')

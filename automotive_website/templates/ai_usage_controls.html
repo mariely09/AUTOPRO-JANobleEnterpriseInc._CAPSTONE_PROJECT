@@ -266,51 +266,66 @@ function _aiucSetBanner(msg) {
     box.innerHTML = '<div class="aiuc-error-box" style="margin-bottom:14px;">' + msg + '</div>';
 }
 
-// ── Data loading ─────────────────────────────────────────────────────────────
-// Renders immediately from local cache / defaults, then syncs from backend.
-function _aiucLoad(retry) {
-    // Step 1: render immediately with cached/default settings so UI is never blank
+// ── Firestore helpers — read & write ai_settings/global directly ──────────
+// This bypasses the Flask proxy and the AI backend entirely, so the page
+// works regardless of whether the AI backend is running.
+var _db = null;
+function _getDb() {
+    if (!_db) _db = firebase.firestore();
+    return _db;
+}
+var _AIUC_FS_COLLECTION = 'ai_settings';
+var _AIUC_FS_DOC        = 'global';
+
+function _aiucFsLoad(cb) {
+    _getDb().collection(_AIUC_FS_COLLECTION).doc(_AIUC_FS_DOC).get()
+        .then(function(snap) {
+            var data = snap.exists ? (snap.data() || {}) : {};
+            cb(null, data);
+        })
+        .catch(function(err) { cb(err, null); });
+}
+
+function _aiucFsSave(payload, cb) {
+    _getDb().collection(_AIUC_FS_COLLECTION).doc(_AIUC_FS_DOC)
+        .set(payload, { merge: true })
+        .then(function() { cb(null); })
+        .catch(function(err) { cb(err); });
+}
+
+// ── Data loading — reads directly from Firestore, no proxy needed ─────────
+function _aiucLoad() {
+    // Render immediately with cache/defaults so the UI is never blank
     var cached = _aiucLoadLocal();
     if (!_aiucSettings) {
-        _aiucSettings = cached ? Object.assign({}, _AIUC_DEFAULTS, cached) : Object.assign({}, _AIUC_DEFAULTS);
+        _aiucSettings = cached
+            ? Object.assign({}, _AIUC_DEFAULTS, cached)
+            : Object.assign({}, _AIUC_DEFAULTS);
     }
     if (!_aiucOverview) {
         _aiucOverview = Object.assign({}, _AIUC_OVERVIEW_DEFAULTS);
     }
     _aiucRender();
 
-    // Step 2: try to sync live data from backend in the background
-    _authHeaders(true, function(headers) {
-        if (headers.Authorization && headers.Authorization.indexOf('Bearer ') === 7) {
-            window.__aiucLastToken = headers.Authorization.slice(7);
+    // Sync from Firestore in the background
+    _aiucFsLoad(function(err, data) {
+        if (err) {
+            // Still show the UI — just keep the cached/default values
+            _aiucSetBanner('<strong>Note:</strong> Could not load live settings from the database. Showing last known values.');
+            return;
         }
-        fetch('/api/ai-settings', { method: 'GET', headers: headers })
-            .then(function(r) {
-                if (r.status === 403 && !retry) {
-                    // One retry with a freshly minted token
-                    setTimeout(function() { _aiucLoad(true); }, 400);
-                    return null;
-                }
-                if (!r.ok) throw new Error('unreachable');
-                return r.json();
-            })
-            .then(function(data) {
-                if (!data) return;
-                _aiucBackendOk = true;
-                _aiucSettings  = data.settings || {};
-                _aiucOverview  = data.overview  || {};
-                _aiucSaveLocal(_aiucSettings);
-                _aiucRender();
-                _aiucSetBanner(''); // clear any warning
-            })
-            .catch(function() {
-                // Backend unreachable — UI is already rendered from cache/defaults.
-                // Show a small non-blocking notice, not a full-page error.
-                _aiucSetBanner(
-                    '<strong>Note:</strong> Could not reach the AI backend right now. '
-                    + 'Showing last known settings. Changes saved here will apply once the backend is online.'
-                );
-            });
+        // Merge Firestore data over defaults
+        var merged = Object.assign({}, _AIUC_DEFAULTS);
+        ['customer_ai_enabled','customer_token_limit','dev_access_enabled',
+         'dev_bypass_token_limit','dev_access_while_paused'].forEach(function(k) {
+            if (k in data && data[k] !== null && data[k] !== undefined) {
+                merged[k] = data[k];
+            }
+        });
+        _aiucSettings = merged;
+        _aiucSaveLocal(merged);
+        _aiucRender();
+        _aiucSetBanner('');
     });
 }
 
@@ -464,41 +479,35 @@ function _aiucSave() {
         dev_bypass_token_limit:  !!document.getElementById('aiucDevBypass').checked,
         dev_access_while_paused: !!document.getElementById('aiucDevWhilePaused').checked,
     };
-    // Always save locally first so settings survive regardless of backend state
-    _aiucSaveLocal(payload);
-    _aiucSettings = Object.assign({}, _aiucSettings, payload);
 
     btn.disabled = true;
     btn.textContent = 'Saving…';
-    _authHeaders(true, function(headers) {
-        fetch('/api/ai-settings', {
-            method: 'PUT', headers: headers, body: JSON.stringify(payload),
-        })
-        .then(function(r) {
-            if (!r.ok) throw new Error('save failed');
-            return r.json();
-        })
-        .then(function() {
-            _showToast('Settings saved successfully.', 'success');
-            _aiucSetBanner('');
-            _aiucLoad(); // reload overview with the new effective limit
-        })
-        .catch(function() {
-            // Saved locally; notify the admin the backend sync is pending
-            _showToast('Settings saved locally. Will sync when backend is online.', 'info');
-            _aiucSetBanner(
-                '<strong>Note:</strong> Settings saved locally but could not sync to the AI backend right now. '
-                + 'They will take effect once the backend is reachable.'
-            );
-        })
-        .finally(function() {
-            btn.disabled = false;
-            btn.textContent = 'Save Changes';
+
+    // Write directly to Firestore — no proxy, no AI backend dependency
+    _aiucFsSave(payload, function(err) {
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+        if (err) {
+            _showToast('Could not save settings. Please try again.', 'error');
+            return;
+        }
+        // Keep local cache in sync
+        _aiucSettings = Object.assign({}, _aiucSettings, payload);
+        _aiucSaveLocal(_aiucSettings);
+        _aiucSetBanner('');
+        _showToast('Settings saved successfully.', 'success');
+
+        // Also notify the AI backend so its in-memory cache refreshes
+        // (best-effort — failure here is silent since Firestore is the source of truth)
+        _authHeaders(false, function(headers) {
+            fetch('/api/ai-settings', {
+                method: 'PUT', headers: headers, body: JSON.stringify(payload),
+            }).catch(function() { /* silent — Firestore already saved */ });
         });
     });
 }
 
-// Load once Firebase auth resolves (need a token for the API call).
+// Load once Firebase auth resolves.
 firebase.auth().onAuthStateChanged(function(user) {
     if (user) {
         _aiucLoad();
