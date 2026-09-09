@@ -628,6 +628,7 @@
 // ── AI Assistant Widget — fully fixed version ─────────────────────────────────
 var _aiVehicles = [], _aiMaintenance = [], _aiLoaded = false;
 var _aiPanelOpen = false;
+var _aiOnline = false; // tracks current AI backend status for bubble restore
 var _aiChatHistory = [];
 var _aiCurrentUid = null;
 var _aiResolvedName = '';   // resolved from Firestore (not just sessionStorage)
@@ -846,11 +847,13 @@ function _updateFabIcon(open) {
         if (dot) dot.style.display = 'none';
     } else {
         fab.style.background = '#ffffff';
-        fab.style.border = 'none';
+        fab.style.border = '2.5px solid ' + (_aiOnline ? '#22c55e' : '#f97316');
         fab.style.overflow = 'hidden';
         fab.style.padding = '3px';
         fab.innerHTML = '<img id="aiFabImg" src="../static/img/AI_LOGO.png" style="width:52px;height:52px;object-fit:cover;border-radius:50%;display:block;" alt="AI">';
         if (dot) dot.style.display = 'block';
+        // Sync pulse rings and dot colour
+        _aiApplyStatusTheme(_aiOnline);
     }
 }
 
@@ -1149,16 +1152,19 @@ function _aiCheckHealth(isRetry) {
     .then(function(d){
         var dot=document.getElementById('aiStatusDot'), txt=document.getElementById('aiStatusTxt');
         if(d.online){
+            _aiOnline = true;
             if(dot){dot.style.background='#4ade80';dot.style.boxShadow='0 0 6px rgba(74,222,128,0.8)';}
             if(txt) txt.textContent='Online';
             _aiApplyStatusTheme(true);
         } else {
+            _aiOnline = false;
             if(dot){dot.style.background='#f97316';dot.style.boxShadow='0 0 6px rgba(249,115,22,0.8)';}
             if(txt) txt.textContent='Local mode';
             _aiApplyStatusTheme(false);
         }
     }).catch(function(){
         clearTimeout(timer);
+        _aiOnline = false;
         var dot=document.getElementById('aiStatusDot'),txt=document.getElementById('aiStatusTxt');
         if(dot){dot.style.background='#f97316';dot.style.boxShadow='0 0 6px rgba(249,115,22,0.8)';}
         if(txt) txt.textContent='Local mode';
@@ -1180,10 +1186,11 @@ function _aiApplyStatusTheme(online) {
     var pulseI      = document.getElementById('aiFabPulseInner');
     // FAB border — only while the panel is closed (panel-open shows the X icon)
     if (fab && !_aiPanelOpen) {
-        fab.style.borderColor = color;
+        fab.style.background = '#ffffff';
+        fab.style.border = '2.5px solid ' + color;
         fab.style.boxShadow = online
-            ? '0 4px 20px rgba(0,75,95,0.4),0 0 10px rgba(34,197,94,0.45)'
-            : '0 4px 20px rgba(0,75,95,0.4),0 0 10px rgba(249,115,22,0.45)';
+            ? '0 4px 20px rgba(0,0,0,0.15),0 0 10px rgba(34,197,94,0.45)'
+            : '0 4px 20px rgba(0,0,0,0.15),0 0 10px rgba(249,115,22,0.45)';
     }
     if (fabDot) { fabDot.style.background = color; fabDot.style.boxShadow = online ? '0 0 6px rgba(34,197,94,0.7)' : '0 0 6px rgba(249,115,22,0.7)'; }
     // Animated pulse rings on the floating bubble — status-coloured

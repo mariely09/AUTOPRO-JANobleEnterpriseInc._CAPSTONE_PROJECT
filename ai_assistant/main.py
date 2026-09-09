@@ -5,6 +5,7 @@ import time
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from schemas import ChatRequest, ChatResponse, CustomerChatRequest, SessionInfoResponse
 from client import chat as llm_chat, AllKeysRateLimitedError as _AllKeysRateLimitedError, InvalidApiKeyError as _InvalidApiKeyError
 from intent_classifier import classify_and_run
@@ -26,6 +27,7 @@ from session_store import (
 from config import settings as _settings  # for token-limit constants in _merge_history
 import token_tracker
 import usage_limiter
+import ai_settings
 import cache_manager
 
 app = FastAPI(
@@ -186,6 +188,58 @@ def get_usage_log(n: int = 50):
         "recent": token_tracker.get_recent_log(max(1, min(n, 200))),
         "answer_cache": __import__("answer_cache").stats(),
     }
+
+
+# -- Admin AI Usage Controls (Profile → Settings → AI Usage Controls) ----------
+
+@app.get("/ai-settings")
+def get_ai_settings():
+    """
+    Current runtime AI settings + a usage overview for the admin controls page.
+    Called through the Flask proxy (which restricts it to admin clients).
+    """
+    settings_now = ai_settings.get_settings()
+
+    # Usage overview — today's per-user counters (in-memory mirror, 0 reads).
+    overview = usage_limiter.get_all_usage()
+    customers = {uid: e for uid, e in overview.get("users", {}).items()
+                 if e.get("role") == "customer"}
+    override   = settings_now.get("customer_token_limit", 0)
+    eff_limit  = override if override > 0 else usage_limiter.CUSTOMER_DAILY_TOKEN_LIMIT
+    at_limit   = 0
+    if eff_limit > 0:
+        at_limit = sum(1 for e in customers.values()
+                       if int(e.get("tokens", 0)) >= eff_limit)
+
+    return {
+        "settings": settings_now,
+        "overview": {
+            "customer_tokens_used":   sum(int(e.get("tokens", 0)) for e in customers.values()),
+            "customer_token_limit":   eff_limit,
+            "customers_at_limit":     at_limit,
+            "customer_ai_status":     "Active" if settings_now.get("customer_ai_enabled", True) else "Paused",
+            "next_reset":             usage_limiter._next_manila_midnight_str(),
+            "active_customers_today": len(customers),
+        },
+    }
+
+
+class AiSettingsUpdate(BaseModel):
+    customer_ai_enabled:     bool | None = None
+    customer_token_limit:    int | None = None
+    dev_access_enabled:      bool | None = None
+    dev_bypass_token_limit:  bool | None = None
+    dev_access_while_paused: bool | None = None
+
+
+@app.put("/ai-settings")
+def put_ai_settings(update: AiSettingsUpdate):
+    """Persist admin changes from the AI Usage Controls page."""
+    updates = {k: v for k, v in update.model_dump().items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No valid settings provided.")
+    saved = ai_settings.save_settings(updates)
+    return {"success": True, "settings": saved}
 
 
 @app.get("/cache/stats")
@@ -1328,8 +1382,35 @@ def customer_chat_endpoint(req: CustomerChatRequest):
     import perf_metrics
     _perf = perf_metrics.push(req.customer_uid, "customer", "?")
     try:
+        # -- Step 1.5: admin runtime controls (ai_settings) ---------------------
+        # customer_ai_enabled=False pauses the Customer AI for regular customers.
+        # Developer/test accounts may be exempted via the admin's AI Usage
+        # Controls (Profile → Settings → AI Usage Controls).
+        import ai_settings
+        _ai_enabled = ai_settings.is_customer_ai_enabled()
+        _is_dev_user = False
+        if not _ai_enabled:
+            _is_dev_user = (
+                (req.is_dev_user or False)
+                and ai_settings.dev_access_allowed(paused=True)
+            )
+            if not _is_dev_user:
+                perf_metrics.record_usage(0, 0)
+                return ChatResponse(
+                    reply=("The AI Assistant is temporarily unavailable. "
+                           "Please try again later."),
+                    session_id=session_id,
+                    rate_limited=True,
+                    reset_in="midnight",
+                )
+        elif req.is_dev_user and ai_settings.dev_access_allowed(paused=False):
+            _is_dev_user = True
+
         # -- Step 2: daily usage limit -----------------------------------------
-        limit_check = usage_limiter.check_limit(req.customer_uid, role="customer")
+        _dev_bypass = _is_dev_user and ai_settings.dev_bypasses_token_limit()
+        limit_check = usage_limiter.check_limit(
+            req.customer_uid, role="customer", bypass_token_limit=_dev_bypass,
+        )
         if not limit_check["allowed"]:
             token_tracker.record(
                 user_id=req.customer_uid, role="customer",

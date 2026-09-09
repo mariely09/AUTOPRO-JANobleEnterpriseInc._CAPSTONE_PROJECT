@@ -133,25 +133,46 @@ def _persist_user(user_id: str, entry: dict) -> None:
         logger.warning("usage_limiter: persist failed for %s: %s", user_id, exc)
 
 
-def _limits_for(role: str) -> tuple[int, int]:
+def _limits_for(role: str, bypass_token_limit: bool = False) -> tuple[int, int]:
+    """
+    Token limit resolution for a role:
+      customer: admin runtime override (ai_settings) wins when set (>0),
+                otherwise the env-configured default.
+      admin:    env-configured value (not admin-overridable at runtime).
+    bypass_token_limit=True (developer/test access) removes the token cap
+    entirely (0 = unlimited) while still enforcing the request-rate cap.
+    """
     if role == "customer":
-        return CUSTOMER_DAILY_TOKEN_LIMIT, CUSTOMER_DAILY_REQUEST_LIMIT
+        token_limit = CUSTOMER_DAILY_TOKEN_LIMIT
+        try:
+            import ai_settings
+            override = ai_settings.customer_token_limit()
+            if override > 0:
+                token_limit = override
+        except Exception:
+            pass
+        if bypass_token_limit:
+            token_limit = 0
+        return token_limit, CUSTOMER_DAILY_REQUEST_LIMIT
     return ADMIN_DAILY_TOKEN_LIMIT, ADMIN_DAILY_REQUEST_LIMIT
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def check_limit(user_id: str, role: str) -> dict:
+def check_limit(user_id: str, role: str, bypass_token_limit: bool = False) -> dict:
     """
     Check whether a user is within their daily limit BEFORE the LLM call.
     Zero Firestore reads when the user is already in today's mirror.
+
+    bypass_token_limit=True marks a developer/test user whose account the
+    admin has exempted from the customer token quota (rate cap still applies).
     """
     with _lock:
         _reset_if_new_day()
         entry = _load_user(user_id)
         entry["role"] = role
 
-        token_limit, request_limit = _limits_for(role)
+        token_limit, request_limit = _limits_for(role, bypass_token_limit)
         tokens_used, requests_used = entry["tokens"], entry["requests"]
 
         if token_limit > 0 and tokens_used >= token_limit:
@@ -203,12 +224,13 @@ def record_usage(user_id: str, role: str, input_tokens: int, output_tokens: int)
                  user_id, role, total, entry["tokens"])
 
 
-def get_user_usage(user_id: str, role: str = "customer") -> dict:
+def get_user_usage(user_id: str, role: str = "customer",
+                   bypass_token_limit: bool = False) -> dict:
     """Today's usage stats for a specific user (frontend quota banner)."""
     with _lock:
         _reset_if_new_day()
         entry = _load_user(user_id)
-        token_limit, request_limit = _limits_for(role)
+        token_limit, request_limit = _limits_for(role, bypass_token_limit)
         return {
             "user_id": user_id, "role": role,
             "date": _manila_today().isoformat(),
