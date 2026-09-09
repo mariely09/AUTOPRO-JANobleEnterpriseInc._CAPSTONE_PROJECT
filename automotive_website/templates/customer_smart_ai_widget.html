@@ -909,11 +909,15 @@
 
     // ?? Default for in-scope but offline ????????????????????????????????
     if (!_myVehicles.length) return 'No vehicles found under your account. Please check if your account is properly set up.';
-    const active = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'active').length;
-    const over   = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'overdue').length;
-    const soon   = _myVehicles.filter(v => ['pms due soon','due soon','due this week'].includes((v.status||'').toLowerCase())).length;
-    const maint  = _myVehicles.filter(v => (v.status||'').toLowerCase().includes('maintenance')).length;
-    return `Here's a quick summary of your fleet:\n??Total vehicles: ${_myVehicles.length}\n??Active: ${active}\n??Under Maintenance: ${maint}\n??PMS Overdue: ${over}\n??Due Soon: ${soon}\n\nFor detailed answers, please ask when the AI service is online.`;
+    // Fallback — short and honest. Only give a fleet overview when one was explicitly asked for.
+    if (ql.includes('fleet summary') || ql.includes('fleet status') || (ql.includes('fleet') && ql.includes('summary'))) {
+      const fActive = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'active').length;
+      const fOver   = _myVehicles.filter(v => (v.status||'').toLowerCase() === 'overdue').length;
+      const fSoon   = _myVehicles.filter(v => ['pms due soon','due soon','due this week'].includes((v.status||'').toLowerCase())).length;
+      const fMaint  = _myVehicles.filter(v => (v.status||'').toLowerCase().includes('maintenance')).length;
+      return `Fleet Summary:\n??Total vehicles: ${_myVehicles.length}\n??Active: ${fActive}\n??Under Maintenance: ${fMaint}\n??PMS Overdue: ${fOver}\n??Due Soon: ${fSoon}`;
+    }
+    return `I\u2019m not able to help with that request while offline. I can assist with your vehicles, PMS status, service history, and bookings.\n\nFor detailed answers, please try again when the AI service is online.`;
   }
 
   const _BOT_AVATAR_SVG = '<img src="../static/img/AI_LOGO.png" width="32" height="32" style="object-fit:cover;border-radius:50%;display:block;" alt="AI">';

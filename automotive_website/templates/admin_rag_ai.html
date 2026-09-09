@@ -1201,8 +1201,9 @@ function _ragProcess(query) {
   if (meaningful < 2) {
     return ret("I didn't quite catch that. Could you rephrase your question about the fleet, inventory, or services?");
   }
-  // Fleet summary
-  if(q.includes('fleet summary')||q.includes('summary')||q.includes('overview')){
+  // Fleet summary — ONLY for an explicit "fleet summary" request.
+  // A bare "summary/overview" must NOT hijack unrelated questions.
+  if(q.includes('fleet summary')||q.includes('fleet overview')||(q.includes('fleet')&&q.includes('summary'))){
     var tot=assets.length,ov=assets.filter(isOverdue).length,mt=assets.filter(isMaint).length,ds=assets.filter(isDueSoon).length,ac=assets.filter(isActive).length,ls=inventory.filter(isLowStock).length;
     return ret('<strong>Fleet Summary</strong><br>• Vehicles: <strong>'+tot+'</strong> (Active: '+ac+', Maintenance: '+mt+')<br>• PMS Overdue: <strong>'+ov+'</strong>, Due Soon: <strong>'+ds+'</strong><br>• Low Stock Items: <strong>'+ls+'</strong><br>• Services: <strong>'+services.length+'</strong>');
   }
@@ -1288,8 +1289,12 @@ function _ragProcess(query) {
     var adm=users.filter(function(u){return u.role==='admin';}).length,stf=users.filter(function(u){return u.role==='staff';}).length,cus=users.filter(function(u){return u.role==='customer';}).length;
     return ret('<strong>Users ('+users.length+')</strong><br>• Admin: '+adm+'<br>• Staff: '+stf+'<br>• Customer: '+cus);
   }
-  // Fallback
-  return ret('<strong>AI backend offline</strong> — running in local mode.<br><span style="font-size:11px;color:#718096;">Local mode supports: <em>fleet summary, overdue, due soon, low stock, inventory, materials, cost, pending, fast moving, users</em>.<br>For full natural language queries, start the AI backend (<code>start.bat</code>).</span>');
+  // Fallback — short, honest, capability-based (no fabricated data)
+  var capabilities = 'I can help with vehicles & PMS status, maintenance records, inventory/stock levels, bookings, users, and PDF/Excel report generation.';
+  if(q.includes('fleet')||q.includes('vehicle')){
+    return ret(capabilities+'<br><br>For a fleet overview, try <em>"Fleet Summary"</em>.');
+  }
+  return ret('I\u2019m not able to help with that request in local mode. '+capabilities+'<br><br>For full natural-language answers, start the AI backend (<code>start.bat</code>).');
 }
 
 })();

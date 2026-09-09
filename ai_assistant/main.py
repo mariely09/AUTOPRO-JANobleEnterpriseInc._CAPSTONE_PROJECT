@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from schemas import ChatRequest, ChatResponse, CustomerChatRequest, SessionInfoResponse
 from client import chat as llm_chat, AllKeysRateLimitedError as _AllKeysRateLimitedError, InvalidApiKeyError as _InvalidApiKeyError
 from intent_classifier import classify_and_run
+from input_normalizer import normalize as _normalize_input
 from model_router import (
     classify_intent, classify_customer_intent, select_model, needs_llm,
     DATABASE_LOOKUP, DATABASE_CALCULATION, GENERAL_AI_QUESTION,
@@ -390,10 +391,10 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
     Build a direct template response for admin DATABASE_LOOKUP requests.
     No LLM involved  -  zero tokens consumed.
     """
-    msg_l = message.lower()
+    msg_l = _normalize_input(message) or message.lower()
 
     # Low stock
-    if "low" in msg_l and "stock" in msg_l or "reorder" in msg_l:
+    if "low" in msg_l and "stock" in msg_l or "reorder" in msg_l or "restock" in msg_l:
         count = result.get("low_stock_count", len(result.get("items", [])))
         if count == 0:
             return "All items are currently at acceptable stock levels. No items are below the reorder point."
@@ -440,6 +441,22 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
         breakdown = ", ".join(f"{v} {k}" for k, v in by_status.items()) if by_status else ""
         return f"There are **{total}** booking(s) in the system." + (
             f"\n\n**By status:** {breakdown}" if breakdown else ""
+        )
+
+    # Inventory / stock list
+    if "inventory" in msg_l or "stock" in msg_l or "items" in msg_l:
+        total = result.get("total_items", len(result.get("items", [])))
+        items = result.get("items", [])
+        low   = sum(1 for it in items if (it.get("status") or "").lower() == "low")
+        lines = [
+            f"**{it['name']}**  -  Stock: {it['stock']} {it.get('uom','')}"
+            for it in items[:10]
+        ]
+        tail = f"\n\n*...and {total - 10} more items.*" if total > 10 else ""
+        return (
+            f"Here are **{total}** inventory item(s)"
+            + (f" ({low} flagged Low)." if low else ".")
+            + "\n\n" + "\n".join(lines) + tail
         )
 
     # Generic fallback: return a short summary
@@ -591,6 +608,29 @@ FAQ:
 
 Contact & Support: caltexautopro2026@gmail.com
 """
+
+# -- Out-of-scope patterns (customer chat) — compiled once at module level ----
+_OUT_OF_SCOPE_RE = re.compile(
+    r"\b(inventory|stock\s+level|stock\s+status|stock\s+is\s+low|"
+    r"low\s+stock|running\s+low|almost\s+out|nearly\s+out|"
+    r"reorder|restock\w*|replenish\w*|issuance|"
+    r"supplier|delivery|deliveries|warehouse|purchase\s+order|"
+    r"how\s+many.*(in\s+stock|stock\s+level|bottles|pieces|units)"
+    r"|generate\s+(a\s+)?(report|pdf|excel|summary)|"
+    r"inventory\s+report|maintenance\s+report|service\s+report|"
+    r"all\s+(customers?|users?|accounts?)|"
+    r"other\s+customer|another\s+customer|"
+    r"(weather|news|sports|politics|geography|math|coding|programming|"
+    r"calculate|formula|recipe|joke|game|movie|music))\b",
+    re.IGNORECASE,
+)
+# Special case: stock quantity questions must be blocked even if phrased nicely
+_STOCK_QTY_RE = re.compile(
+    r"\b(how\s+many\s+(bottles?|liters?|litres?|pieces?|units?|cans?|drums?)"
+    r"|how\s+much\s+.*(in\s+stock|stock|inventory)"
+    r"|current\s+stock|stock\s+quantity|quantity\s+(of|in)|in\s+stock)\b",
+    re.IGNORECASE,
+)
 
 _MANUAL_KEYWORDS = re.compile(
     r"\b(how\s+(do|can|to|would)\s+i|where\s+(is|can|do)|how\s+to\s+use|"
@@ -792,7 +832,21 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     from customer_tools import CUSTOMER_TOOL_SCHEMAS, CUSTOMER_TOOL_FUNCTIONS
     import time as _time
 
-    # -- Step 1: direct DB path for simple lookups (0 LLM tokens) -------------
+    # -- Step 1: out-of-scope pre-check (0 LLM tokens, 0 Firestore reads) -----
+    # Must run BEFORE the direct-DB path: ambiguous DB intents (e.g. stock
+    # questions mapped to MY_SERVICE_HISTORY) must never trigger a Firestore
+    # read or a wrong answer.
+    # Normalize for blocking checks only (typo'd scope probes like "inventry")
+    _norm_message = _normalize_input(message) or message
+    if _OUT_OF_SCOPE_RE.search(_norm_message) or _STOCK_QTY_RE.search(_norm_message):
+        return {
+            "reply": "I can only answer questions related to your vehicles, service history, bookings, and service pricing for the Caltex AutoPro system.",
+            "tool_calls": [],
+            "model": "none",
+            "intent": intent,
+        }
+
+    # -- Step 1c: direct DB path for simple lookups (0 LLM tokens) ------------
     direct = _customer_direct_lookup(message, customer_uid, customer_name, intent)
     if direct is not None:
         token_tracker.record(
@@ -805,34 +859,6 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
         )
         usage_limiter.record_usage(customer_uid, "customer", 0, 0)
         return direct
-
-    # -- Step 1b: out-of-scope pre-check (0 LLM tokens) -----------------------
-    _OUT_OF_SCOPE_RE = re.compile(
-        r"\b(inventory|stock\s+level|stock\s+status|reorder|issuance|"
-        r"supplier|delivery|deliveries|warehouse|purchase\s+order|"
-        r"how\s+many.*(in\s+stock|stock\s+level|bottles|pieces|units)"
-        r"|generate\s+(a\s+)?(report|pdf|excel|summary)|"
-        r"inventory\s+report|maintenance\s+report|service\s+report|"
-        r"all\s+(customers?|users?|accounts?)|"
-        r"other\s+customer|another\s+customer|"
-        r"(weather|news|sports|politics|geography|math|coding|programming|"
-        r"calculate|formula|recipe|joke|game|movie|music))\b",
-        re.IGNORECASE,
-    )
-    # Special case: stock quantity questions must be blocked even if phrased nicely
-    _STOCK_QTY_RE = re.compile(
-        r"\b(how\s+many\s+(bottles?|liters?|litres?|pieces?|units?|cans?|drums?)"
-        r"|how\s+much\s+.*(in\s+stock|stock|inventory)"
-        r"|current\s+stock|stock\s+quantity|quantity\s+(of|in)|in\s+stock)\b",
-        re.IGNORECASE,
-    )
-    if _OUT_OF_SCOPE_RE.search(message) or _STOCK_QTY_RE.search(message):
-        return {
-            "reply": "I can only answer questions related to your vehicles, service history, bookings, and service pricing for the Caltex AutoPro system.",
-            "tool_calls": [],
-            "model": "none",
-            "intent": intent,
-        }
 
     # -- Step 2: select model --------------------------------------------------
     chosen_model = (settings.GROQ_MODEL_SECONDARY
@@ -1007,7 +1033,7 @@ def _customer_direct_lookup(message: str, customer_uid: str,
     if intent not in _DIRECT_INTENTS:
         return None
 
-    msg_l = message.lower()
+    msg_l = _normalize_input(message) or message.lower()
     from customer_tools import (
         get_my_vehicles, get_my_service_history,
         get_service_recommendations, get_my_bookings,

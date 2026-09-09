@@ -5,6 +5,7 @@ Runs before the LLM for common, unambiguous queries — no API call needed.
 Returns a dict with {intent, result} on a match, or None to fall through to LLM.
 """
 import re
+from input_normalizer import normalize as _normalize_input
 from firestore_tools import (
     get_stock_levels,
     get_low_stock_items,
@@ -19,10 +20,12 @@ from firestore_tools import (
 
 
 def classify_and_run(text: str) -> dict | None:
-    t = text.lower().strip()
+    t = _normalize_input(text) or text.lower().strip()
 
     # ── Low stock / reorder ───────────────────────────────────────────────────
-    if re.search(r"low.?stock|reorder|running.?low|below.?reorder|out.?of.?stock", t):
+    if re.search(r"low.?stock|reorder|running.?low|below.?reorder|out.?of.?stock"
+                 r"|almost.?out|nearly.?out|need[s]?\s+restock|need[s]?\s+replenish"
+                 r"|stock\s+(is|are)\s+low|items?\s+is\s+low", t):
         result = get_low_stock_items()
         # Ensure count in result matches items list length (single source of truth for LLM)
         result["low_stock_count"] = len(result["items"])
@@ -56,6 +59,7 @@ def classify_and_run(text: str) -> dict | None:
     # ── Materials / inventory ─────────────────────────────────────────────────
     if re.search(
         r"(list|show|display|get|what|all)[\w\s]*(materials?|parts?|supplies?|stock\s*items?|inventory)"
+        r"|(show|list|display|view|get)\s+(the\s+|all\s+|current\s+)?stock\b"
         r"|(materials?|parts?|supplies?)\s+(we\s+)?(have|use|carry|stock|list|available)"
         r"|(all\s+(materials?|parts?|supplies?|stock))"
         r"|(stock\s+levels?|inventory\s+list|current\s+stock)",
@@ -81,7 +85,7 @@ def classify_and_run(text: str) -> dict | None:
     if re.search(
         r"(completed|in[\s-]?progress|pending|ongoing)[\w\s]*(maintenance|repair|service|jobs?)"
         r"|(maintenance|repair|service|jobs?)[\w\s]*(completed|in[\s-]?progress|pending|ongoing)"
-        r"|(list|show|all|get)[\w\s]*(maintenance|repair)[\w\s]*(jobs?|records?|history)"
+        r"|(list|show|all|get|display|view)[\w\s]*(maintenance|repair|pms)(\s+(jobs?|records?|history|list))?\b"
         r"|(maintenance|repair)\s+(jobs?|records?|list|history)",
         t,
     ):

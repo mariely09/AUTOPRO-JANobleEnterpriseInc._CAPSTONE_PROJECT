@@ -21,6 +21,7 @@ Model selection:
 """
 import re
 from config import settings
+from input_normalizer import normalize as _normalize_input
 
 # -- Intent constants ----------------------------------------------------------
 DATABASE_LOOKUP        = "DATABASE_LOOKUP"
@@ -67,10 +68,17 @@ _DB_LOOKUP = re.compile(
     r"my\s+(vehicles?|fleet|cars?|bookings?|appointments?|service\s+history)|"
     r"(when\s+(was|is|are)\s+(my|the)\s+(last|latest|next|upcoming))|"
     r"(last|latest|next)\s+(service|oil\s+change|maintenance|pms|booking|appointment)|"
-    r"(low\s+stock|reorder|running\s+low|out\s+of\s+stock)|"
+    r"(low\s+stock|reorder|running\s+low|out\s+of\s+stock|"
+    r"almost\s+out|nearly\s+out|need[s]?\s+restock|\w+\s+stock|"
+    r"what\s+\w+\s+is\s+low|which\s+\w+\s+(are|is)\s+low)|"
     r"(pending|completed|in[\s-]?progress)\s+(booking|maintenance|service|repair|job)|"
     r"(service|maintenance)\s+(booking|appointment)s?\s*(list|status|today|this\s+week)?|"
     r"(stock\s+level[s]?|inventory\s+list|current\s+stock|stock\s+status)|"
+    r"(list|show|display|get|view)\s+(the\s+|all\s+|current\s+|our\s+)?"
+    r"(inventory|stock|stock\s+items?|pms|maintenance|repairs?)\b|"
+    r"(need|needs)\s+(restock|replenish|reorder)|"
+    r"(what|which)\s+(items?|parts?|products?|supplies?)\s+need|"
+    r"(items?|parts?|supplies?)\s+to\s+(restock|reorder)|"
     r"(list|show|all)\s+(deliveries|delivery|vehicles?|fleet|stock)|"
     r"pms\s+(status|schedule|due|overdue)|"
     r"(vehicle|car)\s+(status|list|registered|active|inactive)|"
@@ -231,11 +239,18 @@ _MAINTENANCE_REMINDER = re.compile(
     r"\b(is\s+my\s+car\s+due\s+(for)?\s+maintenance"
     r"|what\s+maintenance\s+is\s+coming\s+up"
     r"|when\s+should\s+i\s+get\s+my\s+next\s+service"
-    r"|overdue\s+maintenance|pms\s+(overdue|due|reminder)"
+    r"|overdue\s+maintenance|pms\s+(overdue|due|reminder|status|schedule)"
     r"|is\s+my\s+car\s+overdue"
     r"|maintenance\s+(reminder|alert|notification)"
     r"|due\s+(for\s+)?(maintenance|service|pms)"
-    r"|upcoming\s+(maintenance|service|pms))\b",
+    r"|upcoming\s+(maintenance|service|pms)"
+    # "When is/should my next PMS/maintenance?" phrasings
+    r"|when\s+(is|should|do)\s+(my|the|i)\s+(next\s+)?(pms|maintenance|service)"
+    r"|when\s+is\s+my\s+next\s+(pms|maintenance|service)"
+    r"|next\s+(pms|maintenance|service)\s+(date|due|schedule)"
+    r"|when\s+should\s+i\s+schedule\s+my\s+next\s+(maintenance|pms|service)"
+    r"|when\s+should\s+i\s+bring\s+my\s+(car|vehicle)"
+    r"|when\s+should\s+i\s+schedule\s+my\s+(car|vehicle))\b",
     re.IGNORECASE,
 )
 
@@ -248,7 +263,17 @@ _BOOK_SERVICE = re.compile(
     r"|make\s+(a\s+|an\s+)?(booking|appointment|reservation)"
     r"|i\s+(need|want)\s+to\s+(schedule|book)\s+(a|an)?"
     r"|how\s+do\s+i\s+book"
-    r"|can\s+i\s+book)\b",
+    r"|can\s+i\s+book"
+    # informal / typo-tolerant booking phrasings
+    r"|can\s+you\s+help\s+me\s+book"
+    r"|help\s+me\s+book"
+    r"|i\s+need\s+an?\s+(oil\s+change|pms|service)"
+    r"|i\s+want\s+to\s+have\s+my\s+(car|vehicle)\s+serviced"
+    r"|have\s+my\s+(car|vehicle)\s+serviced"
+    r"|book\s+(a\s+)?preventive\s+maintenance"
+    r"|can\s+you\s+schedule\s+(a\s+|my\s+)?(service|car|vehicle)"
+    r"|can\s+you\s+book\s+my\s+(car|vehicle)"
+    r"|can\s+i\s+schedule\s+my\s+(car|vehicle))\b",
     re.IGNORECASE,
 )
 
@@ -289,7 +314,9 @@ def classify_customer_intent(message: str) -> str:
     for generic admin/general intents.
     Never calls an LLM.
     """
-    t = message.strip()
+    # Typo/abbreviation/informal normalization — routing only; the ORIGINAL
+    # message is still what gets answered.
+    t = _normalize_input(message) or message.strip()
 
     if _CANCEL_BOOKING.search(t):
         return CANCEL_BOOKING
@@ -327,7 +354,9 @@ def classify_intent(message: str) -> str:
     Classify *message* using only deterministic rules.
     Returns one of the intent constants.  Never calls an LLM.
     """
-    t = message.strip()
+    # Typo/abbreviation/informal normalization — routing only; the ORIGINAL
+    # message is still what gets answered.
+    t = _normalize_input(message) or message.strip()
 
     if _REPORT.search(t):
         return REPORT_GENERATION

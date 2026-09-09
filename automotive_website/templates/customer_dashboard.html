@@ -1036,11 +1036,11 @@ function _aiFallback(q) {
     // Pricing
     if (ql.indexOf('how much')!==-1||ql.indexOf('price')!==-1||ql.indexOf('cost of')!==-1||ql.indexOf('oil change')!==-1||ql.indexOf('change oil')!==-1)
         return 'For service pricing, please ask when the AI service is online — it can look up exact prices from the catalog.';
-    // Fleet summary fallback
-    var active=_aiVehicles.filter(function(v){return (v.status==='Active'||v.status==='On Track');}).length;
-    var maint=_aiVehicles.filter(function(v){return v.status&&v.status.toLowerCase().indexOf('maintenance')!==-1;}).length;
-    var over=_aiVehicles.filter(function(v){return (v.status||'').toLowerCase()==='overdue';}).length;
-    return 'Fleet Summary:\n✅ Active: '+active+'\n🔧 Under Maintenance: '+maint+'\n⚠️ PMS Overdue: '+over+'\n🚗 Total: '+_aiVehicles.length;
+    // Booking (offline fallback — direct the customer to the real booking flow)
+    if (ql.indexOf('book')!==-1||ql.indexOf('schedule')!==-1||ql.indexOf('appointment')!==-1)
+        return 'I\u2019d be happy to help you book a service! Booking is available while the AI service is online — please try again shortly, or use the Book Service tab to schedule directly.';
+    // Fallback — short, honest, capability-based (no fabricated fleet summary)
+    return 'I\u2019m not able to help with that request. I can assist with your vehicles, PMS status, service history, bookings, and service pricing.';
 }
 
 // ── Send ──────────────────────────────────────────────────────────────────

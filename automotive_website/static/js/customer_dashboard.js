@@ -839,7 +839,7 @@
       }, 0);
       return `You have ${done.length} completed service record${done.length !== 1 ? 's' : ''}.\nTotal spent: ₱${total.toLocaleString('en-PH', {minimumFractionDigits:2})}\n\nGo to "PMS History" tab to view full details.`;
     }
-    if (ql.includes('summary') || ql.includes('status') || ql.includes('report')) {
+    if (ql.includes('fleet summary') || ql.includes('fleet status')) {
       const active = _aiVehicles.filter(v => v.status === 'Active').length;
       const maint  = _aiVehicles.filter(v => (v.status || '').includes('Maintenance')).length;
       const over   = _aiVehicles.filter(v => v.status === 'Overdue').length;
@@ -853,7 +853,7 @@
       }).join('\n');
       return `Your fleet (${_aiVehicles.length} vehicle${_aiVehicles.length !== 1 ? 's' : ''}):\n${lines}`;
     }
-    return 'I can help you with:\n• Vehicle status & fleet summary\n• PMS overdue or due soon\n• Vehicles under maintenance\n• Service history & total cost\n\nTry asking: "Which vehicles are overdue?"';
+    return 'I\u2019m not able to help with that request. I can assist with vehicle status, PMS overdue/due soon, vehicles under maintenance, and service history.\n\nTry asking: "Which vehicles are overdue?"';
   }
 
   window.cuAISend = function (preset) {
