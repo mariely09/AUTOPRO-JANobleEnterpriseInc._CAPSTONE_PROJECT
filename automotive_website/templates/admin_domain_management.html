@@ -185,6 +185,7 @@ var _dmItems        = [];   // cached items for current domain
 var _dmEditingDocId = null;
 var _dmUnsubscribe  = null;
 var _dmCounts       = {};   // { commodity_groups: 8, uom: 8, vehicle_types: 7 }
+var _dmAllItems     = {};   // { commodity_groups: [{id,name},...], uom: [...], vehicle_types: [...] }
 
 // ââ€€ââ€€ SVG icons ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
 function _dmIcon(key, color, size) {
@@ -247,14 +248,23 @@ function dmRenderCards() {
     }
 
     // Load actual count from Firestore (will update if different from cache)
-    db.collection('domains').doc(d.key).collection('items').get().then(function(snap) {
+    db.collection('domains').doc(d.key).collection('items').orderBy('name').get().then(function(snap) {
       _dmCounts[d.key] = snap.size;
+      // Cache items data for instant display when card is clicked
+      _dmAllItems[d.key] = snap.docs.map(function(doc) {
+        return { id: doc.id, name: doc.data().name || '' };
+      });
+      
       var el = document.getElementById('dmCount_' + d.key);
       if (el) el.textContent = snap.size + ' item' + (snap.size !== 1 ? 's' : '');
+      
       // Update cache
       try {
         var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
-        if (uid) sessionStorage.setItem('dmCounts_' + uid, JSON.stringify(_dmCounts));
+        if (uid) {
+          sessionStorage.setItem('dmCounts_' + uid, JSON.stringify(_dmCounts));
+          sessionStorage.setItem('dmItems_' + uid, JSON.stringify(_dmAllItems));
+        }
       } catch(e) {}
     });
   });
@@ -278,7 +288,13 @@ function dmOpenDomain(d) {
   var fab = document.getElementById('dmFloatingAdd');
   fab.style.display = 'flex';
 
-  // Real-time listener
+  // Load cached items immediately if available
+  if (_dmAllItems[d.key] && _dmAllItems[d.key].length > 0) {
+    _dmItems = _dmAllItems[d.key];
+    dmRenderItems();
+  }
+
+  // Real-time listener (will update from Firestore in background)
   if (_dmUnsubscribe) _dmUnsubscribe();
   _dmUnsubscribe = firebase.firestore()
     .collection('domains').doc(d.key).collection('items')
@@ -287,6 +303,12 @@ function dmOpenDomain(d) {
       _dmItems = snap.docs.map(function(doc) {
         return { id: doc.id, name: doc.data().name || '' };
       });
+      // Update cache
+      _dmAllItems[d.key] = _dmItems;
+      try {
+        var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+        if (uid) sessionStorage.setItem('dmItems_' + uid, JSON.stringify(_dmAllItems));
+      } catch(e) {}
       dmRenderItems();
     });
 }
@@ -390,9 +412,15 @@ document.addEventListener('DOMContentLoaded', function() {
   try {
     var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
     if (uid) {
-      var cached = sessionStorage.getItem('dmCounts_' + uid);
-      if (cached) {
-        _dmCounts = JSON.parse(cached);
+      // Restore counts
+      var cachedCounts = sessionStorage.getItem('dmCounts_' + uid);
+      if (cachedCounts) {
+        _dmCounts = JSON.parse(cachedCounts);
+      }
+      // Restore items
+      var cachedItems = sessionStorage.getItem('dmItems_' + uid);
+      if (cachedItems) {
+        _dmAllItems = JSON.parse(cachedItems);
       }
     }
   } catch(e) {}
