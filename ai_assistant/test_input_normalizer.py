@@ -99,13 +99,13 @@ for msg, want in [
     ("Can you help me book maintenance?", BOOK_SERVICE),
     ("When should I bring my car for PMS?", MAINTENANCE_REMINDER),
     ("I want to have my vehicle serviced next week.", BOOK_SERVICE),
-    # Customer stock questions are OUT OF SCOPE: classify_customer_intent maps
-    # ambiguous DB lookups to MY_SERVICE_HISTORY, and _run_customer_chat's scope
-    # check then BLOCKS them before any Firestore read (asserted below).
-    ("what stok is low", MY_SERVICE_HISTORY),
-    ("what products are running low", MY_SERVICE_HISTORY),
-    ("which items need replenishment", MY_SERVICE_HISTORY),
-    ("what parts are almost out", MY_SERVICE_HISTORY),
+    # Customer stock questions are OUT OF SCOPE: they stay DATABASE_LOOKUP
+    # (no self-reference) and access_control.classify_denial BLOCKS them as
+    # INVENTORY before any Firestore read (asserted below).
+    ("what stok is low", DATABASE_LOOKUP),
+    ("what products are running low", DATABASE_LOOKUP),
+    ("which items need replenishment", DATABASE_LOOKUP),
+    ("what parts are almost out", DATABASE_LOOKUP),
 ]:
     got = classify_customer_intent(msg)
     check(f"{msg!r}", got == want, f"got {got}, want {want}")

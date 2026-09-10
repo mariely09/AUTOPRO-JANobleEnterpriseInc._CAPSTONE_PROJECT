@@ -29,6 +29,7 @@ import token_tracker
 import usage_limiter
 import ai_settings
 import cache_manager
+from reasoning_utils import strip_reasoning as _strip_reasoning
 
 app = FastAPI(
     title="Caltex AutoPro AI",
@@ -102,7 +103,11 @@ def _is_rate_limit(exc: Exception) -> bool:
         # can't help (org-level limit), so we surface the friendly message
         # instead of letting it become a 500.
         or "413" in exc_str
-        or ("token" in exc_str and "limit" in exc_str)
+        # Match Groq's exact rate-limit phrases — intentionally narrow to avoid
+        # catching InvalidApiKeyError or model-not-found messages that happen
+        # to contain generic words like "token" and "limit".
+        or "rate_limit_exceeded" in exc_str
+        or "rate limit exceeded" in exc_str
         or "request too large" in exc_str
         or "too large for model" in exc_str
         # Firestore free-tier quota (ResourceExhausted / 429 from gRPC)
@@ -113,7 +118,15 @@ def _is_rate_limit(exc: Exception) -> bool:
 
 
 def _is_invalid_key(exc: Exception) -> bool:
-    """Return True if the exception is a Groq authentication / invalid-key error."""
+    """
+    Return True if the exception is a Groq authentication / invalid-key error.
+
+    NOTE: model-not-found (404) errors are intentionally NOT matched here.
+    client.py already wraps those as InvalidApiKeyError with a specific message,
+    so isinstance() catches them. Adding raw string checks for "model_not_found"
+    or "does not exist" risks catching unrelated exceptions and masking the real
+    error with the generic config-issue reply.
+    """
     from client import InvalidApiKeyError
     if isinstance(exc, InvalidApiKeyError):
         return True
@@ -122,19 +135,28 @@ def _is_invalid_key(exc: Exception) -> bool:
     return (
         "authentication" in cls_name
         or "invalidapikey" in cls_name
+        or "authenticationerror" in cls_name
         or "401" in exc_str
         or "invalid api key" in exc_str
         or "invalid_api_key" in exc_str
         or "revoked" in exc_str
         or "unauthorized" in exc_str
-        or "model_not_found" in exc_str
-        or "does not exist" in exc_str
-        or "no access to it" in exc_str
     )
 
 
-def _invalid_key_reply() -> dict:
-    """Build a structured response for an invalid/revoked API key or missing model."""
+def _invalid_key_reply(exc: Exception | None = None) -> dict:
+    """
+    Build a structured response for an invalid/revoked API key or missing model.
+    Logs the underlying exception (without the key value) so the real cause is
+    visible in server logs during development.
+    """
+    import logging as _log
+    _log.getLogger(__name__).error(
+        "AI config error → returning config-issue reply to client. "
+        "Cause: %s: %s",
+        type(exc).__name__ if exc else "unknown",
+        exc if exc else "(no exception provided)",
+    )
     return {
         "rate_limited": False,
         "reply": (
@@ -219,6 +241,7 @@ def get_ai_settings():
             "customers_at_limit":     at_limit,
             "customer_ai_status":     "Active" if settings_now.get("customer_ai_enabled", True) else "Paused",
             "next_reset":             usage_limiter._next_manila_midnight_str(),
+            "token_reset_hour":       int(settings_now.get("token_reset_hour", 0) or 0),
             "active_customers_today": len(customers),
         },
     }
@@ -226,7 +249,9 @@ def get_ai_settings():
 
 class AiSettingsUpdate(BaseModel):
     customer_ai_enabled:     bool | None = None
+    pause_reason:            str | None = None   # shown in customer chat when paused
     customer_token_limit:    int | None = None
+    token_reset_hour:        int | None = None   # 0-23 Manila time; 0 = midnight
     dev_access_enabled:      bool | None = None
     dev_bypass_token_limit:  bool | None = None
     dev_access_while_paused: bool | None = None
@@ -240,6 +265,22 @@ def put_ai_settings(update: AiSettingsUpdate):
         raise HTTPException(status_code=400, detail="No valid settings provided.")
     saved = ai_settings.save_settings(updates)
     return {"success": True, "settings": saved}
+
+
+@app.get("/ai-settings/public")
+def get_ai_settings_public():
+    """
+    Unauthenticated endpoint consumed by the customer chat screen to determine
+    whether the admin has paused the AI and, if so, why.
+    Only exposes the minimum required fields — no usage stats, no token limits.
+    """
+    s = ai_settings.get_settings()
+    enabled = bool(s.get("customer_ai_enabled", True))
+    reason  = str(s.get("pause_reason", "") or "")
+    return {
+        "customer_ai_enabled": enabled,
+        "pause_reason": reason if not enabled else "",
+    }
 
 
 @app.get("/cache/stats")
@@ -430,7 +471,7 @@ def admin_chat(req: ChatRequest):
                 reset_in=rl["reset_in"],
             )
         if _is_invalid_key(e):
-            ik = _invalid_key_reply()
+            ik = _invalid_key_reply(e)
             return ChatResponse(
                 reply=ik["reply"],
                 session_id=session_id,
@@ -445,8 +486,6 @@ def admin_chat(req: ChatRequest):
             _perf["intent"] = "UNKNOWN"
         perf_metrics.log_summary(_perf)
         perf_metrics.pop()
-
-
 def _record_llm_usage_admin(result: dict, admin_id: str) -> None:
     """Extract token counts from an LLM result dict and record them for the admin."""
     try:
@@ -734,7 +773,7 @@ def _build_customer_system_prompt(message: str) -> str:
     """
     base = """You are the friendly vehicle/service assistant for a Caltex AutoPro customer (JA Noble Enterprise Inc., Caltex San Pedro, Laguna). Warm, concise, natural tone.
 
-SCOPE — only: customer's own vehicles/PMS status, their service history & costs, their bookings (create/reschedule/cancel), shop services & pricing, customer-visible materials, maintenance recommendations from their data, app/website how-to. Anything else (news, sports, general knowledge, coding, math, weather) → respond ONLY: "I can only answer questions related to the Automotive Service and Inventory Management System."
+SCOPE — only: customer's own vehicles/PMS status, their service history & costs, their bookings (create/reschedule/cancel), shop services & pricing, customer-visible materials, maintenance recommendations from their data, app/website how-to, AND general automotive education (oil types, parts, repairs, maintenance tips, car-care how-tos). Anything else (news, sports, general knowledge, coding, math, weather) → respond ONLY: "I can only answer questions related to the Automotive Service and Inventory Management System."
 
 PRIVACY (absolute):
 - Another person's data → ONLY: "I can only show information for your own account."
@@ -789,11 +828,27 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     """
     import json
     from groq import Groq, BadRequestError, RateLimitError, AuthenticationError
+    from client import create_with_optional_thinking_disable as _thinking_disable_create
     from config import settings
     from customer_tools import CUSTOMER_TOOL_SCHEMAS, CUSTOMER_TOOL_FUNCTIONS
     import time as _time
 
-    # -- Step 1: out-of-scope pre-check (0 LLM tokens, 0 Firestore reads) -----
+    # -- Step 1: authorization pre-check (0 LLM tokens, 0 Firestore reads) ----
+    # Centralized access control (access_control.py): denies other-customer
+    # data, inventory, issuance, admin reports, business analytics, and
+    # off-topic requests BEFORE any Firestore read or LLM call — a denied
+    # request can never leak data or fall back to the customer's own history.
+    import access_control
+    _denial = access_control.classify_denial(message)
+    if _denial is not None:
+        return {
+            "reply": access_control.denial_message(_denial, message),
+            "tool_calls": [],
+            "model": "none",
+            "intent": f"ACCESS_DENIED_{_denial}",
+        }
+
+    # -- Step 1b: out-of-scope pre-check (defense in depth) -------------------
     # Must run BEFORE the direct-DB path: ambiguous DB intents (e.g. stock
     # questions mapped to MY_SERVICE_HISTORY) must never trigger a Firestore
     # read or a wrong answer.
@@ -806,6 +861,18 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
             "model": "none",
             "intent": intent,
         }
+
+    # -- Step 1b+: deterministic booking fast path (0 LLM tokens) -------------
+    # Gathers plate/service/date/time for booking requests, asks ONLY for the
+    # missing details, finds earliest available slots, and books via the
+    # existing customer_tools (all ownership/availability checks preserved).
+    if intent in (BOOK_SERVICE, UNKNOWN, SERVICE_RECOMMENDATION):
+        import booking_gather
+        gathered = booking_gather.try_handle_booking(
+            message, customer_uid, customer_name, history,
+        )
+        if gathered is not None:
+            return gathered
 
     # -- Step 1c: direct DB path for simple lookups (0 LLM tokens) ------------
     direct = _customer_direct_lookup(message, customer_uid, customer_name, intent)
@@ -841,6 +908,8 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
 
     def _call(msgs, tools=None):
         from client import RateLimitedError as _RLE, InvalidApiKeyError as _IKE, get_groq_client
+        import logging as _log
+        _clog = _log.getLogger(__name__)
         api_key = settings.GROQ_API_KEY
         if not api_key:
             raise _IKE("No Groq API key configured.")
@@ -851,11 +920,11 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                 kwargs: dict = {
                     "model":      chosen_model,
                     "messages":   msgs,
-                    "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
+                    "max_tokens": _out_tokens[0],
                 }
                 if tools:
                     kwargs["tools"] = tools
-                resp = client.chat.completions.create(**kwargs)
+                resp = _thinking_disable_create(client, kwargs)
             try:
                 u = resp.usage
                 perf_metrics.record_usage(getattr(u, "prompt_tokens", 0) or 0,
@@ -864,16 +933,30 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                 pass
             return resp
         except AuthenticationError as exc:
+            _clog.error(
+                "Customer chat — Groq AuthenticationError (HTTP 401). "
+                "Raw error: %s", exc,
+            )
             raise _IKE("The Groq API key is invalid or has been revoked.") from exc
         except RateLimitError as exc:
+            _clog.warning("Customer chat — Groq RateLimitError (HTTP 429): %s", exc)
             raise _RLE("The AI service has reached its daily usage limit.") from exc
         except Exception as exc:
             _s = str(exc).lower()
             if ("model_not_found" in _s or "does not exist" in _s
                     or "404" in _s or "no access to it" in _s):
+                _clog.error(
+                    "Customer chat — Groq model_not_found for model=%s. "
+                    "Raw error: %s", chosen_model, exc,
+                )
                 raise _IKE(
                     f"The AI model '{chosen_model}' is no longer available on Groq."
                 ) from exc
+            # Log the real error before re-raising so it appears in server logs.
+            _clog.error(
+                "Customer chat — Groq API call failed (model=%s). %s: %s",
+                chosen_model, type(exc).__name__, exc,
+            )
             raise
 
     def _strip_null(raw: str) -> dict:
@@ -913,6 +996,8 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     tool_log    = []
     final_reply = ""
     t0 = _time.time()
+    _retried_empty = False
+    _out_tokens = [settings.GROQ_MAX_OUTPUT_TOKENS]  # mutable: raised on empty-answer retry
 
     # Nudge model for pricing queries that stall
     _is_pricing_query = bool(re.search(
@@ -935,7 +1020,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                                        True, _time.time() - t0)
                 request_cache.end_request(_bucket)
                 return {
-                    "reply": fb.choices[0].message.content
+                    "reply": _strip_reasoning(fb.choices[0].message.content or "")
                              or "I couldn't retrieve that information. Please try rephrasing.",
                     "tool_calls": tool_log,
                     "model": chosen_model,
@@ -951,12 +1036,24 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                 }
 
         msg  = response.choices[0].message
+        # Defense in depth: strip any <think>...</think> reasoning the model
+        # emitted BEFORE it can reach the reply, session history, or caches.
+        msg.content = _strip_reasoning(msg.content or "")
         asst: dict = {"role": "assistant", "content": msg.content or ""}
         if msg.tool_calls:
             asst["tool_calls"] = [tc.model_dump() for tc in msg.tool_calls]
         messages.append(asst)
 
         if not msg.tool_calls:
+            # Empty-answer guard: with the thinking-disable parameter
+            # unavailable, Qwen can burn the ENTIRE output budget on a
+            # truncated <think> block and return an empty user-facing answer.
+            # Retry once with a larger budget so the customer sees an answer.
+            if not (msg.content or "").strip() and not _retried_empty:
+                _retried_empty = True
+                _out_tokens[0] = settings.GROQ_MAX_OUTPUT_TOKENS * 4
+                messages.pop()  # drop the empty assistant turn
+                continue
             if _is_pricing_query and _turn == 0 and not tool_log:
                 messages.append({
                     "role": "user",
@@ -1034,12 +1131,28 @@ def _customer_direct_lookup(message: str, customer_uid: str,
     Returns dict with reply + tool_calls if handled, or None to fall through.
     Authorization is enforced by the customer_tools functions.
     """
+    # ── Safety guard: never execute a direct DB lookup for a message that
+    # access_control would deny.  This is a defence-in-depth check — Step 1
+    # in _run_customer_chat already calls classify_denial, but intent routing
+    # in model_router or a future change could theoretically slip a denied
+    # query through to here.  Zero cost (pure regex, no I/O).
+    import access_control as _ac
+    _guard = _ac.classify_denial(message)
+    if _guard is not None:
+        return {
+            "reply":      _ac.denial_message(_guard, message),
+            "tool_calls": [],
+            "model":      "none",
+            "intent":     f"ACCESS_DENIED_{_guard}",
+        }
+
     # Only handle data-retrieval intents in the direct path
     _DIRECT_INTENTS = {
         MY_VEHICLES, MY_SERVICE_HISTORY, MY_BOOKINGS,
         SERVICE_PRICES, SERVICE_COST, MAINTENANCE_REMINDER,
         SERVICE_RECOMMENDATION,
-        # Also catch legacy generic intents that map to customer data
+        # DATABASE_LOOKUP is now only routed here when a self-reference
+        # keyword is present (see model_router.classify_customer_intent).
         DATABASE_LOOKUP, DATABASE_CALCULATION,
     }
     if intent not in _DIRECT_INTENTS:
@@ -1465,7 +1578,7 @@ def customer_chat_endpoint(req: CustomerChatRequest):
                 reset_in=rl["reset_in"],
             )
         if _is_invalid_key(e):
-            ik = _invalid_key_reply()
+            ik = _invalid_key_reply(e)
             return ChatResponse(
                 reply=ik["reply"],
                 session_id=session_id,
@@ -1504,3 +1617,76 @@ def _merge_history(server: list[dict], client: list[dict] | None) -> list[dict]:
 
     limit = _settings.GROQ_MAX_HISTORY_MSGS
     return base[-limit:] if len(base) > limit else base
+
+
+# -- Debug: Groq connectivity test --------------------------------------------
+
+@app.get("/debug/test-groq")
+def debug_test_groq():
+    """
+    Verify the complete Groq API request flow without sending a real chat message.
+
+    Makes a minimal call (1 output token) to confirm:
+      - GROQ_API_KEY is present and accepted by Groq
+      - The configured model (GROQ_MODEL_PRIMARY) exists and is accessible
+      - The SDK / network path is working end-to-end
+
+    NEVER returns the raw API key — only the masked last-4 characters.
+    Safe to call during development; not intended for production traffic checks.
+    """
+    import time as _time
+    from api_key_manager import mask_key
+
+    api_key   = _settings.GROQ_API_KEY
+    model     = _settings.GROQ_MODEL_PRIMARY
+    key_hint  = mask_key(api_key) if api_key else "(not set)"
+
+    if not api_key:
+        return {
+            "ok":      False,
+            "model":   model,
+            "key":     key_hint,
+            "error":   "GROQ_API_KEY is not set in the environment / .env file.",
+            "elapsed_ms": 0,
+        }
+
+    t0 = _time.time()
+    try:
+        from client import get_groq_client
+        client = get_groq_client(api_key)
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": "Reply with the single word: OK"}],
+            max_tokens=5,
+            # Keep thinking disabled consistent with all other calls.
+            chat_template_kwargs={"enable_thinking": False},
+        )
+        elapsed_ms = round((_time.time() - t0) * 1000)
+        content    = (resp.choices[0].message.content or "").strip()
+        usage      = getattr(resp, "usage", None)
+        return {
+            "ok":           True,
+            "model":        model,
+            "key":          key_hint,
+            "reply":        content,
+            "prompt_tokens":     getattr(usage, "prompt_tokens",     None),
+            "completion_tokens": getattr(usage, "completion_tokens", None),
+            "elapsed_ms":   elapsed_ms,
+        }
+    except Exception as exc:
+        import logging as _log
+        _log.getLogger(__name__).error(
+            "debug/test-groq failed. model=%s key=%s — %s: %s",
+            model, key_hint, type(exc).__name__, exc,
+        )
+        elapsed_ms = round((_time.time() - t0) * 1000)
+        return {
+            "ok":         False,
+            "model":      model,
+            "key":        key_hint,
+            "error_type": type(exc).__name__,
+            # Surface the Groq error message so devs can see the real cause,
+            # but never include the API key value itself.
+            "error":      str(exc).replace(api_key, "***") if api_key in str(exc) else str(exc),
+            "elapsed_ms": elapsed_ms,
+        }

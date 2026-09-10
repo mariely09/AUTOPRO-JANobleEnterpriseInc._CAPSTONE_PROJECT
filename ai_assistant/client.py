@@ -2,17 +2,21 @@
 LLM client using Groq (ONLY external AI provider).
 
 Calls Groq with intelligent model routing:
-  - Llama 3.1 8B Instant  → primary / default model
-  - Llama 3.3 70B Versatile → secondary, used only for COMPLEX_ANALYSIS
+  - qwen/qwen3.6-27b → primary / default model
+  - qwen/qwen3.6-27b → secondary (same model; override via GROQ_MODEL_SECONDARY env)
 
 Token usage is recorded after every call via token_tracker.
 Rate-limit errors (HTTP 429) are surfaced as RateLimitedError so main.py
 returns a friendly message instead of a 500.
+AuthenticationError (HTTP 401) → InvalidApiKeyError.
+Model-not-found (HTTP 404)     → InvalidApiKeyError with a model-specific message.
 """
 import json
 import logging
 import re
 import time
+
+from reasoning_utils import strip_reasoning
 from groq import Groq, BadRequestError, RateLimitError, AuthenticationError
 from config import settings
 from firestore_tools import TOOL_SCHEMAS, TOOL_FUNCTIONS
@@ -26,6 +30,39 @@ logger = logging.getLogger(__name__)
 # latency). One client is created per API key and reused for the process
 # lifetime; a key change swaps the cached client.
 _groq_client_cache: dict[str, "Groq"] = {}
+
+
+# Probe ONCE per process whether the installed Groq SDK accepts
+# `chat_template_kwargs` (newer SDKs pass it through to Groq, where Qwen3
+# models use it to disable the internal thinking mode — faster AND cheaper
+# because reasoning tokens are never generated). Older SDKs (e.g. 1.5.0)
+# raise TypeError; we then fall back to a plain call for the process lifetime.
+_thinking_disable_supported: bool | None = None
+
+
+def create_with_optional_thinking_disable(client: "Groq", kwargs: dict):
+    """
+    Call client.chat.completions.create(**kwargs), adding the Qwen3
+    thinking-disable parameter only when the installed SDK supports it.
+    Never lets the SDK-arg mismatch escape as a user-facing error.
+    """
+    global _thinking_disable_supported
+    if _thinking_disable_supported is not False:
+        try:
+            return client.chat.completions.create(
+                **kwargs, chat_template_kwargs={"enable_thinking": False}
+            )
+        except TypeError as exc:
+            if "chat_template_kwargs" in str(exc):
+                _thinking_disable_supported = False
+                logger.info(
+                    "Installed Groq SDK does not support chat_template_kwargs — "
+                    "falling back to plain calls (thinking disabled at the "
+                    "prompt/output level instead)."
+                )
+            else:
+                raise
+    return client.chat.completions.create(**kwargs)
 
 
 def get_groq_client(api_key: str | None = None) -> "Groq":
@@ -339,7 +376,7 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None,
             }
             if tools:
                 kwargs["tools"] = tools
-            resp = client.chat.completions.create(**kwargs)
+            resp = create_with_optional_thinking_disable(client, kwargs)
         try:
             u = resp.usage
             perf_metrics.record_usage(getattr(u, "prompt_tokens", 0) or 0,
@@ -348,24 +385,38 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None,
             pass
         return resp
     except AuthenticationError as exc:
-        logger.error("Groq AuthenticationError — invalid or revoked API key: %s", exc)
+        logger.error(
+            "Groq AuthenticationError (HTTP 401) — invalid or revoked API key. "
+            "Raw error: %s", exc,
+        )
         raise InvalidApiKeyError(
             "The Groq API key is invalid or has been revoked. "
             "Please update GROQ_API_KEY in the Render environment variables."
         ) from exc
     except RateLimitError as exc:
+        logger.warning("Groq RateLimitError (HTTP 429): %s", exc)
         raise RateLimitedError(
             "The AI service has reached its daily usage limit (Groq free tier). "
             "Please try again later."
         ) from exc
     except Exception as exc:
         if _is_model_not_found(exc):
-            logger.error("Groq model_not_found: %s — model=%s", exc, chosen_model)
+            logger.error(
+                "Groq model_not_found for model=%s — check GROQ_MODEL_PRIMARY / "
+                "GROQ_MODEL_SECONDARY env vars. Raw error: %s",
+                chosen_model, exc,
+            )
             raise InvalidApiKeyError(
                 f"The AI model '{chosen_model}' is no longer available on Groq. "
                 "Please update GROQ_MODEL_PRIMARY / GROQ_MODEL_SECONDARY in the "
                 "Render environment variables to a currently supported model."
             ) from exc
+        # Log the full exception so the real Groq error is visible in server
+        # logs during development — the caller decides what to show the user.
+        logger.error(
+            "Groq API call failed (model=%s). %s: %s",
+            chosen_model, type(exc).__name__, exc,
+        )
         raise
 
 
@@ -484,6 +535,10 @@ def chat(user_message: str, history: list[dict] | None = None,
             }
 
         msg = response.choices[0].message
+        # Defense in depth: even with thinking disabled, strip any
+        # <think>...</think> reasoning the model still emitted so the
+        # customer only ever sees the final answer.
+        msg.content = strip_reasoning(msg.content or "")
         assistant_msg: dict = {"role": "assistant", "content": msg.content or ""}
         if msg.tool_calls:
             assistant_msg["tool_calls"] = [tc.model_dump() for tc in msg.tool_calls]
@@ -550,7 +605,8 @@ def chat(user_message: str, history: list[dict] | None = None,
                 correction_resp = _call_groq(correction_messages, model=chosen_model)
                 _record_usage(correction_resp, chosen_model, intent, user_id, True,
                               time.time() - t0)
-                final_reply = correction_resp.choices[0].message.content or final_reply
+                final_reply = strip_reasoning(
+                    correction_resp.choices[0].message.content or "") or final_reply
                 check = verify_reply(final_reply, tool_call_log)
             except Exception:
                 # Correction is best-effort; never let it kill the original answer

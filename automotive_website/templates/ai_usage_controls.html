@@ -203,6 +203,36 @@ document.getElementById('adminWrap').style.display = 'flex';
 var _aiucSettings = null;
 var _aiucOverview = null;
 var _aiucDirty = false;
+var _aiucBackendOk = false; // true once we've confirmed backend is reachable
+
+// ── Default settings — used when backend is offline ───────────────────────
+var _AIUC_DEFAULTS = {
+    customer_ai_enabled:     true,
+    customer_token_limit:    0,
+    dev_access_enabled:      false,
+    dev_bypass_token_limit:  false,
+    dev_access_while_paused: false,
+};
+var _AIUC_OVERVIEW_DEFAULTS = {
+    customer_tokens_used:    0,
+    customer_token_limit:    0,
+    customers_at_limit:      0,
+    customer_ai_status:      'Active',
+    next_reset:              '—',
+    active_customers_today:  0,
+};
+var _AIUC_LOCAL_KEY = 'aiuc_settings_cache';
+
+function _aiucLoadLocal() {
+    try {
+        var raw = localStorage.getItem(_AIUC_LOCAL_KEY);
+        if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return null;
+}
+function _aiucSaveLocal(settings) {
+    try { localStorage.setItem(_AIUC_LOCAL_KEY, JSON.stringify(settings)); } catch (e) {}
+}
 
 function _esc(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -218,41 +248,84 @@ function _showToast(msg, type) {
 }
 
 // Resolve a real Firebase ID token for the server-side admin check.
-function _authHeaders(cb) {
+function _authHeaders(forceRefresh, cb) {
     var u = firebase.auth().currentUser;
     if (!u) { cb({ 'Content-Type': 'application/json' }); return; }
-    u.getIdToken(true).then(function(tok) {
+    u.getIdToken(forceRefresh).then(function(tok) {
         cb({ 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' });
     }).catch(function() {
-        cb({ 'X-Client-Uid': u.uid, 'Content-Type': 'application/json' });
+        cb({ 'Authorization': 'Bearer ' + (window.__aiucLastToken || u.uid), 'Content-Type': 'application/json' });
     });
 }
 
-// ── Data loading ─────────────────────────────────────────────────────────────
+// ── Show/hide backend status banner (non-blocking) ────────────────────────
+function _aiucSetBanner(msg) {
+    var box = document.getElementById('aiucErrorBox');
+    if (!box) return;
+    if (!msg) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="aiuc-error-box" style="margin-bottom:14px;">' + msg + '</div>';
+}
+
+// ── Firestore helpers — read & write ai_settings/global directly ──────────
+// This bypasses the Flask proxy and the AI backend entirely, so the page
+// works regardless of whether the AI backend is running.
+var _db = null;
+function _getDb() {
+    if (!_db) _db = firebase.firestore();
+    return _db;
+}
+var _AIUC_FS_COLLECTION = 'ai_settings';
+var _AIUC_FS_DOC        = 'global';
+
+function _aiucFsLoad(cb) {
+    _getDb().collection(_AIUC_FS_COLLECTION).doc(_AIUC_FS_DOC).get()
+        .then(function(snap) {
+            var data = snap.exists ? (snap.data() || {}) : {};
+            cb(null, data);
+        })
+        .catch(function(err) { cb(err, null); });
+}
+
+function _aiucFsSave(payload, cb) {
+    _getDb().collection(_AIUC_FS_COLLECTION).doc(_AIUC_FS_DOC)
+        .set(payload, { merge: true })
+        .then(function() { cb(null); })
+        .catch(function(err) { cb(err); });
+}
+
+// ── Data loading — reads directly from Firestore, no proxy needed ─────────
 function _aiucLoad() {
-    _authHeaders(function(headers) {
-        fetch('/api/ai-settings', { method: 'GET', headers: headers })
-            .then(function(r) {
-                if (r.status === 403) throw new Error('forbidden');
-                if (!r.ok) throw new Error('unreachable');
-                return r.json();
-            })
-            .then(function(data) {
-                _aiucSettings = data.settings || {};
-                _aiucOverview = data.overview || {};
-                _aiucRender();
-            })
-            .catch(function(err) {
-                var box = document.getElementById('aiucContent');
-                if (!box) return;
-                if (err && err.message === 'forbidden') {
-                    box.innerHTML = '<div class="pf-page-wrapper"><div class="aiuc-error-box">'
-                        + 'You need administrator access to view AI Usage Controls.</div></div>';
-                } else {
-                    box.innerHTML = '<div class="pf-page-wrapper"><div class="aiuc-error-box">'
-                        + 'The AI service is unreachable right now. Please refresh to try again.</div></div>';
-                }
-            });
+    // Render immediately with cache/defaults so the UI is never blank
+    var cached = _aiucLoadLocal();
+    if (!_aiucSettings) {
+        _aiucSettings = cached
+            ? Object.assign({}, _AIUC_DEFAULTS, cached)
+            : Object.assign({}, _AIUC_DEFAULTS);
+    }
+    if (!_aiucOverview) {
+        _aiucOverview = Object.assign({}, _AIUC_OVERVIEW_DEFAULTS);
+    }
+    _aiucRender();
+
+    // Sync from Firestore in the background
+    _aiucFsLoad(function(err, data) {
+        if (err) {
+            // Still show the UI — just keep the cached/default values
+            _aiucSetBanner('<strong>Note:</strong> Could not load live settings from the database. Showing last known values.');
+            return;
+        }
+        // Merge Firestore data over defaults
+        var merged = Object.assign({}, _AIUC_DEFAULTS);
+        ['customer_ai_enabled','customer_token_limit','dev_access_enabled',
+         'dev_bypass_token_limit','dev_access_while_paused'].forEach(function(k) {
+            if (k in data && data[k] !== null && data[k] !== undefined) {
+                merged[k] = data[k];
+            }
+        });
+        _aiucSettings = merged;
+        _aiucSaveLocal(merged);
+        _aiucRender();
+        _aiucSetBanner('');
     });
 }
 
@@ -406,36 +479,35 @@ function _aiucSave() {
         dev_bypass_token_limit:  !!document.getElementById('aiucDevBypass').checked,
         dev_access_while_paused: !!document.getElementById('aiucDevWhilePaused').checked,
     };
+
     btn.disabled = true;
     btn.textContent = 'Saving…';
-    _authHeaders(function(headers) {
-        fetch('/api/ai-settings', {
-            method: 'PUT', headers: headers, body: JSON.stringify(payload),
-        })
-        .then(function(r) {
-            if (r.status === 403) throw new Error('forbidden');
-            if (!r.ok) throw new Error('save failed');
-            return r.json();
-        })
-        .then(function() {
-            _showToast('AI usage settings saved.', 'success');
-            _aiucLoad(); // reload overview with the new effective limit
-        })
-        .catch(function(err) {
-            _showToast(
-                err && err.message === 'forbidden'
-                    ? 'You need administrator access to change AI settings.'
-                    : 'Could not save settings. Please try again.',
-                'error');
-        })
-        .finally(function() {
-            btn.disabled = false;
-            btn.textContent = 'Save Changes';
+
+    // Write directly to Firestore — no proxy, no AI backend dependency
+    _aiucFsSave(payload, function(err) {
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+        if (err) {
+            _showToast('Could not save settings. Please try again.', 'error');
+            return;
+        }
+        // Keep local cache in sync
+        _aiucSettings = Object.assign({}, _aiucSettings, payload);
+        _aiucSaveLocal(_aiucSettings);
+        _aiucSetBanner('');
+        _showToast('Settings saved successfully.', 'success');
+
+        // Also notify the AI backend so its in-memory cache refreshes
+        // (best-effort — failure here is silent since Firestore is the source of truth)
+        _authHeaders(false, function(headers) {
+            fetch('/api/ai-settings', {
+                method: 'PUT', headers: headers, body: JSON.stringify(payload),
+            }).catch(function() { /* silent — Firestore already saved */ });
         });
     });
 }
 
-// Load once Firebase auth resolves (need a token for the API call).
+// Load once Firebase auth resolves.
 firebase.auth().onAuthStateChanged(function(user) {
     if (user) {
         _aiucLoad();
