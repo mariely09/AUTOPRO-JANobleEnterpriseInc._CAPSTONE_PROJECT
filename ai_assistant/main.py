@@ -1654,13 +1654,26 @@ def debug_test_groq():
     try:
         from client import get_groq_client
         client = get_groq_client(api_key)
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": "Reply with the single word: OK"}],
-            max_tokens=5,
-            # Keep thinking disabled consistent with all other calls.
-            chat_template_kwargs={"enable_thinking": False},
-        )
+        
+        # Try with chat_template_kwargs first (new SDK), fallback without it
+        try:
+            resp = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": "Reply with the single word: OK"}],
+                max_tokens=5,
+                chat_template_kwargs={"enable_thinking": False},
+            )
+        except TypeError as te:
+            # Fallback for older Groq SDK versions that don't support chat_template_kwargs
+            if "chat_template_kwargs" in str(te):
+                resp = client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": "Reply with the single word: OK"}],
+                    max_tokens=5,
+                )
+            else:
+                raise
+        
         elapsed_ms = round((_time.time() - t0) * 1000)
         content    = (resp.choices[0].message.content or "").strip()
         usage      = getattr(resp, "usage", None)

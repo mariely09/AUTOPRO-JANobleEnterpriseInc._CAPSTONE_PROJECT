@@ -1211,7 +1211,11 @@ def ai_chat():
         else:
             msg = 'The AI service could not process your request right now. Please try again in a moment.'
         return jsonify({'success': False, 'offline': True, 'answer': msg}), 503
-    except Exception:
+    except Exception as e:
+        # Log the actual error for debugging
+        print(f'❌ Admin AI chat error: {type(e).__name__}: {e}')
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'offline': True,
