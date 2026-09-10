@@ -6,6 +6,10 @@ import json as _json
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import timedelta
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # ── Firebase Admin SDK ───────────────────────────────────────────────────────
 # Requires: pip install firebase-admin
@@ -80,14 +84,18 @@ def add_no_cache_headers(response):
     return response
 
 # ── Email config (Gmail SMTP) ────────────────────────────────
-# Set SMTP_APP_PASSWORD as an environment variable, or paste the
-# 16-character Gmail App Password directly below.
-# To generate: Gmail → Settings → Security → 2-Step Verification → App Passwords
+# Loaded from .env file (never commit .env to Git!)
+# To generate Gmail App Password: 
+# Gmail → Settings → Security → 2-Step Verification → App Passwords
 SMTP_HOST     = 'smtp.gmail.com'
 SMTP_PORT     = 587
-SMTP_USER     = 'caltexautopro2026@gmail.com'
-SMTP_PASSWORD = os.environ.get('SMTP_APP_PASSWORD', 'kvvp uflz pbdc rcyv')
-SMTP_FROM     = 'JA Noble Enterprise Inc <caltexautopro2026@gmail.com>'
+SMTP_USER     = os.environ.get('SMTP_USER', 'janobleenterpriseinc.autopro@gmail.com')
+SMTP_PASSWORD = os.environ.get('SMTP_APP_PASSWORD', '')
+SMTP_FROM     = os.environ.get('SMTP_FROM', 'JA Noble Enterprise Inc <janobleenterpriseinc.autopro@gmail.com>')
+
+# Warn if credentials are not set
+if not SMTP_PASSWORD:
+    print('⚠️  SMTP_APP_PASSWORD not set in .env file!')
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -1734,10 +1742,6 @@ def send_alert_email():
                   box-shadow:0 4px 24px rgba(0,0,0,.10);">
       <tr>
         <td style="background:#E8001C;padding:30px 40px 0;text-align:center;">
-          <div style="font-size:13px;font-weight:700;letter-spacing:4px;
-                      color:rgba(255,255,255,.8);margin-bottom:6px;">CALTEX</div>
-          <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:2px;">AutoPro</div>
-          <div style="background:#fff;border-radius:24px 24px 0 0;height:22px;margin-top:20px;"></div>
         </td>
       </tr>
       <tr>

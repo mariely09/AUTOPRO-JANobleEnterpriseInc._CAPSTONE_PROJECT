@@ -1,7 +1,10 @@
-# Secrets
+# Secrets and Credentials
 .groq_key
 serviceAccountKey.json
 *.env
+.env
+.env.local
+.env.*.local
 google-services.json
 GoogleService-Info.plist
 
