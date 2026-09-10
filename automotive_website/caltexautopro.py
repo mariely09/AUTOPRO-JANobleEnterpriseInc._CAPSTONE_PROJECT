@@ -194,8 +194,12 @@ def send_push_notification():
     if not subscription_ids or not message:
         return jsonify({'ok': False, 'error': 'Missing subscription_ids or message'}), 400
 
-    ONESIGNAL_APP_ID  = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea'
-    ONESIGNAL_API_KEY = 'os_v2_app_yt4cvr2tibhhvb35du4k637i5kooqoyju5jekgnwgcez2o5dq5bflxzvw4eonegfy2qeb4zfv6rfvfdcn7vgrgrx32tmuki2h4ugy6q'
+    # Load OneSignal credentials from environment variables
+    ONESIGNAL_APP_ID  = os.getenv('ONESIGNAL_APP_ID')
+    ONESIGNAL_API_KEY = os.getenv('ONESIGNAL_REST_API_KEY')
+    
+    if not ONESIGNAL_APP_ID or not ONESIGNAL_API_KEY:
+        return jsonify({'ok': False, 'error': 'OneSignal credentials not configured'}), 500
 
     payload = {
         'app_id':         ONESIGNAL_APP_ID,

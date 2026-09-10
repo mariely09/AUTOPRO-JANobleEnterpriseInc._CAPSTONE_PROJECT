@@ -1,340 +1,195 @@
-# OneSignal Push Notifications Setup
+# OneSignal Setup Guide - Paano Magpalit ng OneSignal ID
 
-## Overview
-OneSignal is a push notification service that's easier to set up than Firebase Cloud Messaging. It handles all the complexity for you.
+## Hakbang 1: Gumawa ng Bagong OneSignal App
 
----
+1. **Pumunta sa OneSignal Dashboard**
+   - Bisitahin: https://onesignal.com
+   - Mag-login sa iyong account (o gumawa ng bago kung wala ka pa)
 
-## Step 1: Create OneSignal Account
+2. **Gumawa ng Bagong App**
+   - I-click ang **"New App/Website"** button
+   - Pangalanan ang app: **"Automotive Service"**
+   - Piliin ang platform: **Android** at/o **iOS**
 
-1. Go to https://onesignal.com
-2. Click **"Sign Up"**
-3. Create account with email
-4. Verify email
-5. Create new app
+3. **I-configure ang Platform**
+   
+   **Para sa Android:**
+   - Piliin "Google Android (FCM)"
+   - Kailangan mo ng **Firebase Server Key** at **Firebase Sender ID**
+   - Kukunin mo ito sa Firebase Console → Project Settings → Cloud Messaging
+   
+   **Para sa iOS:**
+   - Piliin "Apple iOS (APNs)"
+   - Kailangan ng APNs Certificate o Key
+   - I-upload ang iyong .p12 certificate file
 
----
-
-## Step 2: Configure OneSignal App
-
-### For Flutter Mobile App:
-
-1. **Select Platform:** Choose "Flutter"
-2. **Android Setup:**
-   - Get Google Server API Key from Firebase Console
-   - Paste in OneSignal
-3. **iOS Setup:**
-   - Get Apple Push Certificate
-   - Upload to OneSignal
-
-### For Web:
-
-1. **Select Platform:** Choose "Web"
-2. Get OneSignal App ID and REST API Key
+4. **Kunin ang Credentials**
+   - Pagkatapos mag-setup, pumunta sa **Settings → Keys & IDs**
+   - Makikita mo ang:
+     - **OneSignal App ID** (halimbawa: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`)
+     - **REST API Key** (halimbawa: `os_v2_app_...`)
 
 ---
 
-## Step 3: Install OneSignal in Flutter
+## Hakbang 2: I-update ang Configuration Files
 
-### Add to pubspec.yaml:
+### 2.1 Backend (Python Flask) - `caltexautopro.py`
 
-```yaml
-dependencies:
-  onesignal_flutter: ^5.0.0
+```python
+# Palitan ang mga sumusunod na lines (mga line 197-198):
+ONESIGNAL_APP_ID  = 'LAGAY_DITO_ANG_BAGONG_APP_ID'
+ONESIGNAL_API_KEY = 'LAGAY_DITO_ANG_BAGONG_REST_API_KEY'
 ```
 
-### Run:
-```bash
-flutter pub get
-```
-
----
-
-## Step 4: Update notifications.dart
-
-Replace Firebase messaging with OneSignal:
-
-```dart
-import 'package:onesignal_flutter/onesignal_flutter.dart';
-
-class _AppNotificationsState extends State<AppNotifications> {
-  @override
-  void initState() {
-    super.initState();
-    _initializeOneSignal();
-  }
-
-  Future<void> _initializeOneSignal() async {
-    // Initialize OneSignal
-    OneSignal.initialize("YOUR_ONESIGNAL_APP_ID");
-    
-    // Request permission
-    await OneSignal.Notifications.requestPermission(true);
-    
-    // Set external user ID (your Firebase UID)
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      OneSignal.login(uid);
-    }
-    
-    // Handle notification received
-    OneSignal.Notifications.addForegroundWillDisplayListener((event) {
-      debugPrint('Notification received: ${event.notification.title}');
-      _showNotificationDialog(event.notification);
-    });
-    
-    // Handle notification clicked
-    OneSignal.Notifications.addClickListener((event) {
-      debugPrint('Notification clicked: ${event.notification.title}');
-      _handleNotificationTap(event.notification);
-    });
-  }
-
-  void _showNotificationDialog(OSNotification notification) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(notification.title ?? 'Notification'),
-        content: Text(notification.body ?? ''),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _handleNotificationTap(OSNotification notification) {
-    debugPrint('Notification tapped: ${notification.additionalData}');
-  }
-}
-```
-
----
-
-## Step 5: Send Notifications from Cloud Function
-
-### Update functions/index.js:
+### 2.2 Firebase Functions - `automotive_mobile/functions/index.js`
 
 ```javascript
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
-const axios = require('axios');
+// Palitan ang mga sumusunod na lines (mga line 10-11):
+const ONESIGNAL_APP_ID = 'LAGAY_DITO_ANG_BAGONG_APP_ID';
+const ONESIGNAL_REST_API_KEY = 'LAGAY_DITO_ANG_BAGONG_REST_API_KEY';
+```
 
-admin.initializeApp();
+**IMPORTANTE:** May bug din sa API endpoint! Dapat palitan ang:
+```javascript
+// MALING URL (line 89, 151, 267):
+'https://onesignal.com/api/v1/notifications'
 
-const ONESIGNAL_APP_ID = 'YOUR_ONESIGNAL_APP_ID';
-const ONESIGNAL_REST_API_KEY = 'YOUR_ONESIGNAL_REST_API_KEY';
+// TAMANG URL:
+'https://api.onesignal.com/notifications'
+```
 
-exports.sendPushNotification = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated.');
-  }
+### 2.3 Mobile App (Flutter) - `automotive_mobile/lib/main.dart`
 
-  const { userId, title, body, type = 'info' } = data;
-
-  if (!title || !body) {
-    throw new functions.https.HttpsError('invalid-argument', 'Title and body required.');
-  }
-
-  try {
-    // Send via OneSignal
-    const response = await axios.post(
-      'https://onesignal.com/api/v1/notifications',
-      {
-        app_id: ONESIGNAL_APP_ID,
-        include_external_user_ids: [userId],
-        headings: { en: title },
-        contents: { en: body },
-        data: { type: type },
-      },
-      {
-        headers: {
-          'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`,
-          'Content-Type': 'application/json; charset=utf-8',
-        },
-      }
-    );
-
-    console.log(`Push notification sent: ${response.data.body.id}`);
-    return { success: true, messageId: response.data.body.id };
-  } catch (error) {
-    console.error('Error sending push notification:', error);
-    throw new functions.https.HttpsError('internal', 'Failed to send notification');
-  }
-});
-
-exports.sendDSSAlerts = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated.');
-  }
-
-  try {
-    const db = admin.firestore();
-    
-    // Get all admins
-    const adminSnapshot = await db.collection('users')
-      .where('role', '==', 'admin')
-      .get();
-
-    // Get stock data
-    const stockSnapshot = await db.collection('stock_inventory').get();
-    const issuancesSnapshot = await db.collection('issuances').get();
-
-    // Build consumption map
-    const consumptionMap = {};
-    issuancesSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      const itemNum = data.itemNum || '';
-      const qty = typeof data.qty === 'number' ? data.qty : parseFloat(data.qty) || 0;
-      if (itemNum && qty > 0) {
-        if (!consumptionMap[itemNum]) consumptionMap[itemNum] = [];
-        consumptionMap[itemNum].push({ date: data.date, qty });
-      }
-    });
-
-    // Check stock items
-    const criticalItems = [];
-    const lowItems = [];
-
-    stockSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      const itemNum = data.num || data.itemNum || doc.id;
-      const stock = parseInt(data.stock) || 0;
-      const min = parseInt(data.min) || 0;
-      const max = parseInt(data.max) || 0;
-      const reorder = parseInt(data.reorder) || 0;
-      const name = data.name || itemNum;
-      const uom = data.uom || '';
-
-      if (stock === 0) {
-        criticalItems.push({ name, stock, uom, reorder });
-      } else if (stock <= min) {
-        lowItems.push({ name, stock, uom, reorder });
-      }
-    });
-
-    // Send alerts to admins
-    const adminIds = adminSnapshot.docs.map(doc => doc.id);
-
-    if (criticalItems.length > 0) {
-      const item = criticalItems[0];
-      await axios.post(
-        'https://onesignal.com/api/v1/notifications',
-        {
-          app_id: ONESIGNAL_APP_ID,
-          include_external_user_ids: adminIds,
-          headings: { en: '🚨 URGENT: Out of Stock' },
-          contents: { en: `${item.name} is out of stock. Recommend ordering ${item.reorder} ${item.uom}.` },
-          data: { type: 'critical_stock' },
-        },
-        {
-          headers: {
-            'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`,
-            'Content-Type': 'application/json; charset=utf-8',
-          },
-        }
-      );
-    }
-
-    if (lowItems.length > 0) {
-      const item = lowItems[0];
-      await axios.post(
-        'https://onesignal.com/api/v1/notifications',
-        {
-          app_id: ONESIGNAL_APP_ID,
-          include_external_user_ids: adminIds,
-          headings: { en: '⚠️ Low Stock Alert' },
-          contents: { en: `${item.name} is low (${item.stock} ${item.uom}). Recommend ordering ${item.reorder} ${item.uom}.` },
-          data: { type: 'low_stock' },
-        },
-        {
-          headers: {
-            'Authorization': `Basic ${ONESIGNAL_REST_API_KEY}`,
-            'Content-Type': 'application/json; charset=utf-8',
-          },
-        }
-      );
-    }
-
-    return { success: true, alertsSent: true };
-  } catch (error) {
-    console.error('Error sending DSS alerts:', error);
-    throw new functions.https.HttpsError('internal', 'Failed to send alerts');
-  }
-});
+```dart
+// Palitan ang OneSignal initialization (usually sa initState o main function):
+OneSignal.initialize('LAGAY_DITO_ANG_BAGONG_APP_ID');
 ```
 
 ---
 
-## Step 6: Update pubspec.yaml
+## Hakbang 3: I-update ang Environment Variables
 
-```yaml
-dependencies:
-  flutter:
-    sdk: flutter
-  firebase_auth: ^4.0.0
-  cloud_firestore: ^4.0.0
-  onesignal_flutter: ^5.0.0
-  cloud_functions: ^4.0.0
-  http: ^1.0.0
+Kung gumagamit ka ng `.env` file para sa secrets:
+
+```bash
+# .env file
+ONESIGNAL_APP_ID=LAGAY_DITO_ANG_BAGONG_APP_ID
+ONESIGNAL_REST_API_KEY=LAGAY_DITO_ANG_BAGONG_REST_API_KEY
+```
+
+Pagkatapos, i-load ito sa Python:
+```python
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+ONESIGNAL_APP_ID = os.getenv('ONESIGNAL_APP_ID')
+ONESIGNAL_API_KEY = os.getenv('ONESIGNAL_REST_API_KEY')
 ```
 
 ---
 
-## Step 7: Get OneSignal Credentials
+## Hakbang 4: I-rebuild ang Mobile App
 
-1. Go to OneSignal Dashboard
-2. Click **Settings** → **Keys & IDs**
-3. Copy:
-   - **App ID** (for Flutter)
-   - **REST API Key** (for Cloud Functions)
+```bash
+# 1. Lumipat sa mobile directory
+cd automotive_mobile
 
----
+# 2. Clean at get dependencies
+flutter clean
+flutter pub get
 
-## Step 8: Update Android Manifest
+# 3. Rebuild ang app
+flutter run
 
-Add to `android/app/src/main/AndroidManifest.xml`:
-
-```xml
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+# O para sa release build:
+flutter build apk --release
 ```
 
 ---
 
-## Step 9: Test
+## Hakbang 5: I-redeploy ang Firebase Functions
 
-### Send Test Notification:
+```bash
+# Lumipat sa functions directory
+cd automotive_mobile/functions
 
-1. Go to OneSignal Dashboard
-2. Click **New Message**
-3. Select **Push Notification**
-4. Enter title and message
-5. Select **Specific Users** → Enter user ID
-6. Click **Send**
+# Install dependencies (kung kailangan)
+npm install
 
----
-
-## Advantages of OneSignal
-
-✅ **Easier Setup** - No Firebase Cloud Messaging complexity
-✅ **Better UI** - Dashboard is more intuitive
-✅ **Segmentation** - Easy to target specific users/groups
-✅ **Analytics** - Built-in tracking and reporting
-✅ **Free Tier** - Generous free plan
-✅ **Multi-Platform** - Works on iOS, Android, Web
-✅ **No Server Setup** - Everything handled by OneSignal
+# Deploy to Firebase
+firebase deploy --only functions
+```
 
 ---
 
-## Next Steps
+## Hakbang 6: I-test ang Push Notifications
 
-1. ✅ Create OneSignal account
-2. ✅ Get App ID and REST API Key
-3. ✅ Update Flutter app with OneSignal SDK
-4. ✅ Update Cloud Functions
-5. ✅ Test push notifications
-6. ✅ Deploy to production
+1. **I-install ang updated app** sa mobile device
+2. **Payagan ang notification permission** kapag nag-prompt
+3. **Tingnan sa OneSignal Dashboard:**
+   - Pumunta sa **Audience → All Users**
+   - Dapat makita mo ang bagong subscribers
+4. **Subukan mag-send ng test notification:**
+   - Sa OneSignal dashboard: **Messages → New Push**
+   - Piliin ang test user
+   - I-send ang message
 
+---
+
+## Summary ng Files na Dapat I-update
+
+✅ **Backend:**
+- `automotive_website/caltexautopro.py` (lines 197-198)
+
+✅ **Firebase Functions:**
+- `automotive_mobile/functions/index.js` (lines 10-11, 89, 151, 267)
+
+✅ **Mobile App:**
+- `automotive_mobile/lib/main.dart` (OneSignal.initialize)
+
+✅ **Environment:**
+- `.env` file (recommended for security)
+
+---
+
+## ⚠️ Mga Dapat Tandaan
+
+1. **Huwag i-commit ang API Keys sa Git!**
+   - Siguraduhing nasa `.gitignore` ang `.env` file
+   - Gumamit ng environment variables
+
+2. **Test muna sa Development**
+   - Gumawa ng separate OneSignal app para sa dev at production
+
+3. **I-update ang Documentation**
+   - I-update ang `USER_MANUAL.md` kung may changes
+
+4. **Backup ang Old Keys**
+   - Bago palitan, i-backup muna ang old OneSignal credentials
+
+---
+
+## Troubleshooting
+
+**Hindi tumatanggap ng notifications?**
+- Check kung naka-allow ang notification permission sa device
+- Verify sa OneSignal dashboard kung may subscribers
+- Check ang device logs: `flutter logs` o `adb logcat`
+
+**"Invalid App ID" error?**
+- Double-check kung tama ang App ID (walang extra spaces)
+- Sigurado ba na naka-initialize ang OneSignal sa main.dart?
+
+**REST API errors?**
+- Verify kung tama ang REST API Key
+- Check kung nag-expire na ba ang key (renewable sa dashboard)
+
+---
+
+## Support
+
+Para sa karagdagang tulong:
+- OneSignal Documentation: https://documentation.onesignal.com
+- OneSignal Dashboard: https://app.onesignal.com
