@@ -85,10 +85,13 @@
         <div class="admin-main">
         <div class="admin-content">
             <!-- Domain header controls (shown/hidden via JS) -->
-            <div id="dmHeaderBar" style="display:none;align-items:center;gap:0.75rem;margin-bottom:1rem;">
-                <button id="dmBackBtn" onclick="dmBack()" style="display:none;background:none;border:none;cursor:pointer;padding:0.3rem;border-radius:8px;color:#4a5568;align-items:center;" title="Back">
+            <div id="dmHeaderBar" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
+                <button id="dmBackBtn" onclick="dmBack()" style="display:none;background:none;border:none;cursor:pointer;padding:0.3rem;border-radius:8px;color:#4a5568;align-items:center;display:flex;" title="Back">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                 </button>
+                <div style="flex:1;">
+                    <h2 id="dmHeaderTitle" style="margin:0;font-size:1.35rem;font-weight:700;color:#1a202c;">Domain Management</h2>
+                </div>
                 <div id="dmHeaderActions" style="display:none;gap:0.5rem;align-items:center;">
                     <div style="position:relative;display:flex;align-items:center;">
                         <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -181,6 +184,8 @@ var _dmCurrentColor = '#003087';
 var _dmItems        = [];   // cached items for current domain
 var _dmEditingDocId = null;
 var _dmUnsubscribe  = null;
+var _dmCounts       = {};   // { commodity_groups: 8, uom: 8, vehicle_types: 7 }
+var _dmAllItems     = {};   // { commodity_groups: [{id,name},...], uom: [...], vehicle_types: [...] }
 
 // ââ€€ââ€€ SVG icons ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€ââ€€
 function _dmIcon(key, color, size) {
@@ -229,16 +234,38 @@ function dmRenderCards() {
     card.innerHTML =
       '<div style="flex:1;">'
       + '<div style="font-weight:600;font-size:0.95rem;color:#1a202c;">' + d.label + '</div>'
-      + '<div id="dmCount_' + d.key + '" style="font-size:0.78rem;color:#718096;margin-top:2px;">Loading…</div>'
+      + '<div id="dmCount_' + d.key + '" style="font-size:0.78rem;color:#718096;margin-top:2px;">—</div>'
       + '</div>'
       + '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cbd5e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
 
     container.appendChild(card);
 
-    // Load count
-    db.collection('domains').doc(d.key).collection('items').get().then(function(snap) {
+    // Show cached count if available
+    var cachedCount = _dmCounts[d.key];
+    if (cachedCount !== undefined) {
+      var el = document.getElementById('dmCount_' + d.key);
+      if (el) el.textContent = cachedCount + ' item' + (cachedCount !== 1 ? 's' : '');
+    }
+
+    // Load actual count from Firestore (will update if different from cache)
+    db.collection('domains').doc(d.key).collection('items').orderBy('name').get().then(function(snap) {
+      _dmCounts[d.key] = snap.size;
+      // Cache items data for instant display when card is clicked
+      _dmAllItems[d.key] = snap.docs.map(function(doc) {
+        return { id: doc.id, name: doc.data().name || '' };
+      });
+      
       var el = document.getElementById('dmCount_' + d.key);
       if (el) el.textContent = snap.size + ' item' + (snap.size !== 1 ? 's' : '');
+      
+      // Update cache
+      try {
+        var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+        if (uid) {
+          sessionStorage.setItem('dmCounts_' + uid, JSON.stringify(_dmCounts));
+          sessionStorage.setItem('dmItems_' + uid, JSON.stringify(_dmAllItems));
+        }
+      } catch(e) {}
     });
   });
 }
@@ -261,7 +288,13 @@ function dmOpenDomain(d) {
   var fab = document.getElementById('dmFloatingAdd');
   fab.style.display = 'flex';
 
-  // Real-time listener
+  // Load cached items immediately if available
+  if (_dmAllItems[d.key] && _dmAllItems[d.key].length > 0) {
+    _dmItems = _dmAllItems[d.key];
+    dmRenderItems();
+  }
+
+  // Real-time listener (will update from Firestore in background)
   if (_dmUnsubscribe) _dmUnsubscribe();
   _dmUnsubscribe = firebase.firestore()
     .collection('domains').doc(d.key).collection('items')
@@ -270,6 +303,12 @@ function dmOpenDomain(d) {
       _dmItems = snap.docs.map(function(doc) {
         return { id: doc.id, name: doc.data().name || '' };
       });
+      // Update cache
+      _dmAllItems[d.key] = _dmItems;
+      try {
+        var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+        if (uid) sessionStorage.setItem('dmItems_' + uid, JSON.stringify(_dmAllItems));
+      } catch(e) {}
       dmRenderItems();
     });
 }
@@ -368,6 +407,24 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('dmItemName').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); dmSaveItem(); }
   });
+  
+  // Restore counts cache for instant display
+  try {
+    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+    if (uid) {
+      // Restore counts
+      var cachedCounts = sessionStorage.getItem('dmCounts_' + uid);
+      if (cachedCounts) {
+        _dmCounts = JSON.parse(cachedCounts);
+      }
+      // Restore items
+      var cachedItems = sessionStorage.getItem('dmItems_' + uid);
+      if (cachedItems) {
+        _dmAllItems = JSON.parse(cachedItems);
+      }
+    }
+  } catch(e) {}
+  
   _dmSeedAll();
   dmRenderCards();
 });

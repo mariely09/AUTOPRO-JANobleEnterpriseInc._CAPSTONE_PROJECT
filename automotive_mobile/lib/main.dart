@@ -51,7 +51,7 @@ void main() async {
   if (!kIsWeb) {
     debugPrint('🔵 Initializing OneSignal...');
     OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
-    OneSignal.initialize('c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea');
+    OneSignal.initialize('48dcf379-b5b7-4692-b15c-f72779e8614d');
     debugPrint('✅ OneSignal initialized');
 
     // If user is already logged in (app restart), re-link UID with OneSignal

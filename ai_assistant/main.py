@@ -1381,6 +1381,47 @@ def _customer_direct_lookup(message: str, customer_uid: str,
         total_mat   = len(mats)
         if total_mat == 0:
             if _mat_kw:
+                # No catalog item matches directly. Check whether the shop has
+                # a HISTORICAL materials pattern for a matching service (real
+                # data from completed jobs) — never fabricate a materials list.
+                from customer_tools import estimate_service_cost
+                est = None
+                _kw_variants = [_mat_kw]
+                _parts = _mat_kw.split()
+                if len(_parts) == 2:
+                    _kw_variants.append(" ".join(reversed(_parts)))
+                for _kv in _kw_variants:
+                    _est = estimate_service_cost(
+                        customer_uid=customer_uid, customer_name=customer_name,
+                        service_names=[_kv],
+                    )
+                    if _est.get("materials"):
+                        est = _est
+                        break
+                if est and est.get("materials"):
+                    _svc_name = (est.get("matched") or [{}])[0].get("service", _mat_kw)
+                    _mlines = [
+                        f"- {m['material']} ({m['qty']} {m.get('uom', '') or 'unit'}) \u2014 {m['line_total']}"
+                        for m in est["materials"]
+                    ]
+                    _missing = est.get("materials_missing_price")
+                    reply = (
+                        f"For **{_svc_name}**, the shop typically uses these materials (based on completed jobs):\n\n"
+                        + "\n".join(_mlines)
+                        + f"\n\n**Material Subtotal:** {est.get('material_subtotal', '\u2014')}"
+                        + (f"\n**Service Charge:** {est['service_charge']}" if est.get("service_charge") else "")
+                        + (f"\n**Estimated Total:** {est['estimated_total']}" if est.get("estimated_total") else "")
+                        + "\n\n*Note: the service charge and materials are separate charges. "
+                        "Quantities are based on previous jobs and may vary by vehicle.*"
+                    )
+                    if _missing:
+                        reply += ("\n\n*No price on file for: " + ", ".join(_missing)
+                                  + " \u2014 their cost is not included.*")
+                    return {"reply": reply, "tool_calls": [
+                        {"tool": "estimate_service_cost",
+                         "args": {"service_names": _kw_variants[:1]},
+                         "result": est},
+                    ], "model": "none", "intent": intent}
                 reply = (
                     f"I couldn't find materials matching **\"{_mat_kw}\"** in our catalog. "
                     "Ask for \"all materials\" to see everything we offer, or ask about "

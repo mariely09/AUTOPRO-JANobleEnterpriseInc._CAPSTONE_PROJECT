@@ -4,11 +4,15 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const admin = require('firebase-admin');
 const axios = require('axios');
 
+// Load environment variables from .env file (for local development)
+require('dotenv').config();
+
 admin.initializeApp();
 
-// OneSignal credentials
-const ONESIGNAL_APP_ID = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
-const ONESIGNAL_REST_API_KEY = 'os_v7_app_yt4cvr2f1hkhvh5ldu4k637i51snjeyuythen3fd61ae1yhnprpy6kbxvn9kjd1pqdhygsqmlrouas4kfuydft32nkgj5flbra3oo5q';
+// OneSignal credentials from environment variables
+// Set these in Firebase Functions config or .env file
+const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID || '48dcf379-b5b7-4692-b15c-f72779e8614d';
+const ONESIGNAL_REST_API_KEY = process.env.ONESIGNAL_REST_API_KEY || 'os_v2_app_jdopg6nvw5djfmk464txt2dbjwvvdlqebggukzuh6qm6jopw342ffum77vewzt5hvmm2awhh5tnx2vt5veylamzcoiab7jirmb7eb2q';
 
 /**
  * Callable function: deleteUser
@@ -86,7 +90,7 @@ exports.sendNotifications = onDocumentCreated('notifications/{docId}', async (ev
 
     // Send via OneSignal
     const response = await axios.post(
-      'https://onesignal.com/api/v1/notifications',
+      'https://api.onesignal.com/notifications',
       {
         app_id: ONESIGNAL_APP_ID,
         include_external_user_ids: userIds,
@@ -148,7 +152,7 @@ exports.sendPushNotification = onCall(async (request) => {
 
     // Send via OneSignal
     const response = await axios.post(
-      'https://onesignal.com/api/v1/notifications',
+      'https://api.onesignal.com/notifications',
       {
         app_id: ONESIGNAL_APP_ID,
         include_external_user_ids: userIds,
@@ -264,7 +268,7 @@ exports.checkDSSAlerts = onSchedule('every 1 hours', async (context) => {
       if (adminIds.length > 0) {
         const item = criticalStockItems[0];
         await axios.post(
-          'https://onesignal.com/api/v1/notifications',
+          'https://api.onesignal.com/notifications',
           {
             app_id: ONESIGNAL_APP_ID,
             include_external_user_ids: adminIds,
@@ -291,7 +295,7 @@ exports.checkDSSAlerts = onSchedule('every 1 hours', async (context) => {
       if (adminIds.length > 0) {
         const item = lowStockItems[0];
         await axios.post(
-          'https://onesignal.com/api/v1/notifications',
+          'https://api.onesignal.com/notifications',
           {
             app_id: ONESIGNAL_APP_ID,
             include_external_user_ids: adminIds,
@@ -347,7 +351,7 @@ exports.checkDSSAlerts = onSchedule('every 1 hours', async (context) => {
     if (overdueVehicles.length > 0 && adminIds.length > 0) {
       const v = overdueVehicles[0];
       await axios.post(
-        'https://onesignal.com/api/v1/notifications',
+        'https://api.onesignal.com/notifications',
         {
           app_id: ONESIGNAL_APP_ID,
           include_external_user_ids: adminIds,
@@ -368,7 +372,7 @@ exports.checkDSSAlerts = onSchedule('every 1 hours', async (context) => {
     if (dueSoonVehicles.length > 0 && adminIds.length > 0) {
       const v = dueSoonVehicles[0];
       await axios.post(
-        'https://onesignal.com/api/v1/notifications',
+        'https://api.onesignal.com/notifications',
         {
           app_id: ONESIGNAL_APP_ID,
           include_external_user_ids: adminIds,
@@ -389,7 +393,7 @@ exports.checkDSSAlerts = onSchedule('every 1 hours', async (context) => {
     if (dueThisWeekVehicles.length > 0 && adminIds.length > 0) {
       const v = dueThisWeekVehicles[0];
       await axios.post(
-        'https://onesignal.com/api/v1/notifications',
+        'https://api.onesignal.com/notifications',
         {
           app_id: ONESIGNAL_APP_ID,
           include_external_user_ids: adminIds,
@@ -433,7 +437,7 @@ exports.checkDSSAlerts = onSchedule('every 1 hours', async (context) => {
 
         if (daysUntil < 0) {
           await axios.post(
-            'https://onesignal.com/api/v1/notifications',
+            'https://api.onesignal.com/notifications',
             {
               app_id: ONESIGNAL_APP_ID,
               include_external_user_ids: [customerId],
@@ -450,7 +454,7 @@ exports.checkDSSAlerts = onSchedule('every 1 hours', async (context) => {
           );
         } else if (daysUntil <= 7) {
           await axios.post(
-            'https://onesignal.com/api/v1/notifications',
+            'https://api.onesignal.com/notifications',
             {
               app_id: ONESIGNAL_APP_ID,
               include_external_user_ids: [customerId],
@@ -467,7 +471,7 @@ exports.checkDSSAlerts = onSchedule('every 1 hours', async (context) => {
           );
         } else if (daysUntil <= 14) {
           await axios.post(
-            'https://onesignal.com/api/v1/notifications',
+            'https://api.onesignal.com/notifications',
             {
               app_id: ONESIGNAL_APP_ID,
               include_external_user_ids: [customerId],
