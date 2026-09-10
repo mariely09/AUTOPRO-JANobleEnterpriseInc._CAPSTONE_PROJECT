@@ -73,7 +73,6 @@ _AUTHENTICATED_PAGES = {
     'staff_dashboard', 'staff_inventory', 'staff_maintenance', 'staff_vehicle_list',
     'customer_dashboard', 'customer_pms_history', 'customer_book_service',
     'pms_history_details', 'notifications', 'profile', 'change_password',
-    'ai_usage_controls',
     'help_support',
 }
 
@@ -714,10 +713,6 @@ def notifications():
 @app.route('/profile.html')
 def profile():
     return render_template('profile.html')
-
-@app.route('/ai_usage_controls.html')
-def ai_usage_controls():
-    return render_template('ai_usage_controls.html')
 
 @app.route('/change_password.html')
 def change_password():
