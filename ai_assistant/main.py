@@ -1374,7 +1374,28 @@ def _customer_direct_lookup(message: str, customer_uid: str,
         total        = result.get("total_services", 0)
         catalog_size = result.get("catalog_size", -1)
 
-        if total == 0:
+        # Also fetch matching materials so customers can see both categories
+        mat_result = get_customer_materials(
+            customer_uid=customer_uid,
+            customer_name=customer_name,
+            material_name=_svc_kw,
+        )
+        materials     = mat_result.get("materials", []) if not mat_result.get("error") else []
+        total_mat     = len(materials)
+
+        def _build_service_lines(svcs, limit=20):
+            shown = svcs[:limit]
+            lines = [f"- **{s['name']}**: {s['cost']}" for s in shown]
+            tail  = f"\n\n*Showing {len(shown)} of {len(svcs)} related services.*" if len(svcs) > limit else ""
+            return lines, tail
+
+        def _build_material_lines(mats, limit=20):
+            shown = mats[:limit]
+            lines = [f"- **{m['name']}**: {m['customer_price']}" for m in shown]
+            tail  = f"\n\n*Showing {len(shown)} of {len(mats)} related materials.*" if len(mats) > limit else ""
+            return lines, tail
+
+        if total == 0 and total_mat == 0:
             if catalog_size == 0:
                 reply = (
                     "Our service pricing catalog hasn't been set up yet. "
@@ -1382,7 +1403,7 @@ def _customer_direct_lookup(message: str, customer_uid: str,
                 )
             elif _svc_kw:
                 reply = (
-                    f"I couldn't find a service matching **\"{_svc_kw}\"** in our catalog. "
+                    f"I couldn't find a service or material matching **\"{_svc_kw}\"** in our catalog. "
                     f"Try asking *\"list all services\"* to see everything we offer, "
                     f"or contact us at caltexautopro2026@gmail.com for details."
                 )
@@ -1391,31 +1412,27 @@ def _customer_direct_lookup(message: str, customer_uid: str,
                     "I wasn't able to find pricing information in our system. "
                     "Please contact us at caltexautopro2026@gmail.com."
                 )
-        elif _svc_kw and len(services) <= 8:
-            # Focused keyword match — show inline with the keyword
-            lines = [f"- **{s['name']}**: {s['cost']}" for s in services]
-            reply = (
-                f"Here's the pricing for services matching **\"{_svc_kw}\"**:\n\n"
-                + "\n".join(lines)
-            )
-        elif _svc_kw:
-            # Many results for a keyword (e.g. "oil" returns 16 items)
-            shown = services[:20]
-            lines = [f"- **{s['name']}**: {s['cost']}" for s in shown]
-            tail  = f"\n\n*Showing {len(shown)} of {total} related services.*" if total > 20 else ""
-            reply = (
-                f"Here are the services related to **\"{_svc_kw}\"** ({total} total):\n\n"
-                + "\n".join(lines) + tail
-            )
         else:
-            # Full catalog listing
-            shown = services[:20]
-            lines = [f"- **{s['name']}**: {s['cost']}" for s in shown]
-            tail  = f"\n\n*Showing {len(shown)} of {total} services. Ask about a specific service for more details.*" if total > 20 else ""
-            reply = (
-                f"Here are our available services and prices ({total} total):\n\n"
-                + "\n".join(lines) + tail
-            )
+            sections = []
+
+            # --- Auto Services section ---
+            if total > 0:
+                svc_lines, svc_tail = _build_service_lines(services)
+                sections.append("**🔧 Auto Services:**\n" + "\n".join(svc_lines) + svc_tail)
+
+            # --- Materials section ---
+            if total_mat > 0:
+                mat_lines, mat_tail = _build_material_lines(materials)
+                sections.append("**🛢️ Materials / Products:**\n" + "\n".join(mat_lines) + mat_tail)
+
+            if _svc_kw:
+                combined_total = total + total_mat
+                header = f"Here are the results for **\"{_svc_kw}\"** ({combined_total} total):\n\n"
+            else:
+                header = f"Here are our available services and materials ({total + total_mat} total):\n\n"
+
+            reply = header + "\n\n".join(sections)
+
         return {"reply": reply, "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
 
     # No direct match  -  fall through to LLM
