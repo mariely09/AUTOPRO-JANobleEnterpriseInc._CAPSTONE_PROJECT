@@ -78,7 +78,7 @@
                         <div style="white-space:nowrap;">Archived At</div>
                         <div style="text-align:center;">Actions</div>
                     </div>
-                    <div id="archiveList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived items...</div></div>
+                    <div id="archiveList"></div>
                 </div>
             </div>
 
@@ -89,7 +89,7 @@
                         <div>Date Serviced</div><div>Plate Number</div><div>Description</div>
                         <div>Mechanic</div><div>Total Cost</div><div>Status</div><div style="white-space:nowrap;">Archived At</div><div style="text-align:center;">Actions</div>
                     </div>
-                    <div id="archiveMaintenanceList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived records...</div></div>
+                    <div id="archiveMaintenanceList"></div>
                 </div>
             </div>
 
@@ -100,7 +100,7 @@
                         <div>Plate Number</div><div>Vehicle Type</div><div>Owner / Company</div>
                         <div>Odometer</div><div>Last Service Date</div><div style="white-space:nowrap;">Archived At</div><div style="text-align:center;">Actions</div>
                     </div>
-                    <div id="archiveVehiclesList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived vehicles...</div></div>
+                    <div id="archiveVehiclesList"></div>
                 </div>
             </div>
 
@@ -110,7 +110,7 @@
                     <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:2fr 2fr 1fr 1.2fr 120px;min-width:700px;">
                         <div>Full Name</div><div>Email</div><div>Role</div><div style="white-space:nowrap;">Archived At</div><div style="text-align:center;">Actions</div>
                     </div>
-                    <div id="archiveUsersList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived users...</div></div>
+                    <div id="archiveUsersList"></div>
                 </div>
             </div>
 
@@ -121,7 +121,7 @@
                         <div>Order Date</div><div>Supplier</div><div>Items</div>
                         <div>Total Qty</div><div>Status</div><div style="white-space:nowrap;">Archived At</div><div style="text-align:center;">Actions</div>
                     </div>
-                    <div id="archiveDeliveriesList"><div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading archived purchase orders...</div></div>
+                    <div id="archiveDeliveriesList"></div>
                 </div>
             </div>
         </div>
@@ -737,26 +737,68 @@ window.permanentlyDeleteDelivery = function(docId, supplier) {
 </script>
 
 <script>
-// Archive cache restore — runs after all scripts
+// Archive cache restore — immediate render from cache (same pattern as other admin pages)
 (function() {
   try {
     var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
     if (!uid) return;
-    function tryRestore(key, setter) {
-      var raw = sessionStorage.getItem(key + uid);
-      if (!raw) return false;
-      var data = JSON.parse(raw);
-      if (!Array.isArray(data) || !data.length) return false;
-      setter(data);
-      return true;
-    }
+    
     var restored = false;
-    tryRestore('archiveIM_',    function(d) { if (!window._archivedItems.length)       { window._archivedItems       = d; restored = true; }});
-    tryRestore('archiveMaint_', function(d) { if (!window._archivedMaintenance.length)  { window._archivedMaintenance = d; restored = true; }});
-    tryRestore('archiveVeh_',   function(d) { if (!window._archivedVehicles.length)     { window._archivedVehicles    = d; restored = true; }});
-    tryRestore('archiveUsers_', function(d) { if (!window._archivedUsers.length)        { window._archivedUsers       = d; restored = true; }});
-    tryRestore('archiveDel_',   function(d) { if (!window._archivedDeliveries.length)   { window._archivedDeliveries  = d; restored = true; }});
-    if (restored && typeof window.renderCurrentTab === 'function') window.renderCurrentTab();
+    
+    // Restore Item Master archive
+    var imRaw = sessionStorage.getItem('archiveIM_' + uid);
+    if (imRaw) {
+      var imData = JSON.parse(imRaw);
+      if (Array.isArray(imData) && imData.length && !window._archivedItems.length) {
+        window._archivedItems = imData;
+        restored = true;
+      }
+    }
+    
+    // Restore Maintenance archive
+    var maintRaw = sessionStorage.getItem('archiveMaint_' + uid);
+    if (maintRaw) {
+      var maintData = JSON.parse(maintRaw);
+      if (Array.isArray(maintData) && maintData.length && !window._archivedMaintenance.length) {
+        window._archivedMaintenance = maintData;
+        restored = true;
+      }
+    }
+    
+    // Restore Vehicles archive
+    var vehRaw = sessionStorage.getItem('archiveVeh_' + uid);
+    if (vehRaw) {
+      var vehData = JSON.parse(vehRaw);
+      if (Array.isArray(vehData) && vehData.length && !window._archivedVehicles.length) {
+        window._archivedVehicles = vehData;
+        restored = true;
+      }
+    }
+    
+    // Restore Users archive
+    var usersRaw = sessionStorage.getItem('archiveUsers_' + uid);
+    if (usersRaw) {
+      var usersData = JSON.parse(usersRaw);
+      if (Array.isArray(usersData) && usersData.length && !window._archivedUsers.length) {
+        window._archivedUsers = usersData;
+        restored = true;
+      }
+    }
+    
+    // Restore Deliveries archive
+    var delRaw = sessionStorage.getItem('archiveDel_' + uid);
+    if (delRaw) {
+      var delData = JSON.parse(delRaw);
+      if (Array.isArray(delData) && delData.length && !window._archivedDeliveries.length) {
+        window._archivedDeliveries = delData;
+        restored = true;
+      }
+    }
+    
+    // Immediate render if data was restored
+    if (restored && typeof window.renderCurrentTab === 'function') {
+      window.renderCurrentTab();
+    }
   } catch(e) {}
 })();
 </script>

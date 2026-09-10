@@ -145,7 +145,7 @@
                                     <th>Days of Stock Left</th><th>Recommended Order</th><th>Priority</th><th>Decision</th>
                                 </tr>
                             </thead>
-                            <tbody id="dssTableBody"><tr><td colspan="7" style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading...</td></tr></tbody>
+                            <tbody id="dssTableBody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -220,7 +220,7 @@
                                     <th>Days Until / Overdue</th><th>Priority</th><th>Recommendation</th>
                                 </tr>
                             </thead>
-                            <tbody id="dssPmsTableBody"><tr><td colspan="6" style="padding:3rem;text-align:center;color:#718096;font-size:13px;">Loading...</td></tr></tbody>
+                            <tbody id="dssPmsTableBody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -256,7 +256,7 @@
 
 <script>
 // ── Cache restore for DSS — runs after all scripts ──────────
-// Stock section needs inventory + issuances; PMS section needs vehicles.
+// Immediately renders from cache if available (same pattern as other admin pages)
 (function() {
   try {
     var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
@@ -266,10 +266,13 @@
     var invRaw = sessionStorage.getItem('inventoryCache_' + uid);
     if (invRaw) {
       var inv = JSON.parse(invRaw);
-      if (Array.isArray(inv) && inv.length && !window._fbInventoryLoaded) {
-        window.inventory = inv;
-        window._fbInventoryLoaded = true;
-        window._dssInventoryReady = true;
+      if (Array.isArray(inv) && inv.length) {
+        // Only restore if Firestore hasn't already loaded
+        if (!window._fbInventoryLoaded || !(window.inventory || []).length) {
+          window.inventory = inv;
+          window._fbInventoryLoaded = true;
+          window._dssInventoryReady = true;
+        }
       }
     }
 
@@ -277,10 +280,12 @@
     var issRaw = sessionStorage.getItem('issuancesCache_' + uid);
     if (issRaw) {
       var iss = JSON.parse(issRaw);
-      if (Array.isArray(iss) && iss.length && !window._fbIssuancesLoaded) {
-        window.issuances = iss;
-        window._fbIssuancesLoaded = true;
-        window._dssIssuancesReady = true;
+      if (Array.isArray(iss) && iss.length) {
+        if (!window._fbIssuancesLoaded || !(window.issuances || []).length) {
+          window.issuances = iss;
+          window._fbIssuancesLoaded = true;
+          window._dssIssuancesReady = true;
+        }
       }
     }
 
@@ -288,36 +293,38 @@
     var vehRaw = sessionStorage.getItem('vehiclesCache_' + uid);
     if (vehRaw) {
       var vehs = JSON.parse(vehRaw);
-      if (Array.isArray(vehs) && vehs.length && !window._fbVehiclesLoaded) {
-        window.assets = vehs;
-        window._fbVehicles = vehs.map(function(a) {
-          return { _id: a.id, plate: a.plateNumber, plateNumber: a.plateNumber,
-                   desc: a.assetDescription, assetDescription: a.assetDescription,
-                   type: a.type, owner: a.owner, odometer: a.odometer,
-                   lastSvcDate: a.lastServiceDate, svcFreq: a.svcFreq,
-                   nextPMSDue: a.nextPMSDue, status: a.status };
-        });
-        window._fbVehiclesLoaded = true;
-        window._dssVehiclesReady = true;
+      if (Array.isArray(vehs) && vehs.length) {
+        if (!window._fbVehiclesLoaded || !(window.assets || []).length) {
+          window.assets = vehs;
+          window._fbVehicles = vehs.map(function(a) {
+            return { _id: a.id, plate: a.plateNumber, plateNumber: a.plateNumber,
+                     desc: a.assetDescription, assetDescription: a.assetDescription,
+                     type: a.type, owner: a.owner, odometer: a.odometer,
+                     lastSvcDate: a.lastServiceDate, svcFreq: a.svcFreq,
+                     nextPMSDue: a.nextPMSDue, status: a.status };
+          });
+          window._fbVehiclesLoaded = true;
+          window._dssVehiclesReady = true;
+        }
       }
     }
 
-    // ── Trigger render if enough data is ready ──
+    // ── Trigger immediate render if data is ready ──
     var section = window._dssPendingSection || document.body.getAttribute('data-page') || 'dss';
     var stockReady = window._dssInventoryReady && window._dssIssuancesReady;
     var pmsReady   = window._dssVehiclesReady;
+    
     if ((section === 'dss-pms' && pmsReady) || (section !== 'dss-pms' && stockReady)) {
       window._dssDataReady  = true;
       window._fbDSSLoaded    = true;
       window._fbDSSPMSLoaded = true;
-      // Defer one tick so render functions from admin.js are fully defined
-      setTimeout(function() {
-        if (section === 'dss-pms') {
-          if (typeof renderDSSPMS === 'function') renderDSSPMS();
-        } else {
-          if (typeof renderDSS === 'function') renderDSS();
-        }
-      }, 0);
+      
+      // Immediate render - no setTimeout needed since data is already in cache
+      if (section === 'dss-pms') {
+        if (typeof renderDSSPMS === 'function') renderDSSPMS();
+      } else {
+        if (typeof renderDSS === 'function') renderDSS();
+      }
     }
   } catch(e) {}
 })();
