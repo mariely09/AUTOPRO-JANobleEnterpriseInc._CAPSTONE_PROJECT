@@ -1,13 +1,16 @@
 # EmailJS Gmail Reconnection Guide
 
 ## Problem
-**Error 412:** "Gmail API: Invalid grant. Please reconnect your Gmail account"
+**Error 412:** "Gmail API: Invalid grant. Please reconnect your Gmail account"  
+**OR**  
+**Error 412:** "Gmail API: Request had insufficient authentication scopes"
 
 This happens when:
 - Gmail password was changed
 - Gmail account security settings changed
 - EmailJS lost authorization to send emails
 - 2-Step Verification was enabled/disabled
+- **Insufficient permissions granted during OAuth** (most common!)
 
 ---
 
@@ -32,8 +35,24 @@ You'll see one of these scenarios:
 1. Click the **"Reconnect Gmail"** or **"Reconnect Account"** button
 2. A Google OAuth popup will appear
 3. Select your Gmail account: **janobleenterpriseinc.autopro@gmail.com**
-4. Click **"Allow"** to grant permissions
-5. Done! ✅
+4. **CRITICAL:** Grant ALL permissions when asked!
+   - ✅ "Send emails on your behalf" - **MUST allow this!**
+   - ✅ Any other permissions shown - **Allow all!**
+5. Click **"Allow"** or **"Continue"**
+6. Done! ✅
+
+#### Scenario B: Already Connected but Getting "Insufficient Scopes" Error
+1. Click **"Disconnect"** button (visible in the service settings)
+2. Confirm disconnection
+3. After disconnect, click **"Connect Account"**
+4. Google OAuth popup appears
+5. Select: **janobleenterpriseinc.autopro@gmail.com**
+6. **CRITICAL:** This time, carefully grant ALL permissions!
+   - ✅ "Send emails on your behalf" - **MUST check/allow this!**
+   - ✅ Don't skip any permission screens!
+7. Click **"Allow"** or **"Continue"**
+8. Click **"Update Service"**
+9. Done! ✅
 
 #### Scenario B: Need to Remove & Re-add Service
 1. Click **"Delete Service"** (don't worry, settings are saved)
@@ -97,9 +116,26 @@ For EmailJS to work with Gmail:
 | Error | Solution |
 |-------|----------|
 | "Invalid grant" | Reconnect Gmail (follow steps above) |
+| "Insufficient authentication scopes" | Disconnect → Reconnect → **Grant ALL permissions!** |
 | "Authentication failed" | Check Gmail password is correct |
-| "Permission denied" | Grant all requested permissions in OAuth popup |
+| "Permission denied" | Grant all requested permissions in OAuth popup - don't skip! |
 | "Service not found" | Verify Service ID is correct |
+
+### ⚠️ Most Common Mistake
+
+**Not granting "Send emails on your behalf" permission!**
+
+When the Google OAuth popup appears, you MUST:
+- ✅ Read all permission requests carefully
+- ✅ Allow/Check "Send emails on your behalf"
+- ✅ Don't click "Deny" or skip any screens
+- ✅ Click "Allow" or "Continue" to confirm
+
+If you accidentally denied permissions:
+1. Disconnect in EmailJS
+2. Go to Google Account → Security → Third-party apps
+3. Remove EmailJS access
+4. Reconnect in EmailJS and grant ALL permissions
 
 ---
 
