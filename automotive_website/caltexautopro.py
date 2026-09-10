@@ -371,7 +371,7 @@ def send_approval_email():
           </table>
           <hr style="border:none;border-top:1px solid #e2e8f0;margin:26px 0;"/>
           <p style="margin:0;font-size:12px;color:#a0aec0;text-align:center;line-height:1.6;">
-            Need help? Contact us at <a href="mailto:caltexautopro2026@gmail.com" style="color:#E8001C;">caltexautopro2026@gmail.com</a>
+            Need help? Contact us at <a href="mailto:@janobleenterpriseinc.autopro@gmail.com" style="color:#E8001C;">janobleenterpriseinc.autopro@gmail.com</a>
           </p>
         </td>
       </tr>
@@ -1928,7 +1928,7 @@ def send_reschedule_email():
           </div>
           <hr style="border:none;border-top:1px solid #e2e8f0;margin:26px 0;"/>
           <p style="margin:0;font-size:12px;color:#a0aec0;text-align:center;line-height:1.6;">
-            Need help? Contact us at <a href="mailto:caltexautopro2026@gmail.com" style="color:#E8001C;">caltexautopro2026@gmail.com</a>
+            Need help? Contact us at <a href="mailto:janobleenterpriseinc.autopro@gmail.com" style="color:#E8001C;">janobleenterpriseinc.autopro@gmail.com</a>
           </p>
         </td>
       </tr>
