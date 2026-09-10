@@ -14,7 +14,6 @@ import 'privacy_policy.dart';
 import 'admin_rag_ai.dart';
 import 'customer_smart_ai.dart';
 import 'terms_conditions.dart';
-import 'onesignal_debug.dart';
 import 'customer_bottomnavbar.dart';
 import 'customer_mybookings.dart';
 import 'customer_pms_history.dart';
@@ -868,21 +867,6 @@ class _UserProfileState extends State<UserProfile> {
                               );
                             },
                           ),
-                          if (widget.role == UserRole.admin)
-                            _actionTile(
-                              Icons.bug_report_outlined,
-                              'Push Notification Status',
-                              'Check OneSignal setup',
-                              () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        const OneSignalDebugScreen(),
-                                  ),
-                                );
-                              },
-                            ),
                           _actionTile(
                             Icons.help_outline,
                             'Help & Support',
