@@ -8,8 +8,9 @@ from email.mime.text import MIMEText
 from datetime import timedelta
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env file (for local development)
+# In production (Render), environment variables are set in the dashboard
+load_dotenv()  # Silently does nothing if .env doesn't exist - that's OK!
 
 # ── Firebase Admin SDK ───────────────────────────────────────────────────────
 # Requires: pip install firebase-admin
