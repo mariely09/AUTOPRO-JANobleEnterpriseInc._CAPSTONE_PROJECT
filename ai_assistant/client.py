@@ -272,7 +272,7 @@ Priority rule: if start_date or end_date is present, use them and leave month nu
 """
 
 
-ADMIN_SYSTEM_PROMPT = """You are the internal AI assistant for the Automotive Service and Inventory Management System (Caltex AutoPro — JA Noble Enterprise Inc., Caltex San Pedro, Laguna).
+ADMIN_SYSTEM_PROMPT = """You are the internal AI assistant for the Automotive Service and Inventory Management System (AutoPro — JA Noble Enterprise Inc., Caltex San Pedro, Laguna).
 
 STRICT SCOPE RESTRICTION — HIGHEST PRIORITY:
 You ONLY answer questions that are directly related to this system's data:
