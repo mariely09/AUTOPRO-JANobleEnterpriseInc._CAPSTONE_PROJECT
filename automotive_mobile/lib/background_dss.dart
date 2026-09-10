@@ -16,13 +16,14 @@ import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
 
 // ── OneSignal credentials ──
-const _kOneSignalAppId  = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
+const _kOneSignalAppId = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
 const _kOneSignalApiKey =
-    'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
+    'os_v2_app_yt4cvr2tibhhvb35du4k637i5kooqoyju5jekgnwgcez2o5dq5bflxzvw4eonegfy2qeb4zfv6rfvfdcn7vgrgrx32tmuki2h4ugy6q';
 
 // ── Flask server base URL (email relay) ───────────────────────────────────
 // Override with FLASK_BASE_URL env if needed; default matches local dev + prod.
-const _kFlaskBaseUrl = 'https://caltex-autopro.onrender.com'; // or http://localhost:5001
+const _kFlaskBaseUrl =
+    'https://caltex-autopro.onrender.com'; // or http://localhost:5001
 
 @pragma('vm:entry-point')
 void backgroundDSSCallback() {}
@@ -31,7 +32,9 @@ void backgroundDSSCallback() {}
 Future<bool> runBackgroundDSSCheck() async {
   try {
     if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
     }
 
     final user = FirebaseAuth.instance.currentUser;
@@ -40,13 +43,13 @@ Future<bool> runBackgroundDSSCheck() async {
       return true;
     }
 
-    final db  = FirebaseFirestore.instance;
+    final db = FirebaseFirestore.instance;
     final now = DateTime.now();
 
     // ── Deduplication: once per calendar day ──
     final todayKey =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-    final sentinelRef  = db.collection('dss_alert_log').doc('bg_$todayKey');
+    final sentinelRef = db.collection('dss_alert_log').doc('bg_$todayKey');
     final sentinelSnap = await sentinelRef.get();
     if (sentinelSnap.exists) {
       debugPrint('⏭ Background DSS: already ran today ($todayKey), skipping');
@@ -55,23 +58,26 @@ Future<bool> runBackgroundDSSCheck() async {
     await sentinelRef.set({'sentAt': FieldValue.serverTimestamp()});
 
     // ── Get all admin UIDs ──
-    final adminSnap = await db.collection('users').where('role', isEqualTo: 'admin').get();
-    final adminIds  = adminSnap.docs.map((d) => d.id).toList();
+    final adminSnap = await db
+        .collection('users')
+        .where('role', isEqualTo: 'admin')
+        .get();
+    final adminIds = adminSnap.docs.map((d) => d.id).toList();
     if (adminIds.isEmpty) {
       debugPrint('⏭ Background DSS: no admin users found');
       return true;
     }
 
     // ── STOCK ALERTS ──
-    final stockSnap     = await db.collection('stock_inventory').get();
+    final stockSnap = await db.collection('stock_inventory').get();
     final issuancesSnap = await db.collection('issuances').get();
 
     final consumptionMap = <String, List<Map<String, dynamic>>>{};
     for (final d in issuancesSnap.docs) {
-      final data    = d.data();
+      final data = d.data();
       final itemNum = data['itemNum'] as String? ?? '';
-      final rawQty  = data['qty'] ?? data['quantity'];
-      final qty     = rawQty is num
+      final rawQty = data['qty'] ?? data['quantity'];
+      final qty = rawQty is num
           ? rawQty.toDouble()
           : double.tryParse(rawQty?.toString() ?? '') ?? 0.0;
       final dateStr = data['date'] as String? ?? '';
@@ -81,132 +87,172 @@ Future<bool> runBackgroundDSSCheck() async {
     }
 
     for (final doc in stockSnap.docs) {
-      final data    = doc.data();
-      final itemNum = (data['num'] as String?) ?? (data['itemNum'] as String?) ?? doc.id;
-      final stock   = (data['stock']  as num?)?.toInt() ?? 0;
-      final min     = (data['min']    as num?)?.toInt() ?? 0;
-      final max     = (data['max']    as num?)?.toInt() ?? 0;
+      final data = doc.data();
+      final itemNum =
+          (data['num'] as String?) ?? (data['itemNum'] as String?) ?? doc.id;
+      final stock = (data['stock'] as num?)?.toInt() ?? 0;
+      final min = (data['min'] as num?)?.toInt() ?? 0;
+      final max = (data['max'] as num?)?.toInt() ?? 0;
       final reorder = (data['reorder'] as num?)?.toInt() ?? 0;
-      final name    = data['name'] as String? ?? itemNum;
-      final uom     = data['uom'] as String? ?? '';
+      final name = data['name'] as String? ?? itemNum;
+      final uom = data['uom'] as String? ?? '';
 
-      final records       = consumptionMap[itemNum] ?? [];
+      final records = consumptionMap[itemNum] ?? [];
 
       DateTime? earliest;
       for (final r in records) {
         final d2 = _parseDate(r['date'] as String? ?? '');
-        if (d2 != null && (earliest == null || d2.isBefore(earliest!))) earliest = d2;
+        if (d2 != null && (earliest == null || d2.isBefore(earliest!)))
+          earliest = d2;
       }
 
-      final deficit      = (max - stock).clamp(0, 999999);
+      final deficit = (max - stock).clamp(0, 999999);
       final recommendQty = deficit > reorder ? deficit : reorder;
 
       if (stock == 0) {
         final targets = await _filterByPref(db, adminIds, 'lowStock');
         await _sendAlert(
-          db: db, targets: targets,
+          db: db,
+          targets: targets,
           title: '🚨 URGENT: Out of Stock',
-          message: '$name is out of stock. Recommend ordering $recommendQty $uom.',
-          type: 'warning', targetRole: 'admin',
+          message:
+              '$name is out of stock. Recommend ordering $recommendQty $uom.',
+          type: 'warning',
+          targetRole: 'admin',
         );
       } else if (stock <= min) {
         final targets = await _filterByPref(db, adminIds, 'lowStock');
         await _sendAlert(
-          db: db, targets: targets,
+          db: db,
+          targets: targets,
           title: '⚠️ Low Stock Alert',
-          message: '$name is low ($stock $uom). Recommend ordering $recommendQty $uom.',
-          type: 'warning', targetRole: 'admin',
+          message:
+              '$name is low ($stock $uom). Recommend ordering $recommendQty $uom.',
+          type: 'warning',
+          targetRole: 'admin',
         );
       }
     }
 
     // ── PMS ALERTS ──
-    final vehiclesSnap  = await db.collection('vehicles').get();
+    final vehiclesSnap = await db.collection('vehicles').get();
     final todayMidnight = DateTime(now.year, now.month, now.day);
 
     for (final vDoc in vehiclesSnap.docs) {
-      final data        = vDoc.data();
-      final plate       = data['plate'] as String? ?? '';
+      final data = vDoc.data();
+      final plate = data['plate'] as String? ?? '';
       final lastSvcDate = data['lastSvcDate'] as String? ?? '';
-      final svcFreq     = int.tryParse(data['svcFreq']?.toString() ?? '');
+      final svcFreq = int.tryParse(data['svcFreq']?.toString() ?? '');
 
       if (lastSvcDate.isEmpty || svcFreq == null || plate.isEmpty) continue;
       final lastDate = DateTime.tryParse(lastSvcDate);
       if (lastDate == null) continue;
 
-      final nextDate     = DateTime(lastDate.year, lastDate.month + svcFreq, lastDate.day);
-      final nextMidnight = DateTime(nextDate.year, nextDate.month, nextDate.day);
-      final daysUntil    = nextMidnight.difference(todayMidnight).inDays;
+      final nextDate = DateTime(
+        lastDate.year,
+        lastDate.month + svcFreq,
+        lastDate.day,
+      );
+      final nextMidnight = DateTime(
+        nextDate.year,
+        nextDate.month,
+        nextDate.day,
+      );
+      final daysUntil = nextMidnight.difference(todayMidnight).inDays;
 
       // ── Admin PMS alerts ──
       if (daysUntil < 0) {
         final targets = await _filterByPref(db, adminIds, 'pmsOverdue');
         await _sendAlert(
-          db: db, targets: targets,
+          db: db,
+          targets: targets,
           title: '🚨 PMS Overdue',
           message: '$plate is ${(-daysUntil)} day(s) overdue for maintenance.',
-          type: 'warning', targetRole: 'admin',
+          type: 'warning',
+          targetRole: 'admin',
         );
       } else if (daysUntil == 0) {
         final targets = await _filterByPref(db, adminIds, 'pmsDueToday');
         await _sendAlert(
-          db: db, targets: targets,
+          db: db,
+          targets: targets,
           title: '🔔 PMS Due Today',
           message: '$plate is due for maintenance today.',
-          type: 'warning', targetRole: 'admin',
+          type: 'warning',
+          targetRole: 'admin',
         );
       } else if (daysUntil <= 7) {
         final targets = await _filterByPref(db, adminIds, 'pmsDueThisWeek');
         await _sendAlert(
-          db: db, targets: targets,
+          db: db,
+          targets: targets,
           title: '📅 PMS Due This Week',
-          message: '$plate is due for maintenance this week ($daysUntil day(s)).',
-          type: 'warning', targetRole: 'admin',
+          message:
+              '$plate is due for maintenance this week ($daysUntil day(s)).',
+          type: 'warning',
+          targetRole: 'admin',
         );
       } else if (daysUntil <= 14) {
         final targets = await _filterByPref(db, adminIds, 'pmsDueSoon');
         await _sendAlert(
-          db: db, targets: targets,
+          db: db,
+          targets: targets,
           title: '⚠️ PMS Due Soon',
           message: '$plate is due for maintenance in $daysUntil day(s).',
-          type: 'info', targetRole: 'admin',
+          type: 'info',
+          targetRole: 'admin',
         );
       }
 
       // ── Customer PMS alerts ──
-      final ownerId = data['ownerId'] as String? ?? data['customerId'] as String?;
+      final ownerId =
+          data['ownerId'] as String? ?? data['customerId'] as String?;
       if (ownerId != null && ownerId.isNotEmpty) {
         if (daysUntil < 0) {
           final targets = await _filterByPref(db, [ownerId], 'pmsOverdue');
           await _sendAlert(
-            db: db, targets: targets,
+            db: db,
+            targets: targets,
             title: '🚨 Your PMS is Overdue',
-            message: 'Your $plate is ${(-daysUntil)} day(s) overdue for maintenance.',
-            type: 'warning', targetRole: '', targetUid: ownerId,
+            message:
+                'Your $plate is ${(-daysUntil)} day(s) overdue for maintenance.',
+            type: 'warning',
+            targetRole: '',
+            targetUid: ownerId,
           );
         } else if (daysUntil == 0) {
           final targets = await _filterByPref(db, [ownerId], 'pmsDueToday');
           await _sendAlert(
-            db: db, targets: targets,
+            db: db,
+            targets: targets,
             title: '🔔 Your PMS is Due Today',
             message: 'Your $plate is due for maintenance today.',
-            type: 'warning', targetRole: '', targetUid: ownerId,
+            type: 'warning',
+            targetRole: '',
+            targetUid: ownerId,
           );
         } else if (daysUntil <= 7) {
           final targets = await _filterByPref(db, [ownerId], 'pmsDueThisWeek');
           await _sendAlert(
-            db: db, targets: targets,
+            db: db,
+            targets: targets,
             title: '📅 Your PMS is Due This Week',
-            message: 'Your $plate is due for maintenance this week ($daysUntil day(s)).',
-            type: 'warning', targetRole: '', targetUid: ownerId,
+            message:
+                'Your $plate is due for maintenance this week ($daysUntil day(s)).',
+            type: 'warning',
+            targetRole: '',
+            targetUid: ownerId,
           );
         } else if (daysUntil <= 14) {
           final targets = await _filterByPref(db, [ownerId], 'pmsDueSoon');
           await _sendAlert(
-            db: db, targets: targets,
+            db: db,
+            targets: targets,
             title: '⚠️ Your PMS is Due Soon',
             message: 'Your $plate is due for maintenance in $daysUntil day(s).',
-            type: 'info', targetRole: '', targetUid: ownerId,
+            type: 'info',
+            targetRole: '',
+            targetUid: ownerId,
           );
         }
       }
@@ -234,9 +280,9 @@ Future<void> _runBookingAlerts(
   List<String> adminIds,
   DateTime now,
 ) async {
-  final todayMidnight   = DateTime(now.year, now.month, now.day);
+  final todayMidnight = DateTime(now.year, now.month, now.day);
   final tomorrowMidnight = todayMidnight.add(const Duration(days: 1));
-  final tomorrowStr     =
+  final tomorrowStr =
       '${tomorrowMidnight.year}-${tomorrowMidnight.month.toString().padLeft(2, '0')}-${tomorrowMidnight.day.toString().padLeft(2, '0')}';
 
   // Already-notified log key — per-day dedup
@@ -244,31 +290,41 @@ Future<void> _runBookingAlerts(
       '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
   // Get staff UIDs for booking notifications
-  final staffSnap = await db.collection('users').where('role', isEqualTo: 'staff').get();
-  final staffIds  = staffSnap.docs.map((d) => d.id).toList();
+  final staffSnap = await db
+      .collection('users')
+      .where('role', isEqualTo: 'staff')
+      .get();
+  final staffIds = staffSnap.docs.map((d) => d.id).toList();
   final staffAndAdminIds = {...staffIds, ...adminIds}.toList();
 
   final bookingsSnap = await db.collection('service_bookings').get();
 
   for (final bDoc in bookingsSnap.docs) {
-    final data   = bDoc.data();
-    final bId    = bDoc.id;
-    final plate  = data['plate'] as String? ?? '';
+    final data = bDoc.data();
+    final bId = bDoc.id;
+    final plate = data['plate'] as String? ?? '';
     final status = (data['status'] as String? ?? '').toLowerCase();
     final prefDate = data['preferredDate'] as String? ?? '';
-    final customerId = data['customerId'] as String? ?? data['userId'] as String? ?? '';
+    final customerId =
+        data['customerId'] as String? ?? data['userId'] as String? ?? '';
 
     // ── New booking request (Pending) → admin & staff ──
     if (status == 'pending') {
       final logKey = 'booking_new_${bId}_$dayKey';
       final alreadySent = await _alreadyLogged(db, logKey);
       if (!alreadySent) {
-        final targets = await _filterByPref(db, staffAndAdminIds, 'newBookingRequest');
+        final targets = await _filterByPref(
+          db,
+          staffAndAdminIds,
+          'newBookingRequest',
+        );
         await _sendAlert(
-          db: db, targets: targets,
+          db: db,
+          targets: targets,
           title: '📋 New Booking Request',
           message: 'New service booking for $plate is awaiting confirmation.',
-          type: 'info', targetRole: 'admin',
+          type: 'info',
+          targetRole: 'admin',
         );
         await _logSent(db, logKey);
       }
@@ -279,12 +335,18 @@ Future<void> _runBookingAlerts(
       final logKey = 'booking_cancel_${bId}_$dayKey';
       final alreadySent = await _alreadyLogged(db, logKey);
       if (!alreadySent) {
-        final targets = await _filterByPref(db, staffAndAdminIds, 'bookingCancellation');
+        final targets = await _filterByPref(
+          db,
+          staffAndAdminIds,
+          'bookingCancellation',
+        );
         await _sendAlert(
-          db: db, targets: targets,
+          db: db,
+          targets: targets,
           title: '❌ Booking Cancelled',
           message: 'Service booking for $plate has been cancelled.',
-          type: 'warning', targetRole: 'admin',
+          type: 'warning',
+          targetRole: 'admin',
         );
         await _logSent(db, logKey);
       }
@@ -297,12 +359,17 @@ Future<void> _runBookingAlerts(
       final logKey = 'booking_confirmed_${bId}';
       final alreadySent = await _alreadyLogged(db, logKey);
       if (!alreadySent) {
-        final targets = await _filterByPref(db, [customerId], 'bookingConfirmed');
+        final targets = await _filterByPref(db, [
+          customerId,
+        ], 'bookingConfirmed');
         await _sendAlert(
-          db: db, targets: targets,
+          db: db,
+          targets: targets,
           title: '✅ Booking Confirmed',
           message: 'Your service booking for $plate has been confirmed.',
-          type: 'success', targetRole: '', targetUid: customerId,
+          type: 'success',
+          targetRole: '',
+          targetUid: customerId,
         );
         await _logSent(db, logKey);
       }
@@ -313,12 +380,17 @@ Future<void> _runBookingAlerts(
       final logKey = 'booking_reminder_${bId}_$dayKey';
       final alreadySent = await _alreadyLogged(db, logKey);
       if (!alreadySent) {
-        final targets = await _filterByPref(db, [customerId], 'bookingReminder');
+        final targets = await _filterByPref(db, [
+          customerId,
+        ], 'bookingReminder');
         await _sendAlert(
-          db: db, targets: targets,
+          db: db,
+          targets: targets,
           title: '🔔 Booking Reminder',
           message: 'Your service for $plate is scheduled for tomorrow.',
-          type: 'info', targetRole: '', targetUid: customerId,
+          type: 'info',
+          targetRole: '',
+          targetUid: customerId,
         );
         await _logSent(db, logKey);
       }
@@ -330,12 +402,17 @@ Future<void> _runBookingAlerts(
       final alreadySent = await _alreadyLogged(db, logKey);
       if (!alreadySent) {
         final displayStatus = status[0].toUpperCase() + status.substring(1);
-        final targets = await _filterByPref(db, [customerId], 'bookingStatusChange');
+        final targets = await _filterByPref(db, [
+          customerId,
+        ], 'bookingStatusChange');
         await _sendAlert(
-          db: db, targets: targets,
+          db: db,
+          targets: targets,
           title: '🔄 Booking Status Updated',
           message: 'Your booking for $plate is now: $displayStatus.',
-          type: 'info', targetRole: '', targetUid: customerId,
+          type: 'info',
+          targetRole: '',
+          targetUid: customerId,
         );
         await _logSent(db, logKey);
       }
@@ -356,8 +433,9 @@ Future<bool> _alreadyLogged(FirebaseFirestore db, String key) async {
 
 Future<void> _logSent(FirebaseFirestore db, String key) async {
   try {
-    await db.collection('dss_alert_log').doc(key)
-        .set({'sentAt': FieldValue.serverTimestamp()});
+    await db.collection('dss_alert_log').doc(key).set({
+      'sentAt': FieldValue.serverTimestamp(),
+    });
   } catch (_) {}
 }
 
@@ -373,20 +451,22 @@ Future<({List<String> push, List<String> email})> _filterByPref(
   String prefKey,
 ) async {
   if (uids.isEmpty) return (push: <String>[], email: <String>[]);
-  final pushList  = <String>[];
+  final pushList = <String>[];
   final emailList = <String>[];
   for (final uid in uids) {
     try {
       final doc = await db
-          .collection('users').doc(uid)
-          .collection('settings').doc('alerts')
+          .collection('users')
+          .doc(uid)
+          .collection('settings')
+          .doc('alerts')
           .get();
-      final prefs        = doc.data() ?? {};
-      final alertEnabled = prefs[prefKey]        as bool? ?? true;
-      final inApp        = prefs['inAppEnabled']  as bool? ?? true;
-      final email        = prefs['emailEnabled']  as bool? ?? true;
-      if (alertEnabled && inApp)  pushList.add(uid);
-      if (alertEnabled && email)  emailList.add(uid);
+      final prefs = doc.data() ?? {};
+      final alertEnabled = prefs[prefKey] as bool? ?? true;
+      final inApp = prefs['inAppEnabled'] as bool? ?? true;
+      final email = prefs['emailEnabled'] as bool? ?? true;
+      if (alertEnabled && inApp) pushList.add(uid);
+      if (alertEnabled && email) emailList.add(uid);
     } catch (_) {
       // include on error — don't silently drop
       pushList.add(uid);
@@ -405,20 +485,20 @@ Future<void> _sendAlert({
   required String message,
   required String type,
   String targetRole = '',
-  String targetUid  = '',
+  String targetUid = '',
 }) async {
   final allUids = {...targets.push, ...targets.email};
   if (allUids.isEmpty) return;
 
   // ── 1. Write to Firestore (in-app notification list) ──
   await db.collection('notifications').add({
-    'title':      title,
-    'message':    message,
-    'type':       type,
+    'title': title,
+    'message': message,
+    'type': type,
     'targetRole': targetRole,
-    'targetUid':  targetUid,
-    'readBy':     <String, bool>{},  // map — keyed by uid, value true when read
-    'createdAt':  FieldValue.serverTimestamp(),
+    'targetUid': targetUid,
+    'readBy': <String, bool>{}, // map — keyed by uid, value true when read
+    'createdAt': FieldValue.serverTimestamp(),
   });
 
   // ── 2. Push notification via OneSignal ──
@@ -436,7 +516,7 @@ Future<void> _sendAlert({
           'target_channel': 'push',
           'headings': {'en': title},
           'contents': {'en': message},
-          'data':     {'type': type},
+          'data': {'type': type},
           'android_channel_id': 'autopro_alerts',
           'ios_sound': 'default',
         }),
@@ -454,7 +534,7 @@ Future<void> _sendAlert({
         // Look up user's email address from Firestore
         final userDoc = await db.collection('users').doc(uid).get();
         final userEmail = userDoc.data()?['email'] as String? ?? '';
-        final userName  = userDoc.data()?['name']  as String? ?? '';
+        final userName = userDoc.data()?['name'] as String? ?? '';
         if (userEmail.isEmpty) continue;
 
         final emailRes = await http.post(
@@ -462,10 +542,10 @@ Future<void> _sendAlert({
           headers: {'Content-Type': 'application/json; charset=utf-8'},
           body: jsonEncode({
             'to_email': userEmail,
-            'to_name':  userName,
-            'title':    title,
-            'message':  message,
-            'type':     type,
+            'to_name': userName,
+            'title': title,
+            'message': message,
+            'type': type,
           }),
         );
         debugPrint('📧 Alert email → $userEmail: ${emailRes.statusCode}');
@@ -488,15 +568,26 @@ DateTime? _parseDate(String s) {
     if (m != null && d != null && y != null) return DateTime.utc(y, m, d);
   }
   const months = {
-    'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
-    'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+    'jan': 1,
+    'feb': 2,
+    'mar': 3,
+    'apr': 4,
+    'may': 5,
+    'jun': 6,
+    'jul': 7,
+    'aug': 8,
+    'sep': 9,
+    'oct': 10,
+    'nov': 11,
+    'dec': 12,
   };
   final m = RegExp(r'^(\w+)\s+(\d+),\s+(\d{4})$').firstMatch(s.trim());
   if (m != null) {
     final mon = months[m.group(1)!.toLowerCase().substring(0, 3)];
     final day = int.tryParse(m.group(2)!);
-    final yr  = int.tryParse(m.group(3)!);
-    if (mon != null && day != null && yr != null) return DateTime.utc(yr, mon, day);
+    final yr = int.tryParse(m.group(3)!);
+    if (mon != null && day != null && yr != null)
+      return DateTime.utc(yr, mon, day);
   }
   return null;
 }

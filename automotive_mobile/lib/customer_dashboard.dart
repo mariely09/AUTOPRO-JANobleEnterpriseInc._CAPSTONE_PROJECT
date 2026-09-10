@@ -225,9 +225,9 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
   bool _iconComputed = false;
 
   // ── Draggable FAB position (bottom-right offset from bottom-right corner) ──
-  double _fabRight  = 16.0;
+  double _fabRight = 16.0;
   double _fabBottom = 16.0;
-  bool   _fabDragging = false;
+  bool _fabDragging = false;
 
   // Cache so photo is available immediately on re-entry (no flicker)
   static String? _cachedPhotoUrl;
@@ -339,7 +339,8 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
           // Reload calendar/agenda when user name first resolves or changes.
           // Also runs on first snapshot even if name matches cache — ensures
           // _loadRecentTransactions fires at least once per session.
-          if (name.isNotEmpty && (nameChanged || _recentTxns.isEmpty && _txnsLoading)) {
+          if (name.isNotEmpty &&
+              (nameChanged || _recentTxns.isEmpty && _txnsLoading)) {
             _loadCalendarData();
             _loadRecentTransactions(name);
           }
@@ -399,7 +400,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
           _buildBody(),
           // ── Draggable AI FAB ───────────────────────────────────────────
           Positioned(
-            right:  _fabRight,
+            right: _fabRight,
             bottom: _fabBottom,
             child: AnimatedScale(
               scale: _fabDragging ? 1.12 : 1.0,
@@ -413,8 +414,14 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                 onDragUpdate: (globalPos) {
                   final size = MediaQuery.of(context).size;
                   setState(() {
-                    _fabRight  = (size.width  - globalPos.dx - 45).clamp(0.0, size.width  - 90);
-                    _fabBottom = (size.height - globalPos.dy - 45).clamp(0.0, size.height - 90);
+                    _fabRight = (size.width - globalPos.dx - 45).clamp(
+                      0.0,
+                      size.width - 90,
+                    );
+                    _fabBottom = (size.height - globalPos.dy - 45).clamp(
+                      0.0,
+                      size.height - 90,
+                    );
                   });
                 },
                 onDragEnd: () => setState(() => _fabDragging = false),
@@ -600,175 +607,196 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
           final maintVehicleIds = <String>{};
           for (final doc in maintSnap.data?.docs ?? []) {
             final data = doc.data() as Map<String, dynamic>;
-            final plate     = (data['plate'] as String? ?? (data['plateNumber'] as String? ?? '')).toLowerCase();
+            final plate =
+                (data['plate'] as String? ??
+                        (data['plateNumber'] as String? ?? ''))
+                    .toLowerCase();
             final vehicleId = data['vehicleId'] as String? ?? '';
-            final ownerId   = data['ownerId']   as String? ?? '';
+            final ownerId = data['ownerId'] as String? ?? '';
             // Include if ownerId matches current user, or we'll cross-check plate/vehicleId
             // against the vehicle list below — store all for now, filter in vehicles builder
-            if (plate.isNotEmpty)     maintPlates.add(plate);
+            if (plate.isNotEmpty) maintPlates.add(plate);
             if (vehicleId.isNotEmpty) maintVehicleIds.add(vehicleId);
             // Also include if ownerId matches current user
-            if (ownerId.isNotEmpty && ownerId == (FirebaseAuth.instance.currentUser?.uid ?? '')) {
-              if (plate.isNotEmpty)     maintPlates.add(plate);
+            if (ownerId.isNotEmpty &&
+                ownerId == (FirebaseAuth.instance.currentUser?.uid ?? '')) {
+              if (plate.isNotEmpty) maintPlates.add(plate);
               if (vehicleId.isNotEmpty) maintVehicleIds.add(vehicleId);
             }
           }
 
-        return StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('service_bookings')
-            .where('customerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid ?? '')
-            .snapshots(),
-        builder: (context, bookingSnap) {
-          // Collect vehicle IDs/plates that are currently Under Maintenance from bookings
-          final underMaintenancePlates = <String>{...maintPlates};
-          final underMaintenanceVehicleIds = <String>{...maintVehicleIds};
-          for (final doc in bookingSnap.data?.docs ?? []) {
-            final data = doc.data() as Map<String, dynamic>;
-            final status = (data['status'] as String? ?? '').toLowerCase();
-            if (status == 'under maintenance') {
-              final plate = (data['plate'] as String? ?? '').toLowerCase();
-              final vehicleId = (data['vehicleId'] as String? ?? '');
-              if (plate.isNotEmpty) underMaintenancePlates.add(plate);
-              if (vehicleId.isNotEmpty) underMaintenanceVehicleIds.add(vehicleId);
-            }
-          }
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('service_bookings')
+                .where(
+                  'customerId',
+                  isEqualTo: FirebaseAuth.instance.currentUser?.uid ?? '',
+                )
+                .snapshots(),
+            builder: (context, bookingSnap) {
+              // Collect vehicle IDs/plates that are currently Under Maintenance from bookings
+              final underMaintenancePlates = <String>{...maintPlates};
+              final underMaintenanceVehicleIds = <String>{...maintVehicleIds};
+              for (final doc in bookingSnap.data?.docs ?? []) {
+                final data = doc.data() as Map<String, dynamic>;
+                final status = (data['status'] as String? ?? '').toLowerCase();
+                if (status == 'under maintenance') {
+                  final plate = (data['plate'] as String? ?? '').toLowerCase();
+                  final vehicleId = (data['vehicleId'] as String? ?? '');
+                  if (plate.isNotEmpty) underMaintenancePlates.add(plate);
+                  if (vehicleId.isNotEmpty)
+                    underMaintenanceVehicleIds.add(vehicleId);
+                }
+              }
 
-        return StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('vehicles').snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting &&
-              !snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
+              return StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('vehicles')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      !snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-          final allDocs = snapshot.data?.docs ?? [];
-          final userName = _userName;
+                  final allDocs = snapshot.data?.docs ?? [];
+                  final userName = _userName;
 
-          final vehicles = allDocs
-              .where((d) {
-                final data = d.data() as Map<String, dynamic>;
-                final owner = (data['owner'] as String? ?? '').toLowerCase();
-                final uname = userName.toLowerCase();
-                final cname = _companyName.toLowerCase();
-                return owner == uname || (cname.isNotEmpty && owner == cname);
-              })
-              .map((d) {
-                final data = d.data() as Map<String, dynamic>;
-                final plate = data['plate'] as String? ?? '';
-                final docId = d.id;
-                final lastSvcDate = data['lastSvcDate'] as String? ?? '';
-                final svcFreq = data['svcFreq'] as String? ?? '';
-                // Override status from booking if vehicle has an active
-                // 'Under Maintenance' booking in service_bookings
-                final isUnderMaintenance =
-                    underMaintenancePlates.contains(plate.toLowerCase()) ||
-                    underMaintenanceVehicleIds.contains(docId);
-                // Use live-computed PMS status so Due Today / Due This Week
-                // are always accurate regardless of stale Firestore field
-                final liveStatus = isUnderMaintenance
-                    ? 'Under Maintenance'
-                    : _computeStatus(lastSvcDate, svcFreq);
-                return <String, String>{
-                  'id': docId,
-                  'plate': plate,
-                  'desc': data['desc'] as String? ?? '',
-                  'type': data['type'] as String? ?? '',
-                  'status': liveStatus,
-                  'lastSvcDate': lastSvcDate,
-                  'lastSvcOdo':
-                      (data['lastSvcOdo'] ?? data['lastServiceOdometer'] ?? '')
-                          .toString(),
-                  'odo': data['odo'] as String? ?? '',
-                  'svcFreq': svcFreq,
-                };
-              })
-              .toList();
+                  final vehicles = allDocs
+                      .where((d) {
+                        final data = d.data() as Map<String, dynamic>;
+                        final owner = (data['owner'] as String? ?? '')
+                            .toLowerCase();
+                        final uname = userName.toLowerCase();
+                        final cname = _companyName.toLowerCase();
+                        return owner == uname ||
+                            (cname.isNotEmpty && owner == cname);
+                      })
+                      .map((d) {
+                        final data = d.data() as Map<String, dynamic>;
+                        final plate = data['plate'] as String? ?? '';
+                        final docId = d.id;
+                        final lastSvcDate =
+                            data['lastSvcDate'] as String? ?? '';
+                        final svcFreq = data['svcFreq'] as String? ?? '';
+                        // Override status from booking if vehicle has an active
+                        // 'Under Maintenance' booking in service_bookings
+                        final isUnderMaintenance =
+                            underMaintenancePlates.contains(
+                              plate.toLowerCase(),
+                            ) ||
+                            underMaintenanceVehicleIds.contains(docId);
+                        // Use live-computed PMS status so Due Today / Due This Week
+                        // are always accurate regardless of stale Firestore field
+                        final liveStatus = isUnderMaintenance
+                            ? 'Under Maintenance'
+                            : _computeStatus(lastSvcDate, svcFreq);
+                        return <String, String>{
+                          'id': docId,
+                          'plate': plate,
+                          'desc': data['desc'] as String? ?? '',
+                          'type': data['type'] as String? ?? '',
+                          'status': liveStatus,
+                          'lastSvcDate': lastSvcDate,
+                          'lastSvcOdo':
+                              (data['lastSvcOdo'] ??
+                                      data['lastServiceOdometer'] ??
+                                      '')
+                                  .toString(),
+                          'odo': data['odo'] as String? ?? '',
+                          'svcFreq': svcFreq,
+                        };
+                      })
+                      .toList();
 
-          // Update nav icon based on fleet type (only once when vehicles first load)
-          if (!_iconComputed && vehicles.isNotEmpty) {
-            _iconComputed = true;
-            _fleetNavIcon = _fleetIcon(vehicles);
-          }
+                  // Update nav icon based on fleet type (only once when vehicles first load)
+                  if (!_iconComputed && vehicles.isNotEmpty) {
+                    _iconComputed = true;
+                    _fleetNavIcon = _fleetIcon(vehicles);
+                  }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildWelcomeCard(
-                  active: vehicles.where((v) {
-                    final s = (v['status'] ?? '').toLowerCase();
-                    if (s == 'under maintenance') return false;
-                    // Exclude if under maintenance via booking
-                    final plate = (v['plate'] ?? '').toLowerCase();
-                    final vId = v['id'] ?? '';
-                    if (underMaintenancePlates.contains(plate) ||
-                        underMaintenanceVehicleIds.contains(vId)) return false;
-                    final computed = _computeStatus(
-                      v['lastSvcDate'] ?? '',
-                      v['svcFreq'] ?? '',
-                    ).toLowerCase();
-                    // Active = not any PMS alert and not under maintenance
-                    return computed != 'overdue' &&
-                        computed != 'due today' &&
-                        computed != 'due this week' &&
-                        computed != 'due soon' &&
-                        s != 'overdue' &&
-                        s != 'due today' &&
-                        s != 'due this week' &&
-                        s != 'due soon';
-                  }).length,
-                  dueToday: vehicles.where((v) {
-                    // Use live-computed status so it's always accurate
-                    final computed = _computeStatus(
-                      v['lastSvcDate'] ?? '',
-                      v['svcFreq'] ?? '',
-                    );
-                    // Also accept stored 'due today' in case compute can't run
-                    final stored = (v['status'] ?? '').toLowerCase();
-                    return computed == 'Due Today' || stored == 'due today';
-                  }).length,
-                  dueThisWeek: vehicles.where((v) {
-                    final computed = _computeStatus(
-                      v['lastSvcDate'] ?? '',
-                      v['svcFreq'] ?? '',
-                    );
-                    final stored = (v['status'] ?? '').toLowerCase();
-                    // Due This Week — live computed wins; exclude Due Today
-                    if (computed == 'Due Today') return false;
-                    return computed == 'Due This Week' || stored == 'due this week';
-                  }).length,
-                  maintenance: vehicles.where((v) {
-                    // Only use the live booking sets — v['status'] is already
-                    // set to liveStatus above so this is consistent.
-                    final plate = (v['plate'] ?? '').toLowerCase();
-                    final vId = v['id'] ?? '';
-                    return (v['status'] ?? '').toLowerCase() == 'under maintenance' ||
-                        underMaintenancePlates.contains(plate) ||
-                        underMaintenanceVehicleIds.contains(vId);
-                  }).length,
-                ),
-                const SizedBox(height: 16),
-                // ── Services carousel ──
-                _buildServicesCarousel(),
-                const SizedBox(height: 16),
-                // ── Inline calendar ──
-                _buildInlineCalendar(),
-                const SizedBox(height: 16),
-                // ── My Vehicles overview ──
-                _buildVehiclesOverview(vehicles),
-                const SizedBox(height: 16),
-                // ── Recent Service Transactions ──
-                _buildRecentTransactions(vehicles),
-                const SizedBox(height: 24),
-              ],
-            ),
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildWelcomeCard(
+                          active: vehicles.where((v) {
+                            final s = (v['status'] ?? '').toLowerCase();
+                            if (s == 'under maintenance') return false;
+                            // Exclude if under maintenance via booking
+                            final plate = (v['plate'] ?? '').toLowerCase();
+                            final vId = v['id'] ?? '';
+                            if (underMaintenancePlates.contains(plate) ||
+                                underMaintenanceVehicleIds.contains(vId))
+                              return false;
+                            final computed = _computeStatus(
+                              v['lastSvcDate'] ?? '',
+                              v['svcFreq'] ?? '',
+                            ).toLowerCase();
+                            // Active = not any PMS alert and not under maintenance
+                            return computed != 'overdue' &&
+                                computed != 'due today' &&
+                                computed != 'due this week' &&
+                                computed != 'due soon' &&
+                                s != 'overdue' &&
+                                s != 'due today' &&
+                                s != 'due this week' &&
+                                s != 'due soon';
+                          }).length,
+                          dueToday: vehicles.where((v) {
+                            // Use live-computed status so it's always accurate
+                            final computed = _computeStatus(
+                              v['lastSvcDate'] ?? '',
+                              v['svcFreq'] ?? '',
+                            );
+                            // Also accept stored 'due today' in case compute can't run
+                            final stored = (v['status'] ?? '').toLowerCase();
+                            return computed == 'Due Today' ||
+                                stored == 'due today';
+                          }).length,
+                          dueThisWeek: vehicles.where((v) {
+                            final computed = _computeStatus(
+                              v['lastSvcDate'] ?? '',
+                              v['svcFreq'] ?? '',
+                            );
+                            final stored = (v['status'] ?? '').toLowerCase();
+                            // Due This Week — live computed wins; exclude Due Today
+                            if (computed == 'Due Today') return false;
+                            return computed == 'Due This Week' ||
+                                stored == 'due this week';
+                          }).length,
+                          maintenance: vehicles.where((v) {
+                            // Only use the live booking sets — v['status'] is already
+                            // set to liveStatus above so this is consistent.
+                            final plate = (v['plate'] ?? '').toLowerCase();
+                            final vId = v['id'] ?? '';
+                            return (v['status'] ?? '').toLowerCase() ==
+                                    'under maintenance' ||
+                                underMaintenancePlates.contains(plate) ||
+                                underMaintenanceVehicleIds.contains(vId);
+                          }).length,
+                        ),
+                        const SizedBox(height: 16),
+                        // ── Services carousel ──
+                        _buildServicesCarousel(),
+                        const SizedBox(height: 16),
+                        // ── Inline calendar ──
+                        _buildInlineCalendar(),
+                        const SizedBox(height: 16),
+                        // ── My Vehicles overview ──
+                        _buildVehiclesOverview(vehicles),
+                        const SizedBox(height: 16),
+                        // ── Recent Service Transactions ──
+                        _buildRecentTransactions(vehicles),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
           );
-        },
-        );
-        },
-        );
         },
       ),
     );
@@ -954,7 +982,8 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                 } else if (hasMaintenance) {
                   icon = '🔧';
                   line1 = 'Vehicle under maintenance';
-                  line2 = 'Your vehicle is being serviced. We\'ll notify you when it\'s done.';
+                  line2 =
+                      'Your vehicle is being serviced. We\'ll notify you when it\'s done.';
                 } else {
                   icon = '✅';
                   line1 = 'All clear today';
@@ -1008,10 +1037,26 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
               mainAxisSpacing: 8,
               childAspectRatio: 2.6,
               children: [
-                _customerStatCard(icon: Icons.check_circle_outline,   value: '$active',      label: 'Active'),
-                _customerStatCard(icon: Icons.today_outlined,          value: '$dueToday',    label: 'Due Today'),
-                _customerStatCard(icon: Icons.date_range_outlined,     value: '$dueThisWeek', label: 'Due This Week'),
-                _customerStatCard(icon: Icons.build_circle_outlined,   value: '$maintenance', label: 'Under Maintenance'),
+                _customerStatCard(
+                  icon: Icons.check_circle_outline,
+                  value: '$active',
+                  label: 'Active',
+                ),
+                _customerStatCard(
+                  icon: Icons.today_outlined,
+                  value: '$dueToday',
+                  label: 'Due Today',
+                ),
+                _customerStatCard(
+                  icon: Icons.date_range_outlined,
+                  value: '$dueThisWeek',
+                  label: 'Due This Week',
+                ),
+                _customerStatCard(
+                  icon: Icons.build_circle_outlined,
+                  value: '$maintenance',
+                  label: 'Under Maintenance',
+                ),
               ],
             ),
           ),
@@ -2484,35 +2529,40 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
           .collection('maintenance')
           .where('status', isEqualTo: 'Completed')
           .snapshots()
-          .listen((snap) {
-            if (!mounted) return;
-            final filtered = snap.docs
-                .where((d) {
-                  final data = d.data();
-                  final plate = (data['plate'] as String? ?? '').toLowerCase();
-                  final docOwnerId = data['ownerId'] as String? ?? '';
-                  // Match by plate (primary) or by ownerId (fallback for records
-                  // that may not have the correct plate stored)
-                  return _txnPlates.contains(plate) ||
-                      (docOwnerId.isNotEmpty && docOwnerId == uid);
-                })
-                .map((d) => <String, dynamic>{...d.data(), '_id': d.id})
-                .toList()
-              ..sort((a, b) {
-                final aTs = a['createdAt'];
-                final bTs = b['createdAt'];
-                if (aTs is Timestamp && bTs is Timestamp)
-                  return bTs.compareTo(aTs);
-                return 0;
+          .listen(
+            (snap) {
+              if (!mounted) return;
+              final filtered =
+                  snap.docs
+                      .where((d) {
+                        final data = d.data();
+                        final plate = (data['plate'] as String? ?? '')
+                            .toLowerCase();
+                        final docOwnerId = data['ownerId'] as String? ?? '';
+                        // Match by plate (primary) or by ownerId (fallback for records
+                        // that may not have the correct plate stored)
+                        return _txnPlates.contains(plate) ||
+                            (docOwnerId.isNotEmpty && docOwnerId == uid);
+                      })
+                      .map((d) => <String, dynamic>{...d.data(), '_id': d.id})
+                      .toList()
+                    ..sort((a, b) {
+                      final aTs = a['createdAt'];
+                      final bTs = b['createdAt'];
+                      if (aTs is Timestamp && bTs is Timestamp)
+                        return bTs.compareTo(aTs);
+                      return 0;
+                    });
+              setState(() {
+                _recentTxns = filtered.take(5).toList();
+                _txnsLoading = false;
               });
-            setState(() {
-              _recentTxns = filtered.take(5).toList();
-              _txnsLoading = false;
-            });
-          }, onError: (e) {
-            debugPrint('❌ Transactions stream error: $e');
-            if (mounted) setState(() => _txnsLoading = false);
-          });
+            },
+            onError: (e) {
+              debugPrint('❌ Transactions stream error: $e');
+              if (mounted) setState(() => _txnsLoading = false);
+            },
+          );
     } catch (e) {
       debugPrint('❌ Transactions load error: $e');
       if (mounted) setState(() => _txnsLoading = false);

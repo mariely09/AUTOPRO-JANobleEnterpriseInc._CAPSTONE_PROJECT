@@ -46,10 +46,13 @@ void main() async {
     debugPrint('✅ Firestore offline persistence enabled');
   }
 
-  // ── OneSignal: initialize and request permission (skip on web for now) ──
+  // ── OneSignal: initialize ONLY (skip on web for now) ──
+  // Permission request happens AFTER login in login.dart
   if (!kIsWeb) {
+    debugPrint('🔵 Initializing OneSignal...');
+    OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
     OneSignal.initialize('c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea');
-    await OneSignal.Notifications.requestPermission(true);
+    debugPrint('✅ OneSignal initialized');
 
     // If user is already logged in (app restart), re-link UID with OneSignal
     final user = FirebaseAuth.instance.currentUser;
@@ -57,11 +60,14 @@ void main() async {
       OneSignal.login(user.uid);
       debugPrint('✅ OneSignal auto-login with UID: ${user.uid}');
 
-      // Ensure push is opted in (re-request permission if previously denied)
+      // Request permission on app restart if already logged in
       final isOptedIn = OneSignal.User.pushSubscription.optedIn ?? false;
       if (!isOptedIn) {
         final granted = await OneSignal.Notifications.requestPermission(true);
-        if (granted) await OneSignal.User.pushSubscription.optIn();
+        if (granted) {
+          await OneSignal.User.pushSubscription.optIn();
+          await Future.delayed(const Duration(seconds: 2));
+        }
         debugPrint(
           granted
               ? '✅ Push re-opted in on restart'
@@ -76,7 +82,7 @@ void main() async {
             await FirebaseFirestore.instance
                 .collection('users')
                 .doc(user.uid)
-                .update({'oneSignalId': subId});
+                .set({'oneSignalId': subId}, SetOptions(merge: true));
             debugPrint('✅ OneSignal subscription ID saved on restart: $subId');
           } catch (e) {
             debugPrint('⚠️ Could not save OneSignal ID on restart: $e');

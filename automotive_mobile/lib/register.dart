@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 // -- OneSignal push (same credentials as notifications.dart) --
 const _kOneSignalAppId = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
 const _kOneSignalApiKey =
-    'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
+    'os_v2_app_yt4cvr2tibhhvb35du4k637i5kooqoyju5jekgnwgcez2o5dq5bflxzvw4eonegfy2qeb4zfv6rfvfdcn7vgrgrx32tmuki2h4ugy6q';
 
 // Philippine mobile formatter: +63 locked prefix + 10 digits = +63XXXXXXXXXX
 class _PhoneFormatter extends TextInputFormatter {
@@ -107,7 +107,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final _hasSpecial = RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]');
     if (!_hasSpecial.hasMatch(password)) {
-      _showError('Password must contain at least one special character (e.g. @, #, !, \$).');
+      _showError(
+        'Password must contain at least one special character (e.g. @, #, !, \$).',
+      );
       return;
     }
 
@@ -167,7 +169,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final msg = switch (e.code) {
         'email-already-in-use' => 'An account with this email already exists.',
         'invalid-email' => 'Please enter a valid email address.',
-        'weak-password' => 'Password is too weak. Use at least 8 characters with a special character.',
+        'weak-password' =>
+          'Password is too weak. Use at least 8 characters with a special character.',
         _ => e.message ?? 'Registration failed.',
       };
       _showError(msg);
@@ -353,7 +356,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           _phoneCtrl.text = '+63';
                         }
                         final pos = _phoneCtrl.text.length;
-                        _phoneCtrl.selection = TextSelection.collapsed(offset: pos);
+                        _phoneCtrl.selection = TextSelection.collapsed(
+                          offset: pos,
+                        );
                       },
                     ),
                     const SizedBox(height: 16),

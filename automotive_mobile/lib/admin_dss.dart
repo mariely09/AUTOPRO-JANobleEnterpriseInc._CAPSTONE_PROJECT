@@ -9,7 +9,7 @@ import 'admin_calendar_widget.dart' show PmsCalendarFloating;
 // -- OneSignal credentials --
 const _kOneSignalAppId = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
 const _kOneSignalApiKey =
-    'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
+    'os_v2_app_yt4cvr2tibhhvb35du4k637i5kooqoyju5jekgnwgcez2o5dq5bflxzvw4eonegfy2qeb4zfv6rfvfdcn7vgrgrx32tmuki2h4ugy6q';
 
 /// Resolves Firebase UIDs ? OneSignal subscription IDs stored in Firestore,
 /// then sends a push notification via the OneSignal REST API.
@@ -257,7 +257,7 @@ class _AdminDSSState extends State<AdminDSS> {
         );
         final daysUntil = nextMidnight.difference(todayMidnight).inDays;
 
-        // Admin PMS alerts — filter by pref before pushing
+        // Admin PMS alerts ï¿½ filter by pref before pushing
         if (daysUntil < 0) {
           final targets = await filterByPref(adminIds, 'pmsOverdue');
           await db.collection('notifications').add({
@@ -344,7 +344,7 @@ class _AdminDSSState extends State<AdminDSS> {
           }
         }
 
-        // Customer PMS alerts — respect their own pref settings
+        // Customer PMS alerts ï¿½ respect their own pref settings
         final ownerId =
             data['ownerId'] as String? ?? data['customerId'] as String?;
         if (ownerId != null && ownerId.isNotEmpty) {
@@ -730,7 +730,7 @@ class _AdminDSSState extends State<AdminDSS> {
                   final reorder = (data['reorder'] as num?)?.toInt() ?? 0;
                   final uom = data['uom'] as String? ?? '';
 
-                  // -- Consumption rate — mirrors website dssAnalyze() --
+                  // -- Consumption rate ï¿½ mirrors website dssAnalyze() --
                   final records = consumptionMap[itemNum] ?? [];
 
                   // totalConsumed: sum all qty records
@@ -768,7 +768,7 @@ class _AdminDSSState extends State<AdminDSS> {
                       ? (stock / dailyRate).floor()
                       : (stock > 0 ? 999 : 0);
 
-                  // -- Priority — 3-Tier Color-Coded System --
+                  // -- Priority ï¿½ 3-Tier Color-Coded System --
                   // 0 = Out of Stock  ?? Red    (stock = 0)
                   // 1 = Low Stock     ?? Yellow (stock = min qty)
                   // 2 = In Stock      ?? Green  (stock > min qty)
@@ -790,14 +790,14 @@ class _AdminDSSState extends State<AdminDSS> {
                       ? (dailyRate * 7).ceil()
                       : 0;
 
-                  // Recommended order qty — shown for Out of Stock and Low Stock only
+                  // Recommended order qty ï¿½ shown for Out of Stock and Low Stock only
                   final int deficit = (max - stock).clamp(0, 999999);
                   final int recommendQty = priorityScore <= 1
                       ? (deficit > reorder ? deficit : reorder)
                       : 0;
 
                   return {
-                    'name': data['name'] as String? ?? '—',
+                    'name': data['name'] as String? ?? 'ï¿½',
                     'itemNum': itemNum,
                     'uom': uom,
                     'stock': '$stock',
@@ -806,20 +806,20 @@ class _AdminDSSState extends State<AdminDSS> {
                     'reorderQty': '$reorder',
                     'days': daysLeft < 999
                         ? '$daysLeft days'
-                        : (stock > 0 ? '—' : '0 days'),
+                        : (stock > 0 ? 'ï¿½' : '0 days'),
                     'order': priorityScore <= 1 && recommendQty > 0
                         ? '$recommendQty'
-                        : '—',
+                        : 'ï¿½',
                     'priority': priorityLabel,
                     'priorityScore': '$priorityScore',
-                    'group': data['group'] as String? ?? '—',
+                    'group': data['group'] as String? ?? 'ï¿½',
                     'consumptionRate': dailyRate > 0
                         ? '${dailyRate.toStringAsFixed(2)} /day'
-                        : '—',
+                        : 'ï¿½',
                     'totalConsumed': totalConsumed > 0
                         ? '${totalConsumed % 1 == 0 ? totalConsumed.toInt() : totalConsumed.toStringAsFixed(1)}'
-                        : '—',
-                    'leadNeed': leadTimeDemand > 0 ? '$leadTimeDemand' : '—',
+                        : 'ï¿½',
+                    'leadNeed': leadTimeDemand > 0 ? '$leadTimeDemand' : 'ï¿½',
                   };
                 }).toList()..sort((a, b) {
                   // Sort: Out of Stock(0) > Critical(1) > Low Stock(2) > In Stock(3) > Overstock(4)
@@ -872,7 +872,7 @@ class _AdminDSSState extends State<AdminDSS> {
   }
 
   Widget _buildStockDSSContent(List<Map<String, String>> items) {
-    // items already excludes 'In Stock' — filtered upstream
+    // items already excludes 'In Stock' ï¿½ filtered upstream
     final afterFilter = _stockFilter == 'all'
         ? items
         : items.where((i) => i['priority'] == _stockFilter).toList();
@@ -952,7 +952,7 @@ class _AdminDSSState extends State<AdminDSS> {
     final reorderRaw = item['reorderQty'] ?? '0';
     final stockPct = (maxNum > 0) ? (stockNum / maxNum).clamp(0.0, 1.0) : 0.0;
 
-    // Decision text — 3-tier system
+    // Decision text ï¿½ 3-tier system
     final String decision;
     final IconData decisionIcon;
     switch (priority) {
@@ -1005,7 +1005,7 @@ class _AdminDSSState extends State<AdminDSS> {
                           ),
                         ),
                         Text(
-                          '${item['itemNum'] ?? ''}${item['itemNum'] != null && item['uom'] != null && (item['uom']?.isNotEmpty == true) ? '  ·  ' : ''}${item['uom'] ?? ''}',
+                          '${item['itemNum'] ?? ''}${item['itemNum'] != null && item['uom'] != null && (item['uom']?.isNotEmpty == true) ? '  ï¿½  ' : ''}${item['uom'] ?? ''}',
                           style: const TextStyle(
                             fontSize: 11,
                             color: Color(0xFF718096),
@@ -1059,14 +1059,14 @@ class _AdminDSSState extends State<AdminDSS> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Min: ${item['min'] ?? '—'}',
+                    'Min: ${item['min'] ?? 'ï¿½'}',
                     style: const TextStyle(
                       fontSize: 10,
                       color: Color(0xFF718096),
                     ),
                   ),
                   Text(
-                    '${item['stock'] ?? '0'} / ${item['max'] ?? '—'}',
+                    '${item['stock'] ?? '0'} / ${item['max'] ?? 'ï¿½'}',
                     style: TextStyle(
                       fontSize: 10,
                       color: color,
@@ -1074,7 +1074,7 @@ class _AdminDSSState extends State<AdminDSS> {
                     ),
                   ),
                   Text(
-                    'Max: ${item['max'] ?? '—'}',
+                    'Max: ${item['max'] ?? 'ï¿½'}',
                     style: const TextStyle(
                       fontSize: 10,
                       color: Color(0xFF718096),
@@ -1101,7 +1101,7 @@ class _AdminDSSState extends State<AdminDSS> {
                           text: TextSpan(
                             children: [
                               TextSpan(
-                                text: item['consumptionRate'] ?? '—',
+                                text: item['consumptionRate'] ?? 'ï¿½',
                                 style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w800,
@@ -1113,7 +1113,7 @@ class _AdminDSSState extends State<AdminDSS> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Used: ${item['totalConsumed'] ?? '—'}',
+                          'Used: ${item['totalConsumed'] ?? 'ï¿½'}',
                           style: const TextStyle(
                             fontSize: 10,
                             color: Color(0xFF718096),
@@ -1131,18 +1131,18 @@ class _AdminDSSState extends State<AdminDSS> {
                         _sectionLabel('DAYS OF STOCK LEFT'),
                         const SizedBox(height: 4),
                         Text(
-                          item['days'] ?? '—',
+                          item['days'] ?? 'ï¿½',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
-                            color: (item['days'] ?? '—') == '—'
+                            color: (item['days'] ?? 'ï¿½') == 'ï¿½'
                                 ? const Color(0xFF718096)
                                 : color,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Lead need: ${item['leadNeed'] ?? '—'}',
+                          'Lead need: ${item['leadNeed'] ?? 'ï¿½'}',
                           style: const TextStyle(
                             fontSize: 10,
                             color: Color(0xFF718096),
@@ -1160,11 +1160,11 @@ class _AdminDSSState extends State<AdminDSS> {
                         _sectionLabel('RECOMMENDED ORDER'),
                         const SizedBox(height: 4),
                         Text(
-                          item['order'] ?? '—',
+                          item['order'] ?? 'ï¿½',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
-                            color: (item['order'] ?? '—') == '—'
+                            color: (item['order'] ?? 'ï¿½') == 'ï¿½'
                                 ? const Color(0xFF718096)
                                 : color,
                           ),
@@ -1266,7 +1266,7 @@ class _AdminDSSState extends State<AdminDSS> {
                             ),
                           ),
                           Text(
-                            item['group'] ?? '—',
+                            item['group'] ?? 'ï¿½',
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 12,
@@ -1413,10 +1413,10 @@ class _AdminDSSState extends State<AdminDSS> {
               final lastDate = DateTime.tryParse(lastSvcDate);
               final months = int.tryParse(svcFreq);
 
-              String due = '—';
+              String due = 'ï¿½';
               String priority = 'Active';
-              String nextPMS = '—';
-              String lastService = lastSvcDate.isNotEmpty ? lastSvcDate : '—';
+              String nextPMS = 'ï¿½';
+              String lastService = lastSvcDate.isNotEmpty ? lastSvcDate : 'ï¿½';
 
               if (lastDate != null && months != null) {
                 final next = DateTime(
@@ -1861,7 +1861,7 @@ class _AdminDSSState extends State<AdminDSS> {
   }
 
   /// Parses issuance date strings in multiple formats:
-  /// - "YYYY-MM-DD"  (website HTML date input, ISO — JS parses as UTC midnight)
+  /// - "YYYY-MM-DD"  (website HTML date input, ISO ï¿½ JS parses as UTC midnight)
   /// - "M/D/YYYY"   (mobile app: '${now.month}/${now.day}/${now.year}')
   /// - "Jan 1, 2025" (JS toLocaleDateString fallback)
   ///

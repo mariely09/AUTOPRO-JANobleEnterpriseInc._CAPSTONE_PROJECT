@@ -333,9 +333,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
         );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Booking successfully!',
-            ),
+            content: Text('Booking successfully!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -375,10 +373,10 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
     // 2. OneSignal push notification
     const oneSignalAppId = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
     const oneSignalApiKey =
-        'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
+        'os_v2_app_yt4cvr2tibhhvb35du4k637i5kooqoyju5jekgnwgcez2o5dq5bflxzvw4eonegfy2qeb4zfv6rfvfdcn7vgrgrx32tmuki2h4ugy6q';
     try {
       await http.post(
-        Uri.parse('https://onesignal.com/api/v1/notifications'),
+        Uri.parse('https://api.onesignal.com/notifications'),
         headers: {
           'Authorization': 'Basic $oneSignalApiKey',
           'Content-Type': 'application/json; charset=utf-8',
@@ -823,7 +821,9 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF004B5F).withValues(alpha: 0.3),
+                            color: const Color(
+                              0xFF004B5F,
+                            ).withValues(alpha: 0.3),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -1596,8 +1596,9 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       );
       final plate = vehicle['plate'] as String? ?? '';
       final svcIds = _vehicleServices[vId] ?? {};
-      final selectedSvcs =
-          _services.where((s) => svcIds.contains(s['id'])).toList();
+      final selectedSvcs = _services
+          .where((s) => svcIds.contains(s['id']))
+          .toList();
 
       for (final svc in selectedSvcs) {
         final name = svc['name'] as String? ?? '';
@@ -1659,7 +1660,9 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
                   // Plate badge
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFF5F5),
                       borderRadius: BorderRadius.circular(6),

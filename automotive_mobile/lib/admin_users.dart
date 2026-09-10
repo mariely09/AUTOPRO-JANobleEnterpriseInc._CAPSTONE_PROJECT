@@ -16,7 +16,7 @@ const _ejsWelcomeTemplateId = 'template_ovrow3w';
 // ── OneSignal credentials ──
 const _kOneSignalAppId = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea';
 const _kOneSignalApiKey =
-    'os_v2_app_yt4cvr2tibhhvb35du4k637i5l5mjeywytben3fd6lmzeiyhnrp6hzfi3uq77vkidwssmkrud4mdada7wp3sg2dpybuk4vrrtc7cs7y';
+    'os_v2_app_yt4cvr2tibhhvb35du4k637i5kooqoyju5jekgnwgcez2o5dq5bflxzvw4eonegfy2qeb4zfv6rfvfdcn7vgrgrx32tmuki2h4ugy6q';
 
 // ── Formatter that keeps "+63" prefix and allows only digits after it ──
 class _Ph63Formatter extends TextInputFormatter {
@@ -743,7 +743,7 @@ class _AdminUsersState extends State<AdminUsers> {
       if (subId != null && subId.isNotEmpty) {
         try {
           await http.post(
-            Uri.parse('https://onesignal.com/api/v1/notifications'),
+            Uri.parse('https://api.onesignal.com/notifications'),
             headers: {
               'Authorization': 'Basic $_kOneSignalApiKey',
               'Content-Type': 'application/json; charset=utf-8',

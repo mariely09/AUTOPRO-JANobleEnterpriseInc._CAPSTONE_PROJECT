@@ -195,7 +195,7 @@ def send_push_notification():
         return jsonify({'ok': False, 'error': 'Missing subscription_ids or message'}), 400
 
     ONESIGNAL_APP_ID  = 'c4f82ac7-5340-4e7a-877d-1d38a6f6f8ea'
-    ONESIGNAL_API_KEY = 'os_v7_app_yt4cvr2f1hkhvh5ldu4k637i51snjeyuythen3fd61ae1yhnprpy6kbxvn9kjd1pqdhygsqmlrouas4kfuydft32nkgj5flbra3oo5q'
+    ONESIGNAL_API_KEY = 'os_v2_app_yt4cvr2tibhhvb35du4k637i5kooqoyju5jekgnwgcez2o5dq5bflxzvw4eonegfy2qeb4zfv6rfvfdcn7vgrgrx32tmuki2h4ugy6q'
 
     payload = {
         'app_id':         ONESIGNAL_APP_ID,
