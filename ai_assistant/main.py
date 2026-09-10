@@ -32,7 +32,7 @@ import cache_manager
 from reasoning_utils import strip_reasoning as _strip_reasoning
 
 app = FastAPI(
-    title="Caltex AutoPro AI",
+    title="AutoPro AI",
     description="AI assistant with server-side conversational memory",
 )
 
@@ -686,9 +686,9 @@ async def admin_report(request: Request,
 # -- Customer chat -------------------------------------------------------------
 
 CUSTOMER_MANUAL_CONTEXT = """
-CALTEX AUTOPRO  -  USER MANUAL (CUSTOMER SECTIONS)
+AUTOPRO  -  USER MANUAL (CUSTOMER SECTIONS)
 
-Caltex AutoPro is an automotive service management system for JA Noble Enterprise INC,
+AutoPro is an automotive service management system for JA Noble Enterprise INC,
 Caltex San Pedro, Laguna. It has a web app and a mobile app (Android/iOS).
 
 GETTING STARTED: Visit the site in Chrome/Firefox/Edge/Safari. Log in with email+password
@@ -725,7 +725,7 @@ FAQ:
 - Can I reschedule? Yes  -  ask the AI assistant to reschedule and provide your booking ID, new date, and time.
 - Can I cancel? Yes  -  ask the AI assistant to cancel and provide your booking ID.
 
-Contact & Support: caltexautopro2026@gmail.com
+Contact & Support: janobleenterpriseinc.autopro@gmail.com
 """
 
 # -- Out-of-scope patterns (customer chat) — compiled once at module level ----
@@ -771,7 +771,7 @@ def _build_customer_system_prompt(message: str) -> str:
     Build the system prompt for a customer request.
     Includes the user manual only for how-to/app-usage queries to save tokens.
     """
-    base = """You are the friendly vehicle/service assistant for a Caltex AutoPro customer (JA Noble Enterprise Inc., Caltex San Pedro, Laguna). Warm, concise, natural tone.
+    base = """You are the friendly vehicle/service assistant for an AutoPro customer (JA Noble Enterprise Inc., Caltex San Pedro, Laguna). Warm, concise, natural tone.
 
 SCOPE — only: customer's own vehicles/PMS status, their service history & costs, their bookings (create/reschedule/cancel), shop services & pricing, customer-visible materials, maintenance recommendations from their data, app/website how-to, AND general automotive education (oil types, parts, repairs, maintenance tips, car-care how-tos). Anything else (news, sports, general knowledge, coding, math, weather) → respond ONLY: "I can only answer questions related to the Automotive Service and Inventory Management System."
 
@@ -805,7 +805,7 @@ DISPLAY:
 - Materials: show name/group/UOM/customer price only — NEVER stock quantities or supplier info, even if asked.
 - Service history format: "Here's your service history! You have [N] completed record(s) with a total spend of [total]." then **[N]. [Date] - [Plate]** / Services / Materials / Cost; >10 jobs → 10 most recent + note; none → warm no-records message.
 - Vehicles format: "Here are your registered vehicles:" then **[Plate] - [Desc]** / Status / Last Service / Frequency; close with overdue/due-soon note.
-- Empty results: no vehicles→"You don't have any registered vehicles on file yet."; no bookings→"You don't have any service bookings on file."; prices empty+catalog empty→"Our service pricing catalog hasn't been set up yet. Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."; price keyword no match→suggest "list all services"; materials no match→"I couldn't find that material/product in our catalog."
+- Empty results: no vehicles→"You don't have any registered vehicles on file yet."; no bookings→"You don't have any service bookings on file."; prices empty+catalog empty→"Our service pricing catalog hasn't been set up yet. Please contact us at janobleenterpriseinc.autopro@gmail.com or visit the shop for current rates."; price keyword no match→suggest "list all services"; materials no match→"I couldn't find that material/product in our catalog."
 """
     if _MANUAL_KEYWORDS.search(message):
         return base + "\n\n" + CUSTOMER_MANUAL_CONTEXT
@@ -856,7 +856,7 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     _norm_message = _normalize_input(message) or message
     if _OUT_OF_SCOPE_RE.search(_norm_message) or _STOCK_QTY_RE.search(_norm_message):
         return {
-            "reply": "I can only answer questions related to your vehicles, service history, bookings, and service pricing for the Caltex AutoPro system.",
+            "reply": "I can only answer questions related to your vehicles, service history, bookings, and service pricing for the AutoPro system.",
             "tool_calls": [],
             "model": "none",
             "intent": intent,
@@ -1162,7 +1162,7 @@ def _customer_direct_lookup(message: str, customer_uid: str,
     from customer_tools import (
         get_my_vehicles, get_my_service_history,
         get_service_recommendations, get_my_bookings,
-        get_service_prices,
+        get_service_prices, get_customer_materials,
     )
 
     # -- MY_VEHICLES -----------------------------------------------------------
@@ -1369,53 +1369,70 @@ def _customer_direct_lookup(message: str, customer_uid: str,
         if result.get("error") == "QUOTA_EXCEEDED":
             return {"reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.", "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
         if result.get("error"):
-            return {"reply": "I wasn't able to retrieve service pricing right now. Please contact us at caltexautopro2026@gmail.com or visit the shop.", "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
+            return {"reply": "I wasn't able to retrieve service pricing right now. Please contact us at janobleenterpriseinc.autopro@gmail.com or visit the shop.", "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
         services     = result.get("services", [])
         total        = result.get("total_services", 0)
         catalog_size = result.get("catalog_size", -1)
 
-        if total == 0:
+        # Also fetch matching materials so customers can see both categories
+        mat_result = get_customer_materials(
+            customer_uid=customer_uid,
+            customer_name=customer_name,
+            material_name=_svc_kw,
+        )
+        materials     = mat_result.get("materials", []) if not mat_result.get("error") else []
+        total_mat     = len(materials)
+
+        def _build_service_lines(svcs, limit=20):
+            shown = svcs[:limit]
+            lines = [f"- **{s['name']}**: {s['cost']}" for s in shown]
+            tail  = f"\n\n*Showing {len(shown)} of {len(svcs)} related services.*" if len(svcs) > limit else ""
+            return lines, tail
+
+        def _build_material_lines(mats, limit=20):
+            shown = mats[:limit]
+            lines = [f"- **{m['name']}**: {m['customer_price']}" for m in shown]
+            tail  = f"\n\n*Showing {len(shown)} of {len(mats)} related materials.*" if len(mats) > limit else ""
+            return lines, tail
+
+        if total == 0 and total_mat == 0:
             if catalog_size == 0:
                 reply = (
                     "Our service pricing catalog hasn't been set up yet. "
-                    "Please contact us at caltexautopro2026@gmail.com or visit the shop for current rates."
+                    "Please contact us at janobleenterpriseinc.autopro@gmail.com or visit the shop for current rates."
                 )
             elif _svc_kw:
                 reply = (
-                    f"I couldn't find a service matching **\"{_svc_kw}\"** in our catalog. "
+                    f"I couldn't find a service or material matching **\"{_svc_kw}\"** in our catalog. "
                     f"Try asking *\"list all services\"* to see everything we offer, "
-                    f"or contact us at caltexautopro2026@gmail.com for details."
+                    f"or contact us at janobleenterpriseinc.autopro@gmail.com for details."
                 )
             else:
                 reply = (
                     "I wasn't able to find pricing information in our system. "
-                    "Please contact us at caltexautopro2026@gmail.com."
+                    "Please contact us at janobleenterpriseinc.autopro@gmail.com."
                 )
-        elif _svc_kw and len(services) <= 8:
-            # Focused keyword match — show inline with the keyword
-            lines = [f"- **{s['name']}**: {s['cost']}" for s in services]
-            reply = (
-                f"Here's the pricing for services matching **\"{_svc_kw}\"**:\n\n"
-                + "\n".join(lines)
-            )
-        elif _svc_kw:
-            # Many results for a keyword (e.g. "oil" returns 16 items)
-            shown = services[:20]
-            lines = [f"- **{s['name']}**: {s['cost']}" for s in shown]
-            tail  = f"\n\n*Showing {len(shown)} of {total} related services.*" if total > 20 else ""
-            reply = (
-                f"Here are the services related to **\"{_svc_kw}\"** ({total} total):\n\n"
-                + "\n".join(lines) + tail
-            )
         else:
-            # Full catalog listing
-            shown = services[:20]
-            lines = [f"- **{s['name']}**: {s['cost']}" for s in shown]
-            tail  = f"\n\n*Showing {len(shown)} of {total} services. Ask about a specific service for more details.*" if total > 20 else ""
-            reply = (
-                f"Here are our available services and prices ({total} total):\n\n"
-                + "\n".join(lines) + tail
-            )
+            sections = []
+
+            # --- Auto Services section ---
+            if total > 0:
+                svc_lines, svc_tail = _build_service_lines(services)
+                sections.append("**🔧 Auto Services:**\n" + "\n".join(svc_lines) + svc_tail)
+
+            # --- Materials section ---
+            if total_mat > 0:
+                mat_lines, mat_tail = _build_material_lines(materials)
+                sections.append("**🛢️ Materials / Products:**\n" + "\n".join(mat_lines) + mat_tail)
+
+            if _svc_kw:
+                combined_total = total + total_mat
+                header = f"Here are the results for **\"{_svc_kw}\"** ({combined_total} total):\n\n"
+            else:
+                header = f"Here are our available services and materials ({total + total_mat} total):\n\n"
+
+            reply = header + "\n\n".join(sections)
+
         return {"reply": reply, "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
 
     # No direct match  -  fall through to LLM
@@ -1585,7 +1602,7 @@ def customer_chat_endpoint(req: CustomerChatRequest):
             )
         traceback.print_exc()
         return ChatResponse(
-            reply="I'm having trouble processing your request right now. Please try again in a moment, or contact us at caltexautopro2026@gmail.com if the issue persists.",
+            reply="I'm having trouble processing your request right now. Please try again in a moment, or contact us at janobleenterpriseinc.autopro@gmail.com if the issue persists.",
             session_id=session_id,
         )
     finally:
