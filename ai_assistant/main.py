@@ -792,13 +792,13 @@ BOOKING WORKFLOW:
 RULES:
 - Only this customer's data; call tools for data — never invent records.
 - Maintenance questions → get_service_recommendations; state recommendations are from recorded data, not guaranteed; never invent schedules.
-- Cost estimates → estimate_service_cost (never guess prices).
+- Cost estimates → estimate_service_cost (never guess prices). Services and materials are SEPARATE charges: show **Service Charge**, then each **Material — line total**, then **Material Subtotal**, then **Estimated Total**. If a material/price is unavailable, say so — never invent amounts. For multiple services, estimate each and give one combined total.
 - "what was my previous question?" with empty history → "There's no previous conversation in this session. Feel free to ask me anything about your vehicles, bookings, or services!"
 - Reformat follow-ups ("make it a list") → reformat previous answer, NO tool calls.
 - Tool {"error":"QUOTA_EXCEEDED"} → "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
 - Tool {"error":"ACCESS_DENIED"} → "I can only show information for your own account."
 
-TOOL MAPPING: my vehicles/fleet/cars→get_my_vehicles; service history/past services/spent/pms history→get_my_service_history; what maintenance do I need/is my car due/PMS status/due soon→get_service_recommendations; my bookings/upcoming service→get_my_bookings; prices/how much is/services offered→get_service_prices ("all"/"complete list"→NO filter); materials/products/oil prices→get_customer_materials ("all"→NO filter); suggest a date/when should I book→suggest_booking_date; book a service→booking workflow above; reschedule→update_my_booking; cancel→cancel_my_booking; estimate cost→estimate_service_cost.
+TOOL MAPPING: my vehicles/fleet/cars→get_my_vehicles; service history/past services/spent/pms history→get_my_service_history; what maintenance do I need/is my car due/PMS status/due soon→get_service_recommendations; my bookings/upcoming service→get_my_bookings; prices/how much is/services offered→get_service_prices ("all"/"complete list"→NO filter); materials/products/oil prices→get_customer_materials ("all"→NO filter); materials needed for a service→get_customer_materials with that service's keyword; suggest a date/when should I book→suggest_booking_date; book a service→booking workflow above; reschedule→update_my_booking; cancel→cancel_my_booking; estimate cost→estimate_service_cost.
 
 DISPLAY:
 - "all services/prices" → call with NO filter, show EVERYTHING grouped by category (e.g. "**Lubricant Services:**\n• Change Oil - ₱500.00"), never say the list is too long.
@@ -1150,7 +1150,7 @@ def _customer_direct_lookup(message: str, customer_uid: str,
     _DIRECT_INTENTS = {
         MY_VEHICLES, MY_SERVICE_HISTORY, MY_BOOKINGS,
         SERVICE_PRICES, SERVICE_COST, MAINTENANCE_REMINDER,
-        SERVICE_RECOMMENDATION,
+        SERVICE_RECOMMENDATION, CUSTOMER_MATERIALS,
         # DATABASE_LOOKUP is now only routed here when a self-reference
         # keyword is present (see model_router.classify_customer_intent).
         DATABASE_LOOKUP, DATABASE_CALCULATION,
@@ -1340,6 +1340,67 @@ def _customer_direct_lookup(message: str, customer_uid: str,
                 book_prompt = "\n\n->  Would you like to **book a service appointment**? Just say \"I want to book a service\" and I'll help you schedule one."
             reply = header + "\n\n".join(lines) + disclaimer + book_prompt
         return {"reply": reply, "tool_calls": [{"tool": "get_service_recommendations", "args": {}, "result": result}], "model": "none", "intent": intent}
+
+    # -- CUSTOMER_MATERIALS (materials/products for a service) -----------------
+    # "List all materials needed for an Oil Change." / "what materials do i need"
+    # Customers see ONLY name/group/UOM/price — never stock or supplier data.
+    if intent == CUSTOMER_MATERIALS:
+        # Extract the service/item keyword the materials question is about.
+        _mat_kw = None
+        _mat_match = re.search(
+            r"(?:materials?|products?|parts?)\s+(?:needed|required|used)\s+"
+            r"(?:for|in|by)\s+(?:a\s+|an\s+|the\s+)?(.+?)\s*\??$"
+            r"|list\s+(?:all\s+)?(?:the\s+)?materials?\s+for\s+(?:a\s+|an\s+|the\s+)?(.+?)\s*\??$",
+            msg_l,
+        )
+        if _mat_match:
+            _cand = (_mat_match.group(1) or _mat_match.group(2) or "").strip()
+            if len(_cand) >= 3 and _cand not in (
+                "my vehicle", "my car", "it", "that", "this", "service"
+            ):
+                _mat_kw = _cand
+        elif re.search(r"\bfor\s+(?:a\s+|an\s+|the\s+)?([a-z][a-z \\-]{2,40})\s*\??$", msg_l) \
+                and re.search(r"\b(materials?|parts?)\b", msg_l):
+            # "what materials do i need for an oil change"
+            _c = re.search(r"\bfor\s+(?:a\s+|an\s+|the\s+)?([a-z][a-z \\-]{2,40})\s*\??$", msg_l)
+            if _c:
+                _cand = _c.group(1).strip()
+                if _cand and _cand not in ("me", "my vehicle", "my car", "it", "that"):
+                    _mat_kw = _cand
+
+        mat_result = get_customer_materials(
+            customer_uid=customer_uid,
+            customer_name=customer_name,
+            material_name=_mat_kw,
+        )
+        if mat_result.get("error") == "QUOTA_EXCEEDED":
+            return {"reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.", "tool_calls": [{"tool": "get_customer_materials", "args": {"material_name": _mat_kw}, "result": mat_result}], "model": "none", "intent": intent}
+        if mat_result.get("error"):
+            return {"reply": "I wasn't able to retrieve materials information right now. Please try again.", "tool_calls": [{"tool": "get_customer_materials", "args": {"material_name": _mat_kw}, "result": mat_result}], "model": "none", "intent": intent}
+        mats        = mat_result.get("materials", [])
+        total_mat   = len(mats)
+        if total_mat == 0:
+            if _mat_kw:
+                reply = (
+                    f"I couldn't find materials matching **\"{_mat_kw}\"** in our catalog. "
+                    "Ask for \"all materials\" to see everything we offer, or ask about "
+                    "a specific service and I'll estimate its total cost (service + materials)."
+                )
+            else:
+                reply = "I couldn't find materials in our catalog right now. Please try again later."
+        else:
+            shown = mats[:20]
+            lines = [f"- **{m['name']}** ({m.get('group', '') or 'General'}): {m['customer_price']} / {m.get('uom', '') or 'unit'}" for m in shown]
+            tail = f"\n\n*Showing {len(shown)} of {total_mat} materials.*" if total_mat > 20 else ""
+            if _mat_kw:
+                header = f"Here are the materials related to **\"{_mat_kw}\"**: \n\n"
+            else:
+                header = f"Here are the materials we offer ({total_mat} total): \n\n"
+            reply = header + "\n".join(lines) + tail + (
+                "\n\n*Note: materials and the service charge are billed separately. "
+                "Ask \"how much will everything cost\" for an estimate.*"
+            )
+        return {"reply": reply, "tool_calls": [{"tool": "get_customer_materials", "args": {"material_name": _mat_kw}, "result": mat_result}], "model": "none", "intent": intent}
 
     # -- SERVICE_PRICES --------------------------------------------------------
     if intent == SERVICE_PRICES or re.search(

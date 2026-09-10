@@ -173,6 +173,8 @@ _CUSTOMER_MY_HISTORY = re.compile(
     r"|my\s+last\s+(service|oil\s+change|maintenance|pms|check)"
     r"|when\s+(was|is)\s+(my\s+)?(last|latest)\s+(service|oil|maintenance|pms)"
     r"|show\s+(all\s+)?my\s+service"
+    r"|(show|view|see|display)\s+my\s+(pms|preventive\s+maintenance)\b"
+    r"|my\s+pms\s+(history|records?)"
     r"|how\s+much\s+(did\s+i|have\s+i)\s+spent?(\s+on)?"
     r"|total\s+(spend|spending|cost)\s+(on\s+)?(maintenance|service)"
     r"|services\s+(performed|done)\s+on\s+my"
@@ -210,9 +212,12 @@ _SERVICE_PRICES = re.compile(
     r"|price\s+(of|for)"
     r"|service\s+price[s]?"
     r"|what\s+services?\s+(do\s+you\s+offer|are\s+available|can\s+i\s+book)"
-    r"|list\s+(all\s+)?services?"
+    r"|list\s+((all\s+)?(the\s+)?(available\s+)?|the\s+)?services?"
     r"|services?\s+(offered|available|you\s+offer)"
+    r"|available\s+services?"
     r"|how\s+much\s+(is|for)\s+(a|an|the)?\s*pms"
+    # Connector-free price asks: "how much oil change", "how much pms"
+    r"|how\s+much\s+(?:is\s+|for\s+)?(?:a\s+|an\s+|the\s+)?(oil\s*change|change\s*oil|pms)\b"
     r"|show\s+(me\s+)?(your\s+)?service\s+prices?)\b",
     re.IGNORECASE,
 )
@@ -221,6 +226,10 @@ _CUSTOMER_MATERIALS = re.compile(
     r"\b(do\s+you\s+(sell|carry|have|offer)\s+"
     r"(engine\s+oil|oil|brake\s+fluid|coolant|tire|parts?|materials?|products?)"
     r"|what\s+(materials?|products?|parts?)\s+do\s+you\s+(have|offer|sell|carry)"
+    r"|what\s+(materials?|products?|parts?)\s+(do\s+i\s+need|are\s+(needed|required|used))"
+    r"|(materials?|products?|parts?)\s+(needed|required|used)\s+(for|in|by)"
+    r"|materials?\s+for\s+(a|an|the|my)\b"
+    r"|list\s+((all\s+)?(the\s+)?(available\s+)?|the\s+)?(materials?|products?|parts?)"
     r"|engine\s+oil\s+(available|for\s+sale)"
     r"|products?\s+(available|for\s+sale|offered))\b",
     re.IGNORECASE,
