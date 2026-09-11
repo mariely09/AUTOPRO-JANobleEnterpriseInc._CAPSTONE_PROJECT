@@ -23,7 +23,9 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # ── TTL constants (seconds) ───────────────────────────────────────────────────
-TTL_SERVICE_CATALOG = 600   # 10 minutes — services/prices rarely change
+TTL_SERVICE_CATALOG = 60    # 60s — keeps AI price/material answers close to realtime
+                            # when admins update the catalog; shared across all
+                            # requests so the extra read cost is negligible
 TTL_STOCK_INVENTORY = 300   # 5  minutes — stock changes more often
 TTL_USER_LOOKUP     = 300   # 5  minutes — admin user lookup table
 TTL_VEHICLE_LOOKUP  = 180   # 3  minutes — vehicle lookup table

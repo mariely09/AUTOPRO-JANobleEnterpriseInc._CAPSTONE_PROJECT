@@ -169,6 +169,7 @@ _CUSTOMER_MY_VEHICLES = re.compile(
 
 _CUSTOMER_MY_HISTORY = re.compile(
     r"\b(my\s+service\s+history|my\s+(pms|maintenance)\s+history"
+    r"|my\s+(oil\s*change|change\s*oil|repair|checkup|check\s*up)[\s\w]*history"
     r"|past\s+services?|service\s+records?|completed\s+services?"
     r"|my\s+last\s+(service|oil\s+change|maintenance|pms|check)"
     r"|when\s+(was|is)\s+(my\s+)?(last|latest)\s+(service|oil|maintenance|pms)"
@@ -211,10 +212,12 @@ _SERVICE_PRICES = re.compile(
     r"\b(how\s+much\s+(is|for|does|would|are)"
     r"|price\s+(of|for)"
     r"|service\s+price[s]?"
-    r"|what\s+services?\s+(do\s+you\s+offer|are\s+available|can\s+i\s+book)"
+    r"|what\s+services?\s+(do\s+you\s+offer|are\s+available|can\s+i\s+book|can\s+you\s+do)"
+    r"|what\s+can\s+you\s+do\s+(to|for)\s+(my\s+)?(car|vehicle)"
     r"|list\s+((all\s+)?(the\s+)?(available\s+)?|the\s+)?services?"
     r"|services?\s+(offered|available|you\s+offer)"
     r"|available\s+services?"
+    r"|show\s+(me\s+)?(your\s+)?services?"
     r"|how\s+much\s+(is|for)\s+(a|an|the)?\s*pms"
     # Connector-free price asks: "how much oil change", "how much pms"
     r"|how\s+much\s+(?:is\s+|for\s+)?(?:a\s+|an\s+|the\s+)?(oil\s*change|change\s*oil|pms)\b"
@@ -229,6 +232,9 @@ _CUSTOMER_MATERIALS = re.compile(
     r"|what\s+(materials?|products?|parts?)\s+(do\s+i\s+need|are\s+(needed|required|used))"
     r"|(materials?|products?|parts?)\s+(needed|required|used)\s+(for|in|by)"
     r"|materials?\s+for\s+(a|an|the|my)\b"
+    r"|what\s+do\s+i\s+need\s+for\s+(a|an|the)?\s*\w"
+    r"|what\s+(parts?|items?)\s+are\s+(needed|required|used)\s+(for|in)"
+    r"|show\s+(me\s+)?(the\s+)?materials?\s+(for|needed|used)"
     r"|list\s+((all\s+)?(the\s+)?(available\s+)?|the\s+)?(materials?|products?|parts?)"
     r"|engine\s+oil\s+(available|for\s+sale)"
     r"|products?\s+(available|for\s+sale|offered))\b",
@@ -241,7 +247,12 @@ _SERVICE_COST = re.compile(
     r"|how\s+much\s+was\s+my\s+last\s+service"
     r"|cost\s+of\s+my\s+(last|previous|recent)\s+(service|maintenance)"
     r"|how\s+much\s+would\s+(a|an)\s+.+cost"
-    r"|estimate\s+(the\s+)?cost\s+for)\b",
+    r"|estimate\s+(the\s+)?cost\s+for"
+    r"|how\s+much\s+will\s+(a|an|the|my)?\s*.+cost"
+    r"|total\s+(cost|price|amount).*(including|with|plus)\s*(materials?|parts?)"
+    r"|.*(including|with|plus)\s*(materials?|parts?).*(cost|price|total)"
+    r"|estimated\s+(total|cost|price)\s*(including|with)?"
+    r"|cost\s+(breakdown|estimate|including))\b",
     re.IGNORECASE,
 )
 
@@ -269,6 +280,15 @@ _BOOK_SERVICE = re.compile(
     r"|soonest\s+(?:available\s+)?(schedule|slot|appointment)"
     r"|first\s+available"
     r"|asap\s+(booking|schedule|appointment)"
+    r"|when\s+(will\s+be|is)\s+the\s+earliest\s+(schedule|slot|appointment|date|time)"
+    r"|what\s+(is|are|would\s+be)\s+the\s+earliest\s+(schedule|date|time|slot|appointment)"
+    r"|what\s+is\s+the\s+soonest\s+(schedule|date|time|slot|appointment)"
+    r"|what\s+is\s+the\s+next\s+available\s+(appointment|schedule|slot|date)"
+    r"|when\s+can\s+i\s+(bring|come|drop\s+off)\s+my\s+(car|vehicle)"
+    r"|when\s+can\s+i\s+(get|have)\s+(my\s+car|it)\s+serviced"
+    r"|can\s+i\s+get\s+my\s+car\s+serviced\s+(today|tomorrow|this\s+week)"
+    r"|what\s+is\s+the\s+next\s+available\s+(service|appointment)"
+    r"|what'?s\s+the\s+earliest\s+(date|schedule|time|slot)"
     r"|pa\s*book|pabook|pa\s*schedule|paschedule"
     r"|set\s+(up\s+)?an?\s+(appointment|booking)"
     r"|when\s+can\s+i\s+(book|schedule|come\s+in)"
@@ -342,6 +362,10 @@ def classify_customer_intent(message: str) -> str:
         return UPDATE_BOOKING
     if _BOOK_SERVICE.search(t):
         return BOOK_SERVICE
+    # MAINTENANCE_REMINDER must come AFTER _BOOK_SERVICE so that phrases
+    # like "when will be the earliest schedule for service?" route to the
+    # booking flow (which handles earliest-schedule scans) rather than to
+    # the PMS-status lookup.
     if _MAINTENANCE_REMINDER.search(t):
         return MAINTENANCE_REMINDER
     if _SERVICE_RECOMMENDATION.search(t):
@@ -352,6 +376,10 @@ def classify_customer_intent(message: str) -> str:
         return MY_SERVICE_HISTORY
     if _CUSTOMER_MY_BOOKINGS.search(t):
         return MY_BOOKINGS
+    # SERVICE_COST must be checked BEFORE SERVICE_PRICES so that queries
+    # asking for an estimate INCLUDING MATERIALS ("how much will my oil
+    # change cost including materials?") are routed to estimate_service_cost
+    # instead of the plain service-price lookup.
     if _SERVICE_COST.search(t):
         return SERVICE_COST
     if _CUSTOMER_MATERIALS.search(t):

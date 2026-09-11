@@ -106,6 +106,11 @@ def _patch_booking_tools():
     import booking_gather as bg
 
     def avail(customer_uid, customer_name, preferred_date, preferred_time=None, **_):
+        from datetime import datetime as _dt
+        try:
+            disp = _dt.strptime(preferred_date, "%Y-%m-%d").strftime("%B %d, %Y")
+        except Exception:
+            disp = preferred_date
         slots = ["8:00 AM", "9:00 AM", "10:00 AM", "1:00 PM", "2:00 PM"]
         taken_times = {b.get("preferredTime") for b in _TAKEN
                        if b.get("preferredDate") == preferred_date}
@@ -113,10 +118,10 @@ def _patch_booking_tools():
         if preferred_time:
             norm = bg._extract_time(preferred_time) or preferred_time
             ok = norm in free or norm not in taken_times
-            return {"status": "ok", "date_display": "January 1, 2030",
+            return {"status": "ok", "date_display": disp,
                     "requested_time_available": ok,
                     "available_slots": free if not ok else free}
-        return {"status": "ok", "date_display": "January 1, 2030",
+        return {"status": "ok", "date_display": disp,
                 "available_slots": free}
 
     def create(customer_uid, customer_name, plate, services,
@@ -133,9 +138,11 @@ def _patch_booking_tools():
             "date": preferred_date, "time": preferred_time,
         })
         return {"success": True, "booking_id": "BK-TEST-001",
+                "status": "Approved",
+                "date": "January 1, 2030",
                 "message": (f"Your booking is confirmed! Booking ID: BK-TEST-001 "
                             f"for {plate} on {preferred_date} at {preferred_time}. "
-                            "Status: pending confirmation.")}
+                            "Status: Approved.")}
 
     bg.check_booking_availability = avail
     bg.create_customer_booking = create
@@ -252,6 +259,31 @@ r = try_handle("When will be the earliest schedule for service?", UID, NAME, [])
 check("earliest asks vehicle+service (multi-vehicle)",
       r and "which vehicle" in r["reply"].lower(),
       r and (r["reply"][:120] if r else "fell through"))
+
+print("== THE LOOP REGRESSION: details spread across turns ==")
+h6 = [
+    {"role": "user", "content": "I want an oil change tomorrow 9am"},
+    {"role": "assistant", "content":
+        "I'd be happy to book that for you! Which vehicle should I book "
+        "\u2014 ABC-1234, XYZ-5678? (I'll also need your preferred date and "
+        "time, or I can suggest the earliest available schedule.)"},
+]
+before = len(_results["created"])
+r = try_handle("ABC-1234", UID, NAME, h6)
+check("earlier date/time carried - asks confirmation, NOT date again",
+      r and "[BOOKING-CONFIRM]" in r["reply"] and "9:00 AM" in r["reply"],
+      r and (r["reply"][:150] if r else "fell through"))
+check("nothing booked yet", len(_results["created"]) == before)
+h6.append({"role": "user", "content": "ABC-1234"})
+h6.append({"role": "assistant", "content": r["reply"]})
+r = try_handle("yes", UID, NAME, h6)
+check("confirm -> booked under same conversation",
+      r and len(_results["created"]) == before + 1,
+      str(_results["created"]))
+check("success message points to My Bookings + offers another",
+      r and "my bookings" in r["reply"].lower()
+      and "book another service?" in r["reply"].lower(),
+      r and (r["reply"][-160:] if r else ""))
 
 print("== Unowned plate -> tool error surfaced ==")
 r = try_handle("ZZZ-9999 oil change 01/01/2030 10am", UID, NAME, [])

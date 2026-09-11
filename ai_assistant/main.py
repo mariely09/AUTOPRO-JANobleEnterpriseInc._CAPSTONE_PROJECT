@@ -773,7 +773,7 @@ def _build_customer_system_prompt(message: str) -> str:
     """
     base = """You are the friendly vehicle/service assistant for an AutoPro customer (JA Noble Enterprise Inc., Caltex San Pedro, Laguna). Warm, concise, natural tone.
 
-SCOPE — only: customer's own vehicles/PMS status, their service history & costs, their bookings (create/reschedule/cancel), shop services & pricing, customer-visible materials, maintenance recommendations from their data, app/website how-to, AND general automotive education (oil types, parts, repairs, maintenance tips, car-care how-tos). Anything else (news, sports, general knowledge, coding, math, weather) → respond ONLY: "I can only answer questions related to the Automotive Service and Inventory Management System."
+SCOPE — only: customer's own vehicles/PMS status, their service history & costs, their bookings (create/reschedule/cancel), shop services & pricing, customer-visible materials, maintenance recommendations from their data, app/website how-to, AND general automotive education (oil types, parts, repairs, maintenance tips, car-care how-tos). Anything else → respond ONLY: "I can only answer questions related to the Automotive Service and Inventory Management System."
 
 PRIVACY (absolute):
 - Another person's data → ONLY: "I can only show information for your own account."
@@ -782,30 +782,33 @@ PRIVACY (absolute):
 - Garbage/symbols-only → "I didn't quite catch that. Could you rephrase your question about your vehicles, bookings, or services?"
 
 BOOKING WORKFLOW:
-1. Collect ALL required info BEFORE create_customer_booking: plate (their registered vehicle — get_my_vehicles if unknown), service(s) (get_service_prices if uncertain), date, time. Don't re-ask what history already provided.
-2. No date given → call suggest_booking_date first; present conversationally ("Based on your last service on [date], I recommend around [date]...").
+1. Collect ALL required info BEFORE create_customer_booking: plate (get_my_vehicles if unknown), service(s) (get_service_prices if uncertain), date, time. Don't re-ask what history already provided.
+2. No date given → call suggest_booking_date first; present conversationally.
 3. ALWAYS check_booking_availability BEFORE create_customer_booking.
 4. NEVER claim success until create_customer_booking returns success=True. On error, give the specific reason + alternatives.
 5. Reschedule/cancel: get booking_id via get_my_bookings, then update_my_booking / cancel_my_booking. Never touch another customer's booking.
-6. On success confirm: ✅ booking ID, vehicle, service(s), date, time + "pending confirmation" next steps.
+6. On success confirm: ✅ booking ID, vehicle, service(s), date, time + status — tell the customer to check **My Bookings**, then ask "Would you like to book another service?".
 
 RULES:
-- Only this customer's data; call tools for data — never invent records.
-- Maintenance questions → get_service_recommendations; state recommendations are from recorded data, not guaranteed; never invent schedules.
-- Cost estimates → estimate_service_cost (never guess prices). Services and materials are SEPARATE charges: show **Service Charge**, then each **Material — line total**, then **Material Subtotal**, then **Estimated Total**. If a material/price is unavailable, say so — never invent amounts. For multiple services, estimate each and give one combined total.
+- Only this customer's data; call tools for data — never invent records, prices, or schedules.
+- Maintenance questions → get_service_recommendations; state recommendations are from recorded data, not guaranteed.
+- Cost estimates → estimate_service_cost (never guess prices); format per DISPLAY below.
 - "what was my previous question?" with empty history → "There's no previous conversation in this session. Feel free to ask me anything about your vehicles, bookings, or services!"
 - Reformat follow-ups ("make it a list") → reformat previous answer, NO tool calls.
 - Tool {"error":"QUOTA_EXCEEDED"} → "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
 - Tool {"error":"ACCESS_DENIED"} → "I can only show information for your own account."
 
-TOOL MAPPING: my vehicles/fleet/cars→get_my_vehicles; service history/past services/spent/pms history→get_my_service_history; what maintenance do I need/is my car due/PMS status/due soon→get_service_recommendations; my bookings/upcoming service→get_my_bookings; prices/how much is/services offered→get_service_prices ("all"/"complete list"→NO filter); materials/products/oil prices→get_customer_materials ("all"→NO filter); materials needed for a service→get_customer_materials with that service's keyword; suggest a date/when should I book→suggest_booking_date; book a service→booking workflow above; reschedule→update_my_booking; cancel→cancel_my_booking; estimate cost→estimate_service_cost.
+TOOL MAPPING: my vehicles/fleet/cars→get_my_vehicles; service history/past services/spent/pms history→get_my_service_history; what maintenance do I need/is my car due/PMS status/due soon→get_service_recommendations; my bookings/upcoming service→get_my_bookings; prices/how much is/services offered/list services→get_service_prices (NO filter for "all services"); materials needed for a service→get_customer_materials with that service's keyword (fallback estimate_service_cost); how much including materials/estimate total cost→estimate_service_cost; suggest a date/when should I book/earliest schedule→booking workflow; book a service→booking workflow; reschedule→update_my_booking; cancel→cancel_my_booking.
 
 DISPLAY:
-- "all services/prices" → call with NO filter, show EVERYTHING grouped by category (e.g. "**Lubricant Services:**\n• Change Oil - ₱500.00"), never say the list is too long.
+- "list all services/available services" → get_service_prices with NO filter, show EVERY service grouped by category. NEVER mix materials into a services list.
+- Named service price ("how much is oil change?") → show the price, then note "Materials may be charged separately. Ask for a full estimate to include material costs."
+- "materials needed for [service]" → get_customer_materials with that keyword; if zero results → estimate_service_cost for the historical pattern. NEVER invent material names; if no data exists, say so explicitly.
+- Cost estimate incl. materials → estimate_service_cost, then show: **Service Charge**, each **Material — line total**, **Material Subtotal**, **Estimated Total** (services/materials are SEPARATE charges; multiple services → one combined total; unavailable price → say so; final amount may vary).
 - Materials: show name/group/UOM/customer price only — NEVER stock quantities or supplier info, even if asked.
-- Service history format: "Here's your service history! You have [N] completed record(s) with a total spend of [total]." then **[N]. [Date] - [Plate]** / Services / Materials / Cost; >10 jobs → 10 most recent + note; none → warm no-records message.
-- Vehicles format: "Here are your registered vehicles:" then **[Plate] - [Desc]** / Status / Last Service / Frequency; close with overdue/due-soon note.
-- Empty results: no vehicles→"You don't have any registered vehicles on file yet."; no bookings→"You don't have any service bookings on file."; prices empty+catalog empty→"Our service pricing catalog hasn't been set up yet. Please contact us at janobleenterpriseinc.autopro@gmail.com or visit the shop for current rates."; price keyword no match→suggest "list all services"; materials no match→"I couldn't find that material/product in our catalog."
+- Service history: lead with "You have [N] completed record(s), total spend [total]."; then **[N]. [Date] - [Plate]** / Services / Materials / Cost; >10 jobs → 10 most recent + note; none → warm no-records message.
+- Vehicles: "Here are your registered vehicles:" then **[Plate] - [Desc]** / Status / Last Service / Frequency; close with overdue/due-soon note.
+- Empty results: no vehicles→"You don't have any registered vehicles on file yet."; no bookings→"You don't have any service bookings on file."; catalog empty→"Our service pricing catalog hasn't been set up yet. Please contact us at janobleenterpriseinc.autopro@gmail.com or visit the shop for current rates."; price keyword no match→suggest "list all services"; materials no match→"I couldn't find configured materials for [service]. No material data exists in the system yet."
 """
     if _MANUAL_KEYWORDS.search(message):
         return base + "\n\n" + CUSTOMER_MANUAL_CONTEXT
@@ -854,7 +857,19 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     # read or a wrong answer.
     # Normalize for blocking checks only (typo'd scope probes like "inventry")
     _norm_message = _normalize_input(message) or message
-    if _OUT_OF_SCOPE_RE.search(_norm_message) or _STOCK_QTY_RE.search(_norm_message):
+    # "Show my oil change history" legitimately contains "change oil" — the
+    # customer is asking for THEIR OWN past records, not shop stock. Exempt
+    # an own-history lookup from the stock/qty blocker only when the message
+    # clearly asks about personal history AND is not a real stock probe
+    # ("in stock", "stock level", "on hand").
+    _own_history_lookup = bool(re.search(
+        r"\b(my|mine)\b", _norm_message, re.IGNORECASE)) \
+        and bool(re.search(r"\b(history|records?)\b", _norm_message, re.IGNORECASE)) \
+        and not bool(re.search(
+            r"\b(in\s+stock|stock\s+levels?|stock\s+status|on\s+hand|current\s+stock)",
+            _norm_message, re.IGNORECASE))
+    if _OUT_OF_SCOPE_RE.search(_norm_message) \
+            or (_STOCK_QTY_RE.search(_norm_message) and not _own_history_lookup):
         return {
             "reply": "I can only answer questions related to your vehicles, service history, bookings, and service pricing for the AutoPro system.",
             "tool_calls": [],
@@ -866,7 +881,10 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     # Gathers plate/service/date/time for booking requests, asks ONLY for the
     # missing details, finds earliest available slots, and books via the
     # existing customer_tools (all ownership/availability checks preserved).
-    if intent in (BOOK_SERVICE, UNKNOWN, SERVICE_RECOMMENDATION):
+    # MAINTENANCE_REMINDER is included so "when will be the earliest schedule?"
+    # / "when can I bring my car in?" queries reach booking_gather even if the
+    # new _BOOK_SERVICE pattern doesn't catch a particular phrasing variant.
+    if intent in (BOOK_SERVICE, UNKNOWN, SERVICE_RECOMMENDATION, MAINTENANCE_REMINDER):
         import booking_gather
         gathered = booking_gather.try_handle_booking(
             message, customer_uid, customer_name, history,
@@ -1346,27 +1364,56 @@ def _customer_direct_lookup(message: str, customer_uid: str,
     # Customers see ONLY name/group/UOM/price — never stock or supplier data.
     if intent == CUSTOMER_MATERIALS:
         # Extract the service/item keyword the materials question is about.
+        # Patterns matched (in order of specificity):
+        #   "materials needed for an Oil Change"
+        #   "list all materials for Oil Change"
+        #   "what materials do I need for oil change"
+        #   "show me materials for Oil Change"
+        #   "what do I need for an oil change"
+        #   "what parts are used in oil change"
         _mat_kw = None
-        _mat_match = re.search(
-            r"(?:materials?|products?|parts?)\s+(?:needed|required|used)\s+"
-            r"(?:for|in|by)\s+(?:a\s+|an\s+|the\s+)?(.+?)\s*\??$"
-            r"|list\s+(?:all\s+)?(?:the\s+)?materials?\s+for\s+(?:a\s+|an\s+|the\s+)?(.+?)\s*\??$",
-            msg_l,
-        )
-        if _mat_match:
-            _cand = (_mat_match.group(1) or _mat_match.group(2) or "").strip()
-            if len(_cand) >= 3 and _cand not in (
-                "my vehicle", "my car", "it", "that", "this", "service"
-            ):
-                _mat_kw = _cand
-        elif re.search(r"\bfor\s+(?:a\s+|an\s+|the\s+)?([a-z][a-z \\-]{2,40})\s*\??$", msg_l) \
-                and re.search(r"\b(materials?|parts?)\b", msg_l):
-            # "what materials do i need for an oil change"
-            _c = re.search(r"\bfor\s+(?:a\s+|an\s+|the\s+)?([a-z][a-z \\-]{2,40})\s*\??$", msg_l)
-            if _c:
-                _cand = _c.group(1).strip()
-                if _cand and _cand not in ("me", "my vehicle", "my car", "it", "that"):
+        _mat_patterns = [
+            # "materials/parts needed/used/required for <service>"
+            re.compile(
+                r"(?:materials?|products?|parts?|items?)\s+"
+                r"(?:needed|required|used|for)\s+"
+                r"(?:for\s+)?(?:a\s+|an\s+|the\s+)?(.+?)\s*\??$",
+                re.IGNORECASE,
+            ),
+            # "list all materials for <service>"
+            re.compile(
+                r"list\s+(?:all\s+)?(?:the\s+)?materials?\s+for\s+(?:a\s+|an\s+|the\s+)?(.+?)\s*\??$",
+                re.IGNORECASE,
+            ),
+            # "show me materials for <service>" / "show materials for <service>"
+            re.compile(
+                r"show\s+(?:me\s+)?(?:the\s+)?materials?\s+(?:for|used\s+in|needed\s+for)\s+"
+                r"(?:a\s+|an\s+|the\s+)?(.+?)\s*\??$",
+                re.IGNORECASE,
+            ),
+            # "what do I need for <service>"
+            re.compile(
+                r"what\s+do\s+i\s+need\s+for\s+(?:a\s+|an\s+|the\s+)?(.+?)\s*\??$",
+                re.IGNORECASE,
+            ),
+            # "for <service>" at end of sentence (when "material" already matched intent)
+            re.compile(
+                r"\bfor\s+(?:a\s+|an\s+|the\s+)?([a-z][a-z\s\-]{2,40}?)\s*\??$",
+                re.IGNORECASE,
+            ),
+        ]
+        for _pat in _mat_patterns:
+            _m = _pat.search(msg_l)
+            if _m:
+                _cand = (_m.group(1) or "").strip().rstrip(".,?!")
+                # Reject generic words that don't identify a real service
+                if len(_cand) >= 3 and _cand not in (
+                    "my vehicle", "my car", "it", "that", "this",
+                    "service", "maintenance", "me", "a service", "an service",
+                    "this service",
+                ):
                     _mat_kw = _cand
+                    break
 
         mat_result = get_customer_materials(
             customer_uid=customer_uid,
@@ -1379,163 +1426,341 @@ def _customer_direct_lookup(message: str, customer_uid: str,
             return {"reply": "I wasn't able to retrieve materials information right now. Please try again.", "tool_calls": [{"tool": "get_customer_materials", "args": {"material_name": _mat_kw}, "result": mat_result}], "model": "none", "intent": intent}
         mats        = mat_result.get("materials", [])
         total_mat   = len(mats)
-        if total_mat == 0:
-            if _mat_kw:
-                # No catalog item matches directly. Check whether the shop has
-                # a HISTORICAL materials pattern for a matching service (real
-                # data from completed jobs) — never fabricate a materials list.
-                from customer_tools import estimate_service_cost
-                est = None
-                _kw_variants = [_mat_kw]
-                _parts = _mat_kw.split()
-                if len(_parts) == 2:
-                    _kw_variants.append(" ".join(reversed(_parts)))
-                for _kv in _kw_variants:
-                    _est = estimate_service_cost(
-                        customer_uid=customer_uid, customer_name=customer_name,
-                        service_names=[_kv],
-                    )
-                    if _est.get("materials"):
-                        est = _est
-                        break
-                if est and est.get("materials"):
-                    _svc_name = (est.get("matched") or [{}])[0].get("service", _mat_kw)
-                    _mlines = [
-                        f"- {m['material']} ({m['qty']} {m.get('uom', '') or 'unit'}) \u2014 {m['line_total']}"
-                        for m in est["materials"]
-                    ]
-                    _missing = est.get("materials_missing_price")
-                    reply = (
-                        f"For **{_svc_name}**, the shop typically uses these materials (based on completed jobs):\n\n"
-                        + "\n".join(_mlines)
-                        + f"\n\n**Material Subtotal:** {est.get('material_subtotal', '\u2014')}"
-                        + (f"\n**Service Charge:** {est['service_charge']}" if est.get("service_charge") else "")
-                        + (f"\n**Estimated Total:** {est['estimated_total']}" if est.get("estimated_total") else "")
-                        + "\n\n*Note: the service charge and materials are separate charges. "
-                        "Quantities are based on previous jobs and may vary by vehicle.*"
-                    )
-                    if _missing:
-                        reply += ("\n\n*No price on file for: " + ", ".join(_missing)
-                                  + " \u2014 their cost is not included.*")
-                    return {"reply": reply, "tool_calls": [
-                        {"tool": "estimate_service_cost",
-                         "args": {"service_names": _kw_variants[:1]},
-                         "result": est},
-                    ], "model": "none", "intent": intent}
-                reply = (
-                    f"I couldn't find materials matching **\"{_mat_kw}\"** in our catalog. "
-                    "Ask for \"all materials\" to see everything we offer, or ask about "
-                    "a specific service and I'll estimate its total cost (service + materials)."
+
+        if total_mat == 0 and _mat_kw:
+            # No catalog item matches directly for the given keyword.
+            # Check whether the shop has a HISTORICAL materials pattern for a
+            # matching service from completed jobs — never fabricate a list.
+            from customer_tools import estimate_service_cost
+            est = None
+            # Try both word orders (e.g. "oil change" and "change oil")
+            _kw_variants = [_mat_kw]
+            _parts = _mat_kw.split()
+            if len(_parts) == 2:
+                _kw_variants.append(" ".join(reversed(_parts)))
+            for _kv in _kw_variants:
+                _est = estimate_service_cost(
+                    customer_uid=customer_uid, customer_name=customer_name,
+                    service_names=[_kv],
                 )
-            else:
-                reply = "I couldn't find materials in our catalog right now. Please try again later."
+                if _est.get("materials"):
+                    est = _est
+                    break
+            if est and est.get("materials"):
+                _svc_name = (est.get("matched") or [{}])[0].get("service", _mat_kw)
+                _mlines = []
+                for m in est["materials"]:
+                    qty_str = f"{m['qty']} {m.get('uom', '') or 'unit'}".strip()
+                    _mlines.append(
+                        f"• **{m['material']}** — {qty_str} — {m['line_total']}"
+                    )
+                _missing = est.get("materials_missing_price")
+                reply = (
+                    f"Here are the materials typically used for **{_svc_name}** "
+                    f"(based on completed service records):\n\n"
+                    + "\n".join(_mlines)
+                    + f"\n\n**Material Subtotal:** {est.get('material_subtotal', '—')}"
+                )
+                if est.get("service_charge"):
+                    reply += f"\n**Service Charge:** {est['service_charge']}"
+                if est.get("estimated_total"):
+                    reply += f"\n**Estimated Total:** {est['estimated_total']}"
+                reply += (
+                    "\n\n*Quantities are based on previous jobs and may vary by vehicle. "
+                    "The service charge and materials are billed separately.*"
+                )
+                if _missing:
+                    reply += (
+                        "\n\n*No price on file for: " + ", ".join(_missing)
+                        + " — their cost is not included in the estimate.*"
+                    )
+                if est.get("materials_usage_note"):
+                    reply += f"\n\n_{est['materials_usage_note']}_"
+                return {"reply": reply, "tool_calls": [
+                    {"tool": "estimate_service_cost",
+                     "args": {"service_names": _kw_variants[:1]},
+                     "result": est},
+                ], "model": "none", "intent": intent}
+            # No historical pattern found either
+            reply = (
+                f"I couldn't find configured materials for **\"{_mat_kw}\"** in our catalog. "
+                "This may mean the materials haven't been linked to this service yet in the system. "
+                "Ask for \"list all materials\" to see everything we offer, or contact us at "
+                "janobleenterpriseinc.autopro@gmail.com for details."
+            )
+        elif total_mat == 0:
+            reply = "I couldn't find any materials in our catalog right now. Please try again later."
         else:
             shown = mats[:20]
-            lines = [f"- **{m['name']}** ({m.get('group', '') or 'General'}): {m['customer_price']} / {m.get('uom', '') or 'unit'}" for m in shown]
+            lines = [
+                f"• **{m['name']}** ({m.get('group', '') or 'General'}): "
+                f"{m['customer_price']} / {m.get('uom', '') or 'unit'}"
+                for m in shown
+            ]
             tail = f"\n\n*Showing {len(shown)} of {total_mat} materials.*" if total_mat > 20 else ""
             if _mat_kw:
-                header = f"Here are the materials related to **\"{_mat_kw}\"**: \n\n"
+                header = f"Here are the materials related to **\"{_mat_kw}\"** ({total_mat} found):\n\n"
             else:
-                header = f"Here are the materials we offer ({total_mat} total): \n\n"
-            reply = header + "\n".join(lines) + tail + (
-                "\n\n*Note: materials and the service charge are billed separately. "
-                "Ask \"how much will everything cost\" for an estimate.*"
+                header = f"Here are the materials we offer ({total_mat} total):\n\n"
+            reply = (
+                header + "\n".join(lines) + tail
+                + "\n\n*Materials and the service charge are billed separately. "
+                "Ask \"how much will everything cost\" for a full estimate.*"
             )
         return {"reply": reply, "tool_calls": [{"tool": "get_customer_materials", "args": {"material_name": _mat_kw}, "result": mat_result}], "model": "none", "intent": intent}
 
     # -- SERVICE_PRICES --------------------------------------------------------
+    # TC2: "list all available services" → services only, grouped by category
+    # TC5: "how much is an Oil Change service?" → named service price only,
+    #       with a note that materials are billed separately
     if intent == SERVICE_PRICES or re.search(
         r"\b(how\s+much\s+(is|for|does|would)|price\s+(of|for)|"
         r"service\s+price[s]?|how\s+many\s+services?|list\s+(all\s+)?services?|"
-        r"services?\s+(offered|available|you\s+offer)|what\s+services?\b)",
+        r"services?\s+(offered|available|you\s+offer)|what\s+services?\b|"
+        r"available\s+services?|show\s+(me\s+)?(your\s+)?services?|"
+        r"what\s+can\s+you\s+do\s+(to|for)\s+(my\s+)?(car|vehicle))\b",
         msg_l,
     ):
         import re as _re2
         _svc_kw  = None
-        _kw_match = _re2.search(
-            r"how\s+much\s+(?:is|for|does)?\s+(?:a\s+|an\s+|the\s+)?(.+?)(?:\s+(?:service|cost|price|fee))?\s*\??$",
-            msg_l,
-        )
-        if _kw_match:
-            _candidate = _kw_match.group(1).strip()
-            if len(_candidate) >= 3 and _candidate not in (
-                "service", "services", "price", "prices", "cost", "costs", "it", "that"
-            ):
-                _svc_kw = _candidate
 
-        result = get_service_prices(
-            customer_uid=customer_uid,
-            customer_name=customer_name,
-            service_name=_svc_kw,
-        )
-        if result.get("error") == "QUOTA_EXCEEDED":
-            return {"reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.", "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
-        if result.get("error"):
-            return {"reply": "I wasn't able to retrieve service pricing right now. Please contact us at janobleenterpriseinc.autopro@gmail.com or visit the shop.", "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
-        services     = result.get("services", [])
-        total        = result.get("total_services", 0)
-        catalog_size = result.get("catalog_size", -1)
-
-        # Also fetch matching materials so customers can see both categories
-        mat_result = get_customer_materials(
-            customer_uid=customer_uid,
-            customer_name=customer_name,
-            material_name=_svc_kw,
-        )
-        materials     = mat_result.get("materials", []) if not mat_result.get("error") else []
-        total_mat     = len(materials)
-
-        def _build_service_lines(svcs, limit=20):
-            shown = svcs[:limit]
-            lines = [f"- **{s['name']}**: {s['cost']}" for s in shown]
-            tail  = f"\n\n*Showing {len(shown)} of {len(svcs)} related services.*" if len(svcs) > limit else ""
-            return lines, tail
-
-        def _build_material_lines(mats, limit=20):
-            shown = mats[:limit]
-            lines = [f"- **{m['name']}**: {m['customer_price']}" for m in shown]
-            tail  = f"\n\n*Showing {len(shown)} of {len(mats)} related materials.*" if len(mats) > limit else ""
-            return lines, tail
-
-        if total == 0 and total_mat == 0:
-            if catalog_size == 0:
-                reply = (
-                    "Our service pricing catalog hasn't been set up yet. "
-                    "Please contact us at janobleenterpriseinc.autopro@gmail.com or visit the shop for current rates."
-                )
-            elif _svc_kw:
-                reply = (
-                    f"I couldn't find a service or material matching **\"{_svc_kw}\"** in our catalog. "
-                    f"Try asking *\"list all services\"* to see everything we offer, "
-                    f"or contact us at janobleenterpriseinc.autopro@gmail.com for details."
-                )
-            else:
-                reply = (
-                    "I wasn't able to find pricing information in our system. "
-                    "Please contact us at janobleenterpriseinc.autopro@gmail.com."
-                )
+        # Detect "including materials" / "with materials" → not a pure price
+        # query; route to estimate_service_cost instead.
+        _wants_total = bool(_re2.search(
+            r"\b(including|with|plus|and)\s+(materials?|parts?|everything)\b"
+            r"|\bestimated?\s+(total|cost)\b"
+            r"|\btotal\s+(cost|price|estimate)\b",
+            msg_l, _re2.IGNORECASE,
+        ))
+        if _wants_total:
+            # Fall through to SERVICE_COST handler below by treating as None
+            pass
         else:
-            sections = []
+            _kw_match = _re2.search(
+                r"how\s+much\s+(?:is|for|does)?\s+(?:a\s+|an\s+|the\s+)?(.+?)"
+                r"(?:\s+(?:service|cost|price|fee))?\s*\??$",
+                msg_l,
+            )
+            if _kw_match:
+                _candidate = _kw_match.group(1).strip()
+                if len(_candidate) >= 3 and _candidate not in (
+                    "service", "services", "price", "prices", "cost", "costs",
+                    "it", "that", "a service",
+                ):
+                    _svc_kw = _candidate
 
-            # --- Auto Services section ---
-            if total > 0:
-                svc_lines, svc_tail = _build_service_lines(services)
-                sections.append("**🔧 Auto Services:**\n" + "\n".join(svc_lines) + svc_tail)
+            result = get_service_prices(
+                customer_uid=customer_uid,
+                customer_name=customer_name,
+                service_name=_svc_kw,
+            )
+            if result.get("error") == "QUOTA_EXCEEDED":
+                return {"reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.", "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
+            if result.get("error"):
+                return {"reply": "I wasn't able to retrieve service pricing right now. Please contact us at janobleenterpriseinc.autopro@gmail.com or visit the shop.", "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
 
-            # --- Materials section ---
-            if total_mat > 0:
-                mat_lines, mat_tail = _build_material_lines(materials)
-                sections.append("**🛢️ Materials / Products:**\n" + "\n".join(mat_lines) + mat_tail)
+            services     = result.get("services", [])
+            total        = result.get("total_services", 0)
+            catalog_size = result.get("catalog_size", -1)
 
-            if _svc_kw:
-                combined_total = total + total_mat
-                header = f"Here are the results for **\"{_svc_kw}\"** ({combined_total} total):\n\n"
+            if total == 0:
+                if catalog_size == 0:
+                    reply = (
+                        "Our service pricing catalog hasn't been set up yet. "
+                        "Please contact us at janobleenterpriseinc.autopro@gmail.com "
+                        "or visit the shop for current rates."
+                    )
+                elif _svc_kw:
+                    reply = (
+                        f"I couldn't find a service matching **\"{_svc_kw}\"** in our catalog. "
+                        f"Try asking *\"list all services\"* to see everything we offer, "
+                        f"or contact us at janobleenterpriseinc.autopro@gmail.com for details."
+                    )
+                else:
+                    reply = (
+                        "I wasn't able to find service pricing in our system. "
+                        "Please contact us at janobleenterpriseinc.autopro@gmail.com."
+                    )
+            elif _svc_kw:
+                # TC5 — named service: show service price clearly, note materials separate
+                shown = services[:5]  # cap to avoid overwhelming for a single-service query
+                lines = [f"• **{s['name']}**: {s['cost']}" for s in shown]
+                tail  = (f"\n\n*{len(services) - 5} more matching service(s) found. "
+                         "Ask \"list all services\" to see the full catalog.*") \
+                        if len(services) > 5 else ""
+                if len(shown) == 1:
+                    reply = (
+                        f"The **{shown[0]['name']}** service is **{shown[0]['cost']}**.\n\n"
+                        "Materials (e.g. engine oil, filters) may be charged separately "
+                        "depending on the items used. Ask *\"how much will an oil change cost "
+                        "including materials?\"* for a full estimate."
+                    )
+                else:
+                    header = f"Here are the services matching **\"{_svc_kw}\"**:\n\n"
+                    reply  = (
+                        header + "\n".join(lines) + tail
+                        + "\n\n*Materials may be charged separately. Ask for a full estimate "
+                        "to include material costs.*"
+                    )
             else:
-                header = f"Here are our available services and materials ({total + total_mat} total):\n\n"
+                # TC2 — "list all services": show ONLY services, grouped by category
+                # Group by the 'group' field (e.g. "AutoService", "Lubricants", etc.)
+                from collections import defaultdict as _dd
+                grouped: dict = _dd(list)
+                for s in services:
+                    grp = (s.get("group") or "Other Services").strip()
+                    grouped[grp].append(s)
 
-            reply = header + "\n\n".join(sections)
+                sections = []
+                for grp_name in sorted(grouped.keys()):
+                    grp_svcs = grouped[grp_name]
+                    lines = [f"• **{s['name']}** — {s['cost']}" for s in grp_svcs]
+                    sections.append(f"**{grp_name}:**\n" + "\n".join(lines))
 
-        return {"reply": reply, "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
+                header = f"Here are our **{total}** available service(s):\n\n"
+                reply  = (
+                    header + "\n\n".join(sections)
+                    + "\n\n*Ask about a specific service for pricing details, "
+                    "or \"how much will [service] cost including materials?\" for a full estimate.*"
+                )
+
+            return {"reply": reply, "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
+
+    # -- SERVICE_COST (TC6) —  "how much will X cost including materials?" -----
+    # Also handles: "estimate cost for X", "total cost with materials", etc.
+    # Routes to estimate_service_cost which separates service charge from
+    # materials and clearly shows service_charge + material_subtotal = total.
+    if intent == SERVICE_COST or re.search(
+        r"\b(how\s+much\s+will\s+.*(cost|be)"
+        r"|including\s+(materials?|parts?|everything)"
+        r"|estimated?\s+(total|cost|price)"
+        r"|total\s+(cost|price|estimate)"
+        r"|cost\s+(breakdown|including|with\s+materials?)"
+        r"|estimate\s+(the\s+)?cost\s+for)\b",
+        msg_l,
+    ):
+        from customer_tools import estimate_service_cost
+
+        # Extract the service name from the message
+        _est_svc = None
+        _est_patterns = [
+            # "how much will an Oil Change cost including materials"
+            re.compile(
+                r"how\s+much\s+will\s+(?:a\s+|an\s+|the\s+|my\s+)?(.+?)"
+                r"\s+(?:cost|be)(?:\s+including|\s+with|\s+plus)?",
+                re.IGNORECASE,
+            ),
+            # "estimate cost for an Oil Change"
+            re.compile(
+                r"estimate\s+(?:the\s+)?cost\s+for\s+(?:a\s+|an\s+|the\s+)?(.+?)\s*\??$",
+                re.IGNORECASE,
+            ),
+            # "how much does an oil change cost"
+            re.compile(
+                r"how\s+much\s+(?:does|would|is)\s+(?:a\s+|an\s+|the\s+)?(.+?)"
+                r"\s+(?:cost|be)\b",
+                re.IGNORECASE,
+            ),
+            # "oil change including materials" — service before "including"
+            re.compile(
+                r"(.+?)\s+(?:including|with|plus)\s+(?:materials?|parts?)",
+                re.IGNORECASE,
+            ),
+        ]
+        for _ep in _est_patterns:
+            _em = _ep.search(msg_l)
+            if _em:
+                _cand = _em.group(1).strip().rstrip(".,?!")
+                _STOP = {
+                    "it", "that", "this", "a service", "the service",
+                    "service", "maintenance", "my oil", "my car",
+                }
+                if len(_cand) >= 3 and _cand not in _STOP:
+                    _est_svc = _cand
+                    break
+
+        if not _est_svc:
+            # No specific service named — ask which service
+            return {
+                "reply": (
+                    "I'd be happy to give you a full cost estimate! "
+                    "Which service would you like an estimate for? "
+                    "(e.g. Oil Change, PMS, Brake Service)"
+                ),
+                "tool_calls": [],
+                "model": "none",
+                "intent": intent,
+            }
+
+        est = estimate_service_cost(
+            customer_uid=customer_uid,
+            customer_name=customer_name,
+            service_names=[_est_svc],
+        )
+        if est.get("error") == "QUOTA_EXCEEDED":
+            return {"reply": "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes.", "tool_calls": [{"tool": "estimate_service_cost", "args": {"service_names": [_est_svc]}, "result": est}], "model": "none", "intent": intent}
+        if est.get("error"):
+            return {"reply": "I wasn't able to retrieve pricing right now. Please try again.", "tool_calls": [{"tool": "estimate_service_cost", "args": {"service_names": [_est_svc]}, "result": est}], "model": "none", "intent": intent}
+
+        matched = est.get("matched") or []
+        if not matched:
+            unmatched = est.get("unmatched") or [_est_svc]
+            return {
+                "reply": (
+                    f"I couldn't find a service matching **\"{_est_svc}\"** in our catalog. "
+                    "Try asking *\"list all services\"* to see what's available."
+                ),
+                "tool_calls": [{"tool": "estimate_service_cost", "args": {"service_names": [_est_svc]}, "result": est}],
+                "model": "none",
+                "intent": intent,
+            }
+
+        svc_name     = matched[0].get("service", _est_svc)
+        svc_charge   = est.get("service_charge", est.get("estimated_total", "—"))
+        materials    = est.get("materials") or []
+        mat_subtotal = est.get("material_subtotal", "")
+        est_total    = est.get("estimated_total", "")
+        usage_note   = est.get("materials_usage_note", "")
+        missing      = est.get("materials_missing_price") or []
+
+        # Build the itemized breakdown
+        lines = [f"**Estimated Cost for {svc_name}:**\n"]
+        lines.append(f"• Service Charge: **{svc_charge}**")
+
+        if materials:
+            lines.append("\n**Materials:**")
+            for m in materials:
+                qty_str = f"{m['qty']} {m.get('uom', '') or 'unit'}".strip()
+                lines.append(f"• {m['material']} ({qty_str}) — {m['line_total']}")
+            if mat_subtotal:
+                lines.append(f"\n• Material Subtotal: **{mat_subtotal}**")
+            if est_total and est_total != svc_charge:
+                lines.append(f"\n**Estimated Total: {est_total}**")
+            lines.append(
+                "\n*The final amount may vary depending on the actual materials used.*"
+            )
+            if missing:
+                lines.append(
+                    "\n*No price on file for: " + ", ".join(missing)
+                    + " — these are not included in the estimate.*"
+                )
+            if usage_note:
+                lines.append(f"\n_{usage_note}_")
+        else:
+            lines.append(f"\n**Estimated Total: {svc_charge}**")
+            lines.append(
+                "\n*No material usage pattern found for this service yet. "
+                "Only the service charge is shown. "
+                "Materials are billed separately if used.*"
+            )
+
+        reply = "\n".join(lines)
+        return {
+            "reply": reply,
+            "tool_calls": [{"tool": "estimate_service_cost", "args": {"service_names": [_est_svc]}, "result": est}],
+            "model": "none",
+            "intent": intent,
+        }
 
     # No direct match  -  fall through to LLM
     return None

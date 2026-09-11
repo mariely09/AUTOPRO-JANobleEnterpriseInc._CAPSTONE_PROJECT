@@ -176,11 +176,22 @@ def _get_customer_plates(db, customer_uid: str,
     return plates
 
 
+def _norm_plate(p: str) -> str:
+    """
+    Format-insensitive plate key: "HDK 8638", "HDK-8638" and "hdk8638"
+    all normalize to "HDK8638". The DB stores plates exactly as admins
+    entered them (often WITH a space) while customers type them with a dash
+    or nothing — ownership checks must not fail over formatting.
+    """
+    return re.sub(r"[\s\-]", "", (p or "")).upper()
+
+
 def _verify_vehicle_ownership(db, customer_uid: str, customer_name: str,
                                company_name: str, plate: str) -> bool:
     """Return True if the given plate belongs to this customer."""
     owned = _get_customer_plates(db, customer_uid, customer_name, company_name)
-    return plate.upper() in {p.upper() for p in owned}
+    want = _norm_plate(plate)
+    return any(_norm_plate(p) == want for p in owned if p)
 
 
 def _verify_booking_ownership(db, customer_uid: str, booking_id: str) -> bool:
@@ -1226,24 +1237,38 @@ def create_customer_booking(customer_uid: str, customer_name: str,
 
         # -- Get vehicle description for the booking record --------------------
         vehicle_desc = ""
+        vehicle_id = ""
+        canonical_plate = plate.upper()
+        _want_plate = _norm_plate(plate)
         for doc in _iter_customer_vehicles(db, customer_uid, customer_name, company_name):
             d = doc.to_dict()
-            if _get_plate(d).upper() == plate.upper():
+            if _norm_plate(_get_plate(d)) == _want_plate:
                 vehicle_desc = _get_desc(d)
+                vehicle_id = doc.id
+                # Store the plate exactly as registered (e.g. "HDK 8638")
+                canonical_plate = (_get_plate(d) or canonical_plate).upper()
                 break
 
         # -- Create the booking ------------------------------------------------
+        # Field conventions match the website's own booking flow
+        # (customer_book_service.html): status "Approved" + autoApproved so
+        # AI-created bookings appear in My Bookings exactly like web-created
+        # ones, and createdAt uses a server timestamp so "latest first"
+        # ordering works across mixed sources.
+        from google.cloud.firestore import SERVER_TIMESTAMP as _SRV_TS
         booking_data = {
             "customerId":    customer_uid,
             "customerName":  customer_name,
-            "plate":         plate.upper(),
+            "vehicleId":     vehicle_id,
+            "plate":         canonical_plate,
             "vehicleDesc":   vehicle_desc,
             "services":      services,
             "preferredDate": date_str,
             "preferredTime": preferred_time,
-            "status":        "Pending",
+            "status":        "Approved",
+            "autoApproved":  True,
             "notes":         notes or "",
-            "createdAt":     datetime.utcnow().isoformat(),
+            "createdAt":     _SRV_TS,
             "createdBy":     "customer_ai",
         }
 
@@ -1275,19 +1300,20 @@ def create_customer_booking(customer_uid: str, customer_name: str,
             "success":      True,
             "booking_id":   booking_id,
             "customer":     customer_name,
-            "plate":        plate.upper(),
+            "plate":        canonical_plate,
             "vehicle":      vehicle_desc,
             "services":     services,
             "date":         req_date.strftime("%B %d, %Y"),
             "time":         preferred_time,
-            "status":       "Pending",
+            "status":       "Approved",
             "notes":        notes or "",
             "message":      (
-                f"Your booking has been successfully created. "
+                f"Your booking has been successfully created! "
                 f"Booking ID: {booking_id}. "
-                f"Status: Pending. "
+                f"Status: Approved. "
                 f"We look forward to serving you on "
-                f"{req_date.strftime('%B %d, %Y')} at {preferred_time}."
+                f"{req_date.strftime('%B %d, %Y')} at {preferred_time}. "
+                f"You can view it under My Bookings."
             ),
         }
 
@@ -1400,7 +1426,7 @@ def get_my_bookings(customer_uid: str, customer_name: str,
 
         pending   = [b for b in bookings if (b["status"] or "").lower() == "pending"]
         confirmed = [b for b in bookings if (b["status"] or "").lower() in
-                     ("confirmed", "in progress", "ongoing")]
+                     ("approved", "confirmed", "in progress", "ongoing")]
         completed = [b for b in bookings if (b["status"] or "").lower() == "completed"]
         cancelled = [b for b in bookings if (b["status"] or "").lower() in
                      ("cancelled", "rejected")]
