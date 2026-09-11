@@ -174,14 +174,13 @@ _INVENTORY_RE = re.compile(
     r"how\s+much\s+\S+\s+(do\s+you\s+have|is\s+available|available)|"
     r"brake\s+pads?\s+(in\s+)?stock|may\s+stock|stock\s+pa|"
     r"meron\s+pa\s+ba\s+kayong|mayroon\s+pa\s+ba\s+kayong|"
-    # "what products are running low" / "what parts are almost out" /
-    # "which items are running low" — stock-depletion phrasings without the
-    # word "stock" itself.
-    r"(products?|parts?|items?|materials?)\s+(are\s+)?(running\s+low|"
+    # Stock-depletion phrasings — block ONLY when talking about stock levels,
+    # NOT when asking about catalog prices or materials needed for a service.
+    r"(products?|parts?|items?)\s+(are\s+)?(running\s+low|"
     r"almost\s+(out|gone)|nearly\s+(out|gone)|out\s+of\s+stock|"
     r"need(s)?\s+(reSTOCKING|reORDER|rePLENISH\w*)|"
     r"low\s+on\s+stock)|"
-    r"running\s+low\s+on\s+(products?|parts?|items?|materials?|stock))\b",
+    r"running\s+low\s+on\s+(products?|parts?|items?|stock))\b",
     re.IGNORECASE,
 )
 
@@ -212,13 +211,36 @@ _ANALYTICS_RE = re.compile(
     r"monthly|weekly|annual)\s+(revenue|sales|income|earnings)|"
     r"how\s+much\s+revenue|revenue\s+(did|this|last|per)|"
     r"most\s+popular\s+(service|item)|top\s+selling|"
-    r"(all|every)\s+(maintenance|maintenances|services?|bookings?)\b(?!.*\b(my|ako|ko|akin)\b)|"
+    # Block admin-aggregate queries for maintenance/bookings (not service catalog)
+    r"(all|every)\s+(maintenance|maintenances|bookings?)\b(?!.*\b(my|ako|ko|akin)\b)|"
     r"serviced\s+this\s+month|total\s+inventory\s+value|"
     r"(most|least)\s+popular|popular\s+(service|item)|"
     r"best[-\s]?selling|top\s+\d+|"
     r"show\s+all\s+(bookings?|vehicles?|customers?|maintenance|records?)|"
-    r"lahat\s+ng\s+(bookings?|vehicles?|maintenance|records?|services?)|"
+    r"lahat\s+ng\s+(bookings?|vehicles?|maintenance|records?)|"
     r"bookings?\s+ng\s+customers?)\b",
+    re.IGNORECASE,
+)
+
+# ── Public service/material catalog allowlist ─────────────────────────────────
+# These patterns ALWAYS pass through regardless of any other check.
+# A customer is always allowed to ask about services offered or materials/
+# products available — these are public catalog queries, not admin analytics.
+_CATALOG_ALLOWLIST_RE = re.compile(
+    r"\b("
+    # Service catalog queries
+    r"(list|show|what|display|get|available|all)[^\n]{0,40}services?"
+    r"|(services?)\s*(offered|available|you\s+offer|with\s+price|and\s+price|price)"
+    r"|what\s+can\s+you\s+do"
+    r"|what\s+services?\s+do\s+you"
+    r"|(list|show)\s+(all\s+)?(the\s+)?services?"
+    # Material / product catalog queries
+    r"|(list|show|what|display|get|all)[^\n]{0,40}(materials?|products?)"
+    r"|(materials?|products?)\s*(available|offered|with\s+price|and\s+price|price)"
+    r"|how\s+much\s+(are\s+)?(the\s+)?(materials?|products?)"
+    r"|price[s]?\s+(of|for)\s+(materials?|products?)"
+    r"|what\s+(materials?|products?)\s+do\s+you"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -299,6 +321,13 @@ def classify_denial(message: str) -> Optional[str]:
     # The ORIGINAL text is used for name/capitalization checks.
     t = _norm(message or "") or (message or "")
     orig = message or ""
+
+    # ── Catalog allowlist: always let public service/material queries through ─
+    # Checked BEFORE any denial pattern so a customer asking "list all services"
+    # or "how much are the materials" is NEVER accidentally blocked by the
+    # analytics or inventory patterns below.
+    if _CATALOG_ALLOWLIST_RE.search(t) or _CATALOG_ALLOWLIST_RE.search(orig):
+        return None
 
     # Order matters: most specific first. Third-party checks run against the
     # ORIGINAL text (capitalized names) AND the normalized copy (typo'd text).

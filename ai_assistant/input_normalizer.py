@@ -56,51 +56,119 @@ _VOCAB = {
 
 # ── Explicit typo map (covers short tokens edit-distance would miss) ─────────
 _TYPO_MAP = {
-    # inventory
-    "inventry": "inventory", "invntory": "inventory", "invenory": "inventory",
-    "inventoy": "inventory", "inventori": "inventory", "iventory": "inventory",
-    "inventry": "inventory",
-    # maintenance
-    "maintenence": "maintenance", "maintanance": "maintenance",
-    "maintnance": "maintenance", "maintance": "maintenance",
-    "maintenace": "maintenance", "maintainance": "maintenance",
-    "maintainence": "maintenance", "maintenence": "maintenance",
-    # stock
+    # ── question words / connectors (very short — edit-distance misses them) ──
+    "hw": "how", "haw": "how", "hhw": "how", "hiw": "how", "hwo": "how",
+    "mch": "much", "muh": "much", "muc": "much", "muhc": "much",
+    "wht": "what", "whats": "what", "wats": "what", "wat": "what",
+    "wen": "when", "whn": "when", "wenb": "when",
+    "whr": "where", "wer": "where", "wehre": "where",
+    "wy": "why", "whi": "why",
+    "cna": "can", "cn": "can", "ca": "can",
+    "i": "i",  # keep — already correct
+    "fo": "for", "fro": "for", "fr": "for",
+    "teh": "the", "th": "the", "hte": "the",
+    "thr": "there", "thier": "their",
+    "al": "all", "alll": "all",
+    "lis": "list", "lst": "list",
+    "shw": "show", "shwo": "show",
+    "wth": "with", "wiht": "with", "wit": "with",
+
+    # ── materials / products ──────────────────────────────────────────────────
+    "materyals":  "materials", "materyal":   "material",
+    "materal":    "material",  "materals":   "materials",
+    "materilas":  "materials", "materails":  "materials",
+    "matrials":   "materials", "matirals":   "materials",
+    "materyal":   "material",  "mateiral":   "material",
+    "mateirals":  "materials", "matreials":  "materials",
+    "mats":       "materials",
+
+    # ── price / cost ─────────────────────────────────────────────────────────
+    "prise":    "price",  "pric":     "price",  "rpice":    "price",
+    "prce":     "price",  "priice":   "price",  "prcie":    "price",
+    "pricess":  "prices", "prces":    "prices", "prcies":   "prices",
+    "cst":      "cost",   "cosr":     "cost",   "cots":     "cost",
+    "coste":    "cost",   "costing":  "cost",
+    "amnt":     "amount", "amout":    "amount", "amoun":    "amount",
+
+    # ── inventory ────────────────────────────────────────────────────────────
+    "inventry":  "inventory", "invntory":  "inventory", "invenory":  "inventory",
+    "inventoy":  "inventory", "inventori": "inventory", "iventory":  "inventory",
+    "invetory":  "inventory", "iinventory":"inventory",
+
+    # ── maintenance ──────────────────────────────────────────────────────────
+    "maintenence":  "maintenance", "maintanance":  "maintenance",
+    "maintnance":   "maintenance", "maintance":    "maintenance",
+    "maintenace":   "maintenance", "maintainance": "maintenance",
+    "maintainence": "maintenance", "maitenance":   "maintenance",
+    "maintenants":  "maintenance", "maintence":    "maintenance",
+
+    # ── stock ─────────────────────────────────────────────────────────────────
     "stok": "stock", "stcok": "stock", "stck": "stock", "stolk": "stock",
-    # booking / appointment
-    "bookng": "booking", "bookin": "booking", "boking": "booking",
-    "bokking": "booking", "bookngs": "bookings", "bokings": "bookings",
-    "apointment": "appointment", "appoinment": "appointment",
+
+    # ── booking / appointment / schedule ─────────────────────────────────────
+    "bookng":     "booking",     "bookin":      "booking",
+    "boking":     "booking",     "bokking":     "booking",
+    "bookngs":    "bookings",    "bokings":     "bookings",
+    "bking":      "booking",     "bkng":        "booking",
+    "apointment": "appointment", "appoinment":  "appointment",
     "appointmnt": "appointment", "apointments": "appointments",
-    # vehicle
-    "vehcle": "vehicle", "vehile": "vehicle", "vechile": "vehicle",
-    "vehcile": "vehicle", "vihicle": "vehicle", "vehcles": "vehicles",
-    "vechicles": "vehicles",
-    # report / schedule / service
-    "repot": "report", "reprot": "report", "reprt": "report",
-    "scheduel": "schedule", "schdule": "schedule", "schedle": "schedule",
-    "sched": "schedule", "appt": "appointment", "svc": "service",
-    "servce": "service", "sevice": "service", "servic": "service",
-    "servces": "services", "sevices": "services",
-    # customer
-    "custumer": "customer", "costumer": "customer", "cutomer": "customer",
-    "custumers": "customers", "costumers": "customers",
-    # issuance / delivery
-    "isuance": "issuance", "issuace": "issuance", "issuences": "issuances",
-    "delvery": "delivery", "delivey": "delivery", "deliveries": "deliveries",
-    # preventive / replenish / restock
+    "appt":       "appointment",
+    "scheduel":   "schedule",    "schdule":     "schedule",
+    "schedle":    "schedule",    "sched":       "schedule",
+    "scedule":    "schedule",    "scheduel":    "schedule",
+    "skedul":     "schedule",    "skedule":     "schedule",
+    "skejul":     "schedule",    "skejule":     "schedule",
+
+    # ── vehicle ───────────────────────────────────────────────────────────────
+    "vehcle":    "vehicle",  "vehile":    "vehicle",  "vechile":  "vehicle",
+    "vehcile":   "vehicle",  "vihicle":   "vehicle",  "vehcles":  "vehicles",
+    "vechicles": "vehicles", "vehciles":  "vehicles", "vehicl":   "vehicle",
+
+    # ── report / service / services ───────────────────────────────────────────
+    "repot":    "report",   "reprot":   "report",   "reprt":    "report",
+    "svc":      "service",  "servce":   "service",  "sevice":   "service",
+    "servic":   "service",  "servces":  "services", "sevices":  "services",
+    "servises": "services", "servcies": "services", "srevices": "services",
+    "serivces": "services", "servixes": "services",
+
+    # ── customer ──────────────────────────────────────────────────────────────
+    "custumer":  "customer",  "costumer":  "customer",  "cutomer":   "customer",
+    "custumers": "customers", "costumers": "customers", "cusotmer":  "customer",
+    "cstomer":   "customer",  "cutsomer":  "customer",
+
+    # ── oil change / PMS ──────────────────────────────────────────────────────
+    "oilchange":  "oil change", "oilchng":    "oil change",
+    "oilchnge":   "oil change", "changeoil":  "change oil",
+    "chngoil":    "change oil",
+    "pmss":       "pms",        "p m s":      "pms",
+
+    # ── issuance / delivery ───────────────────────────────────────────────────
+    "isuance":  "issuance", "issuace":    "issuance",
+    "issuences":"issuances", "delvery":   "delivery",
+    "delivey":  "delivery",
+
+    # ── preventive / replenish / restock ─────────────────────────────────────
     "prevantive": "preventive", "preventve": "preventive",
-    "replinish": "replenish", "replenesh": "replenish",
-    "replenshment": "replenishment",
-    "restck": "restock", "restocking": "restocking",
-    # informal English
-    "u": "you", "ur": "your", "pls": "please", "plz": "please",
-    "plss": "please", "info": "information", "inv": "inventory",
-    "wk": "week", "tmrw": "tomorrow",
-    # common Filipino-English phrasing (safe, high-frequency)
-    "magkano": "how much", "kailan": "when", "kelan": "when",
-    "paano": "how", "pno": "how", "pwede": "can", "pede": "can",
-    "nasaan": "where", "nasan": "where", "gusto": "want",
+    "replinish":  "replenish",  "replenesh": "replenish",
+
+    # ── informal English / abbreviations ─────────────────────────────────────
+    "u":    "you",   "ur":   "your",  "pls":  "please",
+    "plz":  "please","plss": "please","tmrw": "tomorrow",
+    "wk":   "week",  "info": "information",
+
+    # ── Filipino-English (safe, high-frequency) ───────────────────────────────
+    "magkano":  "how much",  "mgkano":   "how much",  "mgkno":  "how much",
+    "kailan":   "when",      "kelan":    "when",       "klan":   "when",
+    "paano":    "how",       "pno":      "how",
+    "pwede":    "can",       "pede":     "can",        "pwde":   "can",
+    "nasaan":   "where",     "nasan":    "where",
+    "gusto":    "want",      "gsto":     "want",
+    "ano":      "what",      "anong":    "what",
+    "pakita":   "show",      "ipakita":  "show",
+    "listahan": "list",      "lista":    "list",
+    "presyo":   "price",     "halaga":   "price",
+    "serbisyo": "service",   "serbisyos":"services",
+    "materyales":"materials",
 }
 
 # ── Multi-word phrase fixes (applied after token correction) ──────────────────
@@ -152,8 +220,9 @@ def normalize(text: str) -> str:
     Normalize *text* for intent detection only.
 
     - lowercase, punctuation -> space, whitespace collapsed
+    - multi-word typo phrases replaced first (e.g. "magkano" -> "how much")
     - token-level: typo map / abbreviation / Filipino map / safe fuzzy fix
-    - multi-word phrases preserved as-is (tokens joined by single spaces)
+    - multi-word corrections in _TYPO_MAP are handled via phrase substitution
     """
     if not text:
         return ""
@@ -163,6 +232,7 @@ def normalize(text: str) -> str:
     if not t:
         return t
 
+    # Phase 1: token-by-token correction
     out = []
     for tok in t.split(" "):
         if not tok:
@@ -174,4 +244,13 @@ def normalize(text: str) -> str:
         if fixed is None and len(tok) >= 5:
             fixed = _d1_match(tok)
         out.append(fixed if fixed else tok)
-    return " ".join(out)
+
+    result = " ".join(out)
+
+    # Phase 2: expand any multi-word _TYPO_MAP values that were injected
+    # (e.g. a single token "magkano" was replaced with "how much" — the
+    # two-word string is already correct at this point; this phase catches
+    # cases where we want to do a final pass for compound substitutions).
+    # Re-collapse extra whitespace that can appear after substitutions.
+    result = re.sub(r"\s+", " ", result).strip()
+    return result
