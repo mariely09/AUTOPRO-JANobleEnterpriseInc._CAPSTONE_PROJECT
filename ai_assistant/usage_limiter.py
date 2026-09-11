@@ -47,7 +47,7 @@ def _next_manila_midnight_str() -> str:
     return reset.strftime("%B %d, %Y at 12:00 AM (PH time)")
 
 # ── Configurable limits (env-overridable, 0 = unlimited) ─────────────────────
-CUSTOMER_DAILY_TOKEN_LIMIT:   int = int(os.getenv("CUSTOMER_DAILY_TOKEN_LIMIT",   "20000"))
+CUSTOMER_DAILY_TOKEN_LIMIT:   int = int(os.getenv("CUSTOMER_DAILY_TOKEN_LIMIT",   "100000"))
 CUSTOMER_DAILY_REQUEST_LIMIT: int = int(os.getenv("CUSTOMER_DAILY_REQUEST_LIMIT", "50"))
 ADMIN_DAILY_TOKEN_LIMIT:      int = int(os.getenv("ADMIN_DAILY_TOKEN_LIMIT",      "200000"))  # high but finite; 0 = unlimited
 ADMIN_DAILY_REQUEST_LIMIT:    int = int(os.getenv("ADMIN_DAILY_REQUEST_LIMIT",    "200"))   # 0 = unlimited

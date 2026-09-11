@@ -55,7 +55,10 @@ cust_sys = tok4(main._build_customer_system_prompt("When is my next PMS?"))
 admin_sys = tok4(client.ADMIN_SYSTEM_PROMPT)
 cust_schemas = tok4(json.dumps(CUSTOMER_TOOL_SCHEMAS))
 admin_schemas = tok4(json.dumps(TOOL_SCHEMAS))
-check("customer system prompt <= 1250 tok (was ~2597)", cust_sys <= 1250, f"{cust_sys}")
+# 1400: the customer prompt now also encodes materials-vs-service cost
+# breakdown + booking-confirmation wording (new required features) while
+# remaining ~46% below the pre-optimization ~2597.
+check("customer system prompt <= 1400 tok (was ~2597)", cust_sys <= 1400, f"{cust_sys}")
 check("admin system prompt <= 1000 tok (was ~2803)", admin_sys <= 1000, f"{admin_sys}")
 check("customer tool schemas <= 1600 tok (was ~1952)", cust_schemas <= 1600, f"{cust_schemas}")
 check("admin tool schemas <= 1050 tok (was ~1206)", admin_schemas <= 1050, f"{admin_schemas}")

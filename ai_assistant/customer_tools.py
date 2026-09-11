@@ -176,11 +176,22 @@ def _get_customer_plates(db, customer_uid: str,
     return plates
 
 
+def _norm_plate(p: str) -> str:
+    """
+    Format-insensitive plate key: "HDK 8638", "HDK-8638" and "hdk8638"
+    all normalize to "HDK8638". The DB stores plates exactly as admins
+    entered them (often WITH a space) while customers type them with a dash
+    or nothing — ownership checks must not fail over formatting.
+    """
+    return re.sub(r"[\s\-]", "", (p or "")).upper()
+
+
 def _verify_vehicle_ownership(db, customer_uid: str, customer_name: str,
                                company_name: str, plate: str) -> bool:
     """Return True if the given plate belongs to this customer."""
     owned = _get_customer_plates(db, customer_uid, customer_name, company_name)
-    return plate.upper() in {p.upper() for p in owned}
+    want = _norm_plate(plate)
+    return any(_norm_plate(p) == want for p in owned if p)
 
 
 def _verify_booking_ownership(db, customer_uid: str, booking_id: str) -> bool:
@@ -1226,24 +1237,38 @@ def create_customer_booking(customer_uid: str, customer_name: str,
 
         # -- Get vehicle description for the booking record --------------------
         vehicle_desc = ""
+        vehicle_id = ""
+        canonical_plate = plate.upper()
+        _want_plate = _norm_plate(plate)
         for doc in _iter_customer_vehicles(db, customer_uid, customer_name, company_name):
             d = doc.to_dict()
-            if _get_plate(d).upper() == plate.upper():
+            if _norm_plate(_get_plate(d)) == _want_plate:
                 vehicle_desc = _get_desc(d)
+                vehicle_id = doc.id
+                # Store the plate exactly as registered (e.g. "HDK 8638")
+                canonical_plate = (_get_plate(d) or canonical_plate).upper()
                 break
 
         # -- Create the booking ------------------------------------------------
+        # Field conventions match the website's own booking flow
+        # (customer_book_service.html): status "Approved" + autoApproved so
+        # AI-created bookings appear in My Bookings exactly like web-created
+        # ones, and createdAt uses a server timestamp so "latest first"
+        # ordering works across mixed sources.
+        from google.cloud.firestore import SERVER_TIMESTAMP as _SRV_TS
         booking_data = {
             "customerId":    customer_uid,
             "customerName":  customer_name,
-            "plate":         plate.upper(),
+            "vehicleId":     vehicle_id,
+            "plate":         canonical_plate,
             "vehicleDesc":   vehicle_desc,
             "services":      services,
             "preferredDate": date_str,
             "preferredTime": preferred_time,
-            "status":        "Pending",
+            "status":        "Approved",
+            "autoApproved":  True,
             "notes":         notes or "",
-            "createdAt":     datetime.utcnow().isoformat(),
+            "createdAt":     _SRV_TS,
             "createdBy":     "customer_ai",
         }
 
@@ -1275,19 +1300,20 @@ def create_customer_booking(customer_uid: str, customer_name: str,
             "success":      True,
             "booking_id":   booking_id,
             "customer":     customer_name,
-            "plate":        plate.upper(),
+            "plate":        canonical_plate,
             "vehicle":      vehicle_desc,
             "services":     services,
             "date":         req_date.strftime("%B %d, %Y"),
             "time":         preferred_time,
-            "status":       "Pending",
+            "status":       "Approved",
             "notes":        notes or "",
             "message":      (
-                f"Your booking has been successfully created. "
+                f"Your booking has been successfully created! "
                 f"Booking ID: {booking_id}. "
-                f"Status: Pending. "
+                f"Status: Approved. "
                 f"We look forward to serving you on "
-                f"{req_date.strftime('%B %d, %Y')} at {preferred_time}."
+                f"{req_date.strftime('%B %d, %Y')} at {preferred_time}. "
+                f"You can view it under My Bookings."
             ),
         }
 
@@ -1400,7 +1426,7 @@ def get_my_bookings(customer_uid: str, customer_name: str,
 
         pending   = [b for b in bookings if (b["status"] or "").lower() == "pending"]
         confirmed = [b for b in bookings if (b["status"] or "").lower() in
-                     ("confirmed", "in progress", "ongoing")]
+                     ("approved", "confirmed", "in progress", "ongoing")]
         completed = [b for b in bookings if (b["status"] or "").lower() == "completed"]
         cancelled = [b for b in bookings if (b["status"] or "").lower() in
                      ("cancelled", "rejected")]
@@ -1714,10 +1740,18 @@ def cancel_my_booking(customer_uid: str, customer_name: str,
 # ----------------------------------------------------------------------------
 
 def estimate_service_cost(customer_uid: str, customer_name: str,
-                          service_names: list[str] | None = None, **_) -> dict:
+                          service_names: list[str] | None = None,
+                          include_materials: bool = True, **_) -> dict:
     """
     Estimate combined cost for one or more named services using actual catalog prices.
     Never invents prices — returns an error for services not found in the catalog.
+
+    SERVICES AND MATERIALS ARE SEPARATE CHARGES:
+      estimated_total = service_charge + material_subtotal
+    Materials (when a historical usage pattern exists for the service) are
+    priced unit_price x qty from the item catalog; their subtotal is reported
+    separately from the service/labor charge. When no historical pattern is
+    found, materials_used is None and only the service charge is shown.
     """
     if not service_names:
         return {
@@ -1725,7 +1759,7 @@ def estimate_service_cost(customer_uid: str, customer_name: str,
             "message": "Please specify at least one service name to estimate the cost.",
         }
     try:
-        db         = get_db()
+        db          = get_db()
         raw_catalog = cache_manager.get_service_catalog(db)
         if raw_catalog is None:
             return _quota_error()
@@ -1737,6 +1771,30 @@ def estimate_service_cost(customer_uid: str, customer_name: str,
                 "cost": _strip_currency(item.get("cost", 0)),
                 "uom":  item.get("uom", ""),
             }
+
+        # Material price lookup (from the same item catalog; customer-facing
+        # price only — never stock/supplier fields).
+        material_prices: dict[str, float] = {}
+        try:
+            all_items = cache_manager.get_item_catalog_cached(db)
+            if all_items:
+                for item in all_items:
+                    if (item.get("type") or "").strip().lower() != "material":
+                        continue
+                    mname = (item.get("name") or "").strip().lower()
+                    if mname and mname not in material_prices:
+                        material_prices[mname] = _strip_currency(item.get("cost", 0))
+        except Exception:
+            material_prices = {}
+
+        def _material_price(name: str) -> float | None:
+            key = name.lower().strip()
+            if key in material_prices:
+                return material_prices[key]
+            for k, v in material_prices.items():
+                if key in k or k in key:
+                    return v
+            return None
 
         matched   = []
         unmatched = []
@@ -1760,7 +1818,7 @@ def estimate_service_cost(customer_uid: str, customer_name: str,
             else:
                 unmatched.append(svc)
 
-        return {
+        result: dict = {
             "requested":       service_names,
             "matched":         matched,
             "unmatched":       unmatched,
@@ -1771,6 +1829,84 @@ def estimate_service_cost(customer_uid: str, customer_name: str,
                 if unmatched else ""
             ),
         }
+
+        # ── Optional materials estimate (separate charge) ────────────────────
+        # Uses the shop's historical usage pattern for the same service from
+        # completed maintenance records; qty x unit price comes from the item
+        # catalog. Never fabricates a price for a material that isn't listed.
+        if include_materials and matched:
+            try:
+                svc_keys = [m["service"].lower() for m in matched]
+                patterns: dict[str, dict] = {}   # material name -> {qty, uom, count}
+                mats_docs = db.collection("maintenance") \
+                    .where(filter=FieldFilter("status", "==", "Completed")) \
+                    .limit(200).stream()
+                scanned = 0
+                for d in mats_docs:
+                    md       = d.to_dict() or {}
+                    svc_rows = md.get("svcRows") or []
+                    if not svc_rows:
+                        continue
+                    job_svcs = {(r.get("name") or "").lower() for r in svc_rows}
+                    if not any(any(sk in js or js in sk for sk in svc_keys) for js in job_svcs):
+                        continue
+                    scanned += 1
+                    for r in (md.get("matRows") or []):
+                        mname = (r.get("name") or "").strip()
+                        if not mname:
+                            continue
+                        try:
+                            qty = float(str(r.get("qty", "1") or "1").strip() or 1)
+                        except ValueError:
+                            qty = 1.0
+                        p = patterns.setdefault(mname, {"qty": 0.0, "uom": r.get("uom", ""), "count": 0})
+                        p["qty"] += qty
+                        p["count"] += 1
+                        if r.get("uom"):
+                            p["uom"] = r.get("uom")
+
+                materials_out = []
+                mat_subtotal  = 0.0
+                missing_price = []
+                for mname, p in sorted(patterns.items(), key=lambda kv: -kv[1]["qty"]):
+                    avg_qty = round(p["qty"] / max(1, p["count"]), 2)
+                    unit    = _material_price(mname)
+                    if unit is None:
+                        missing_price.append(mname)
+                        continue
+                    line_total = unit * avg_qty
+                    mat_subtotal += line_total
+                    materials_out.append({
+                        "material":    mname,
+                        "qty":         avg_qty,
+                        "uom":         p["uom"],
+                        "unit_price":  _fmt_cost(unit),
+                        "line_total":  _fmt_cost(line_total),
+                    })
+
+                result["service_charge"]    = _fmt_cost(total)
+                result["materials_usage_note"] = (
+                    f"Based on {scanned} completed job(s) with these services."
+                    if scanned else None
+                )
+                if materials_out or missing_price:
+                    result["materials"]         = materials_out
+                    result["material_subtotal"] = _fmt_cost(mat_subtotal)
+                    if mat_subtotal:
+                        result["estimated_total"] = _fmt_cost(total + mat_subtotal)
+                    if missing_price:
+                        result["materials_missing_price"] = missing_price
+                        result["note"] = (result["note"] + " " if result["note"] else "") + (
+                            "Some materials have no price on file; their cost is not included."
+                        )
+                    result["charge_breakdown"] = (
+                        "service_charge + material_subtotal are separate charges"
+                    )
+            except Exception:
+                # Materials enrichment is best-effort; the service estimate stands.
+                pass
+
+        return result
 
     except Exception as e:
         if _is_firestore_quota(e):
@@ -2152,7 +2288,9 @@ CUSTOMER_TOOL_SCHEMAS = [
             "name": "estimate_service_cost",
             "description": (
                 "Combined cost of named services from actual catalog prices. Use for: "
-                "'how much would X and Y cost'. Never invents prices."
+                "'how much would X and Y cost'. Returns the SERVICE charge and the "
+                "MATERIALS charge as SEPARATE line items plus the combined "
+                "estimated total. Never invents prices."
             ),
             "parameters": {
                 "type": "object",
@@ -2161,6 +2299,14 @@ CUSTOMER_TOOL_SCHEMAS = [
                         "type": "array",
                         "items": {"type": "string"},
                         "description": "Service names to estimate.",
+                    },
+                    "include_materials": {
+                        "type": "boolean",
+                        "description": (
+                            "Also estimate materials the shop normally uses for these "
+                            "services (priced separately from the service charge). "
+                            "Default true."
+                        ),
                     },
                 },
                 "required": ["service_names"],
