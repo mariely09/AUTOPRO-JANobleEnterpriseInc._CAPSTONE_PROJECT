@@ -1165,13 +1165,30 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                 }
 
                                 // Compute nextPMSDue from completionDate + svcFreq
-                                Future<void> _applyNextPMSAndUpdate(Map<String, dynamic> vData, DocumentReference ref) async {
-                                  final freq = int.tryParse((vData['svcFreq'] ?? vData['serviceFrequency'] ?? '').toString()) ?? 0;
+                                Future<void> _applyNextPMSAndUpdate(
+                                  Map<String, dynamic> vData,
+                                  DocumentReference ref,
+                                ) async {
+                                  final freq =
+                                      int.tryParse(
+                                        (vData['svcFreq'] ??
+                                                vData['serviceFrequency'] ??
+                                                '')
+                                            .toString(),
+                                      ) ??
+                                      0;
                                   if (freq > 0) {
-                                    final lastDate = DateTime.tryParse(completionDate);
+                                    final lastDate = DateTime.tryParse(
+                                      completionDate,
+                                    );
                                     if (lastDate != null) {
-                                      final nextDue = DateTime(lastDate.year, lastDate.month + freq, lastDate.day);
-                                      vUpdate['nextPMSDue'] = '${nextDue.year}-${nextDue.month.toString().padLeft(2, '0')}-${nextDue.day.toString().padLeft(2, '0')}';
+                                      final nextDue = DateTime(
+                                        lastDate.year,
+                                        lastDate.month + freq,
+                                        lastDate.day,
+                                      );
+                                      vUpdate['nextPMSDue'] =
+                                          '${nextDue.year}-${nextDue.month.toString().padLeft(2, '0')}-${nextDue.day.toString().padLeft(2, '0')}';
                                     }
                                   }
                                   await ref.update(vUpdate);
@@ -1183,7 +1200,9 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                                       .doc(completionVehicleId)
                                       .get();
                                   await _applyNextPMSAndUpdate(
-                                    vDoc.data() ?? {}, vDoc.reference);
+                                    vDoc.data() ?? {},
+                                    vDoc.reference,
+                                  );
                                 } else {
                                   // Fallback: plate scan
                                   var vSnap = await FirebaseFirestore.instance
@@ -1321,7 +1340,8 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
     final qty = r['qty'] as String? ?? '1';
     final uom = r['uom'] as String? ?? '';
     final cost = r['cost'] as String? ?? '0';
-    final subtotal = (double.tryParse(cost) ?? 0) * (double.tryParse(qty) ?? 1);
+    final costValue = double.tryParse(cost) ?? 0;
+    final subtotal = costValue * (double.tryParse(qty) ?? 1);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -1344,7 +1364,7 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                   ),
                 ),
                 Text(
-                  '$qty  -  $cost',
+                  '$qty  -  ${_fmtMoney(costValue)}',
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF718096),
@@ -2713,150 +2733,253 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            child: Column(children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                decoration: const BoxDecoration(
-                  color: _red,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                child: Row(children: [
-                  Expanded(
-                    child: Text(
-                      isService ? 'Select Service' : 'Select Material',
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                  decoration: const BoxDecoration(
+                    color: _red,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(24),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(bCtx),
-                    child: const Icon(Icons.close, color: Colors.white),
-                  ),
-                ]),
-              ),
-              // Search bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: TextField(
-                  controller: searchCtrl,
-                  autofocus: true,
-                  onChanged: (_) => setSheet(() {}),
-                  decoration: InputDecoration(
-                    hintText: isService ? 'Search services...' : 'Search materials...',
-                    prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF718096)),
-                    suffixIcon: searchCtrl.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
-                            onPressed: () { searchCtrl.clear(); setSheet(() {}); },
-                          )
-                        : null,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    isDense: true,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          isService ? 'Select Service' : 'Select Material',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(bCtx),
+                        child: const Icon(Icons.close, color: Colors.white),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              // Count
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-                child: Row(children: [
-                  Text('${filtered.length} item${filtered.length == 1 ? '' : 's'}',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-                ]),
-              ),
-              // List
-              Expanded(
-                child: filtered.isEmpty
-                    ? const Center(child: Text('No items found.', style: TextStyle(color: Color(0xFF718096))))
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFe2e8f0)),
-                        itemBuilder: (_, i) {
-                          final item = filtered[i];
-                          final name = item['name'] as String;
-                          final uom = item['uom'] as String? ?? '';
-                          final rawCost = item['cost'];
-                          final cost = rawCost == null ? 0.0
-                              : double.tryParse(rawCost.toString().replaceAll('₱', '').replaceAll(',', '').trim()) ?? 0.0;
-                          final itemNum = item['num'] as String? ?? '';
-                          // Look up stock: by item num first (most accurate), then name|uom, then name
-                          final stockQtyRaw = !isService
-                              ? (itemNum.isNotEmpty
-                                  ? (_stockMap['num:$itemNum'] ?? _stockMap['${name.toLowerCase()}|${uom.toLowerCase()}'] ?? _stockMap[name.toLowerCase()])
-                                  : (_stockMap['${name.toLowerCase()}|${uom.toLowerCase()}'] ?? _stockMap[name.toLowerCase()]))
-                              : null;
-                          final oos = !isService && (
-                              (stockQtyRaw ?? -1) == 0 ||
-                              _inactiveItemNames.contains(name.toLowerCase()));
-                          final stockQty = stockQtyRaw;
-                          return InkWell(
-                            onTap: oos ? null : () {
-                              selected = item;
-                              Navigator.pop(bCtx);
-                            },
-                            child: Container(
-                              color: oos ? const Color(0xFFF8F8F8) : null,
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                              child: Row(children: [
-                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text(name,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 13,
-                                        color: oos ? const Color(0xFFa0aec0) : const Color(0xFF1a202c),
-                                      )),
-                                  if (uom.isNotEmpty || cost > 0)
-                                    Text(
-                                      '${uom.isNotEmpty ? uom : "—"}  ₱${cost.toStringAsFixed(2)}',
-                                      style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
-                                    ),
-                                  const SizedBox(height: 3),
-                                  if (!isService && stockQty != null)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: stockQty == 0
-                                            ? const Color(0xFFFFF5F5)
-                                            : stockQty <= 5
-                                                ? const Color(0xFFFFFBEB)
-                                                : const Color(0xFFF0FFF4),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        stockQty == 0 ? '⚠ Out of stock — cannot add' : 'Stock: $stockQty',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          color: stockQty == 0
-                                              ? Colors.red
-                                              : stockQty <= 5
-                                                  ? Colors.orange
-                                                  : Colors.green,
-                                        ),
-                                      ),
-                                    )
-                                  else if (!isService && stockQty == null)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF7F8FA),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: const Text('No stock record',
-                                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF718096))),
-                                    ),
-                                ])),
-                                oos
-                                    ? const Icon(Icons.block_outlined, size: 16, color: Color(0xFFa0aec0))
-                                    : const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF718096)),
-                              ]),
-                            ),
-                          );
-                        },
+                // Search bar
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: TextField(
+                    controller: searchCtrl,
+                    autofocus: true,
+                    onChanged: (_) => setSheet(() {}),
+                    decoration: InputDecoration(
+                      hintText: isService
+                          ? 'Search services...'
+                          : 'Search materials...',
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        size: 20,
+                        color: Color(0xFF718096),
                       ),
-              ),
-            ]),
+                      suffixIcon: searchCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                searchCtrl.clear();
+                                setSheet(() {});
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                // Count
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 2,
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${filtered.length} item${filtered.length == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF718096),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // List
+                Expanded(
+                  child: filtered.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No items found.',
+                            style: TextStyle(color: Color(0xFF718096)),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) => const Divider(
+                            height: 1,
+                            color: Color(0xFFe2e8f0),
+                          ),
+                          itemBuilder: (_, i) {
+                            final item = filtered[i];
+                            final name = item['name'] as String;
+                            final uom = item['uom'] as String? ?? '';
+                            final rawCost = item['cost'];
+                            final cost = rawCost == null
+                                ? 0.0
+                                : double.tryParse(
+                                        rawCost
+                                            .toString()
+                                            .replaceAll('₱', '')
+                                            .replaceAll(',', '')
+                                            .trim(),
+                                      ) ??
+                                      0.0;
+                            final itemNum = item['num'] as String? ?? '';
+                            // Look up stock: by item num first (most accurate), then name|uom, then name
+                            final stockQtyRaw = !isService
+                                ? (itemNum.isNotEmpty
+                                      ? (_stockMap['num:$itemNum'] ??
+                                            _stockMap['${name.toLowerCase()}|${uom.toLowerCase()}'] ??
+                                            _stockMap[name.toLowerCase()])
+                                      : (_stockMap['${name.toLowerCase()}|${uom.toLowerCase()}'] ??
+                                            _stockMap[name.toLowerCase()]))
+                                : null;
+                            final oos =
+                                !isService &&
+                                ((stockQtyRaw ?? -1) == 0 ||
+                                    _inactiveItemNames.contains(
+                                      name.toLowerCase(),
+                                    ));
+                            final stockQty = stockQtyRaw;
+                            return InkWell(
+                              onTap: oos
+                                  ? null
+                                  : () {
+                                      selected = item;
+                                      Navigator.pop(bCtx);
+                                    },
+                              child: Container(
+                                color: oos ? const Color(0xFFF8F8F8) : null,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 12,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            name,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                              color: oos
+                                                  ? const Color(0xFFa0aec0)
+                                                  : const Color(0xFF1a202c),
+                                            ),
+                                          ),
+                                          if (uom.isNotEmpty || cost > 0)
+                                            Text(
+                                              '${uom.isNotEmpty ? uom : "—"}  ₱${cost.toStringAsFixed(2)}',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: Color(0xFF718096),
+                                              ),
+                                            ),
+                                          const SizedBox(height: 3),
+                                          if (!isService && stockQty != null)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 7,
+                                                    vertical: 2,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: stockQty == 0
+                                                    ? const Color(0xFFFFF5F5)
+                                                    : stockQty <= 5
+                                                    ? const Color(0xFFFFFBEB)
+                                                    : const Color(0xFFF0FFF4),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: Text(
+                                                stockQty == 0
+                                                    ? '⚠ Out of stock — cannot add'
+                                                    : 'Stock: $stockQty',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: stockQty == 0
+                                                      ? Colors.red
+                                                      : stockQty <= 5
+                                                      ? Colors.orange
+                                                      : Colors.green,
+                                                ),
+                                              ),
+                                            )
+                                          else if (!isService &&
+                                              stockQty == null)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 7,
+                                                    vertical: 2,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF7F8FA),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: const Text(
+                                                'No stock record',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Color(0xFF718096),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    oos
+                                        ? const Icon(
+                                            Icons.block_outlined,
+                                            size: 16,
+                                            color: Color(0xFFa0aec0),
+                                          )
+                                        : const Icon(
+                                            Icons.add_circle_outline,
+                                            size: 16,
+                                            color: Color(0xFF718096),
+                                          ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -3014,24 +3137,46 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         isService: true,
                       );
                       if (picked != null) {
-                        await applyService(picked['name'] as String, picked['uom'] as String? ?? '');
+                        await applyService(
+                          picked['name'] as String,
+                          picked['uom'] as String? ?? '',
+                        );
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 14,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: const Color(0xFFcbd5e0)),
                       ),
-                      child: const Row(children: [
-                        Icon(Icons.search, size: 18, color: Color(0xFF718096)),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text('Select Service...', style: TextStyle(fontSize: 13, color: Color(0xFF718096))),
-                        ),
-                        Icon(Icons.arrow_forward_ios, size: 13, color: Color(0xFF718096)),
-                      ]),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.search,
+                            size: 18,
+                            color: Color(0xFF718096),
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Select Service...',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF718096),
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            size: 13,
+                            color: Color(0xFF718096),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
           ),
@@ -3079,10 +3224,14 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       // Block items marked Inactive or with zero stock
       final nameKey = name.toLowerCase().trim();
       // Look up stock by item num first (most accurate), then name|uom, then name-only
-      final uomForCheck = uom.isNotEmpty ? uom : ((_itemMasterMap[name]?['uom'] ?? '') as String);
+      final uomForCheck = uom.isNotEmpty
+          ? uom
+          : ((_itemMasterMap[name]?['uom'] ?? '') as String);
       final stockMatchedItem = _allItems.firstWhere(
-        (e) => (e['name'] as String).toLowerCase().trim() == nameKey
-            && (e['uom'] as String? ?? '').toLowerCase().trim() == uomForCheck.toLowerCase().trim(),
+        (e) =>
+            (e['name'] as String).toLowerCase().trim() == nameKey &&
+            (e['uom'] as String? ?? '').toLowerCase().trim() ==
+                uomForCheck.toLowerCase().trim(),
         orElse: () => _allItems.firstWhere(
           (e) => (e['name'] as String).toLowerCase().trim() == nameKey,
           orElse: () => <String, dynamic>{},
@@ -3090,9 +3239,10 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
       );
       final itemNumKey = (stockMatchedItem['num'] as String? ?? '').trim();
       final isInactive = _inactiveItemNames.contains(nameKey);
-      final stockQty = (itemNumKey.isNotEmpty ? _stockMap['num:$itemNumKey'] : null)
-          ?? _stockMap['$nameKey|${uomForCheck.toLowerCase().trim()}']
-          ?? _stockMap[nameKey];
+      final stockQty =
+          (itemNumKey.isNotEmpty ? _stockMap['num:$itemNumKey'] : null) ??
+          _stockMap['$nameKey|${uomForCheck.toLowerCase().trim()}'] ??
+          _stockMap[nameKey];
       final isZeroStock = stockQty != null && stockQty == 0;
       if (isInactive || isZeroStock) {
         ScaffoldMessenger.of(ctx).showSnackBar(
@@ -3360,46 +3510,80 @@ class StaffMaintenanceBodyState extends State<StaffMaintenanceBody> {
                         isService: false,
                       );
                       if (picked != null) {
-                        await applyMaterial(picked['name'] as String, picked['uom'] as String? ?? '');
+                        await applyMaterial(
+                          picked['name'] as String,
+                          picked['uom'] as String? ?? '',
+                        );
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 14,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: const Color(0xFFcbd5e0)),
                       ),
-                      child: Row(children: [
-                        const Icon(Icons.search, size: 18, color: Color(0xFF718096)),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text('Select Material...', style: TextStyle(fontSize: 13, color: Color(0xFF718096))),
-                        ),
-                        GestureDetector(
-                          onTap: () async {
-                            final result = await Navigator.push<String>(
-                              ctx,
-                              MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
-                            );
-                            if (result != null) {
-                              final match = _allItems.firstWhere(
-                                (e) => e['barcode'] == result || e['qr'] == result,
-                                orElse: () => {},
-                              );
-                              if ((match['name'] as String? ?? '').isNotEmpty) {
-                                applyMaterial(match['name'] as String, match['uom'] as String? ?? '');
-                              }
-                            }
-                          },
-                          child: const Padding(
-                            padding: EdgeInsets.only(left: 4),
-                            child: Icon(Icons.qr_code_scanner, size: 18, color: Color(0xFF003087)),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.search,
+                            size: 18,
+                            color: Color(0xFF718096),
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.arrow_forward_ios, size: 13, color: Color(0xFF718096)),
-                      ]),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Select Material...',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF718096),
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () async {
+                              final result = await Navigator.push<String>(
+                                ctx,
+                                MaterialPageRoute(
+                                  builder: (_) => const BarcodeScannerScreen(),
+                                ),
+                              );
+                              if (result != null) {
+                                final match = _allItems.firstWhere(
+                                  (e) =>
+                                      e['barcode'] == result ||
+                                      e['qr'] == result,
+                                  orElse: () => {},
+                                );
+                                if ((match['name'] as String? ?? '')
+                                    .isNotEmpty) {
+                                  applyMaterial(
+                                    match['name'] as String,
+                                    match['uom'] as String? ?? '',
+                                  );
+                                }
+                              }
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(
+                                Icons.qr_code_scanner,
+                                size: 18,
+                                color: Color(0xFF003087),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.arrow_forward_ios,
+                            size: 13,
+                            color: Color(0xFF718096),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
           ),

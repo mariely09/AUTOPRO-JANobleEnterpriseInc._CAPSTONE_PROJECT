@@ -444,7 +444,7 @@ class _AppNotificationsState extends State<AppNotifications> {
 
         if (stock == 0) {
           await _notify(
-            title: '🚨 URGENT: Out of Stock',
+            title: 'URGENT: Out of Stock',
             message:
                 '$name is out of stock. Recommend ordering $recommendQty $uom.',
             type: 'warning',
@@ -453,7 +453,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             prefKey: 'lowStock',
           );
           await _notify(
-            title: '🚨 URGENT: Out of Stock',
+            title: 'URGENT: Out of Stock',
             message:
                 '$name is out of stock. Recommend ordering $recommendQty $uom.',
             type: 'warning',
@@ -463,7 +463,7 @@ class _AppNotificationsState extends State<AppNotifications> {
           );
         } else if (stock <= min) {
           await _notify(
-            title: '⚠️ Low Stock Alert',
+            title: 'Low Stock Alert',
             message:
                 '$name is low ($stock $uom). Recommend ordering $recommendQty $uom.',
             type: 'warning',
@@ -472,7 +472,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             prefKey: 'lowStock',
           );
           await _notify(
-            title: '⚠️ Low Stock Alert',
+            title: 'Low Stock Alert',
             message:
                 '$name is low ($stock $uom). Recommend ordering $recommendQty $uom.',
             type: 'warning',
@@ -513,7 +513,7 @@ class _AppNotificationsState extends State<AppNotifications> {
         // Admin & Staff PMS alerts — gated by pref
         if (daysUntil < 0) {
           await _notify(
-            title: '🔴 PMS Overdue',
+            title: 'PMS Overdue',
             message:
                 '$plate is ${(-daysUntil)} day(s) overdue for maintenance.',
             type: 'warning',
@@ -522,7 +522,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             prefKey: 'pmsOverdue',
           );
           await _notify(
-            title: '🔴 PMS Overdue',
+            title: 'PMS Overdue',
             message:
                 '$plate is ${(-daysUntil)} day(s) overdue for maintenance.',
             type: 'warning',
@@ -532,7 +532,7 @@ class _AppNotificationsState extends State<AppNotifications> {
           );
         } else if (daysUntil == 0) {
           await _notify(
-            title: '🔔 PMS Due Today',
+            title: 'PMS Due Today',
             message: '$plate is due for maintenance today.',
             type: 'warning',
             targetRole: 'admin',
@@ -540,7 +540,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             prefKey: 'pmsDueThisWeek',
           );
           await _notify(
-            title: '🔔 PMS Due Today',
+            title: 'PMS Due Today',
             message: '$plate is due for maintenance today.',
             type: 'warning',
             targetRole: 'staff',
@@ -549,7 +549,7 @@ class _AppNotificationsState extends State<AppNotifications> {
           );
         } else if (daysUntil <= 7) {
           await _notify(
-            title: '📅 PMS Due This Week',
+            title: 'PMS Due This Week',
             message:
                 '$plate is due for maintenance this week ($daysUntil day(s)).',
             type: 'warning',
@@ -558,7 +558,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             prefKey: 'pmsDueThisWeek',
           );
           await _notify(
-            title: '📅 PMS Due This Week',
+            title: 'PMS Due This Week',
             message:
                 '$plate is due for maintenance this week ($daysUntil day(s)).',
             type: 'warning',
@@ -568,7 +568,7 @@ class _AppNotificationsState extends State<AppNotifications> {
           );
         } else if (daysUntil <= 14) {
           await _notify(
-            title: '🔔 PMS Due Soon',
+            title: 'PMS Due Soon',
             message: '$plate is due for maintenance in $daysUntil day(s).',
             type: 'info',
             targetRole: 'admin',
@@ -576,7 +576,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             prefKey: 'pmsDueSoon',
           );
           await _notify(
-            title: '🔔 PMS Due Soon',
+            title: 'PMS Due Soon',
             message: '$plate is due for maintenance in $daysUntil day(s).',
             type: 'info',
             targetRole: 'staff',
@@ -636,7 +636,7 @@ class _AppNotificationsState extends State<AppNotifications> {
 
           if (daysUntil < 0) {
             await _notify(
-              title: '🔴 Your PMS is Overdue',
+              title: 'Your PMS is Overdue',
               message:
                   'Your $plate is ${(-daysUntil)} day(s) overdue for maintenance.',
               type: 'warning',
@@ -646,7 +646,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             );
           } else if (daysUntil == 0) {
             await _notify(
-              title: '🔔 Your PMS is Due Today',
+              title: 'Your PMS is Due Today',
               message: 'Your $plate is due for maintenance today.',
               type: 'warning',
               targetUid: ownerId,
@@ -655,7 +655,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             );
           } else if (daysUntil <= 7) {
             await _notify(
-              title: '📅 Your PMS is Due This Week',
+              title: 'Your PMS is Due This Week',
               message:
                   'Your $plate is due for maintenance this week ($daysUntil day(s)).',
               type: 'warning',
@@ -665,7 +665,7 @@ class _AppNotificationsState extends State<AppNotifications> {
             );
           } else if (daysUntil <= 14) {
             await _notify(
-              title: '🔔 Your PMS is Due Soon',
+              title: 'Your PMS is Due Soon',
               message:
                   'Your $plate is due for maintenance in $daysUntil day(s).',
               type: 'info',
@@ -864,37 +864,6 @@ class _AppNotificationsState extends State<AppNotifications> {
       isRead = rawReadBy.contains(uid);
     }
     return !isRead;
-  }
-
-  Color _typeColor(String type) {
-    if (type == 'warning') return Colors.orange;
-    if (type == 'success') return const Color(0xFF2c7a7b);
-    if (type == 'danger') return const Color(0xFFE8001C);
-    return _teal;
-  }
-
-  IconData _typeIcon(String type) {
-    if (type == 'warning') return Icons.warning_amber_rounded;
-    if (type == 'success') return Icons.check_circle_rounded;
-    if (type == 'danger') return Icons.error_rounded;
-    return Icons.notifications_rounded;
-  }
-
-  // Map notification title keywords to specific emoji icons (matches website style)
-  String _titleEmoji(String title, String type) {
-    final t = title.toLowerCase();
-    if (t.contains('overdue')) return '🔴';
-    if (t.contains('due this week')) return '📅';
-    if (t.contains('due soon')) return '🔔';
-    if (t.contains('out of stock')) return '🚨';
-    if (t.contains('low stock')) return '⚠️';
-    if (t.contains('approved')) return '✅';
-    if (t.contains('registration')) return '📋';
-    if (t.contains('maintenance')) return '🔧';
-    if (type == 'success') return '✅';
-    if (type == 'warning') return '⚠️';
-    if (type == 'danger') return '🚨';
-    return '🔔';
   }
 
   String _timeAgo(Timestamp? ts) {
@@ -1247,7 +1216,6 @@ class _AppNotificationsState extends State<AppNotifications> {
                               final type = data['type'] as String? ?? 'info';
                               final title = data['title'] as String? ?? '';
                               final message = data['message'] as String? ?? '';
-                              final emoji = _titleEmoji(title, type);
                               final isUnread = _isUnread(data);
                               final ts = data['createdAt'] as Timestamp?;
                               final isChecked = _selected.contains(doc.id);
@@ -1297,7 +1265,7 @@ class _AppNotificationsState extends State<AppNotifications> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      // -- Emoji icon (matches website style) --
+                                      // -- Bell icon or checkbox --
                                       if (_isSelecting)
                                         Padding(
                                           padding: const EdgeInsets.only(

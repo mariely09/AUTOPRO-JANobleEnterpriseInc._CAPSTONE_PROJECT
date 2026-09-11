@@ -1588,362 +1588,454 @@ class _StaffDashboardState extends State<StaffDashboard> {
               .collection('stock_inventory')
               .snapshots(),
           builder: (context, stockSnap) {
-            // Maintenance stats
-            final maintDocs = maintSnap.data?.docs ?? [];
-            final allServices = maintDocs.map((d) {
-              final data = d.data() as Map<String, dynamic>;
-              return {...data, 'docId': d.id};
-            }).toList();
+            return StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('vehicles')
+                  .snapshots(),
+              builder: (context, vehicleSnap) {
+                // Maintenance stats
+                final maintDocs = maintSnap.data?.docs ?? [];
+                final allServices = maintDocs.map((d) {
+                  final data = d.data() as Map<String, dynamic>;
+                  return {...data, 'docId': d.id};
+                }).toList();
 
-            // Filter all stats to only this staff member's services
-            final myServices = _staffName.isEmpty
-                ? allServices
-                : allServices.where((s) {
-                    final mechanic = (s['mechanic'] as String? ?? '')
-                        .trim()
-                        .toLowerCase();
-                    return mechanic == _staffName.trim().toLowerCase();
-                  }).toList();
+                // Filter all stats to only this staff member's services
+                final myServices = _staffName.isEmpty
+                    ? allServices
+                    : allServices.where((s) {
+                        final mechanic = (s['mechanic'] as String? ?? '')
+                            .trim()
+                            .toLowerCase();
+                        return mechanic == _staffName.trim().toLowerCase();
+                      }).toList();
 
-            final ongoing = myServices
-                .where((s) => s['status'] == 'Ongoing')
-                .length;
+                // Today's services — ALL services today (not filtered by mechanic)
+                final now = DateTime.now();
+                const months = [
+                  'Jan',
+                  'Feb',
+                  'Mar',
+                  'Apr',
+                  'May',
+                  'Jun',
+                  'Jul',
+                  'Aug',
+                  'Sep',
+                  'Oct',
+                  'Nov',
+                  'Dec',
+                ];
+                final todayFormatted =
+                    '${months[now.month - 1]} ${now.day}, ${now.year}';
+                final todayServices = allServices.where((s) {
+                  final date = s['date'] as String? ?? '';
+                  return date == todayFormatted;
+                }).toList();
 
-            // Today's services — ALL services today (not filtered by mechanic)
-            final now = DateTime.now();
-            const months = [
-              'Jan',
-              'Feb',
-              'Mar',
-              'Apr',
-              'May',
-              'Jun',
-              'Jul',
-              'Aug',
-              'Sep',
-              'Oct',
-              'Nov',
-              'Dec',
-            ];
-            final todayFormatted =
-                '${months[now.month - 1]} ${now.day}, ${now.year}';
-            final todayServices = allServices.where((s) {
-              final date = s['date'] as String? ?? '';
-              return date == todayFormatted;
-            }).toList();
+                // Low stock count — matches StaffInventory: stock <= min is Low
+                final stockDocs = stockSnap.data?.docs ?? [];
+                final lowStock = stockDocs.where((d) {
+                  final data = d.data() as Map<String, dynamic>;
+                  final stock = (data['stock'] as num?)?.toInt() ?? 0;
+                  final min = (data['min'] as num?)?.toInt() ?? 0;
+                  // Mirror StaffInventory logic: stock > min = OK, stock <= min = Low
+                  if (min > 0) return stock <= min;
+                  return (data['status'] as String? ?? '') == 'Low';
+                }).length;
 
-            // Low stock count — matches StaffInventory: stock <= min is Low
-            final stockDocs = stockSnap.data?.docs ?? [];
-            final lowStock = stockDocs.where((d) {
-              final data = d.data() as Map<String, dynamic>;
-              final stock = (data['stock'] as num?)?.toInt() ?? 0;
-              final min = (data['min'] as num?)?.toInt() ?? 0;
-              // Mirror StaffInventory logic: stock > min = OK, stock <= min = Low
-              if (min > 0) return stock <= min;
-              return (data['status'] as String? ?? '') == 'Low';
-            }).length;
+                // Calculate PMS due this week (0-7 days) - same logic as admin
+                final _todayMidnight = DateTime(now.year, now.month, now.day);
 
-            final isLoading =
-                maintSnap.connectionState == ConnectionState.waiting ||
-                stockSnap.connectionState == ConnectionState.waiting;
+                final vehicleDocs = vehicleSnap.data?.docs ?? [];
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Greeting Card with Stats
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
-                        stops: [0.0, 1.0],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0x40EE152A),
-                          blurRadius: 18,
-                          offset: const Offset(0, 6),
+                int _computeDiff(Map<String, dynamic> data) {
+                  final status = (data['status'] as String? ?? '')
+                      .toLowerCase();
+                  if (status == 'maintenance' ||
+                      status == 'under maintenance') {
+                    return 99999;
+                  }
+                  // Prefer stored nextPMSDue; fall back to computing from lastSvcDate + svcFreq
+                  String? nextPMSStr = data['nextPMSDue'] as String?;
+                  if (nextPMSStr == null || nextPMSStr.isEmpty) {
+                    final lastSvc =
+                        data['lastSvcDate'] as String? ??
+                        data['lastServiceDate'] as String? ??
+                        '';
+                    final freq =
+                        int.tryParse(
+                          (data['svcFreq'] ?? data['serviceFrequency'] ?? '')
+                              .toString(),
+                        ) ??
+                        0;
+                    if (lastSvc.isNotEmpty && freq > 0) {
+                      final lastDate = DateTime.tryParse(lastSvc);
+                      if (lastDate != null) {
+                        final next = DateTime(
+                          lastDate.year,
+                          lastDate.month + freq,
+                          lastDate.day,
+                        );
+                        nextPMSStr =
+                            '${next.year}-${next.month.toString().padLeft(2, '0')}-${next.day.toString().padLeft(2, '0')}';
+                      }
+                    }
+                  }
+                  if (nextPMSStr == null || nextPMSStr.isEmpty) return 99999;
+                  final due = DateTime.tryParse(nextPMSStr);
+                  if (due == null) return 99999;
+                  final dueMidnight = DateTime(due.year, due.month, due.day);
+                  return dueMidnight.difference(_todayMidnight).inDays;
+                }
+
+                final dueForPms = vehicleDocs.where((d) {
+                  final diff = _computeDiff(d.data() as Map<String, dynamic>);
+                  return diff >= 0 && diff <= 7;
+                }).length;
+
+                final isLoading =
+                    maintSnap.connectionState == ConnectionState.waiting ||
+                    stockSnap.connectionState == ConnectionState.waiting ||
+                    vehicleSnap.connectionState == ConnectionState.waiting;
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Greeting Card with Stats
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
+                            stops: [0.0, 1.0],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0x40EE152A),
+                              blurRadius: 18,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // ── Greeting row ──
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-                          child: Builder(
-                            builder: (context) {
-                              final now = DateTime.now();
-                              const dayNames = [
-                                'Sun',
-                                'Mon',
-                                'Tue',
-                                'Wed',
-                                'Thu',
-                                'Fri',
-                                'Sat',
-                              ];
-                              const monthNames = [
-                                'Jan',
-                                'Feb',
-                                'Mar',
-                                'Apr',
-                                'May',
-                                'Jun',
-                                'Jul',
-                                'Aug',
-                                'Sep',
-                                'Oct',
-                                'Nov',
-                                'Dec',
-                              ];
-                              final day = dayNames[now.weekday % 7];
-                              final mon = monthNames[now.month - 1];
-                              final dayNum = '${now.day}';
-                              final h = now.hour;
-                              final greet = h < 12
-                                  ? 'Good morning,'
-                                  : h < 17
-                                  ? 'Good afternoon,'
-                                  : 'Good evening,';
-                              final firstName = _staffName.isNotEmpty
-                                  ? () {
-                                      final parts = _staffName.split(' ');
-                                      if (parts.length >= 2) {
-                                        return '${parts[0]} ${parts[1]}';
-                                      }
-                                      return parts.first;
-                                    }()
-                                  : 'Staff';
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // ── Greeting row ──
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                              child: Builder(
+                                builder: (context) {
+                                  final now = DateTime.now();
+                                  const dayNames = [
+                                    'Sun',
+                                    'Mon',
+                                    'Tue',
+                                    'Wed',
+                                    'Thu',
+                                    'Fri',
+                                    'Sat',
+                                  ];
+                                  const monthNames = [
+                                    'Jan',
+                                    'Feb',
+                                    'Mar',
+                                    'Apr',
+                                    'May',
+                                    'Jun',
+                                    'Jul',
+                                    'Aug',
+                                    'Sep',
+                                    'Oct',
+                                    'Nov',
+                                    'Dec',
+                                  ];
+                                  final day = dayNames[now.weekday % 7];
+                                  final mon = monthNames[now.month - 1];
+                                  final dayNum = '${now.day}';
+                                  final h = now.hour;
+                                  final greet = h < 12
+                                      ? 'Good morning,'
+                                      : h < 17
+                                      ? 'Good afternoon,'
+                                      : 'Good evening,';
+                                  final firstName = _staffName.isNotEmpty
+                                      ? () {
+                                          final parts = _staffName.split(' ');
+                                          if (parts.length >= 2) {
+                                            return '${parts[0]} ${parts[1]}';
+                                          }
+                                          return parts.first;
+                                        }()
+                                      : 'Staff';
 
-                              return Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  // ── Left: greeting + first name ──
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          greet,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w400,
-                                            height: 1.2,
+                                  return Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      // ── Left: greeting + first name ──
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              greet,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w400,
+                                                height: 1.2,
+                                              ),
+                                            ),
+                                            Text(
+                                              firstName,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 26,
+                                                fontWeight: FontWeight.w900,
+                                                height: 1.1,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      // ── Right: square date box ──
+                                      Container(
+                                        width: 80,
+                                        height: 80,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.white24,
+                                            width: 1,
                                           ),
                                         ),
-                                        Text(
-                                          firstName,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 26,
-                                            fontWeight: FontWeight.w900,
-                                            height: 1.1,
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              '$mon ${now.year}',
+                                              style: const TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                letterSpacing: 0.3,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              dayNum,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 34,
+                                                fontWeight: FontWeight.w900,
+                                                height: 1,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              day,
+                                              style: const TextStyle(
+                                                color: Colors.white54,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                letterSpacing: 1,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+
+                            // ── Stats grid ──
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                14,
+                                16,
+                                14,
+                              ),
+                              child: IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Expanded(
+                                      child: _staffStatCard(
+                                        icon: Icons.check_circle_outline,
+                                        value: isLoading
+                                            ? '…'
+                                            : '${todayServices.length}',
+                                        label: "Today's\nServices",
+                                        onTap: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const StaffVehicleList(),
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                  // ── Right: square date box ──
-                                  Container(
-                                    width: 80,
-                                    height: 80,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: Colors.white24,
-                                        width: 1,
                                       ),
                                     ),
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          '$mon ${now.year}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            letterSpacing: 0.3,
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: _staffStatCard(
+                                        icon: Icons.build_outlined,
+                                        value: isLoading ? '…' : '$dueForPms',
+                                        label: 'Due to PMS\nThis Week',
+                                        onTap: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const StaffVehicleList(),
                                           ),
                                         ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          dayNum,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 34,
-                                            fontWeight: FontWeight.w900,
-                                            height: 1,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: _staffStatCard(
+                                        icon: Icons.warning_amber_outlined,
+                                        value: isLoading ? '…' : '$lowStock',
+                                        label: 'Low\nStock',
+                                        onTap: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const StaffInventory(),
                                           ),
                                         ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          day,
-                                          style: const TextStyle(
-                                            color: Colors.white54,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            letterSpacing: 1,
-                                          ),
-                                        ),
-                                      ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // ── Inline calendar ──
+                      _buildInlineCalendar(),
+                      const SizedBox(height: 20),
+                      // ── Today's Services Card ──
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // ── Header ──
+                            Container(
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                14,
+                                16,
+                                12,
+                              ),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(16),
+                                ),
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Color(0xFFe2e8f0),
+                                    width: 1,
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    "Today's Services",
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF1a202c),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            const StaffMaintenance(),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'See all →',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFFE8001C),
+                                      ),
                                     ),
                                   ),
                                 ],
-                              );
-                            },
-                          ),
-                        ),
-
-                        // ── Stats grid ──
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                          child: IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(
-                                  child: _staffStatCard(
-                                    icon: Icons.check_circle_outline,
-                                    value: isLoading ? '…' : '${todayServices.length}',
-                                    label: "Today's\nServices",
-                                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffVehicleList())),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _staffStatCard(
-                                    icon: Icons.autorenew,
-                                    value: isLoading ? '…' : '$ongoing',
-                                    label: 'Ongoing',
-                                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffVehicleList())),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _staffStatCard(
-                                    icon: Icons.warning_amber_outlined,
-                                    value: isLoading ? '…' : '$lowStock',
-                                    label: 'Low\nStock',
-                                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffInventory())),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
-                          ),
+                            // ── Body ──
+                            if (isLoading)
+                              const Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              )
+                            else if (todayServices.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.all(20),
+                                child: Center(
+                                  child: Text(
+                                    'No services for today.',
+                                    style: TextStyle(
+                                      color: Color(0xFF718096),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else
+                              Column(
+                                children: todayServices
+                                    .take(5)
+                                    .map((s) => _buildScheduleCard(s))
+                                    .toList(),
+                              ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  // ── Inline calendar ──
-                  _buildInlineCalendar(),
-                  const SizedBox(height: 20),
-                  // ── Today's Services Card ──
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ── Header ──
-                        Container(
-                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(16),
-                            ),
-                            border: Border(
-                              bottom: BorderSide(
-                                color: Color(0xFFe2e8f0),
-                                width: 1,
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                "Today's Services",
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1a202c),
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const StaffMaintenance(),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'See all →',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFFE8001C),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // ── Body ──
-                        if (isLoading)
-                          const Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Center(child: CircularProgressIndicator()),
-                          )
-                        else if (todayServices.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.all(20),
-                            child: Center(
-                              child: Text(
-                                'No services for today.',
-                                style: TextStyle(
-                                  color: Color(0xFF718096),
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          )
-                        else
-                          Column(
-                            children: todayServices
-                                .take(5)
-                                .map((s) => _buildScheduleCard(s))
-                                .toList(),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             );
           },
         );
@@ -2112,70 +2204,68 @@ class _StaffDashboardState extends State<StaffDashboard> {
     if (service == '—') service = s['desc'] as String? ?? '—';
 
     return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: const BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Color(0xFFe2e8f0), width: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFe2e8f0), width: 1)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1a3560).withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.build_outlined,
+              color: Color(0xFF1a3560),
+              size: 18,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1a3560).withOpacity(0.08),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.build_outlined,
-                color: Color(0xFF1a3560),
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    service,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: Color(0xFF1a202c),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  service,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: Color(0xFF1a202c),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    plate,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF718096),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                status,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: statusColor,
-                  fontWeight: FontWeight.w600,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 2),
+                Text(
+                  plate,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF718096),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              status,
+              style: TextStyle(
+                fontSize: 10,
+                color: statusColor,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
     );
   }
 
