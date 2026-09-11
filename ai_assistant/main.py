@@ -792,7 +792,7 @@ BOOKING WORKFLOW:
 RULES:
 - Only this customer's data; call tools for data — never invent records, prices, or schedules.
 - Maintenance questions → get_service_recommendations; state recommendations are from recorded data, not guaranteed.
-- Cost estimates → estimate_service_cost (never guess prices); format per DISPLAY below.
+- Cost estimates → estimate_service_cost (never guess prices). Customers pay for SERVICES ONLY — do NOT include materials in cost totals or breakdowns. Single service: show price directly. Multiple services: list each with its price then show the combined total. Never mention material costs in price responses.
 - "what was my previous question?" with empty history → "There's no previous conversation in this session. Feel free to ask me anything about your vehicles, bookings, or services!"
 - Reformat follow-ups ("make it a list") → reformat previous answer, NO tool calls.
 - Tool {"error":"QUOTA_EXCEEDED"} → "Our database is temporarily unavailable due to a usage limit. Please try again in a few minutes."
@@ -802,9 +802,10 @@ TOOL MAPPING: my vehicles/fleet/cars→get_my_vehicles; service history/past ser
 
 DISPLAY:
 - "list all services/available services" → get_service_prices with NO filter, show EVERY service grouped by category. NEVER mix materials into a services list.
-- Named service price ("how much is oil change?") → show the price, then note "Materials may be charged separately. Ask for a full estimate to include material costs."
+- Named service price ("how much is oil change?") → show the service price only. Do NOT mention materials.
 - "materials needed for [service]" → get_customer_materials with that keyword; if zero results → estimate_service_cost for the historical pattern. NEVER invent material names; if no data exists, say so explicitly.
-- Cost estimate incl. materials → estimate_service_cost, then show: **Service Charge**, each **Material — line total**, **Material Subtotal**, **Estimated Total** (services/materials are SEPARATE charges; multiple services → one combined total; unavailable price → say so; final amount may vary).
+- Cost estimate (single service) → show: "The [Service] is ₱[price]." — no materials mentioned.
+- Cost estimate (multiple services) → list each service with its price, then "Total: ₱[sum]." — no materials.
 - Materials: show name/group/UOM/customer price only — NEVER stock quantities or supplier info, even if asked.
 - Service history: lead with "You have [N] completed record(s), total spend [total]."; then **[N]. [Date] - [Plate]** / Services / Materials / Cost; >10 jobs → 10 most recent + note; none → warm no-records message.
 - Vehicles: "Here are your registered vehicles:" then **[Plate] - [Desc]** / Status / Last Service / Frequency; close with overdue/due-soon note.
@@ -1590,18 +1591,11 @@ def _customer_direct_lookup(message: str, customer_uid: str,
                         if len(services) > 5 else ""
                 if len(shown) == 1:
                     reply = (
-                        f"The **{shown[0]['name']}** service is **{shown[0]['cost']}**.\n\n"
-                        "Materials (e.g. engine oil, filters) may be charged separately "
-                        "depending on the items used. Ask *\"how much will an oil change cost "
-                        "including materials?\"* for a full estimate."
+                        f"The **{shown[0]['name']}** service is **{shown[0]['cost']}**."
                     )
                 else:
                     header = f"Here are the services matching **\"{_svc_kw}\"**:\n\n"
-                    reply  = (
-                        header + "\n".join(lines) + tail
-                        + "\n\n*Materials may be charged separately. Ask for a full estimate "
-                        "to include material costs.*"
-                    )
+                    reply  = header + "\n".join(lines) + tail
             else:
                 # TC2 — "list all services": show ONLY services, grouped by category
                 # Group by the 'group' field (e.g. "AutoService", "Lubricants", etc.)
@@ -1618,11 +1612,7 @@ def _customer_direct_lookup(message: str, customer_uid: str,
                     sections.append(f"**{grp_name}:**\n" + "\n".join(lines))
 
                 header = f"Here are our **{total}** available service(s):\n\n"
-                reply  = (
-                    header + "\n\n".join(sections)
-                    + "\n\n*Ask about a specific service for pricing details, "
-                    "or \"how much will [service] cost including materials?\" for a full estimate.*"
-                )
+                reply  = header + "\n\n".join(sections)
 
             return {"reply": reply, "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
 
@@ -1715,46 +1705,42 @@ def _customer_direct_lookup(message: str, customer_uid: str,
                 "intent": intent,
             }
 
-        svc_name     = matched[0].get("service", _est_svc)
-        svc_charge   = est.get("service_charge", est.get("estimated_total", "—"))
-        materials    = est.get("materials") or []
-        mat_subtotal = est.get("material_subtotal", "")
-        est_total    = est.get("estimated_total", "")
-        usage_note   = est.get("materials_usage_note", "")
-        missing      = est.get("materials_missing_price") or []
+        svc_name  = matched[0].get("service", _est_svc)
+        # Build a service-only cost breakdown.
+        # Materials are NOT included — customers are only charged for services.
+        # When multiple services are requested, list each with its price and
+        # show a combined total. For a single service, show it directly.
 
-        # Build the itemized breakdown
-        lines = [f"**Estimated Cost for {svc_name}:**\n"]
-        lines.append(f"• Service Charge: **{svc_charge}**")
-
-        if materials:
-            lines.append("\n**Materials:**")
-            for m in materials:
-                qty_str = f"{m['qty']} {m.get('uom', '') or 'unit'}".strip()
-                lines.append(f"• {m['material']} ({qty_str}) — {m['line_total']}")
-            if mat_subtotal:
-                lines.append(f"\n• Material Subtotal: **{mat_subtotal}**")
-            if est_total and est_total != svc_charge:
-                lines.append(f"\n**Estimated Total: {est_total}**")
-            lines.append(
-                "\n*The final amount may vary depending on the actual materials used.*"
+        if len(matched) == 1:
+            # Single service — simple price display
+            price = matched[0].get("cost", "—")
+            reply = (
+                f"The **{svc_name}** service is **{price}**."
             )
-            if missing:
-                lines.append(
-                    "\n*No price on file for: " + ", ".join(missing)
-                    + " — these are not included in the estimate.*"
-                )
-            if usage_note:
-                lines.append(f"\n_{usage_note}_")
         else:
-            lines.append(f"\n**Estimated Total: {svc_charge}**")
-            lines.append(
-                "\n*No material usage pattern found for this service yet. "
-                "Only the service charge is shown. "
-                "Materials are billed separately if used.*"
+            # Multiple services — itemize and total
+            lines = ["**Service Cost Estimate:**\n"]
+            total_raw = 0.0
+            for svc in matched:
+                lines.append(f"• {svc['service']}: **{svc['cost']}**")
+                # strip currency for summing
+                import re as _re3
+                raw = _re3.sub(r"[₱,\s]", "", svc.get("cost", "0"))
+                try:
+                    total_raw += float(raw)
+                except ValueError:
+                    pass
+            lines.append(f"\n**Total: ₱{total_raw:,.2f}**")
+            reply = "\n".join(lines)
+
+        # Note about unmatched services if any
+        unmatched = est.get("unmatched") or []
+        if unmatched:
+            reply += (
+                f"\n\n*Note: I couldn't find pricing for: {', '.join(unmatched)}. "
+                "Ask for the full service list to see all available options.*"
             )
 
-        reply = "\n".join(lines)
         return {
             "reply": reply,
             "tool_calls": [{"tool": "estimate_service_cost", "args": {"service_names": [_est_svc]}, "result": est}],
