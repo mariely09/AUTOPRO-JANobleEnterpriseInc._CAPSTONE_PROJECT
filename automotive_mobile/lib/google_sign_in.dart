@@ -104,15 +104,27 @@ class GoogleSignInHelper {
       );
     }
 
-    // ── Step 4: Send OTP via Flask backend ───────────────────────────────
-    await _sendOtp(email: email, name: (userData['name'] as String?) ?? name);
+    // ── Step 4: Send OTP to user's actual email (from Firestore, not Google) ───
+    // Get the actual user email from Firestore (not the Google account email)
+    final userEmail = (userData['email'] as String?) ?? email;
+    final userName = (userData['name'] as String?) ?? name;
 
-    // ── Step 5: Show OTP dialog ───────────────────────────────────────────
+    debugPrint('📧 Google email: $email');
+    debugPrint('📧 Firestore email: ${userData['email']}');
+    debugPrint('📧 OTP will be sent to: $userEmail');
+    debugPrint('👤 User name: $userName');
+
+    await _sendOtp(
+      email: userEmail,
+      name: userName.isNotEmpty ? userName : userEmail,
+    );
+
+    // ── Step 5: Show OTP dialog (with user's actual email) ────────────────
     if (!context.mounted) return null;
     final verified = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _OtpDialog(email: email),
+      builder: (_) => _OtpDialog(email: userEmail),
     );
 
     if (verified != true) {
@@ -257,11 +269,15 @@ class GoogleSignInHelper {
     required String uid,
     required String email,
   }) async {
-    // Try by UID first
+    // Try by UID first (most reliable for Google sign-in)
     final uidDoc = await _firestore.collection('users').doc(uid).get();
-    if (uidDoc.exists) return uidDoc.data() ?? {};
+    if (uidDoc.exists) {
+      debugPrint('✅ User found by UID: $uid');
+      return uidDoc.data() ?? {};
+    }
 
-    // Fallback: by email
+    // Fallback: search by Google email
+    debugPrint('⚠️ User not found by UID, searching by email: $email');
     final snap = await _firestore
         .collection('users')
         .where('email', isEqualTo: email)
@@ -269,6 +285,7 @@ class GoogleSignInHelper {
         .get();
     if (snap.docs.isNotEmpty) {
       final data = snap.docs.first.data();
+      debugPrint('✅ User found by email, migrating to UID-based doc');
       // Migrate to UID-keyed doc (merge to preserve any extra fields)
       await _firestore
           .collection('users')
@@ -277,6 +294,25 @@ class GoogleSignInHelper {
       return data;
     }
 
+    // Last resort: check if there's a googleEmail field
+    debugPrint('⚠️ User not found by email, searching by googleEmail field');
+    final googleEmailSnap = await _firestore
+        .collection('users')
+        .where('googleEmail', isEqualTo: email)
+        .limit(1)
+        .get();
+    if (googleEmailSnap.docs.isNotEmpty) {
+      final data = googleEmailSnap.docs.first.data();
+      debugPrint('✅ User found by googleEmail field');
+      // Migrate to UID-keyed doc
+      await _firestore
+          .collection('users')
+          .doc(uid)
+          .set(data, SetOptions(merge: true));
+      return data;
+    }
+
+    debugPrint('❌ User not found in Firestore: uid=$uid, email=$email');
     throw Exception(
       'User account not found. Please contact the administrator to register your account.',
     );
@@ -412,6 +448,22 @@ class _OtpDialogState extends State<_OtpDialog> {
       _verified = false;
     });
     try {
+      // Get user's actual name from Firestore
+      String userName = widget.email;
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: widget.email)
+            .limit(1)
+            .get();
+        if (userDoc.docs.isNotEmpty) {
+          userName =
+              (userDoc.docs.first.data()['name'] as String?) ?? widget.email;
+        }
+      } catch (e) {
+        debugPrint('Failed to fetch user name: $e');
+      }
+
       final otp = (100000 + Random.secure().nextInt(900000)).toString();
       final expiry = DateTime.now()
           .toUtc()
@@ -441,7 +493,7 @@ class _OtpDialogState extends State<_OtpDialog> {
               'user_id': _kEmailjsPublicKey,
               'template_params': {
                 'to_email': widget.email,
-                'to_name': widget.email,
+                'to_name': userName,
                 'email': widget.email,
                 'otp_code': otp,
                 'otp': otp,

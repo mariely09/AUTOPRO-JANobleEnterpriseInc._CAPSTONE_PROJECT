@@ -271,12 +271,21 @@ const GoogleSignInModule = {
 
     this.setButtonLoading(googleBtn, false);
 
-    // Send OTP to verified Google email
-    this.showToast('Sending verification code to ' + user.email + '…', 'success');
-    await _gsSendOtp(user.email, user.displayName || '');
+    // ── Send OTP to user's FIRESTORE email (not Google email) ──
+    // Match mobile app behavior: use email from Firestore, fallback to Google email
+    const userEmail = userData.email || user.email;
+    const userName = userData.name || user.displayName || '';
+    
+    console.log('📧 Google email:', user.email);
+    console.log('📧 Firestore email:', userData.email);
+    console.log('📧 OTP will be sent to:', userEmail);
+    console.log('👤 User name:', userName);
 
-    // Show OTP overlay
-    _gsShowOtpOverlay(user.email);
+    this.showToast('Sending verification code to ' + userEmail + '…', 'success');
+    await _gsSendOtp(userEmail, userName);
+
+    // Show OTP overlay with the actual email that will receive OTP
+    _gsShowOtpOverlay(userEmail);
 
     // Wire up verify button
     const verifyBtn = document.getElementById('_gsOtpVerifyBtn');
@@ -367,7 +376,9 @@ const GoogleSignInModule = {
     btn.innerHTML = '<span style="width:18px;height:18px;border:2.5px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:spin 0.8s linear infinite;"></span> Verifying…';
 
     try {
-      await _gsVerifyOtp(this._pendingUser.email, entered);
+      // Verify OTP using the FIRESTORE email (where OTP was actually sent)
+      const userEmail = this._pendingUserData.email || this._pendingUser.email;
+      await _gsVerifyOtp(userEmail, entered);
 
       // OTP correct — store session and redirect
       _gsHideOtpOverlay();
@@ -399,7 +410,10 @@ const GoogleSignInModule = {
     resendBtn.disabled = true;
     resendBtn.textContent = 'Sending…';
     try {
-      await _gsSendOtp(this._pendingUser.email, this._pendingUser.displayName || '');
+      // Resend to FIRESTORE email (same as initial send)
+      const userEmail = this._pendingUserData.email || this._pendingUser.email;
+      const userName = this._pendingUserData.name || this._pendingUser.displayName || '';
+      await _gsSendOtp(userEmail, userName);
       // Clear boxes
       for (let i = 0; i < 6; i++) { const b = document.getElementById('_gsOtp' + i); if (b) b.value = ''; }
       const b = document.getElementById('_gsOtp0'); if (b) b.focus();
@@ -419,17 +433,36 @@ const GoogleSignInModule = {
     const email = googleUser.email;
     const db = firebase.firestore();
 
+    // Try by UID first (most reliable for Google sign-in)
     let doc = await db.collection('users').doc(uid).get();
-    if (doc.exists) return doc.data();
+    if (doc.exists) {
+      console.log('✅ User found by UID:', uid);
+      return doc.data();
+    }
 
+    // Fallback: search by Google email
+    console.log('⚠️ User not found by UID, searching by email:', email);
     const snap = await db.collection('users').where('email', '==', email).limit(1).get();
     if (!snap.empty) {
       // Migrate to UID-keyed doc
       const data = snap.docs[0].data();
+      console.log('✅ User found by email, migrating to UID-based doc');
       await db.collection('users').doc(uid).set(data);
       return data;
     }
 
+    // Last resort: check if there's a googleEmail field
+    console.log('⚠️ User not found by email, searching by googleEmail field');
+    const googleEmailSnap = await db.collection('users').where('googleEmail', '==', email).limit(1).get();
+    if (!googleEmailSnap.empty) {
+      const data = googleEmailSnap.docs[0].data();
+      console.log('✅ User found by googleEmail field');
+      // Migrate to UID-keyed doc
+      await db.collection('users').doc(uid).set(data);
+      return data;
+    }
+
+    console.log('❌ User not found in Firestore: uid=' + uid + ', email=' + email);
     throw new Error('User account not found. Please contact the administrator.');
   },
 
