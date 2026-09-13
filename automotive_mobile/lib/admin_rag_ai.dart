@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
@@ -351,6 +352,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   String _currentUid = ''; // Firebase UID for history persistence
 
   bool _loading = false;
+  http.Client? _activeClient; // held so we can close() it to cancel the in-flight request
   bool get _rateLimited => AdminChatStore.rateLimited;
   set _rateLimited(bool v) => AdminChatStore.rateLimited = v;
   String get _resetIn => AdminChatStore.resetIn;
@@ -407,6 +409,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     if (_currentUid.isNotEmpty && AdminChatStore.messages.isNotEmpty) {
       AdminChatStore.saveChat(_currentUid);
     }
+    _activeClient?.close();
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -547,8 +550,24 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       });
   }
 
-  // ── Scroll ─────────────────────────────────────────────────────────────────
+  // ── Stop generation ────────────────────────────────────────────────────────
+  void _stopGeneration() {
+    _activeClient?.close();
+    _activeClient = null;
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _messages.add(
+          _ChatMessage(role: 'ai', text: '⏹ Generation stopped.'),
+        );
+      });
+    }
+    AdminChatStore._lastSavedSig = null;
+    if (_currentUid.isNotEmpty) AdminChatStore.saveChat(_currentUid);
+    _scrollToBottom();
+  }
 
+  // ── Scroll ─────────────────────────────────────────────────────────────────
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
@@ -596,7 +615,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     // session memory is handled server-side via _sessionId
 
     try {
-      final resp = await http
+      final client = http.Client();
+      _activeClient = client;
+      final resp = await client
           .post(
             Uri.parse('$_kAiBaseUrl/admin/chat'),
             headers: {'Content-Type': 'application/json'},
@@ -606,6 +627,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             }),
           )
           .timeout(const Duration(seconds: 120));
+      _activeClient = null;
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -788,6 +810,12 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         });
       }
     } on http.ClientException catch (_) {
+      // If _activeClient is null, the request was cancelled intentionally — ignore
+      if (_activeClient == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+      _activeClient = null;
       setState(() {
         _loading = false;
         _messages.add(
@@ -2322,6 +2350,7 @@ class _AdminFocusInputBar extends StatefulWidget {
   final bool rateLimited;
   final String hint;
   final Future<void> Function([String?]) onSend;
+  final VoidCallback? onStop;
 
   const _AdminFocusInputBar({
     required this.inputCtrl,
@@ -2329,6 +2358,7 @@ class _AdminFocusInputBar extends StatefulWidget {
     required this.rateLimited,
     required this.hint,
     required this.onSend,
+    this.onStop,
   });
 
   @override
