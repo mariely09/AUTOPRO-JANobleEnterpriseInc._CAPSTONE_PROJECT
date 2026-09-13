@@ -27,17 +27,7 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     ? '<div class="ap-report-daterange">Date Range: <strong>' + dateRange + '</strong></div>'
     : '';
 
-  // ── Summary stats strip (matches PDF record-count / breakdown line) ────────
-  var summaryHtml = '';
-  if (summary && summary.length) {
-    summaryHtml = '<div class="ap-strip">'
-      + summary.map(function(s, i) {
-          var sep = i > 0 ? '<span class="ap-strip-sep">·</span>' : '';
-          var colorStyle = s.color ? 'color:' + s.color + ' !important;' : '';
-          return sep + '<span class="ap-strip-item"><strong style="' + colorStyle + '">' + s.value + '</strong> ' + s.label + '</span>';
-        }).join('')
-      + '</div>';
-  }
+  // Summary strip intentionally omitted from print layout
 
   // Build table header with proportional col widths if provided
   var colWidths = (options && options.colWidths) || [];
@@ -99,7 +89,6 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     + '</div>'
     + '<div class="ap-header-rule"></div>'
     + '<div class="ap-content">'
-    +   summaryHtml
     +   '<div class="ap-table-wrap"><table>' + colGroupHtml + '<thead><tr>' + theadHtml + '</tr></thead><tbody>' + tbodyHtml + '</tbody></table></div>'
     +   tfootHtml
     + '</div>'
@@ -151,16 +140,6 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     '  print-color-adjust: exact !important;',
     '  margin-bottom: 0;',
     '}',
-    /* ── Summary strip (record counts below the red line) ── */
-    '.ap-strip {',
-    '  display: flex; align-items: center; flex-wrap: wrap; gap: 0;',
-    '  padding: 6px 0 6px;',
-    '  border-bottom: 1px solid #e2e8f0;',
-    '  margin-bottom: 10px;',
-    '}',
-    '.ap-strip-item { font-size: 8px; color: #718096 !important; }',
-    '.ap-strip-item strong { font-weight: 800; }',
-    '.ap-strip-sep { margin: 0 9px; color: #cbd5e0 !important; font-size: 10px; }',
     /* ── Content area ── */
     '.ap-content { padding: 10px 0 0; }',
     '.ap-table-wrap { border-radius: 5px; overflow: hidden; border: 1px solid #e2e8f0; width: 100%; }',
