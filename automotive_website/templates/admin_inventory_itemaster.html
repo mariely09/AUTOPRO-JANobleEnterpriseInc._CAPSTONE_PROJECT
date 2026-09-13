@@ -699,6 +699,7 @@
     var rows = filtered.map(function(i) {
       return [
         i.itemNum || 'â€â€',
+        i.supplierCode || 'â€â€',
         i.itemName || 'â€â€',
         i.commodityGroup || 'â€â€',
         i.uom || 'â€â€',
@@ -714,7 +715,7 @@
 
     _doPrint(printTitle,
       [{ label:'Total', value:filtered.length, color:'#1a202c' }, { label:'Materials', value:matCount, color:'#E8001C' }, { label:'Services', value:svcCount, color:'#003087' }],
-      ['Item No.', 'Item Name', 'Commodity Group', 'UOM', 'Type', 'Cost'],
+      ['Item No.', 'Supplier Item Code', 'Item Name', 'Commodity Group', 'UOM', 'Type', 'Cost'],
       rows
     );
   };
@@ -769,6 +770,7 @@
     var rows = filtered.map(function(i) {
       return [
         i.itemNum || 'â€â€',
+        i.supplierCode || 'â€â€',
         i.itemName || 'â€â€',
         i.commodityGroup || 'â€â€',
         i.uom || 'â€â€',
@@ -780,10 +782,10 @@
     _downloadExcel(
       'Item_Master_' + stamp + '.xlsx',
       imTitle,
-      ['Item No.', 'Item Name', 'Commodity Group', 'UOM', 'Item Type', 'Cost'],
+      ['Item No.', 'Supplier Item Code', 'Item Name', 'Commodity Group', 'UOM', 'Item Type', 'Cost'],
       rows,
       null,
-      { textColIndexes: [0] }
+      { textColIndexes: [0, 1] }
     );
   };
 

@@ -530,6 +530,7 @@ window.printStockInventory = function() {
     var rows = filtered.map(function(i) {
         return [
             i.itemNum || '—',
+            i.supplierCode || '—',
             i.itemName || '—',
             i.commodityGroup || '—',
             i.unit || '—',
@@ -548,7 +549,7 @@ window.printStockInventory = function() {
 
     _doPrint(printTitle,
         [{ label:'Total', value:filtered.length, color:'#1a202c' }, { label:'In Stock', value:okCount, color:'#38a169' }, { label:'Low', value:lowCount, color:'#d69e2e' }, { label:'Out', value:outCount, color:'#e53e3e' }],
-        ['Item No.', 'Item Name', 'Commodity Group', 'UOM', 'Current Qty', 'Min', 'Max', 'Reorder'],
+        ['Item No.', 'Supplier Item Code', 'Item Name', 'Commodity Group', 'UOM', 'Current Qty', 'Min', 'Max', 'Reorder'],
         rows
     );
 };
@@ -1002,6 +1003,7 @@ window.exportStockInventoryExcel = function() {
     var rows = filtered.map(function(i) {
         return [
             i.itemNum || '—',
+            i.supplierCode || '—',
             i.itemName || '—',
             i.commodityGroup || '—',
             i.unit || '—',
@@ -1016,10 +1018,10 @@ window.exportStockInventoryExcel = function() {
     _downloadExcel(
         'Stock_Inventory_' + stamp + '.xlsx',
         invTitle,
-        ['Item No.', 'Item Name', 'Commodity Group', 'UOM', 'Current Qty', 'Min Level', 'Max Level', 'Reorder Qty'],
+        ['Item No.', 'Supplier Item Code', 'Item Name', 'Commodity Group', 'UOM', 'Current Qty', 'Min Level', 'Max Level', 'Reorder Qty'],
         rows,
         null,
-        { textColIndexes: [0] }
+        { textColIndexes: [0, 1] }
     );
 };
 
