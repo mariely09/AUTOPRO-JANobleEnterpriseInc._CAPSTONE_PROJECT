@@ -2434,7 +2434,7 @@ function renderIssuancesList() {
             if (!isNaN(dt.getTime())) return _ISS_MONTHS[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
             return d;
         }
-        return '<div class="table-row" style="min-width:1100px;grid-template-columns:110px 130px 120px 1fr 100px 140px 70px 80px 110px 110px;">'
+        return '<div class="table-row" style="min-width:1100px;grid-template-columns:130px 130px 120px 1fr 100px 140px 70px 80px 110px 110px;">'
             + '<div>' + _fmtIssDate(i.date) + '</div>'
             + '<div>' + (i.assetNum||'-') + (assetDesc ? '<br><span style="font-size:0.7rem;color:#718096;">' + assetDesc + '</span>' : '') + '</div>'
             + '<div>' + (i.itemNum||'-') + '</div>'

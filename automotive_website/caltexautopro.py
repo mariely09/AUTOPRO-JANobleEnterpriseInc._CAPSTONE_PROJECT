@@ -847,13 +847,14 @@ def _require_admin():
     Verify the caller is an authenticated admin and return their claims,
     or None. Checks, in order:
       1. Bearer Firebase ID token — admin via custom claim (admin/role), or
-      2. the Firestore `users/{uid}.role == 'admin'` (via the shared
-         ai_assistant/firebase_client module already used by this app).
+         Firestore `users/{uid}.role == 'admin'`.
     """
+    # ── Bearer token (sent by JS frontend via firebase.auth().currentUser.getIdToken()) ──
     auth_header = request.headers.get('Authorization', '')
     token = auth_header[7:].strip() if auth_header.startswith('Bearer ') else ''
     if not token:
         return None
+
     try:
         claims = fb_auth.verify_id_token(token)
     except Exception:
