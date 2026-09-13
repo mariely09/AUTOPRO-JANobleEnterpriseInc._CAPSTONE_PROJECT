@@ -48,7 +48,7 @@ def _next_manila_midnight_str() -> str:
 
 # ── Configurable limits (env-overridable, 0 = unlimited) ─────────────────────
 CUSTOMER_DAILY_TOKEN_LIMIT:   int = int(os.getenv("CUSTOMER_DAILY_TOKEN_LIMIT",   "100000"))
-CUSTOMER_DAILY_REQUEST_LIMIT: int = int(os.getenv("CUSTOMER_DAILY_REQUEST_LIMIT", "50"))
+CUSTOMER_DAILY_REQUEST_LIMIT: int = int(os.getenv("CUSTOMER_DAILY_REQUEST_LIMIT", "100"))
 ADMIN_DAILY_TOKEN_LIMIT:      int = int(os.getenv("ADMIN_DAILY_TOKEN_LIMIT",      "200000"))  # high but finite; 0 = unlimited
 ADMIN_DAILY_REQUEST_LIMIT:    int = int(os.getenv("ADMIN_DAILY_REQUEST_LIMIT",    "200"))   # 0 = unlimited
 
