@@ -261,53 +261,28 @@ window.txnSetCommodityFilter = function(val) {
   if (typeof renderInventoryTransactions === 'function') renderInventoryTransactions();
 };
 
-// ── Populate commodity group dropdown ────────────────────────────────────
-// Reads from already-loaded window._fbItemMaster (no extra Firestore call).
-// Falls back to polling until admin_firebase.js has populated it.
+// ── Populate commodity group dropdown from Firestore ──────────────────────
 window._txnPopulateCommodityFilterDropdown = function() {
   var sel = document.getElementById('txnCommodityFilterDropdown');
   if (!sel) return;
-
-  function _buildFromCache() {
-    var master = window._fbItemMaster || window.itemMaster || [];
-    if (!master.length) return false;
-    var seen = {};
-    master.forEach(function(i) {
-      var g = i.group || i.commodityGroup || '';
-      if (g) seen[g] = true;
-    });
-    var groups = Object.keys(seen).sort();
-    if (!groups.length) return false;
-    sel.innerHTML = '<option value="">All Groups</option>'
-      + groups.map(function(v) { return '<option value="' + v + '">' + v + '</option>'; }).join('');
-    if (window._txnCommodityFilter) sel.value = window._txnCommodityFilter;
-    return true;
+  if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) {
+    setTimeout(window._txnPopulateCommodityFilterDropdown, 400);
+    return;
   }
-
-  // Try immediately from cached globals
-  if (_buildFromCache()) return;
-
-  // Not ready yet — poll every 100ms until admin_firebase.js populates item master
-  var _pollCount = 0;
-  var _poll = setInterval(function() {
-    _pollCount++;
-    if (_buildFromCache() || _pollCount >= 50) {
-      clearInterval(_poll);
-      // Hard fallback: direct Firestore call
-      if (!document.getElementById('txnCommodityFilterDropdown').options.length > 1) {
-        if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
-          firebase.firestore().collection('domains').doc('commodity_groups').collection('items').orderBy('name').get()
-            .then(function(snap) {
-              var cgList = snap.docs.map(function(d) { return d.data().name || ''; }).filter(Boolean);
-              if (!cgList.length) cgList = ['Lubricants','Spare Parts','Filter','AutoService'];
-              sel.innerHTML = '<option value="">All Groups</option>'
-                + cgList.map(function(v) { return '<option value="' + v + '">' + v + '</option>'; }).join('');
-              if (window._txnCommodityFilter) sel.value = window._txnCommodityFilter;
-            }).catch(function() {});
-        }
-      }
-    }
-  }, 100);
+  firebase.firestore().collection('domains').doc('commodity_groups').collection('items').orderBy('name').get()
+    .then(function(snap) {
+      var cgList = snap.docs.map(function(d){ return d.data().name || ''; }).filter(Boolean);
+      if (!cgList.length) cgList = ['Lubricants','Spare Parts','Filter','AutoService'];
+      sel.innerHTML = '<option value="">All Groups</option>'
+        + cgList.map(function(v){ return '<option value="'+v+'">'+v+'</option>'; }).join('');
+      if (window._txnCommodityFilter) sel.value = window._txnCommodityFilter;
+    })
+    .catch(function() {
+      ['Lubricants','Spare Parts','Filter','AutoService'].forEach(function(v){
+        var o = document.createElement('option'); o.value = v; o.textContent = v;
+        sel.appendChild(o);
+      });
+    });
 };
 
 document.addEventListener('DOMContentLoaded', function() {
