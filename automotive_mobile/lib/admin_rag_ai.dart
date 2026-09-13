@@ -333,14 +333,10 @@ class AdminSmartReports extends StatefulWidget {
   State<AdminSmartReports> createState() => _AdminSmartReportsState();
 }
 
-class _AdminSmartReportsState extends State<AdminSmartReports>
-    with SingleTickerProviderStateMixin {
+class _AdminSmartReportsState extends State<AdminSmartReports> {
   static const _red = Color(0xFFE8001C);
 
-  // ── Pulsing ring animation for the AppBar avatar ──────────────────────────
-  late final AnimationController _pulseCtrl;
-  late final Animation<double> _pulseAnim;
-
+  // ── Fields ────────────────────────────────────────────────────────────────
   final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
 
@@ -368,14 +364,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
   @override
   void initState() {
     super.initState();
-    // Pulse animation — repeats to produce the expanding ring effect
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat();
-    _pulseAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeOut),
-    );
     _checkBackend(silent: true);
     _checkAiStatus();
     _loadInitials();
@@ -415,7 +403,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
 
   @override
   void dispose() {
-    _pulseCtrl.dispose();
     // Save chat on widget dispose (tab switch, navigation away)
     if (_currentUid.isNotEmpty && AdminChatStore.messages.isNotEmpty) {
       AdminChatStore.saveChat(_currentUid);
@@ -1324,53 +1311,10 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
         iconTheme: const IconThemeData(color: Colors.white),
         title: Row(
           children: [
-            // AI logo in AppBar with animated pulse ring
+            // AI logo in AppBar with status-colour border (no pulse rings)
             Stack(
               alignment: Alignment.center,
               children: [
-                // Outer pulse ring
-                AnimatedBuilder(
-                  animation: _pulseAnim,
-                  builder: (_, __) {
-                    final color = _backendOnline
-                        ? const Color(0xFF4ade80)
-                        : const Color(0xFFF97316);
-                    return Container(
-                      width: 40 + (_pulseAnim.value * 22),
-                      height: 40 + (_pulseAnim.value * 22),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: color.withValues(
-                            alpha: (1 - _pulseAnim.value) * 0.55,
-                          ),
-                          width: 2,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                // Inner pulse ring (offset by half a period)
-                AnimatedBuilder(
-                  animation: _pulseAnim,
-                  builder: (_, __) {
-                    final phase = (_pulseAnim.value + 0.45) % 1.0;
-                    final color = _backendOnline
-                        ? const Color(0xFF4ade80)
-                        : const Color(0xFFF97316);
-                    return Container(
-                      width: 40 + (phase * 22),
-                      height: 40 + (phase * 22),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: color.withValues(alpha: (1 - phase) * 0.55),
-                          width: 1.5,
-                        ),
-                      ),
-                    );
-                  },
-                ),
                 // Avatar circle with status-colour border
                 Container(
                   width: 40,
