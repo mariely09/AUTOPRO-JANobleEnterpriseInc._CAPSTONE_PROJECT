@@ -329,6 +329,10 @@
         const section = document.querySelector('.admin-section.active');
         if (!section || section.id === 'item-master') renderItemMasterList();
       }
+      // Notify transactions page so it can populate commodity group dropdown instantly
+      if (typeof window._txnPopulateCommodityFilterDropdown === 'function') {
+        window._txnPopulateCommodityFilterDropdown();
+      }
     });
 
     // Issuances
