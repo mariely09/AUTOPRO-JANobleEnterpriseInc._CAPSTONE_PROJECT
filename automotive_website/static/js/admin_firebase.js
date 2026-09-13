@@ -334,10 +334,25 @@
     // Issuances
     db.collection('issuances').orderBy('createdAt', 'desc').onSnapshot(snap => {
       window._fbIssuances = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+      const _ISS_MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      function _toDateStr(v) {
+        if (!v) return '';
+        // Firestore Timestamp
+        if (typeof v === 'object' && typeof v.toDate === 'function') {
+          const dt = v.toDate();
+          return _ISS_MO[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+        }
+        if (typeof v === 'object' && v.seconds) {
+          const dt = new Date(v.seconds * 1000);
+          return _ISS_MO[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+        }
+        // Already a string — return as-is (formatting happens in render)
+        return String(v);
+      }
       window.issuances = window._fbIssuances.map(i => ({
         id: i._id,
         issuanceId: i._id,
-        date: i.date || '',
+        date: _toDateStr(i.date) || '',
         assetNum: i.assetNum || i.plate || '',
         plate: i.plate || '',
         assetDescription: i.assetDesc || '',
