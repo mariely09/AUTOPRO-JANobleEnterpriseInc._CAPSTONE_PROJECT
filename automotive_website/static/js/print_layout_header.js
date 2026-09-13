@@ -87,7 +87,6 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     +     '</div>'
     +   '</div>'
     + '</div>'
-    + '<div class="ap-header-rule"></div>'
     + '<div class="ap-content">'
     +   '<div class="ap-table-wrap"><table>' + colGroupHtml + '<thead><tr>' + theadHtml + '</tr></thead><tbody>' + tbodyHtml + '</tbody></table></div>'
     +   tfootHtml
