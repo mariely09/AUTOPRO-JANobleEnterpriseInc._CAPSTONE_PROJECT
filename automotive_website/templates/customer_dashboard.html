@@ -14,6 +14,9 @@
 <script>
 // Instant auth guard — blocks bfcache back-navigation after logout
 (function() {
+  // Clear Google sign-in success flag (we're on dashboard now)
+  try { sessionStorage.removeItem('googleSignInSuccess'); } catch (_) {}
+  
   var logoutTime = localStorage.getItem('_loggedOut');
   var loginTime  = localStorage.getItem('_loggedIn');
   if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {

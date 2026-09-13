@@ -509,9 +509,17 @@ const GoogleSignInModule = {
 
   redirectByRole: function(role) {
     const map = { admin:'admin_dashboard.html', staff:'staff_dashboard.html', customer:'customer_dashboard.html' };
+    
+    // Mark that we're about to redirect from a successful Google sign-in
+    // This prevents login.html's onAuthStateChanged from signing us out
+    try {
+      sessionStorage.setItem('googleSignInSuccess', '1');
+    } catch (_) {}
+    
     // Required by all dashboard auth guards: _loggedIn must be newer than _loggedOut
     localStorage.setItem('_loggedIn', Date.now().toString());
     localStorage.removeItem('_loggedOut');
+    
     setTimeout(() => { window.location.href = map[role] || 'customer_dashboard.html'; }, 100);
   },
 
