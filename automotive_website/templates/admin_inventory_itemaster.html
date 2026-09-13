@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -700,7 +700,6 @@
       return [
         i.itemNum || 'â€â€',
         i.itemName || 'â€â€',
-        i.description || 'â€â€',
         i.commodityGroup || 'â€â€',
         i.uom || 'â€â€',
         i.itemType || 'â€â€',
@@ -715,7 +714,7 @@
 
     _doPrint(printTitle,
       [{ label:'Total', value:filtered.length, color:'#1a202c' }, { label:'Materials', value:matCount, color:'#E8001C' }, { label:'Services', value:svcCount, color:'#003087' }],
-      ['Item No.', 'Item Name', 'Description', 'Commodity Group', 'UOM', 'Type', 'Cost'],
+      ['Item No.', 'Item Name', 'Commodity Group', 'UOM', 'Type', 'Cost'],
       rows
     );
   };
@@ -771,7 +770,6 @@
       return [
         i.itemNum || 'â€â€',
         i.itemName || 'â€â€',
-        i.description || 'â€â€',
         i.commodityGroup || 'â€â€',
         i.uom || 'â€â€',
         i.itemType || 'â€â€',
@@ -782,7 +780,7 @@
     _downloadExcel(
       'Item_Master_' + stamp + '.xlsx',
       imTitle,
-      ['Item No.', 'Item Name', 'Description', 'Commodity Group', 'UOM', 'Item Type', 'Cost'],
+      ['Item No.', 'Item Name', 'Commodity Group', 'UOM', 'Item Type', 'Cost'],
       rows
     );
   };
@@ -953,3 +951,4 @@
 </script>
 </body>
 </html>
+
