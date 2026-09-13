@@ -460,7 +460,7 @@
         _localSessionId = session.id || _newLocalId();
       }
       // Dedupe restored messages (consecutive same-role rows from older saves)
-      var msgs = session.messages.filter(function(m){ return m && m.text; });
+      var msgs = session.messages.filter(function(m){ return m != null && m.role; });
       var clean = [];
       for (var i = 0; i < msgs.length; i++) {
         var prev = clean[clean.length-1];
@@ -472,7 +472,7 @@
       // Render
       var welcome = _welcomeNode;
       if (welcome) welcome.style.display = 'none';
-      _chatHistory.forEach(function(m) { _addBubble(m.text, m.role); });
+      _chatHistory.forEach(function(m) { _addBubble(m.text || '', m.role); });
       // Scroll to bottom after restoring
       var msgs = document.getElementById('aiMessages');
       if (msgs) setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 60);
@@ -481,11 +481,13 @@
   }
 
   // Save whenever the user navigates away so nothing is lost mid-session.
-  window.addEventListener('pagehide', function() { _saveChat(); });
-  window.addEventListener('beforeunload', function() { _saveChat(); });
+  // Clear the dedupe sig first so the write is never skipped even if the AI
+  // reply arrived between the last _saveChat() call and navigation.
+  window.addEventListener('pagehide',     function() { _savedSig = null; _saveChat(); });
+  window.addEventListener('beforeunload', function() { _savedSig = null; _saveChat(); });
   // Also save on visibility change (mobile background / tab switch)
   document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'hidden') _saveChat();
+    if (document.visibilityState === 'hidden') { _savedSig = null; _saveChat(); }
   });
 
   // ?? History drawer ????????????????????????????????????????????????????????
@@ -575,7 +577,7 @@
     msgs.innerHTML = '';
     // Re-attach welcome (hidden) so it stays in the DOM
     if (welcome) { welcome.style.display = 'none'; msgs.appendChild(welcome); }
-    _chatHistory.forEach(function(m) { _addBubble(m.text, m.role); });
+    _chatHistory.forEach(function(m) { _addBubble(m.text || '', m.role); });
     setTimeout(function(){ msgs.scrollTop = msgs.scrollHeight; }, 60);
     // Update the active slot to point to this session (no history-list write)
     try {
