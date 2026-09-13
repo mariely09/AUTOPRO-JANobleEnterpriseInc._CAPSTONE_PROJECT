@@ -453,7 +453,7 @@ function printIssuances() {
     ['Date','Plate No.','Item No.','Description','Group','UOM','Qty','Unit Cost','Subtotal'],
     rows,
     {values:[grandTotalQty>0?grandTotalQty:'—','','₱'+grandTotalSubtotal.toLocaleString('en-PH',{minimumFractionDigits:2})]},
-    {dateRange:issPrintDateRange}
+    {dateRange:issPrintDateRange, colWidths:[55,50,40,100,65,28,25,47,47]}
   );
 }
 
