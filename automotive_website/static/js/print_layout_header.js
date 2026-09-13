@@ -146,7 +146,7 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     'table { width: 100%; border-collapse: collapse; font-size: 8.5px; table-layout: fixed; }',
     /* ── Table header row — dark bg, white text ── */
     'thead tr {',
-    '  background: #1a202c !important;',
+    '  background: #000000 !important;',
     '  -webkit-print-color-adjust: exact !important;',
     '  print-color-adjust: exact !important;',
     '}',
