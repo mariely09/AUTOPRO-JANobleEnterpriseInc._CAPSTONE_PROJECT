@@ -110,7 +110,8 @@ async function _downloadExcel(filename, reportTitle, headers, rows, footer, opts
   });
 
   // ── Data rows ──
-  var descColIdx = (opts && opts.descColIndex !== undefined) ? opts.descColIndex : -1;
+  var descColIdx   = (opts && opts.descColIndex   !== undefined) ? opts.descColIndex   : -1;
+  var textColIdxs  = (opts && opts.textColIndexes)               ? opts.textColIndexes : [];
 
   rows.forEach(function(rowData, idx) {
     var hasTwoLines = descColIdx >= 0 && String(rowData[descColIdx] || '').indexOf('\n') !== -1;
@@ -120,7 +121,8 @@ async function _downloadExcel(filename, reportTitle, headers, rows, footer, opts
                 .replace(/<br\s*\/?>/gi, '\n')
                 .replace(/<[^>]+>/g, '')
                 .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-      if (ci !== descColIdx) {
+      // Skip numeric conversion for description col and any explicitly text-only cols
+      if (ci !== descColIdx && textColIdxs.indexOf(ci) === -1) {
         var n = parseFloat(s.replace(/[₱,]/g, ''));
         if (!isNaN(n) && s.replace(/[₱,\s]/g, '') !== '' && !/[a-zA-Z]/.test(s.replace(/₱/g, ''))) return n;
       }
