@@ -992,11 +992,27 @@ window.ragDownloadReport = function(reportId, format) {
     body.filters = filters;
   }
 
-  fetch('/api/ai-report', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  })
+  // ── Attach Firebase ID token so _require_admin() on the Flask side passes ──
+  var _doReportFetch = function(authHeader) {
+    var hdrs = { 'Content-Type': 'application/json' };
+    if (authHeader) hdrs['Authorization'] = authHeader;
+    return fetch('/api/ai-report', {
+      method: 'POST',
+      headers: hdrs,
+      body: JSON.stringify(body)
+    });
+  };
+
+  var _reportFetchPromise;
+  if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
+    _reportFetchPromise = firebase.auth().currentUser.getIdToken(false)
+      .then(function(token) { return _doReportFetch('Bearer ' + token); })
+      .catch(function() { return _doReportFetch(null); });
+  } else {
+    _reportFetchPromise = _doReportFetch(null);
+  }
+
+  _reportFetchPromise
   .then(function(res) {
     if (!res.ok) {
       return res.json().then(function(e) {
