@@ -112,6 +112,14 @@
       return;
     }
     
+    // If Google sign-in just succeeded and is about to redirect, DON'T sign out!
+    let googleSuccess = false;
+    try { googleSuccess = sessionStorage.getItem('googleSignInSuccess') === '1'; } catch (_) {}
+    if (googleSuccess) {
+      console.log('Auth state: Google sign-in succeeded, redirecting to dashboard — keeping user signed in');
+      return;
+    }
+    
     // If an active login is in progress, don't sign out
     let loginInProgress = false;
     try { loginInProgress = sessionStorage.getItem('loginInProgress') === '1'; } catch (_) {}
