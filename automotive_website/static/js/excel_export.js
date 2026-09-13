@@ -68,7 +68,7 @@ async function _downloadExcel(filename, reportTitle, headers, rows, footer, opts
   r2R.font      = { name: 'Segoe UI', size: 13, bold: true, color: { argb: DARK } };
   r2R.alignment = { vertical: 'middle', horizontal: 'right' };
 
-  // ── Row 3: address | "Generated on …" meta ──
+  // ── Row 3: address | date range + "Generated on …" meta ──
   ws.mergeCells(3, 1,          3, leftCols);
   ws.mergeCells(3, rightStart, 3, colCount);
   var r3L = ws.getCell(3, 1);
@@ -77,31 +77,36 @@ async function _downloadExcel(filename, reportTitle, headers, rows, footer, opts
   r3L.alignment = { vertical: 'middle', horizontal: 'left' };
   ws.getRow(3).height = 14;
   var r3R = ws.getCell(3, rightStart);
-  r3R.value     = 'Generated on ' + dateStr + ' at ' + timeStr;
-  r3R.font      = { name: 'Segoe UI', size: 8, color: { argb: GREY } };
+  var excelDateRange = (opts && opts.dateRange) || '';
+  if (excelDateRange) {
+    r3R.value = { richText: [
+      { text: 'Date Range: ',  font: { name: 'Segoe UI', size: 8, color: { argb: GREY } } },
+      { text: excelDateRange,  font: { name: 'Segoe UI', size: 8, bold: true, color: { argb: DARK } } }
+    ]};
+  }
   r3R.alignment = { vertical: 'middle', horizontal: 'right' };
 
-  // ── Row 4: red divider (3px solid red fill across all cols) ──
-  ws.addRow([]);
-  var divRow = ws.getRow(4);
-  divRow.height = 3;
-  for (var ci = 1; ci <= colCount; ci++) {
-    ws.getCell(4, ci).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: RED } };
-  }
+  // ── Row 4: generated date ──
+  ws.mergeCells(4, 1,          4, leftCols);
+  ws.mergeCells(4, rightStart, 4, colCount);
+  ws.getRow(4).height = 13;
+  var r4R = ws.getCell(4, rightStart);
+  r4R.value     = 'Generated on ' + dateStr + ' at ' + timeStr;
+  r4R.font      = { name: 'Segoe UI', size: 8, color: { argb: GREY } };
+  r4R.alignment = { vertical: 'middle', horizontal: 'right' };
 
   // ── Row 5: blank spacer ──
   ws.addRow([]);
   ws.getRow(5).height = 6;
 
-  // ── Row 6: column headers — dark fill, white bold caps ──
+  // ── Row 6: column headers — black fill, white bold caps ──
   var headerRow = ws.addRow(headers);
   headerRow.height = 18;
   headerRow.eachCell(function(cell) {
     cell.value     = (cell.value || '').toString().toUpperCase();
-    cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
+    cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
     cell.font      = { name: 'Segoe UI', size: 8, bold: true, color: { argb: 'FFFFFFFF' } };
     cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
-    cell.border    = { bottom: { style: 'thin', color: { argb: 'FF2D3748' } } };
   });
 
   // ── Data rows ──
@@ -166,9 +171,8 @@ async function _downloadExcel(filename, reportTitle, headers, rows, footer, opts
     var totRow = ws.addRow(totalCells);
     totRow.height = 16;
     totRow.eachCell({ includeEmpty: true }, function(cell) {
-      cell.font   = { name: 'Segoe UI', size: 9, bold: true, color: { argb: DARK } };
-      cell.border = { top: { style: 'medium', color: { argb: DARK } } };
-      cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF8FF' } };
+      cell.font   = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
     });
   }
 

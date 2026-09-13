@@ -484,11 +484,9 @@ async function _downloadExcel(filename, reportTitle, headers, rows, footer, opts
   r3R.alignment={vertical:'middle',horizontal:'right'};
   ws.mergeCells(4,1,4,leftCols); ws.mergeCells(4,rightStart,4,colCount); ws.getRow(4).height=13;
   var r4R=ws.getCell(4,rightStart); r4R.value='Generated on '+dateStr+' at '+timeStr; r4R.font={name:'Segoe UI',size:8,color:{argb:GREY}}; r4R.alignment={vertical:'middle',horizontal:'right'};
-  ws.addRow([]); var divRow=ws.getRow(5); divRow.height=3;
-  for (var ci=1;ci<=colCount;ci++) ws.getCell(5,ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:RED}};
-  ws.addRow([]); ws.getRow(6).height=6;
+  ws.addRow([]); ws.getRow(5).height=6;
   var headerRow=ws.addRow(headers); headerRow.height=18;
-  headerRow.eachCell(function(cell){ cell.value=(cell.value||'').toString().toUpperCase(); cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:DARK}}; cell.font={name:'Segoe UI',size:8,bold:true,color:{argb:'FFFFFFFF'}}; cell.alignment={vertical:'middle',horizontal:'left',wrapText:false}; cell.border={bottom:{style:'thin',color:{argb:'FF2D3748'}}}; });
+  headerRow.eachCell(function(cell){ cell.value=(cell.value||'').toString().toUpperCase(); cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF000000'}}; cell.font={name:'Segoe UI',size:8,bold:true,color:{argb:'FFFFFFFF'}}; cell.alignment={vertical:'middle',horizontal:'left',wrapText:false}; });
   rows.forEach(function(rowData,idx){
     var cleaned=rowData.map(function(v){ var s=String(v===null||v===undefined?'':v).replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'); var n=parseFloat(s.replace(/[₱,]/g,'')); if(!isNaN(n)&&s.replace(/[₱,\s]/g,'')!==''&&!/[a-zA-Z]/.test(s.replace(/₱/g,''))) return n; return s; });
     var dr=ws.addRow(cleaned); dr.height=15; var isEven=idx%2===1;
@@ -506,7 +504,7 @@ async function _downloadExcel(filename, reportTitle, headers, rows, footer, opts
       if(insertAt>0) totalCells[insertAt-1]='TOTAL';
     }
     var totRow=ws.addRow(totalCells); totRow.height=16;
-    totRow.eachCell({includeEmpty:true},function(cell){ cell.font={name:'Segoe UI',size:9,bold:true,color:{argb:DARK}}; cell.border={top:{style:'medium',color:{argb:DARK}}}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEBF8FF'}}; });
+    totRow.eachCell({includeEmpty:true},function(cell){ cell.font={name:'Segoe UI',size:9,bold:true,color:{argb:'FFFFFFFF'}}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF000000'}}; });
   }
   var colWidths=headers.map(function(h){ return Math.max(String(h).length,8); });
   rows.forEach(function(rowData){ rowData.forEach(function(v,i){ var s=String(v||'').replace(/<[^>]+>/g,''); if(s.length>colWidths[i]) colWidths[i]=s.length; }); });
