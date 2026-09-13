@@ -1017,7 +1017,9 @@ window.exportStockInventoryExcel = function() {
         'Stock_Inventory_' + stamp + '.xlsx',
         invTitle,
         ['Item No.', 'Item Name', 'Commodity Group', 'UOM', 'Current Qty', 'Min Level', 'Max Level', 'Reorder Qty'],
-        rows
+        rows,
+        null,
+        { textColIndexes: [0] }
     );
 };
 
