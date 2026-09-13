@@ -452,8 +452,8 @@ async function _downloadExcel(filename, reportTitle, headers, rows, footer, opts
   rows.forEach(function(rowData,idx){
     var cleaned=rowData.map(function(v){
       var s=String(v===null||v===undefined?'':v).replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
-      var n=parseFloat(s.replace(/[?,]/g,''));
-      if (!isNaN(n)&&s.replace(/[?,\s]/g,'')!==''&&!/[a-zA-Z]/.test(s.replace(/\?/g,''))) return n;
+      var n=parseFloat(s.replace(/[₱,]/g,''));
+      if (!isNaN(n)&&s.replace(/[₱,\s]/g,'')!==''&&!/[a-zA-Z]/.test(s.replace(/₱/g,''))) return n;
       return s;
     });
     var dr=ws.addRow(cleaned); dr.height=15;
