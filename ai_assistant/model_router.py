@@ -179,7 +179,12 @@ _CUSTOMER_MY_HISTORY = re.compile(
     r"|how\s+much\s+(did\s+i|have\s+i)\s+spent?(\s+on)?"
     r"|total\s+(spend|spending|cost)\s+(on\s+)?(maintenance|service)"
     r"|services\s+(performed|done)\s+on\s+my"
-    r"|service\s+history\s+(this\s+year|last\s+year|for\s+(my|this)))\b",
+    r"|service\s+history\s+(this\s+year|last\s+year|for\s+(my|this))"
+    # CU_TC05: "what was the last service performed on my vehicle"
+    r"|last\s+service\s+(performed|done)\s+(on|for)\s+(my|the)"
+    # CU_TC18: "services performed on my vehicle in June/July..."
+    r"|services?\s+(performed|done)\s+on\s+my\s+(vehicle|car)"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -188,10 +193,17 @@ _CUSTOMER_MY_BOOKINGS = re.compile(
     r"|show\s+(my\s+)?(bookings?|appointments?)"
     r"|upcoming\s+(service|appointment|booking)"
     r"|my\s+next\s+(service|appointment|booking)"
+    # CU_TC12: "Do I have any upcoming service bookings?"
+    r"|upcoming\s+service\s+bookings?"
+    r"|any\s+(upcoming\s+)?(bookings?|appointments?)"
     r"|when\s+is\s+my\s+next\s+(service|appointment)"
     r"|do\s+i\s+have\s+any\s+(upcoming\s+)?(bookings?|appointments?)"
     r"|did\s+i\s+(book|schedule|have\s+a\s+booking)"
-    r"|status\s+of\s+my\s+booking)\b",
+    r"|status\s+of\s+my\s+booking"
+    # AI_TC04: "show my service bookings for December 2035"
+    r"|my\s+service\s+bookings?"
+    r"|show\s+(me\s+)?my\s+bookings?"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -204,7 +216,14 @@ _SERVICE_RECOMMENDATION = re.compile(
     r"|what\s+should\s+i\s+have\s+checked"
     r"|next\s+(maintenance|service|pms)\s+(for|due)"
     r"|recommend(ation)?s?\s+(for|on)\s+(maintenance|service)"
-    r"|service\s+recommendation)\b",
+    r"|service\s+recommendation"
+    # CU_TC06: "Is my vehicle ABC-1234 due for preventive maintenance?"
+    r"|is\s+my\s+(vehicle|car)\s+\S+\s+due"
+    r"|is\s+my\s+(vehicle|car)\b.*\bdue\s+(for|for\s+preventive)"
+    # CU_TC09: "What service do you recommend for my vehicle ABC-1234?"
+    r"|what\s+service\s+(do\s+you\s+recommend|would\s+you\s+recommend)"
+    r"|recommend\s+(a\s+|some\s+)?service\s+for\s+my"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -221,7 +240,10 @@ _SERVICE_PRICES = re.compile(
     r"|how\s+much\s+(is|for)\s+(a|an|the)?\s*pms"
     # Connector-free price asks: "how much oil change", "how much pms"
     r"|how\s+much\s+(?:is\s+|for\s+)?(?:a\s+|an\s+|the\s+)?(oil\s*change|change\s*oil|pms)\b"
-    r"|show\s+(me\s+)?(your\s+)?service\s+prices?)\b",
+    r"|show\s+(me\s+)?(your\s+)?service\s+prices?"
+    # CU_TC16: "What vehicle maintenance services are available?"
+    r"|what\s+(vehicle\s+)?(maintenance\s+)?services?\s+(are\s+)?(available|offered)"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -237,7 +259,11 @@ _CUSTOMER_MATERIALS = re.compile(
     r"|show\s+(me\s+)?(the\s+)?materials?\s+(for|needed|used)"
     r"|list\s+((all\s+)?(the\s+)?(available\s+)?|the\s+)?(materials?|products?|parts?)"
     r"|engine\s+oil\s+(available|for\s+sale)"
-    r"|products?\s+(available|for\s+sale|offered))\b",
+    r"|products?\s+(available|for\s+sale|offered)"
+    # CU_TC15: "What materials are included in an oil change service?"
+    r"|what\s+(materials?|items?|parts?)\s+are\s+included\s+in"
+    r"|materials?\s+(included|used|needed)\s+in\s+(a|an|the)"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -264,7 +290,10 @@ _MAINTENANCE_REMINDER = re.compile(
     r"|is\s+my\s+car\s+overdue"
     r"|maintenance\s+(reminder|alert|notification)"
     r"|due\s+(for\s+)?(maintenance|service|pms)"
-    r"|upcoming\s+(maintenance|service|pms)"
+    r"|upcoming\s+(maintenance|service(?!\s+bookings?)|pms)"
+    # CU_TC06: "Is my vehicle ABC-1234 due for preventive maintenance?"
+    r"|is\s+my\s+(vehicle|car)\b.*\bdue\s+for"
+    r"|is\s+(my|the)\s+(vehicle|car)\b.*\b(overdue|due)"
     # "When is/should my next PMS/maintenance?" phrasings
     r"|when\s+(is|should|do)\s+(my|the|i)\s+(next\s+)?(pms|maintenance|service)"
     r"|when\s+is\s+my\s+next\s+(pms|maintenance|service)"
@@ -311,7 +340,11 @@ _BOOK_SERVICE = re.compile(
     r"|book\s+(a\s+)?preventive\s+maintenance"
     r"|can\s+you\s+schedule\s+(a\s+|my\s+)?(service|car|vehicle)"
     r"|can\s+you\s+book\s+my\s+(car|vehicle)"
-    r"|can\s+i\s+schedule\s+my\s+(car|vehicle))\b",
+    r"|can\s+i\s+schedule\s+my\s+(car|vehicle)"
+    # CU_TC11: "Suggest a suitable date for my next preventive maintenance service"
+    r"|suggest\s+(a\s+|an\s+)?(suitable\s+|good\s+|convenient\s+)?"
+    r"(date|time|schedule|slot)\s+(for|to\s+book|for\s+my)"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -370,12 +403,19 @@ def classify_customer_intent(message: str) -> str:
         return MAINTENANCE_REMINDER
     if _SERVICE_RECOMMENDATION.search(t):
         return SERVICE_RECOMMENDATION
-    if _CUSTOMER_MY_VEHICLES.search(t):
-        return MY_VEHICLES
-    if _CUSTOMER_MY_HISTORY.search(t):
-        return MY_SERVICE_HISTORY
+    # MY_SERVICE_HISTORY and MY_BOOKINGS must come BEFORE MY_VEHICLES.
+    # Messages like "last service on my vehicle ABC-1234" and
+    # "show my service bookings for December 2035" contain "my vehicle" /
+    # "my bookings" — if MY_VEHICLES ran first it would always win.
+    # More-specific intents are checked here first.
+    # MY_BOOKINGS must be checked BEFORE MY_SERVICE_HISTORY because
+    # "show my service bookings" matches both; bookings wins as more specific.
     if _CUSTOMER_MY_BOOKINGS.search(t):
         return MY_BOOKINGS
+    if _CUSTOMER_MY_HISTORY.search(t):
+        return MY_SERVICE_HISTORY
+    if _CUSTOMER_MY_VEHICLES.search(t):
+        return MY_VEHICLES
     # SERVICE_COST must be checked BEFORE SERVICE_PRICES so that queries
     # asking for an estimate INCLUDING MATERIALS ("how much will my oil
     # change cost including materials?") are routed to estimate_service_cost

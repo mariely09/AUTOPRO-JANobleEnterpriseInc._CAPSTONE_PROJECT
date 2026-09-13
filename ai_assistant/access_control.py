@@ -228,12 +228,15 @@ _ANALYTICS_RE = re.compile(
 # products available — these are public catalog queries, not admin analytics.
 _CATALOG_ALLOWLIST_RE = re.compile(
     r"\b("
-    # Service catalog queries
-    r"(list|show|what|display|get|available|all)[^\n]{0,40}services?"
+    # Service catalog queries — must NOT match "service history" or "service records"
+    # The negative lookahead (?!.*history|.*record|.*another|.*other\s+customer)
+    # prevents false positives like "show me the service history of another customer"
+    r"(list|show|what|display|get|available|all)\s+(?!.*\b(history|records?|another|other\s+customer)\b)[^\n]{0,40}services?"
     r"|(services?)\s*(offered|available|you\s+offer|with\s+price|and\s+price|price)"
     r"|what\s+can\s+you\s+do"
-    r"|what\s+services?\s+do\s+you"
-    r"|(list|show)\s+(all\s+)?(the\s+)?services?"
+    r"|what\s+services?\s+do\s+you(?!\s+(offer|have|include|cover)\s+for\s+another)"
+    r"|(list|show)\s+(all\s+)?(the\s+)?services?\s*$"
+    r"|(list|show)\s+(all\s+)?(the\s+)?(available\s+)?services?\s*[?.]?\s*$"
     # Material / product catalog queries
     r"|(list|show|what|display|get|all)[^\n]{0,40}(materials?|products?)"
     r"|(materials?|products?)\s*(available|offered|with\s+price|and\s+price|price)"
@@ -246,7 +249,13 @@ _CATALOG_ALLOWLIST_RE = re.compile(
 
 _OFF_TOPIC_RE = re.compile(
     r"\b(weather|news|sports|politics|celebrit\w+|recipe|joke|game|movie|"
-    r"music|song|love\s+advice|horoscope)\b",
+    r"music|song|love\s+advice|horoscope|"
+    # Geography / general knowledge
+    r"capital\s+(of|city\s+of)\s+\w+"
+    r"|what\s+is\s+the\s+capital"
+    r"|who\s+invented\s+"
+    r"|who\s+won\s+(the\s+)?(fifa|world\s+cup|oscar|grammy|nba|nfl)"
+    r")\b",
     re.IGNORECASE,
 )
 

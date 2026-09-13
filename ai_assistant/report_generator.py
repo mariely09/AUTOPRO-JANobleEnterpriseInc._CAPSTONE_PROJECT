@@ -299,7 +299,10 @@ def _fetch_issuances(month: str | None = None,
 
         rows.append(row)
 
-    rows.sort(key=lambda r: r["date"], reverse=True)
+    rows.sort(
+        key=lambda r: _parse_date_to_dt(r["date"]) or datetime.min,
+        reverse=True,
+    )
 
     # ── Date-range filter (takes priority over month) ─────────
     if start_date or end_date:
@@ -368,7 +371,10 @@ def _fetch_maintenance(month: str | None = None,
 
         rows.append(row)
 
-    rows.sort(key=lambda r: r["date"], reverse=True)
+    rows.sort(
+        key=lambda r: _parse_date_to_dt(r["date"]) or datetime.min,
+        reverse=True,
+    )
 
     # ── Date-range filter (takes priority over month) ─────────
     if start_date or end_date:
@@ -505,7 +511,10 @@ def _fetch_bookings(month: str | None = None,
             continue
 
         rows.append(row)
-    rows.sort(key=lambda r: r["date"], reverse=True)
+    rows.sort(
+        key=lambda r: _parse_date_to_dt(r["date"]) or datetime.min,
+        reverse=True,
+    )
 
     # ── Date-range filter (takes priority over month) ─────────
     if start_date or end_date:
