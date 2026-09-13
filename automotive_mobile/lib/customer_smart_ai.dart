@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -302,6 +303,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   List<Map<String, dynamic>> _historySessions = [];
 
   bool _loading = false;
+  http.Client? _activeClient; // held so we can close() it to cancel the request
   bool _backendOnline = true;
   bool get _rateLimited => CustomerChatStore.rateLimited;
   set _rateLimited(bool v) => CustomerChatStore.rateLimited = v;
@@ -360,6 +362,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     if (_customerUid.isNotEmpty && CustomerChatStore.messages.isNotEmpty) {
       CustomerChatStore.saveChat(_customerUid);
     }
+    _activeClient?.close();
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -594,6 +597,23 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     }
   }
 
+  // ── Stop generation ────────────────────────────────────────────────────────
+  void _stopGeneration() {
+    _activeClient?.close();
+    _activeClient = null;
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _messages.add(
+          _ChatMsg(role: 'ai', text: '⏹ Generation stopped.'),
+        );
+      });
+    }
+    CustomerChatStore._lastSavedSig = null;
+    if (_customerUid.isNotEmpty) CustomerChatStore.saveChat(_customerUid);
+    _scrollToBottom();
+  }
+
   Future<void> _checkBackend({bool silent = false}) async {
     if (!silent && mounted) setState(() => _backendOnline = false);
     for (int attempt = 1; attempt <= 3; attempt++) {
@@ -677,7 +697,9 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     if (_customerUid.isNotEmpty) await CustomerChatStore.saveChat(_customerUid);
 
     try {
-      final resp = await http
+      final client = http.Client();
+      _activeClient = client;
+      final resp = await client
           .post(
             Uri.parse('$_kCustAiBaseUrl/customer/chat'),
             headers: {'Content-Type': 'application/json'},
@@ -689,6 +711,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
             }),
           )
           .timeout(const Duration(seconds: 120));
+      _activeClient = null;
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -779,7 +802,13 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         if (_customerUid.isNotEmpty)
           await CustomerChatStore.saveChat(_customerUid);
       }
-    } on http.ClientException catch (_) {
+    } on http.ClientException catch (e) {
+      // If _activeClient is null, the request was cancelled intentionally — ignore
+      if (_activeClient == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+      _activeClient = null;
       if (mounted) {
         setState(() {
           _loading = false;
@@ -1284,6 +1313,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                             ? 'AI unavailable — daily limit reached'
                             : 'Ask about your vehicles, bookings, or services…',
                         onSend: _send,
+                        onStop: _loading ? _stopGeneration : null,
                       ),
                       const SizedBox(height: 4),
                       const Text(
@@ -1725,41 +1755,85 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Flexible(
-              child: Container(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.72,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(14),
-                    topRight: Radius.circular(4),
-                    bottomLeft: Radius.circular(14),
-                    bottomRight: Radius.circular(14),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _red.withValues(alpha: 0.22),
-                      blurRadius: 6,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.72,
                     ),
-                  ],
-                ),
-                child: Text(
-                  msg.text,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    height: 1.6,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(14),
+                        topRight: Radius.circular(4),
+                        bottomLeft: Radius.circular(14),
+                        bottomRight: Radius.circular(14),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _red.withValues(alpha: 0.22),
+                          blurRadius: 6,
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      msg.text,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        height: 1.6,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 4),
+                  // Copy / Edit actions
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _userPromptActionBtn(
+                        icon: Icons.copy_outlined,
+                        label: 'Copy',
+                        onTap: () async {
+                          await Clipboard.setData(
+                            ClipboardData(text: msg.text),
+                          );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Copied to clipboard'),
+                                duration: Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 6),
+                      _userPromptActionBtn(
+                        icon: Icons.edit_outlined,
+                        label: 'Edit',
+                        onTap: () {
+                          _inputCtrl.text = msg.text;
+                          // Move caret to end
+                          _inputCtrl.selection = TextSelection.fromPosition(
+                            TextPosition(offset: _inputCtrl.text.length),
+                          );
+                          // Scroll to input
+                          _scrollToBottom();
+                        },
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 8),
@@ -1945,6 +2019,40 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     ),
   );
 
+  // ── User prompt action button (Copy / Edit) ──
+  Widget _userPromptActionBtn({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF4F6F9),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 11, color: const Color(0xFF718096)),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                color: Color(0xFF718096),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ── User avatar — gradient red with initials ──
   Widget _userAvatar() => Container(
     width: 30,
@@ -1979,6 +2087,7 @@ class _FocusInputBar extends StatefulWidget {
   final bool rateLimited;
   final String hint;
   final Future<void> Function([String?]) onSend;
+  final VoidCallback? onStop;
 
   const _FocusInputBar({
     required this.inputCtrl,
@@ -1986,6 +2095,7 @@ class _FocusInputBar extends StatefulWidget {
     required this.rateLimited,
     required this.hint,
     required this.onSend,
+    this.onStop,
   });
 
   @override
@@ -2046,40 +2156,71 @@ class _FocusInputBarState extends State<_FocusInputBar> {
             ),
           ),
           const SizedBox(width: 6),
-          GestureDetector(
-            onTap: canSend ? () => widget.onSend() : null,
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                gradient: canSend
-                    ? const LinearGradient(
-                        colors: [Color(0xFFE8001C), Color(0xFFC0001A)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : null,
-                color: canSend ? null : Colors.grey.shade300,
-                shape: BoxShape.circle,
-                boxShadow: canSend
-                    ? [
-                        BoxShadow(
-                          color: const Color(
-                            0xFFE8001C,
-                          ).withValues(alpha: 0.35),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ]
-                    : [],
+          // Stop button — shown while generating
+          if (widget.loading && widget.onStop != null)
+            GestureDetector(
+              onTap: widget.onStop,
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFE8001C), Color(0xFFC0001A)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFE8001C).withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.stop_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
               ),
-              child: const Icon(
-                Icons.send_rounded,
-                color: Colors.white,
-                size: 16,
+            )
+          // Send button — shown when idle
+          else
+            GestureDetector(
+              onTap: canSend ? () => widget.onSend() : null,
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  gradient: canSend
+                      ? const LinearGradient(
+                          colors: [Color(0xFFE8001C), Color(0xFFC0001A)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  color: canSend ? null : Colors.grey.shade300,
+                  shape: BoxShape.circle,
+                  boxShadow: canSend
+                      ? [
+                          BoxShadow(
+                            color: const Color(
+                              0xFFE8001C,
+                            ).withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : [],
+                ),
+                child: const Icon(
+                  Icons.send_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

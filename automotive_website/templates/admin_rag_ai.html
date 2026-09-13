@@ -143,10 +143,10 @@
       </button>
       <!-- Stop button (shown while AI is generating) -->
       <button onclick="ragAiStop()" id="ragStopBtn"
-        style="display:none;width:34px;height:34px;min-width:34px;background:linear-gradient(135deg,#475569,#334155);border:none;border-radius:50%;color:white;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(71,85,105,0.45);transition:all .18s;"
+        style="display:none;width:34px;height:34px;min-width:34px;background:linear-gradient(135deg,#E8001C,#c0001a);border:none;border-radius:50%;color:white;cursor:pointer;display:none;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(232,0,28,0.35);transition:all .18s;"
         title="Stop generation"
-        onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 5px 14px rgba(71,85,105,0.6)'"
-        onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 3px 10px rgba(71,85,105,0.45)'">
+        onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 5px 14px rgba(232,0,28,0.45)'"
+        onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 3px 10px rgba(232,0,28,0.35)'">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
       </button>
     </div>
@@ -226,23 +226,17 @@
   transform:translateY(-1px);
 }
 
-/* ── User message action buttons (Copy / Edit) ── */
-.rag-user-actions {
-  display:none;
-  gap:4px;
-  margin-top:5px;
-  justify-content:flex-end;
-}
+/* ── User message actions (Copy / Edit) ── */
+.rag-user-actions { display:none;gap:5px;margin-top:5px;justify-content:flex-end; }
 .rag-row.user:hover .rag-user-actions { display:flex; }
-.rag-action-btn {
-  display:flex;align-items:center;gap:3px;
-  padding:2px 7px;border:none;background:rgba(255,255,255,0.18);
-  color:white;font-size:10px;font-weight:600;border-radius:10px;
-  cursor:pointer;font-family:inherit;transition:background .15s;
+.rag-user-action-btn {
+  background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);
+  color:white;border-radius:8px;padding:3px 8px;font-size:10px;font-weight:600;
+  cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;
+  transition:background .15s;line-height:1.4;
 }
-.rag-action-btn:hover { background:rgba(255,255,255,0.32); }
-.rag-action-btn svg { flex-shrink:0; }
-.rag-copy-ok { background:rgba(56,161,105,0.5) !important; }
+.rag-user-action-btn:hover { background:rgba(255,255,255,0.32); }
+.rag-user-action-btn.copied { background:rgba(56,161,105,0.55); }
 
 /* ── Scrollbar ── */
 #ragAiChat::-webkit-scrollbar { width:4px; }
@@ -277,6 +271,66 @@ var _ragRateLimited = false;
 var _ragCurrentUid  = null; // Firebase UID — set after auth resolves
 var _ragMessages    = [];   // structured JS array — mirrors DOM, survives close/reopen
 var _ragSavedSig    = null; // dedupe guard: signature of the last saved _ragMessages
+
+// ── Stop-generation state ────────────────────────────────────────────────
+var _ragAbortCtrl   = null; // AbortController for the current fetch
+var _ragGenerating  = false; // true while a request is in-flight
+
+// Toggle send ↔ stop buttons
+function _ragSetGenerating(on) {
+  _ragGenerating = on;
+  var sendBtn = document.getElementById('ragSendBtn');
+  var stopBtn = document.getElementById('ragStopBtn');
+  var input   = document.getElementById('ragAiInput');
+  if (sendBtn) sendBtn.style.display = on ? 'none' : 'flex';
+  if (stopBtn) stopBtn.style.display = on ? 'flex' : 'none';
+  if (input)   input.disabled = on;
+}
+
+window.ragAiStop = function() {
+  if (_ragAbortCtrl) { _ragAbortCtrl.abort(); _ragAbortCtrl = null; }
+  _ragSetGenerating(false);
+  _ragRemoveTyping();
+  if (_ragMessages.length && _ragMessages[_ragMessages.length - 1].role === 'user') {
+    _ragMessages.push({ role: 'ai', text: '⏹ Generation stopped.' });
+    _ragAppend('ai', '<em style="color:#94a3b8;font-size:11.5px;">⏹ Generation stopped.</em>');
+    _ragSaveChat();
+  }
+};
+
+// ── Copy prompt to clipboard ──────────────────────────────────────────────
+window.ragCopyPrompt = function(btn, text) {
+  navigator.clipboard.writeText(text).then(function() {
+    var orig = btn.innerHTML;
+    btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+    btn.classList.add('copied');
+    setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
+  }).catch(function() {
+    // fallback for older browsers
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.top = '-9999px';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+};
+
+// ── Load prompt into input for editing ───────────────────────────────────
+window.ragEditPrompt = function(text) {
+  var input = document.getElementById('ragAiInput');
+  if (!input) return;
+  input.value = text;
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 80) + 'px';
+  input.focus();
+  // Move caret to end
+  input.selectionStart = input.selectionEnd = input.value.length;
+  // Highlight the input bar
+  var wrap = document.getElementById('ragInputWrap');
+  if (wrap) {
+    wrap.style.borderColor = '#E8001C';
+    wrap.style.boxShadow = '0 0 0 3px rgba(232,0,28,0.08)';
+  }
+};
 
 // ── localStorage history helpers ──────────────────────────────────────────
 function _ragActiveKey(uid)  { return 'rag_ai_active_'  + uid; }
@@ -458,7 +512,8 @@ function _ragRenderMessages(messages) {
     } else {
       _ragAppend(
         m.role === 'user' ? 'user' : 'ai',
-        m.role === 'user' ? _ragEsc(m.text || '') : _ragMarkdown(m.text || '')
+        m.role === 'user' ? _ragEsc(m.text || '') : _ragMarkdown(m.text || ''),
+        m.role === 'user' ? (m.text || '') : undefined
       );
     }
   });
@@ -527,7 +582,7 @@ document.addEventListener('visibilitychange', function() {
 function _ragSetRateLimited(limited, resetIn) {
   _ragRateLimited = limited;
   var input  = document.getElementById('ragAiInput');
-  var sendBtn = input ? input.closest('div').querySelector('button') : null;
+  var sendBtn = document.getElementById('ragSendBtn');
   var banner  = document.getElementById('ragRateBanner');
 
   if (limited) {
@@ -736,7 +791,7 @@ function _ragMarkdown(text) {
 
 var _AI_AVATAR_SVG = '<img src="../static/img/AI_LOGO.png" width="28" height="28" style="object-fit:cover;border-radius:50%;display:block;" alt="AI">';
 
-function _ragAppend(role, html) {
+function _ragAppend(role, html, rawText) {
   var chat = document.getElementById('ragAiChat');
   var row = document.createElement('div');
   row.className = 'rag-row' + (role==='user'?' user':'');
@@ -744,7 +799,24 @@ function _ragAppend(role, html) {
     ? '<div class="rag-av usr">'+_ragInitials+'</div>'
     : '<div class="rag-av ai">'+_AI_AVATAR_SVG+'</div>';
   var bub = '<div class="rag-bub '+role+'">'+html+'</div>';
-  row.innerHTML = role==='user' ? bub+av : av+bub;
+  if (role === 'user') {
+    // Wrap bubble + action buttons in a column
+    var escapedRaw = (rawText || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
+    var actions =
+      '<div class="rag-user-actions">' +
+        '<button class="rag-user-action-btn" onclick="ragCopyPrompt(this,\''+escapedRaw+'\')" title="Copy prompt">' +
+          '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+          ' Copy' +
+        '</button>' +
+        '<button class="rag-user-action-btn" onclick="ragEditPrompt(\''+escapedRaw+'\')" title="Edit prompt">' +
+          '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+          ' Edit' +
+        '</button>' +
+      '</div>';
+    row.innerHTML = '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0;">' + bub + actions + '</div>' + av;
+  } else {
+    row.innerHTML = av + bub;
+  }
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
 }
@@ -765,18 +837,24 @@ window.ragAiSend = function(preset) {
   var text = (preset||input.value).trim();
   if (!text) return;
   if (_ragRateLimited) { return; }  // blocked while rate-limited
+  if (_ragGenerating)  { return; }  // block rapid double-sends
   if (!_ragReady) { _ragAppend('ai','<strong>Still loading data…</strong> Please wait.'); return; }
   // Hide welcome block on first real message
   var wb = document.getElementById('ragWelcomeBlock');
   if (wb) wb.remove();
   document.getElementById('ragAiChips').style.display='none';
-  _ragAppend('user', _ragEsc(text));
+  _ragAppend('user', _ragEsc(text), text);
   _ragMessages.push({ role: 'user', text: text });
   input.value=''; input.style.height='auto';
   _ragTyping();
   _ragSavedSig = null; // user message changed state — allow the save
   // Persist user message immediately
   _ragSaveChat();
+
+  // Show Stop button, hide Send button
+  _ragSetGenerating(true);
+  _ragAbortCtrl = new AbortController();
+  var signal = _ragAbortCtrl.signal;
 
   // Call the Flask AI endpoint — session_id enables server-side memory
   fetch('/api/ai-chat', {
@@ -786,10 +864,13 @@ window.ragAiSend = function(preset) {
       message:    text,
       user_type:  'admin',
       session_id: _ragSessionId,
-    })
+    }),
+    signal: signal,
   })
   .then(function(res) { return res.json(); })
   .then(function(data) {
+    _ragSetGenerating(false);
+    _ragAbortCtrl = null;
     _ragRemoveTyping();
     // Adopt the server session id (only once, when we're still on a local id)
     // so the history entry is renamed in place — never duplicated.
@@ -798,7 +879,6 @@ window.ragAiSend = function(preset) {
       _ragSessionId = data.session_id;
     }
 
-    // ── Rate limit notice ─────────────────────────────────────────────────
     if (data.rate_limited) {
       _ragSetRateLimited(true, data.reset_in || 'some time');
       var resetMsg = data.reset_in || 'some time';
@@ -932,6 +1012,10 @@ window.ragAiSend = function(preset) {
     }
   })
   .catch(function(err) {
+    _ragSetGenerating(false);
+    _ragAbortCtrl = null;
+    // If aborted by the Stop button, don't show an error — ragAiStop already handled it
+    if (err && err.name === 'AbortError') return;
     _ragRemoveTyping();
     var _isCatchRpt = /\b(generate|create|make|export|download|print)\b.*\b(report|pdf|excel)\b|\b(pdf|excel)\s+report\b|\breport\s+(pdf|excel)\b/i.test(text);
     if (_isCatchRpt) {
