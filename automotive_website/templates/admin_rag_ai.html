@@ -339,7 +339,7 @@ function _ragRestoreSession(uid) {
     if (!session || !session.messages || !session.messages.length) { _ragSessionId = _ragLocalId(); return; }
     _ragSessionId = session.id || _ragLocalId(); // reuse the SAME conversation id
     // Dedupe restored messages (consecutive same-role rows from older saves)
-    var msgs = session.messages.filter(function(m){ return m && m.text; });
+    var msgs = session.messages.filter(function(m){ return m != null && m.role; });
     var clean = [];
     for (var i = 0; i < msgs.length; i++) {
       var prev = clean[clean.length-1];
@@ -353,12 +353,7 @@ function _ragRestoreSession(uid) {
     var wb = document.getElementById('ragWelcomeBlock');
     if (wb) wb.remove();
     chat.innerHTML = '';
-    _ragMessages.forEach(function(m) {
-      _ragAppend(
-        m.role === 'user' ? 'user' : 'ai',
-        m.role === 'user' ? _ragEsc(m.text) : _ragMarkdown(m.text)
-      );
-    });
+    _ragRenderMessages(_ragMessages);
     _ragSavedSig = null;
     setTimeout(function(){ chat.scrollTop = chat.scrollHeight; }, 60);
   } catch(e) { _ragSessionId = _ragLocalId(); }
@@ -402,6 +397,49 @@ function _ragRenderHistoryList() {
   });
 }
 
+// ── Shared message renderer — used by both restore and history-drawer load ──
+// Handles plain AI text, user text, and report-ready bubbles (re-creates
+// the download buttons from the saved reportParams so they survive refresh).
+function _ragRenderMessages(messages) {
+  messages.forEach(function(m) {
+    if (m.role !== 'user' && m.reportParams) {
+      var rp  = m.reportParams;
+      var rId = 'rp_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+      window._ragReportParams = window._ragReportParams || {};
+      window._ragReportParams[rId] = {
+        reportType: rp.reportType,
+        month:      rp.month      || null,
+        startDate:  rp.startDate  || null,
+        endDate:    rp.endDate    || null,
+        filters:    rp.filters    || {}
+      };
+      var rFmt = (rp.format || 'pdf').toLowerCase();
+      var filterLabel = '';
+      if (rp.startDate || rp.endDate) {
+        filterLabel = ' (' + (rp.startDate || '—') + ' to ' + (rp.endDate || '—') + ')';
+      } else if (rp.month) {
+        filterLabel = ' (' + rp.month + ')';
+      }
+      var btnStyle = 'background:#E8001C;color:white;border:none;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;';
+      var secStyle = 'background:#f7f8fa;color:#4a5568;border:1.5px solid #e2e8f0;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;';
+      function _mkBtn(fmt, style) {
+        return '<button id="' + rId + '_' + fmt + '" onclick="ragDownloadReport(\'' + rId + '\',\'' + fmt + '\')" style="' + style + '">&#x2193; Download ' + fmt.toUpperCase() + filterLabel + '</button>';
+      }
+      var btnHtml = '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">';
+      if (rFmt === 'both')       { btnHtml += _mkBtn('pdf', btnStyle) + _mkBtn('excel', secStyle); }
+      else if (rFmt === 'excel') { btnHtml += _mkBtn('excel', btnStyle); }
+      else                       { btnHtml += _mkBtn('pdf',   btnStyle); }
+      btnHtml += '</div><div id="' + rId + '_err" style="font-size:11px;margin-top:4px;"></div>';
+      _ragAppend('ai', _ragMarkdown(m.text || 'Your report is ready.') + btnHtml);
+    } else {
+      _ragAppend(
+        m.role === 'user' ? 'user' : 'ai',
+        m.role === 'user' ? _ragEsc(m.text || '') : _ragMarkdown(m.text || '')
+      );
+    }
+  });
+}
+
 function _ragLoadSession(sid) {
   var sessions = _ragCurrentUid ? _ragLoadAllSessions(_ragCurrentUid) : [];
   var session  = sessions.find(function(s){ return s.id === sid; });
@@ -412,10 +450,7 @@ function _ragLoadSession(sid) {
   var wb   = document.getElementById('ragWelcomeBlock');
   if (wb) wb.remove();
   chat.innerHTML = '';
-  _ragMessages.forEach(function(m) {
-    _ragAppend(m.role === 'user' ? 'user' : 'ai',
-               m.role === 'user' ? _ragEsc(m.text) : _ragMarkdown(m.text));
-  });
+  _ragRenderMessages(_ragMessages);
   setTimeout(function(){ chat.scrollTop = chat.scrollHeight; }, 60);
   _ragSavedSig = null; // force the next save to persist the switch
   // Persist restored session as active slot
@@ -456,10 +491,12 @@ window.ragDeleteAllHistory = function() {
   _ragRenderHistoryList();
 };
 
-window.addEventListener('pagehide', function() { _ragSaveChat(); });
-window.addEventListener('beforeunload', function() { _ragSaveChat(); });
+// Force-save on navigation — clear the dedupe sig first so the write is never
+// skipped, even if the AI reply arrived after the last _ragSaveChat() call.
+window.addEventListener('pagehide',     function() { _ragSavedSig = null; _ragSaveChat(); });
+window.addEventListener('beforeunload', function() { _ragSavedSig = null; _ragSaveChat(); });
 document.addEventListener('visibilitychange', function() {
-  if (document.visibilityState === 'hidden') _ragSaveChat();
+  if (document.visibilityState === 'hidden') { _ragSavedSig = null; _ragSaveChat(); }
 });
 
 // ── Rate-limit helpers ────────────────────────────────────────────────────
@@ -848,7 +885,18 @@ window.ragAiSend = function(preset) {
       }
       btnHtml += '</div>';
       btnHtml += '<div id="' + errId + '" style="font-size:11px;margin-top:4px;"></div>';
-      _ragMessages.push({ role: 'ai', text: data.answer || 'Report ready.' });
+      _ragMessages.push({
+        role: 'ai',
+        text: data.answer || 'Report ready.',
+        reportParams: {
+          reportType: data.report_type,
+          month:      rMonth,
+          startDate:  rStart,
+          endDate:    rEnd,
+          filters:    rFilters,
+          format:     rFmt
+        }
+      });
       _ragAppend('ai', answer + btnHtml);
       _ragSaveChat();
     } else if (data.answer) {
@@ -1300,17 +1348,24 @@ function _ragProcess(query) {
     var rows=sorted.map(function(k){return [_ragEsc(k),String(counts[k])];});
     return ret('<strong>Fast Moving Items</strong>'+tbl(['Item','Total Issued'],rows));
   }
-  // Users
-  if(q.includes('user')||q.includes('staff')){
+  // Users / clients / customers
+  if(q.includes('user')||q.includes('staff')||q.includes('client')||q.includes('customer')){
     var adm=users.filter(function(u){return u.role==='admin';}).length,stf=users.filter(function(u){return u.role==='staff';}).length,cus=users.filter(function(u){return u.role==='customer';}).length;
+    // If asking for names of clients/customers, list them
+    if((q.includes('name')||q.includes('list')||q.includes('who')||q.includes('get'))&&(q.includes('client')||q.includes('customer'))){
+      var custList=users.filter(function(u){return u.role==='customer';});
+      if(!custList.length)return ret('No registered customers found.');
+      var rows=custList.map(function(u){return [_ragEsc(u.name||'—'),_ragEsc(u.email||'—')];});
+      return ret('<strong>Registered Customers ('+custList.length+')</strong>'+tbl(['Name','Email'],rows));
+    }
     return ret('<strong>Users ('+users.length+')</strong><br>• Admin: '+adm+'<br>• Staff: '+stf+'<br>• Customer: '+cus);
   }
   // Fallback — short, honest, capability-based (no fabricated data)
-  var capabilities = 'I can help with vehicles & PMS status, maintenance records, inventory/stock levels, bookings, users, and PDF/Excel report generation.';
+  var capabilities = 'I can answer questions about vehicles, PMS status, maintenance records, inventory, bookings, users, and generate PDF/Excel reports.';
   if(q.includes('fleet')||q.includes('vehicle')){
     return ret(capabilities+'<br><br>For a fleet overview, try <em>"Fleet Summary"</em>.');
   }
-  return ret('I\u2019m not able to help with that request in local mode. '+capabilities+'<br><br>For full natural-language answers, start the AI backend (<code>start.bat</code>).');
+  return ret('That query requires the live AI service, which is currently unreachable. '+capabilities+'<br><br>Try asking about vehicles, inventory, bookings, or users — those work right now.');
 }
 
 })();
