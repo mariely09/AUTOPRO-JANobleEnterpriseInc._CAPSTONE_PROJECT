@@ -3,7 +3,7 @@ Report generator for Caltex AutoPro AI Assistant.
 
 Produces PDF and Excel reports that match the exact branded layout used by
 the website's print_layout_header.js — same header, same table style, same
-colour scheme (#E8001C red, #1a202c dark, #003087 blue).
+colour scheme (#1a202c dark, #003087 blue).
 
 Supported report types:
   inventory      → stock_inventory collection
@@ -184,18 +184,13 @@ BRAND_SUB     = "Caltex San Pedro"
 BRAND_CITY    = "Laguna"
 BRAND_ADDRESS = "102 National Highway, Brgy. Landayan, San Pedro, Laguna"
 FOOTER_TEXT   = "Caltex San Pedro · JA Noble Enterprise Inc."
-RED           = (232, 0, 28)        # #E8001C
+RED           = (26, 32, 44)         # #1a202c  (was #E8001C — changed to dark)
 DARK          = (26, 32, 44)        # #1a202c
 BLUE          = (0, 48, 135)        # #003087
 GREY          = (113, 128, 150)     # #718096
 LIGHT_GREY    = (247, 248, 250)     # #f7f8fa
 WHITE         = (255, 255, 255)
 ROW_ALT       = (248, 250, 252)     # #f8fafc  (even row bg)
-
-LOGO_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    "..", "automotive_website", "static", "img", "LOGO_CALTEX.png"
-)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -668,7 +663,7 @@ def generate_pdf(report_type: str, month: str | None = None,
     from reportlab.lib import colors
     from reportlab.platypus import (
         SimpleDocTemplate, Table, TableStyle, Paragraph,
-        Spacer, HRFlowable, Image,
+        Spacer, HRFlowable,
     )
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
@@ -706,7 +701,7 @@ def generate_pdf(report_type: str, month: str | None = None,
     widths = [usable_w * (w / _weight_sum) for w in _col_weights]
 
     # ── Colours (exact match to print_layout_header.js) ──────────────────────
-    red_c   = colors.Color(*_rgb(RED))       # #E8001C
+    red_c   = colors.Color(*_rgb(RED))       # #1a202c  — same as dark
     dark_c  = colors.Color(*_rgb(DARK))      # #1a202c  — thead bg, brand text
     grey_c  = colors.Color(*_rgb(GREY))      # #718096
     lgrey_c = colors.Color(0.63, 0.69, 0.77) # #a0aec0  — address, footer
@@ -752,11 +747,7 @@ def generate_pdf(report_type: str, month: str | None = None,
 
     report_title = cfg["title"] + (f" — {_filter_label}" if _filter_label else "")
 
-    # ── Left block: logo + brand ──────────────────────────────────────────────
-    logo_img = ""
-    if os.path.exists(LOGO_PATH):
-        logo_img = Image(LOGO_PATH, width=38, height=38)
-
+    # ── Left block: brand ─────────────────────────────────────────────────────
     left_block = [
         Paragraph(BRAND_NAME, brand_style),
         Paragraph("CALTEX SAN PEDRO", sub_style),
@@ -774,13 +765,12 @@ def generate_pdf(report_type: str, month: str | None = None,
         ),
     ]
 
-    # ── Header table: [logo | brand block | right block] ─────────────────────
-    logo_w   = 44
+    # ── Header table: [brand block | right block] ─────────────────────────────
     right_w  = usable_w * 0.46
-    left_w   = usable_w - logo_w - right_w
+    left_w   = usable_w - right_w
     header_tbl = Table(
-        [[logo_img, left_block, right_block]],
-        colWidths=[logo_w, left_w, right_w],
+        [[left_block, right_block]],
+        colWidths=[left_w, right_w],
     )
     header_tbl.setStyle(TableStyle([
         ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
@@ -970,7 +960,7 @@ def generate_excel(report_type: str, month: str | None = None,
         _xl_filter = None
 
     r3 = ws.cell(3, 1, cfg["title"].upper() + (f"  —  {_xl_filter.upper()}" if _xl_filter else ""))
-    r3.font      = Font(name="Calibri", bold=True, size=16, color="E8001C")
+    r3.font      = Font(name="Calibri", bold=True, size=16, color="1A202C")
     r3.alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[3].height = 26
 
@@ -979,10 +969,10 @@ def generate_excel(report_type: str, month: str | None = None,
     r4.alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[4].height = 14
 
-    # Red divider row
+    # Dark divider row
     ws.row_dimensions[5].height = 3
     for c in range(1, ncols + 1):
-        ws.cell(5, c).fill = fill("E8001C")
+        ws.cell(5, c).fill = fill("1A202C")
 
     ws.row_dimensions[6].height = 6  # spacer
 
@@ -999,10 +989,10 @@ def generate_excel(report_type: str, month: str | None = None,
 
     # ── Data rows ────────────────────────────────────────────
     STATUS_COLORS = {
-        "low":         ("E8001C", "FFF5F5"),
-        "overdue":     ("E8001C", "FFF5F5"),
-        "cancelled":   ("E8001C", "FFF5F5"),
-        "rejected":    ("E8001C", "FFF5F5"),
+        "low":         ("1A202C", "EDF2F7"),
+        "overdue":     ("1A202C", "EDF2F7"),
+        "cancelled":   ("1A202C", "EDF2F7"),
+        "rejected":    ("1A202C", "EDF2F7"),
         "ok":          ("276749", "F0FFF4"),
         "active":      ("276749", "F0FFF4"),
         "completed":   ("003087", "EBF8FF"),
