@@ -2424,27 +2424,17 @@ function renderIssuancesList() {
         var _ISS_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         function _fmtIssDate(d) {
             if (!d) return '—';
-            // Handle Firestore Timestamp objects that slipped through
-            if (typeof d === 'object' && typeof d.toDate === 'function') {
-                var dt = d.toDate();
-                return _ISS_MONTHS[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
-            }
-            if (typeof d === 'object' && d.seconds) {
-                var dt2 = new Date(d.seconds * 1000);
-                return _ISS_MONTHS[dt2.getMonth()] + ' ' + dt2.getDate() + ', ' + dt2.getFullYear();
-            }
-            d = String(d);
             var m1 = d.match(/^([A-Za-z]{3,})\s+(\d+),?\s+(\d{4})/);
             if (m1) return m1[1].slice(0,3) + ' ' + parseInt(m1[2]) + ', ' + m1[3];
             var m2 = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
             if (m2) return _ISS_MONTHS[parseInt(m2[1])-1] + ' ' + parseInt(m2[2]) + ', ' + m2[3];
             var m3 = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
             if (m3) return _ISS_MONTHS[parseInt(m3[2])-1] + ' ' + parseInt(m3[3]) + ', ' + m3[1];
-            var dt3 = new Date(d);
-            if (!isNaN(dt3.getTime())) return _ISS_MONTHS[dt3.getMonth()] + ' ' + dt3.getDate() + ', ' + dt3.getFullYear();
+            var dt = new Date(d);
+            if (!isNaN(dt.getTime())) return _ISS_MONTHS[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
             return d;
         }
-        return '<div class="table-row" style="min-width:1100px;grid-template-columns:130px 130px 120px 1fr 100px 140px 70px 80px 110px 110px;">'
+        return '<div class="table-row" style="min-width:1100px;grid-template-columns:110px 130px 120px 1fr 100px 140px 70px 80px 110px 110px;">'
             + '<div>' + _fmtIssDate(i.date) + '</div>'
             + '<div>' + (i.assetNum||'-') + (assetDesc ? '<br><span style="font-size:0.7rem;color:#718096;">' + assetDesc + '</span>' : '') + '</div>'
             + '<div>' + (i.itemNum||'-') + '</div>'
