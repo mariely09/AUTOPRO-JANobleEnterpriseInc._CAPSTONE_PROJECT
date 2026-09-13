@@ -134,11 +134,20 @@
         oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'"
         onfocus="document.getElementById('ragInputWrap').style.borderColor='#E8001C';document.getElementById('ragInputWrap').style.boxShadow='0 0 0 3px rgba(232,0,28,0.08)';"
         onblur="document.getElementById('ragInputWrap').style.borderColor='#edf0f5';document.getElementById('ragInputWrap').style.boxShadow='none';"></textarea>
+      <!-- Send button (shown when idle) -->
       <button onclick="ragAiSend()" id="ragSendBtn"
         style="width:34px;height:34px;min-width:34px;background:linear-gradient(135deg,#E8001C,#c0001a);border:none;border-radius:50%;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(232,0,28,0.35);transition:all .18s;"
         onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 5px 14px rgba(232,0,28,0.45)'"
         onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 3px 10px rgba(232,0,28,0.35)'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+      <!-- Stop button (shown while AI is generating) -->
+      <button onclick="ragAiStop()" id="ragStopBtn"
+        style="display:none;width:34px;height:34px;min-width:34px;background:linear-gradient(135deg,#475569,#334155);border:none;border-radius:50%;color:white;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(71,85,105,0.45);transition:all .18s;"
+        title="Stop generation"
+        onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 5px 14px rgba(71,85,105,0.6)'"
+        onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 3px 10px rgba(71,85,105,0.45)'">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
       </button>
     </div>
     <div style="text-align:center;font-size:10px;color:#c0c8d4;margin-top:5px;">Enter to send &nbsp;·&nbsp; Shift+Enter for new line</div>
@@ -216,6 +225,24 @@
   box-shadow:0 3px 12px rgba(232,0,28,0.12);
   transform:translateY(-1px);
 }
+
+/* ── User message action buttons (Copy / Edit) ── */
+.rag-user-actions {
+  display:none;
+  gap:4px;
+  margin-top:5px;
+  justify-content:flex-end;
+}
+.rag-row.user:hover .rag-user-actions { display:flex; }
+.rag-action-btn {
+  display:flex;align-items:center;gap:3px;
+  padding:2px 7px;border:none;background:rgba(255,255,255,0.18);
+  color:white;font-size:10px;font-weight:600;border-radius:10px;
+  cursor:pointer;font-family:inherit;transition:background .15s;
+}
+.rag-action-btn:hover { background:rgba(255,255,255,0.32); }
+.rag-action-btn svg { flex-shrink:0; }
+.rag-copy-ok { background:rgba(56,161,105,0.5) !important; }
 
 /* ── Scrollbar ── */
 #ragAiChat::-webkit-scrollbar { width:4px; }

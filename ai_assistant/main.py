@@ -354,25 +354,48 @@ def admin_chat(req: ChatRequest):
     Admin AI chat with server-side conversational memory and model routing.
 
     Flow:
-      1. Resolve or create a session_id.
-      2. Check admin daily usage limit (high/unlimited by default).
-      3. Classify intent using deterministic rules (zero tokens).
-      4. Try the admin fast-path classifier for obvious DB queries.
-          -  If matched and intent is DATABASE_LOOKUP/CALCULATION: return the
-           data directly with a template reply (0 LLM tokens).
-          -  If matched but still needs phrasing: call 8B with data already fetched.
-      5. Otherwise: full LLM tool-calling loop with selected model.
-      6. Record token usage against the admin's daily limit.
-      7. Append exchange to session store.
-      8. Return reply + session_id.
+      1. Validate message (empty / symbols-only → 422).
+      2. Resolve or create a session_id.
+      3. Check admin daily usage limit (high/unlimited by default).
+      4. Classify intent using deterministic rules (zero tokens).
+      5. Try the admin fast-path classifier:
+           - blocked (out-of-scope / prompt-injection / future-prediction):
+               return deterministic refusal (0 LLM tokens).
+           - arithmetic / reorder-point / remaining-stock:
+               return Python-computed answer (0 LLM tokens).
+           - DB lookup (DATABASE_LOOKUP/CALCULATION):
+               return template reply from pre-fetched DB data (0 LLM tokens).
+           - other fast-path: call 8B once with data already fetched.
+      6. Otherwise: full LLM tool-calling loop with selected model.
+      7. Record token usage against the admin's daily limit.
+      8. Append exchange to session store.
+      9. Return reply + session_id.
     """
+    # -- Step 1: empty / symbols-only input validation -------------------------
+    if not req.message or not req.message.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="message must not be empty.",
+        )
+    import unicodedata as _ucd
+    _stripped = req.message.strip()
+    _meaningful = sum(1 for c in _stripped if _ucd.category(c).startswith(('L', 'N')))
+    if len(_stripped) > 0 and _meaningful == 0:
+        # Pure symbols / punctuation — return a graceful message rather than
+        # crashing, consistent with the customer endpoint behaviour.
+        session_id = req.session_id or str(uuid.uuid4())
+        return ChatResponse(
+            reply="I didn't quite catch that. Please type a question about the system.",
+            session_id=session_id,
+        )
+
     session_id = req.session_id or str(uuid.uuid4())
     admin_id   = session_id[:20]   # stable identifier for usage tracking
 
     import perf_metrics
     _perf = perf_metrics.push(admin_id, "admin", "?")
     try:
-        # -- Step 2: daily usage check -----------------------------------------
+        # -- Step 3: daily usage check -----------------------------------------
         limit_check = usage_limiter.check_limit(admin_id, role="admin")
         if not limit_check["allowed"]:
             return ChatResponse(
@@ -385,20 +408,59 @@ def admin_chat(req: ChatRequest):
         server_history    = get_history(session_id)
         effective_history = _merge_history(server_history, req.history)
 
-        # -- Step 3: intent classification (deterministic, 0 tokens) ----------
+        # -- Step 4: intent classification (deterministic, 0 tokens) ----------
         with perf_metrics.stage("intent"):
             intent = classify_intent(req.message)
         _perf["intent"] = intent
         with perf_metrics.stage("context"):
             chosen_model = select_model(intent)
 
-        # -- Step 4: admin fast-path (pre-fetches DB data before any LLM call) -
+        # -- Step 5: admin fast-path (pre-fetches DB data before any LLM call) -
         with perf_metrics.stage("firestore"):
             fast_path = classify_and_run(req.message)
 
         if fast_path:
+            fp_intent = fast_path.get("intent", "")
+            fp_result = fast_path.get("result", {})
+
+            # ── Blocked intents: out-of-scope, prompt-injection, future-prediction
+            if fp_intent in ("out_of_scope", "prompt_injection_blocked",
+                             "future_prediction_refused"):
+                reply = fp_result.get("reply",
+                    "I can only answer questions related to the Automotive "
+                    "Service and Inventory Management System.")
+                append_turn(session_id, req.message, reply)
+                token_tracker.record(
+                    user_id=admin_id, role="admin", model="none",
+                    intent=fp_intent, input_tokens=0, output_tokens=0,
+                )
+                usage_limiter.record_usage(admin_id, "admin", 0, 0)
+                return ChatResponse(
+                    reply=reply,
+                    session_id=session_id,
+                    tool_calls=[fast_path],
+                )
+
+            # ── Arithmetic fast-paths: reorder point, remaining stock, pure math
+            if fp_intent in ("reorder_point_calculation",
+                             "remaining_stock_calculation",
+                             "arithmetic_calculation"):
+                reply = _format_admin_calc_reply(req.message, fp_result)
+                append_turn(session_id, req.message, reply)
+                token_tracker.record(
+                    user_id=admin_id, role="admin", model="none",
+                    intent=fp_intent, input_tokens=0, output_tokens=0,
+                )
+                usage_limiter.record_usage(admin_id, "admin", 0, 0)
+                return ChatResponse(
+                    reply=reply,
+                    session_id=session_id,
+                    tool_calls=[fast_path],
+                )
+
+            # ── DB lookups
             if intent in (DATABASE_LOOKUP, DATABASE_CALCULATION):
-                reply = _format_admin_db_reply(req.message, fast_path["result"])
+                reply = _format_admin_db_reply(req.message, fp_result)
                 append_turn(session_id, req.message, reply)
                 # Zero LLM tokens  -  record request count only
                 token_tracker.record(
@@ -419,7 +481,7 @@ def admin_chat(req: ChatRequest):
             phrasing_prompt = (
                 f"The user asked: \"{req.message}\"\n\n"
                 f"Here is the exact data retrieved from the database:\n"
-                f"{fast_path['result']}\n\n"
+                f"{fp_result}\n\n"
                 f"Answer the user's question using ONLY this data. "
                 f"Be concise. Do not recalculate anything."
             )
@@ -486,7 +548,55 @@ def admin_chat(req: ChatRequest):
             _perf["intent"] = "UNKNOWN"
         perf_metrics.log_summary(_perf)
         perf_metrics.pop()
-def _record_llm_usage_admin(result: dict, admin_id: str) -> None:
+
+
+def _format_admin_calc_reply(message: str, result: dict) -> str:
+    """
+    Format a Python-computed arithmetic / formula result as a conversational reply.
+    Used for fast-path arithmetic answers (0 LLM tokens).
+    """
+    intent = result.get("calculated_by", "python")
+    msg_l  = (_normalize_input(message) or message).lower()
+
+    # ── Reorder point ─────────────────────────────────────────────────────────
+    if "reorder_point" in result:
+        rp  = result["reorder_point"]
+        adu = result.get("average_daily_usage", "?")
+        lt  = result.get("lead_time_days", "?")
+        ss  = result.get("safety_stock", "?")
+        return (
+            f"The reorder point is **{rp:.0f} units**.\n\n"
+            f"**Formula:** Reorder Point = (Average Daily Usage × Lead Time) + Safety Stock\n\n"
+            f"**Calculation:** ({adu:.0f} × {lt:.0f}) + {ss:.0f} = **{rp:.0f} units**\n\n"
+            f"This means you should place a new order when stock reaches {rp:.0f} units to avoid stockouts."
+        )
+
+    # ── Remaining stock ───────────────────────────────────────────────────────
+    if "remaining" in result:
+        initial   = result.get("initial_stock", 0)
+        issued    = result.get("issued", 0)
+        remaining = result.get("remaining", 0)
+        return (
+            f"After issuing **{issued:.0f} units** from **{initial:.0f} units** in stock, "
+            f"there are **{remaining:.0f} units remaining**.\n\n"
+            f"*Calculation verified by Python — not estimated by the AI.*"
+        )
+
+    # ── Pure arithmetic ───────────────────────────────────────────────────────
+    if "answer" in result:
+        answer = result["answer"]
+        calc   = result.get("calculation", f"= {answer}")
+        return (
+            f"The answer is **{answer}**.\n\n"
+            f"*Calculation: {calc} — computed by Python, not estimated.*"
+        )
+
+    # ── Fallback ──────────────────────────────────────────────────────────────
+    import json as _j
+    return "Here is the calculated result:\n\n```\n" + _j.dumps(result, indent=2)[:800] + "\n```"
+
+
+
     """Extract token counts from an LLM result dict and record them for the admin."""
     try:
         # token_tracker.record is already called inside client.py (_record_usage).
@@ -581,6 +691,40 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
                     f"booking{'s' if total != 1 else ''} in the system — {breakdown}.")
         return (f"There {'is' if total == 1 else 'are'} **{total}** service "
                 f"booking{'s' if total != 1 else ''} in the system.")
+
+    # ── System summary (dashboard) ────────────────────────────────────────────
+    if "maintenance" in result and "bookings" in result and "vehicles" in result:
+        m = result.get("maintenance", {})
+        b = result.get("bookings", {})
+        v = result.get("vehicles", {})
+        parts = []
+        if v.get("total_vehicles"):
+            parts.append(f"**{v['total_vehicles']}** registered vehicle{'s' if v['total_vehicles'] != 1 else ''}")
+        if m.get("total_jobs"):
+            parts.append(f"**{m['total_jobs']}** maintenance job{'s' if m['total_jobs'] != 1 else ''} on record")
+        if b.get("total_bookings"):
+            parts.append(f"**{b['total_bookings']}** service booking{'s' if b['total_bookings'] != 1 else ''}")
+        if not parts:
+            return "The system currently has no recorded data across vehicles, maintenance, or bookings."
+        return "Here is a summary of the current system data:\n\n" + "\n".join(f"• {p}" for p in parts)
+
+    # ── Issuances ─────────────────────────────────────────────────────────────
+    if "issuances" in msg_l or "issued" in msg_l:
+        rows = result.get("issuances", result.get("rows", []))
+        total = result.get("total_issuances", len(rows))
+        if total == 0:
+            return "No issuance records found for the specified criteria."
+        import json as _j
+        sample = rows[:5]
+        lines = []
+        for row in sample:
+            name = row.get("itemName") or row.get("name", "?")
+            qty  = row.get("qty", row.get("quantity", "?"))
+            date = row.get("date", row.get("issuedAt", "?"))
+            lines.append(f"• **{name}** — {qty} units  ({date})")
+        tail = f"\n\n*...and {total - 5} more record(s).*" if total > 5 else ""
+        return (f"There {'is' if total == 1 else 'are'} **{total}** issuance record"
+                f"{'s' if total != 1 else ''}:\n\n" + "\n".join(lines) + tail)
 
     # ── Inventory / stock list ────────────────────────────────────────────────
     if "inventory" in msg_l or "stock" in msg_l or "items" in msg_l:
@@ -871,6 +1015,22 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
             "tool_calls": [],
             "model": "none",
             "intent": f"ACCESS_DENIED_{_denial}",
+        }
+
+    # -- Step 1a: prompt injection guard (0 tokens, 0 reads) ------------------
+    # Runs before ALL other checks so crafted "ignore previous instructions"
+    # payloads can never bypass scope or data-isolation controls.
+    from intent_classifier import _PROMPT_INJECTION as _PI_RE
+    _norm_for_injection = _normalize_input(message) or message
+    if _PI_RE.search(message) or _PI_RE.search(_norm_for_injection):
+        return {
+            "reply": (
+                "I can only answer questions related to your vehicles, "
+                "service history, bookings, and service pricing for the AutoPro system."
+            ),
+            "tool_calls": [],
+            "model": "none",
+            "intent": "PROMPT_INJECTION_BLOCKED",
         }
 
     # -- Step 1b: out-of-scope pre-check (defense in depth) -------------------
