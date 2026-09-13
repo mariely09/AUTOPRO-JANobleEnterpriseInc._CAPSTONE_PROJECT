@@ -507,80 +507,101 @@ def _record_llm_usage_admin(result: dict, admin_id: str) -> None:
 
 def _format_admin_db_reply(message: str, result: dict) -> str:
     """
-    Build a direct template response for admin DATABASE_LOOKUP requests.
-    No LLM involved  -  zero tokens consumed.
+    Build a conversational response for admin DATABASE_LOOKUP / DATABASE_CALCULATION
+    requests answered via the fast-path (zero LLM tokens consumed).
+
+    Tone: concise, natural, sentence-based — not a raw data dump.
+    Bold is used only for key numbers and proper names, not for every label.
     """
     msg_l = _normalize_input(message) or message.lower()
 
-    # Low stock
-    if "low" in msg_l and "stock" in msg_l or "reorder" in msg_l or "restock" in msg_l:
+    # ── Low-stock / reorder ───────────────────────────────────────────────────
+    if ("low" in msg_l and "stock" in msg_l) or "reorder" in msg_l or "restock" in msg_l:
         count = result.get("low_stock_count", len(result.get("items", [])))
         if count == 0:
-            return "All items are currently at acceptable stock levels. No items are below the reorder point."
+            return "Good news — all items are currently at acceptable stock levels. Nothing is below the reorder point right now."
         items = result.get("items", [])[:10]
-        lines = [f"**{it['name']}**  -  Stock: {it['stock']} {it['uom']} (Reorder: {it['reorder']})"
-                 for it in items]
-        tail = f"\n\n*...and {count - 10} more items.*" if count > 10 else ""
-        return f"There are **{count}** item(s) at or below the reorder point:\n\n" + "\n".join(lines) + tail
+        lines = [
+            f"• **{it['name']}** — {it['stock']} {it['uom']} remaining (reorder at {it['reorder']})"
+            for it in items
+        ]
+        tail = f"\n\n*...and {count - 10} more item(s) below reorder point.*" if count > 10 else ""
+        intro = (f"There {'is' if count == 1 else 'are'} **{count}** item{'s' if count != 1 else ''} "
+                 f"at or below the reorder point:")
+        return intro + "\n\n" + "\n".join(lines) + tail
 
-    # User / customer count
+    # ── User / customer count ─────────────────────────────────────────────────
     if any(k in msg_l for k in ("how many", "count", "users", "customers", "staff")):
         total = result.get("total_users", 0)
         by_role = result.get("by_role", {})
-        breakdown = ", ".join(f"{v} {k}(s)" for k, v in by_role.items()) if by_role else ""
-        return f"There are **{total}** registered user(s) in the system." + (
-            f"\n\n**By role:** {breakdown}" if breakdown else ""
-        )
+        if by_role:
+            parts = [f"**{v}** {k}{'s' if v != 1 else ''}" for k, v in by_role.items()]
+            breakdown = " and ".join(parts) if len(parts) <= 2 else ", ".join(parts[:-1]) + f", and {parts[-1]}"
+            return f"There are **{total}** registered user{'s' if total != 1 else ''} in the system — {breakdown}."
+        return f"There are **{total}** registered user{'s' if total != 1 else ''} in the system."
 
-    # Vehicles
+    # ── Vehicles ──────────────────────────────────────────────────────────────
     if "vehicle" in msg_l or "fleet" in msg_l:
         total = result.get("total_vehicles", 0)
         by_status = result.get("by_status", {})
-        breakdown = ", ".join(f"{v} {k}" for k, v in by_status.items()) if by_status else ""
-        return f"There are **{total}** registered vehicle(s)." + (
-            f"\n\n**By status:** {breakdown}" if breakdown else ""
-        )
+        if by_status:
+            parts = [f"**{v}** {k}" for k, v in by_status.items()]
+            breakdown = ", ".join(parts)
+            return (f"There {'is' if total == 1 else 'are'} **{total}** registered "
+                    f"vehicle{'s' if total != 1 else ''} in the fleet — {breakdown}.")
+        return (f"There {'is' if total == 1 else 'are'} **{total}** registered "
+                f"vehicle{'s' if total != 1 else ''} in the fleet.")
 
-    # Maintenance summary
+    # ── Maintenance summary ───────────────────────────────────────────────────
     if "maintenance" in msg_l or "repair" in msg_l or "summary" in msg_l:
         total = result.get("total_jobs", 0)
         by_status = result.get("by_status", {})
         total_cost = result.get("total_cost", 0)
-        breakdown = ", ".join(f"{v} {k}" for k, v in by_status.items()) if by_status else ""
-        return (
-            f"**Maintenance Summary:** {total} total job(s)"
-            + (f"  -  {breakdown}" if breakdown else "")
-            + (f"\n\n**Total Cost:** ₱{total_cost:,.2f}" if total_cost else "")
-        )
+        if by_status:
+            parts = [f"**{v}** {k}" for k, v in by_status.items()]
+            breakdown = ", ".join(parts)
+            base = (f"There {'is' if total == 1 else 'are'} **{total}** maintenance "
+                    f"job{'s' if total != 1 else ''} on record — {breakdown}.")
+        else:
+            base = (f"There {'is' if total == 1 else 'are'} **{total}** maintenance "
+                    f"job{'s' if total != 1 else ''} on record.")
+        cost_note = f" The total recorded cost is **₱{total_cost:,.2f}**." if total_cost else ""
+        return base + cost_note
 
-    # Bookings
+    # ── Bookings ──────────────────────────────────────────────────────────────
     if "booking" in msg_l or "appointment" in msg_l:
         total = result.get("total_bookings", 0)
         by_status = result.get("by_status", {})
-        breakdown = ", ".join(f"{v} {k}" for k, v in by_status.items()) if by_status else ""
-        return f"There are **{total}** booking(s) in the system." + (
-            f"\n\n**By status:** {breakdown}" if breakdown else ""
-        )
+        if total == 0:
+            return "There are no service bookings in the system yet."
+        if by_status:
+            parts = [f"**{v}** {k}" for k, v in by_status.items()]
+            breakdown = ", ".join(parts)
+            return (f"There {'is' if total == 1 else 'are'} **{total}** service "
+                    f"booking{'s' if total != 1 else ''} in the system — {breakdown}.")
+        return (f"There {'is' if total == 1 else 'are'} **{total}** service "
+                f"booking{'s' if total != 1 else ''} in the system.")
 
-    # Inventory / stock list
+    # ── Inventory / stock list ────────────────────────────────────────────────
     if "inventory" in msg_l or "stock" in msg_l or "items" in msg_l:
         total = result.get("total_items", len(result.get("items", [])))
         items = result.get("items", [])
         low   = sum(1 for it in items if (it.get("status") or "").lower() == "low")
+        if total == 0:
+            return "The inventory is currently empty — no items are on record."
         lines = [
-            f"**{it['name']}**  -  Stock: {it['stock']} {it.get('uom','')}"
+            f"• **{it['name']}** — {it['stock']} {it.get('uom', '')} "
+            f"{'⚠️ Low' if (it.get('status') or '').lower() == 'low' else ''}"
             for it in items[:10]
         ]
-        tail = f"\n\n*...and {total - 10} more items.*" if total > 10 else ""
-        return (
-            f"Here are **{total}** inventory item(s)"
-            + (f" ({low} flagged Low)." if low else ".")
-            + "\n\n" + "\n".join(lines) + tail
-        )
+        tail = f"\n\n*...and {total - 10} more item(s). Ask for a specific item or group to narrow results.*" if total > 10 else ""
+        low_note = f" ({low} item{'s' if low != 1 else ''} flagged low)" if low else ""
+        intro = f"Here are **{total}** inventory item{low_note}:" if total > 1 else f"Here is the inventory item{low_note}:"
+        return intro + "\n\n" + "\n".join(lines) + tail
 
-    # Generic fallback: return a short summary
-    import json
-    return f"Here is the data retrieved:\n\n```\n{json.dumps(result, indent=2)[:1500]}\n```"
+    # ── Generic fallback ──────────────────────────────────────────────────────
+    import json as _json
+    return "Here's what I found:\n\n```\n" + _json.dumps(result, indent=2)[:1500] + "\n```"
 
 
 # -- Admin report --------------------------------------------------------------
@@ -1217,13 +1238,16 @@ def _customer_direct_lookup(message: str, customer_uid: str,
                 lines.append(line)
             overdue  = [v for v in vehicles if v.get("status") == "Overdue"]
             due_soon = [v for v in vehicles if v.get("status") in ("Due Soon", "Due This Week")]
-            header   = f"Here are your **{total}** registered vehicle(s):\n\n"
+            veh_word = "vehicle" if total == 1 else "vehicles"
+            header   = f"You have **{total}** registered {veh_word}:\n\n"
             body     = "\n\n".join(lines)
             footer   = ""
             if overdue:
-                footer += f"\n\nWarning: **{len(overdue)} vehicle(s) overdue** for maintenance."
+                ov_word = "vehicle is" if len(overdue) == 1 else "vehicles are"
+                footer += f"\n\n⚠️ **{len(overdue)} {ov_word} overdue** for maintenance — please schedule a service soon."
             if due_soon:
-                footer += f"\n\n **{len(due_soon)} vehicle(s) due soon**  -  consider scheduling a service."
+                ds_word = "vehicle is" if len(due_soon) == 1 else "vehicles are"
+                footer += f"\n\n🔔 **{len(due_soon)} {ds_word} due soon** — consider booking a service appointment."
             reply = header + body + footer
         return {"reply": reply, "tool_calls": [{"tool": "get_my_vehicles", "args": {}, "result": result}], "model": "none", "intent": intent}
 
@@ -1249,13 +1273,16 @@ def _customer_direct_lookup(message: str, customer_uid: str,
         else:
             by_vehicle = result.get("by_vehicle", {})
             if by_vehicle and len(by_vehicle) > 1:
-                header   = (f"Here's your complete service history across **{len(by_vehicle)} vehicle(s)**  -  "
-                            f"**{total}** completed record(s), total spend **{total_c}**.\n\n")
+                veh_count = len(by_vehicle)
+                veh_word  = "vehicle" if veh_count == 1 else "vehicles"
+                rec_word  = "record" if total == 1 else "records"
+                header    = (f"Here's your complete service history across **{veh_count} {veh_word}** — "
+                             f"**{total}** completed {rec_word} with a total spend of **{total_c}**.\n\n")
                 sections = []
                 for plate_key, plate_jobs in by_vehicle.items():
                     plate_total = sum(j.get("cost_raw", 0) for j in plate_jobs)
                     plate_cost  = f"₱{plate_total:,.2f}" if plate_total else " - "
-                    section     = f"**{plate_key}**  -  {len(plate_jobs)} record(s), subtotal {plate_cost}\n"
+                    section     = f"**{plate_key}**  -  {len(plate_jobs)} {'record' if len(plate_jobs) == 1 else 'records'}, subtotal {plate_cost}\n"
                     job_lines   = []
                     for j in plate_jobs[:10]:
                         svcs = ", ".join(j.get("services", [])) or " - "
@@ -1268,7 +1295,7 @@ def _customer_direct_lookup(message: str, customer_uid: str,
             else:
                 jobs   = result.get("jobs", [])
                 shown  = jobs[:10]
-                header = f"Here's your service history! You have **{total}** completed record(s) with a total spend of **{total_c}**.\n\n"
+                header = f"Here's your service history! You have **{total}** completed {'record' if total == 1 else 'records'} with a total spend of **{total_c}**.\n\n"
                 lines  = []
                 for i, j in enumerate(shown, 1):
                     svcs = ", ".join(j.get("services", [])) or " - "
@@ -1302,17 +1329,21 @@ def _customer_direct_lookup(message: str, customer_uid: str,
         total = result.get("total", 0)
         if total == 0:
             if upcoming:
-                reply = "You don't have any upcoming service bookings."
+                reply = "You don't have any upcoming service bookings right now."
             else:
-                reply = "You don't have any service bookings on file."
+                reply = "You don't have any service bookings on file yet."
         else:
             bookings  = result.get("bookings", [])
             shown     = bookings[:10]
             pending   = result.get("pending", 0)
             confirmed = result.get("confirmed", 0)
-            header    = f"You have **{total}** booking(s)"
+            bk_word   = "booking" if total == 1 else "bookings"
+            header    = f"You have **{total}** service {bk_word}"
             if pending or confirmed:
-                header += f" ({pending} pending, {confirmed} confirmed/in-progress)"
+                parts = []
+                if pending:   parts.append(f"{pending} pending")
+                if confirmed: parts.append(f"{confirmed} confirmed")
+                header += f" ({', '.join(parts)})"
             header += ":\n\n"
             lines = []
             for b in shown:
@@ -1345,8 +1376,8 @@ def _customer_direct_lookup(message: str, customer_uid: str,
             vehicles = result.get("vehicles", [])
             overdue  = result.get("overdue", 0)
             due_soon = result.get("due_soon", 0)
-            on_track = result.get("on_track", 0)
-            header   = f"Here are the maintenance recommendations for your **{total}** vehicle(s):\n\n"
+            veh_word = "vehicle" if total == 1 else "vehicles"
+            header   = f"Here are the maintenance recommendations for your **{total}** {veh_word}:\n\n"
             lines    = []
             for v in vehicles:
                 lines.append(
@@ -1611,7 +1642,7 @@ def _customer_direct_lookup(message: str, customer_uid: str,
                     lines = [f"• **{s['name']}** — {s['cost']}" for s in grp_svcs]
                     sections.append(f"**{grp_name}:**\n" + "\n".join(lines))
 
-                header = f"Here are our **{total}** available service(s):\n\n"
+                header = f"Here are our **{total}** available {'service' if total == 1 else 'services'}:\n\n"
                 reply  = header + "\n\n".join(sections)
 
             return {"reply": reply, "tool_calls": [{"tool": "get_service_prices", "args": {"service_name": _svc_kw}, "result": result}], "model": "none", "intent": intent}
