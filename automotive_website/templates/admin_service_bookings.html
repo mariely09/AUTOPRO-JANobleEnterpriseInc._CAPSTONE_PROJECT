@@ -174,6 +174,100 @@
 
 <div id="toast"></div>
 
+<!-- ── Floating Add Booking Button ─────────────────────────── -->
+<button onclick="sbOpenAddModal()" style="position:fixed;bottom:2rem;right:2rem;width:56px;height:56px;border-radius:50%;background:#E31E24;border:none;color:white;cursor:pointer;box-shadow:0 4px 16px rgba(227,30,36,0.4);display:flex;align-items:center;justify-content:center;z-index:9999;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='0 6px 24px rgba(227,30,36,0.5)'" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 16px rgba(227,30,36,0.4)'">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+
+<!-- ── Add Booking Modal ─────────────────────────────────────── -->
+<div id="sbAddModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:20px;width:520px;max-width:95vw;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div>
+        <div style="color:white;font-size:1rem;font-weight:700;">New Service Booking</div>
+        <div style="color:rgba(255,255,255,0.75);font-size:0.75rem;margin-top:2px;">Create a walk-in or admin booking</div>
+      </div>
+      <button onclick="sbCloseAddModal()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+    </div>
+    <!-- Body -->
+    <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:1rem;">
+
+      <!-- Vehicle search -->
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#4a5568;display:block;margin-bottom:0.4rem;">Vehicle <span style="color:#E31E24;">*</span></label>
+        <div style="position:relative;">
+          <svg style="position:absolute;left:0.65rem;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="sbAddVehicleSearch" placeholder="Search plate number..." autocomplete="off"
+            style="width:100%;padding:0.65rem 0.75rem 0.65rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.88rem;font-family:inherit;color:#1a202c;background:white;outline:none;box-sizing:border-box;"
+            oninput="sbAddVehicleLookup(this.value)" onfocus="sbAddVehicleLookup(this.value)">
+          <div id="sbAddVehicleDrop" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 3px);background:white;border:1px solid #e2e8f0;border-radius:10px;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:100;"></div>
+        </div>
+        <div id="sbAddVehiclePreview" style="display:none;margin-top:0.5rem;padding:0.65rem 0.85rem;background:white;border:1.5px solid #9ae6b4;border-radius:10px;font-size:0.83rem;color:#1a202c;display:flex;align-items:center;justify-content:space-between;">
+          <span id="sbAddVehiclePreviewText"></span>
+          <button type="button" onclick="sbAddClearVehicle()" style="background:none;border:none;color:#718096;cursor:pointer;font-size:1rem;padding:0;">&times;</button>
+        </div>
+      </div>
+
+      <!-- Customer name -->
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#4a5568;display:block;margin-bottom:0.4rem;">Customer Name <span style="color:#E31E24;">*</span></label>
+        <input type="text" id="sbAddCustomerName" placeholder="Enter customer name..."
+          style="width:100%;padding:0.65rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.88rem;font-family:inherit;color:#1a202c;background:white;outline:none;box-sizing:border-box;">
+      </div>
+
+      <!-- Services -->
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#4a5568;display:block;margin-bottom:0.4rem;">Services <span style="color:#E31E24;">*</span></label>
+        <div id="sbAddServicesList" style="display:flex;flex-wrap:wrap;gap:0.4rem;padding:0.65rem;border:1.5px solid #e2e8f0;border-radius:10px;background:white;min-height:44px;">
+          <div style="font-size:0.8rem;color:#a0aec0;" id="sbAddServicesPlaceholder">Loading services...</div>
+        </div>
+      </div>
+
+      <!-- Date -->
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#4a5568;display:block;margin-bottom:0.4rem;">Preferred Date <span style="color:#E31E24;">*</span></label>
+        <div style="background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.75rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <button type="button" onclick="sbAddCalNav(-1)" style="width:28px;height:28px;border-radius:7px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:15px;color:#4a5568;display:flex;align-items:center;justify-content:center;">‹</button>
+            <span id="sbAddCalMonth" style="font-size:13px;font-weight:700;color:#1a202c;"></span>
+            <button type="button" onclick="sbAddCalNav(1)" style="width:28px;height:28px;border-radius:7px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:15px;color:#4a5568;display:flex;align-items:center;justify-content:center;">›</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:5px;">
+            <span style="font-size:9px;font-weight:700;color:#a0aec0;">SU</span><span style="font-size:9px;font-weight:700;color:#a0aec0;">MO</span><span style="font-size:9px;font-weight:700;color:#a0aec0;">TU</span><span style="font-size:9px;font-weight:700;color:#a0aec0;">WE</span><span style="font-size:9px;font-weight:700;color:#a0aec0;">TH</span><span style="font-size:9px;font-weight:700;color:#a0aec0;">FR</span><span style="font-size:9px;font-weight:700;color:#a0aec0;">SA</span>
+          </div>
+          <div id="sbAddCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;"></div>
+        </div>
+      </div>
+
+      <!-- Time -->
+      <div id="sbAddTimeSection" style="display:none;">
+        <label style="font-size:0.78rem;font-weight:700;color:#4a5568;display:block;margin-bottom:0.4rem;">Preferred Time <span style="color:#E31E24;">*</span></label>
+        <div id="sbAddTimeSlots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
+      </div>
+
+      <!-- Summary chip -->
+      <div id="sbAddSummary" style="display:none;padding:0.75rem 1rem;background:#ebf8ff;border:1.5px solid #bee3f8;border-radius:10px;font-size:0.83rem;color:#2c5282;font-weight:600;"></div>
+
+      <!-- Notes -->
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#4a5568;display:block;margin-bottom:0.4rem;">Notes <span style="font-weight:400;color:#a0aec0;">(optional)</span></label>
+        <textarea id="sbAddNotes" placeholder="Any special instructions or notes..." rows="2"
+          style="width:100%;padding:0.65rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.88rem;font-family:inherit;color:#1a202c;background:white;outline:none;resize:vertical;box-sizing:border-box;"></textarea>
+      </div>
+
+    </div>
+    <!-- Footer -->
+    <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
+      <button type="button" onclick="sbCloseAddModal()" style="flex:1;padding:0.85rem;background:#f7fafc;border:1.5px solid #e2e8f0;border-radius:12px;font-size:0.9rem;font-weight:600;color:#4a5568;cursor:pointer;font-family:inherit;">Cancel</button>
+      <button type="button" id="sbAddSaveBtn" onclick="sbAddSave()" style="flex:1;padding:0.85rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:12px;font-size:0.9rem;font-weight:700;color:white;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:0.4rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save Booking
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Reschedule Modal -->
 <div id="rescheduleModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
   <div style="background:white;border-radius:18px;width:420px;max-width:90vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;">
@@ -905,7 +999,345 @@
   }
 })();
 </script>
-<!-- ── Instant cache restore — runs AFTER all scripts so render fn is defined ── -->
+<!-- ── Add Booking Modal JS ──────────────────────────────────── -->
+<script>
+(function() {
+  var _ADD_TIME_SLOTS = ['8:00 AM','9:00 AM','10:00 AM','11:00 AM','1:00 PM','2:00 PM','3:00 PM','4:00 PM'];
+  var _addCalYear, _addCalMonth;
+  var _addSelectedDate = '', _addSelectedTime = '';
+  var _addSelectedVehicle = null; // { id, plate, desc, customerId, customerName }
+  var _addSelectedServices = {}; // { serviceName: true }
+  var _addBookedSlots = {};  // { 'YYYY-MM-DD': ['8:00 AM', ...] }
+  var _addServicesLoaded = false;
+
+  // ── Open / close ──────────────────────────────────────────────
+  window.sbOpenAddModal = function() {
+    // Reset state
+    _addSelectedDate = ''; _addSelectedTime = '';
+    _addSelectedVehicle = null; _addSelectedServices = {};
+
+    document.getElementById('sbAddVehicleSearch').value = '';
+    document.getElementById('sbAddVehicleDrop').style.display = 'none';
+    document.getElementById('sbAddVehiclePreview').style.display = 'none';
+    document.getElementById('sbAddCustomerName').value = '';
+    document.getElementById('sbAddNotes').value = '';
+    document.getElementById('sbAddTimeSection').style.display = 'none';
+    document.getElementById('sbAddSummary').style.display = 'none';
+
+    // Init calendar
+    var now = new Date();
+    _addCalYear = now.getFullYear();
+    _addCalMonth = now.getMonth();
+    _buildAddBookedSlots();
+    _renderAddCal();
+
+    // Load services
+    if (!_addServicesLoaded) _loadAddServices();
+    else _renderAddServices();
+
+    document.getElementById('sbAddModal').style.display = 'flex';
+  };
+
+  window.sbCloseAddModal = function() {
+    document.getElementById('sbAddModal').style.display = 'none';
+    // Close vehicle dropdown on outside click
+    document.getElementById('sbAddVehicleDrop').style.display = 'none';
+  };
+
+  // ── Build booked slots from cached data ───────────────────────
+  function _buildAddBookedSlots() {
+    var cachedDocs = window._fbBookings || window._sbAllDocs || [];
+    _addBookedSlots = {};
+    cachedDocs.forEach(function(d) {
+      if (d.status !== 'Approved') return;
+      var date = d.preferredDate, time = d.preferredTime;
+      if (date && time) {
+        if (!_addBookedSlots[date]) _addBookedSlots[date] = [];
+        if (_addBookedSlots[date].indexOf(time) === -1) _addBookedSlots[date].push(time);
+      }
+    });
+  }
+
+  // ── Calendar ──────────────────────────────────────────────────
+  function _renderAddCal() {
+    var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    document.getElementById('sbAddCalMonth').textContent = MONTHS[_addCalMonth] + ' ' + _addCalYear;
+    var firstDay = new Date(_addCalYear, _addCalMonth, 1).getDay();
+    var daysInM  = new Date(_addCalYear, _addCalMonth + 1, 0).getDate();
+    var today = new Date(); today.setHours(0,0,0,0);
+    var cells = '';
+    for (var i = 0; i < firstDay; i++) cells += '<button class="sba-day empty" disabled></button>';
+    for (var d = 1; d <= daysInM; d++) {
+      var dt = new Date(_addCalYear, _addCalMonth, d);
+      var dateStr = _addCalYear + '-' + String(_addCalMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+      var isPast = dt < today;
+      var taken  = (_addBookedSlots[dateStr] || []).length;
+      var isFull = taken >= _ADD_TIME_SLOTS.length;
+      var isSel  = dateStr === _addSelectedDate;
+      var cls = 'sba-day';
+      if (isSel)   cls += ' sel';
+      else if (isPast) cls += ' past';
+      else if (isFull) cls += ' full';
+      var click = (!isPast && !isFull) ? ' onclick="sbAddPickDate(\'' + dateStr + '\')"' : '';
+      cells += '<button class="' + cls + '"' + click + (isPast || isFull ? ' disabled' : '') + '>' + d + '</button>';
+    }
+    document.getElementById('sbAddCalGrid').innerHTML = cells;
+  }
+
+  window.sbAddCalNav = function(dir) {
+    _addCalMonth += dir;
+    if (_addCalMonth > 11) { _addCalMonth = 0; _addCalYear++; }
+    if (_addCalMonth < 0)  { _addCalMonth = 11; _addCalYear--; }
+    _renderAddCal();
+  };
+
+  window.sbAddPickDate = function(dateStr) {
+    _addSelectedDate = dateStr;
+    _addSelectedTime = '';
+    _renderAddCal();
+    // Show time slots
+    document.getElementById('sbAddTimeSection').style.display = 'block';
+    _renderAddTimeSlots();
+    _updateAddSummary();
+  };
+
+  function _renderAddTimeSlots() {
+    var taken = _addBookedSlots[_addSelectedDate] || [];
+    var html = _ADD_TIME_SLOTS.map(function(t) {
+      var isTaken = taken.indexOf(t) !== -1;
+      var isSel   = t === _addSelectedTime;
+      var cls = 'rs-time-chip' + (isSel ? ' selected' : '');
+      if (isTaken) return '<button class="' + cls + '" disabled title="Already booked">' + t + '</button>';
+      return '<button class="' + cls + '" onclick="sbAddPickTime(\'' + t + '\')">' + t + '</button>';
+    }).join('');
+    document.getElementById('sbAddTimeSlots').innerHTML = html;
+  }
+
+  window.sbAddPickTime = function(time) {
+    _addSelectedTime = time;
+    _renderAddTimeSlots();
+    _updateAddSummary();
+  };
+
+  function _updateAddSummary() {
+    var el = document.getElementById('sbAddSummary');
+    if (_addSelectedDate && _addSelectedTime) {
+      var MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var p = _addSelectedDate.split('-');
+      var label = MONTHS_S[parseInt(p[1])-1] + ' ' + parseInt(p[2]) + ', ' + p[0];
+      el.textContent = '\uD83D\uDCC5 ' + label + '  \u00B7  \uD83D\uDD50 ' + _addSelectedTime;
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
+  // ── Vehicle search ────────────────────────────────────────────
+  window.sbAddVehicleLookup = function(q) {
+    var drop = document.getElementById('sbAddVehicleDrop');
+    if (_addSelectedVehicle) { drop.style.display = 'none'; return; }
+    var vehicles = window._fbVehicles || window.assets || [];
+    q = (q || '').trim().toUpperCase();
+    var matches = q
+      ? vehicles.filter(function(v) {
+          var plate = (v.plate || v.plateNumber || '').toUpperCase();
+          var desc  = (v.desc || v.assetDescription || '').toUpperCase();
+          return plate.includes(q) || desc.includes(q);
+        }).slice(0, 20)
+      : vehicles.slice(0, 20);
+    if (!matches.length) { drop.style.display = 'none'; return; }
+    drop.innerHTML = matches.map(function(v) {
+      var plate = v.plate || v.plateNumber || '';
+      var desc  = v.desc  || v.assetDescription || '';
+      var owner = v.owner || '';
+      return '<div style="padding:0.55rem 0.85rem;cursor:pointer;border-bottom:1px solid #f0f4f8;font-size:0.83rem;" '
+        + 'onmouseover="this.style.background=\'#f7f8fa\'" onmouseout="this.style.background=\'\'" '
+        + 'onmousedown="event.preventDefault();sbAddSelectVehicle(\'' + plate.replace(/'/g,"\\'") + '\');">'
+        + '<div style="font-weight:700;color:#1a202c;">' + plate + '</div>'
+        + (desc ? '<div style="font-size:0.75rem;color:#718096;">' + desc + (owner ? ' · ' + owner : '') + '</div>' : '')
+        + '</div>';
+    }).join('');
+    drop.style.display = 'block';
+  };
+
+  window.sbAddSelectVehicle = function(plate) {
+    var vehicles = window._fbVehicles || window.assets || [];
+    var v = vehicles.find(function(x){ return (x.plate || x.plateNumber || '') === plate; });
+    if (!v) return;
+    _addSelectedVehicle = {
+      id: v._id || v.id || '',
+      plate: plate,
+      desc: v.desc || v.assetDescription || '',
+      ownerId: v.ownerId || '',
+      owner: v.owner || ''
+    };
+    document.getElementById('sbAddVehicleSearch').value = plate;
+    document.getElementById('sbAddVehicleDrop').style.display = 'none';
+    var preview = document.getElementById('sbAddVehiclePreview');
+    document.getElementById('sbAddVehiclePreviewText').textContent = plate + (_addSelectedVehicle.desc ? ' · ' + _addSelectedVehicle.desc : '');
+    preview.style.display = 'flex';
+    preview.style.alignItems = 'center';
+    preview.style.justifyContent = 'space-between';
+    // Auto-fill customer name from owner field
+    if (v.owner && !document.getElementById('sbAddCustomerName').value) {
+      document.getElementById('sbAddCustomerName').value = v.owner;
+    }
+  };
+
+  window.sbAddClearVehicle = function() {
+    _addSelectedVehicle = null;
+    document.getElementById('sbAddVehicleSearch').value = '';
+    document.getElementById('sbAddVehiclePreview').style.display = 'none';
+  };
+
+  // Close dropdown on outside click
+  document.addEventListener('click', function(e) {
+    var wrap = document.getElementById('sbAddVehicleSearch');
+    var drop = document.getElementById('sbAddVehicleDrop');
+    if (wrap && drop && !wrap.contains(e.target) && !drop.contains(e.target)) {
+      drop.style.display = 'none';
+    }
+  });
+
+  // ── Services ──────────────────────────────────────────────────
+  function _loadAddServices() {
+    var master = window.itemMaster || [];
+    var services = master.filter(function(i){ return (i.itemType||'').toLowerCase() === 'service' && i.itemName; });
+    if (!services.length && window._fbItemMaster) {
+      services = window._fbItemMaster
+        .filter(function(i){ return (i.type||'').toLowerCase() === 'service' && i.name; })
+        .map(function(i){ return { itemName: i.name, uom: i.uom || '', cost: i.cost || 0 }; });
+    }
+    if (!services.length) {
+      // Fetch from Firestore
+      firebase.firestore().collection('item_master').get().then(function(snap) {
+        services = snap.docs
+          .filter(function(d){ return (d.data().type||'').toLowerCase() === 'service' && d.data().name; })
+          .map(function(d){ return { itemName: d.data().name, uom: d.data().uom || '', cost: d.data().cost || 0 }; });
+        _renderAddServices(services);
+        _addServicesLoaded = true;
+        window._addServicesList = services;
+      }).catch(function() { document.getElementById('sbAddServicesPlaceholder').textContent = 'Unable to load services.'; });
+      return;
+    }
+    window._addServicesList = services;
+    _addServicesLoaded = true;
+    _renderAddServices(services);
+  }
+
+  function _renderAddServices(services) {
+    services = services || window._addServicesList || [];
+    var placeholder = document.getElementById('sbAddServicesPlaceholder');
+    if (placeholder) placeholder.style.display = 'none';
+    var container = document.getElementById('sbAddServicesList');
+    // Remove old pills (keep placeholder)
+    Array.from(container.children).forEach(function(c){ if (c.id !== 'sbAddServicesPlaceholder') c.remove(); });
+    if (!services.length) {
+      if (placeholder) { placeholder.textContent = 'No services found.'; placeholder.style.display = ''; }
+      return;
+    }
+    services.forEach(function(s) {
+      var name = s.itemName || s.name || '';
+      if (!name) return;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = name;
+      var sel = !!_addSelectedServices[name];
+      btn.style.cssText = 'padding:0.3rem 0.75rem;border-radius:20px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;border:1.5px solid;font-family:inherit;'
+        + (sel ? 'background:#E31E24;color:white;border-color:#E31E24;' : 'background:white;color:#4a5568;border-color:#e2e8f0;');
+      btn.onclick = function() {
+        if (_addSelectedServices[name]) {
+          delete _addSelectedServices[name];
+          btn.style.background = 'white'; btn.style.color = '#4a5568'; btn.style.borderColor = '#e2e8f0';
+        } else {
+          _addSelectedServices[name] = true;
+          btn.style.background = '#E31E24'; btn.style.color = 'white'; btn.style.borderColor = '#E31E24';
+        }
+      };
+      container.appendChild(btn);
+    });
+  }
+
+  // ── Save ──────────────────────────────────────────────────────
+  window.sbAddSave = function() {
+    var customerName = (document.getElementById('sbAddCustomerName').value || '').trim();
+    var notes        = (document.getElementById('sbAddNotes').value || '').trim();
+    var serviceNames = Object.keys(_addSelectedServices);
+
+    if (!_addSelectedVehicle) { showToast('Please select a vehicle.', 'error'); return; }
+    if (!customerName)        { showToast('Please enter a customer name.', 'error'); return; }
+    if (!serviceNames.length) { showToast('Please select at least one service.', 'error'); return; }
+    if (!_addSelectedDate)    { showToast('Please select a date.', 'error'); return; }
+    if (!_addSelectedTime)    { showToast('Please select a time.', 'error'); return; }
+
+    var btn = document.getElementById('sbAddSaveBtn');
+    var origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving…';
+
+    var db = firebase.firestore();
+    var plate = _addSelectedVehicle.plate;
+
+    // Check for slot conflict (fresh check)
+    db.collection('service_bookings')
+      .where('preferredDate', '==', _addSelectedDate)
+      .where('preferredTime', '==', _addSelectedTime)
+      .where('status', 'in', ['Approved'])
+      .get()
+      .then(function(snap) {
+        if (!snap.empty) {
+          showToast('That time slot is already booked. Please choose another.', 'error');
+          btn.disabled = false; btn.innerHTML = origHtml;
+          return;
+        }
+        return db.collection('service_bookings').add({
+          customerName:  customerName,
+          customerId:    _addSelectedVehicle.ownerId || '',
+          vehicleId:     _addSelectedVehicle.id || '',
+          plate:         plate,
+          vehicleDesc:   _addSelectedVehicle.desc || '',
+          services:      serviceNames,
+          preferredDate: _addSelectedDate,
+          preferredTime: _addSelectedTime,
+          notes:         notes,
+          status:        'Approved',
+          createdByAdmin: true,
+          autoApproved:  true,
+          createdAt:     firebase.firestore.FieldValue.serverTimestamp(),
+        }).then(function() {
+          sbCloseAddModal();
+          showToast('Booking created successfully!', 'success');
+          // Notify customer if ownerId is known
+          var ownerId = _addSelectedVehicle.ownerId || '';
+          if (ownerId) {
+            var MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            var p = _addSelectedDate.split('-');
+            var dLabel = MONTHS_S[parseInt(p[1])-1] + ' ' + parseInt(p[2]) + ', ' + p[0];
+            db.collection('notifications').add({
+              title: 'Booking Confirmed',
+              message: 'A service booking has been scheduled for your vehicle ' + plate + ' on ' + dLabel + ' at ' + _addSelectedTime + '. Services: ' + serviceNames.join(', '),
+              type: 'success', targetRole: '', targetUid: ownerId,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
+            });
+          }
+        });
+      })
+      .catch(function(err) { showToast('Error: ' + err.message, 'error'); })
+      .finally(function() { btn.disabled = false; btn.innerHTML = origHtml; });
+  };
+
+  // ── Calendar CSS injected once ────────────────────────────────
+  var styleEl = document.createElement('style');
+  styleEl.textContent = [
+    '.sba-day{width:100%;aspect-ratio:1;border-radius:7px;border:none;font-size:11px;font-weight:600;cursor:pointer;transition:all .12s;background:#f0fdf4;color:#1a202c;}',
+    '.sba-day:hover:not([disabled]){background:#dcfce7;transform:scale(1.08);}',
+    '.sba-day.sel{background:#E31E24;color:white;transform:scale(1.1);box-shadow:0 3px 10px rgba(232,0,28,0.3);}',
+    '.sba-day.past,.sba-day.full{background:#f1f5f9;color:#cbd5e0;cursor:not-allowed;}',
+    '.sba-day.empty{background:transparent;cursor:default;}',
+  ].join('');
+  document.head.appendChild(styleEl);
+})();
+</script>
 <script>
 (function() {
   try {
