@@ -474,23 +474,38 @@
   var _AB_ARRIVE = {'8:00 AM':'7:45 AM','9:00 AM':'8:45 AM','10:00 AM':'9:45 AM','11:00 AM':'10:45 AM','1:00 PM':'12:45 PM','2:00 PM':'1:45 PM','3:00 PM':'2:45 PM','4:00 PM':'3:45 PM'};
   var _AB_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+  // ── Service loader: use already-cached global from admin_firebase.js, ──
+  // ── or fall back to a direct Firestore fetch (same approach as customer) ──
+  function _abLoadServices() {
+    // admin_firebase.js populates window._fbItemMaster (raw) via onSnapshot.
+    // Use it immediately if available; otherwise do a one-shot .get()
+    var raw = window._fbItemMaster || window.itemMaster || [];
+    if (raw.length) {
+      _abAllServices = raw
+        .map(function(i) { return { id: i._id || i.id, name: i.name || i.itemName || '', type: i.type || i.itemType || '', cost: i.cost, uom: i.uom || '', commodityGroup: i.group || i.commodityGroup || '' }; })
+        .filter(function(i) { return (i.type||'').toLowerCase() === 'service'; });
+      return;
+    }
+    // Not ready yet — plain .get() with client-side filter, same as customer side
+    db.collection('item_master').get().then(function(snap) {
+      _abAllServices = snap.docs
+        .map(function(d) { var x = d.data(); x.id = d.id; return x; })
+        .filter(function(x) { return (x.type || x.itemType || '').toLowerCase() === 'service'; });
+    });
+  }
+
   // ── Eager data load (runs immediately so data is ready before modal opens) ──
   (function _abEagerLoad() {
-    db.collection('item_master').where('itemType', '==', 'Service').get().then(function(snap) {
-      _abAllServices = snap.docs.map(function(d) { var x = d.data(); x.id = d.id; return x; });
-      if (!_abAllServices.length) {
-        // Fallback: fetch all and filter client-side
-        db.collection('item_master').get().then(function(snap2) {
-          _abAllServices = snap2.docs.map(function(d) { var x = d.data(); x.id = d.id; return x; })
-            .filter(function(x) { return (x.itemType || '').toLowerCase() === 'service'; });
-        });
+    _abLoadServices();
+    // Also set up a watcher: if admin_firebase.js fires its onSnapshot after us, refresh
+    var _abPoll = setInterval(function() {
+      if (!_abAllServices.length && (window._fbItemMaster || window.itemMaster || []).length) {
+        _abLoadServices();
       }
-    }).catch(function() {
-      db.collection('item_master').get().then(function(snap) {
-        _abAllServices = snap.docs.map(function(d) { var x = d.data(); x.id = d.id; return x; })
-          .filter(function(x) { return (x.itemType || '').toLowerCase() === 'service'; });
-      });
-    });
+      if (_abAllServices.length) clearInterval(_abPoll);
+    }, 300);
+    setTimeout(function() { clearInterval(_abPoll); }, 8000);
+
     db.collection('users').where('role', '==', 'customer').get().then(function(snap) {
       _abAllCustomers = snap.docs.map(function(d) { var x = d.data(); x.uid = d.id; return x; });
     }).catch(function() {
@@ -636,6 +651,8 @@
 
   // ── Services modal ───────────────────────────────────────────────
   window.abOpenServicesModal = function() {
+    // Refresh from global in case admin_firebase.js loaded after us
+    if (!_abAllServices.length) _abLoadServices();
     document.getElementById('abSvcSearch').value = '';
     abRenderServicesList();
     document.getElementById('abServicesModal').style.display = '';
@@ -653,15 +670,20 @@
   window.abRenderServicesList = function() {
     var q = (document.getElementById('abSvcSearch').value || '').trim().toLowerCase();
     var list = _abAllServices.filter(function(s) {
-      return !q || (s.itemName||s.name||'').toLowerCase().includes(q) || (s.commodityGroup||s.category||'').toLowerCase().includes(q);
+      return !q || (s.name||'').toLowerCase().includes(q) || (s.commodityGroup||s.group||'').toLowerCase().includes(q);
     });
     var countEl = document.getElementById('abSvcCount');
     var sel = Object.keys(_abSelectedServices).filter(function(k){ return _abSelectedServices[k]; }).length;
     if(countEl) countEl.textContent = sel ? sel + ' selected' : '';
     if (!_abAllServices.length) {
-      // Still loading — retry after 600ms
+      // Still loading — do a direct fetch now
       document.getElementById('abSvcList').innerHTML = '<div style="padding:20px;text-align:center;font-size:13px;color:#718096;">Loading services...</div>';
-      setTimeout(function() { if (typeof abRenderServicesList === 'function') abRenderServicesList(); }, 600);
+      db.collection('item_master').get().then(function(snap) {
+        _abAllServices = snap.docs
+          .map(function(d) { var x = d.data(); x.id = d.id; return x; })
+          .filter(function(x) { return (x.type || x.itemType || '').toLowerCase() === 'service'; });
+        abRenderServicesList();
+      });
       return;
     }
     if (!list.length) {
@@ -675,8 +697,8 @@
         + (isSel?'<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':'')
         + '</div>'
         + '<div style="flex:1;min-width:0;">'
-        + '<div style="font-size:13px;font-weight:600;color:#1a202c;">' + _abEsc(s.itemName||s.name||'—') + '</div>'
-        + ((s.commodityGroup||s.category)?'<div style="font-size:11px;color:#718096;">' + _abEsc(s.commodityGroup||s.category) + '</div>':'')
+        + '<div style="font-size:13px;font-weight:600;color:#1a202c;">' + _abEsc(s.name||'—') + '</div>'
+        + ((s.commodityGroup||s.group)?'<div style="font-size:11px;color:#718096;">' + _abEsc(s.commodityGroup||s.group) + '</div>':'')
         + '</div>'
         + (s.cost?'<div style="font-size:12px;font-weight:700;color:#E8001C;white-space:nowrap;">₱' + _abEsc(String(s.cost)) + '</div>':'')
         + '</div>';
@@ -702,7 +724,7 @@
     el.style.display = 'flex';
     el.innerHTML = keys.map(function(id) {
       var svc = _abAllServices.find(function(s){ return s.id===id; });
-      var name = svc ? (svc.itemName||svc.name||id) : id;
+      var name = svc ? (svc.name||id) : id;
       return '<span style="display:inline-flex;align-items:center;gap:4px;background:#fff5f5;color:#E8001C;border:1px solid #feb2b2;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;">'
         + _abEsc(name)
         + '<span onclick="abToggleService(\'' + id + '\');_abRenderSelectedServicesTags();_abUpdateServicesBtnLabel();_abSetSubmitState();" style="cursor:pointer;font-size:14px;line-height:1;color:#718096;margin-left:2px;">×</span>'
@@ -794,7 +816,7 @@
     if (!svcIds.length) return;
     var svcNames = svcIds.map(function(id) {
       var s = _abAllServices.find(function(x){ return x.id===id; });
-      return s ? (s.itemName||s.name||id) : id;
+      return s ? (s.name||id) : id;
     });
     var btn = document.getElementById('abSubmitBtn');
     btn.disabled = true; btn.textContent = 'Booking...'; btn.style.opacity = '0.7';
