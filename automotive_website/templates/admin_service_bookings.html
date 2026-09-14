@@ -470,11 +470,33 @@
 
   window.startServiceFromBooking = function(bookingId, plate, servicesEncoded, preferredDate, customerName) {
     if (!confirm('Are you sure you want to start the service for "' + plate + '"?')) return;
+
+    var services = [];
+    try { services = JSON.parse(decodeURIComponent(servicesEncoded)); } catch(e) {}
+    var params = { bookingId: bookingId, plate: plate, services: services, date: preferredDate, customer: customerName };
+
+    // Pre-seed sessionStorage so the maintenance page opens the modal instantly
+    // without waiting for its own Firebase listeners to fire
+    try {
+      sessionStorage.setItem('_svcBookingParams', JSON.stringify(params));
+      // Also carry over itemMaster + vehicles caches so _svcEnsureDataThen resolves immediately
+      var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+      if (uid) {
+        var imCache = sessionStorage.getItem('imCache_' + uid);
+        var vCache  = sessionStorage.getItem('vehiclesCache_' + uid);
+        if (imCache)  sessionStorage.setItem('_svcCacheIM', imCache);
+        if (vCache)   sessionStorage.setItem('_svcCacheVeh', vCache);
+      }
+    } catch(e) {}
+
+    // Redirect immediately — don't wait for Firestore
+    window.location.href = 'admin_vehicle_maintenance.html';
+
+    // Update booking status + notify customer in the background (fire-and-forget)
     var bookingRef = db.collection('service_bookings').doc(bookingId);
     bookingRef.get().then(function(doc) {
       var customerId = doc.exists ? (doc.data().customerId || '') : '';
-      return bookingRef.update({ status: 'Under Maintenance' }).then(function() {
-        // Notify customer — in-app
+      bookingRef.update({ status: 'Under Maintenance' }).then(function() {
         if (customerId) {
           db.collection('notifications').add({
             title: '🔧 Vehicle Under Maintenance',
@@ -483,17 +505,12 @@
             targetRole: '', targetUid: customerId,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
           });
-          // Email notification
           if (typeof sendAlertEmail === 'function') {
             sendAlertEmail({ title: '🔧 Vehicle Under Maintenance', message: 'Your vehicle ' + plate + ' is now under maintenance.', type: 'info', targetUid: customerId });
           }
         }
-        var services = [];
-        try { services = JSON.parse(decodeURIComponent(servicesEncoded)); } catch(e) {}
-        var params = { bookingId: bookingId, plate: plate, services: services, date: preferredDate, customer: customerName };
-        window.location.href = 'admin_vehicle_maintenance.html#startService=' + encodeURIComponent(JSON.stringify(params));
-      });
-    }).catch(function(err) { showToast('Error: ' + err.message, 'error'); });
+      }).catch(function() {});
+    }).catch(function() {});
   };
 
   window.rescheduleBooking = function(docId, plate, currentDate, customerId, customerName) {

@@ -1231,74 +1231,91 @@ function openAddServiceModal() { svcOpenAddModal(); }
 
 // Auto-open service modal from booking (navigated from Service Bookings page)
 (function() {
-  var hash = window.location.hash;
-  if (hash.startsWith('#startService=')) {
-    var raw = decodeURIComponent(hash.substring('#startService='.length));
-    var params = {};
-    try { params = JSON.parse(raw); } catch(e) { return; }
-
-    function _openFromBooking() {
-      _svcEnsureDataThen(function() {
-      _svcEnsureVehiclesThen(function() {
-        _svcLoadMechanics();
-        window._svcEditingId = null;
-        _svcEditingId = null;
-        document.getElementById('svcModalTitle').textContent = 'New Service (from Booking)';
-        document.getElementById('svcSubmitBtn').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
-        document.getElementById('svcMechanic').value = '';
-        document.getElementById('svcSvcRows').innerHTML = '';
-        document.getElementById('svcMatRows').innerHTML = '';
-        document.getElementById('svcTotalDisplay').textContent = '₱0.00';
-        document.getElementById('svcOdometer').value = '';
-        _svcSelectedIssues = [];
-        svcRenderIssueTiles();
-
-        // Auto-fill plate
-        var plate = params.plate || '';
-        if (plate) {
-          document.getElementById('svcPlateInput').value = plate;
-          document.getElementById('svcPlateSelect').value = plate;
-          svcPlateSelect(plate);
-        }
-
-        // Auto-fill date from preferred date
-        var dateStr = params.date || '';
-        if (dateStr) {
-          document.getElementById('svcDate').value = dateStr;
-          svcFormatDateDisplay(dateStr);
-        } else {
-          document.getElementById('svcDate').value = _svcTodayISO();
-          document.getElementById('svcDateDisplay').value = _svcTodayFormatted();
-        }
-
-        // Auto-fill service rows from booking services
-        var services = params.services || [];
-        if (services.length > 0) {
-          services.forEach(function(svcName) {
-            svcAddSvcRow(svcName);
-          });
-        } else {
-          svcAddSvcRow();
-        }
-        svcAddMatRow();
-
-        // Store booking ID so we can reference it on save if needed
-        window._svcFromBookingId = params.bookingId || '';
-
-        document.getElementById('svcAddModal').classList.add('active');
-
-        // Clean hash
-        history.replaceState(null, '', window.location.pathname);
-      }); // _svcEnsureVehiclesThen
-      }); // _svcEnsureDataThen
+  // Support both the new sessionStorage approach (fast) and legacy hash (fallback)
+  var params = null;
+  try {
+    var stored = sessionStorage.getItem('_svcBookingParams');
+    if (stored) {
+      params = JSON.parse(stored);
+      sessionStorage.removeItem('_svcBookingParams');
+      // Restore pre-seeded caches from booking page into the standard cache keys
+      // so _svcEnsureDataThen / _svcEnsureVehiclesThen resolve from memory
+      try {
+        var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+        var imCache  = sessionStorage.getItem('_svcCacheIM');
+        var vehCache = sessionStorage.getItem('_svcCacheVeh');
+        if (imCache  && uid) sessionStorage.setItem('imCache_' + uid, imCache);
+        if (vehCache && uid) sessionStorage.setItem('vehiclesCache_' + uid, vehCache);
+        sessionStorage.removeItem('_svcCacheIM');
+        sessionStorage.removeItem('_svcCacheVeh');
+      } catch(e) {}
     }
+  } catch(e) {}
 
-    // Open immediately — no artificial delay
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', _openFromBooking);
-    } else {
-      _openFromBooking();
+  // Legacy hash fallback
+  if (!params) {
+    var hash = window.location.hash;
+    if (hash.startsWith('#startService=')) {
+      try { params = JSON.parse(decodeURIComponent(hash.substring('#startService='.length))); } catch(e) {}
+      history.replaceState(null, '', window.location.pathname);
     }
+  }
+
+  if (!params) return;
+
+  function _openFromBooking() {
+    _svcEnsureDataThen(function() {
+    _svcEnsureVehiclesThen(function() {
+      _svcLoadMechanics();
+      window._svcEditingId = null;
+      _svcEditingId = null;
+      document.getElementById('svcModalTitle').textContent = 'New Service (from Booking)';
+      document.getElementById('svcSubmitBtn').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save';
+      document.getElementById('svcMechanic').value = '';
+      document.getElementById('svcSvcRows').innerHTML = '';
+      document.getElementById('svcMatRows').innerHTML = '';
+      document.getElementById('svcTotalDisplay').textContent = '₱0.00';
+      document.getElementById('svcOdometer').value = '';
+      _svcSelectedIssues = [];
+      svcRenderIssueTiles();
+
+      // Auto-fill plate
+      var plate = params.plate || '';
+      if (plate) {
+        document.getElementById('svcPlateInput').value = plate;
+        document.getElementById('svcPlateSelect').value = plate;
+        svcPlateSelect(plate);
+      }
+
+      // Auto-fill date from preferred date
+      var dateStr = params.date || '';
+      if (dateStr) {
+        document.getElementById('svcDate').value = dateStr;
+        svcFormatDateDisplay(dateStr);
+      } else {
+        document.getElementById('svcDate').value = _svcTodayISO();
+        document.getElementById('svcDateDisplay').value = _svcTodayFormatted();
+      }
+
+      // Auto-fill service rows from booking services
+      var services = params.services || [];
+      if (services.length > 0) {
+        services.forEach(function(svcName) { svcAddSvcRow(svcName); });
+      } else {
+        svcAddSvcRow();
+      }
+      svcAddMatRow();
+
+      window._svcFromBookingId = params.bookingId || '';
+      document.getElementById('svcAddModal').classList.add('active');
+    }); // _svcEnsureVehiclesThen
+    }); // _svcEnsureDataThen
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _openFromBooking);
+  } else {
+    _openFromBooking();
   }
 })();
 
