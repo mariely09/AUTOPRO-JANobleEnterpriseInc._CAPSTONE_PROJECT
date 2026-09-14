@@ -634,7 +634,7 @@ def download_apk():
         # Get Firebase Storage URL from environment variable or use default
         firebase_apk_url = os.environ.get(
             'APK_DOWNLOAD_URL',
-            'https://firebasestorage.googleapis.com/v0/b/caltex-autopro-1e664.appspot.com/o/autopro.apk?alt=media'
+            'https://firebasestorage.googleapis.com/v0/b/caltex-autopro-1e664.firebasestorage.app/o/autopro.apk?alt=media'
         )
         
         print(f"[APK Download] Local file not found at: {apk_path}")
