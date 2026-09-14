@@ -574,6 +574,7 @@ function _svcEnsureDataThen(callback) {
 
 // Also fetch vehicles from Firestore if not loaded yet
 function _svcEnsureVehiclesThen(callback) {
+  _svcRefreshData(); // pick up window._fbVehicles if just deserialized from cache
   if (_svcVehicles.length > 0) { callback(); return; }
   firebase.firestore().collection('vehicles').get().then(function(snap) {
     window._fbVehicles = snap.docs.map(function(d) { return Object.assign({ _id: d.id }, d.data()); });
@@ -1244,10 +1245,27 @@ function openAddServiceModal() { svcOpenAddModal(); }
         var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
         var imCache  = sessionStorage.getItem('_svcCacheIM');
         var vehCache = sessionStorage.getItem('_svcCacheVeh');
+        // Copy back to standard cache keys
         if (imCache  && uid) sessionStorage.setItem('imCache_' + uid, imCache);
         if (vehCache && uid) sessionStorage.setItem('vehiclesCache_' + uid, vehCache);
         sessionStorage.removeItem('_svcCacheIM');
         sessionStorage.removeItem('_svcCacheVeh');
+        // ── Critical: deserialize directly into window globals so _svcEnsureDataThen
+        //    resolves instantly from memory instead of waiting for Firestore ──
+        if (imCache && !window.itemMaster) {
+          var parsedIM = JSON.parse(imCache);
+          if (Array.isArray(parsedIM) && parsedIM.length) {
+            window.itemMaster = parsedIM;
+            window._fbItemMasterLoaded = true;
+          }
+        }
+        if (vehCache && !window._fbVehicles) {
+          var parsedVeh = JSON.parse(vehCache);
+          if (Array.isArray(parsedVeh) && parsedVeh.length) {
+            window._fbVehicles = parsedVeh;
+            window.assets = parsedVeh;
+          }
+        }
       } catch(e) {}
     }
   } catch(e) {}
@@ -1264,8 +1282,10 @@ function openAddServiceModal() { svcOpenAddModal(); }
   if (!params) return;
 
   function _openFromBooking() {
-    _svcEnsureDataThen(function() {
-    _svcEnsureVehiclesThen(function() {
+    // Run both data loads in parallel — open modal as soon as both complete
+    var dataReady = false, vehiclesReady = false;
+    function _maybeOpen() {
+      if (!dataReady || !vehiclesReady) return;
       _svcLoadMechanics();
       window._svcEditingId = null;
       _svcEditingId = null;
@@ -1308,8 +1328,9 @@ function openAddServiceModal() { svcOpenAddModal(); }
 
       window._svcFromBookingId = params.bookingId || '';
       document.getElementById('svcAddModal').classList.add('active');
-    }); // _svcEnsureVehiclesThen
-    }); // _svcEnsureDataThen
+    }
+    _svcEnsureDataThen(function() { dataReady = true; _maybeOpen(); });
+    _svcEnsureVehiclesThen(function() { vehiclesReady = true; _maybeOpen(); });
   }
 
   if (document.readyState === 'loading') {
