@@ -97,9 +97,8 @@ exports.sendNotifications = onDocumentCreated('notifications/{docId}', async (ev
         headings: { en: title },
         contents: { en: message },
         data: { type: notification.type || 'info' },
-        // Large icon (logo) for Android notifications
-        large_icon: 'https://storage.googleapis.com/caltex-autopro-1e664.firebasestorage.app/autopro_logo.png',
-        // Small icon is configured in AndroidManifest.xml
+        // Small icon (left side) is configured in AndroidManifest.xml
+        // No large_icon = no logo on right side
       },
       {
         headers: {

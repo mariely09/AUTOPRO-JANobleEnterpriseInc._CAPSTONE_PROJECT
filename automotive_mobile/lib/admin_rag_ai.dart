@@ -143,7 +143,8 @@ String? _extractMonthFromMessage(String message) {
 class AdminChatStore {
   static final List<_ChatMessage> messages = [];
   static String? sessionId;
-  static String? localSessionId; // stable local conversation id (pre server assignment)
+  static String?
+  localSessionId; // stable local conversation id (pre server assignment)
   static bool rateLimited = false;
   static String resetIn = '';
   static String? _lastSavedSig; // dedupe guard: signature of the last save
@@ -218,7 +219,8 @@ class AdminChatStore {
     if (messages.isEmpty) return;
     try {
       // Dedupe guard — avoid re-writing identical state on every event
-      final sig = '${effectiveSid ?? ''}|${messages.length}|${messages.last.text ?? ''}';
+      final sig =
+          '${effectiveSid ?? ''}|${messages.length}|${messages.last.text ?? ''}';
       if (sig == _lastSavedSig) return;
       _lastSavedSig = sig;
       final prefs = await SharedPreferences.getInstance();
@@ -354,7 +356,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   bool _loading = false;
 
   http.Client? _activeClient; // HTTP client for cancelling ongoing requests
-  
+
   bool get _rateLimited => AdminChatStore.rateLimited;
   set _rateLimited(bool v) => AdminChatStore.rateLimited = v;
   String get _resetIn => AdminChatStore.resetIn;
@@ -493,7 +495,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         prevRole = role;
         prevText = text;
       }
-      AdminChatStore._lastSavedSig = null; // force the next save to persist the switch
+      AdminChatStore._lastSavedSig =
+          null; // force the next save to persist the switch
       _historyOpen = false;
     });
     _scrollToBottom();
@@ -559,9 +562,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     if (mounted) {
       setState(() {
         _loading = false;
-        _messages.add(
-          _ChatMessage(role: 'ai', text: '⏹ Generation stopped.'),
-        );
+        _messages.add(_ChatMessage(role: 'ai', text: '⏹ Generation stopped.'));
       });
     }
     AdminChatStore._lastSavedSig = null;
@@ -580,22 +581,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         );
       }
     });
-  }
-
-  // ── Stop generation ────────────────────────────────────────────────────────
-  void _stopGeneration() {
-    _activeClient?.close();
-    _activeClient = null;
-    if (mounted) {
-      setState(() {
-        _loading = false;
-        _messages.add(
-          _ChatMessage(role: 'ai', text: '⏹ Generation stopped.'),
-        );
-      });
-      _scrollToBottom();
-      if (_currentUid.isNotEmpty) AdminChatStore.saveChat(_currentUid);
-    }
   }
 
   // ── Chat send ──────────────────────────────────────────────────────────────
@@ -633,14 +618,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     // session memory is handled server-side via _sessionId
 
     try {
-<<<<<<< HEAD
-      final client = http.Client();
-      _activeClient = client;
-      final resp = await client
-=======
       _activeClient = http.Client(); // Create client for cancellation support
       final resp = await _activeClient!
->>>>>>> c7e115d (update: ai assistant - admin test cases & optimize)
           .post(
             Uri.parse('$_kAiBaseUrl/admin/chat'),
             headers: {'Content-Type': 'application/json'},
@@ -839,10 +818,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         if (mounted) setState(() => _loading = false);
         return;
       }
-<<<<<<< HEAD
-      _activeClient = null;
-=======
->>>>>>> c7e115d (update: ai assistant - admin test cases & optimize)
       setState(() {
         _loading = false;
         _messages.add(
@@ -1392,10 +1367,11 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: (_backendOnline
-                                ? const Color(0xFF4ade80)
-                                : const Color(0xFFF97316))
-                            .withValues(alpha: 0.5),
+                        color:
+                            (_backendOnline
+                                    ? const Color(0xFF4ade80)
+                                    : const Color(0xFFF97316))
+                                .withValues(alpha: 0.5),
                         blurRadius: 8,
                         spreadRadius: 1,
                       ),
@@ -1849,8 +1825,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                                 final time =
                                     '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
                                 final isActive =
-                                    s['id'] ==
-                                    AdminChatStore.effectiveSid;
+                                    s['id'] == AdminChatStore.effectiveSid;
                                 return GestureDetector(
                                   onTap: () => _loadSession(s),
                                   child: Container(
@@ -2088,7 +2063,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFE8001C).withValues(alpha: 0.22),
+                          color: const Color(
+                            0xFFE8001C,
+                          ).withValues(alpha: 0.22),
                           blurRadius: 6,
                         ),
                       ],
@@ -2338,10 +2315,11 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       ),
       boxShadow: [
         BoxShadow(
-          color: (_backendOnline
-                  ? const Color(0xFF4ade80)
-                  : const Color(0xFFF97316))
-              .withValues(alpha: 0.35),
+          color:
+              (_backendOnline
+                      ? const Color(0xFF4ade80)
+                      : const Color(0xFFF97316))
+                  .withValues(alpha: 0.35),
           blurRadius: 5,
         ),
       ],
@@ -2543,12 +2521,17 @@ class _AdminFocusInputBarState extends State<_AdminFocusInputBar> {
                     ? LinearGradient(
                         colors: widget.loading
                             ? [const Color(0xFF718096), const Color(0xFF4A5568)]
-                            : [const Color(0xFFE8001C), const Color(0xFFC0001A)],
+                            : [
+                                const Color(0xFFE8001C),
+                                const Color(0xFFC0001A),
+                              ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       )
                     : null,
-                color: (canSend || widget.loading) ? null : Colors.grey.shade300,
+                color: (canSend || widget.loading)
+                    ? null
+                    : Colors.grey.shade300,
                 shape: BoxShape.circle,
                 boxShadow: (canSend || widget.loading)
                     ? [

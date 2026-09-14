@@ -31,10 +31,10 @@
             android:name="flutterEmbedding"
             android:value="2" />
         
-        <!-- OneSignal Notification Icon (uses app launcher icon) -->
+        <!-- OneSignal Notification Icon (custom notification icon) -->
         <meta-data
             android:name="com.onesignal.NotificationServiceExtension.small_icon"
-            android:resource="@mipmap/ic_launcher" />
+            android:resource="@drawable/ic_notification" />
         
         <!-- OneSignal Notification Accent Color (AutoPro red) -->
         <meta-data
