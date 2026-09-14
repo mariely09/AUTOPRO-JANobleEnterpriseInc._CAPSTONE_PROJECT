@@ -457,7 +457,7 @@
           // Notify customer
           if (customerId) {
             db.collection('notifications').add({
-              title: '? Booking Cancelled',
+              title: '\u274C Booking Cancelled',
               message: 'Your service booking for ' + plate + ' on ' + _formatDate(date) + ' has been cancelled by the admin.',
               type: 'warning',
               targetRole: '', targetUid: customerId,
@@ -522,23 +522,13 @@
     window._rsCustomerName = customerName || '';
     window._rsSelectedDate = '';
     window._rsSelectedTime = '';
-    window._rsBookedSlots = {}; // date ? [time, time, ...]
-
-    // Fetch current time from booking doc
-    db.collection('service_bookings').doc(docId).get().then(function(doc) {
-      if (doc.exists) window._rsCurrentTime = doc.data().preferredTime || '';
-      var currentInfo = document.getElementById('rsCurrentInfo');
-      if (currentInfo) {
-        currentInfo.textContent = currentDate
-          ? 'Current: ' + _formatDate(currentDate) + (window._rsCurrentTime ? ' at ' + window._rsCurrentTime : '')
-          : '';
-      }
-    });
+    window._rsBookedSlots = {};
 
     var now = new Date();
     window._rsYear = now.getFullYear();
     window._rsMonth = now.getMonth();
 
+    // Populate plate + current info
     document.getElementById('rsPlate').textContent = plate;
     document.getElementById('rsCurrentInfo').textContent = currentDate
       ? 'Current: ' + _formatDate(currentDate)
@@ -549,13 +539,47 @@
     document.getElementById('rsConfirmBtn').disabled = true;
     document.getElementById('rsConfirmBtn').style.opacity = '0.5';
 
-    // Load booked slots (date ? taken times), exclude self
+    // ── Build booked slots from already-loaded cache (instant) ──────────────
+    // This renders the calendar immediately without waiting for Firestore
+    var cachedDocs = window._fbBookings || window._sbAllDocs || [];
+    var slotsFromCache = {};
+    cachedDocs.forEach(function(d) {
+      if (d.id === docId) return;
+      if (d.status !== 'Approved') return;
+      var date = d.preferredDate;
+      var time = d.preferredTime;
+      if (date && time) {
+        if (!slotsFromCache[date]) slotsFromCache[date] = [];
+        if (slotsFromCache[date].indexOf(time) === -1) slotsFromCache[date].push(time);
+      }
+    });
+    window._rsBookedSlots = slotsFromCache;
+
+    // Show modal + render calendar immediately using cache
+    var rsModal = document.getElementById('rescheduleModal');
+    rsModal.style.display = 'flex';
+    // Scroll modal body to top so calendar is visible immediately
+    var rsBody = rsModal.querySelector('div[style*="overflow-y:auto"]');
+    if (rsBody) rsBody.scrollTop = 0;
+    rsRenderCal();
+
+    // Also fetch current booking's time from cache first
+    var cachedBooking = cachedDocs.find(function(d) { return d.id === docId; });
+    if (cachedBooking) {
+      window._rsCurrentTime = cachedBooking.preferredTime || '';
+      document.getElementById('rsCurrentInfo').textContent = currentDate
+        ? 'Current: ' + _formatDate(currentDate) + (window._rsCurrentTime ? ' at ' + window._rsCurrentTime : '')
+        : '';
+    }
+
+    // ── Silently refresh slots from Firestore in background ─────────────────
+    // Updates the calendar if there are newer bookings not in the cache
     db.collection('service_bookings')
       .where('status', 'in', ['Approved'])
       .get().then(function(snap) {
         var slots = {};
         snap.docs.forEach(function(d) {
-          if (d.id === docId) return; // exclude self
+          if (d.id === docId) return;
           var date = d.data().preferredDate;
           var time = d.data().preferredTime;
           if (date && time) {
@@ -563,11 +587,23 @@
             if (slots[date].indexOf(time) === -1) slots[date].push(time);
           }
         });
-        window._rsBookedSlots = slots;
-        rsRenderCal();
-      }).catch(function() { rsRenderCal(); });
-
-    document.getElementById('rescheduleModal').style.display = 'flex';
+        // Only re-render if data changed
+        if (JSON.stringify(slots) !== JSON.stringify(window._rsBookedSlots)) {
+          window._rsBookedSlots = slots;
+          rsRenderCal();
+          if (window._rsSelectedDate) rsRenderTimeSlots();
+        }
+        // Also update current time if not already set
+        if (!window._rsCurrentTime) {
+          var selfDoc = snap.docs.find(function(d) { return d.id === docId; });
+          if (selfDoc) {
+            window._rsCurrentTime = selfDoc.data().preferredTime || '';
+            document.getElementById('rsCurrentInfo').textContent = currentDate
+              ? 'Current: ' + _formatDate(currentDate) + (window._rsCurrentTime ? ' at ' + window._rsCurrentTime : '')
+              : '';
+          }
+        }
+      }).catch(function() {});
   };
 
   window.closeRescheduleModal = function() {
@@ -660,8 +696,8 @@
     var MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     var parts = window._rsSelectedDate.split('-');
     var dateLabel = MONTHS_SHORT[parseInt(parts[1])-1] + ' ' + parseInt(parts[2]) + ', ' + parts[0];
-    document.getElementById('rsSelectedDate').textContent = '?? ' + dateLabel;
-    document.getElementById('rsSelectedTime').textContent = '?? ' + time;
+    document.getElementById('rsSelectedDate').textContent = '\uD83D\uDCC5 ' + dateLabel;
+    document.getElementById('rsSelectedTime').textContent = '\uD83D\uDD50 ' + time;
     document.getElementById('rsSelectedInfo').style.display = 'block';
     // Enable confirm
     document.getElementById('rsConfirmBtn').disabled = false;
@@ -696,7 +732,7 @@
       // Notify customer in-app
       if (customerId) {
         db.collection('notifications').add({
-          title: '?? Booking Rescheduled',
+          title: '\uD83D\uDCC5 Booking Rescheduled',
           message: 'Your booking for ' + plate + ' has been rescheduled from ' + _formatDate(oldDate) + (oldTime ? ' at ' + oldTime : '') + ' to ' + _formatDate(newDate) + ' at ' + newTime + '.',
           type: 'warning',
           targetRole: '', targetUid: customerId,
