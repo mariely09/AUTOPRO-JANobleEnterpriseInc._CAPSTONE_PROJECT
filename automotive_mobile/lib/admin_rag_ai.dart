@@ -2034,6 +2034,10 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   // ── Typing indicator — 3 bouncing dots (matches web design) ──────────────
 
   Widget _buildTypingIndicator() {
+    // Randomly choose between "Thinking..." and "Processing..."
+    final thinkingTexts = ['Thinking...', 'Processing...'];
+    final randomText = thinkingTexts[DateTime.now().millisecond % 2];
+    
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -2044,7 +2048,14 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: _aiBubbleDecoration(),
-            child: const _BouncingDots(),
+            child: Text(
+              randomText,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF64748B),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           ),
         ],
       ),
@@ -2062,8 +2073,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           mainAxisAlignment: MainAxisAlignment.end,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            _userAvatar(),
-            const SizedBox(width: 8),
             Flexible(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -2136,7 +2145,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                           final msgIndex = _messages.indexOf(msg);
                           if (msgIndex == -1) return;
                           
-                          // Show edit dialog
+                          // Show edit dialog with the message
                           showDialog(
                             context: context,
                             builder: (ctx) {
@@ -2145,7 +2154,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                                 title: const Text('Edit Message'),
                                 content: TextField(
                                   controller: editCtrl,
-                                  maxLines: 3,
+                                  maxLines: null,
+                                  minLines: 3,
+                                  autofocus: true,
                                   decoration: const InputDecoration(
                                     hintText: 'Edit your message...',
                                     border: OutlineInputBorder(),
@@ -2157,9 +2168,21 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                                     child: const Text('Cancel'),
                                   ),
                                   ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFE8001C),
+                                    ),
                                     onPressed: () {
                                       final editedText = editCtrl.text.trim();
-                                      if (editedText.isEmpty || editedText == (msg.text ?? '')) {
+                                      if (editedText.isEmpty) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Message cannot be empty'),
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      if (editedText == (msg.text ?? '')) {
                                         Navigator.pop(ctx);
                                         return;
                                       }

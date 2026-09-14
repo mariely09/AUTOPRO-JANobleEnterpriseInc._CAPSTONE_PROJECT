@@ -197,9 +197,6 @@
 
 /* ── Typing indicator ── */
 .rag-typing { display:flex;gap:5px;align-items:center;padding:10px 14px; }
-.rag-typing span { width:7px;height:7px;background:#cbd5e0;border-radius:50%;animation:ragBounce .9s ease-in-out infinite; }
-.rag-typing span:nth-child(2) { animation-delay:.15s; }
-.rag-typing span:nth-child(3) { animation-delay:.3s; }
 
 /* ── Welcome suggestion pills ── */
 .rag-suggest-pill {
@@ -237,6 +234,12 @@
 }
 .rag-user-action-btn:hover { background:rgba(148,163,184,0.25);color:#475569; }
 .rag-user-action-btn.copied { background:rgba(56,161,105,0.2);color:#16a34a;border-color:rgba(56,161,105,0.3); }
+
+/* Editable bubble */
+.rag-bub[contenteditable="true"] {
+  cursor:text;
+  min-height:20px;
+}
 
 /* ── Scrollbar ── */
 #ragAiChat::-webkit-scrollbar { width:4px; }
@@ -303,21 +306,29 @@ window.ragCopyPrompt = function(btn, text) {
   navigator.clipboard.writeText(text).then(function() {
     var orig = btn.innerHTML;
     btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
-    btn.classList.add('rag-user-action-btn copied');
-    btn.classList.remove('rag-user-action-btn');
-    setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('copied'); btn.classList.add('rag-user-action-btn'); }, 2000);
+    btn.classList.add('copied');
+    setTimeout(function() { 
+      btn.innerHTML = orig; 
+      btn.classList.remove('copied'); 
+    }, 2000);
   }).catch(function(err) {
     console.error('Copy failed:', err);
     // fallback for older browsers
     var ta = document.createElement('textarea');
-    ta.value = text; ta.style.position = 'fixed'; ta.style.top = '-9999px';
-    document.body.appendChild(ta); ta.select(); 
+    ta.value = text; 
+    ta.style.position = 'fixed'; 
+    ta.style.top = '-9999px';
+    document.body.appendChild(ta); 
+    ta.select(); 
     try {
       document.execCommand('copy');
       var orig = btn.innerHTML;
       btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
       btn.classList.add('copied');
-      setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
+      setTimeout(function() { 
+        btn.innerHTML = orig; 
+        btn.classList.remove('copied'); 
+      }, 2000);
     } catch(e) {
       console.error('Fallback copy failed:', e);
     }
@@ -325,9 +336,9 @@ window.ragCopyPrompt = function(btn, text) {
   });
 };
 
-// ── Edit and regenerate message (ChatGPT-style) ───────────────────────────
-window.ragEditPrompt = function(text, messageIndex) {
-  // Find the message index in _ragMessages
+// ── Edit message inline (make bubble editable) ────────────────────────────
+window.ragEditPrompt = function(text) {
+  // Find the message index and the bubble element
   var msgIdx = -1;
   for (var i = 0; i < _ragMessages.length; i++) {
     if (_ragMessages[i].role === 'user' && _ragMessages[i].text === text) {
@@ -336,41 +347,130 @@ window.ragEditPrompt = function(text, messageIndex) {
     }
   }
   
-  if (msgIdx === -1) {
-    // Fallback: just put text in input
-    var input = document.getElementById('ragAiInput');
-    if (!input) return;
-    input.value = text;
-    input.style.height = 'auto';
-    input.style.height = Math.min(input.scrollHeight, 80) + 'px';
-    input.focus();
-    input.selectionStart = input.selectionEnd = input.value.length;
+  if (msgIdx === -1) return;
+  
+  // Find the bubble element in the DOM
+  var chat = document.getElementById('ragAiChat');
+  var rows = chat.querySelectorAll('.rag-row.user');
+  var targetRow = null;
+  var targetBubble = null;
+  
+  for (var i = 0; i < rows.length; i++) {
+    var bubble = rows[i].querySelector('.rag-bub.user');
+    if (bubble && bubble.textContent.trim() === text.trim()) {
+      targetRow = rows[i];
+      targetBubble = bubble;
+      break;
+    }
+  }
+  
+  if (!targetBubble) return;
+  
+  // Make the bubble editable
+  var originalText = targetBubble.textContent;
+  targetBubble.contentEditable = true;
+  targetBubble.style.outline = '2px solid #E8001C';
+  targetBubble.style.outlineOffset = '2px';
+  targetBubble.focus();
+  
+  // Select all text
+  var range = document.createRange();
+  range.selectNodeContents(targetBubble);
+  var sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  
+  // Add save/cancel buttons
+  var actionsDiv = targetRow.querySelector('.rag-user-actions');
+  if (actionsDiv) {
+    actionsDiv.style.display = 'flex';
+    actionsDiv.style.opacity = '1';
+    actionsDiv.style.visibility = 'visible';
+    actionsDiv.innerHTML = 
+      '<button class="rag-user-action-btn" onclick="ragSaveEdit(this)" style="background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.3);color:#16a34a;" title="Save">' +
+        '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' +
+        ' Save' +
+      '</button>' +
+      '<button class="rag-user-action-btn" onclick="ragCancelEdit(this,\'' + originalText.replace(/'/g, "\\'").replace(/\n/g, '\\n') + '\')" title="Cancel">' +
+        '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+        ' Cancel' +
+      '</button>';
+  }
+};
+
+// ── Save edited message ────────────────────────────────────────────────────
+window.ragSaveEdit = function(btn) {
+  var row = btn.closest('.rag-row.user');
+  var bubble = row.querySelector('.rag-bub.user');
+  var editedText = bubble.textContent.trim();
+  
+  if (!editedText) {
+    alert('Message cannot be empty');
     return;
   }
   
-  // Show edit input inline
-  var editText = prompt('Edit your message:', text);
-  if (!editText || editText === text) return;
+  bubble.contentEditable = false;
+  bubble.style.outline = 'none';
   
-  // Remove this message and all messages after it from the array
+  // Find message index
+  var msgIdx = -1;
+  for (var i = 0; i < _ragMessages.length; i++) {
+    if (_ragMessages[i].role === 'user') {
+      var rowIndex = Array.from(document.querySelectorAll('.rag-row.user')).indexOf(row);
+      var userMsgCount = 0;
+      for (var j = 0; j <= i; j++) {
+        if (_ragMessages[j].role === 'user') userMsgCount++;
+      }
+      if (userMsgCount - 1 === rowIndex) {
+        msgIdx = i;
+        break;
+      }
+    }
+  }
+  
+  if (msgIdx === -1) return;
+  
+  // Remove this message and all after it
   _ragMessages = _ragMessages.slice(0, msgIdx);
   
-  // Clear chat UI and re-render remaining messages
+  // Clear chat and re-render
   var chat = document.getElementById('ragAiChat');
-  if (!chat) return;
   chat.innerHTML = '';
   _ragRenderMessages(_ragMessages);
   
-  // Save the updated state
+  // Save and send edited message
   _ragSavedSig = null;
   _ragSaveChat();
   
-  // Send the edited message
   var input = document.getElementById('ragAiInput');
   if (input) {
-    input.value = editText;
-    // Trigger send
+    input.value = editedText;
     ragAiSend();
+  }
+};
+
+// ── Cancel edit ────────────────────────────────────────────────────────────
+window.ragCancelEdit = function(btn, originalText) {
+  var row = btn.closest('.rag-row.user');
+  var bubble = row.querySelector('.rag-bub.user');
+  var actionsDiv = row.querySelector('.rag-user-actions');
+  
+  bubble.contentEditable = false;
+  bubble.style.outline = 'none';
+  bubble.textContent = originalText;
+  
+  // Restore original buttons
+  if (actionsDiv) {
+    var escapedText = originalText.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
+    actionsDiv.innerHTML =
+      '<button class="rag-user-action-btn" onclick="ragCopyPrompt(this,\''+escapedText+'\')" title="Copy prompt">' +
+        '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+        ' Copy' +
+      '</button>' +
+      '<button class="rag-user-action-btn" onclick="ragEditPrompt(\''+escapedText+'\')" title="Edit prompt">' +
+        '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+        ' Edit' +
+      '</button>';
   }
 };
 
@@ -803,9 +903,11 @@ function _ragMarkdown(text) {
   s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/__(.+?)__/g, '<strong>$1</strong>');
 
-  // Italic *text* or _text_
-  s = s.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
-  s = s.replace(/_([^_\n]+?)_/g, '<em>$1</em>');
+  // Bullet lists: lines starting with - or * or • (BEFORE italic processing)
+  s = s.replace(/^[\-\*•] (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;flex-shrink:0;margin-top:1px;">•</span><span>$1</span></div>');
+
+  // Numbered lists: lines starting with 1. 2. etc.
+  s = s.replace(/^(\d+)\. (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;font-weight:700;flex-shrink:0;min-width:16px;">$1.</span><span>$2</span></div>');
 
   // Code `inline`
   s = s.replace(/`([^`\n]+?)`/g, '<code style="background:#f1f5f9;padding:1px 5px;border-radius:4px;font-family:monospace;font-size:0.92em;">$1</code>');
@@ -814,12 +916,6 @@ function _ragMarkdown(text) {
   s = s.replace(/^### (.+)$/gm, '<div style="font-weight:700;font-size:13px;margin:8px 0 3px;color:#1a202c;">$1</div>');
   s = s.replace(/^## (.+)$/gm,  '<div style="font-weight:700;font-size:13.5px;margin:8px 0 3px;color:#1a202c;">$1</div>');
   s = s.replace(/^# (.+)$/gm,   '<div style="font-weight:800;font-size:14px;margin:8px 0 4px;color:#1a202c;">$1</div>');
-
-  // Bullet lists: lines starting with - or * or •
-  s = s.replace(/^[\-\*•] (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;flex-shrink:0;margin-top:1px;">•</span><span>$1</span></div>');
-
-  // Numbered lists: lines starting with 1. 2. etc.
-  s = s.replace(/^(\d+)\. (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;font-weight:700;flex-shrink:0;min-width:16px;">$1.</span><span>$2</span></div>');
 
   // Horizontal rule ---
   s = s.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid #e2e8f0;margin:8px 0;">');
@@ -837,12 +933,9 @@ function _ragAppend(role, html, rawText) {
   var chat = document.getElementById('ragAiChat');
   var row = document.createElement('div');
   row.className = 'rag-row' + (role==='user'?' user':'');
-  var av = role==='user'
-    ? '<div class="rag-av usr">'+_ragInitials+'</div>'
-    : '<div class="rag-av ai">'+_AI_AVATAR_SVG+'</div>';
   var bub = '<div class="rag-bub '+role+'">'+html+'</div>';
   if (role === 'user') {
-    // Avatar on the left, bubble + actions on the right
+    // No avatar for user messages, just bubble + actions aligned to the right
     var escapedRaw = (rawText || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
     var actions =
       '<div class="rag-user-actions">' +
@@ -855,8 +948,9 @@ function _ragAppend(role, html, rawText) {
           ' Edit' +
         '</button>' +
       '</div>';
-    row.innerHTML = av + '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex:1;">' + bub + actions + '</div>';
+    row.innerHTML = '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex:1;margin-left:auto;">' + bub + actions + '</div>';
   } else {
+    var av = '<div class="rag-av ai">'+_AI_AVATAR_SVG+'</div>';
     row.innerHTML = av + bub;
   }
   chat.appendChild(row);
@@ -867,8 +961,13 @@ function _ragTyping() {
   var chat = document.getElementById('ragAiChat');
   var row = document.createElement('div');
   row.className='rag-row'; row.id='ragTyping';
+  
+  // Alternate between "Thinking..." and "Processing..."
+  var thinkingTexts = ['Thinking...', 'Processing...'];
+  var randomText = thinkingTexts[Math.floor(Math.random() * thinkingTexts.length)];
+  
   row.innerHTML='<div class="rag-av ai">'+_AI_AVATAR_SVG+'</div>'
-    +'<div class="rag-bub ai"><div class="rag-typing"><span></span><span></span><span></span></div></div>';
+    +'<div class="rag-bub ai"><div class="rag-typing"><span style="font-size:12px;color:#64748b;font-style:italic;">'+randomText+'</span></div></div>';
   chat.appendChild(row); chat.scrollTop=chat.scrollHeight;
 }
 

@@ -878,7 +878,7 @@ CUSTOMER_MANUAL_CONTEXT = """
 AUTOPRO  -  USER MANUAL (CUSTOMER SECTIONS)
 
 AutoPro is an automotive service management system for JA Noble Enterprise INC,
-Caltex San Pedro, Laguna. It has a web app and a mobile app (Android/iOS).
+San Pedro, Laguna. It has a web app and a mobile app (Android/iOS).
 
 GETTING STARTED: Visit the site in Chrome/Firefox/Edge/Safari. Log in with email+password
 or Google. Register via Sign Up (Full Name, Email, Password). Use "Forgot Password?" to
@@ -960,7 +960,7 @@ def _build_customer_system_prompt(message: str) -> str:
     Build the system prompt for a customer request.
     Includes the user manual only for how-to/app-usage queries to save tokens.
     """
-    base = """You are the friendly vehicle/service assistant for an AutoPro customer (JA Noble Enterprise Inc., Caltex San Pedro, Laguna). Warm, concise, natural tone.
+    base = """You are the friendly vehicle/service assistant for an AutoPro customer (JA Noble Enterprise Inc., San Pedro, Laguna). Warm, concise, natural tone.
 
 SCOPE — only: customer's own vehicles/PMS status, their service history & costs, their bookings (create/reschedule/cancel), shop services & pricing, customer-visible materials, maintenance recommendations from their data, app/website how-to, AND general automotive education (oil types, parts, repairs, maintenance tips, car-care how-tos). Anything else → respond ONLY: "I can only answer questions related to the Automotive Service and Inventory Management System."
 
