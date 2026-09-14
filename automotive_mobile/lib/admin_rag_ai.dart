@@ -2322,12 +2322,27 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SelectableText(
-                    msg.text ?? '',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF1a202c),
-                      height: 1.6,
+                  _renderMarkdown(msg.text ?? ''),
+                  // ── Copy button for AI response ──
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: _userPromptActionBtn(
+                      icon: Icons.copy_outlined,
+                      label: 'Copy',
+                      onTap: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: msg.text ?? ''),
+                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Copied to clipboard'),
+                              duration: Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
                     ),
                   ),
                   // ── Downloaded report: Open + Share buttons ──────────────
@@ -2401,6 +2416,69 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       child: Image.asset('assets/img/AI_LOGO.png', fit: BoxFit.cover),
     ),
   );
+
+  // ── Simple markdown renderer for AI responses ──
+  Widget _renderMarkdown(String text) {
+    final spans = <TextSpan>[];
+    final lines = text.split('\n');
+    
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      final lineSpans = <InlineSpan>[];
+      
+      // Check for bullet point
+      if (line.startsWith('• ') || line.startsWith('- ') || line.startsWith('* ')) {
+        lineSpans.add(const TextSpan(
+          text: '• ',
+          style: TextStyle(color: Color(0xFFE8001C), fontWeight: FontWeight.bold),
+        ));
+        line = line.substring(2);
+      }
+      
+      // Process bold (**text** or __text__)
+      final boldPattern = RegExp(r'\*\*(.+?)\*\*|__(.+?)__');
+      var lastIndex = 0;
+      
+      for (final match in boldPattern.allMatches(line)) {
+        // Add text before the match
+        if (match.start > lastIndex) {
+          lineSpans.add(TextSpan(text: line.substring(lastIndex, match.start)));
+        }
+        
+        // Add bold text
+        final boldText = match.group(1) ?? match.group(2) ?? '';
+        lineSpans.add(TextSpan(
+          text: boldText,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ));
+        
+        lastIndex = match.end;
+      }
+      
+      // Add remaining text
+      if (lastIndex < line.length) {
+        lineSpans.add(TextSpan(text: line.substring(lastIndex)));
+      }
+      
+      spans.add(TextSpan(children: lineSpans));
+      
+      // Add line break if not the last line
+      if (i < lines.length - 1) {
+        spans.add(const TextSpan(text: '\n'));
+      }
+    }
+    
+    return SelectableText.rich(
+      TextSpan(
+        children: spans,
+        style: const TextStyle(
+          fontSize: 13,
+          color: Color(0xFF1a202c),
+          height: 1.6,
+        ),
+      ),
+    );
+  }
 
   Widget _userAvatar() => Container(
     width: 30,

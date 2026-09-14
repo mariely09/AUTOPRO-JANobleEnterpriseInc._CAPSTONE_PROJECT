@@ -174,6 +174,188 @@
 
 <div id="toast"></div>
 
+<!-- ── Floating Add Booking Button ── -->
+<button id="fabAddBooking" onclick="openAddBookingModal()" title="Add New Booking"
+  style="position:fixed;bottom:32px;right:32px;z-index:9990;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#E8001C,#b5001a);color:white;border:none;box-shadow:0 6px 20px rgba(232,0,28,0.45);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s;"
+  onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='0 10px 28px rgba(232,0,28,0.6)'"
+  onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 6px 20px rgba(232,0,28,0.45)'">
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+
+<!-- ── Add Booking Modal ── -->
+<div id="addBookingModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:18px;width:500px;max-width:94vw;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#E8001C,#b5001a);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;background:rgba(255,255,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div>
+          <div style="color:white;font-size:15px;font-weight:700;">Add New Booking</div>
+          <div style="color:rgba(255,255,255,0.65);font-size:12px;">Create a service booking for a customer</div>
+        </div>
+      </div>
+      <button onclick="closeAddBookingModal()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;">×</button>
+    </div>
+
+    <!-- Body -->
+    <div style="overflow-y:auto;flex:1;padding:20px;display:flex;flex-direction:column;gap:16px;">
+
+      <!-- Step 1: Customer -->
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#4a5568;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">1. Customer</div>
+        <div style="position:relative;">
+          <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="abCustomerSearch" placeholder="Search customer name or email..."
+            oninput="abSearchCustomers()"
+            style="width:100%;padding:10px 12px 10px 32px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;color:#1a202c;background:#f8fafc;outline:none;box-sizing:border-box;transition:border-color .15s;"
+            onfocus="this.style.borderColor='#E8001C';this.style.background='white'"
+            onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'">
+        </div>
+        <div id="abCustomerDropdown" style="display:none;max-height:160px;overflow-y:auto;border:1.5px solid #e2e8f0;border-radius:10px;margin-top:4px;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+        <div id="abSelectedCustomer" style="display:none;margin-top:8px;padding:10px 12px;background:#fff5f5;border:1.5px solid #feb2b2;border-radius:10px;align-items:center;justify-content:space-between;">
+          <div>
+            <div id="abSelectedCustomerName" style="font-size:13px;font-weight:700;color:#1a202c;"></div>
+            <div id="abSelectedCustomerEmail" style="font-size:11px;color:#718096;margin-top:1px;"></div>
+          </div>
+          <button onclick="abClearCustomer()" style="background:none;border:none;color:#718096;cursor:pointer;font-size:18px;padding:0;line-height:1;">×</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Vehicle -->
+      <div id="abVehicleSection" style="display:none;">
+        <div style="font-size:11px;font-weight:700;color:#4a5568;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">2. Vehicle</div>
+        <div id="abVehicleList" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+
+      <!-- Step 3: Services -->
+      <div id="abServicesSection" style="display:none;">
+        <div style="font-size:11px;font-weight:700;color:#4a5568;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">3. Services</div>
+        <button onclick="abOpenServicesModal()" style="width:100%;padding:10px 14px;border:1.5px dashed #cbd5e0;border-radius:10px;background:#f8fafc;font-size:13px;font-family:inherit;color:#718096;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;transition:border-color .15s;"
+          onmouseover="this.style.borderColor='#E8001C';this.style.color='#E8001C'"
+          onmouseout="this.style.borderColor='#cbd5e0';this.style.color='#718096'">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span id="abServicesBtn">Select services...</span>
+        </button>
+        <div id="abSelectedServicesList" style="display:none;margin-top:6px;flex-wrap:wrap;gap:4px;"></div>
+      </div>
+
+      <!-- Step 4: Date -->
+      <div id="abDateSection" style="display:none;">
+        <div style="font-size:11px;font-weight:700;color:#4a5568;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">4. Preferred Date</div>
+        <div style="background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <button onclick="abCalNav(-1)" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:16px;color:#4a5568;display:flex;align-items:center;justify-content:center;">‹</button>
+            <span id="abCalMonth" style="font-size:14px;font-weight:700;color:#1a202c;"></span>
+            <button onclick="abCalNav(1)" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:16px;color:#4a5568;display:flex;align-items:center;justify-content:center;">›</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:6px;">
+            <span style="font-size:10px;font-weight:700;color:#a0aec0;">SU</span><span style="font-size:10px;font-weight:700;color:#a0aec0;">MO</span><span style="font-size:10px;font-weight:700;color:#a0aec0;">TU</span><span style="font-size:10px;font-weight:700;color:#a0aec0;">WE</span><span style="font-size:10px;font-weight:700;color:#a0aec0;">TH</span><span style="font-size:10px;font-weight:700;color:#a0aec0;">FR</span><span style="font-size:10px;font-weight:700;color:#a0aec0;">SA</span>
+          </div>
+          <div id="abCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;"></div>
+          <div style="display:flex;gap:12px;margin-top:10px;padding-top:8px;border-top:1px solid #f0f4f8;justify-content:center;flex-wrap:wrap;">
+            <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#38a169;border-radius:50%;display:inline-block;"></span>Available</span>
+            <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#d97706;border-radius:50%;display:inline-block;"></span>Full</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5: Time -->
+      <div id="abTimeSection" style="display:none;">
+        <div style="font-size:11px;font-weight:700;color:#4a5568;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">5. Preferred Time</div>
+        <div style="font-size:11px;color:#718096;margin-bottom:8px;">Customer should arrive 15 minutes before.</div>
+        <div id="abTimeSlots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
+        <div id="abArriveBy" style="display:none;margin-top:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #c6f6d5;border-radius:10px;font-size:11px;color:#276749;align-items:center;gap:6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Arrive by: <strong id="abArriveByTime"></strong></span>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div id="abNotesSection" style="display:none;">
+        <div style="font-size:11px;font-weight:700;color:#4a5568;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Notes <span style="font-weight:400;color:#a0aec0;text-transform:none;">(optional)</span></div>
+        <textarea id="abNotes" rows="2" placeholder="Any special instructions..."
+          style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;color:#1a202c;background:#f8fafc;outline:none;resize:vertical;box-sizing:border-box;transition:border-color .15s;"
+          onfocus="this.style.borderColor='#E8001C';this.style.background='white'"
+          onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'"></textarea>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:14px 20px;border-top:1px solid #f0f4f8;display:flex;gap:10px;flex-shrink:0;background:white;">
+      <button onclick="closeAddBookingModal()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:white;font-size:13px;font-weight:600;cursor:pointer;color:#718096;font-family:inherit;">Cancel</button>
+      <button id="abSubmitBtn" onclick="abSubmitBooking()" disabled
+        style="flex:2;padding:11px;border:none;border-radius:10px;background:#E8001C;font-size:13px;font-weight:700;cursor:pointer;color:white;font-family:inherit;opacity:0.45;transition:opacity .2s;">
+        Book Service
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Services picker sub-modal ── -->
+<div id="abServicesModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:18px;width:460px;max-width:92vw;max-height:80vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+    <div style="background:linear-gradient(135deg,#E8001C,#b5001a);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="color:white;font-size:15px;font-weight:700;">Select Services</div>
+      <button onclick="abCloseServicesModal()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;">×</button>
+    </div>
+    <div style="padding:10px 16px 6px;flex-shrink:0;border-bottom:1px solid #f0f4f8;">
+      <div style="position:relative;">
+        <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="abSvcSearch" placeholder="Search services..." oninput="abRenderServicesList()"
+          style="width:100%;padding:9px 12px 9px 32px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;color:#1a202c;background:#f8fafc;outline:none;box-sizing:border-box;">
+      </div>
+      <div id="abSvcCount" style="font-size:11px;font-weight:600;color:#E8001C;margin-top:6px;text-align:right;"></div>
+    </div>
+    <div id="abSvcList" style="flex:1;overflow-y:auto;padding:10px 16px;"></div>
+    <div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;flex-shrink:0;">
+      <button onclick="abCloseServicesModal()" style="padding:10px 28px;background:#E8001C;border:none;border-radius:10px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Done</button>
+    </div>
+  </div>
+</div>
+
+<style>
+#abCalGrid .ab-day { width:100%;aspect-ratio:1;border-radius:8px;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;background:#f0fdf4;color:#1a202c; }
+#abCalGrid .ab-day:hover { background:#dcfce7;transform:scale(1.08); }
+#abCalGrid .ab-day.ab-sel { background:#E8001C;color:white;transform:scale(1.1);box-shadow:0 3px 10px rgba(232,0,28,0.3); }
+#abCalGrid .ab-day.ab-past { background:#f1f5f9;color:#cbd5e0;cursor:not-allowed; }
+#abCalGrid .ab-day.ab-past:hover { transform:none; }
+#abCalGrid .ab-day.ab-full { background:#fef3c7;color:#92400e;cursor:not-allowed; }
+#abCalGrid .ab-day.ab-full:hover { transform:none; }
+#abCalGrid .ab-day.ab-empty { background:transparent;cursor:default; }
+#abCalGrid .ab-day.ab-empty:hover { transform:none; }
+.ab-time-chip { padding:8px 4px;background:white;border:1.5px solid #e2e8f0;border-radius:10px;font-size:11px;font-weight:600;color:#4a5568;cursor:pointer;transition:all .12s;font-family:inherit;text-align:center; }
+.ab-time-chip:hover:not(:disabled) { border-color:#E8001C;background:#fff5f5; }
+.ab-time-chip.ab-sel { border-color:#E8001C;border-width:2px;background:#fff5f5;color:#E8001C; }
+.ab-time-chip:disabled { background:#f1f5f9;color:#a0aec0;cursor:not-allowed;text-decoration:line-through;opacity:0.6; }
+.ab-svc-item { display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer;transition:background .12s;border:1.5px solid transparent; }
+.ab-svc-item:hover { background:#fff5f5; }
+.ab-svc-item.ab-svc-checked { background:#fff5f5;border-color:#feb2b2; }
+.ab-svc-check { width:20px;height:20px;border-radius:5px;border:2px solid #e2e8f0;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s; }
+.ab-svc-item.ab-svc-checked .ab-svc-check { background:#E8001C;border-color:#E8001C; }
+.ab-vehicle-chip { display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all .12s;background:white; }
+.ab-vehicle-chip:hover { border-color:#E8001C;background:#fff5f5; }
+.ab-vehicle-chip.ab-veh-sel { border-color:#E8001C;border-width:2px;background:#fff5f5; }
+</style>
+
+<style>
+/* Force modals hidden until explicitly opened */
+#rescheduleModal, #addBookingModal, #abServicesModal {
+  display: none !important;
+}
+#rescheduleModal.modal-open,
+#addBookingModal.modal-open,
+#abServicesModal.modal-open {
+  display: flex !important;
+}
+/* Fix duplicate display properties on inner elements */
+#rsArriveBy { display: none; }
+#abSelectedServicesList { display: none; }
+#abSelectedCustomer { display: none; }
+</style>
+
 <!-- Reschedule Modal -->
 <div id="rescheduleModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
   <div style="background:white;border-radius:18px;width:420px;max-width:90vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;">
@@ -216,7 +398,7 @@
         <div style="font-size:12px;font-weight:700;color:#4a5568;margin-bottom:4px;">2. Select new time</div>
         <div style="font-size:11px;color:#718096;margin-bottom:10px;">Please arrive 15 minutes before the selected time.</div>
         <div id="rsTimeSlots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
-        <div id="rsArriveBy" style="display:none;margin-top:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #c6f6d5;border-radius:10px;font-size:11px;color:#276749;display:flex;align-items:center;gap:6px;">
+        <div id="rsArriveBy" style="display:none;margin-top:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #c6f6d5;border-radius:10px;font-size:11px;color:#276749;align-items:center;gap:6px;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span>Customer arrives by: <strong id="rsArriveByTime"></strong></span>
         </div>
@@ -274,6 +456,416 @@
 <script src="../static/js/admin_functions.js?v=202607180001"></script>
 <script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
+<!-- ── Add Booking Modal Script (must load after Firebase SDK) ── -->
+<script>
+(function() {
+  var db = firebase.firestore();
+  var _abAllServices = [];
+  var _abSelectedServices = {};
+  var _abAllCustomers   = [];
+  var _abSelectedCustomer = null;
+  var _abCustomerVehicles = [];
+  var _abSelectedVehicle  = null;
+  var _abSelectedDate = '';
+  var _abSelectedTime = '';
+  var _abCalYear, _abCalMonth;
+  var _abBookedSlots = {};
+  var _AB_TIMES = ['8:00 AM','9:00 AM','10:00 AM','11:00 AM','1:00 PM','2:00 PM','3:00 PM','4:00 PM'];
+  var _AB_ARRIVE = {'8:00 AM':'7:45 AM','9:00 AM':'8:45 AM','10:00 AM':'9:45 AM','11:00 AM':'10:45 AM','1:00 PM':'12:45 PM','2:00 PM':'1:45 PM','3:00 PM':'2:45 PM','4:00 PM':'3:45 PM'};
+  var _AB_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  // ── Service loader: use already-cached global from admin_firebase.js, ──
+  // ── or fall back to a direct Firestore fetch (same approach as customer) ──
+  function _abLoadServices() {
+    // admin_firebase.js populates window._fbItemMaster (raw) via onSnapshot.
+    // Use it immediately if available; otherwise do a one-shot .get()
+    var raw = window._fbItemMaster || window.itemMaster || [];
+    if (raw.length) {
+      _abAllServices = raw
+        .map(function(i) { return { id: i._id || i.id, name: i.name || i.itemName || '', type: i.type || i.itemType || '', cost: i.cost, uom: i.uom || '', commodityGroup: i.group || i.commodityGroup || '' }; })
+        .filter(function(i) { return (i.type||'').toLowerCase() === 'service'; });
+      return;
+    }
+    // Not ready yet — plain .get() with client-side filter, same as customer side
+    db.collection('item_master').get().then(function(snap) {
+      _abAllServices = snap.docs
+        .map(function(d) { var x = d.data(); x.id = d.id; return x; })
+        .filter(function(x) { return (x.type || x.itemType || '').toLowerCase() === 'service'; });
+    });
+  }
+
+  // ── Eager data load (runs immediately so data is ready before modal opens) ──
+  (function _abEagerLoad() {
+    _abLoadServices();
+    // Also set up a watcher: if admin_firebase.js fires its onSnapshot after us, refresh
+    var _abPoll = setInterval(function() {
+      if (!_abAllServices.length && (window._fbItemMaster || window.itemMaster || []).length) {
+        _abLoadServices();
+      }
+      if (_abAllServices.length) clearInterval(_abPoll);
+    }, 300);
+    setTimeout(function() { clearInterval(_abPoll); }, 8000);
+
+    db.collection('users').where('role', '==', 'customer').get().then(function(snap) {
+      _abAllCustomers = snap.docs.map(function(d) { var x = d.data(); x.uid = d.id; return x; });
+    }).catch(function() {
+      db.collection('users').get().then(function(snap) {
+        _abAllCustomers = snap.docs.map(function(d) { var x = d.data(); x.uid = d.id; return x; })
+          .filter(function(x) { return (x.role || '').toLowerCase() === 'customer'; });
+      });
+    });
+  })();
+
+  // ── Open/close ──────────────────────────────────────────────────
+  window.openAddBookingModal = function() {
+    _abReset();
+    var now = new Date();
+    _abCalYear  = now.getFullYear();
+    _abCalMonth = now.getMonth();
+    _abBuildBookedSlots();
+    var modal = document.getElementById('addBookingModal');
+    modal.style.display = '';
+    modal.classList.add('modal-open');
+  };
+
+  window.closeAddBookingModal = function() {
+    document.getElementById('addBookingModal').style.display = '';
+    document.getElementById('addBookingModal').classList.remove('modal-open');
+  };
+
+  function _abReset() {
+    _abSelectedServices  = {};
+    _abSelectedCustomer  = null;
+    _abCustomerVehicles  = [];
+    _abSelectedVehicle   = null;
+    _abSelectedDate      = '';
+    _abSelectedTime      = '';
+    var f = function(id) { var e = document.getElementById(id); if(e) e.style.display='none'; };
+    f('abCustomerDropdown'); f('abSelectedCustomer');
+    f('abVehicleSection'); f('abServicesSection');
+    f('abDateSection'); f('abTimeSection'); f('abNotesSection');
+    f('abSelectedServicesList'); f('abArriveBy');
+    var inp = document.getElementById('abCustomerSearch'); if(inp) { inp.value=''; inp.style.display=''; }
+    var notes = document.getElementById('abNotes'); if(notes) notes.value='';
+    _abSetSubmitState();
+    var btn = document.getElementById('abSubmitBtn'); if(btn) { btn.textContent = 'Book Service'; btn.disabled = true; btn.style.opacity='0.45'; }
+  }
+
+  function _abBuildBookedSlots() {
+    var docs = window._fbBookings || window._sbAllDocs || [];
+    _abBookedSlots = {};
+    docs.forEach(function(d) {
+      if (d.status !== 'Approved') return;
+      var date = d.preferredDate; var time = d.preferredTime;
+      if (date && time) {
+        if (!_abBookedSlots[date]) _abBookedSlots[date] = [];
+        if (_abBookedSlots[date].indexOf(time) === -1) _abBookedSlots[date].push(time);
+      }
+    });
+  }
+
+  // ── Customer search ──────────────────────────────────────────────
+  window.abSearchCustomers = function() {
+    var q = (document.getElementById('abCustomerSearch').value || '').trim().toLowerCase();
+    var dd = document.getElementById('abCustomerDropdown');
+    if (!q || !_abAllCustomers.length) { dd.style.display='none'; return; }
+    var matches = _abAllCustomers.filter(function(c) {
+      return (c.name||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q);
+    }).slice(0, 8);
+    if (!matches.length) { dd.innerHTML='<div style="padding:10px 14px;font-size:13px;color:#718096;">No customers found.</div>'; dd.style.display='block'; return; }
+    dd.innerHTML = matches.map(function(c) {
+      return '<div onclick="abSelectCustomer(\'' + c.uid + '\')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f4f8;transition:background .12s;" onmouseover="this.style.background=\'#fff5f5\'" onmouseout="this.style.background=\'white\'">'
+        + '<div style="font-size:13px;font-weight:600;color:#1a202c;">' + _abEsc(c.name||'—') + '</div>'
+        + '<div style="font-size:11px;color:#718096;">' + _abEsc(c.email||'') + '</div>'
+        + '</div>';
+    }).join('');
+    dd.style.display = 'block';
+  };
+
+  window.abSelectCustomer = function(uid) {
+    _abSelectedCustomer = _abAllCustomers.find(function(c) { return c.uid === uid; });
+    if (!_abSelectedCustomer) return;
+    document.getElementById('abCustomerDropdown').style.display = 'none';
+    document.getElementById('abCustomerSearch').style.display = 'none';
+    var selEl = document.getElementById('abSelectedCustomer');
+    document.getElementById('abSelectedCustomerName').textContent = _abSelectedCustomer.name || '—';
+    document.getElementById('abSelectedCustomerEmail').textContent = _abSelectedCustomer.email || '';
+    selEl.style.display = 'flex';
+    _abLoadVehicles(uid);
+  };
+
+  window.abClearCustomer = function() {
+    _abSelectedCustomer = null; _abSelectedVehicle = null;
+    _abCustomerVehicles = []; _abSelectedDate = ''; _abSelectedTime = '';
+    _abSelectedServices = {};
+    document.getElementById('abSelectedCustomer').style.display = 'none';
+    document.getElementById('abCustomerSearch').style.display = '';
+    document.getElementById('abCustomerSearch').value = '';
+    ['abVehicleSection','abServicesSection','abDateSection','abTimeSection','abNotesSection','abSelectedServicesList'].forEach(function(id){ var e=document.getElementById(id); if(e) e.style.display='none'; });
+    _abSetSubmitState();
+  };
+
+  function _abLoadVehicles(uid) {
+    document.getElementById('abVehicleList').innerHTML = '<div style="font-size:12px;color:#718096;padding:4px 0;">Loading vehicles...</div>';
+    document.getElementById('abVehicleSection').style.display = 'block';
+    db.collection('vehicles').where('ownerId', '==', uid).get().then(function(snap) {
+      _abCustomerVehicles = snap.docs.map(function(d) { var x = d.data(); x.id = d.id; return x; });
+      _abRenderVehicles();
+    }).catch(function() {
+      document.getElementById('abVehicleList').innerHTML = '<div style="font-size:12px;color:#e53e3e;">Error loading vehicles.</div>';
+    });
+  }
+
+  function _abRenderVehicles() {
+    var el = document.getElementById('abVehicleList');
+    if (!_abCustomerVehicles.length) {
+      el.innerHTML = '<div style="font-size:12px;color:#718096;padding:4px 0;">No vehicles found for this customer.</div>';
+      return;
+    }
+    el.innerHTML = _abCustomerVehicles.map(function(v) {
+      var isSel = _abSelectedVehicle && _abSelectedVehicle.id === v.id;
+      return '<div class="ab-vehicle-chip' + (isSel?' ab-veh-sel':'') + '" onclick="abSelectVehicle(\'' + v.id + '\')">'
+        + '<div style="width:36px;height:36px;background:' + (isSel?'#E8001C':'#e2e8f0') + ';border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .12s;">'
+        + '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + (isSel?'white':'#718096') + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>'
+        + '</div>'
+        + '<div style="flex:1;min-width:0;">'
+        + '<div style="font-size:13px;font-weight:700;color:#1a202c;">' + _abEsc(v.plate||'—') + '</div>'
+        + '<div style="font-size:11px;color:#718096;">' + _abEsc([(v.year||''),(v.make||''),(v.model||'')].filter(Boolean).join(' ')) + '</div>'
+        + '</div>'
+        + (isSel?'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':'')
+        + '</div>';
+    }).join('');
+  }
+
+  window.abSelectVehicle = function(id) {
+    _abSelectedVehicle = _abCustomerVehicles.find(function(v){ return v.id === id; });
+    _abRenderVehicles();
+    document.getElementById('abServicesSection').style.display = 'block';
+    document.getElementById('abDateSection').style.display = 'block';
+    document.getElementById('abTimeSection').style.display = 'block';
+    document.getElementById('abNotesSection').style.display = 'block';
+    abRenderCal();
+    abRenderTimeSlots();
+    _abSetSubmitState();
+  };
+
+  // ── Services modal ───────────────────────────────────────────────
+  window.abOpenServicesModal = function() {
+    // Refresh from global in case admin_firebase.js loaded after us
+    if (!_abAllServices.length) _abLoadServices();
+    document.getElementById('abSvcSearch').value = '';
+    abRenderServicesList();
+    document.getElementById('abServicesModal').style.display = '';
+    document.getElementById('abServicesModal').classList.add('modal-open');
+  };
+
+  window.abCloseServicesModal = function() {
+    document.getElementById('abServicesModal').style.display = '';
+    document.getElementById('abServicesModal').classList.remove('modal-open');
+    _abUpdateServicesBtnLabel();
+    _abRenderSelectedServicesTags();
+    _abSetSubmitState();
+  };
+
+  window.abRenderServicesList = function() {
+    var q = (document.getElementById('abSvcSearch').value || '').trim().toLowerCase();
+    var list = _abAllServices.filter(function(s) {
+      return !q || (s.name||'').toLowerCase().includes(q) || (s.commodityGroup||s.group||'').toLowerCase().includes(q);
+    });
+    var countEl = document.getElementById('abSvcCount');
+    var sel = Object.keys(_abSelectedServices).filter(function(k){ return _abSelectedServices[k]; }).length;
+    if(countEl) countEl.textContent = sel ? sel + ' selected' : '';
+    if (!_abAllServices.length) {
+      // Still loading — do a direct fetch now
+      document.getElementById('abSvcList').innerHTML = '<div style="padding:20px;text-align:center;font-size:13px;color:#718096;">Loading services...</div>';
+      db.collection('item_master').get().then(function(snap) {
+        _abAllServices = snap.docs
+          .map(function(d) { var x = d.data(); x.id = d.id; return x; })
+          .filter(function(x) { return (x.type || x.itemType || '').toLowerCase() === 'service'; });
+        abRenderServicesList();
+      });
+      return;
+    }
+    if (!list.length) {
+      document.getElementById('abSvcList').innerHTML = '<div style="padding:20px;text-align:center;font-size:13px;color:#718096;">No services found.</div>';
+      return;
+    }
+    document.getElementById('abSvcList').innerHTML = list.map(function(s) {
+      var isSel = !!_abSelectedServices[s.id];
+      return '<div class="ab-svc-item' + (isSel?' ab-svc-checked':'') + '" onclick="abToggleService(\'' + s.id + '\')">'
+        + '<div class="ab-svc-check">'
+        + (isSel?'<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':'')
+        + '</div>'
+        + '<div style="flex:1;min-width:0;">'
+        + '<div style="font-size:13px;font-weight:600;color:#1a202c;">' + _abEsc(s.name||'—') + '</div>'
+        + ((s.commodityGroup||s.group)?'<div style="font-size:11px;color:#718096;">' + _abEsc(s.commodityGroup||s.group) + '</div>':'')
+        + '</div>'
+        + (s.cost?'<div style="font-size:12px;font-weight:700;color:#E8001C;white-space:nowrap;">₱' + _abEsc(String(s.cost)) + '</div>':'')
+        + '</div>';
+    }).join('');
+  };
+
+  window.abToggleService = function(id) {
+    _abSelectedServices[id] = !_abSelectedServices[id];
+    if (!_abSelectedServices[id]) delete _abSelectedServices[id];
+    abRenderServicesList();
+  };
+
+  function _abUpdateServicesBtnLabel() {
+    var count = Object.keys(_abSelectedServices).length;
+    var el = document.getElementById('abServicesBtn');
+    if (el) el.textContent = count ? count + ' service' + (count>1?'s':'') + ' selected' : 'Select services...';
+  }
+
+  function _abRenderSelectedServicesTags() {
+    var el = document.getElementById('abSelectedServicesList');
+    var keys = Object.keys(_abSelectedServices);
+    if (!keys.length) { el.style.display='none'; return; }
+    el.style.display = 'flex';
+    el.innerHTML = keys.map(function(id) {
+      var svc = _abAllServices.find(function(s){ return s.id===id; });
+      var name = svc ? (svc.name||id) : id;
+      return '<span style="display:inline-flex;align-items:center;gap:4px;background:#fff5f5;color:#E8001C;border:1px solid #feb2b2;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;">'
+        + _abEsc(name)
+        + '<span onclick="abToggleService(\'' + id + '\');_abRenderSelectedServicesTags();_abUpdateServicesBtnLabel();_abSetSubmitState();" style="cursor:pointer;font-size:14px;line-height:1;color:#718096;margin-left:2px;">×</span>'
+        + '</span>';
+    }).join('');
+  }
+
+  // ── Calendar ─────────────────────────────────────────────────────
+  window.abCalNav = function(dir) {
+    _abCalMonth += dir;
+    if (_abCalMonth > 11) { _abCalMonth = 0; _abCalYear++; }
+    if (_abCalMonth < 0)  { _abCalMonth = 11; _abCalYear--; }
+    abRenderCal();
+  };
+
+  window.abRenderCal = function() {
+    var el = document.getElementById('abCalMonth');
+    if (el) el.textContent = _AB_MONTHS[_abCalMonth] + ' ' + _abCalYear;
+    var firstDay = new Date(_abCalYear, _abCalMonth, 1).getDay();
+    var daysInMonth = new Date(_abCalYear, _abCalMonth + 1, 0).getDate();
+    var today = new Date(); today.setHours(0,0,0,0);
+    var cells = '';
+    for (var i = 0; i < firstDay; i++) cells += '<button class="ab-day ab-empty"></button>';
+    for (var d = 1; d <= daysInMonth; d++) {
+      var dt = new Date(_abCalYear, _abCalMonth, d);
+      var dateStr = _abCalYear + '-' + String(_abCalMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+      var isPast = dt < today;
+      var isSel  = dateStr === _abSelectedDate;
+      var takenTimes = _abBookedSlots[dateStr] || [];
+      var isFull = takenTimes.length >= _AB_TIMES.length;
+      var cls = 'ab-day';
+      if (isSel)       cls += ' ab-sel';
+      else if (isPast) cls += ' ab-past';
+      else if (isFull) cls += ' ab-full';
+      var clickable = !isPast && !isFull;
+      var click = clickable ? ' onclick="abPickDate(\'' + dateStr + '\')"' : '';
+      cells += '<button class="' + cls + '"' + click + '>' + d + '</button>';
+    }
+    var grid = document.getElementById('abCalGrid');
+    if (grid) grid.innerHTML = cells;
+  };
+
+  window.abPickDate = function(dateStr) {
+    _abSelectedDate = dateStr; _abSelectedTime = '';
+    abRenderCal(); abRenderTimeSlots();
+    var ab = document.getElementById('abArriveBy'); if(ab) ab.style.display='none';
+    _abSetSubmitState();
+  };
+
+  // ── Time slots ───────────────────────────────────────────────────
+  window.abRenderTimeSlots = function() {
+    var takenTimes = (_abBookedSlots[_abSelectedDate] || []);
+    var el = document.getElementById('abTimeSlots');
+    if (!el) return;
+    el.innerHTML = _AB_TIMES.map(function(t) {
+      var isTaken = takenTimes.indexOf(t) !== -1;
+      var isSel   = t === _abSelectedTime;
+      var cls = 'ab-time-chip' + (isSel?' ab-sel':'');
+      if (isTaken) return '<button class="' + cls + '" disabled>' + t + '</button>';
+      return '<button class="' + cls + '" onclick="abPickTime(\'' + t + '\')">' + t + '</button>';
+    }).join('');
+  };
+
+  window.abPickTime = function(t) {
+    _abSelectedTime = t;
+    abRenderTimeSlots();
+    var arrEl = document.getElementById('abArriveBy');
+    var arrTxt = document.getElementById('abArriveByTime');
+    if (arrEl && arrTxt) { arrTxt.textContent = _AB_ARRIVE[t]||t; arrEl.style.display='flex'; }
+    _abSetSubmitState();
+  };
+
+  // ── Submit state ─────────────────────────────────────────────────
+  function _abSetSubmitState() {
+    var btn = document.getElementById('abSubmitBtn');
+    if (!btn) return;
+    var ready = _abSelectedCustomer && _abSelectedVehicle
+      && Object.keys(_abSelectedServices).length > 0
+      && _abSelectedDate && _abSelectedTime;
+    btn.disabled = !ready;
+    btn.style.opacity = ready ? '1' : '0.45';
+    btn.style.cursor  = ready ? 'pointer' : 'not-allowed';
+  }
+
+  // ── Submit booking ────────────────────────────────────────────────
+  window.abSubmitBooking = function() {
+    if (!_abSelectedCustomer || !_abSelectedVehicle || !_abSelectedDate || !_abSelectedTime) return;
+    var svcIds = Object.keys(_abSelectedServices);
+    if (!svcIds.length) return;
+    var svcNames = svcIds.map(function(id) {
+      var s = _abAllServices.find(function(x){ return x.id===id; });
+      return s ? (s.name||id) : id;
+    });
+    var btn = document.getElementById('abSubmitBtn');
+    btn.disabled = true; btn.textContent = 'Booking...'; btn.style.opacity = '0.7';
+
+    var bookingData = {
+      customerId: _abSelectedCustomer.uid,
+      customerName: _abSelectedCustomer.name || '',
+      customerEmail: _abSelectedCustomer.email || '',
+      vehicleId: _abSelectedVehicle.id,
+      plate: _abSelectedVehicle.plate || '',
+      make: _abSelectedVehicle.make || '',
+      model: _abSelectedVehicle.model || '',
+      year: _abSelectedVehicle.year || '',
+      services: svcNames,
+      serviceIds: svcIds,
+      preferredDate: _abSelectedDate,
+      preferredTime: _abSelectedTime,
+      notes: (document.getElementById('abNotes').value || '').trim(),
+      status: 'Approved',
+      bookedBy: 'admin',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+
+    db.collection('service_bookings').add(bookingData).then(function() {
+      if (_abSelectedCustomer.uid) {
+        var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        var p = _abSelectedDate.split('-');
+        var dateLabel = MONTHS[parseInt(p[1])-1] + ' ' + parseInt(p[2]) + ', ' + p[0];
+        db.collection('notifications').add({
+          title: '📅 Service Booking Confirmed',
+          message: 'Your service booking for ' + bookingData.plate + ' on ' + dateLabel + ' at ' + _abSelectedTime + ' has been confirmed.',
+          type: 'success',
+          targetRole: '', targetUid: _abSelectedCustomer.uid,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
+        });
+      }
+      closeAddBookingModal();
+      showToast('Booking created successfully!', 'success');
+    }).catch(function(err) {
+      btn.disabled = false; btn.textContent = 'Book Service'; btn.style.opacity = '1';
+      showToast('Error: ' + err.message, 'error');
+    });
+  };
+
+  function _abEsc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+})();
+</script>
 <script>
 (function () {
   var db = firebase.firestore();
@@ -557,7 +1149,8 @@
 
     // Show modal + render calendar immediately using cache
     var rsModal = document.getElementById('rescheduleModal');
-    rsModal.style.display = 'flex';
+    rsModal.style.display = '';
+    rsModal.classList.add('modal-open');
     // Scroll modal body to top so calendar is visible immediately
     var rsBody = rsModal.querySelector('div[style*="overflow-y:auto"]');
     if (rsBody) rsBody.scrollTop = 0;
@@ -607,7 +1200,7 @@
   };
 
   window.closeRescheduleModal = function() {
-    document.getElementById('rescheduleModal').style.display = 'none';
+    document.getElementById('rescheduleModal').classList.remove('modal-open');
   };
 
   window.rsCalNav = function(dir) {
