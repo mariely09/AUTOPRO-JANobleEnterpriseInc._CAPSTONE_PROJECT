@@ -95,6 +95,47 @@ def active_session_count() -> int:
         return len(_store)
 
 
+def set_pending_booking(session_id: str, booking_data: dict) -> None:
+    """
+    Store pending booking data in the session for confirmation workflow.
+    The booking data is validated and ready to be created upon user confirmation.
+    """
+    with _lock:
+        _prune()
+        if session_id not in _store:
+            _store[session_id] = {"turns": [], "last_active": time.time()}
+        
+        entry = _store[session_id]
+        entry["pending_booking"] = booking_data
+        entry["last_active"] = time.time()
+
+
+def get_pending_booking(session_id: str) -> dict | None:
+    """
+    Retrieve pending booking data from the session.
+    Returns None if no pending booking exists.
+    """
+    with _lock:
+        _prune()
+        entry = _store.get(session_id)
+        if entry is None:
+            return None
+        entry["last_active"] = time.time()
+        return entry.get("pending_booking")
+
+
+def clear_pending_booking(session_id: str) -> None:
+    """
+    Clear pending booking data from the session.
+    Called after booking is created or cancelled.
+    """
+    with _lock:
+        entry = _store.get(session_id)
+        if entry is not None:
+            entry.pop("pending_booking", None)
+            entry["last_active"] = time.time()
+
+
 # ── Internal ──────────────────────────────────────────────────────────────────
 
 def _prune() -> None:

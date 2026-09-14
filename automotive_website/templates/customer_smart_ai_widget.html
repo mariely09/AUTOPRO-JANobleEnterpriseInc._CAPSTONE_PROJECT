@@ -929,9 +929,17 @@
   function _md(text) {
     if (!text) return '';
     var s = text;
+    // Temporarily replace <b> and </b> tags with placeholders before escaping
+    s = s.replace(/<b>/g, '__BOLD_OPEN__').replace(/<\/b>/g, '__BOLD_CLOSE__');
+    s = s.replace(/<br>/g, '__BR__').replace(/<br\/>/g, '__BR__').replace(/<br \/>/g, '__BR__');
+    // Escape HTML special characters
     s = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    s = s.replace(/__(.+?)__/g, '<strong>$1</strong>');
+    // Restore <b> tags after escaping
+    s = s.replace(/__BOLD_OPEN__/g, '<b>').replace(/__BOLD_CLOSE__/g, '</b>');
+    s = s.replace(/__BR__/g, '<br>');
+    // Convert remaining markdown bold to <b> (for backward compatibility)
+    s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    s = s.replace(/__(.+?)__/g, '<b>$1</b>');
     // Process bullets BEFORE italic asterisks
     s = s.replace(/^[\-\*\u2022] (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;flex-shrink:0;">\u2022</span><span>$1</span></div>');
     s = s.replace(/^(\d+)\. (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;font-weight:700;flex-shrink:0;min-width:16px;">$1.</span><span>$2</span></div>');

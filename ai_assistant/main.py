@@ -971,12 +971,14 @@ PRIVACY (absolute):
 - Garbage/symbols-only → "I didn't quite catch that. Could you rephrase your question about your vehicles, bookings, or services?"
 
 BOOKING WORKFLOW:
-1. Collect ALL required info BEFORE create_customer_booking: plate (get_my_vehicles if unknown), service(s) (get_service_prices if uncertain), date, time. Don't re-ask what history already provided.
+1. Collect ALL required info: plate (get_my_vehicles if unknown), service(s) (get_service_prices if uncertain), date, time. Don't re-ask what history already provided.
 2. No date given → call suggest_booking_date first; present conversationally.
-3. ALWAYS check_booking_availability BEFORE create_customer_booking.
-4. NEVER claim success until create_customer_booking returns success=True. On error, give the specific reason + alternatives.
-5. Reschedule/cancel: get booking_id via get_my_bookings, then update_my_booking / cancel_my_booking. Never touch another customer's booking.
-6. On success confirm: ✅ booking ID, vehicle, service(s), date, time + status — tell the customer to check **My Bookings**, then ask "Would you like to book another service?".
+3. ALWAYS check_booking_availability BEFORE preview.
+4. Call preview_customer_booking to show booking details and request confirmation. NEVER call create_customer_booking directly without preview.
+5. Wait for customer response: "yes"/"confirm"/"proceed" → call create_customer_booking with use_pending=True and session_id; "no"/"cancel" → acknowledge cancellation.
+6. NEVER claim success until create_customer_booking returns success=True. On error, give the specific reason + alternatives.
+7. Reschedule/cancel: get booking_id via get_my_bookings, then update_my_booking / cancel_my_booking. Never touch another customer's booking.
+8. On success confirm: ✅ booking ID, vehicle, service(s), date, time + status — tell the customer to check **My Bookings**, then ask "Would you like to book another service?".
 
 RULES:
 - Only this customer's data; call tools for data — never invent records, prices, or schedules.
@@ -1009,7 +1011,7 @@ CUSTOMER_SYSTEM_PROMPT = _build_customer_system_prompt("")  # fallback reference
 
 
 def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
-                       history: list[dict], intent: str = UNKNOWN) -> dict:
+                       history: list[dict], intent: str = UNKNOWN, session_id: str | None = None) -> dict:
     """
     Core customer LLM loop.
 
@@ -1101,6 +1103,10 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     # -- Step 1c: direct DB path for simple lookups (0 LLM tokens) ------------
     direct = _customer_direct_lookup(message, customer_uid, customer_name, intent)
     if direct is not None:
+        # Convert markdown bold to HTML for consistency
+        from format_utils import markdown_to_html
+        direct["reply"] = markdown_to_html(direct.get("reply", ""))
+        
         token_tracker.record(
             user_id=customer_uid,
             role="customer",
@@ -1311,11 +1317,23 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                     # Security: ALWAYS remove any uid/name the LLM may have injected
                     fn_args.pop("customer_uid", None)
                     fn_args.pop("customer_name", None)
+                    
+                    # Inject session_id for booking tools that need it
+                    if fn_name in ("preview_customer_booking", "create_customer_booking") and session_id:
+                        fn_args["session_id"] = session_id
+                    
                     result = fn(
                         customer_uid=customer_uid,
                         customer_name=customer_name,
                         **fn_args,
                     )
+                    
+                    # Store pending booking data after successful preview
+                    if fn_name == "preview_customer_booking" and result.get("valid") and session_id:
+                        from session_store import set_pending_booking
+                        booking_data = result.get("booking_data")
+                        if booking_data:
+                            set_pending_booking(session_id, booking_data)
                 except Exception as e:
                     result = {"error": str(e)}
 
@@ -2120,8 +2138,13 @@ def customer_chat_endpoint(req: CustomerChatRequest):
             customer_name=req.customer_name,
             history=effective_history,
             intent=intent,
+            session_id=session_id,
         )
         reply = result["reply"]
+        
+        # Convert markdown bold (**text**) to HTML bold (<b>text</b>) for web/mobile display
+        from format_utils import markdown_to_html
+        reply = markdown_to_html(reply)
 
         append_turn(session_id, req.message, reply)
 

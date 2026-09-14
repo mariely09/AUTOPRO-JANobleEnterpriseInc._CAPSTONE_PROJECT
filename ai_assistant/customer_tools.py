@@ -1099,10 +1099,10 @@ def suggest_booking_date(customer_uid: str, customer_name: str,
 
 
 # ----------------------------------------------------------------------------
-#  TOOL 7 - Create Customer Booking
+#  TOOL 7A - Preview Customer Booking (Confirmation Step)
 # ----------------------------------------------------------------------------
 
-def create_customer_booking(customer_uid: str, customer_name: str,
+def preview_customer_booking(customer_uid: str, customer_name: str,
                             plate: str,
                             services: list[str],
                             preferred_date: str,
@@ -1110,18 +1110,348 @@ def create_customer_booking(customer_uid: str, customer_name: str,
                             notes: str | None = None,
                             **_) -> dict:
     """
-    Create a new service booking for the authenticated customer.
-
-    Pre-creation checks (ALL must pass):
-      1. plate belongs to this customer (ownership verified via 4-pass lookup)
-      2. All requested services exist in the item catalog
-      3. preferred_date is valid and not in the past
-      4. preferred_time slot is not already fully booked
-      5. All required fields are present
-
-    The booking is only created after ALL checks pass. The function returns
-    the actual database result — never claims success before it happens.
+    Preview a booking before creation - validates all parameters and returns
+    a formatted confirmation message WITHOUT creating the booking.
+    
+    This performs all the same validation as create_customer_booking but
+    returns a preview instead of creating the booking. If validation passes,
+    stores the booking details in session state for later confirmation.
+    
+    Returns a preview dict with:
+      - preview: formatted HTML preview message
+      - valid: True if all validations passed
+      - booking_data: validated data (only if valid=True)
     """
+    # -- Validate required fields ----------------------------------------------
+    missing = []
+    if not plate:
+        missing.append("vehicle plate")
+    if not services or len(services) == 0:
+        missing.append("service(s)")
+    if not preferred_date:
+        missing.append("preferred date")
+    if not preferred_time:
+        missing.append("preferred time")
+    if missing:
+        return {
+            "error":   "MISSING_FIELDS",
+            "message": f"Missing required information: {', '.join(missing)}.",
+        }
+
+    try:
+        db           = get_db()
+        company_name = _resolve_company_name(db, customer_uid)
+
+        # -- Check 1: vehicle ownership ----------------------------------------
+        if not _verify_vehicle_ownership(db, customer_uid, customer_name,
+                                         company_name, plate):
+            logger.warning(
+                "preview_customer_booking: plate %s does not belong to uid=%s",
+                plate, customer_uid,
+            )
+            return {
+                "error":   "VEHICLE_NOT_OWNED",
+                "message": (
+                    f"Vehicle with plate {plate} is not registered under your account. "
+                    "Please check your vehicles or contact the shop."
+                ),
+            }
+
+        # -- Check 2: services exist in catalog --------------------------------
+        catalog = cache_manager.get_service_catalog(db)
+        if catalog is None:
+            return _quota_error()
+
+        catalog_names_lower = {item.get("name", "").lower() for item in catalog}
+        invalid_services = []
+        matched_services = []
+        
+        for svc in services:
+            svc_lower = svc.lower().strip()
+            # Accept fuzzy partial match
+            found = False
+            for catalog_item in catalog:
+                cn = catalog_item.get("name", "").lower()
+                if svc_lower in cn or cn in svc_lower:
+                    matched_services.append(catalog_item.get("name", svc))
+                    found = True
+                    break
+            
+            if not found:
+                # Try word overlap
+                words = [w for w in svc_lower.split() if len(w) >= 3]
+                for catalog_item in catalog:
+                    cn = catalog_item.get("name", "").lower()
+                    if words and all(w in cn for w in words):
+                        matched_services.append(catalog_item.get("name", svc))
+                        found = True
+                        break
+            
+            if not found:
+                invalid_services.append(svc)
+
+        if invalid_services:
+            return {
+                "error":    "SERVICE_NOT_FOUND",
+                "message":  (
+                    f"The following service(s) were not found in our catalog: "
+                    f"{', '.join(invalid_services)}. "
+                    f"Please ask for the service list to see available options."
+                ),
+                "invalid_services": invalid_services,
+            }
+
+        # Use matched canonical service names
+        services = matched_services if matched_services else services
+
+        # -- Check 3: validate and parse date ---------------------------------
+        try:
+            req_date = _parse_date_flexible(preferred_date)
+        except ValueError as ve:
+            return {"error": "INVALID_DATE", "message": str(ve)}
+
+        if req_date.date() < datetime.now().date():
+            return {
+                "error":   "PAST_DATE",
+                "message": "The requested date is in the past. Please choose a future date.",
+            }
+
+        date_str = req_date.strftime("%Y-%m-%d")
+
+        # -- Check 4: availability ---------------------------------------------
+        avail = check_booking_availability(
+            customer_uid=customer_uid,
+            customer_name=customer_name,
+            preferred_date=date_str,
+            preferred_time=preferred_time,
+        )
+        if avail.get("error"):
+            return avail
+
+        if avail.get("requested_time_available") is False:
+            available_slots = avail.get("available_slots", [])
+            if available_slots:
+                return {
+                    "error":            "TIME_NOT_AVAILABLE",
+                    "message":          (
+                        f"The {preferred_time} slot on {req_date.strftime('%B %d, %Y')} "
+                        f"is not available. Please choose from the available slots."
+                    ),
+                    "available_slots":  available_slots,
+                    "requested_date":   req_date.strftime("%B %d, %Y"),
+                }
+            else:
+                return {
+                    "error":   "DATE_FULLY_BOOKED",
+                    "message": (
+                        f"{req_date.strftime('%B %d, %Y')} is fully booked. "
+                        f"Please choose a different date."
+                    ),
+                }
+
+        # -- Get vehicle description for the preview ---------------------------
+        vehicle_desc = ""
+        vehicle_id = ""
+        canonical_plate = plate.upper()
+        _want_plate = _norm_plate(plate)
+        for doc in _iter_customer_vehicles(db, customer_uid, customer_name, company_name):
+            d = doc.to_dict()
+            if _norm_plate(_get_plate(d)) == _want_plate:
+                vehicle_desc = _get_desc(d)
+                vehicle_id = doc.id
+                canonical_plate = (_get_plate(d) or canonical_plate).upper()
+                break
+
+        # -- Build preview message ---------------------------------------------
+        services_formatted = "<br>• ".join(services)
+        preview_msg = (
+            f"📋 <b>Booking Preview</b><br><br>"
+            f"<b>Vehicle:</b> {canonical_plate} ({vehicle_desc})<br>"
+            f"<b>Service(s):</b><br>• {services_formatted}<br>"
+            f"<b>Date & Time:</b> {req_date.strftime('%B %d, %Y')} at {preferred_time}<br>"
+            f"<b>Status:</b> Approved (Auto-approved)"
+        )
+        
+        if notes:
+            preview_msg += f"<br><b>Notes:</b> {notes}"
+        
+        preview_msg += (
+            "<br><br>"
+            "Please confirm: Type <b>yes</b> to proceed with this booking, "
+            "or <b>no</b> to cancel."
+        )
+
+        # Store validated booking data for later confirmation
+        booking_data = {
+            "customer_uid":   customer_uid,
+            "customer_name":  customer_name,
+            "vehicle_id":     vehicle_id,
+            "plate":          canonical_plate,
+            "vehicle_desc":   vehicle_desc,
+            "services":       services,
+            "date_str":       date_str,
+            "date_formatted": req_date.strftime("%B %d, %Y"),
+            "time":           preferred_time,
+            "notes":          notes or "",
+        }
+
+        return {
+            "preview":       preview_msg,
+            "valid":         True,
+            "booking_data":  booking_data,
+        }
+
+    except Exception as e:
+        if _is_firestore_quota(e):
+            return _quota_error()
+        logger.exception("preview_customer_booking error")
+        return {
+            "error":   "DB_ERROR",
+            "message": "Could not preview your booking due to a database error. Please try again.",
+        }
+
+
+# ----------------------------------------------------------------------------
+#  TOOL 7B - Create Customer Booking
+# ----------------------------------------------------------------------------
+
+def create_customer_booking(customer_uid: str, customer_name: str,
+                            plate: str = "",
+                            services: list[str] = None,
+                            preferred_date: str = "",
+                            preferred_time: str = "",
+                            notes: str | None = None,
+                            session_id: str | None = None,
+                            use_pending: bool = False,
+                            **_) -> dict:
+    """
+    Create a new service booking for the authenticated customer.
+    
+    Two modes of operation:
+    1. Direct mode (use_pending=False): Validates all parameters and creates booking
+    2. Pending mode (use_pending=True): Uses pre-validated data from session state
+    
+    When use_pending=True and session_id is provided:
+      - Retrieves validated booking data from session (stored by preview_customer_booking)
+      - Creates the booking immediately without re-validation
+      - Clears the pending booking from session after creation
+    
+    When use_pending=False (default):
+      - Performs all validation checks:
+        1. plate belongs to this customer (ownership verified via 4-pass lookup)
+        2. All requested services exist in the item catalog
+        3. preferred_date is valid and not in the past
+        4. preferred_time slot is not already fully booked
+        5. All required fields are present
+      - Creates booking only after ALL checks pass
+
+    The function returns the actual database result — never claims success before it happens.
+    """
+    services = services or []
+    
+    # -- Check for pending booking data ----------------------------------------
+    if use_pending and session_id:
+        from session_store import get_pending_booking, clear_pending_booking
+        pending_data = get_pending_booking(session_id)
+        
+        if pending_data is None:
+            return {
+                "error": "NO_PENDING_BOOKING",
+                "message": (
+                    "No pending booking found. Please start a new booking request "
+                    "with your vehicle plate, service(s), date, and time."
+                ),
+            }
+        
+        # Use the pre-validated data from the preview
+        plate = pending_data.get("plate", "")
+        services = pending_data.get("services", [])
+        preferred_date = pending_data.get("date_str", "")
+        preferred_time = pending_data.get("time", "")
+        notes = pending_data.get("notes", "") or notes
+        vehicle_id = pending_data.get("vehicle_id", "")
+        vehicle_desc = pending_data.get("vehicle_desc", "")
+        date_formatted = pending_data.get("date_formatted", "")
+        
+        # Skip all validation - data was already validated in preview_customer_booking
+        try:
+            db = get_db()
+            from google.cloud.firestore import SERVER_TIMESTAMP as _SRV_TS
+            
+            booking_data = {
+                "customerId":    customer_uid,
+                "customerName":  customer_name,
+                "vehicleId":     vehicle_id,
+                "plate":         plate,
+                "vehicleDesc":   vehicle_desc,
+                "services":      services,
+                "preferredDate": preferred_date,
+                "preferredTime": preferred_time,
+                "status":        "Approved",
+                "autoApproved":  True,
+                "notes":         notes,
+                "createdAt":     _SRV_TS,
+                "createdBy":     "customer_ai",
+            }
+
+            doc_ref = db.collection("service_bookings").document()
+            doc_ref.set(booking_data)
+
+            # Verify the write succeeded
+            written = doc_ref.get()
+            if not written.exists:
+                logger.error(
+                    "create_customer_booking (pending): write verification failed for uid=%s",
+                    customer_uid,
+                )
+                return {
+                    "error":   "DB_WRITE_FAILED",
+                    "message": (
+                        "Your booking could not be saved due to a database error. "
+                        "Please try again or contact the shop."
+                    ),
+                }
+
+            booking_id = doc_ref.id
+            logger.info(
+                "create_customer_booking (pending): booking %s created for uid=%s plate=%s date=%s time=%s",
+                booking_id, customer_uid, plate, preferred_date, preferred_time,
+            )
+            
+            # Clear pending booking from session
+            clear_pending_booking(session_id)
+
+            return {
+                "success":      True,
+                "booking_id":   booking_id,
+                "customer":     customer_name,
+                "plate":        plate,
+                "vehicle":      vehicle_desc,
+                "services":     services,
+                "date":         date_formatted,
+                "time":         preferred_time,
+                "status":       "Approved",
+                "notes":        notes,
+                "message":      (
+                    f"✅ Your booking has been successfully created! "
+                    f"Booking ID: {booking_id}. "
+                    f"Status: Approved. "
+                    f"We look forward to serving you on "
+                    f"{date_formatted} at {preferred_time}. "
+                    f"You can view this under **My Bookings**."
+                ),
+            }
+            
+        except Exception as e:
+            if _is_firestore_quota(e):
+                return _quota_error()
+            logger.exception("create_customer_booking (pending) error")
+            return {
+                "error":   "DB_ERROR",
+                "message": "Your booking could not be created due to a database error. Please try again.",
+            }
+    
+    # -- Direct mode: Full validation ------------------------------------------
     # -- Validate required fields ----------------------------------------------
     missing = []
     if not plate:
@@ -2164,10 +2494,11 @@ CUSTOMER_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
-            "name": "create_customer_booking",
+            "name": "preview_customer_booking",
             "description": (
-                "Create a booking for this customer. ONLY call after collecting plate, "
-                "service(s), date, and time. Ownership + slot verified automatically."
+                "Preview and validate a booking before creation. Shows booking details "
+                "and asks for confirmation. ALWAYS call this BEFORE create_customer_booking. "
+                "Returns a formatted preview with all booking details."
             ),
             "parameters": {
                 "type": "object",
@@ -2183,11 +2514,11 @@ CUSTOMER_TOOL_SCHEMAS = [
                     },
                     "preferred_date": {
                         "type": "string",
-                        "description": "Date, e.g. '2026-03-10'.",
+                        "description": "Date, e.g. '2026-03-10' or 'March 10, 2026'.",
                     },
                     "preferred_time": {
                         "type": "string",
-                        "description": "Time slot, e.g. '9:00 AM'.",
+                        "description": "Time slot, e.g. '9:00 AM' or '2:00 PM'.",
                     },
                     "notes": {
                         "type": "string",
@@ -2195,6 +2526,53 @@ CUSTOMER_TOOL_SCHEMAS = [
                     },
                 },
                 "required": ["plate", "services", "preferred_date", "preferred_time"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_customer_booking",
+            "description": (
+                "Create a booking for this customer. ONLY call AFTER preview_customer_booking "
+                "and user confirms with 'yes'. Use session_id and use_pending=True to complete "
+                "the previously previewed booking. Never call this directly without preview."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "plate": {
+                        "type": "string",
+                        "description": "Vehicle plate (optional if use_pending=True).",
+                    },
+                    "services": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Services to book (optional if use_pending=True).",
+                    },
+                    "preferred_date": {
+                        "type": "string",
+                        "description": "Date (optional if use_pending=True).",
+                    },
+                    "preferred_time": {
+                        "type": "string",
+                        "description": "Time slot (optional if use_pending=True).",
+                    },
+                    "notes": {
+                        "type": "string",
+                        "description": "Optional notes.",
+                    },
+                    "session_id": {
+                        "type": "string",
+                        "description": "Session ID (required when use_pending=True).",
+                    },
+                    "use_pending": {
+                        "type": "boolean",
+                        "description": "True to use pre-validated pending booking data.",
+                    },
+                },
+                "required": [],
                 "additionalProperties": False,
             },
         },
@@ -2324,6 +2702,7 @@ CUSTOMER_TOOL_FUNCTIONS = {
     "get_customer_materials":     get_customer_materials,
     "suggest_booking_date":       suggest_booking_date,
     "check_booking_availability": check_booking_availability,
+    "preview_customer_booking":   preview_customer_booking,
     "create_customer_booking":    create_customer_booking,
     "get_my_bookings":            get_my_bookings,
     "update_my_booking":          update_my_booking,
