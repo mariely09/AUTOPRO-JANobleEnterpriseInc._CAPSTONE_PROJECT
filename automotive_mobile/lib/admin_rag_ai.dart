@@ -2012,7 +2012,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     // Randomly choose between "Thinking..." and "Processing..."
     final thinkingTexts = ['Thinking...', 'Processing...'];
     final randomText = thinkingTexts[DateTime.now().millisecond % 2];
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -2121,12 +2121,14 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                           // Find message index
                           final msgIndex = _messages.indexOf(msg);
                           if (msgIndex == -1) return;
-                          
+
                           // Show edit dialog with the message
                           showDialog(
                             context: context,
                             builder: (ctx) {
-                              final editCtrl = TextEditingController(text: msg.text ?? '');
+                              final editCtrl = TextEditingController(
+                                text: msg.text ?? '',
+                              );
                               return AlertDialog(
                                 title: const Text('Edit Message'),
                                 content: TextField(
@@ -2151,9 +2153,13 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                                     onPressed: () {
                                       final editedText = editCtrl.text.trim();
                                       if (editedText.isEmpty) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           const SnackBar(
-                                            content: Text('Message cannot be empty'),
+                                            content: Text(
+                                              'Message cannot be empty',
+                                            ),
                                             behavior: SnackBarBehavior.floating,
                                           ),
                                         );
@@ -2164,15 +2170,18 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                                         return;
                                       }
                                       Navigator.pop(ctx);
-                                      
+
                                       // Remove this message and all after it
                                       setState(() {
-                                        _messages.removeRange(msgIndex, _messages.length);
+                                        _messages.removeRange(
+                                          msgIndex,
+                                          _messages.length,
+                                        );
                                       });
-                                      
+
                                       // Send edited message
                                       _inputCtrl.text = editedText;
-                                      _sendMessage();
+                                      _sendQuery();
                                     },
                                     child: const Text('Send'),
                                   ),
