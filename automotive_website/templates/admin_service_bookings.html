@@ -214,7 +214,7 @@
             onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'">
         </div>
         <div id="abCustomerDropdown" style="display:none;max-height:160px;overflow-y:auto;border:1.5px solid #e2e8f0;border-radius:10px;margin-top:4px;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
-        <div id="abSelectedCustomer" style="display:none;margin-top:8px;padding:10px 12px;background:#f0f4ff;border:1.5px solid #c7d2fe;border-radius:10px;display:flex;align-items:center;justify-content:space-between;">
+        <div id="abSelectedCustomer" style="display:none;margin-top:8px;padding:10px 12px;background:#f0f4ff;border:1.5px solid #c7d2fe;border-radius:10px;align-items:center;justify-content:space-between;">
           <div>
             <div id="abSelectedCustomerName" style="font-size:13px;font-weight:700;color:#1a202c;"></div>
             <div id="abSelectedCustomerEmail" style="font-size:11px;color:#718096;margin-top:1px;"></div>
@@ -238,7 +238,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           <span id="abServicesBtn">Select services...</span>
         </button>
-        <div id="abSelectedServicesList" style="display:none;margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;"></div>
+        <div id="abSelectedServicesList" style="display:none;margin-top:6px;flex-wrap:wrap;gap:4px;"></div>
       </div>
 
       <!-- Step 4: Date -->
@@ -340,6 +340,22 @@
 .ab-vehicle-chip.ab-veh-sel { border-color:#003087;border-width:2px;background:#ebf8ff; }
 </style>
 
+<style>
+/* Force modals hidden until explicitly opened */
+#rescheduleModal, #addBookingModal, #abServicesModal {
+  display: none !important;
+}
+#rescheduleModal.modal-open,
+#addBookingModal.modal-open,
+#abServicesModal.modal-open {
+  display: flex !important;
+}
+/* Fix duplicate display properties on inner elements */
+#rsArriveBy { display: none; }
+#abSelectedServicesList { display: none; }
+#abSelectedCustomer { display: none; }
+</style>
+
 <!-- Reschedule Modal -->
 <div id="rescheduleModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
   <div style="background:white;border-radius:18px;width:420px;max-width:90vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;">
@@ -382,7 +398,7 @@
         <div style="font-size:12px;font-weight:700;color:#4a5568;margin-bottom:4px;">2. Select new time</div>
         <div style="font-size:11px;color:#718096;margin-bottom:10px;">Please arrive 15 minutes before the selected time.</div>
         <div id="rsTimeSlots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
-        <div id="rsArriveBy" style="display:none;margin-top:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #c6f6d5;border-radius:10px;font-size:11px;color:#276749;display:flex;align-items:center;gap:6px;">
+        <div id="rsArriveBy" style="display:none;margin-top:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #c6f6d5;border-radius:10px;font-size:11px;color:#276749;align-items:center;gap:6px;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span>Customer arrives by: <strong id="rsArriveByTime"></strong></span>
         </div>
@@ -489,11 +505,13 @@
     // Load booked slots from existing page data
     _abBuildBookedSlots();
     var modal = document.getElementById('addBookingModal');
-    modal.style.display = 'flex';
+    modal.style.display = '';
+    modal.classList.add('modal-open');
   };
 
   window.closeAddBookingModal = function() {
-    document.getElementById('addBookingModal').style.display = 'none';
+    document.getElementById('addBookingModal').style.display = '';
+    document.getElementById('addBookingModal').classList.remove('modal-open');
   };
 
   function _abReset() {
@@ -616,11 +634,13 @@
   window.abOpenServicesModal = function() {
     document.getElementById('abSvcSearch').value = '';
     abRenderServicesList();
-    document.getElementById('abServicesModal').style.display = 'flex';
+    document.getElementById('abServicesModal').style.display = '';
+    document.getElementById('abServicesModal').classList.add('modal-open');
   };
 
   window.abCloseServicesModal = function() {
-    document.getElementById('abServicesModal').style.display = 'none';
+    document.getElementById('abServicesModal').style.display = '';
+    document.getElementById('abServicesModal').classList.remove('modal-open');
     _abUpdateServicesBtnLabel();
     _abRenderSelectedServicesTags();
     _abSetSubmitState();
@@ -1097,7 +1117,8 @@
 
     // Show modal + render calendar immediately using cache
     var rsModal = document.getElementById('rescheduleModal');
-    rsModal.style.display = 'flex';
+    rsModal.style.display = '';
+    rsModal.classList.add('modal-open');
     // Scroll modal body to top so calendar is visible immediately
     var rsBody = rsModal.querySelector('div[style*="overflow-y:auto"]');
     if (rsBody) rsBody.scrollTop = 0;
@@ -1147,7 +1168,7 @@
   };
 
   window.closeRescheduleModal = function() {
-    document.getElementById('rescheduleModal').style.display = 'none';
+    document.getElementById('rescheduleModal').classList.remove('modal-open');
   };
 
   window.rsCalNav = function(dir) {
