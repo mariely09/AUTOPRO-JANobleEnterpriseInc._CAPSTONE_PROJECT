@@ -430,8 +430,9 @@
         </div>
         <script>
         (function() {
-          // Construct the full APK download URL
-          var apkUrl = window.location.origin + '/download/autopro.apk';
+          // Use Firebase Storage URL with access token for reliable downloads
+          // This works both locally and on Render
+          var apkUrl = 'https://firebasestorage.googleapis.com/v0/b/caltex-autopro-1e664.firebasestorage.app/o/autopro.apk?alt=media&token=05c673e7-790e-44cb-94c7-84c0b357493a';
           
           // Use QR Server API with optimized settings for mobile scanning
           var qrApi  = 'https://api.qrserver.com/v1/create-qr-code/'
