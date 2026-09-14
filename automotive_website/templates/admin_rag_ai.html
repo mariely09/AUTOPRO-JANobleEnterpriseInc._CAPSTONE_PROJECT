@@ -227,8 +227,8 @@
 }
 
 /* ── User message actions (Copy / Edit) ── */
-.rag-user-actions { display:none;gap:5px;margin-top:5px;justify-content:flex-end; }
-.rag-row.user:hover .rag-user-actions { display:flex; }
+.rag-user-actions { display:flex;gap:5px;margin-top:5px;justify-content:flex-end;opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s; }
+.rag-row.user:hover .rag-user-actions { opacity:1;visibility:visible; }
 .rag-user-action-btn {
   background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);
   color:white;border-radius:8px;padding:3px 8px;font-size:10px;font-weight:600;
@@ -838,7 +838,6 @@ window.ragAiSend = function(preset) {
   if (!text) return;
   if (_ragRateLimited) { return; }  // blocked while rate-limited
   if (_ragGenerating)  { return; }  // block rapid double-sends
-  if (!_ragReady) { _ragAppend('ai','<strong>Still loading data…</strong> Please wait.'); return; }
   // Hide welcome block on first real message
   var wb = document.getElementById('ragWelcomeBlock');
   if (wb) wb.remove();
