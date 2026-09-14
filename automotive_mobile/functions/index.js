@@ -97,6 +97,9 @@ exports.sendNotifications = onDocumentCreated('notifications/{docId}', async (ev
         headings: { en: title },
         contents: { en: message },
         data: { type: notification.type || 'info' },
+        // Large icon (logo) for Android notifications
+        large_icon: 'https://storage.googleapis.com/caltex-autopro-1e664.firebasestorage.app/autopro_logo.png',
+        // Small icon is configured in AndroidManifest.xml
       },
       {
         headers: {
@@ -159,6 +162,8 @@ exports.sendPushNotification = onCall(async (request) => {
         headings: { en: title },
         contents: { en: body },
         data: { type: type },
+        // Large icon (logo) for Android notifications
+        large_icon: 'https://storage.googleapis.com/caltex-autopro-1e664.firebasestorage.app/autopro_logo.png',
       },
       {
         headers: {

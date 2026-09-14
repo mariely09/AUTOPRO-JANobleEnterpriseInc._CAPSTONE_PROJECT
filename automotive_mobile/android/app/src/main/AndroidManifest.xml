@@ -31,6 +31,16 @@
             android:name="flutterEmbedding"
             android:value="2" />
         
+        <!-- OneSignal Notification Icon (uses app launcher icon) -->
+        <meta-data
+            android:name="com.onesignal.NotificationServiceExtension.small_icon"
+            android:resource="@mipmap/ic_launcher" />
+        
+        <!-- OneSignal Notification Accent Color (AutoPro red) -->
+        <meta-data
+            android:name="com.onesignal.NotificationServiceExtension.notification_accent_color"
+            android:resource="@color/notification_accent_color" />
+        
         <!-- FCM Service -->
         <service
             android:name=".MyFirebaseMessagingService"
