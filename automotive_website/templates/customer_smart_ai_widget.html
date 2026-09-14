@@ -1045,12 +1045,33 @@
       wrapper.appendChild(actions);
       row.appendChild(wrapper);
     } else {
-      // AI bubble
+      // AI bubble with copy button
+      const wrapper = document.createElement('div');
+      wrapper.style.display = 'flex';
+      wrapper.style.flexDirection = 'column';
+      wrapper.style.gap = '4px';
+      
       const bub = document.createElement('div');
       bub.className = 'ai-bubble bot';
       bub.innerHTML = _md(text); // AI response gets markdown rendering
+      
+      const copyBtn = document.createElement('button');
+      copyBtn.innerHTML = '<svg style="width:10px;height:10px;margin-right:3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy</span>';
+      copyBtn.style.cssText = 'padding:4px 8px;background:#f4f6f9;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;color:#64748b;cursor:pointer;display:flex;align-items:center;font-family:inherit;transition:all .15s;align-self:flex-start;';
+      copyBtn.onclick = function() {
+        navigator.clipboard.writeText(text).then(() => {
+          const orig = copyBtn.innerHTML;
+          copyBtn.innerHTML = '<svg style="width:10px;height:10px;margin-right:3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Copied!</span>';
+          copyBtn.style.color = '#22c55e';
+          copyBtn.style.borderColor = '#22c55e';
+          setTimeout(() => { copyBtn.innerHTML = orig; copyBtn.style.color = '#64748b'; copyBtn.style.borderColor = '#e2e8f0'; }, 2000);
+        });
+      };
+      
       row.insertAdjacentHTML('beforeend', av);
-      row.appendChild(bub);
+      wrapper.appendChild(bub);
+      wrapper.appendChild(copyBtn);
+      row.appendChild(wrapper);
     }
     
     msgs.appendChild(row);

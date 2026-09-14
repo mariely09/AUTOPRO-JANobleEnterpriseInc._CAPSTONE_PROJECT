@@ -2314,6 +2314,28 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _renderMarkdown(msg.text ?? ''),
+                  // ── Copy button for AI response ──
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: _userPromptActionBtn(
+                      icon: Icons.copy_outlined,
+                      label: 'Copy',
+                      onTap: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: msg.text ?? ''),
+                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Copied to clipboard'),
+                              duration: Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
                   // ── Downloaded report: Open + Share buttons ──────────────
                   if (msg.reportFile != null) ...[
                     const SizedBox(height: 10),

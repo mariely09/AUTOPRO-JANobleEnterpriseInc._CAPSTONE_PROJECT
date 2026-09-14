@@ -2020,13 +2020,38 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           _aiAvatar(),
           const SizedBox(width: 8),
           Flexible(
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.78,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: _aiBubbleDecoration(),
-              child: _renderMarkdown(msg.text),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.78,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: _aiBubbleDecoration(),
+                  child: _renderMarkdown(msg.text),
+                ),
+                const SizedBox(height: 4),
+                // Copy button for AI response
+                _userPromptActionBtn(
+                  icon: Icons.copy_outlined,
+                  label: 'Copy',
+                  onTap: () async {
+                    await Clipboard.setData(
+                      ClipboardData(text: msg.text),
+                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Copied to clipboard'),
+                          duration: Duration(seconds: 2),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
             ),
           ),
         ],
