@@ -340,6 +340,106 @@
 .ab-vehicle-chip.ab-veh-sel { border-color:#003087;border-width:2px;background:#ebf8ff; }
 </style>
 
+<!-- Reschedule Modal -->
+  <div style="background:white;border-radius:18px;width:420px;max-width:90vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;">
+    <div style="background:linear-gradient(135deg,#003087,#001d52);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="color:white;font-size:15px;font-weight:700;">Reschedule Booking</div>
+      <button onclick="closeRescheduleModal()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;">×</button>
+    </div>
+    <div style="padding:20px;overflow-y:auto;flex:1;">
+      <div style="font-size:12px;color:#718096;margin-bottom:2px;">Vehicle</div>
+      <div id="rsPlate" style="font-size:16px;font-weight:700;color:#1a202c;margin-bottom:4px;"></div>
+      <div id="rsCurrentInfo" style="font-size:12px;color:#718096;margin-bottom:16px;"></div>
+
+      <!-- Step 1: Date -->
+      <div style="font-size:12px;font-weight:700;color:#4a5568;margin-bottom:8px;">1. Select new date</div>
+      <div id="rsCalendar" style="margin-bottom:4px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <button onclick="rsCalNav(-1)" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:16px;color:#4a5568;">‹</button>
+          <span id="rsCalMonth" style="font-size:14px;font-weight:700;color:#1a202c;"></span>
+          <button onclick="rsCalNav(1)" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:16px;color:#4a5568;">›</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:6px;">
+          <span style="font-size:10px;font-weight:700;color:#a0aec0;">SU</span>
+          <span style="font-size:10px;font-weight:700;color:#a0aec0;">MO</span>
+          <span style="font-size:10px;font-weight:700;color:#a0aec0;">TU</span>
+          <span style="font-size:10px;font-weight:700;color:#a0aec0;">WE</span>
+          <span style="font-size:10px;font-weight:700;color:#a0aec0;">TH</span>
+          <span style="font-size:10px;font-weight:700;color:#a0aec0;">FR</span>
+          <span style="font-size:10px;font-weight:700;color:#a0aec0;">SA</span>
+        </div>
+        <div id="rsCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;"></div>
+        <div style="display:flex;gap:12px;margin-top:10px;padding-top:8px;border-top:1px solid #f0f4f8;justify-content:center;flex-wrap:wrap;">
+          <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#38a169;border-radius:50%;display:inline-block;"></span>Available</span>
+          <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#d97706;border-radius:50%;display:inline-block;"></span>Full</span>
+          <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#003087;border-radius:50%;display:inline-block;"></span>Current</span>
+        </div>
+      </div>
+
+      <!-- Step 2: Time (shown after date selected) -->
+      <div id="rsTimeSection" style="display:none;margin-top:18px;padding-top:16px;border-top:1px solid #f0f4f8;">
+        <div style="font-size:12px;font-weight:700;color:#4a5568;margin-bottom:4px;">2. Select new time</div>
+        <div style="font-size:11px;color:#718096;margin-bottom:10px;">Please arrive 15 minutes before the selected time.</div>
+        <div id="rsTimeSlots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
+        <div id="rsArriveBy" style="display:none;margin-top:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #c6f6d5;border-radius:10px;font-size:11px;color:#276749;display:flex;align-items:center;gap:6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Customer arrives by: <strong id="rsArriveByTime"></strong></span>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div id="rsSelectedInfo" style="display:none;padding:12px;background:#f0fdf4;border:1.5px solid #38a169;border-radius:10px;margin-top:14px;text-align:center;">
+        <div style="font-size:13px;font-weight:700;color:#38a169;" id="rsSelectedDate"></div>
+        <div style="font-size:12px;color:#276749;margin-top:2px;" id="rsSelectedTime"></div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button onclick="closeRescheduleModal()" style="flex:1;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;background:white;font-size:13px;font-weight:600;cursor:pointer;color:#718096;">Cancel</button>
+        <button id="rsConfirmBtn" onclick="confirmReschedule()" disabled style="flex:1;padding:12px;border:none;border-radius:10px;background:#003087;font-size:13px;font-weight:700;cursor:pointer;color:white;opacity:0.5;">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+#rsCalGrid .rs-day { width:100%;aspect-ratio:1;border-radius:8px;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;background:#f0fdf4;color:#1a202c; }
+#rsCalGrid .rs-day:hover { background:#dcfce7;transform:scale(1.08); }
+#rsCalGrid .rs-day.selected { background:#003087;color:white;transform:scale(1.1);box-shadow:0 3px 10px rgba(0,48,135,0.3); }
+#rsCalGrid .rs-day.current { background:#ebf8ff;color:#003087;border:2px solid #003087;font-weight:800; }
+#rsCalGrid .rs-day.past { background:#f1f5f9;color:#cbd5e0;cursor:not-allowed; }
+#rsCalGrid .rs-day.past:hover { transform:none; }
+#rsCalGrid .rs-day.full { background:#fef3c7;color:#92400e;cursor:not-allowed; }
+#rsCalGrid .rs-day.full:hover { transform:none; }
+#rsCalGrid .rs-day.empty { background:transparent;cursor:default; }
+#rsCalGrid .rs-day.empty:hover { transform:none; }
+.rs-time-chip { padding:8px 4px;background:white;border:1.5px solid #e2e8f0;border-radius:10px;font-size:11px;font-weight:600;color:#4a5568;cursor:pointer;transition:all .12s;font-family:inherit;text-align:center; }
+.rs-time-chip:hover:not(:disabled) { border-color:#003087;background:#f0f4ff; }
+.rs-time-chip.selected { border-color:#003087;border-width:2px;background:#ebf8ff;color:#003087; }
+.rs-time-chip:disabled { background:#f1f5f9;color:#a0aec0;cursor:not-allowed;text-decoration:line-through;opacity:0.6; }
+</style>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+  if (!firebase.apps.length) {
+    firebase.initializeApp({
+      apiKey: "AIzaSyCaoJWbwJk0Xi694ARHpdHhiNjT0SpASRs",
+      authDomain: "caltex-autopro-1e664.firebaseapp.com",
+      projectId: "caltex-autopro-1e664",
+      storageBucket: "caltex-autopro-1e664.firebasestorage.app",
+      messagingSenderId: "930140433367",
+      appId: "1:930140433367:web:cf67bfa388fa517422b992"
+    });
+  }
+</script>
+<script src="../static/js/admin_firebase.js"></script>
+<script src="../static/js/admin_functions.js?v=202607180001"></script>
+<script src="../static/js/admin.js?v=202608120002"></script>
+<script src="../static/js/admin_sidebar.js"></script>
+<!-- ── Add Booking Modal Script (must load after Firebase SDK) ── -->
 <script>
 (function() {
   var db = firebase.firestore();
@@ -368,7 +468,6 @@
       db.collection('item_master').where('type', '==', 'service').get().then(function(snap) {
         _abAllServices = snap.docs.map(function(d) { var x = d.data(); x.id = d.id; return x; });
       }).catch(function() {
-        // Fallback: try without filter
         db.collection('item_master').get().then(function(snap) {
           _abAllServices = snap.docs.map(function(d) { var x = d.data(); x.id = d.id; return x; })
             .filter(function(x) { return (x.type || '').toLowerCase() === 'service'; });
@@ -454,7 +553,6 @@
     document.getElementById('abSelectedCustomerName').textContent = _abSelectedCustomer.name || '—';
     document.getElementById('abSelectedCustomerEmail').textContent = _abSelectedCustomer.email || '';
     selEl.style.display = 'flex';
-    // Load vehicles
     _abLoadVehicles(uid);
   };
 
@@ -475,7 +573,7 @@
     db.collection('vehicles').where('ownerId', '==', uid).get().then(function(snap) {
       _abCustomerVehicles = snap.docs.map(function(d) { var x = d.data(); x.id = d.id; return x; });
       _abRenderVehicles();
-    }).catch(function(e) {
+    }).catch(function() {
       document.getElementById('abVehicleList').innerHTML = '<div style="font-size:12px;color:#e53e3e;">Error loading vehicles.</div>';
     });
   }
@@ -689,15 +787,14 @@
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     };
 
-    db.collection('service_bookings').add(bookingData).then(function(ref) {
-      // Notify customer
+    db.collection('service_bookings').add(bookingData).then(function() {
       if (_abSelectedCustomer.uid) {
         var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         var p = _abSelectedDate.split('-');
         var dateLabel = MONTHS[parseInt(p[1])-1] + ' ' + parseInt(p[2]) + ', ' + p[0];
         db.collection('notifications').add({
           title: '📅 Service Booking Confirmed',
-          message: 'Your service booking for ' + (bookingData.plate) + ' on ' + dateLabel + ' at ' + _abSelectedTime + ' has been confirmed.',
+          message: 'Your service booking for ' + bookingData.plate + ' on ' + dateLabel + ' at ' + _abSelectedTime + ' has been confirmed.',
           type: 'success',
           targetRole: '', targetUid: _abSelectedCustomer.uid,
           createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
@@ -716,107 +813,6 @@
   }
 })();
 </script>
-
-<!-- Reschedule Modal -->
-<div id="rescheduleModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
-  <div style="background:white;border-radius:18px;width:420px;max-width:90vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;">
-    <div style="background:linear-gradient(135deg,#003087,#001d52);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-      <div style="color:white;font-size:15px;font-weight:700;">Reschedule Booking</div>
-      <button onclick="closeRescheduleModal()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;">×</button>
-    </div>
-    <div style="padding:20px;overflow-y:auto;flex:1;">
-      <div style="font-size:12px;color:#718096;margin-bottom:2px;">Vehicle</div>
-      <div id="rsPlate" style="font-size:16px;font-weight:700;color:#1a202c;margin-bottom:4px;"></div>
-      <div id="rsCurrentInfo" style="font-size:12px;color:#718096;margin-bottom:16px;"></div>
-
-      <!-- Step 1: Date -->
-      <div style="font-size:12px;font-weight:700;color:#4a5568;margin-bottom:8px;">1. Select new date</div>
-      <div id="rsCalendar" style="margin-bottom:4px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <button onclick="rsCalNav(-1)" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:16px;color:#4a5568;">‹</button>
-          <span id="rsCalMonth" style="font-size:14px;font-weight:700;color:#1a202c;"></span>
-          <button onclick="rsCalNav(1)" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:16px;color:#4a5568;">›</button>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:6px;">
-          <span style="font-size:10px;font-weight:700;color:#a0aec0;">SU</span>
-          <span style="font-size:10px;font-weight:700;color:#a0aec0;">MO</span>
-          <span style="font-size:10px;font-weight:700;color:#a0aec0;">TU</span>
-          <span style="font-size:10px;font-weight:700;color:#a0aec0;">WE</span>
-          <span style="font-size:10px;font-weight:700;color:#a0aec0;">TH</span>
-          <span style="font-size:10px;font-weight:700;color:#a0aec0;">FR</span>
-          <span style="font-size:10px;font-weight:700;color:#a0aec0;">SA</span>
-        </div>
-        <div id="rsCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;"></div>
-        <div style="display:flex;gap:12px;margin-top:10px;padding-top:8px;border-top:1px solid #f0f4f8;justify-content:center;flex-wrap:wrap;">
-          <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#38a169;border-radius:50%;display:inline-block;"></span>Available</span>
-          <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#d97706;border-radius:50%;display:inline-block;"></span>Full</span>
-          <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#003087;border-radius:50%;display:inline-block;"></span>Current</span>
-        </div>
-      </div>
-
-      <!-- Step 2: Time (shown after date selected) -->
-      <div id="rsTimeSection" style="display:none;margin-top:18px;padding-top:16px;border-top:1px solid #f0f4f8;">
-        <div style="font-size:12px;font-weight:700;color:#4a5568;margin-bottom:4px;">2. Select new time</div>
-        <div style="font-size:11px;color:#718096;margin-bottom:10px;">Please arrive 15 minutes before the selected time.</div>
-        <div id="rsTimeSlots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
-        <div id="rsArriveBy" style="display:none;margin-top:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #c6f6d5;border-radius:10px;font-size:11px;color:#276749;display:flex;align-items:center;gap:6px;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span>Customer arrives by: <strong id="rsArriveByTime"></strong></span>
-        </div>
-      </div>
-
-      <!-- Summary -->
-      <div id="rsSelectedInfo" style="display:none;padding:12px;background:#f0fdf4;border:1.5px solid #38a169;border-radius:10px;margin-top:14px;text-align:center;">
-        <div style="font-size:13px;font-weight:700;color:#38a169;" id="rsSelectedDate"></div>
-        <div style="font-size:12px;color:#276749;margin-top:2px;" id="rsSelectedTime"></div>
-      </div>
-
-      <div style="display:flex;gap:10px;margin-top:16px;">
-        <button onclick="closeRescheduleModal()" style="flex:1;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;background:white;font-size:13px;font-weight:600;cursor:pointer;color:#718096;">Cancel</button>
-        <button id="rsConfirmBtn" onclick="confirmReschedule()" disabled style="flex:1;padding:12px;border:none;border-radius:10px;background:#003087;font-size:13px;font-weight:700;cursor:pointer;color:white;opacity:0.5;">Confirm</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<style>
-@keyframes spin { to { transform: rotate(360deg); } }
-#rsCalGrid .rs-day { width:100%;aspect-ratio:1;border-radius:8px;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;background:#f0fdf4;color:#1a202c; }
-#rsCalGrid .rs-day:hover { background:#dcfce7;transform:scale(1.08); }
-#rsCalGrid .rs-day.selected { background:#003087;color:white;transform:scale(1.1);box-shadow:0 3px 10px rgba(0,48,135,0.3); }
-#rsCalGrid .rs-day.current { background:#ebf8ff;color:#003087;border:2px solid #003087;font-weight:800; }
-#rsCalGrid .rs-day.past { background:#f1f5f9;color:#cbd5e0;cursor:not-allowed; }
-#rsCalGrid .rs-day.past:hover { transform:none; }
-#rsCalGrid .rs-day.full { background:#fef3c7;color:#92400e;cursor:not-allowed; }
-#rsCalGrid .rs-day.full:hover { transform:none; }
-#rsCalGrid .rs-day.empty { background:transparent;cursor:default; }
-#rsCalGrid .rs-day.empty:hover { transform:none; }
-.rs-time-chip { padding:8px 4px;background:white;border:1.5px solid #e2e8f0;border-radius:10px;font-size:11px;font-weight:600;color:#4a5568;cursor:pointer;transition:all .12s;font-family:inherit;text-align:center; }
-.rs-time-chip:hover:not(:disabled) { border-color:#003087;background:#f0f4ff; }
-.rs-time-chip.selected { border-color:#003087;border-width:2px;background:#ebf8ff;color:#003087; }
-.rs-time-chip:disabled { background:#f1f5f9;color:#a0aec0;cursor:not-allowed;text-decoration:line-through;opacity:0.6; }
-</style>
-
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script>
-  if (!firebase.apps.length) {
-    firebase.initializeApp({
-      apiKey: "AIzaSyCaoJWbwJk0Xi694ARHpdHhiNjT0SpASRs",
-      authDomain: "caltex-autopro-1e664.firebaseapp.com",
-      projectId: "caltex-autopro-1e664",
-      storageBucket: "caltex-autopro-1e664.firebasestorage.app",
-      messagingSenderId: "930140433367",
-      appId: "1:930140433367:web:cf67bfa388fa517422b992"
-    });
-  }
-</script>
-<script src="../static/js/admin_firebase.js"></script>
-<script src="../static/js/admin_functions.js?v=202607180001"></script>
-<script src="../static/js/admin.js?v=202608120002"></script>
-<script src="../static/js/admin_sidebar.js"></script>
 <script>
 (function () {
   var db = firebase.firestore();
