@@ -1325,10 +1325,10 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  svcText,
+                                  '$plate${desc.isNotEmpty ? ' · $desc' : ''}',
                                   style: const TextStyle(
                                     fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w700,
                                     color: Color(0xFF1a202c),
                                   ),
                                   maxLines: 1,
@@ -1336,7 +1336,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '$plate${desc.isNotEmpty ? ' · $desc' : ''}',
+                                  svcText,
                                   style: const TextStyle(
                                     fontSize: 11,
                                     color: Color(0xFF718096),
