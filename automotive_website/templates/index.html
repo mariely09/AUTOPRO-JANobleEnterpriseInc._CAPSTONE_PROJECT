@@ -426,44 +426,18 @@
                  style="display:block;border-radius:6px;" />
           </div>
           <p style="font-size:12px;color:#a0aec0;margin:0;">Scan to download the app</p>
-          <p id="apkUrlDisplay" style="font-size:10px;color:#718096;margin:0;font-family:monospace;max-width:280px;word-break:break-all;"></p>
         </div>
         <script>
         (function() {
-          // Ensure the APK URL is correct and points to the download route
           var apkUrl = window.location.origin + '/download/autopro.apk';
-          
-          // Generate QR code with better visibility settings
           var qrApi  = 'https://api.qrserver.com/v1/create-qr-code/'
-                     + '?size=260x260'  // Larger size for better scanning
+                     + '?size=130x130'
                      + '&data=' + encodeURIComponent(apkUrl)
-                     + '&color=1a202c'  // Dark blue/gray color
-                     + '&bgcolor=ffffff'  // White background
-                     + '&margin=2'  // Small margin
-                     + '&qzone=1'  // Quiet zone
-                     + '&ecc=H';  // High error correction for better reliability
-          
+                     + '&color=1a202c&bgcolor=ffffff&margin=2&qzone=1';
           var img = document.getElementById('apkQrImg');
           if (img) {
             img.src = qrApi;
-            img.title = 'Scan to download: ' + apkUrl;
-            img.alt = 'QR Code for ' + apkUrl;
-            
-            // Add error handling
-            img.onerror = function() {
-              console.error('Failed to load QR code');
-              img.alt = 'QR code failed to load. Direct link: ' + apkUrl;
-            };
-            
-            img.onload = function() {
-              console.log('QR code loaded successfully for: ' + apkUrl);
-            };
-          }
-          
-          // Display the URL for debugging/verification
-          var urlDisplay = document.getElementById('apkUrlDisplay');
-          if (urlDisplay) {
-            urlDisplay.textContent = '📱 ' + apkUrl;
+            img.title = apkUrl;
           }
         })();
         </script>
