@@ -227,16 +227,16 @@
 }
 
 /* ── User message actions (Copy / Edit) ── */
-.rag-user-actions { display:flex;gap:5px;margin-top:5px;justify-content:flex-end;opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s; }
+.rag-user-actions { display:flex;gap:5px;margin-top:5px;opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s; }
 .rag-row.user:hover .rag-user-actions { opacity:1;visibility:visible; }
 .rag-user-action-btn {
-  background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);
-  color:white;border-radius:8px;padding:3px 8px;font-size:10px;font-weight:600;
+  background:rgba(148,163,184,0.15);border:1px solid rgba(148,163,184,0.25);
+  color:#64748b;border-radius:8px;padding:3px 8px;font-size:10px;font-weight:600;
   cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;
-  transition:background .15s;line-height:1.4;
+  transition:all .15s;line-height:1.4;
 }
-.rag-user-action-btn:hover { background:rgba(255,255,255,0.32); }
-.rag-user-action-btn.copied { background:rgba(56,161,105,0.55); }
+.rag-user-action-btn:hover { background:rgba(148,163,184,0.25);color:#475569; }
+.rag-user-action-btn.copied { background:rgba(56,161,105,0.2);color:#16a34a;border-color:rgba(56,161,105,0.3); }
 
 /* ── Scrollbar ── */
 #ragAiChat::-webkit-scrollbar { width:4px; }
@@ -303,32 +303,74 @@ window.ragCopyPrompt = function(btn, text) {
   navigator.clipboard.writeText(text).then(function() {
     var orig = btn.innerHTML;
     btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
-    btn.classList.add('copied');
-    setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
-  }).catch(function() {
+    btn.classList.add('rag-user-action-btn copied');
+    btn.classList.remove('rag-user-action-btn');
+    setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('copied'); btn.classList.add('rag-user-action-btn'); }, 2000);
+  }).catch(function(err) {
+    console.error('Copy failed:', err);
     // fallback for older browsers
     var ta = document.createElement('textarea');
     ta.value = text; ta.style.position = 'fixed'; ta.style.top = '-9999px';
-    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.appendChild(ta); ta.select(); 
+    try {
+      document.execCommand('copy');
+      var orig = btn.innerHTML;
+      btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+      btn.classList.add('copied');
+      setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
+    } catch(e) {
+      console.error('Fallback copy failed:', e);
+    }
     document.body.removeChild(ta);
   });
 };
 
-// ── Load prompt into input for editing ───────────────────────────────────
-window.ragEditPrompt = function(text) {
+// ── Edit and regenerate message (ChatGPT-style) ───────────────────────────
+window.ragEditPrompt = function(text, messageIndex) {
+  // Find the message index in _ragMessages
+  var msgIdx = -1;
+  for (var i = 0; i < _ragMessages.length; i++) {
+    if (_ragMessages[i].role === 'user' && _ragMessages[i].text === text) {
+      msgIdx = i;
+      break;
+    }
+  }
+  
+  if (msgIdx === -1) {
+    // Fallback: just put text in input
+    var input = document.getElementById('ragAiInput');
+    if (!input) return;
+    input.value = text;
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 80) + 'px';
+    input.focus();
+    input.selectionStart = input.selectionEnd = input.value.length;
+    return;
+  }
+  
+  // Show edit input inline
+  var editText = prompt('Edit your message:', text);
+  if (!editText || editText === text) return;
+  
+  // Remove this message and all messages after it from the array
+  _ragMessages = _ragMessages.slice(0, msgIdx);
+  
+  // Clear chat UI and re-render remaining messages
+  var chat = document.getElementById('ragAiChat');
+  if (!chat) return;
+  chat.innerHTML = '';
+  _ragRenderMessages(_ragMessages);
+  
+  // Save the updated state
+  _ragSavedSig = null;
+  _ragSaveChat();
+  
+  // Send the edited message
   var input = document.getElementById('ragAiInput');
-  if (!input) return;
-  input.value = text;
-  input.style.height = 'auto';
-  input.style.height = Math.min(input.scrollHeight, 80) + 'px';
-  input.focus();
-  // Move caret to end
-  input.selectionStart = input.selectionEnd = input.value.length;
-  // Highlight the input bar
-  var wrap = document.getElementById('ragInputWrap');
-  if (wrap) {
-    wrap.style.borderColor = '#E8001C';
-    wrap.style.boxShadow = '0 0 0 3px rgba(232,0,28,0.08)';
+  if (input) {
+    input.value = editText;
+    // Trigger send
+    ragAiSend();
   }
 };
 
@@ -800,7 +842,7 @@ function _ragAppend(role, html, rawText) {
     : '<div class="rag-av ai">'+_AI_AVATAR_SVG+'</div>';
   var bub = '<div class="rag-bub '+role+'">'+html+'</div>';
   if (role === 'user') {
-    // Wrap bubble + action buttons in a column
+    // Avatar on the left, bubble + actions on the right
     var escapedRaw = (rawText || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
     var actions =
       '<div class="rag-user-actions">' +
@@ -813,7 +855,7 @@ function _ragAppend(role, html, rawText) {
           ' Edit' +
         '</button>' +
       '</div>';
-    row.innerHTML = '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0;">' + bub + actions + '</div>' + av;
+    row.innerHTML = av + '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex:1;">' + bub + actions + '</div>';
   } else {
     row.innerHTML = av + bub;
   }

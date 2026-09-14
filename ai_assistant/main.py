@@ -530,8 +530,7 @@ def admin_chat(req: ChatRequest):
             reply = result["reply"]
             tool_calls_out = result["tool_calls"]
 
-        # -- Record usage against daily limit ----------------------------------
-        _record_llm_usage_admin(result, admin_id)
+        # -- Record usage (already tracked in client.py, no need to duplicate) --
 
         append_turn(session_id, req.message, reply)
 

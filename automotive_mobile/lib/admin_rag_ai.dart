@@ -2062,6 +2062,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           mainAxisAlignment: MainAxisAlignment.end,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            _userAvatar(),
+            const SizedBox(width: 8),
             Flexible(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -2130,13 +2132,54 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                         icon: Icons.edit_outlined,
                         label: 'Edit',
                         onTap: () {
-                          _inputCtrl.text = msg.text ?? '';
-                          // Move caret to end
-                          _inputCtrl.selection = TextSelection.fromPosition(
-                            TextPosition(offset: _inputCtrl.text.length),
+                          // Find message index
+                          final msgIndex = _messages.indexOf(msg);
+                          if (msgIndex == -1) return;
+                          
+                          // Show edit dialog
+                          showDialog(
+                            context: context,
+                            builder: (ctx) {
+                              final editCtrl = TextEditingController(text: msg.text ?? '');
+                              return AlertDialog(
+                                title: const Text('Edit Message'),
+                                content: TextField(
+                                  controller: editCtrl,
+                                  maxLines: 3,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Edit your message...',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      final editedText = editCtrl.text.trim();
+                                      if (editedText.isEmpty || editedText == (msg.text ?? '')) {
+                                        Navigator.pop(ctx);
+                                        return;
+                                      }
+                                      Navigator.pop(ctx);
+                                      
+                                      // Remove this message and all after it
+                                      setState(() {
+                                        _messages.removeRange(msgIndex, _messages.length);
+                                      });
+                                      
+                                      // Send edited message
+                                      _inputCtrl.text = editedText;
+                                      _sendMessage();
+                                    },
+                                    child: const Text('Send'),
+                                  ),
+                                ],
+                              );
+                            },
                           );
-                          // Scroll to input
-                          _scrollToBottom();
                         },
                       ),
                     ],
@@ -2144,8 +2187,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            _userAvatar(),
           ],
         ),
       );
@@ -2397,19 +2438,19 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.18),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+          color: const Color(0xFFF4F6F9),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 10, color: Colors.white),
+            Icon(icon, size: 10, color: const Color(0xFF64748B)),
             const SizedBox(width: 4),
             Text(
               label,
               style: const TextStyle(
-                color: Colors.white,
+                color: Color(0xFF64748B),
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
