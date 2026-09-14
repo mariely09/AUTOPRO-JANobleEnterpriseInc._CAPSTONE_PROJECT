@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -174,1204 +174,424 @@
 
 <div id="toast"></div>
 
+
 <!-- ── Floating Add Booking Button ─────────────────────────── -->
 <button onclick="sbOpenAddModal()" style="position:fixed;bottom:2rem;right:2rem;width:56px;height:56px;border-radius:50%;background:#E31E24;border:none;color:white;cursor:pointer;box-shadow:0 4px 16px rgba(227,30,36,0.4);display:flex;align-items:center;justify-content:center;z-index:9999;transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='0 6px 24px rgba(227,30,36,0.5)'" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 16px rgba(227,30,36,0.4)'">
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>
 
 <!-- ── Add Booking Modal ─────────────────────────────────────── -->
-<div id="sbAddModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
-  <div style="background:white;border-radius:20px;width:520px;max-width:95vw;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+<div id="sbAddModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem;">
+  <div style="background:#f7f8fa;border-radius:20px;width:640px;max-width:98vw;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;margin:auto;">
+    <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
       <div>
         <div style="color:white;font-size:1rem;font-weight:700;">New Service Booking</div>
         <div style="color:rgba(255,255,255,0.75);font-size:0.75rem;margin-top:2px;">Create a walk-in or admin booking</div>
       </div>
       <button onclick="sbCloseAddModal()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
     </div>
-    <!-- Body -->
-    <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:1rem;">
-
-      <!-- Vehicle search -->
-      <div>
-        <label style="font-size:0.78rem;font-weight:700;color:#4a5568;display:block;margin-bottom:0.4rem;">Vehicle <span style="color:#E31E24;">*</span></label>
-        <div style="position:relative;">
-          <svg style="position:absolute;left:0.65rem;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="sbAddVehicleSearch" placeholder="Search plate number..." autocomplete="off"
-            style="width:100%;padding:0.65rem 0.75rem 0.65rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.88rem;font-family:inherit;color:#1a202c;background:white;outline:none;box-sizing:border-box;"
-            oninput="sbAddVehicleLookup(this.value)" onfocus="sbAddVehicleLookup(this.value)">
-          <div id="sbAddVehicleDrop" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 3px);background:white;border:1px solid #e2e8f0;border-radius:10px;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:100;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:20px;" id="sbAddModalGrid">
+      <!-- LEFT: Customer + Vehicle + Date + Time + Notes -->
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <div class="sba-section-title">Customer Name</div>
+          <input type="text" id="sbAddCustomerName" placeholder="Enter customer name..."
+            style="width:100%;padding:11px 13px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:13px;font-family:inherit;color:#1a202c;background:white;outline:none;box-sizing:border-box;box-shadow:0 2px 8px rgba(0,0,0,0.05);"
+            onfocus="this.style.borderColor='#E8001C'" onblur="this.style.borderColor='#e2e8f0'">
         </div>
-        <div id="sbAddVehiclePreview" style="display:none;margin-top:0.5rem;padding:0.65rem 0.85rem;background:white;border:1.5px solid #9ae6b4;border-radius:10px;font-size:0.83rem;color:#1a202c;display:flex;align-items:center;justify-content:space-between;">
-          <span id="sbAddVehiclePreviewText"></span>
-          <button type="button" onclick="sbAddClearVehicle()" style="background:none;border:none;color:#718096;cursor:pointer;font-size:1rem;padding:0;">&times;</button>
+        <div>
+          <div class="sba-section-title">Select Vehicle</div>
+          <div id="sbAddVehicles"><div class="sba-empty">Loading vehicles...</div></div>
         </div>
-      </div>
-
-      <!-- Customer name -->
-      <div>
-        <label style="font-size:0.78rem;font-weight:700;color:#4a5568;display:block;margin-bottom:0.4rem;">Customer Name <span style="color:#E31E24;">*</span></label>
-        <input type="text" id="sbAddCustomerName" placeholder="Enter customer name..."
-          style="width:100%;padding:0.65rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.88rem;font-family:inherit;color:#1a202c;background:white;outline:none;box-sizing:border-box;">
-      </div>
-
-      <!-- Services -->
-      <div>
-        <label style="font-size:0.78rem;font-weight:700;color:#4a5568;display:block;margin-bottom:0.4rem;">Services <span style="color:#E31E24;">*</span></label>
-        <!-- Selected tags -->
-        <div id="sbAddSelectedTags" style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.4rem;"></div>
-        <!-- Search input -->
-        <div style="position:relative;">
-          <svg style="position:absolute;left:0.65rem;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="sbAddServicesSearch" placeholder="Search services..."
-            autocomplete="off"
-            style="width:100%;padding:0.65rem 0.75rem 0.65rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.88rem;font-family:inherit;color:#1a202c;background:white;outline:none;box-sizing:border-box;"
-            oninput="sbAddServicesFilter(this.value)"
-            onfocus="sbAddServicesFilter(this.value)">
-          <div id="sbAddServicesDrop" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 3px);background:white;border:1px solid #e2e8f0;border-radius:10px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:100;"></div>
-        </div>
-      </div>
-
-      <!-- Date -->
-      <div>
-        <label style="font-size:0.78rem;font-weight:700;color:#4a5568;display:block;margin-bottom:0.4rem;">Preferred Date <span style="color:#E31E24;">*</span></label>
-        <div style="background:white;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.75rem;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <button type="button" onclick="sbAddCalNav(-1)" style="width:28px;height:28px;border-radius:7px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:15px;color:#4a5568;display:flex;align-items:center;justify-content:center;">‹</button>
-            <span id="sbAddCalMonth" style="font-size:13px;font-weight:700;color:#1a202c;"></span>
-            <button type="button" onclick="sbAddCalNav(1)" style="width:28px;height:28px;border-radius:7px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:15px;color:#4a5568;display:flex;align-items:center;justify-content:center;">›</button>
+        <div>
+          <div class="sba-section-title">Preferred Date</div>
+          <div style="background:white;border-radius:14px;border:1.5px solid #e2e8f0;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <button type="button" class="sba-cal-nav" onclick="sbAddCalNav(-1)">&#8249;</button>
+              <span id="sbAddCalMonth" style="font-size:14px;font-weight:700;color:#1a202c;"></span>
+              <button type="button" class="sba-cal-nav" onclick="sbAddCalNav(1)">&#8250;</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:5px;">
+              <span class="sba-dow">Sun</span><span class="sba-dow">Mon</span><span class="sba-dow">Tue</span><span class="sba-dow">Wed</span><span class="sba-dow">Thu</span><span class="sba-dow">Fri</span><span class="sba-dow">Sat</span>
+            </div>
+            <div id="sbAddCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
+            <div style="display:flex;gap:14px;margin-top:12px;padding-top:10px;border-top:1px solid #f0f4f8;justify-content:center;flex-wrap:wrap;">
+              <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;border-radius:50%;background:#38a169;display:inline-block;"></span>Available</span>
+              <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;border-radius:50%;background:#fef3c7;border:1.5px solid #d97706;display:inline-block;"></span>Full</span>
+              <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;border-radius:50%;background:#e2e8f0;display:inline-block;"></span>Past</span>
+            </div>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:5px;">
-            <span style="font-size:9px;font-weight:700;color:#a0aec0;">SU</span><span style="font-size:9px;font-weight:700;color:#a0aec0;">MO</span><span style="font-size:9px;font-weight:700;color:#a0aec0;">TU</span><span style="font-size:9px;font-weight:700;color:#a0aec0;">WE</span><span style="font-size:9px;font-weight:700;color:#a0aec0;">TH</span><span style="font-size:9px;font-weight:700;color:#a0aec0;">FR</span><span style="font-size:9px;font-weight:700;color:#a0aec0;">SA</span>
+        </div>
+        <div id="sbAddTimeSection" style="display:none;">
+          <div class="sba-section-title">Preferred Start Time</div>
+          <div style="font-size:11px;color:#718096;margin-bottom:7px;">Arrive 15 minutes before your selected time.</div>
+          <div id="sbAddTimeSlots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
+          <div id="sbAddArriveBy" style="display:none;margin-top:8px;padding:9px 13px;background:#f0fdf4;border:1.5px solid #c6f6d5;border-radius:10px;font-size:11px;color:#276749;align-items:center;gap:7px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Arrive by: <strong id="sbAddArriveByTime"></strong></span>
           </div>
-          <div id="sbAddCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;"></div>
+        </div>
+        <div>
+          <div class="sba-section-title">Notes <span style="font-weight:400;color:#a0aec0;">(optional)</span></div>
+          <textarea id="sbAddNotes" rows="2" placeholder="Any special requests or details..."
+            style="width:100%;padding:11px 13px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:13px;font-family:inherit;color:#1a202c;background:white;outline:none;resize:vertical;box-sizing:border-box;box-shadow:0 2px 8px rgba(0,0,0,0.05);"
+            onfocus="this.style.borderColor='#E8001C'" onblur="this.style.borderColor='#e2e8f0'"></textarea>
         </div>
       </div>
-
-      <!-- Time -->
-      <div id="sbAddTimeSection" style="display:none;">
-        <label style="font-size:0.78rem;font-weight:700;color:#4a5568;display:block;margin-bottom:0.4rem;">Preferred Time <span style="color:#E31E24;">*</span></label>
-        <div id="sbAddTimeSlots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
+      <!-- RIGHT: Per-vehicle services + summary + buttons -->
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div id="sbAddPerVehicle">
+          <div class="sba-empty" id="sbAddSvcEmpty">Select a vehicle to assign services.</div>
+        </div>
+        <div id="sbAddSummary" style="display:none;padding:10px 13px;background:#ebf8ff;border:1.5px solid #bee3f8;border-radius:10px;font-size:12px;color:#2c5282;font-weight:600;"></div>
+        <button type="button" id="sbAddSaveBtn" onclick="sbAddSave()"
+          style="width:100%;padding:14px;background:linear-gradient(135deg,#004B5F,#EE152A);color:white;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(0,75,95,0.3);transition:opacity .15s,transform .15s;"
+          onmouseover="this.style.opacity='.9';this.style.transform='translateY(-1px)'"
+          onmouseout="this.style.opacity='1';this.style.transform=''">Book Service</button>
+        <button type="button" onclick="sbCloseAddModal()"
+          style="width:100%;padding:11px;background:white;border:1.5px solid #e2e8f0;border-radius:12px;font-size:13px;font-weight:600;color:#718096;cursor:pointer;font-family:inherit;">Cancel</button>
       </div>
-
-      <!-- Summary chip -->
-      <div id="sbAddSummary" style="display:none;padding:0.75rem 1rem;background:#ebf8ff;border:1.5px solid #bee3f8;border-radius:10px;font-size:0.83rem;color:#2c5282;font-weight:600;"></div>
-
-      <!-- Notes -->
-      <div>
-        <label style="font-size:0.78rem;font-weight:700;color:#4a5568;display:block;margin-bottom:0.4rem;">Notes <span style="font-weight:400;color:#a0aec0;">(optional)</span></label>
-        <textarea id="sbAddNotes" placeholder="Any special instructions or notes..." rows="2"
-          style="width:100%;padding:0.65rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.88rem;font-family:inherit;color:#1a202c;background:white;outline:none;resize:vertical;box-sizing:border-box;"></textarea>
-      </div>
-
-    </div>
-    <!-- Footer -->
-    <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
-      <button type="button" onclick="sbCloseAddModal()" style="flex:1;padding:0.85rem;background:#f7fafc;border:1.5px solid #e2e8f0;border-radius:12px;font-size:0.9rem;font-weight:600;color:#4a5568;cursor:pointer;font-family:inherit;">Cancel</button>
-      <button type="button" id="sbAddSaveBtn" onclick="sbAddSave()" style="flex:1;padding:0.85rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:12px;font-size:0.9rem;font-weight:700;color:white;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:0.4rem;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-        Save Booking
-      </button>
     </div>
   </div>
 </div>
 
-<!-- Reschedule Modal -->
-<div id="rescheduleModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
-  <div style="background:white;border-radius:18px;width:420px;max-width:90vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;">
-    <div style="background:linear-gradient(135deg,#003087,#001d52);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-      <div style="color:white;font-size:15px;font-weight:700;">Reschedule Booking</div>
-      <button onclick="closeRescheduleModal()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;">×</button>
+<!-- ── Service Selection Modal (per vehicle) ─────────────────── -->
+<div id="sbAddSvcModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:20px;width:480px;max-width:92vw;max-height:82vh;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;">
+    <div style="background:#E8001C;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div>
+        <div style="color:white;font-size:14px;font-weight:700;" id="sbSvcModalTitle">Select Services</div>
+        <div style="color:rgba(255,255,255,0.75);font-size:11px;" id="sbSvcModalSub"></div>
+      </div>
+      <button onclick="sbCloseSvcModal()" style="background:rgba(255,255,255,0.18);border:none;color:white;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
-    <div style="padding:20px;overflow-y:auto;flex:1;">
-      <div style="font-size:12px;color:#718096;margin-bottom:2px;">Vehicle</div>
-      <div id="rsPlate" style="font-size:16px;font-weight:700;color:#1a202c;margin-bottom:4px;"></div>
-      <div id="rsCurrentInfo" style="font-size:12px;color:#718096;margin-bottom:16px;"></div>
-
-      <!-- Step 1: Date -->
-      <div style="font-size:12px;font-weight:700;color:#4a5568;margin-bottom:8px;">1. Select new date</div>
-      <div id="rsCalendar" style="margin-bottom:4px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <button onclick="rsCalNav(-1)" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:16px;color:#4a5568;">‹</button>
-          <span id="rsCalMonth" style="font-size:14px;font-weight:700;color:#1a202c;"></span>
-          <button onclick="rsCalNav(1)" style="width:30px;height:30px;border-radius:8px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:16px;color:#4a5568;">›</button>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:6px;">
-          <span style="font-size:10px;font-weight:700;color:#a0aec0;">SU</span>
-          <span style="font-size:10px;font-weight:700;color:#a0aec0;">MO</span>
-          <span style="font-size:10px;font-weight:700;color:#a0aec0;">TU</span>
-          <span style="font-size:10px;font-weight:700;color:#a0aec0;">WE</span>
-          <span style="font-size:10px;font-weight:700;color:#a0aec0;">TH</span>
-          <span style="font-size:10px;font-weight:700;color:#a0aec0;">FR</span>
-          <span style="font-size:10px;font-weight:700;color:#a0aec0;">SA</span>
-        </div>
-        <div id="rsCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;"></div>
-        <div style="display:flex;gap:12px;margin-top:10px;padding-top:8px;border-top:1px solid #f0f4f8;justify-content:center;flex-wrap:wrap;">
-          <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#38a169;border-radius:50%;display:inline-block;"></span>Available</span>
-          <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#d97706;border-radius:50%;display:inline-block;"></span>Full</span>
-          <span style="display:flex;align-items:center;gap:4px;font-size:10px;color:#718096;"><span style="width:8px;height:8px;background:#003087;border-radius:50%;display:inline-block;"></span>Current</span>
-        </div>
+    <div style="padding:10px 14px 6px;flex-shrink:0;border-bottom:1px solid #f0f4f8;">
+      <div style="position:relative;display:flex;align-items:center;">
+        <svg style="position:absolute;left:10px;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="sbSvcModalSearch" placeholder="Search services..."
+          oninput="sbRenderSvcModal()"
+          style="width:100%;padding:8px 10px 8px 30px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;color:#1a202c;background:#f7f8fa;outline:none;box-sizing:border-box;"
+          onfocus="this.style.borderColor='#E8001C';this.style.background='white'"
+          onblur="this.style.borderColor='#e2e8f0';this.style.background='#f7f8fa'">
       </div>
-
-      <!-- Step 2: Time (shown after date selected) -->
-      <div id="rsTimeSection" style="display:none;margin-top:18px;padding-top:16px;border-top:1px solid #f0f4f8;">
-        <div style="font-size:12px;font-weight:700;color:#4a5568;margin-bottom:4px;">2. Select new time</div>
-        <div style="font-size:11px;color:#718096;margin-bottom:10px;">Please arrive 15 minutes before the selected time.</div>
-        <div id="rsTimeSlots" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
-        <div id="rsArriveBy" style="display:none;margin-top:8px;padding:8px 12px;background:#f0fdf4;border:1.5px solid #c6f6d5;border-radius:10px;font-size:11px;color:#276749;display:flex;align-items:center;gap:6px;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span>Customer arrives by: <strong id="rsArriveByTime"></strong></span>
-        </div>
+      <div style="display:flex;justify-content:space-between;margin-top:5px;">
+        <span id="sbSvcResultCount" style="font-size:11px;color:#718096;"></span>
+        <span id="sbSvcSelectedCount" style="font-size:11px;font-weight:600;color:#E8001C;"></span>
       </div>
-
-      <!-- Summary -->
-      <div id="rsSelectedInfo" style="display:none;padding:12px;background:#f0fdf4;border:1.5px solid #38a169;border-radius:10px;margin-top:14px;text-align:center;">
-        <div style="font-size:13px;font-weight:700;color:#38a169;" id="rsSelectedDate"></div>
-        <div style="font-size:12px;color:#276749;margin-top:2px;" id="rsSelectedTime"></div>
-      </div>
-
-      <div style="display:flex;gap:10px;margin-top:16px;">
-        <button onclick="closeRescheduleModal()" style="flex:1;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;background:white;font-size:13px;font-weight:600;cursor:pointer;color:#718096;">Cancel</button>
-        <button id="rsConfirmBtn" onclick="confirmReschedule()" disabled style="flex:1;padding:12px;border:none;border-radius:10px;background:#003087;font-size:13px;font-weight:700;cursor:pointer;color:white;opacity:0.5;">Confirm</button>
-      </div>
+    </div>
+    <div id="sbSvcModalList" style="flex:1;overflow-y:auto;padding:10px 14px;"></div>
+    <div style="padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;flex-shrink:0;">
+      <button onclick="sbCloseSvcModal()" style="padding:9px 28px;background:#E8001C;border:none;border-radius:10px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Done</button>
     </div>
   </div>
 </div>
 
 <style>
-@keyframes spin { to { transform: rotate(360deg); } }
-#rsCalGrid .rs-day { width:100%;aspect-ratio:1;border-radius:8px;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;background:#f0fdf4;color:#1a202c; }
-#rsCalGrid .rs-day:hover { background:#dcfce7;transform:scale(1.08); }
-#rsCalGrid .rs-day.selected { background:#003087;color:white;transform:scale(1.1);box-shadow:0 3px 10px rgba(0,48,135,0.3); }
-#rsCalGrid .rs-day.current { background:#ebf8ff;color:#003087;border:2px solid #003087;font-weight:800; }
-#rsCalGrid .rs-day.past { background:#f1f5f9;color:#cbd5e0;cursor:not-allowed; }
-#rsCalGrid .rs-day.past:hover { transform:none; }
-#rsCalGrid .rs-day.full { background:#fef3c7;color:#92400e;cursor:not-allowed; }
-#rsCalGrid .rs-day.full:hover { transform:none; }
-#rsCalGrid .rs-day.empty { background:transparent;cursor:default; }
-#rsCalGrid .rs-day.empty:hover { transform:none; }
-.rs-time-chip { padding:8px 4px;background:white;border:1.5px solid #e2e8f0;border-radius:10px;font-size:11px;font-weight:600;color:#4a5568;cursor:pointer;transition:all .12s;font-family:inherit;text-align:center; }
-.rs-time-chip:hover:not(:disabled) { border-color:#003087;background:#f0f4ff; }
-.rs-time-chip.selected { border-color:#003087;border-width:2px;background:#ebf8ff;color:#003087; }
-.rs-time-chip:disabled { background:#f1f5f9;color:#a0aec0;cursor:not-allowed;text-decoration:line-through;opacity:0.6; }
+.sba-section-title{font-size:11px;font-weight:700;color:#4a5568;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.sba-empty{text-align:center;padding:24px;color:#718096;font-size:13px;background:white;border-radius:14px;border:1.5px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.05);}
+.sba-card{background:white;border-radius:14px;border:1.5px solid #e2e8f0;padding:11px 13px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.05);transition:all .15s;}
+.sba-card:hover{border-color:#cbd5e0;box-shadow:0 4px 14px rgba(0,0,0,0.10);}
+.sba-card.selected{border-color:#E8001C;border-width:2px;background:#fff5f5;box-shadow:0 4px 14px rgba(232,0,28,0.12);}
+.sba-card-title{font-size:13px;font-weight:600;color:#1a202c;}
+.sba-card.selected .sba-card-title{color:#E8001C;}
+.sba-card-sub{font-size:11px;color:#718096;margin-top:2px;}
+.sba-check{width:20px;height:20px;border-radius:6px;border:2px solid #e2e8f0;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.sba-check.checked{background:#E8001C;border-color:#E8001C;}
+.sba-cal-nav{width:30px;height:30px;border-radius:8px;border:1.5px solid #e2e8f0;background:white;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#4a5568;transition:all .15s;}
+.sba-cal-nav:hover{background:#f7f8fa;border-color:#cbd5e0;}
+.sba-dow{font-size:10px;font-weight:700;color:#a0aec0;text-align:center;padding:2px 0;}
+.sba-cal-cell{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;border:2px solid transparent;}
+.sba-cal-cell.empty{cursor:default;}
+.sba-cal-cell.available{background:#f0fdf4;color:#1a202c;}
+.sba-cal-cell.available:hover{background:#dcfce7;border-color:#38a169;transform:scale(1.05);}
+.sba-cal-cell.full{background:#fef3c7;color:#92400e;cursor:not-allowed;}
+.sba-cal-cell.past{background:#f1f5f9;color:#cbd5e0;cursor:not-allowed;}
+.sba-cal-cell.selected{background:#E8001C;color:white;border-color:#E8001C;transform:scale(1.08);box-shadow:0 3px 12px rgba(232,0,28,0.3);}
+.sba-cal-dot{width:5px;height:5px;border-radius:50%;margin-top:2px;}
+.sba-cal-cell.available .sba-cal-dot{background:#38a169;}
+.sba-cal-cell.full .sba-cal-dot{background:#d97706;}
+.sba-cal-cell.past .sba-cal-dot{background:#cbd5e0;}
+.sba-cal-cell.selected .sba-cal-dot{background:rgba(255,255,255,0.7);}
+.sba-time-chip{padding:9px 5px;background:white;border:1.5px solid #e2e8f0;border-radius:10px;font-size:11px;font-weight:600;color:#4a5568;cursor:pointer;transition:all .15s;font-family:inherit;}
+.sba-time-chip:hover:not(:disabled){border-color:#cbd5e0;background:#f7f8fa;}
+.sba-time-chip.selected{border-color:#E8001C;border-width:2px;background:#fff5f5;color:#E8001C;font-weight:700;}
+.sba-time-chip.taken{background:#f1f5f9;color:#a0aec0;border-color:#e2e8f0;text-decoration:line-through;opacity:.5;cursor:not-allowed;}
+.sba-time-chip:disabled{opacity:.4;cursor:not-allowed;}
+@media(max-width:680px){#sbAddModalGrid{grid-template-columns:1fr!important;}}
 </style>
-
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script>
-  if (!firebase.apps.length) {
-    firebase.initializeApp({
-      apiKey: "AIzaSyCaoJWbwJk0Xi694ARHpdHhiNjT0SpASRs",
-      authDomain: "caltex-autopro-1e664.firebaseapp.com",
-      projectId: "caltex-autopro-1e664",
-      storageBucket: "caltex-autopro-1e664.firebasestorage.app",
-      messagingSenderId: "930140433367",
-      appId: "1:930140433367:web:cf67bfa388fa517422b992"
-    });
-  }
-</script>
-<script src="../static/js/admin_firebase.js"></script>
-<script src="../static/js/admin_functions.js?v=202607180001"></script>
-<script src="../static/js/admin.js?v=202608120002"></script>
-<script src="../static/js/admin_sidebar.js"></script>
-<script>
-(function () {
-  var db = firebase.firestore();
-  var _allDocs = [];
-  window._sbAllDocs = _allDocs; // expose for cache restore
-
-  function _timeAgo(ts) {
-    if (!ts || !ts.toMillis) return 'â€â€';
-    var diff = Date.now() - ts.toMillis();
-    var mins = Math.floor(diff / 60000);
-    if (mins < 1)  return 'Just now';
-    if (mins < 60) return mins + ' min ago';
-    var hrs = Math.floor(mins / 60);
-    if (hrs < 24)  return hrs + ' hr ago';
-    var days = Math.floor(hrs / 24);
-    return days === 1 ? 'Yesterday' : days + ' days ago';
-  }
-
-  var _MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-
-  function _formatDate(dateStr) {
-    if (!dateStr) return 'â€â€';
-    var parts = dateStr.split('-');
-    if (parts.length !== 3) return dateStr;
-    var y = parseInt(parts[0]);
-    var m = parseInt(parts[1]) - 1;
-    var d = parseInt(parts[2]);
-    if (isNaN(y) || isNaN(m) || isNaN(d)) return dateStr;
-    return _MONTHS[m] + ' ' + d + ', ' + y;
-  }
-
-  var _currentFilter = 'all';
-
-  window.sbSetFilter = function(filter, btn) {
-    _currentFilter = filter;
-    _apPages['rescheduleTableBody'] = 1;
-    document.querySelectorAll('#sbFilterPills .dss-pill').forEach(function(p){ p.classList.remove('active'); });
-    if (btn) btn.classList.add('active');
-    renderRescheduleList();
-  };
-
-  window.sbApplySearch = function() { _apPages['rescheduleTableBody'] = 1; renderRescheduleList(); };
-
-  // Keep old sbSwitchTab as alias for backward compat
-  window.sbSwitchTab = function(btn, filter) { sbSetFilter(filter, btn); };
-
-  window.renderRescheduleList = function () {
-    var filter = _currentFilter;
-    var body = document.getElementById('rescheduleTableBody');
-    if (!body) return;
-    // Use cached window._sbAllDocs if local _allDocs is still empty (cache restore path)
-    if (!_allDocs.length && window._sbAllDocs && window._sbAllDocs.length) {
-      _allDocs = window._sbAllDocs;
-    }
-
-    // Remove skeleton on first real render
-    var skel = document.getElementById('sbSkeleton');
-    if (skel) skel.remove();
-
-    var docs;
-    if (filter === 'all') {
-      docs = _allDocs.filter(function(d) { return d.status === 'Approved' || d.status === 'Cancelled' || d.status === 'Dismissed'; });
-    } else if (filter === 'Rescheduled') {
-      docs = _allDocs.filter(function(d) { return d.status === 'Approved' && d.previousDate && d.previousDate !== d.preferredDate; });
-    } else if (filter === 'Approved') {
-      docs = _allDocs.filter(function(d) { return d.status === 'Approved' && !(d.previousDate && d.previousDate !== d.preferredDate); });
-    } else if (filter === 'Cancelled') {
-      docs = _allDocs.filter(function(d) { return d.status === 'Cancelled' || d.status === 'Dismissed'; });
-    } else {
-      docs = _allDocs.filter(function(d) { return d.status === filter; });
-    }
-
-    // Apply search
-    var sbQ = ((document.getElementById('sbSearch') || {}).value || '').trim().toLowerCase();
-    if (sbQ) {
-      docs = docs.filter(function(r) {
-        return (r.plate || '').toLowerCase().includes(sbQ)
-          || (r.customerName || '').toLowerCase().includes(sbQ)
-          || (r.services || []).join(' ').toLowerCase().includes(sbQ)
-          || (r.preferredDate || '').toLowerCase().includes(sbQ);
-      });
-    }
-
-    if (docs.length === 0) {
-      body.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">No bookings found.</div>';
-      _apPages['rescheduleTableBody'] = 1;
-      return;
-    }
-
-    // Apply sort
-    var sortVal = (document.getElementById('sbSortSelect') || {}).value || 'date-desc';
-    docs = docs.slice().sort(function(a, b) {
-      function dateMs(d) { return d ? new Date(d).getTime() || 0 : 0; }
-      switch (sortVal) {
-        case 'date-asc':     return dateMs(a.preferredDate) - dateMs(b.preferredDate);
-        case 'date-desc':    return dateMs(b.preferredDate) - dateMs(a.preferredDate);
-        case 'plate-asc':    return (a.plate||'').localeCompare(b.plate||'');
-        case 'plate-desc':   return (b.plate||'').localeCompare(a.plate||'');
-        case 'customer-asc': return (a.customerName||'').localeCompare(b.customerName||'');
-        case 'customer-desc':return (b.customerName||'').localeCompare(a.customerName||'');
-        default:             return dateMs(b.preferredDate) - dateMs(a.preferredDate);
-      }
-    });
-
-    var rows = docs.map(function(r) {
-      var isPending  = false;
-      var isApproved = r.status === 'Approved';
-      var isRescheduled = r.previousDate && r.previousDate !== r.preferredDate;
-      var sc, sb, statusLabel;
-      if (isRescheduled && isApproved) {
-        sc = '#003087'; sb = 'rgba(0,48,135,0.1)'; statusLabel = 'Rescheduled';
-      } else if (isApproved) {
-        sc = '#38a169'; sb = 'rgba(56,161,105,0.1)'; statusLabel = 'Approved';
-      } else {
-        sc = '#E8001C'; sb = 'rgba(232,0,28,0.1)'; statusLabel = 'Cancelled';
-      }
-      var svcList = (r.services || []).join(', ') || 'â€â€';
-
-      // Date display: show both original (customer's preferred) and rescheduled date
-      var dateHtml = '';
-      if (isRescheduled) {
-        dateHtml = '<div style="font-weight:600;color:#003087;font-size:13px;">' + _formatDate(r.preferredDate) + '</div>'
-          + '<div style="font-size:11px;color:#718096;margin-top:2px;text-decoration:line-through;">' + _formatDate(r.previousDate) + '</div>'
-          + '<div style="font-size:10px;color:#003087;margin-top:1px;display:flex;align-items:center;gap:3px;">'
-          + '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#003087" stroke-width="2.5"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>'
-          + 'Rescheduled</div>';
-      } else {
-        dateHtml = '<div style="font-weight:600;color:#003087;">' + _formatDate(r.preferredDate) + '</div>';
-      }
-
-      return '<div class="table-row" style="grid-template-columns:1fr 1.5fr 1.5fr 1fr 0.8fr 1fr 140px;align-items:center;">'
-        + '<div style="font-weight:700;color:#1a202c;">' + (r.plate || 'â€â€') + '</div>'
-        + '<div style="color:#4a5568;font-size:13px;">' + (r.customerName || 'â€â€') + '</div>'
-        + '<div style="color:#718096;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + svcList + '">' + svcList + '</div>'
-        + '<div>' + dateHtml + '</div>'
-        + '<div style="font-size:12px;color:#4a5568;">' + (r.preferredTime || 'â€â€') + '</div>'
-        + '<div><span style="background:' + sb + ';color:' + sc + ';font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">' + statusLabel + '</span></div>'
-        + '<div style="display:flex;gap:6px;">'
-        + (isApproved
-            ? (function() {
-                var now = new Date();
-                var mm = String(now.getMonth()+1).padStart(2,'0');
-                var dd = String(now.getDate()).padStart(2,'0');
-                var todayKey = now.getFullYear() + '-' + mm + '-' + dd;
-                var isToday = r.preferredDate === todayKey;
-                var btnStyle = 'width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:none;border-radius:7px;color:white;';
-                if (isToday) {
-                  return '<button onclick="startServiceFromBooking(\'' + r.id + '\',\'' + (r.plate||'').replace(/'/g,"\\'") + '\',\'' + encodeURIComponent(JSON.stringify(r.services||[])) + '\',\'' + (r.preferredDate||'') + '\',\'' + (r.customerName||'').replace(/'/g,"\\'") + '\')" title="Start Service" style="' + btnStyle + 'background:#38a169;cursor:pointer;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>';
-                } else {
-                  var isPastDate = r.preferredDate < todayKey;
-                  var disabledTitle = isPastDate
-                    ? 'Scheduled date has passed â€â€ please reschedule.'
-                    : 'Scheduled on ' + _formatDate(r.preferredDate) + ' â€â€ not yet available to start.';
-                  return '<button disabled title="' + disabledTitle + '" style="' + btnStyle + 'background:#38a169;opacity:0.35;cursor:not-allowed;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>';
-                }
-              })()
-              + '<button onclick="rescheduleBooking(\'' + r.id + '\',\'' + (r.plate||'') + '\',\'' + (r.preferredDate||'') + '\',\'' + (r.customerId||'') + '\',\'' + (r.customerName||'').replace(/'/g,"\\'") + '\')" title="Reschedule" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#003087;border:none;border-radius:7px;color:white;cursor:pointer;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>'
-              + '<button onclick="dismissBooking(\'' + r.id + '\')" title="Cancel" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#e53e3e;border:none;border-radius:7px;color:white;cursor:pointer;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
-            : '')
-        + '</div>'
-        + '</div>';
-    });
-    apRenderPaged('rescheduleTableBody', rows, 10, 'renderRescheduleList');
-  };
-
-  window.dismissBooking = function(docId) {
-    if (!confirm('Are you sure you want to cancel this booking?')) return;
-    db.collection('service_bookings').doc(docId).get().then(function(doc) {
-      var data = doc.exists ? doc.data() : {};
-      var customerId = data.customerId || '';
-      var plate = data.plate || '';
-      var date = data.preferredDate || '';
-      // Delete the booking document
-      return db.collection('service_bookings').doc(docId).update({
-        status: 'Cancelled',
-        cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
-        cancelledBy: 'admin',
-      })
-        .then(function() {
-          showToast('Booking cancelled successfully!', 'error');
-          // Notify customer
-          if (customerId) {
-            db.collection('notifications').add({
-              title: '\u274C Booking Cancelled',
-              message: 'Your service booking for ' + plate + ' on ' + _formatDate(date) + ' has been cancelled by the admin.',
-              type: 'warning',
-              targetRole: '', targetUid: customerId,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
-            });
-          }
-        });
-    }).catch(function(err) { showToast('Error: ' + err.message, 'error'); });
-  };
-
-  window.startServiceFromBooking = function(bookingId, plate, servicesEncoded, preferredDate, customerName) {
-    if (!confirm('Are you sure you want to start the service for "' + plate + '"?')) return;
-
-    var services = [];
-    try { services = JSON.parse(decodeURIComponent(servicesEncoded)); } catch(e) {}
-    var params = { bookingId: bookingId, plate: plate, services: services, date: preferredDate, customer: customerName };
-
-    // Pre-seed sessionStorage so the maintenance page opens the modal instantly
-    // without waiting for its own Firebase listeners to fire
-    try {
-      sessionStorage.setItem('_svcBookingParams', JSON.stringify(params));
-      // Also carry over itemMaster + vehicles caches so _svcEnsureDataThen resolves immediately
-      var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
-      if (uid) {
-        var imCache = sessionStorage.getItem('imCache_' + uid);
-        var vCache  = sessionStorage.getItem('vehiclesCache_' + uid);
-        if (imCache)  sessionStorage.setItem('_svcCacheIM', imCache);
-        if (vCache)   sessionStorage.setItem('_svcCacheVeh', vCache);
-      }
-    } catch(e) {}
-
-    // Redirect immediately — don't wait for Firestore
-    window.location.href = 'admin_vehicle_maintenance.html';
-
-    // Update booking status + notify customer in the background (fire-and-forget)
-    var bookingRef = db.collection('service_bookings').doc(bookingId);
-    bookingRef.get().then(function(doc) {
-      var customerId = doc.exists ? (doc.data().customerId || '') : '';
-      bookingRef.update({ status: 'Under Maintenance' }).then(function() {
-        if (customerId) {
-          db.collection('notifications').add({
-            title: '🔧 Vehicle Under Maintenance',
-            message: 'Your vehicle ' + plate + ' is now under maintenance. We will notify you once it is completed.',
-            type: 'info',
-            targetRole: '', targetUid: customerId,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
-          });
-          if (typeof sendAlertEmail === 'function') {
-            sendAlertEmail({ title: '🔧 Vehicle Under Maintenance', message: 'Your vehicle ' + plate + ' is now under maintenance.', type: 'info', targetUid: customerId });
-          }
-        }
-      }).catch(function() {});
-    }).catch(function() {});
-  };
-
-  window.rescheduleBooking = function(docId, plate, currentDate, customerId, customerName) {
-    window._rsDocId = docId;
-    window._rsPlate = plate;
-    window._rsCurrentDate = currentDate;
-    window._rsCurrentTime = '';
-    window._rsCustomerId = customerId || '';
-    window._rsCustomerName = customerName || '';
-    window._rsSelectedDate = '';
-    window._rsSelectedTime = '';
-    window._rsBookedSlots = {};
-
-    var now = new Date();
-    window._rsYear = now.getFullYear();
-    window._rsMonth = now.getMonth();
-
-    // Populate plate + current info
-    document.getElementById('rsPlate').textContent = plate;
-    document.getElementById('rsCurrentInfo').textContent = currentDate
-      ? 'Current: ' + _formatDate(currentDate)
-      : '';
-    document.getElementById('rsSelectedInfo').style.display = 'none';
-    document.getElementById('rsTimeSection').style.display = 'none';
-    document.getElementById('rsArriveBy').style.display = 'none';
-    document.getElementById('rsConfirmBtn').disabled = true;
-    document.getElementById('rsConfirmBtn').style.opacity = '0.5';
-
-    // ── Build booked slots from already-loaded cache (instant) ──────────────
-    // This renders the calendar immediately without waiting for Firestore
-    var cachedDocs = window._fbBookings || window._sbAllDocs || [];
-    var slotsFromCache = {};
-    cachedDocs.forEach(function(d) {
-      if (d.id === docId) return;
-      if (d.status !== 'Approved') return;
-      var date = d.preferredDate;
-      var time = d.preferredTime;
-      if (date && time) {
-        if (!slotsFromCache[date]) slotsFromCache[date] = [];
-        if (slotsFromCache[date].indexOf(time) === -1) slotsFromCache[date].push(time);
-      }
-    });
-    window._rsBookedSlots = slotsFromCache;
-
-    // Show modal + render calendar immediately using cache
-    var rsModal = document.getElementById('rescheduleModal');
-    rsModal.style.display = 'flex';
-    // Scroll modal body to top so calendar is visible immediately
-    var rsBody = rsModal.querySelector('div[style*="overflow-y:auto"]');
-    if (rsBody) rsBody.scrollTop = 0;
-    rsRenderCal();
-
-    // Also fetch current booking's time from cache first
-    var cachedBooking = cachedDocs.find(function(d) { return d.id === docId; });
-    if (cachedBooking) {
-      window._rsCurrentTime = cachedBooking.preferredTime || '';
-      document.getElementById('rsCurrentInfo').textContent = currentDate
-        ? 'Current: ' + _formatDate(currentDate) + (window._rsCurrentTime ? ' at ' + window._rsCurrentTime : '')
-        : '';
-    }
-
-    // ── Silently refresh slots from Firestore in background ─────────────────
-    // Updates the calendar if there are newer bookings not in the cache
-    db.collection('service_bookings')
-      .where('status', 'in', ['Approved'])
-      .get().then(function(snap) {
-        var slots = {};
-        snap.docs.forEach(function(d) {
-          if (d.id === docId) return;
-          var date = d.data().preferredDate;
-          var time = d.data().preferredTime;
-          if (date && time) {
-            if (!slots[date]) slots[date] = [];
-            if (slots[date].indexOf(time) === -1) slots[date].push(time);
-          }
-        });
-        // Only re-render if data changed
-        if (JSON.stringify(slots) !== JSON.stringify(window._rsBookedSlots)) {
-          window._rsBookedSlots = slots;
-          rsRenderCal();
-          if (window._rsSelectedDate) rsRenderTimeSlots();
-        }
-        // Also update current time if not already set
-        if (!window._rsCurrentTime) {
-          var selfDoc = snap.docs.find(function(d) { return d.id === docId; });
-          if (selfDoc) {
-            window._rsCurrentTime = selfDoc.data().preferredTime || '';
-            document.getElementById('rsCurrentInfo').textContent = currentDate
-              ? 'Current: ' + _formatDate(currentDate) + (window._rsCurrentTime ? ' at ' + window._rsCurrentTime : '')
-              : '';
-          }
-        }
-      }).catch(function() {});
-  };
-
-  window.closeRescheduleModal = function() {
-    document.getElementById('rescheduleModal').style.display = 'none';
-  };
-
-  window.rsCalNav = function(dir) {
-    window._rsMonth += dir;
-    if (window._rsMonth > 11) { window._rsMonth = 0; window._rsYear++; }
-    if (window._rsMonth < 0) { window._rsMonth = 11; window._rsYear--; }
-    rsRenderCal();
-  };
-
-  var _ALL_TIME_SLOTS = ['8:00 AM','9:00 AM','10:00 AM','11:00 AM','1:00 PM','2:00 PM','3:00 PM','4:00 PM'];
-  var _ARRIVE_BY_MAP = {
-    '8:00 AM':'7:45 AM','9:00 AM':'8:45 AM','10:00 AM':'9:45 AM','11:00 AM':'10:45 AM',
-    '1:00 PM':'12:45 PM','2:00 PM':'1:45 PM','3:00 PM':'2:45 PM','4:00 PM':'3:45 PM'
-  };
-
-  function rsRenderCal() {
-    var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    document.getElementById('rsCalMonth').textContent = MONTHS[window._rsMonth] + ' ' + window._rsYear;
-    var firstDay = new Date(window._rsYear, window._rsMonth, 1).getDay();
-    var daysInMonth = new Date(window._rsYear, window._rsMonth + 1, 0).getDate();
-    var today = new Date(); today.setHours(0,0,0,0);
-    var slots = window._rsBookedSlots || {};
-    var cells = '';
-    for (var i = 0; i < firstDay; i++) cells += '<button class="rs-day empty"></button>';
-    for (var d = 1; d <= daysInMonth; d++) {
-      var dt = new Date(window._rsYear, window._rsMonth, d);
-      var yyyy = dt.getFullYear();
-      var mm = String(dt.getMonth() + 1).padStart(2, '0');
-      var dd = String(dt.getDate()).padStart(2, '0');
-      var dateStr = yyyy + '-' + mm + '-' + dd;
-      var isPast = dt < today;
-      var isSel = dateStr === window._rsSelectedDate;
-      var isCurrent = dateStr === window._rsCurrentDate;
-      var takenTimes = slots[dateStr] || [];
-      var isFull = takenTimes.length >= _ALL_TIME_SLOTS.length;
-      var cls = 'rs-day';
-      if (isSel) cls += ' selected';
-      else if (isCurrent && !isPast) cls += ' current';
-      else if (isPast) cls += ' past';
-      else if (isFull) cls += ' full';
-      var clickable = !isPast && !isFull;
-      var click = clickable ? ' onclick="rsPickDate(\'' + dateStr + '\')"' : '';
-      cells += '<button class="' + cls + '"' + click + '>' + d + '</button>';
-    }
-    document.getElementById('rsCalGrid').innerHTML = cells;
-  }
-
-  window.rsPickDate = function(dateStr) {
-    window._rsSelectedDate = dateStr;
-    window._rsSelectedTime = ''; // reset time on new date
-    rsRenderCal();
-    // Show time section
-    document.getElementById('rsTimeSection').style.display = 'block';
-    document.getElementById('rsArriveBy').style.display = 'none';
-    document.getElementById('rsSelectedInfo').style.display = 'none';
-    document.getElementById('rsConfirmBtn').disabled = true;
-    document.getElementById('rsConfirmBtn').style.opacity = '0.5';
-    rsRenderTimeSlots();
-  };
-
-  function rsRenderTimeSlots() {
-    var takenTimes = (window._rsBookedSlots || {})[window._rsSelectedDate] || [];
-    var html = _ALL_TIME_SLOTS.map(function(time) {
-      var isTaken = takenTimes.indexOf(time) !== -1;
-      var isSel = time === window._rsSelectedTime;
-      var cls = 'rs-time-chip' + (isSel ? ' selected' : '');
-      if (isTaken) {
-        return '<button class="' + cls + '" disabled title="Already booked">' + time + '</button>';
-      }
-      return '<button class="' + cls + '" onclick="rsPickTime(\'' + time + '\')">' + time + '</button>';
-    }).join('');
-    document.getElementById('rsTimeSlots').innerHTML = html;
-  }
-
-  window.rsPickTime = function(time) {
-    window._rsSelectedTime = time;
-    rsRenderTimeSlots();
-    // Arrive-by hint
-    var arriveEl = document.getElementById('rsArriveBy');
-    var arriveText = document.getElementById('rsArriveByTime');
-    if (arriveEl && arriveText) {
-      arriveText.textContent = _ARRIVE_BY_MAP[time] || time;
-      arriveEl.style.display = 'flex';
-    }
-    // Summary card
-    var MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var parts = window._rsSelectedDate.split('-');
-    var dateLabel = MONTHS_SHORT[parseInt(parts[1])-1] + ' ' + parseInt(parts[2]) + ', ' + parts[0];
-    document.getElementById('rsSelectedDate').textContent = '\uD83D\uDCC5 ' + dateLabel;
-    document.getElementById('rsSelectedTime').textContent = '\uD83D\uDD50 ' + time;
-    document.getElementById('rsSelectedInfo').style.display = 'block';
-    // Enable confirm
-    document.getElementById('rsConfirmBtn').disabled = false;
-    document.getElementById('rsConfirmBtn').style.opacity = '1';
-  };
-
-  window.confirmReschedule = function() {
-    if (!window._rsSelectedDate || !window._rsSelectedTime || !window._rsDocId) return;
-    var oldDate = window._rsCurrentDate || '';
-    var oldTime = window._rsCurrentTime || '';
-    var newDate = window._rsSelectedDate;
-    var newTime = window._rsSelectedTime;
-    var plate = window._rsPlate || '';
-    var customerId = window._rsCustomerId || '';
-    var customerName = window._rsCustomerName || '';
-
-    db.collection('service_bookings').doc(window._rsDocId).update({
-      preferredDate: newDate,
-      preferredTime: newTime,
-      previousDate: oldDate,
-      previousTime: oldTime,
-      rescheduledBy: 'admin',
-      rescheduledAt: firebase.firestore.FieldValue.serverTimestamp(),
-    })
-    .then(function() {
-      closeRescheduleModal();
-      var MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      var p = newDate.split('-');
-      var newDateLabel = MONTHS_SHORT[parseInt(p[1])-1] + ' ' + parseInt(p[2]) + ', ' + p[0];
-      showToast('Booking rescheduled to ' + newDateLabel + ' at ' + newTime, 'success');
-
-      // Notify customer in-app
-      if (customerId) {
-        db.collection('notifications').add({
-          title: '\uD83D\uDCC5 Booking Rescheduled',
-          message: 'Your booking for ' + plate + ' has been rescheduled from ' + _formatDate(oldDate) + (oldTime ? ' at ' + oldTime : '') + ' to ' + _formatDate(newDate) + ' at ' + newTime + '.',
-          type: 'warning',
-          targetRole: '', targetUid: customerId,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
-        });
-      }
-
-      // Send reschedule email to customer
-      db.collection('service_bookings').doc(window._rsDocId).get().then(function(doc) {
-        if (!doc.exists) return;
-        var bookingData = doc.data();
-        var services = (bookingData.services || []).join(', ');
-        if (customerId) {
-          db.collection('users').doc(customerId).get().then(function(userDoc) {
-            if (!userDoc.exists) return;
-            var userData = userDoc.data();
-            var email = userData.email || '';
-            if (!email) return;
-            fetch('/api/send-reschedule-email', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                to_email: email,
-                to_name: customerName || userData.name || '',
-                plate: plate,
-                old_date: oldDate + (oldTime ? ' at ' + oldTime : ''),
-                new_date: newDate + ' at ' + newTime,
-                services: services
-              })
-            }).catch(function(err) { console.error('Reschedule email error:', err); });
-          });
-        }
-      });
-    })
-    .catch(function(err) { showToast('Error: ' + err.message, 'error'); });
-  };
-
-  function _updateStats() {
-    var s = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
-    var rescheduled = _allDocs.filter(function(d){ return d.status === 'Approved' && d.previousDate && d.previousDate !== d.preferredDate; }).length;
-    var approved = _allDocs.filter(function(d){ return d.status === 'Approved' && !(d.previousDate && d.previousDate !== d.preferredDate); }).length;
-    var cancelled = _allDocs.filter(function(d){ return d.status === 'Cancelled' || d.status === 'Dismissed'; }).length;
-    s('sbStatTotal', approved + rescheduled + cancelled);
-    s('sbStatApproved', approved);
-    s('sbStatRescheduled', rescheduled);
-    s('sbStatCancelled', cancelled);
-  }
-  // Expose so admin_firebase.js global listener can call stats refresh from outside this IIFE
-  window._sbUpdateStats = function() {
-    if (window._sbAllDocs && window._sbAllDocs.length) _allDocs = window._sbAllDocs;
-    _updateStats();
-  };
-
-  // ── Auto-cancel past-due bookings ────────────────────────────────────────
-  // Cancels any Approved/Pending booking that was never started when:
-  //   • preferredDate is before today, OR
-  //   • preferredDate is today AND current time is past 5:00 PM
-  // Notifies the customer, admin, and staff on each auto-cancel.
-  function _autoCancelPastDue(docs) {
-    var now = new Date();
-    var currentHour = now.getHours(); // 0-23, 17 = 5 PM
-    var todayKey = now.getFullYear() + '-'
-      + String(now.getMonth() + 1).padStart(2, '0') + '-'
-      + String(now.getDate()).padStart(2, '0');
-
-    docs.forEach(function(r) {
-      if (r.status !== 'Approved' && r.status !== 'Pending') return;
-      if (!r.preferredDate) return;
-
-      var isPastDate  = r.preferredDate < todayKey;
-      var isToday     = r.preferredDate === todayKey;
-      var isPast5PM   = isToday && currentHour >= 17;
-
-      if (!isPastDate && !isPast5PM) return;
-
-      var cancelReason = isPastDate
-        ? 'No-show / Service date passed'
-        : 'No-show / Service not started by 5:00 PM';
-
-      // ── Update booking ──
-      db.collection('service_bookings').doc(r.id).update({
-        status: 'Cancelled',
-        cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
-        cancelledBy: 'system',
-        cancellationReason: cancelReason,
-      }).then(function() {
-        var plate   = r.plate || '';
-        var dateLabel = _formatDate(r.preferredDate);
-        var timeLabel = r.preferredTime ? ' at ' + r.preferredTime : '';
-        var custName  = r.customerName || 'Customer';
-
-        // ── Notify customer ──
-        if (r.customerId) {
-          db.collection('notifications').add({
-            title: '❌ Booking Auto-Cancelled',
-            message: 'Your booking for ' + plate + ' on ' + dateLabel + timeLabel
-              + ' was automatically cancelled because the service was not started by 5:00 PM.',
-            type: 'warning',
-            targetRole: '', targetUid: r.customerId,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            readBy: {}, isRead: false,
-          });
-        }
-
-        var adminStaffMsg = custName + '\'s booking for ' + plate + ' on ' + dateLabel
-          + timeLabel + ' was auto-cancelled (no-show / not started by 5:00 PM).';
-
-        // ── Notify admin ──
-        db.collection('notifications').add({
-          title: '🔔 Booking Auto-Cancelled',
-          message: adminStaffMsg,
-          type: 'warning',
-          targetRole: 'admin', targetUid: '',
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          readBy: {}, isRead: false,
-        });
-
-        // ── Notify staff ──
-        db.collection('notifications').add({
-          title: '🔔 Booking Auto-Cancelled',
-          message: adminStaffMsg,
-          type: 'warning',
-          targetRole: 'staff', targetUid: '',
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          readBy: {}, isRead: false,
-        });
-
-      }).catch(function() {}); // silent — will retry on next snapshot
-    });
-  }
-
-  // ── Data loading — use globally pre-loaded data from admin_firebase.js ──────
-  // admin_firebase.js already listens to service_bookings and stores it in
-  // window._fbBookings. We just read from there instead of opening a second
-  // Firestore connection per page, which was causing the visible delay.
-  function _loadFromGlobal() {
-    var docs = window._fbBookings || [];
-    if (!docs.length) return false;
-    _allDocs = docs;
-    window._sbAllDocs = _allDocs;
-    _autoCancelPastDue(_allDocs);
-    _updateStats();
-    renderRescheduleList();
-    return true;
-  }
-
-  // Try immediately (data may already be loaded from another tab/section)
-  if (!_loadFromGlobal()) {
-    // Data not ready yet — poll briefly until admin_firebase.js listener fires
-    var _sbPollCount = 0;
-    var _sbPoll = setInterval(function() {
-      _sbPollCount++;
-      if (_loadFromGlobal() || _sbPollCount >= 40) {
-        clearInterval(_sbPoll);
-        // If still empty after 4s, fall back to a direct one-shot get
-        if (!_allDocs.length) {
-          db.collection('service_bookings').orderBy('createdAt', 'desc').get()
-            .then(function(snap) {
-              _allDocs = snap.docs.map(function(d) {
-                var data = d.data(); data.id = d.id; return data;
-              });
-              window._sbAllDocs = _allDocs;
-              _autoCancelPastDue(_allDocs);
-              _updateStats();
-              renderRescheduleList();
-            });
-        }
-      }
-    }, 100); // check every 100ms
-  }
-})();
-</script>
 <!-- ── Add Booking Modal JS ──────────────────────────────────── -->
 <script>
 (function() {
   var _ADD_TIME_SLOTS = ['8:00 AM','9:00 AM','10:00 AM','11:00 AM','1:00 PM','2:00 PM','3:00 PM','4:00 PM'];
+  var _ARRIVE_BY = {'8:00 AM':'7:45 AM','9:00 AM':'8:45 AM','10:00 AM':'9:45 AM','11:00 AM':'10:45 AM','1:00 PM':'12:45 PM','2:00 PM':'1:45 PM','3:00 PM':'2:45 PM','4:00 PM':'3:45 PM'};
   var _addCalYear, _addCalMonth;
   var _addSelectedDate = '', _addSelectedTime = '';
-  var _addSelectedVehicle = null; // { id, plate, desc, customerId, customerName }
-  var _addSelectedServices = {}; // { serviceName: true }
-  var _addBookedSlots = {};  // { 'YYYY-MM-DD': ['8:00 AM', ...] }
+  var _addSelectedVehicle = null;  // { id, plate, desc, ownerId }
+  var _addVehicleServices = {};    // { vehicleId: { serviceName: true } }
+  var _addBookedSlots   = {};
   var _addServicesLoaded = false;
+  var _addSvcModalVehicleId = '';
 
-  // ── Open / close ──────────────────────────────────────────────
+  // ── Helpers ────────────────────────────────────────────────────
+  function _escA(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function _fmtCostA(c){ var raw=String(c||'').replace(/[₱\s,]/g,''); var n=parseFloat(raw); return isNaN(n)?'':'₱'+n.toLocaleString('en-PH'); }
+  function _checkSvg(){ return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'; }
+
+  // ── Open / close ───────────────────────────────────────────────
   window.sbOpenAddModal = function() {
-    // Reset state
-    _addSelectedDate = ''; _addSelectedTime = '';
-    _addSelectedVehicle = null; _addSelectedServices = {};
-
-    document.getElementById('sbAddVehicleSearch').value = '';
-    document.getElementById('sbAddVehicleDrop').style.display = 'none';
-    document.getElementById('sbAddVehiclePreview').style.display = 'none';
-    document.getElementById('sbAddCustomerName').value = '';
-    document.getElementById('sbAddNotes').value = '';
-    document.getElementById('sbAddTimeSection').style.display = 'none';
-    document.getElementById('sbAddSummary').style.display = 'none';
-    document.getElementById('sbAddServicesSearch').value = '';
-    document.getElementById('sbAddServicesDrop').style.display = 'none';
-    document.getElementById('sbAddSelectedTags').innerHTML = '';
-
+    _addSelectedDate=''; _addSelectedTime='';
+    _addSelectedVehicle=null; _addVehicleServices={};
+    document.getElementById('sbAddCustomerName').value='';
+    document.getElementById('sbAddNotes').value='';
+    document.getElementById('sbAddTimeSection').style.display='none';
+    document.getElementById('sbAddArriveBy').style.display='none';
+    document.getElementById('sbAddSummary').style.display='none';
+    document.getElementById('sbAddPerVehicle').innerHTML='<div class="sba-empty" id="sbAddSvcEmpty">Select a vehicle to assign services.</div>';
     // Init calendar
-    var now = new Date();
-    _addCalYear = now.getFullYear();
-    _addCalMonth = now.getMonth();
-    _buildAddBookedSlots();
-    _renderAddCal();
-
-    // Load services (fetch once, reuse after)
-    if (!_addServicesLoaded) _loadAddServices();
-
-    document.getElementById('sbAddModal').style.display = 'flex';
+    var now=new Date(); _addCalYear=now.getFullYear(); _addCalMonth=now.getMonth();
+    _buildAddBookedSlots(); _renderAddCal();
+    // Render vehicles
+    _renderAddVehicles();
+    // Load services (once)
+    if(!_addServicesLoaded) _loadAddServices();
+    document.getElementById('sbAddModal').style.display='flex';
+  };
+  window.sbCloseAddModal = function(){
+    document.getElementById('sbAddModal').style.display='none';
   };
 
-  window.sbCloseAddModal = function() {
-    document.getElementById('sbAddModal').style.display = 'none';
-    // Close vehicle dropdown on outside click
-    document.getElementById('sbAddVehicleDrop').style.display = 'none';
-  };
-
-  // ── Build booked slots from cached data ───────────────────────
-  function _buildAddBookedSlots() {
-    var cachedDocs = window._fbBookings || window._sbAllDocs || [];
-    _addBookedSlots = {};
-    cachedDocs.forEach(function(d) {
-      if (d.status !== 'Approved') return;
-      var date = d.preferredDate, time = d.preferredTime;
-      if (date && time) {
-        if (!_addBookedSlots[date]) _addBookedSlots[date] = [];
-        if (_addBookedSlots[date].indexOf(time) === -1) _addBookedSlots[date].push(time);
-      }
+  // ── Booked slots ───────────────────────────────────────────────
+  function _buildAddBookedSlots(){
+    var docs=window._fbBookings||window._sbAllDocs||[];
+    _addBookedSlots={};
+    docs.forEach(function(d){
+      if(d.status!=='Approved') return;
+      var dt=d.preferredDate, tm=d.preferredTime;
+      if(dt&&tm){ if(!_addBookedSlots[dt]) _addBookedSlots[dt]=[]; if(_addBookedSlots[dt].indexOf(tm)===-1) _addBookedSlots[dt].push(tm); }
     });
   }
 
-  // ── Calendar ──────────────────────────────────────────────────
-  function _renderAddCal() {
-    var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    document.getElementById('sbAddCalMonth').textContent = MONTHS[_addCalMonth] + ' ' + _addCalYear;
-    var firstDay = new Date(_addCalYear, _addCalMonth, 1).getDay();
-    var daysInM  = new Date(_addCalYear, _addCalMonth + 1, 0).getDate();
-    var today = new Date(); today.setHours(0,0,0,0);
-    var cells = '';
-    for (var i = 0; i < firstDay; i++) cells += '<button class="sba-day empty" disabled></button>';
-    for (var d = 1; d <= daysInM; d++) {
-      var dt = new Date(_addCalYear, _addCalMonth, d);
-      var dateStr = _addCalYear + '-' + String(_addCalMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
-      var isPast = dt < today;
-      var taken  = (_addBookedSlots[dateStr] || []).length;
-      var isFull = taken >= _ADD_TIME_SLOTS.length;
-      var isSel  = dateStr === _addSelectedDate;
-      var cls = 'sba-day';
-      if (isSel)   cls += ' sel';
-      else if (isPast) cls += ' past';
-      else if (isFull) cls += ' full';
-      var click = (!isPast && !isFull) ? ' onclick="sbAddPickDate(\'' + dateStr + '\')"' : '';
-      cells += '<button class="' + cls + '"' + click + (isPast || isFull ? ' disabled' : '') + '>' + d + '</button>';
-    }
-    document.getElementById('sbAddCalGrid').innerHTML = cells;
-  }
-
-  window.sbAddCalNav = function(dir) {
-    _addCalMonth += dir;
-    if (_addCalMonth > 11) { _addCalMonth = 0; _addCalYear++; }
-    if (_addCalMonth < 0)  { _addCalMonth = 11; _addCalYear--; }
-    _renderAddCal();
-  };
-
-  window.sbAddPickDate = function(dateStr) {
-    _addSelectedDate = dateStr;
-    _addSelectedTime = '';
-    _renderAddCal();
-    // Show time slots
-    document.getElementById('sbAddTimeSection').style.display = 'block';
-    _renderAddTimeSlots();
-    _updateAddSummary();
-  };
-
-  function _renderAddTimeSlots() {
-    var taken = _addBookedSlots[_addSelectedDate] || [];
-    var html = _ADD_TIME_SLOTS.map(function(t) {
-      var isTaken = taken.indexOf(t) !== -1;
-      var isSel   = t === _addSelectedTime;
-      var cls = 'rs-time-chip' + (isSel ? ' selected' : '');
-      if (isTaken) return '<button class="' + cls + '" disabled title="Already booked">' + t + '</button>';
-      return '<button class="' + cls + '" onclick="sbAddPickTime(\'' + t + '\')">' + t + '</button>';
+  // ── Vehicle list (same card style as customer page) ────────────
+  function _renderAddVehicles(){
+    var el=document.getElementById('sbAddVehicles');
+    if(!el) return;
+    var vehicles=window._fbVehicles||window.assets||[];
+    if(!vehicles.length){ el.innerHTML='<div class="sba-empty">Loading vehicles…</div>'; return; }
+    el.innerHTML=vehicles.slice(0,30).map(function(v){
+      var id=v._id||v.id||'';
+      var plate=v.plate||v.plateNumber||'';
+      var desc=v.desc||v.assetDescription||'';
+      var sel=_addSelectedVehicle&&_addSelectedVehicle.id===id;
+      return '<div class="sba-card'+(sel?' selected':'')+'" onclick="sbAddSelectVehicle(\''+_escA(id)+'\')">'
+        +'<div style="flex:1;"><div class="sba-card-title">'+_escA(plate)+'</div>'+(desc?'<div class="sba-card-sub">'+_escA(desc)+'</div>':'')+'</div>'
+        +'<div class="sba-check'+(sel?' checked':'')+'">'+( sel?_checkSvg():'')+'</div>'
+        +'</div>';
     }).join('');
-    document.getElementById('sbAddTimeSlots').innerHTML = html;
   }
 
-  window.sbAddPickTime = function(time) {
-    _addSelectedTime = time;
-    _renderAddTimeSlots();
-    _updateAddSummary();
-  };
-
-  function _updateAddSummary() {
-    var el = document.getElementById('sbAddSummary');
-    if (_addSelectedDate && _addSelectedTime) {
-      var MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      var p = _addSelectedDate.split('-');
-      var label = MONTHS_S[parseInt(p[1])-1] + ' ' + parseInt(p[2]) + ', ' + p[0];
-      el.textContent = '\uD83D\uDCC5 ' + label + '  \u00B7  \uD83D\uDD50 ' + _addSelectedTime;
-      el.style.display = 'block';
+  window.sbAddSelectVehicle = function(id){
+    var vehicles=window._fbVehicles||window.assets||[];
+    var v=vehicles.find(function(x){ return (x._id||x.id||'')===id; });
+    if(!v) return;
+    // Toggle selection (one vehicle at a time, admin side)
+    if(_addSelectedVehicle&&_addSelectedVehicle.id===id){
+      _addSelectedVehicle=null;
+      delete _addVehicleServices[id];
     } else {
-      el.style.display = 'none';
+      _addSelectedVehicle={ id:id, plate:v.plate||v.plateNumber||'', desc:v.desc||v.assetDescription||'', ownerId:v.ownerId||'' };
+      if(!_addVehicleServices[id]) _addVehicleServices[id]={};
+      // Auto-fill customer name from owner
+      var cn=document.getElementById('sbAddCustomerName');
+      if(cn&&!cn.value&&v.owner) cn.value=v.owner;
     }
+    _renderAddVehicles();
+    _renderAddPerVehicle();
+  };
+
+  // ── Per-vehicle service picker (right column) ──────────────────
+  function _renderAddPerVehicle(){
+    var el=document.getElementById('sbAddPerVehicle');
+    if(!_addSelectedVehicle){ el.innerHTML='<div class="sba-empty" id="sbAddSvcEmpty">Select a vehicle to assign services.</div>'; return; }
+    var id=_addSelectedVehicle.id;
+    var svcs=_addVehicleServices[id]||{};
+    var svcNames=Object.keys(svcs);
+    var tagsHtml=svcNames.length
+      ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">'+svcNames.map(function(n){ return '<span style="font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;background:#fff5f5;color:#E8001C;border:1px solid rgba(232,0,28,0.2);">'+_escA(n)+'</span>'; }).join('')+'</div>'
+      : '';
+    var btnLabel=svcNames.length
+      ? '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit ('+svcNames.length+')'
+      : '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Select Services';
+    el.innerHTML='<div class="sba-section-title">Select Services</div>'
+      +'<div class="sba-card" style="flex-direction:column;align-items:stretch;gap:0;cursor:default;border-color:'+(svcNames.length?'rgba(232,0,28,0.3)':'#e2e8f0')+';">'
+      +'<div style="display:flex;align-items:center;gap:12px;">'
+      +'<div style="flex:1;"><div class="sba-card-title">'+_escA(_addSelectedVehicle.plate)+'</div>'
+      +(_addSelectedVehicle.desc?'<div class="sba-card-sub">'+_escA(_addSelectedVehicle.desc)+'</div>':'')
+      +'</div>'
+      +'<button onclick="sbOpenSvcModal(\''+_escA(id)+'\')" style="display:inline-flex;align-items:center;gap:5px;padding:6px 11px;background:#fff5f5;border:1.5px solid #fca5a5;border-radius:8px;color:#E8001C;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">'+btnLabel+'</button>'
+      +'</div>'+tagsHtml+'</div>';
   }
 
-  // ── Vehicle search ────────────────────────────────────────────
-  window.sbAddVehicleLookup = function(q) {
-    var drop = document.getElementById('sbAddVehicleDrop');
-    if (_addSelectedVehicle) { drop.style.display = 'none'; return; }
-    var vehicles = window._fbVehicles || window.assets || [];
-    q = (q || '').trim().toUpperCase();
-    var matches = q
-      ? vehicles.filter(function(v) {
-          var plate = (v.plate || v.plateNumber || '').toUpperCase();
-          var desc  = (v.desc || v.assetDescription || '').toUpperCase();
-          return plate.includes(q) || desc.includes(q);
-        }).slice(0, 20)
-      : vehicles.slice(0, 20);
-    if (!matches.length) { drop.style.display = 'none'; return; }
-    drop.innerHTML = matches.map(function(v) {
-      var plate = v.plate || v.plateNumber || '';
-      var desc  = v.desc  || v.assetDescription || '';
-      var owner = v.owner || '';
-      return '<div style="padding:0.55rem 0.85rem;cursor:pointer;border-bottom:1px solid #f0f4f8;font-size:0.83rem;" '
-        + 'onmouseover="this.style.background=\'#f7f8fa\'" onmouseout="this.style.background=\'\'" '
-        + 'onmousedown="event.preventDefault();sbAddSelectVehicle(\'' + plate.replace(/'/g,"\\'") + '\');">'
-        + '<div style="font-weight:700;color:#1a202c;">' + plate + '</div>'
-        + (desc ? '<div style="font-size:0.75rem;color:#718096;">' + desc + (owner ? ' · ' + owner : '') + '</div>' : '')
-        + '</div>';
+  // ── Service selection modal ────────────────────────────────────
+  window.sbOpenSvcModal = function(vehicleId){
+    _addSvcModalVehicleId=vehicleId;
+    var v=_addSelectedVehicle;
+    document.getElementById('sbSvcModalTitle').textContent='Select Services';
+    document.getElementById('sbSvcModalSub').textContent=v?(v.plate+(v.desc?' - '+v.desc:'')):'';
+    document.getElementById('sbSvcModalSearch').value='';
+    sbRenderSvcModal();
+    document.getElementById('sbAddSvcModal').style.display='flex';
+  };
+  window.sbCloseSvcModal = function(){
+    document.getElementById('sbAddSvcModal').style.display='none';
+    _renderAddPerVehicle();
+  };
+  window.sbRenderSvcModal = function(){
+    var el=document.getElementById('sbSvcModalList');
+    var cntEl=document.getElementById('sbSvcSelectedCount');
+    var resEl=document.getElementById('sbSvcResultCount');
+    var services=window._addServicesList||[];
+    var svcs=_addVehicleServices[_addSvcModalVehicleId]||{};
+    var q=((document.getElementById('sbSvcModalSearch')||{}).value||'').trim().toLowerCase();
+    var filtered=q?services.filter(function(s){ return (s.itemName||'').toLowerCase().includes(q); }):services;
+    if(cntEl) cntEl.textContent=Object.keys(svcs).length>0?Object.keys(svcs).length+' selected':'';
+    if(resEl) resEl.textContent=filtered.length+' service'+(filtered.length!==1?'s':'');
+    if(!filtered.length){ el.innerHTML='<div style="text-align:center;padding:24px;color:#718096;font-size:13px;">'+(q?'No services match "'+_escA(q)+'"':'No services available.')+'</div>'; return; }
+    el.innerHTML=filtered.map(function(s){
+      var name=s.itemName||''; var sel=!!svcs[name];
+      var cost=s.cost?_fmtCostA(s.cost):''; var uom=s.uom||'';
+      return '<div class="sba-card'+(sel?' selected':'')+'" style="margin-bottom:8px;" onclick="sbToggleSvcModal(\''+_escA(name)+'\')">'
+        +'<div style="flex:1;"><div class="sba-card-title">'+_escA(name)+'</div>'+(cost?'<div class="sba-card-sub">'+cost+(uom?' / '+_escA(uom):'')+'</div>':'')+'</div>'
+        +'<div class="sba-check'+(sel?' checked':'')+'">'+( sel?_checkSvg():'')+'</div>'
+        +'</div>';
     }).join('');
-    drop.style.display = 'block';
+  };
+  window.sbToggleSvcModal = function(name){
+    if(!_addVehicleServices[_addSvcModalVehicleId]) _addVehicleServices[_addSvcModalVehicleId]={};
+    if(_addVehicleServices[_addSvcModalVehicleId][name]) delete _addVehicleServices[_addSvcModalVehicleId][name];
+    else _addVehicleServices[_addSvcModalVehicleId][name]=true;
+    sbRenderSvcModal();
   };
 
-  window.sbAddSelectVehicle = function(plate) {
-    var vehicles = window._fbVehicles || window.assets || [];
-    var v = vehicles.find(function(x){ return (x.plate || x.plateNumber || '') === plate; });
-    if (!v) return;
-    _addSelectedVehicle = {
-      id: v._id || v.id || '',
-      plate: plate,
-      desc: v.desc || v.assetDescription || '',
-      ownerId: v.ownerId || '',
-      owner: v.owner || ''
-    };
-    document.getElementById('sbAddVehicleSearch').value = plate;
-    document.getElementById('sbAddVehicleDrop').style.display = 'none';
-    var preview = document.getElementById('sbAddVehiclePreview');
-    document.getElementById('sbAddVehiclePreviewText').textContent = plate + (_addSelectedVehicle.desc ? ' · ' + _addSelectedVehicle.desc : '');
-    preview.style.display = 'flex';
-    preview.style.alignItems = 'center';
-    preview.style.justifyContent = 'space-between';
-    // Auto-fill customer name from owner field
-    if (v.owner && !document.getElementById('sbAddCustomerName').value) {
-      document.getElementById('sbAddCustomerName').value = v.owner;
+  // ── Calendar ───────────────────────────────────────────────────
+  function _renderAddCal(){
+    var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    document.getElementById('sbAddCalMonth').textContent=MONTHS[_addCalMonth]+' '+_addCalYear;
+    var firstDay=new Date(_addCalYear,_addCalMonth,1).getDay();
+    var daysInM=new Date(_addCalYear,_addCalMonth+1,0).getDate();
+    var today=new Date(); today.setHours(0,0,0,0);
+    var cells='';
+    for(var i=0;i<firstDay;i++) cells+='<div class="sba-cal-cell empty"></div>';
+    for(var d=1;d<=daysInM;d++){
+      var dt=new Date(_addCalYear,_addCalMonth,d);
+      var ds=_addCalYear+'-'+String(_addCalMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      var isPast=dt<today; var isFull=(_addBookedSlots[ds]||[]).length>=_ADD_TIME_SLOTS.length; var isSel=ds===_addSelectedDate;
+      var cls='sba-cal-cell';
+      if(isSel) cls+=' selected'; else if(isPast) cls+=' past'; else if(isFull) cls+=' full'; else cls+=' available';
+      var click=(!isPast&&!isFull)?' onclick="sbAddPickDate(\''+ds+'\')"':'';
+      cells+='<div class="'+cls+'"'+click+'><span>'+d+'</span><span class="sba-cal-dot"></span></div>';
     }
+    document.getElementById('sbAddCalGrid').innerHTML=cells;
+  }
+  window.sbAddCalNav=function(dir){ _addCalMonth+=dir; if(_addCalMonth>11){_addCalMonth=0;_addCalYear++;} if(_addCalMonth<0){_addCalMonth=11;_addCalYear--;} _renderAddCal(); };
+  window.sbAddPickDate=function(ds){
+    _addSelectedDate=ds; _addSelectedTime='';
+    _renderAddCal();
+    document.getElementById('sbAddTimeSection').style.display='block';
+    document.getElementById('sbAddArriveBy').style.display='none';
+    document.querySelectorAll('.sba-time-chip').forEach(function(c){ c.classList.remove('selected'); });
+    _renderAddTimeSlots(); _updateAddSummary();
   };
 
-  window.sbAddClearVehicle = function() {
-    _addSelectedVehicle = null;
-    document.getElementById('sbAddVehicleSearch').value = '';
-    document.getElementById('sbAddVehiclePreview').style.display = 'none';
+  // ── Time slots ─────────────────────────────────────────────────
+  function _renderAddTimeSlots(){
+    var taken=_addBookedSlots[_addSelectedDate]||[];
+    var now=new Date(); var todayStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+    var isToday=_addSelectedDate===todayStr; var h24={'8:00 AM':8,'9:00 AM':9,'10:00 AM':10,'11:00 AM':11,'1:00 PM':13,'2:00 PM':14,'3:00 PM':15,'4:00 PM':16};
+    var html=_ADD_TIME_SLOTS.map(function(t){
+      var isTaken=taken.indexOf(t)!==-1;
+      var isPast=isToday&&h24[t]!==undefined&&now.getHours()>h24[t];
+      var isSel=t===_addSelectedTime;
+      var cls='sba-time-chip'+(isSel?' selected':'')+(isTaken||isPast?' taken':'');
+      var dis=isTaken||isPast?' disabled title="'+(isPast?'Time has passed':'Already booked')+'"':'';
+      return '<button class="'+cls+'"'+dis+' onclick="sbAddPickTime(\''+t+'\')">'+t+'</button>';
+    }).join('');
+    document.getElementById('sbAddTimeSlots').innerHTML=html;
+  }
+  window.sbAddPickTime=function(t){
+    _addSelectedTime=t;
+    _renderAddTimeSlots();
+    var ab=document.getElementById('sbAddArriveBy');
+    if(ab){ document.getElementById('sbAddArriveByTime').textContent=_ARRIVE_BY[t]||t; ab.style.display='flex'; }
+    _updateAddSummary();
   };
-
-  // Close dropdown on outside click
-  document.addEventListener('click', function(e) {
-    var wrap = document.getElementById('sbAddVehicleSearch');
-    var drop = document.getElementById('sbAddVehicleDrop');
-    if (wrap && drop && !wrap.contains(e.target) && !drop.contains(e.target)) {
-      drop.style.display = 'none';
-    }
-  });
-
-  // ── Services ──────────────────────────────────────────────────
-  function _loadAddServices() {
-    var master = window.itemMaster || [];
-    var services = master.filter(function(i){ return (i.itemType||'').toLowerCase() === 'service' && i.itemName; });
-    if (!services.length && window._fbItemMaster) {
-      services = window._fbItemMaster
-        .filter(function(i){ return (i.type||'').toLowerCase() === 'service' && i.name; })
-        .map(function(i){ return { itemName: i.name, uom: i.uom || '', cost: i.cost || 0 }; });
-    }
-    if (!services.length) {
-      // Fetch from Firestore
-      firebase.firestore().collection('item_master').get().then(function(snap) {
-        services = snap.docs
-          .filter(function(d){ return (d.data().type||'').toLowerCase() === 'service' && d.data().name; })
-          .map(function(d){ return { itemName: d.data().name, uom: d.data().uom || '', cost: d.data().cost || 0 }; });
-        window._addServicesList = services;
-        _addServicesLoaded = true;
-      }).catch(function() {});
-      return;
-    }
-    window._addServicesList = services;
-    _addServicesLoaded = true;
+  function _updateAddSummary(){
+    var el=document.getElementById('sbAddSummary');
+    if(_addSelectedDate&&_addSelectedTime){
+      var MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var p=_addSelectedDate.split('-');
+      el.textContent='\uD83D\uDCC5 '+MS[parseInt(p[1])-1]+' '+parseInt(p[2])+', '+p[0]+'  ·  \uD83D\uDD50 '+_addSelectedTime;
+      el.style.display='block';
+    } else { el.style.display='none'; }
   }
 
-  // Filter dropdown based on search query
-  window.sbAddServicesFilter = function(q) {
-    var services = window._addServicesList || [];
-    var drop = document.getElementById('sbAddServicesDrop');
-    q = (q || '').trim().toLowerCase();
-    var matches = q
-      ? services.filter(function(s){ return (s.itemName||'').toLowerCase().includes(q); })
-      : services;
-    // Exclude already-selected
-    matches = matches.filter(function(s){ return !_addSelectedServices[s.itemName||'']; });
-    if (!matches.length) { drop.style.display = 'none'; return; }
-    drop.innerHTML = matches.map(function(s) {
-      var name = s.itemName || '';
-      var meta = (s.uom ? s.uom : '') + (s.uom && s.cost ? ' · ' : '') + (s.cost ? '₱' + parseFloat(s.cost).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
-      return '<div style="padding:0.55rem 0.85rem;cursor:pointer;border-bottom:1px solid #f0f4f8;" '
-        + 'onmouseover="this.style.background=\'#f7f8fa\'" onmouseout="this.style.background=\'\'" '
-        + 'onmousedown="event.preventDefault();sbAddSelectService(\'' + name.replace(/'/g,"\\'") + '\');">'
-        + '<div style="font-size:0.85rem;font-weight:600;color:#1a202c;">' + name + '</div>'
-        + (meta ? '<div style="font-size:0.75rem;color:#718096;">' + meta + '</div>' : '')
-        + '</div>';
-    }).join('');
-    drop.style.display = 'block';
-  };
-
-  window.sbAddSelectService = function(name) {
-    if (!name || _addSelectedServices[name]) return;
-    _addSelectedServices[name] = true;
-    document.getElementById('sbAddServicesSearch').value = '';
-    document.getElementById('sbAddServicesDrop').style.display = 'none';
-    _renderAddTags();
-  };
-
-  function _renderAddTags() {
-    var container = document.getElementById('sbAddSelectedTags');
-    container.innerHTML = Object.keys(_addSelectedServices).map(function(name) {
-      return '<span style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.65rem;background:#E31E24;color:white;border-radius:20px;font-size:0.78rem;font-weight:600;">'
-        + name
-        + '<button type="button" onclick="sbAddRemoveService(\'' + name.replace(/'/g,"\\'") + '\')" '
-        + 'style="background:none;border:none;color:white;cursor:pointer;padding:0;font-size:0.85rem;line-height:1;display:flex;align-items:center;">&#x2715;</button>'
-        + '</span>';
-    }).join('');
+  // ── Load services ──────────────────────────────────────────────
+  function _loadAddServices(){
+    var master=window.itemMaster||[];
+    var services=master.filter(function(i){ return (i.itemType||'').toLowerCase()==='service'&&i.itemName; });
+    if(!services.length&&window._fbItemMaster){
+      services=window._fbItemMaster.filter(function(i){ return (i.type||'').toLowerCase()==='service'&&i.name; })
+        .map(function(i){ return {itemName:i.name,uom:i.uom||'',cost:i.cost||0}; });
+    }
+    if(services.length){ window._addServicesList=services; _addServicesLoaded=true; return; }
+    firebase.firestore().collection('item_master').get().then(function(snap){
+      window._addServicesList=snap.docs.filter(function(d){ return (d.data().type||'').toLowerCase()==='service'&&d.data().name; })
+        .map(function(d){ return {itemName:d.data().name,uom:d.data().uom||'',cost:d.data().cost||0}; });
+      _addServicesLoaded=true;
+    }).catch(function(){});
   }
 
-  window.sbAddRemoveService = function(name) {
-    delete _addSelectedServices[name];
-    _renderAddTags();
-  };
+  // ── Save ───────────────────────────────────────────────────────
+  window.sbAddSave=function(){
+    var customerName=(document.getElementById('sbAddCustomerName').value||'').trim();
+    var notes=(document.getElementById('sbAddNotes').value||'').trim();
+    if(!_addSelectedVehicle){ showToast('Please select a vehicle.','error'); return; }
+    if(!customerName){ showToast('Please enter a customer name.','error'); return; }
+    var svcNames=Object.keys(_addVehicleServices[_addSelectedVehicle.id]||{});
+    if(!svcNames.length){ showToast('Please select at least one service.','error'); return; }
+    if(!_addSelectedDate){ showToast('Please select a date.','error'); return; }
+    if(!_addSelectedTime){ showToast('Please select a time.','error'); return; }
 
-  // Close services dropdown on outside click
-  document.addEventListener('click', function(e) {
-    var inp  = document.getElementById('sbAddServicesSearch');
-    var drop = document.getElementById('sbAddServicesDrop');
-    if (inp && drop && !inp.contains(e.target) && !drop.contains(e.target)) {
-      drop.style.display = 'none';
-    }
-  });
+    var btn=document.getElementById('sbAddSaveBtn');
+    var orig=btn.innerHTML; btn.disabled=true;
+    btn.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Booking…';
 
-  // ── Save ──────────────────────────────────────────────────────
-  window.sbAddSave = function() {
-    var customerName = (document.getElementById('sbAddCustomerName').value || '').trim();
-    var notes        = (document.getElementById('sbAddNotes').value || '').trim();
-    var serviceNames = Object.keys(_addSelectedServices);
-
-    if (!_addSelectedVehicle) { showToast('Please select a vehicle.', 'error'); return; }
-    if (!customerName)        { showToast('Please enter a customer name.', 'error'); return; }
-    if (!serviceNames.length) { showToast('Please select at least one service.', 'error'); return; }
-    if (!_addSelectedDate)    { showToast('Please select a date.', 'error'); return; }
-    if (!_addSelectedTime)    { showToast('Please select a time.', 'error'); return; }
-
-    var btn = document.getElementById('sbAddSaveBtn');
-    var origHtml = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.8s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Saving…';
-
-    var db = firebase.firestore();
-    var plate = _addSelectedVehicle.plate;
-
-    // Check for slot conflict (fresh check)
-    db.collection('service_bookings')
-      .where('preferredDate', '==', _addSelectedDate)
-      .where('preferredTime', '==', _addSelectedTime)
-      .where('status', 'in', ['Approved'])
-      .get()
-      .then(function(snap) {
-        if (!snap.empty) {
-          showToast('That time slot is already booked. Please choose another.', 'error');
-          btn.disabled = false; btn.innerHTML = origHtml;
-          return;
-        }
+    var db=firebase.firestore();
+    db.collection('service_bookings').where('preferredDate','==',_addSelectedDate).where('preferredTime','==',_addSelectedTime).where('status','in',['Approved']).get()
+      .then(function(snap){
+        if(!snap.empty){ showToast('That time slot is already booked.','error'); btn.disabled=false; btn.innerHTML=orig; return; }
         return db.collection('service_bookings').add({
-          customerName:  customerName,
-          customerId:    _addSelectedVehicle.ownerId || '',
-          vehicleId:     _addSelectedVehicle.id || '',
-          plate:         plate,
-          vehicleDesc:   _addSelectedVehicle.desc || '',
-          services:      serviceNames,
-          preferredDate: _addSelectedDate,
-          preferredTime: _addSelectedTime,
-          notes:         notes,
-          status:        'Approved',
-          createdByAdmin: true,
-          autoApproved:  true,
-          createdAt:     firebase.firestore.FieldValue.serverTimestamp(),
-        }).then(function() {
-          sbCloseAddModal();
-          showToast('Booking created successfully!', 'success');
-          // Notify customer if ownerId is known
-          var ownerId = _addSelectedVehicle.ownerId || '';
-          if (ownerId) {
-            var MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-            var p = _addSelectedDate.split('-');
-            var dLabel = MONTHS_S[parseInt(p[1])-1] + ' ' + parseInt(p[2]) + ', ' + p[0];
-            db.collection('notifications').add({
-              title: 'Booking Confirmed',
-              message: 'A service booking has been scheduled for your vehicle ' + plate + ' on ' + dLabel + ' at ' + _addSelectedTime + '. Services: ' + serviceNames.join(', '),
-              type: 'success', targetRole: '', targetUid: ownerId,
-              createdAt: firebase.firestore.FieldValue.serverTimestamp(), readBy: {}, isRead: false,
-            });
+          customerName:customerName, customerId:_addSelectedVehicle.ownerId||'',
+          vehicleId:_addSelectedVehicle.id, plate:_addSelectedVehicle.plate, vehicleDesc:_addSelectedVehicle.desc||'',
+          services:svcNames, preferredDate:_addSelectedDate, preferredTime:_addSelectedTime,
+          notes:notes, status:'Approved', createdByAdmin:true, autoApproved:true,
+          createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+        }).then(function(){
+          sbCloseAddModal(); showToast('Booking created successfully!','success');
+          var ownerId=_addSelectedVehicle.ownerId||'';
+          if(ownerId){
+            var MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            var p=_addSelectedDate.split('-'); var dl=MS[parseInt(p[1])-1]+' '+parseInt(p[2])+', '+p[0];
+            db.collection('notifications').add({title:'Booking Confirmed',message:'A service booking has been scheduled for your vehicle '+_addSelectedVehicle.plate+' on '+dl+' at '+_addSelectedTime+'. Services: '+svcNames.join(', '),type:'success',targetRole:'',targetUid:ownerId,createdAt:firebase.firestore.FieldValue.serverTimestamp(),readBy:{},isRead:false});
           }
         });
       })
-      .catch(function(err) { showToast('Error: ' + err.message, 'error'); })
-      .finally(function() { btn.disabled = false; btn.innerHTML = origHtml; });
+      .catch(function(err){ showToast('Error: '+err.message,'error'); })
+      .finally(function(){ btn.disabled=false; btn.innerHTML=orig; });
   };
-
-  // ── Calendar CSS injected once ────────────────────────────────
-  var styleEl = document.createElement('style');
-  styleEl.textContent = [
-    '.sba-day{width:100%;aspect-ratio:1;border-radius:7px;border:none;font-size:11px;font-weight:600;cursor:pointer;transition:all .12s;background:#f0fdf4;color:#1a202c;}',
-    '.sba-day:hover:not([disabled]){background:#dcfce7;transform:scale(1.08);}',
-    '.sba-day.sel{background:#E31E24;color:white;transform:scale(1.1);box-shadow:0 3px 10px rgba(232,0,28,0.3);}',
-    '.sba-day.past,.sba-day.full{background:#f1f5f9;color:#cbd5e0;cursor:not-allowed;}',
-    '.sba-day.empty{background:transparent;cursor:default;}',
-  ].join('');
-  document.head.appendChild(styleEl);
 })();
 </script>
-<script>
 (function() {
   try {
     var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
