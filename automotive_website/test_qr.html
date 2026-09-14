@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Test - AutoPro APK Download</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f4f6f8;
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #1a202c;
+      margin-bottom: 10px;
+    }
+    .qr-section {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+      margin-top: 30px;
+      padding: 30px;
+      background: #f8f9fa;
+      border-radius: 12px;
+    }
+    .qr-code {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .info {
+      flex: 1;
+    }
+    .url-box {
+      background: #1a202c;
+      color: #86efac;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 14px;
+      word-break: break-all;
+      margin: 15px 0;
+    }
+    .status {
+      padding: 10px 15px;
+      border-radius: 6px;
+      margin: 10px 0;
+      font-weight: 600;
+    }
+    .success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .instruction {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    button {
+      background: #E8001C;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+    button:hover {
+      background: #c00018;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 AutoPro APK - QR Code Test</h1>
+    <p style="color: #718096;">Test page to verify the QR code is working correctly</p>
+
+    <div class="qr-section">
+      <div class="qr-code">
+        <img id="qrImage" width="200" height="200" alt="QR Code" />
+      </div>
+
+      <div class="info">
+        <h3>📱 Download Information</h3>
+        
+        <div id="statusBox" class="status"></div>
+        
+        <p><strong>APK Download URL:</strong></p>
+        <div class="url-box" id="urlDisplay"></div>
+
+        <p><strong>QR Code API:</strong></p>
+        <div class="url-box" id="qrApiDisplay" style="font-size: 11px;"></div>
+
+        <button onclick="testDownload()">🧪 Test Download Link</button>
+        <button onclick="copyUrl()">📋 Copy URL</button>
+      </div>
+    </div>
+
+    <div class="instruction">
+      <h4>📋 How to Test:</h4>
+      <ol>
+        <li><strong>Scan the QR code</strong> with your phone's camera</li>
+        <li>Your phone should prompt to download <code>AutoPro.apk</code></li>
+        <li>Allow the download to complete</li>
+        <li>Install the APK on your Android device</li>
+      </ol>
+      <p><strong>Note:</strong> You may need to enable "Install from Unknown Sources" in your Android settings.</p>
+    </div>
+
+    <div id="testResult"></div>
+  </div>
+
+  <script>
+    // Generate the APK URL based on current origin
+    const apkUrl = window.location.origin + '/download/autopro.apk';
+    
+    // Generate QR code with high quality settings
+    const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/' +
+                     '?size=400x400' +
+                     '&data=' + encodeURIComponent(apkUrl) +
+                     '&color=1a202c' +
+                     '&bgcolor=ffffff' +
+                     '&margin=2' +
+                     '&qzone=1' +
+                     '&ecc=H';  // High error correction
+
+    // Display URL
+    document.getElementById('urlDisplay').textContent = apkUrl;
+    document.getElementById('qrApiDisplay').textContent = qrApiUrl;
+
+    // Load QR code
+    const qrImage = document.getElementById('qrImage');
+    qrImage.src = qrApiUrl;
+    qrImage.title = 'Scan to download: ' + apkUrl;
+
+    // Handle QR code loading
+    qrImage.onload = function() {
+      showStatus('✅ QR code loaded successfully!', 'success');
+    };
+
+    qrImage.onerror = function() {
+      showStatus('❌ Failed to load QR code', 'error');
+    };
+
+    function showStatus(message, type) {
+      const statusBox = document.getElementById('statusBox');
+      statusBox.textContent = message;
+      statusBox.className = 'status ' + type;
+    }
+
+    function testDownload() {
+      showStatus('🔄 Testing download link...', 'success');
+      
+      fetch(apkUrl, { method: 'HEAD' })
+        .then(response => {
+          if (response.ok) {
+            const size = response.headers.get('content-length');
+            const sizeMB = size ? (parseInt(size) / 1024 / 1024).toFixed(2) : 'unknown';
+            showStatus(`✅ APK is accessible! Size: ${sizeMB} MB`, 'success');
+            
+            // Show download info
+            const result = document.getElementById('testResult');
+            result.innerHTML = `
+              <div class="instruction" style="background: #d1fae5; border-color: #10b981;">
+                <h4>✅ Download Link is Working!</h4>
+                <p><strong>File Size:</strong> ${sizeMB} MB</p>
+                <p><strong>Content Type:</strong> ${response.headers.get('content-type')}</p>
+                <p>Click below to download the APK directly:</p>
+                <a href="${apkUrl}" style="display: inline-block; background: #E8001C; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; margin-top: 10px;">
+                  ⬇️ Download AutoPro.apk
+                </a>
+              </div>
+            `;
+          } else {
+            showStatus(`❌ APK not accessible (Status: ${response.status})`, 'error');
+          }
+        })
+        .catch(error => {
+          showStatus('❌ Error testing download: ' + error.message, 'error');
+        });
+    }
+
+    function copyUrl() {
+      navigator.clipboard.writeText(apkUrl)
+        .then(() => {
+          showStatus('📋 URL copied to clipboard!', 'success');
+        })
+        .catch(() => {
+          showStatus('❌ Failed to copy URL', 'error');
+        });
+    }
+
+    // Auto-test on page load
+    setTimeout(() => testDownload(), 1000);
+  </script>
+</body>
+</html>
