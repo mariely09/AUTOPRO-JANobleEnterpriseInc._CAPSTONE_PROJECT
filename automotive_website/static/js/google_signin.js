@@ -176,6 +176,19 @@ const GoogleSignInModule = {
 
   init: function() {
     console.log('GoogleSignInModule initialized');
+    
+    // IMPORTANT: Set Firebase auth persistence to LOCAL
+    // This ensures the user stays signed in across page reloads
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+      firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+        .then(() => {
+          console.log('✅ Firebase auth persistence set to LOCAL');
+        })
+        .catch((error) => {
+          console.warn('⚠️ Failed to set auth persistence:', error);
+        });
+    }
+    
     this.setupGoogleButton();
     _gsInjectOtpOverlay();
     this.checkRedirectResult();
@@ -382,6 +395,11 @@ const GoogleSignInModule = {
 
       // OTP correct — store session and redirect
       _gsHideOtpOverlay();
+      
+      // IMPORTANT: Keep Firebase auth state (don't sign out!)
+      // The dashboard's onAuthStateChanged listeners depend on this
+      console.log('✅ OTP verified, Firebase user still signed in:', this._pendingUser.uid);
+      
       await this.storeUserSession(this._pendingUser, this._pendingUserData);
 
       // Check mustChangePassword
@@ -491,9 +509,17 @@ const GoogleSignInModule = {
 
   redirectByRole: function(role) {
     const map = { admin:'admin_dashboard.html', staff:'staff_dashboard.html', customer:'customer_dashboard.html' };
+    
+    // Mark that we're about to redirect from a successful Google sign-in
+    // This prevents login.html's onAuthStateChanged from signing us out
+    try {
+      sessionStorage.setItem('googleSignInSuccess', '1');
+    } catch (_) {}
+    
     // Required by all dashboard auth guards: _loggedIn must be newer than _loggedOut
     localStorage.setItem('_loggedIn', Date.now().toString());
     localStorage.removeItem('_loggedOut');
+    
     setTimeout(() => { window.location.href = map[role] || 'customer_dashboard.html'; }, 100);
   },
 

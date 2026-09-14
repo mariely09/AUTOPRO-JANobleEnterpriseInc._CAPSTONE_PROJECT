@@ -355,21 +355,24 @@ def try_handle_booking(message: str, customer_uid: str, customer_name: str,
         return None  # not booking-shaped at all
 
     # Carry known values from the previous gather turn (context continuity).
-    # Scan BOTH roles: the service/plate the customer named in their previous
-    # user message must not be forgotten just because the assistant replied
-    # in between. Assistant messages are only trusted for the plate when they
-    # are NOT a vehicle-choice ask (their plate list is the MENU, not a choice
-    # — echoing it back would book a vehicle the customer never picked).
+    # IMPORTANT: Only scan USER messages for service/plate carry-over.
+    # Scanning assistant messages risks picking up service names that the AI
+    # suggested (e.g. "I'd be happy to book Brake Service") — the customer
+    # never confirmed that, so it must not be inherited as their choice.
     prev_plate = prev_services = None
     for m in reversed(history[-4:] if history else []):
         c = m.get("content") or ""
-        is_vehicle_menu = (m.get("role") == "assistant"
-                           and "which vehicle should i book" in c.lower())
-        if not prev_plate and not is_vehicle_menu:
+        role = m.get("role", "")
+        # Plates: allow from user messages only (assistant vehicle-menu lists
+        # are the shop's inventory, not the customer's choice).
+        if not prev_plate and role == "user":
             p = _extract_plate(c)
             if p:
                 prev_plate = p
-        if not prev_services:
+        # Services: ONLY from user messages — never from assistant messages.
+        # An assistant saying "I can book Brake Service for you" must not
+        # cause the next user turn to inherit Brake Service as their intent.
+        if not prev_services and role == "user":
             s = _extract_service(c)
             if s:
                 prev_services = s

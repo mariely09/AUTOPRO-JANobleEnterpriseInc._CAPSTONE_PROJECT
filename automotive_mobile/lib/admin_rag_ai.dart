@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
@@ -333,14 +334,10 @@ class AdminSmartReports extends StatefulWidget {
   State<AdminSmartReports> createState() => _AdminSmartReportsState();
 }
 
-class _AdminSmartReportsState extends State<AdminSmartReports>
-    with SingleTickerProviderStateMixin {
+class _AdminSmartReportsState extends State<AdminSmartReports> {
   static const _red = Color(0xFFE8001C);
 
-  // ── Pulsing ring animation for the AppBar avatar ──────────────────────────
-  late final AnimationController _pulseCtrl;
-  late final Animation<double> _pulseAnim;
-
+  // ── Fields ────────────────────────────────────────────────────────────────
   final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
 
@@ -355,6 +352,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
   String _currentUid = ''; // Firebase UID for history persistence
 
   bool _loading = false;
+
+  http.Client? _activeClient; // HTTP client for cancelling ongoing requests
+  
   bool get _rateLimited => AdminChatStore.rateLimited;
   set _rateLimited(bool v) => AdminChatStore.rateLimited = v;
   String get _resetIn => AdminChatStore.resetIn;
@@ -368,14 +368,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
   @override
   void initState() {
     super.initState();
-    // Pulse animation — repeats to produce the expanding ring effect
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat();
-    _pulseAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeOut),
-    );
     _checkBackend(silent: true);
     _checkAiStatus();
     _loadInitials();
@@ -415,11 +407,11 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
 
   @override
   void dispose() {
-    _pulseCtrl.dispose();
     // Save chat on widget dispose (tab switch, navigation away)
     if (_currentUid.isNotEmpty && AdminChatStore.messages.isNotEmpty) {
       AdminChatStore.saveChat(_currentUid);
     }
+    _activeClient?.close();
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -560,8 +552,24 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
       });
   }
 
-  // ── Scroll ─────────────────────────────────────────────────────────────────
+  // ── Stop generation ────────────────────────────────────────────────────────
+  void _stopGeneration() {
+    _activeClient?.close();
+    _activeClient = null;
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _messages.add(
+          _ChatMessage(role: 'ai', text: '⏹ Generation stopped.'),
+        );
+      });
+    }
+    AdminChatStore._lastSavedSig = null;
+    if (_currentUid.isNotEmpty) AdminChatStore.saveChat(_currentUid);
+    _scrollToBottom();
+  }
 
+  // ── Scroll ─────────────────────────────────────────────────────────────────
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
@@ -572,6 +580,22 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
         );
       }
     });
+  }
+
+  // ── Stop generation ────────────────────────────────────────────────────────
+  void _stopGeneration() {
+    _activeClient?.close();
+    _activeClient = null;
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _messages.add(
+          _ChatMessage(role: 'ai', text: '⏹ Generation stopped.'),
+        );
+      });
+      _scrollToBottom();
+      if (_currentUid.isNotEmpty) AdminChatStore.saveChat(_currentUid);
+    }
   }
 
   // ── Chat send ──────────────────────────────────────────────────────────────
@@ -609,7 +633,14 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
     // session memory is handled server-side via _sessionId
 
     try {
-      final resp = await http
+<<<<<<< HEAD
+      final client = http.Client();
+      _activeClient = client;
+      final resp = await client
+=======
+      _activeClient = http.Client(); // Create client for cancellation support
+      final resp = await _activeClient!
+>>>>>>> c7e115d (update: ai assistant - admin test cases & optimize)
           .post(
             Uri.parse('$_kAiBaseUrl/admin/chat'),
             headers: {'Content-Type': 'application/json'},
@@ -619,6 +650,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
             }),
           )
           .timeout(const Duration(seconds: 120));
+      _activeClient = null;
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -777,6 +809,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
           _loading = false;
           _messages.add(_ChatMessage(role: 'ai', text: answer));
         });
+        _activeClient = null; // Clear after successful completion
       } else {
         // Non-200 response — try to extract a friendly reply from the body first
         String errorMsg =
@@ -801,6 +834,15 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
         });
       }
     } on http.ClientException catch (_) {
+      // If _activeClient is null, the request was cancelled intentionally — ignore
+      if (_activeClient == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+<<<<<<< HEAD
+      _activeClient = null;
+=======
+>>>>>>> c7e115d (update: ai assistant - admin test cases & optimize)
       setState(() {
         _loading = false;
         _messages.add(
@@ -811,7 +853,13 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
           ),
         );
       });
+      _activeClient = null;
     } on Exception catch (e) {
+      // If _activeClient is null, the request was cancelled intentionally — ignore
+      if (_activeClient == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
       // Covers TimeoutException and other network errors
       setState(() {
         _loading = false;
@@ -826,6 +874,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
           ),
         );
       });
+      _activeClient = null;
     }
     _scrollToBottom();
     // Persist the exchange to history after every turn
@@ -1324,53 +1373,10 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
         iconTheme: const IconThemeData(color: Colors.white),
         title: Row(
           children: [
-            // AI logo in AppBar with animated pulse ring
+            // AI logo in AppBar with status-colour border (no pulse rings)
             Stack(
               alignment: Alignment.center,
               children: [
-                // Outer pulse ring
-                AnimatedBuilder(
-                  animation: _pulseAnim,
-                  builder: (_, __) {
-                    final color = _backendOnline
-                        ? const Color(0xFF4ade80)
-                        : const Color(0xFFF97316);
-                    return Container(
-                      width: 40 + (_pulseAnim.value * 22),
-                      height: 40 + (_pulseAnim.value * 22),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: color.withValues(
-                            alpha: (1 - _pulseAnim.value) * 0.55,
-                          ),
-                          width: 2,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                // Inner pulse ring (offset by half a period)
-                AnimatedBuilder(
-                  animation: _pulseAnim,
-                  builder: (_, __) {
-                    final phase = (_pulseAnim.value + 0.45) % 1.0;
-                    final color = _backendOnline
-                        ? const Color(0xFF4ade80)
-                        : const Color(0xFFF97316);
-                    return Container(
-                      width: 40 + (phase * 22),
-                      height: 40 + (phase * 22),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: color.withValues(alpha: (1 - phase) * 0.55),
-                          width: 1.5,
-                        ),
-                      ),
-                    );
-                  },
-                ),
                 // Avatar circle with status-colour border
                 Container(
                   width: 40,
@@ -1681,6 +1687,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
                             ? 'AI unavailable — daily limit reached'
                             : 'Ask about fleet, inventory, reports…',
                         onSend: _sendQuery,
+                        onStop: _loading ? _stopGeneration : null,
                       ),
                       const SizedBox(height: 4),
                       const Text(
@@ -2056,41 +2063,85 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Flexible(
-              child: Container(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.72,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(14),
-                    topRight: Radius.circular(4),
-                    bottomLeft: Radius.circular(14),
-                    bottomRight: Radius.circular(14),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFE8001C).withValues(alpha: 0.22),
-                      blurRadius: 6,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.72,
                     ),
-                  ],
-                ),
-                child: Text(
-                  msg.text ?? '',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    height: 1.6,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(14),
+                        topRight: Radius.circular(4),
+                        bottomLeft: Radius.circular(14),
+                        bottomRight: Radius.circular(14),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFE8001C).withValues(alpha: 0.22),
+                          blurRadius: 6,
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      msg.text ?? '',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        height: 1.6,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 4),
+                  // Copy / Edit actions
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _userPromptActionBtn(
+                        icon: Icons.copy_outlined,
+                        label: 'Copy',
+                        onTap: () async {
+                          await Clipboard.setData(
+                            ClipboardData(text: msg.text ?? ''),
+                          );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Copied to clipboard'),
+                                duration: Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 6),
+                      _userPromptActionBtn(
+                        icon: Icons.edit_outlined,
+                        label: 'Edit',
+                        onTap: () {
+                          _inputCtrl.text = msg.text ?? '';
+                          // Move caret to end
+                          _inputCtrl.selection = TextSelection.fromPosition(
+                            TextPosition(offset: _inputCtrl.text.length),
+                          );
+                          // Scroll to input
+                          _scrollToBottom();
+                        },
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 8),
@@ -2336,6 +2387,39 @@ class _AdminSmartReportsState extends State<AdminSmartReports>
     ],
   );
 
+  Widget _userPromptActionBtn({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 10, color: Colors.white),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _actionBtn(
     IconData icon,
     String label,
@@ -2378,6 +2462,7 @@ class _AdminFocusInputBar extends StatefulWidget {
   final bool rateLimited;
   final String hint;
   final Future<void> Function([String?]) onSend;
+  final VoidCallback? onStop;
 
   const _AdminFocusInputBar({
     required this.inputCtrl,
@@ -2385,6 +2470,7 @@ class _AdminFocusInputBar extends StatefulWidget {
     required this.rateLimited,
     required this.hint,
     required this.onSend,
+    this.onStop,
   });
 
   @override
@@ -2446,34 +2532,38 @@ class _AdminFocusInputBarState extends State<_AdminFocusInputBar> {
           ),
           const SizedBox(width: 6),
           GestureDetector(
-            onTap: canSend ? () => widget.onSend() : null,
+            onTap: widget.loading
+                ? widget.onStop
+                : (canSend ? () => widget.onSend() : null),
             child: Container(
               width: 34,
               height: 34,
               decoration: BoxDecoration(
-                gradient: canSend
-                    ? const LinearGradient(
-                        colors: [Color(0xFFE8001C), Color(0xFFC0001A)],
+                gradient: (canSend || widget.loading)
+                    ? LinearGradient(
+                        colors: widget.loading
+                            ? [const Color(0xFF718096), const Color(0xFF4A5568)]
+                            : [const Color(0xFFE8001C), const Color(0xFFC0001A)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       )
                     : null,
-                color: canSend ? null : Colors.grey.shade300,
+                color: (canSend || widget.loading) ? null : Colors.grey.shade300,
                 shape: BoxShape.circle,
-                boxShadow: canSend
+                boxShadow: (canSend || widget.loading)
                     ? [
                         BoxShadow(
-                          color: const Color(
-                            0xFFE8001C,
-                          ).withValues(alpha: 0.35),
+                          color: widget.loading
+                              ? const Color(0xFF718096).withValues(alpha: 0.35)
+                              : const Color(0xFFE8001C).withValues(alpha: 0.35),
                           blurRadius: 10,
                           offset: const Offset(0, 3),
                         ),
                       ]
                     : [],
               ),
-              child: const Icon(
-                Icons.send_rounded,
+              child: Icon(
+                widget.loading ? Icons.stop_rounded : Icons.send_rounded,
                 color: Colors.white,
                 size: 16,
               ),

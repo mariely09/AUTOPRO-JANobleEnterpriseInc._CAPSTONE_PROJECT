@@ -63,6 +63,8 @@ _TYPO_MAP = {
     "wen": "when", "whn": "when", "wenb": "when",
     "whr": "where", "wer": "where", "wehre": "where",
     "wy": "why", "whi": "why",
+    # "wich" — too short for edit-distance (4 chars); listed explicitly
+    "wich": "which", "whih": "which", "whic": "which",
     "cna": "can", "cn": "can", "ca": "can",
     "i": "i",  # keep — already correct
     "fo": "for", "fro": "for", "fr": "for",
@@ -104,6 +106,8 @@ _TYPO_MAP = {
 
     # ── stock ─────────────────────────────────────────────────────────────────
     "stok": "stock", "stcok": "stock", "stck": "stock", "stolk": "stock",
+    # 4-char misspelling — too short for edit-distance fallback, so listed explicitly
+    "stoc": "stock", "stck": "stock",
 
     # ── booking / appointment / schedule ─────────────────────────────────────
     "bookng":     "booking",     "bookin":      "booking",

@@ -595,21 +595,53 @@ def index():
 
 @app.route('/download/autopro.apk')
 def download_apk():
-    """Serve the AutoPro APK for direct download. Always serves the latest file."""
-    from flask import send_from_directory
+    """
+    Serve AutoPro APK for download.
+    - Local development: Serves from static/download/autopro.apk
+    - Production (Render): Redirects to Firebase Storage URL
+    """
+    from flask import send_from_directory, redirect, current_app
     import os
-    apk_dir = os.path.join(os.path.dirname(__file__), 'static', 'apk')
-    apk_path = os.path.join(apk_dir, 'autopro.apk')
-    if not os.path.exists(apk_path):
-        return 'APK not found. Run build_and_deploy_apk.bat first.', 404
-    response = send_from_directory(apk_dir, 'autopro.apk',
-                                   as_attachment=True,
-                                   download_name='AutoPro.apk')
-    # Prevent browser from caching the old APK
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    return response
+    
+    # Try local file first (for local development)
+    apk_dir = os.path.join(current_app.root_path, 'static', 'download')
+    apk_filename = 'autopro.apk'
+    apk_path = os.path.join(apk_dir, apk_filename)
+    
+    if os.path.exists(apk_path):
+        # Local development - serve from filesystem
+        print(f"[APK Download] Serving local APK from: {apk_path}")
+        file_size_mb = os.path.getsize(apk_path) / (1024 * 1024)
+        print(f"[APK Download] File size: {file_size_mb:.2f} MB")
+        
+        response = send_from_directory(
+            apk_dir, 
+            apk_filename,
+            as_attachment=True,
+            download_name='AutoPro.apk',
+            mimetype='application/vnd.android.package-archive'
+        )
+        
+        # Prevent browser from caching
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        
+        print("[APK Download] Local APK sent successfully")
+        return response
+    else:
+        # Production (Render) - redirect to Firebase Storage
+        # Get Firebase Storage URL from environment variable or use default with token
+        firebase_apk_url = os.environ.get(
+            'APK_DOWNLOAD_URL',
+            'https://firebasestorage.googleapis.com/v0/b/caltex-autopro-1e664.firebasestorage.app/o/autopro.apk?alt=media&token=05c673e7-790e-44cb-94c7-84c0b357493a'
+        )
+        
+        print(f"[APK Download] Local file not found at: {apk_path}")
+        print(f"[APK Download] Redirecting to Firebase Storage: {firebase_apk_url}")
+        
+        # Redirect to Firebase Storage with 302 (temporary redirect)
+        return redirect(firebase_apk_url, code=302)
 
 # ── Auth ────────────────────────────────────────────────────
 @app.route('/login.html')

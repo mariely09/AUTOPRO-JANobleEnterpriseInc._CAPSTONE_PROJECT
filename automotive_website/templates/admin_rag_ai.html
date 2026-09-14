@@ -75,9 +75,6 @@
     <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 20%,rgba(255,255,255,0.1) 0%,transparent 65%);pointer-events:none;border-radius:22px 22px 0 0;"></div>
     <!-- Avatar — white bg with gradient border -->
     <div style="position:relative;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-      <!-- Animated pulse rings -->
-      <span id="ragHdrPulseOuter" style="position:absolute;width:36px;height:36px;border-radius:50%;border:2px solid #22c55e;opacity:0;animation:ragRingPulse 1.8s ease-out infinite;pointer-events:none;"></span>
-      <span id="ragHdrPulseInner" style="position:absolute;width:36px;height:36px;border-radius:50%;border:1.5px solid #22c55e;opacity:0;animation:ragRingPulse 1.8s ease-out 0.45s infinite;pointer-events:none;"></span>
       <div id="ragHdrAvatarRing" style="width:36px;height:36px;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px rgba(34,197,94,0.45),0 2px 8px rgba(0,0,0,0.15);background:white;border:2.5px solid #22c55e;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;z-index:1;transition:border-color 0.3s,box-shadow 0.3s;">
         <img src="../static/img/AI_LOGO.png" style="width:28px;height:28px;object-fit:contain;display:block;" alt="AI">
       </div>
@@ -137,11 +134,20 @@
         oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px'"
         onfocus="document.getElementById('ragInputWrap').style.borderColor='#E8001C';document.getElementById('ragInputWrap').style.boxShadow='0 0 0 3px rgba(232,0,28,0.08)';"
         onblur="document.getElementById('ragInputWrap').style.borderColor='#edf0f5';document.getElementById('ragInputWrap').style.boxShadow='none';"></textarea>
+      <!-- Send button (shown when idle) -->
       <button onclick="ragAiSend()" id="ragSendBtn"
         style="width:34px;height:34px;min-width:34px;background:linear-gradient(135deg,#E8001C,#c0001a);border:none;border-radius:50%;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(232,0,28,0.35);transition:all .18s;"
         onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 5px 14px rgba(232,0,28,0.45)'"
         onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 3px 10px rgba(232,0,28,0.35)'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+      <!-- Stop button (shown while AI is generating) -->
+      <button onclick="ragAiStop()" id="ragStopBtn"
+        style="display:none;width:34px;height:34px;min-width:34px;background:linear-gradient(135deg,#E8001C,#c0001a);border:none;border-radius:50%;color:white;cursor:pointer;display:none;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(232,0,28,0.35);transition:all .18s;"
+        title="Stop generation"
+        onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 5px 14px rgba(232,0,28,0.45)'"
+        onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 3px 10px rgba(232,0,28,0.35)'">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
       </button>
     </div>
     <div style="text-align:center;font-size:10px;color:#c0c8d4;margin-top:5px;">Enter to send &nbsp;·&nbsp; Shift+Enter for new line</div>
@@ -220,6 +226,18 @@
   transform:translateY(-1px);
 }
 
+/* ── User message actions (Copy / Edit) ── */
+.rag-user-actions { display:none;gap:5px;margin-top:5px;justify-content:flex-end; }
+.rag-row.user:hover .rag-user-actions { display:flex; }
+.rag-user-action-btn {
+  background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);
+  color:white;border-radius:8px;padding:3px 8px;font-size:10px;font-weight:600;
+  cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;
+  transition:background .15s;line-height:1.4;
+}
+.rag-user-action-btn:hover { background:rgba(255,255,255,0.32); }
+.rag-user-action-btn.copied { background:rgba(56,161,105,0.55); }
+
 /* ── Scrollbar ── */
 #ragAiChat::-webkit-scrollbar { width:4px; }
 #ragAiChat::-webkit-scrollbar-track { background:transparent; }
@@ -253,6 +271,66 @@ var _ragRateLimited = false;
 var _ragCurrentUid  = null; // Firebase UID — set after auth resolves
 var _ragMessages    = [];   // structured JS array — mirrors DOM, survives close/reopen
 var _ragSavedSig    = null; // dedupe guard: signature of the last saved _ragMessages
+
+// ── Stop-generation state ────────────────────────────────────────────────
+var _ragAbortCtrl   = null; // AbortController for the current fetch
+var _ragGenerating  = false; // true while a request is in-flight
+
+// Toggle send ↔ stop buttons
+function _ragSetGenerating(on) {
+  _ragGenerating = on;
+  var sendBtn = document.getElementById('ragSendBtn');
+  var stopBtn = document.getElementById('ragStopBtn');
+  var input   = document.getElementById('ragAiInput');
+  if (sendBtn) sendBtn.style.display = on ? 'none' : 'flex';
+  if (stopBtn) stopBtn.style.display = on ? 'flex' : 'none';
+  if (input)   input.disabled = on;
+}
+
+window.ragAiStop = function() {
+  if (_ragAbortCtrl) { _ragAbortCtrl.abort(); _ragAbortCtrl = null; }
+  _ragSetGenerating(false);
+  _ragRemoveTyping();
+  if (_ragMessages.length && _ragMessages[_ragMessages.length - 1].role === 'user') {
+    _ragMessages.push({ role: 'ai', text: '⏹ Generation stopped.' });
+    _ragAppend('ai', '<em style="color:#94a3b8;font-size:11.5px;">⏹ Generation stopped.</em>');
+    _ragSaveChat();
+  }
+};
+
+// ── Copy prompt to clipboard ──────────────────────────────────────────────
+window.ragCopyPrompt = function(btn, text) {
+  navigator.clipboard.writeText(text).then(function() {
+    var orig = btn.innerHTML;
+    btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+    btn.classList.add('copied');
+    setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
+  }).catch(function() {
+    // fallback for older browsers
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.top = '-9999px';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+};
+
+// ── Load prompt into input for editing ───────────────────────────────────
+window.ragEditPrompt = function(text) {
+  var input = document.getElementById('ragAiInput');
+  if (!input) return;
+  input.value = text;
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 80) + 'px';
+  input.focus();
+  // Move caret to end
+  input.selectionStart = input.selectionEnd = input.value.length;
+  // Highlight the input bar
+  var wrap = document.getElementById('ragInputWrap');
+  if (wrap) {
+    wrap.style.borderColor = '#E8001C';
+    wrap.style.boxShadow = '0 0 0 3px rgba(232,0,28,0.08)';
+  }
+};
 
 // ── localStorage history helpers ──────────────────────────────────────────
 function _ragActiveKey(uid)  { return 'rag_ai_active_'  + uid; }
@@ -339,7 +417,7 @@ function _ragRestoreSession(uid) {
     if (!session || !session.messages || !session.messages.length) { _ragSessionId = _ragLocalId(); return; }
     _ragSessionId = session.id || _ragLocalId(); // reuse the SAME conversation id
     // Dedupe restored messages (consecutive same-role rows from older saves)
-    var msgs = session.messages.filter(function(m){ return m && m.text; });
+    var msgs = session.messages.filter(function(m){ return m != null && m.role; });
     var clean = [];
     for (var i = 0; i < msgs.length; i++) {
       var prev = clean[clean.length-1];
@@ -353,12 +431,7 @@ function _ragRestoreSession(uid) {
     var wb = document.getElementById('ragWelcomeBlock');
     if (wb) wb.remove();
     chat.innerHTML = '';
-    _ragMessages.forEach(function(m) {
-      _ragAppend(
-        m.role === 'user' ? 'user' : 'ai',
-        m.role === 'user' ? _ragEsc(m.text) : _ragMarkdown(m.text)
-      );
-    });
+    _ragRenderMessages(_ragMessages);
     _ragSavedSig = null;
     setTimeout(function(){ chat.scrollTop = chat.scrollHeight; }, 60);
   } catch(e) { _ragSessionId = _ragLocalId(); }
@@ -402,6 +475,50 @@ function _ragRenderHistoryList() {
   });
 }
 
+// ── Shared message renderer — used by both restore and history-drawer load ──
+// Handles plain AI text, user text, and report-ready bubbles (re-creates
+// the download buttons from the saved reportParams so they survive refresh).
+function _ragRenderMessages(messages) {
+  messages.forEach(function(m) {
+    if (m.role !== 'user' && m.reportParams) {
+      var rp  = m.reportParams;
+      var rId = 'rp_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+      window._ragReportParams = window._ragReportParams || {};
+      window._ragReportParams[rId] = {
+        reportType: rp.reportType,
+        month:      rp.month      || null,
+        startDate:  rp.startDate  || null,
+        endDate:    rp.endDate    || null,
+        filters:    rp.filters    || {}
+      };
+      var rFmt = (rp.format || 'pdf').toLowerCase();
+      var filterLabel = '';
+      if (rp.startDate || rp.endDate) {
+        filterLabel = ' (' + (rp.startDate || '—') + ' to ' + (rp.endDate || '—') + ')';
+      } else if (rp.month) {
+        filterLabel = ' (' + rp.month + ')';
+      }
+      var btnStyle = 'background:#E8001C;color:white;border:none;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;';
+      var secStyle = 'background:#f7f8fa;color:#4a5568;border:1.5px solid #e2e8f0;padding:6px 14px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;';
+      function _mkBtn(fmt, style) {
+        return '<button id="' + rId + '_' + fmt + '" onclick="ragDownloadReport(\'' + rId + '\',\'' + fmt + '\')" style="' + style + '">&#x2193; Download ' + fmt.toUpperCase() + filterLabel + '</button>';
+      }
+      var btnHtml = '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">';
+      if (rFmt === 'both')       { btnHtml += _mkBtn('pdf', btnStyle) + _mkBtn('excel', secStyle); }
+      else if (rFmt === 'excel') { btnHtml += _mkBtn('excel', btnStyle); }
+      else                       { btnHtml += _mkBtn('pdf',   btnStyle); }
+      btnHtml += '</div><div id="' + rId + '_err" style="font-size:11px;margin-top:4px;"></div>';
+      _ragAppend('ai', _ragMarkdown(m.text || 'Your report is ready.') + btnHtml);
+    } else {
+      _ragAppend(
+        m.role === 'user' ? 'user' : 'ai',
+        m.role === 'user' ? _ragEsc(m.text || '') : _ragMarkdown(m.text || ''),
+        m.role === 'user' ? (m.text || '') : undefined
+      );
+    }
+  });
+}
+
 function _ragLoadSession(sid) {
   var sessions = _ragCurrentUid ? _ragLoadAllSessions(_ragCurrentUid) : [];
   var session  = sessions.find(function(s){ return s.id === sid; });
@@ -412,10 +529,7 @@ function _ragLoadSession(sid) {
   var wb   = document.getElementById('ragWelcomeBlock');
   if (wb) wb.remove();
   chat.innerHTML = '';
-  _ragMessages.forEach(function(m) {
-    _ragAppend(m.role === 'user' ? 'user' : 'ai',
-               m.role === 'user' ? _ragEsc(m.text) : _ragMarkdown(m.text));
-  });
+  _ragRenderMessages(_ragMessages);
   setTimeout(function(){ chat.scrollTop = chat.scrollHeight; }, 60);
   _ragSavedSig = null; // force the next save to persist the switch
   // Persist restored session as active slot
@@ -456,17 +570,19 @@ window.ragDeleteAllHistory = function() {
   _ragRenderHistoryList();
 };
 
-window.addEventListener('pagehide', function() { _ragSaveChat(); });
-window.addEventListener('beforeunload', function() { _ragSaveChat(); });
+// Force-save on navigation — clear the dedupe sig first so the write is never
+// skipped, even if the AI reply arrived after the last _ragSaveChat() call.
+window.addEventListener('pagehide',     function() { _ragSavedSig = null; _ragSaveChat(); });
+window.addEventListener('beforeunload', function() { _ragSavedSig = null; _ragSaveChat(); });
 document.addEventListener('visibilitychange', function() {
-  if (document.visibilityState === 'hidden') _ragSaveChat();
+  if (document.visibilityState === 'hidden') { _ragSavedSig = null; _ragSaveChat(); }
 });
 
 // ── Rate-limit helpers ────────────────────────────────────────────────────
 function _ragSetRateLimited(limited, resetIn) {
   _ragRateLimited = limited;
   var input  = document.getElementById('ragAiInput');
-  var sendBtn = input ? input.closest('div').querySelector('button') : null;
+  var sendBtn = document.getElementById('ragSendBtn');
   var banner  = document.getElementById('ragRateBanner');
 
   if (limited) {
@@ -568,8 +684,6 @@ function _ragWatch() {
           var hdrDot     = document.getElementById('ragHeaderOnlineDot');
           var fabPulseO  = document.getElementById('ragFabPulseOuter');
           var fabPulseI  = document.getElementById('ragFabPulseInner');
-          var hdrPulseO  = document.getElementById('ragHdrPulseOuter');
-          var hdrPulseI  = document.getElementById('ragHdrPulseInner');
           if (d.online) {
             if (dot) dot.style.background = '#4ade80';
             if (txt) { txt.textContent = 'Online · RAG AI'; }
@@ -585,8 +699,6 @@ function _ragWatch() {
             // Green pulse rings
             if (fabPulseO) { fabPulseO.style.borderColor = '#22c55e'; }
             if (fabPulseI) { fabPulseI.style.borderColor = '#22c55e'; }
-            if (hdrPulseO) { hdrPulseO.style.borderColor = '#22c55e'; }
-            if (hdrPulseI) { hdrPulseI.style.borderColor = '#22c55e'; }
           } else {
             if (dot) dot.style.background = '#f97316';
             if (txt) { txt.textContent = 'Local mode'; }
@@ -602,8 +714,6 @@ function _ragWatch() {
             // Orange pulse rings
             if (fabPulseO) { fabPulseO.style.borderColor = '#f97316'; }
             if (fabPulseI) { fabPulseI.style.borderColor = '#f97316'; }
-            if (hdrPulseO) { hdrPulseO.style.borderColor = '#f97316'; }
-            if (hdrPulseI) { hdrPulseI.style.borderColor = '#f97316'; }
           }
         }).catch(function(){
           clearTimeout(timer);
@@ -615,8 +725,6 @@ function _ragWatch() {
           var hdrDot     = document.getElementById('ragHeaderOnlineDot');
           var fabPulseO  = document.getElementById('ragFabPulseOuter');
           var fabPulseI  = document.getElementById('ragFabPulseInner');
-          var hdrPulseO  = document.getElementById('ragHdrPulseOuter');
-          var hdrPulseI  = document.getElementById('ragHdrPulseInner');
           if (dot) dot.style.background = '#f97316';
           if (txt) { txt.textContent = 'Local mode'; }
           if (fabDot) { fabDot.style.background = '#f97316'; fabDot.style.boxShadow = '0 0 6px rgba(249,115,22,0.7)'; }
@@ -625,8 +733,6 @@ function _ragWatch() {
           // Orange pulse rings on error/offline
           if (fabPulseO) { fabPulseO.style.borderColor = '#f97316'; }
           if (fabPulseI) { fabPulseI.style.borderColor = '#f97316'; }
-          if (hdrPulseO) { hdrPulseO.style.borderColor = '#f97316'; }
-          if (hdrPulseI) { hdrPulseI.style.borderColor = '#f97316'; }
           // Retry once after 60 s — Render may still be waking up
           if (!isRetry) setTimeout(function(){ _checkRagHealth(true); }, 60000);
         });
@@ -685,7 +791,7 @@ function _ragMarkdown(text) {
 
 var _AI_AVATAR_SVG = '<img src="../static/img/AI_LOGO.png" width="28" height="28" style="object-fit:cover;border-radius:50%;display:block;" alt="AI">';
 
-function _ragAppend(role, html) {
+function _ragAppend(role, html, rawText) {
   var chat = document.getElementById('ragAiChat');
   var row = document.createElement('div');
   row.className = 'rag-row' + (role==='user'?' user':'');
@@ -693,7 +799,24 @@ function _ragAppend(role, html) {
     ? '<div class="rag-av usr">'+_ragInitials+'</div>'
     : '<div class="rag-av ai">'+_AI_AVATAR_SVG+'</div>';
   var bub = '<div class="rag-bub '+role+'">'+html+'</div>';
-  row.innerHTML = role==='user' ? bub+av : av+bub;
+  if (role === 'user') {
+    // Wrap bubble + action buttons in a column
+    var escapedRaw = (rawText || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
+    var actions =
+      '<div class="rag-user-actions">' +
+        '<button class="rag-user-action-btn" onclick="ragCopyPrompt(this,\''+escapedRaw+'\')" title="Copy prompt">' +
+          '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+          ' Copy' +
+        '</button>' +
+        '<button class="rag-user-action-btn" onclick="ragEditPrompt(\''+escapedRaw+'\')" title="Edit prompt">' +
+          '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+          ' Edit' +
+        '</button>' +
+      '</div>';
+    row.innerHTML = '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0;">' + bub + actions + '</div>' + av;
+  } else {
+    row.innerHTML = av + bub;
+  }
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
 }
@@ -714,18 +837,24 @@ window.ragAiSend = function(preset) {
   var text = (preset||input.value).trim();
   if (!text) return;
   if (_ragRateLimited) { return; }  // blocked while rate-limited
+  if (_ragGenerating)  { return; }  // block rapid double-sends
   if (!_ragReady) { _ragAppend('ai','<strong>Still loading data…</strong> Please wait.'); return; }
   // Hide welcome block on first real message
   var wb = document.getElementById('ragWelcomeBlock');
   if (wb) wb.remove();
   document.getElementById('ragAiChips').style.display='none';
-  _ragAppend('user', _ragEsc(text));
+  _ragAppend('user', _ragEsc(text), text);
   _ragMessages.push({ role: 'user', text: text });
   input.value=''; input.style.height='auto';
   _ragTyping();
   _ragSavedSig = null; // user message changed state — allow the save
   // Persist user message immediately
   _ragSaveChat();
+
+  // Show Stop button, hide Send button
+  _ragSetGenerating(true);
+  _ragAbortCtrl = new AbortController();
+  var signal = _ragAbortCtrl.signal;
 
   // Call the Flask AI endpoint — session_id enables server-side memory
   fetch('/api/ai-chat', {
@@ -735,10 +864,13 @@ window.ragAiSend = function(preset) {
       message:    text,
       user_type:  'admin',
       session_id: _ragSessionId,
-    })
+    }),
+    signal: signal,
   })
   .then(function(res) { return res.json(); })
   .then(function(data) {
+    _ragSetGenerating(false);
+    _ragAbortCtrl = null;
     _ragRemoveTyping();
     // Adopt the server session id (only once, when we're still on a local id)
     // so the history entry is renamed in place — never duplicated.
@@ -747,7 +879,6 @@ window.ragAiSend = function(preset) {
       _ragSessionId = data.session_id;
     }
 
-    // ── Rate limit notice ─────────────────────────────────────────────────
     if (data.rate_limited) {
       _ragSetRateLimited(true, data.reset_in || 'some time');
       var resetMsg = data.reset_in || 'some time';
@@ -848,7 +979,18 @@ window.ragAiSend = function(preset) {
       }
       btnHtml += '</div>';
       btnHtml += '<div id="' + errId + '" style="font-size:11px;margin-top:4px;"></div>';
-      _ragMessages.push({ role: 'ai', text: data.answer || 'Report ready.' });
+      _ragMessages.push({
+        role: 'ai',
+        text: data.answer || 'Report ready.',
+        reportParams: {
+          reportType: data.report_type,
+          month:      rMonth,
+          startDate:  rStart,
+          endDate:    rEnd,
+          filters:    rFilters,
+          format:     rFmt
+        }
+      });
       _ragAppend('ai', answer + btnHtml);
       _ragSaveChat();
     } else if (data.answer) {
@@ -870,6 +1012,10 @@ window.ragAiSend = function(preset) {
     }
   })
   .catch(function(err) {
+    _ragSetGenerating(false);
+    _ragAbortCtrl = null;
+    // If aborted by the Stop button, don't show an error — ragAiStop already handled it
+    if (err && err.name === 'AbortError') return;
     _ragRemoveTyping();
     var _isCatchRpt = /\b(generate|create|make|export|download|print)\b.*\b(report|pdf|excel)\b|\b(pdf|excel)\s+report\b|\breport\s+(pdf|excel)\b/i.test(text);
     if (_isCatchRpt) {
@@ -1300,17 +1446,24 @@ function _ragProcess(query) {
     var rows=sorted.map(function(k){return [_ragEsc(k),String(counts[k])];});
     return ret('<strong>Fast Moving Items</strong>'+tbl(['Item','Total Issued'],rows));
   }
-  // Users
-  if(q.includes('user')||q.includes('staff')){
+  // Users / clients / customers
+  if(q.includes('user')||q.includes('staff')||q.includes('client')||q.includes('customer')){
     var adm=users.filter(function(u){return u.role==='admin';}).length,stf=users.filter(function(u){return u.role==='staff';}).length,cus=users.filter(function(u){return u.role==='customer';}).length;
+    // If asking for names of clients/customers, list them
+    if((q.includes('name')||q.includes('list')||q.includes('who')||q.includes('get'))&&(q.includes('client')||q.includes('customer'))){
+      var custList=users.filter(function(u){return u.role==='customer';});
+      if(!custList.length)return ret('No registered customers found.');
+      var rows=custList.map(function(u){return [_ragEsc(u.name||'—'),_ragEsc(u.email||'—')];});
+      return ret('<strong>Registered Customers ('+custList.length+')</strong>'+tbl(['Name','Email'],rows));
+    }
     return ret('<strong>Users ('+users.length+')</strong><br>• Admin: '+adm+'<br>• Staff: '+stf+'<br>• Customer: '+cus);
   }
   // Fallback — short, honest, capability-based (no fabricated data)
-  var capabilities = 'I can help with vehicles & PMS status, maintenance records, inventory/stock levels, bookings, users, and PDF/Excel report generation.';
+  var capabilities = 'I can answer questions about vehicles, PMS status, maintenance records, inventory, bookings, users, and generate PDF/Excel reports.';
   if(q.includes('fleet')||q.includes('vehicle')){
     return ret(capabilities+'<br><br>For a fleet overview, try <em>"Fleet Summary"</em>.');
   }
-  return ret('I\u2019m not able to help with that request in local mode. '+capabilities+'<br><br>For full natural-language answers, start the AI backend (<code>start.bat</code>).');
+  return ret('That query requires the live AI service, which is currently unreachable. '+capabilities+'<br><br>Try asking about vehicles, inventory, bookings, or users — those work right now.');
 }
 
 })();

@@ -1,4 +1,5 @@
 // ── Shared print engine — CSS @media print overlay, zero navigation ──
+// summary: array of { label, value, color } — rendered as a compact stats strip below the red divider
 // footer (optional): { columns: [...], values: [...] } — renders a totals row at the bottom of the table
 // options (optional): { dateRange: 'June 1, 2026 – July 1, 2026' } — shown below report title, above Generated on
 function _doPrint(title, summary, columns, rows, footer, options) {
@@ -26,7 +27,28 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     ? '<div class="ap-report-daterange">Date Range: <strong>' + dateRange + '</strong></div>'
     : '';
 
-  // Build table rows
+  // ── Summary stats strip (matches PDF record-count / breakdown line) ────────
+  var summaryHtml = '';
+  if (summary && summary.length) {
+    summaryHtml = '<div class="ap-strip">'
+      + summary.map(function(s, i) {
+          var sep = i > 0 ? '<span class="ap-strip-sep">·</span>' : '';
+          var colorStyle = s.color ? 'color:' + s.color + ' !important;' : '';
+          return sep + '<span class="ap-strip-item"><strong style="' + colorStyle + '">' + s.value + '</strong> ' + s.label + '</span>';
+        }).join('')
+      + '</div>';
+  }
+
+  // Build table header with proportional col widths if provided
+  var colWidths = (options && options.colWidths) || [];
+  var colGroupHtml = '';
+  if (colWidths.length === (columns||[]).length) {
+    var wSum = colWidths.reduce(function(a,b){ return a+b; }, 0);
+    colGroupHtml = '<colgroup>'
+      + colWidths.map(function(w){ return '<col style="width:' + (w/wSum*100).toFixed(2) + '%">'; }).join('')
+      + '</colgroup>';
+  }
+
   var theadHtml = (columns||[]).map(function(c) { return '<th>' + c + '</th>'; }).join('');
   var tbodyHtml = '';
   if (!rows || rows.length === 0) {
@@ -39,15 +61,17 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     }).join('');
   }
 
-  // Build footer/totals row if provided
+  // Build footer/totals row if provided — dark bg, white bold text, matches PDF totals row
   var tfootHtml = '';
   if (footer && footer.values) {
     var colCount = columns.length;
     var colSpan = colCount - footer.values.length;
     tfootHtml = '<div class="ap-total-bar">'
-      + '<table style="width:100%;border-collapse:collapse;font-size:8.5px;table-layout:fixed;"><tr>'
-      + '<td colspan="' + colSpan + '" style="text-align:right;font-weight:800;font-size:9px;padding:8px 7px;border-top:2px solid #1a202c;">TOTAL</td>'
-      + footer.values.map(function(v){ return '<td style="font-weight:800;font-size:9px;padding:8px 7px;border-top:2px solid #1a202c;">' + v + '</td>'; }).join('')
+      + '<table style="width:100%;border-collapse:collapse;font-size:8.5px;table-layout:fixed;">'
+      + (colGroupHtml ? colGroupHtml : '')
+      + '<tr>'
+      + '<td colspan="' + colSpan + '" class="ap-total-label">TOTAL</td>'
+      + footer.values.map(function(v){ return '<td class="ap-total-cell">' + (v !== null && v !== undefined ? v : '') + '</td>'; }).join('')
       + '</tr></table></div>';
   }
 
@@ -58,7 +82,7 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     '<div class="ap-header">'
     +   '<div class="ap-header-inner">'
     +     '<div class="ap-header-left">'
-    +       '<img src="/static/img/LOGO_CALTEX.png" class="ap-logo" alt="Caltex">'
+    +       '<img src="/static/img/LOGO_CALTEX.png" class="ap-logo" alt="Caltex" onerror="this.style.display=\'none\'">'
     +       '<div class="ap-brand-block">'
     +         '<div class="ap-brand">JA Noble Enterprise Inc.</div>'
     +         '<div class="ap-brand-sub">Caltex San Pedro</div>'
@@ -73,8 +97,10 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     +     '</div>'
     +   '</div>'
     + '</div>'
+    + '<div class="ap-header-rule"></div>'
     + '<div class="ap-content">'
-    +   '<div class="ap-table-wrap"><table><thead><tr>' + theadHtml + '</tr></thead><tbody>' + tbodyHtml + '</tbody></table></div>'
+    +   summaryHtml
+    +   '<div class="ap-table-wrap"><table>' + colGroupHtml + '<thead><tr>' + theadHtml + '</tr></thead><tbody>' + tbodyHtml + '</tbody></table></div>'
     +   tfootHtml
     + '</div>'
     + '<div class="ap-print-footer">Caltex San Pedro &middot; JA Noble Enterprise Inc.</div>';
@@ -86,7 +112,7 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     '@media print {',
     '  body > *:not(#_apPrintContent) { display: none !important; }',
     '  #_apPrintContent { display: block !important; }',
-    '  @page { margin: 8mm; }',
+    '  @page { size: landscape; margin: 8mm; }',
     '}',
     '* { box-sizing: border-box; margin: 0; padding: 0; }',
     '#_apPrintContent {',
@@ -99,25 +125,25 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     '  -webkit-print-color-adjust: exact !important;',
     '  print-color-adjust: exact !important;',
     '}',
+    /* ── Header ── */
     '.ap-header { background: white; margin-bottom: 0; }',
     '.ap-header-inner {',
     '  display: flex; align-items: center; justify-content: space-between;',
-    '  padding: 14px 0 12px;',
+    '  padding: 12px 0 10px;',
     '}',
-    '.ap-header-left { display: flex; align-items: center; gap: 12px; }',
-    '.ap-logo { width: 44px; height: 44px; object-fit: contain; flex-shrink: 0; }',
-    '.ap-brand-block {}',
-    '.ap-brand { font-size: 18px; font-weight: 900; color: #1a202c !important; letter-spacing: -0.3px; line-height: 1; }',
-    '.ap-brand span { color: #E8001C !important; }',
-    '.ap-brand-sub { font-size: 7px; color: #718096 !important; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; margin-top: 3px; }',
-    '.ap-brand-address { font-size: 7px; color: #a0aec0 !important; font-weight: 500; margin-top: 2px; }',
+    '.ap-header-left { display: flex; align-items: center; gap: 10px; }',
+    '.ap-logo { width: 42px; height: 42px; object-fit: contain; flex-shrink: 0; }',
+    '.ap-brand { font-size: 16px; font-weight: 900; color: #1a202c !important; letter-spacing: -0.3px; line-height: 1.1; }',
+    '.ap-brand-sub { font-size: 6.5px; color: #718096 !important; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; margin-top: 3px; }',
+    '.ap-brand-address { font-size: 6.5px; color: #a0aec0 !important; font-weight: 400; margin-top: 2px; }',
     '.ap-header-right { text-align: right; }',
-    '.ap-report-label { font-size: 7px; color: #a0aec0 !important; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px; }',
-    '.ap-report-title { font-size: 16px; font-weight: 800; color: #1a202c !important; line-height: 1.2; }',
-    '.ap-report-meta { font-size: 8px; color: #718096 !important; margin-top: 3px; }',
+    '.ap-report-label { font-size: 6.5px; color: #a0aec0 !important; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 3px; }',
+    '.ap-report-title { font-size: 15px; font-weight: 800; color: #1a202c !important; line-height: 1.2; }',
+    '.ap-report-meta { font-size: 7.5px; color: #718096 !important; margin-top: 3px; }',
     '.ap-report-meta strong { color: #1a202c !important; }',
-    '.ap-report-daterange { font-size: 8px; color: #718096 !important; margin-top: 2px; margin-bottom: 2px; }',
+    '.ap-report-daterange { font-size: 7.5px; color: #718096 !important; margin-top: 2px; margin-bottom: 1px; }',
     '.ap-report-daterange strong { color: #1a202c !important; }',
+    /* ── Red divider rule (matches PDF HRFlowable) ── */
     '.ap-header-rule {',
     '  height: 2px;',
     '  background: #E8001C !important;',
@@ -125,40 +151,65 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     '  print-color-adjust: exact !important;',
     '  margin-bottom: 0;',
     '}',
+    /* ── Summary strip (record counts below the red line) ── */
     '.ap-strip {',
-    '  display: flex; align-items: center;',
-    '  padding: 5px 0;',
+    '  display: flex; align-items: center; flex-wrap: wrap; gap: 0;',
+    '  padding: 6px 0 6px;',
     '  border-bottom: 1px solid #e2e8f0;',
-    '  margin-bottom: 14px;',
+    '  margin-bottom: 10px;',
     '}',
     '.ap-strip-item { font-size: 8px; color: #718096 !important; }',
-    '.ap-strip-item strong { color: #1a202c !important; font-weight: 700; }',
-    '.ap-strip-sep { margin: 0 10px; color: #cbd5e0 !important; font-size: 10px; }',
-    '.ap-content { padding: 14px 20px 0; }',
-    '.ap-table-wrap { border-radius: 6px; overflow: hidden; border: 1.5px solid #e2e8f0; width: 100%; }',
+    '.ap-strip-item strong { font-weight: 800; }',
+    '.ap-strip-sep { margin: 0 9px; color: #cbd5e0 !important; font-size: 10px; }',
+    /* ── Content area ── */
+    '.ap-content { padding: 10px 0 0; }',
+    '.ap-table-wrap { border-radius: 5px; overflow: hidden; border: 1px solid #e2e8f0; width: 100%; }',
     'table { width: 100%; border-collapse: collapse; font-size: 8.5px; table-layout: fixed; }',
+    /* ── Table header row — dark bg, white text ── */
     'thead tr {',
     '  background: #1a202c !important;',
     '  -webkit-print-color-adjust: exact !important;',
     '  print-color-adjust: exact !important;',
     '}',
     'thead th {',
-    '  padding: 8px 7px; text-align: left;',
+    '  padding: 8px 6px; text-align: left;',
     '  font-size: 7px; font-weight: 700;',
     '  color: rgba(255,255,255,0.92) !important;',
     '  text-transform: uppercase; letter-spacing: 0.4px;',
     '  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
     '}',
+    /* ── Table data rows — alternating stripe ── */
     'tbody tr { border-bottom: 1px solid #f0f4f8; }',
     'tbody tr.even {',
     '  background: #f8fafc !important;',
     '  -webkit-print-color-adjust: exact !important;',
     '  print-color-adjust: exact !important;',
     '}',
-    'tbody td { padding: 5px 7px; vertical-align: middle; color: #2d3748 !important; line-height: 1.3; font-size: 8.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+    'tbody td {',
+    '  padding: 5px 6px; vertical-align: middle;',
+    '  color: #2d3748 !important; line-height: 1.3;',
+    '  font-size: 8.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
+    '}',
+    /* Allow description-like columns (2nd and 4th) to wrap */
     'tbody td:nth-child(2) { white-space: normal; overflow: visible; text-overflow: clip; }',
     'tbody td:nth-child(4) { white-space: normal; overflow: visible; text-overflow: clip; }',
-    '.badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 8px; font-weight: 700; }',
+    /* ── Totals row — dark bg, white bold text (matches PDF totals row) ── */
+    '.ap-total-bar { margin-top: 0; }',
+    '.ap-total-bar table { border-radius: 0 0 5px 5px; overflow: hidden; }',
+    '.ap-total-label {',
+    '  text-align: right; font-weight: 800; font-size: 8.5px;',
+    '  padding: 7px 6px;',
+    '  background: #1a202c !important; color: rgba(255,255,255,0.9) !important;',
+    '  -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;',
+    '}',
+    '.ap-total-cell {',
+    '  font-weight: 800; font-size: 8.5px;',
+    '  padding: 7px 6px;',
+    '  background: #1a202c !important; color: rgba(255,255,255,0.9) !important;',
+    '  -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;',
+    '}',
+    /* ── Badges ── */
+    '.badge { display: inline-block; padding: 2px 6px; border-radius: 20px; font-size: 7.5px; font-weight: 700; }',
     '.badge-in {',
     '  background: #ebf8ff !important; color: #003087 !important;',
     '  border: 1px solid #bee3f8;',
@@ -169,14 +220,15 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     '  border: 1px solid #fed7d7;',
     '  -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;',
     '}',
+    /* ── Footer ── */
     '.ap-print-footer {',
-    '  margin-top: 18px; padding-top: 10px;',
+    '  margin-top: 16px; padding-top: 8px;',
     '  border-top: 1px solid #e2e8f0;',
     '  text-align: center;',
-    '  font-size: 7.5px;',
+    '  font-size: 7px;',
     '  color: #a0aec0 !important;',
     '  font-weight: 500;',
-    '  letter-spacing: 0.3px;',
+    '  letter-spacing: 0.5px;',
     '}',
   ].join('\n');
 
