@@ -219,8 +219,17 @@
       <!-- Services -->
       <div>
         <label style="font-size:0.78rem;font-weight:700;color:#4a5568;display:block;margin-bottom:0.4rem;">Services <span style="color:#E31E24;">*</span></label>
-        <div id="sbAddServicesList" style="display:flex;flex-wrap:wrap;gap:0.4rem;padding:0.65rem;border:1.5px solid #e2e8f0;border-radius:10px;background:white;min-height:44px;">
-          <div style="font-size:0.8rem;color:#a0aec0;" id="sbAddServicesPlaceholder">Loading services...</div>
+        <!-- Selected tags -->
+        <div id="sbAddSelectedTags" style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.4rem;"></div>
+        <!-- Search input -->
+        <div style="position:relative;">
+          <svg style="position:absolute;left:0.65rem;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="sbAddServicesSearch" placeholder="Search services..."
+            autocomplete="off"
+            style="width:100%;padding:0.65rem 0.75rem 0.65rem 2.1rem;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.88rem;font-family:inherit;color:#1a202c;background:white;outline:none;box-sizing:border-box;"
+            oninput="sbAddServicesFilter(this.value)"
+            onfocus="sbAddServicesFilter(this.value)">
+          <div id="sbAddServicesDrop" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 3px);background:white;border:1px solid #e2e8f0;border-radius:10px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:100;"></div>
         </div>
       </div>
 
@@ -1023,6 +1032,9 @@
     document.getElementById('sbAddNotes').value = '';
     document.getElementById('sbAddTimeSection').style.display = 'none';
     document.getElementById('sbAddSummary').style.display = 'none';
+    document.getElementById('sbAddServicesSearch').value = '';
+    document.getElementById('sbAddServicesDrop').style.display = 'none';
+    document.getElementById('sbAddSelectedTags').innerHTML = '';
 
     // Init calendar
     var now = new Date();
@@ -1031,9 +1043,8 @@
     _buildAddBookedSlots();
     _renderAddCal();
 
-    // Load services
+    // Load services (fetch once, reuse after)
     if (!_addServicesLoaded) _loadAddServices();
-    else _renderAddServices();
 
     document.getElementById('sbAddModal').style.display = 'flex';
   };
@@ -1214,49 +1225,71 @@
         services = snap.docs
           .filter(function(d){ return (d.data().type||'').toLowerCase() === 'service' && d.data().name; })
           .map(function(d){ return { itemName: d.data().name, uom: d.data().uom || '', cost: d.data().cost || 0 }; });
-        _renderAddServices(services);
-        _addServicesLoaded = true;
         window._addServicesList = services;
-      }).catch(function() { document.getElementById('sbAddServicesPlaceholder').textContent = 'Unable to load services.'; });
+        _addServicesLoaded = true;
+      }).catch(function() {});
       return;
     }
     window._addServicesList = services;
     _addServicesLoaded = true;
-    _renderAddServices(services);
   }
 
-  function _renderAddServices(services) {
-    services = services || window._addServicesList || [];
-    var placeholder = document.getElementById('sbAddServicesPlaceholder');
-    if (placeholder) placeholder.style.display = 'none';
-    var container = document.getElementById('sbAddServicesList');
-    // Remove old pills (keep placeholder)
-    Array.from(container.children).forEach(function(c){ if (c.id !== 'sbAddServicesPlaceholder') c.remove(); });
-    if (!services.length) {
-      if (placeholder) { placeholder.textContent = 'No services found.'; placeholder.style.display = ''; }
-      return;
-    }
-    services.forEach(function(s) {
-      var name = s.itemName || s.name || '';
-      if (!name) return;
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.textContent = name;
-      var sel = !!_addSelectedServices[name];
-      btn.style.cssText = 'padding:0.3rem 0.75rem;border-radius:20px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;border:1.5px solid;font-family:inherit;'
-        + (sel ? 'background:#E31E24;color:white;border-color:#E31E24;' : 'background:white;color:#4a5568;border-color:#e2e8f0;');
-      btn.onclick = function() {
-        if (_addSelectedServices[name]) {
-          delete _addSelectedServices[name];
-          btn.style.background = 'white'; btn.style.color = '#4a5568'; btn.style.borderColor = '#e2e8f0';
-        } else {
-          _addSelectedServices[name] = true;
-          btn.style.background = '#E31E24'; btn.style.color = 'white'; btn.style.borderColor = '#E31E24';
-        }
-      };
-      container.appendChild(btn);
-    });
+  // Filter dropdown based on search query
+  window.sbAddServicesFilter = function(q) {
+    var services = window._addServicesList || [];
+    var drop = document.getElementById('sbAddServicesDrop');
+    q = (q || '').trim().toLowerCase();
+    var matches = q
+      ? services.filter(function(s){ return (s.itemName||'').toLowerCase().includes(q); })
+      : services;
+    // Exclude already-selected
+    matches = matches.filter(function(s){ return !_addSelectedServices[s.itemName||'']; });
+    if (!matches.length) { drop.style.display = 'none'; return; }
+    drop.innerHTML = matches.map(function(s) {
+      var name = s.itemName || '';
+      var meta = (s.uom ? s.uom : '') + (s.uom && s.cost ? ' · ' : '') + (s.cost ? '₱' + parseFloat(s.cost).toLocaleString('en-PH',{minimumFractionDigits:2}) : '');
+      return '<div style="padding:0.55rem 0.85rem;cursor:pointer;border-bottom:1px solid #f0f4f8;" '
+        + 'onmouseover="this.style.background=\'#f7f8fa\'" onmouseout="this.style.background=\'\'" '
+        + 'onmousedown="event.preventDefault();sbAddSelectService(\'' + name.replace(/'/g,"\\'") + '\');">'
+        + '<div style="font-size:0.85rem;font-weight:600;color:#1a202c;">' + name + '</div>'
+        + (meta ? '<div style="font-size:0.75rem;color:#718096;">' + meta + '</div>' : '')
+        + '</div>';
+    }).join('');
+    drop.style.display = 'block';
+  };
+
+  window.sbAddSelectService = function(name) {
+    if (!name || _addSelectedServices[name]) return;
+    _addSelectedServices[name] = true;
+    document.getElementById('sbAddServicesSearch').value = '';
+    document.getElementById('sbAddServicesDrop').style.display = 'none';
+    _renderAddTags();
+  };
+
+  function _renderAddTags() {
+    var container = document.getElementById('sbAddSelectedTags');
+    container.innerHTML = Object.keys(_addSelectedServices).map(function(name) {
+      return '<span style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.65rem;background:#E31E24;color:white;border-radius:20px;font-size:0.78rem;font-weight:600;">'
+        + name
+        + '<button type="button" onclick="sbAddRemoveService(\'' + name.replace(/'/g,"\\'") + '\')" '
+        + 'style="background:none;border:none;color:white;cursor:pointer;padding:0;font-size:0.85rem;line-height:1;display:flex;align-items:center;">&#x2715;</button>'
+        + '</span>';
+    }).join('');
   }
+
+  window.sbAddRemoveService = function(name) {
+    delete _addSelectedServices[name];
+    _renderAddTags();
+  };
+
+  // Close services dropdown on outside click
+  document.addEventListener('click', function(e) {
+    var inp  = document.getElementById('sbAddServicesSearch');
+    var drop = document.getElementById('sbAddServicesDrop');
+    if (inp && drop && !inp.contains(e.target) && !drop.contains(e.target)) {
+      drop.style.display = 'none';
+    }
+  });
 
   // ── Save ──────────────────────────────────────────────────────
   window.sbAddSave = function() {
