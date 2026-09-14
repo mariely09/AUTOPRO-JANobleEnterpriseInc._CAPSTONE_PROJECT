@@ -528,7 +528,7 @@ function _svcRefreshData() {
         supplierCode: i.supplierCode || '',
         itemType: i.type || 'Material',
         uom: i.uom || '',
-        cost: parseFloat(String(i.cost || 0).replace(/[?,]/g, '')) || 0,
+        cost: parseFloat(String(i.cost || 0).replace(/[₱,]/g, '')) || 0,
       };
     });
   }
@@ -563,7 +563,7 @@ function _svcEnsureDataThen(callback) {
         supplierCode: i.supplierCode || '',
         itemName: i.name || '',
         uom: i.uom || '',
-        cost: parseFloat(String(i.cost || 0).replace(/[?,]/g, '')) || 0,
+        cost: parseFloat(String(i.cost || 0).replace(/[₱,]/g, '')) || 0,
         itemType: i.type || 'Material',
       };
     });
