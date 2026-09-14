@@ -186,7 +186,7 @@
 <div id="addBookingModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
   <div style="background:white;border-radius:18px;width:500px;max-width:94vw;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
     <!-- Header -->
-    <div style="background:linear-gradient(135deg,#003087,#001d52);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <div style="background:linear-gradient(135deg,#E8001C,#b5001a);padding:18px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
       <div style="display:flex;align-items:center;gap:10px;">
         <div style="width:34px;height:34px;background:rgba(255,255,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -210,11 +210,11 @@
           <input type="text" id="abCustomerSearch" placeholder="Search customer name or email..."
             oninput="abSearchCustomers()"
             style="width:100%;padding:10px 12px 10px 32px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;color:#1a202c;background:#f8fafc;outline:none;box-sizing:border-box;transition:border-color .15s;"
-            onfocus="this.style.borderColor='#003087';this.style.background='white'"
+            onfocus="this.style.borderColor='#E8001C';this.style.background='white'"
             onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'">
         </div>
         <div id="abCustomerDropdown" style="display:none;max-height:160px;overflow-y:auto;border:1.5px solid #e2e8f0;border-radius:10px;margin-top:4px;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
-        <div id="abSelectedCustomer" style="display:none;margin-top:8px;padding:10px 12px;background:#f0f4ff;border:1.5px solid #c7d2fe;border-radius:10px;align-items:center;justify-content:space-between;">
+        <div id="abSelectedCustomer" style="display:none;margin-top:8px;padding:10px 12px;background:#fff5f5;border:1.5px solid #feb2b2;border-radius:10px;align-items:center;justify-content:space-between;">
           <div>
             <div id="abSelectedCustomerName" style="font-size:13px;font-weight:700;color:#1a202c;"></div>
             <div id="abSelectedCustomerEmail" style="font-size:11px;color:#718096;margin-top:1px;"></div>
@@ -233,7 +233,7 @@
       <div id="abServicesSection" style="display:none;">
         <div style="font-size:11px;font-weight:700;color:#4a5568;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">3. Services</div>
         <button onclick="abOpenServicesModal()" style="width:100%;padding:10px 14px;border:1.5px dashed #cbd5e0;border-radius:10px;background:#f8fafc;font-size:13px;font-family:inherit;color:#718096;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;transition:border-color .15s;"
-          onmouseover="this.style.borderColor='#003087';this.style.color='#003087'"
+          onmouseover="this.style.borderColor='#E8001C';this.style.color='#E8001C'"
           onmouseout="this.style.borderColor='#cbd5e0';this.style.color='#718096'">
           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           <span id="abServicesBtn">Select services...</span>
@@ -277,7 +277,7 @@
         <div style="font-size:11px;font-weight:700;color:#4a5568;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Notes <span style="font-weight:400;color:#a0aec0;text-transform:none;">(optional)</span></div>
         <textarea id="abNotes" rows="2" placeholder="Any special instructions..."
           style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;color:#1a202c;background:#f8fafc;outline:none;resize:vertical;box-sizing:border-box;transition:border-color .15s;"
-          onfocus="this.style.borderColor='#003087';this.style.background='white'"
+          onfocus="this.style.borderColor='#E8001C';this.style.background='white'"
           onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'"></textarea>
       </div>
 
@@ -287,7 +287,7 @@
     <div style="padding:14px 20px;border-top:1px solid #f0f4f8;display:flex;gap:10px;flex-shrink:0;background:white;">
       <button onclick="closeAddBookingModal()" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:white;font-size:13px;font-weight:600;cursor:pointer;color:#718096;font-family:inherit;">Cancel</button>
       <button id="abSubmitBtn" onclick="abSubmitBooking()" disabled
-        style="flex:2;padding:11px;border:none;border-radius:10px;background:#003087;font-size:13px;font-weight:700;cursor:pointer;color:white;font-family:inherit;opacity:0.45;transition:opacity .2s;">
+        style="flex:2;padding:11px;border:none;border-radius:10px;background:#E8001C;font-size:13px;font-weight:700;cursor:pointer;color:white;font-family:inherit;opacity:0.45;transition:opacity .2s;">
         Book Service
       </button>
     </div>
@@ -297,7 +297,7 @@
 <!-- ── Services picker sub-modal ── -->
 <div id="abServicesModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
   <div style="background:white;border-radius:18px;width:460px;max-width:92vw;max-height:80vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
-    <div style="background:linear-gradient(135deg,#003087,#001d52);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <div style="background:linear-gradient(135deg,#E8001C,#b5001a);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
       <div style="color:white;font-size:15px;font-weight:700;">Select Services</div>
       <button onclick="abCloseServicesModal()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;">×</button>
     </div>
@@ -307,11 +307,11 @@
         <input type="text" id="abSvcSearch" placeholder="Search services..." oninput="abRenderServicesList()"
           style="width:100%;padding:9px 12px 9px 32px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;color:#1a202c;background:#f8fafc;outline:none;box-sizing:border-box;">
       </div>
-      <div id="abSvcCount" style="font-size:11px;font-weight:600;color:#003087;margin-top:6px;text-align:right;"></div>
+      <div id="abSvcCount" style="font-size:11px;font-weight:600;color:#E8001C;margin-top:6px;text-align:right;"></div>
     </div>
     <div id="abSvcList" style="flex:1;overflow-y:auto;padding:10px 16px;"></div>
     <div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;flex-shrink:0;">
-      <button onclick="abCloseServicesModal()" style="padding:10px 28px;background:#003087;border:none;border-radius:10px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Done</button>
+      <button onclick="abCloseServicesModal()" style="padding:10px 28px;background:#E8001C;border:none;border-radius:10px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Done</button>
     </div>
   </div>
 </div>
@@ -319,7 +319,7 @@
 <style>
 #abCalGrid .ab-day { width:100%;aspect-ratio:1;border-radius:8px;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;background:#f0fdf4;color:#1a202c; }
 #abCalGrid .ab-day:hover { background:#dcfce7;transform:scale(1.08); }
-#abCalGrid .ab-day.ab-sel { background:#003087;color:white;transform:scale(1.1);box-shadow:0 3px 10px rgba(0,48,135,0.3); }
+#abCalGrid .ab-day.ab-sel { background:#E8001C;color:white;transform:scale(1.1);box-shadow:0 3px 10px rgba(232,0,28,0.3); }
 #abCalGrid .ab-day.ab-past { background:#f1f5f9;color:#cbd5e0;cursor:not-allowed; }
 #abCalGrid .ab-day.ab-past:hover { transform:none; }
 #abCalGrid .ab-day.ab-full { background:#fef3c7;color:#92400e;cursor:not-allowed; }
@@ -327,17 +327,17 @@
 #abCalGrid .ab-day.ab-empty { background:transparent;cursor:default; }
 #abCalGrid .ab-day.ab-empty:hover { transform:none; }
 .ab-time-chip { padding:8px 4px;background:white;border:1.5px solid #e2e8f0;border-radius:10px;font-size:11px;font-weight:600;color:#4a5568;cursor:pointer;transition:all .12s;font-family:inherit;text-align:center; }
-.ab-time-chip:hover:not(:disabled) { border-color:#003087;background:#f0f4ff; }
-.ab-time-chip.ab-sel { border-color:#003087;border-width:2px;background:#ebf8ff;color:#003087; }
+.ab-time-chip:hover:not(:disabled) { border-color:#E8001C;background:#fff5f5; }
+.ab-time-chip.ab-sel { border-color:#E8001C;border-width:2px;background:#fff5f5;color:#E8001C; }
 .ab-time-chip:disabled { background:#f1f5f9;color:#a0aec0;cursor:not-allowed;text-decoration:line-through;opacity:0.6; }
 .ab-svc-item { display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer;transition:background .12s;border:1.5px solid transparent; }
-.ab-svc-item:hover { background:#f0f4ff; }
-.ab-svc-item.ab-svc-checked { background:#f0f4ff;border-color:#c7d2fe; }
+.ab-svc-item:hover { background:#fff5f5; }
+.ab-svc-item.ab-svc-checked { background:#fff5f5;border-color:#feb2b2; }
 .ab-svc-check { width:20px;height:20px;border-radius:5px;border:2px solid #e2e8f0;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s; }
-.ab-svc-item.ab-svc-checked .ab-svc-check { background:#003087;border-color:#003087; }
+.ab-svc-item.ab-svc-checked .ab-svc-check { background:#E8001C;border-color:#E8001C; }
 .ab-vehicle-chip { display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all .12s;background:white; }
-.ab-vehicle-chip:hover { border-color:#003087;background:#f0f4ff; }
-.ab-vehicle-chip.ab-veh-sel { border-color:#003087;border-width:2px;background:#ebf8ff; }
+.ab-vehicle-chip:hover { border-color:#E8001C;background:#fff5f5; }
+.ab-vehicle-chip.ab-veh-sel { border-color:#E8001C;border-width:2px;background:#fff5f5; }
 </style>
 
 <style>
@@ -474,35 +474,39 @@
   var _AB_ARRIVE = {'8:00 AM':'7:45 AM','9:00 AM':'8:45 AM','10:00 AM':'9:45 AM','11:00 AM':'10:45 AM','1:00 PM':'12:45 PM','2:00 PM':'1:45 PM','3:00 PM':'2:45 PM','4:00 PM':'3:45 PM'};
   var _AB_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+  // ── Eager data load (runs immediately so data is ready before modal opens) ──
+  (function _abEagerLoad() {
+    db.collection('item_master').where('itemType', '==', 'Service').get().then(function(snap) {
+      _abAllServices = snap.docs.map(function(d) { var x = d.data(); x.id = d.id; return x; });
+      if (!_abAllServices.length) {
+        // Fallback: fetch all and filter client-side
+        db.collection('item_master').get().then(function(snap2) {
+          _abAllServices = snap2.docs.map(function(d) { var x = d.data(); x.id = d.id; return x; })
+            .filter(function(x) { return (x.itemType || '').toLowerCase() === 'service'; });
+        });
+      }
+    }).catch(function() {
+      db.collection('item_master').get().then(function(snap) {
+        _abAllServices = snap.docs.map(function(d) { var x = d.data(); x.id = d.id; return x; })
+          .filter(function(x) { return (x.itemType || '').toLowerCase() === 'service'; });
+      });
+    });
+    db.collection('users').where('role', '==', 'customer').get().then(function(snap) {
+      _abAllCustomers = snap.docs.map(function(d) { var x = d.data(); x.uid = d.id; return x; });
+    }).catch(function() {
+      db.collection('users').get().then(function(snap) {
+        _abAllCustomers = snap.docs.map(function(d) { var x = d.data(); x.uid = d.id; return x; })
+          .filter(function(x) { return (x.role || '').toLowerCase() === 'customer'; });
+      });
+    });
+  })();
+
   // ── Open/close ──────────────────────────────────────────────────
   window.openAddBookingModal = function() {
     _abReset();
     var now = new Date();
     _abCalYear  = now.getFullYear();
     _abCalMonth = now.getMonth();
-    // Load services if not yet loaded
-    if (!_abAllServices.length) {
-      db.collection('item_master').where('type', '==', 'service').get().then(function(snap) {
-        _abAllServices = snap.docs.map(function(d) { var x = d.data(); x.id = d.id; return x; });
-      }).catch(function() {
-        db.collection('item_master').get().then(function(snap) {
-          _abAllServices = snap.docs.map(function(d) { var x = d.data(); x.id = d.id; return x; })
-            .filter(function(x) { return (x.type || '').toLowerCase() === 'service'; });
-        });
-      });
-    }
-    // Load customers
-    if (!_abAllCustomers.length) {
-      db.collection('users').where('role', '==', 'customer').get().then(function(snap) {
-        _abAllCustomers = snap.docs.map(function(d) { var x = d.data(); x.uid = d.id; return x; });
-      }).catch(function() {
-        db.collection('users').get().then(function(snap) {
-          _abAllCustomers = snap.docs.map(function(d) { var x = d.data(); x.uid = d.id; return x; })
-            .filter(function(x) { return (x.role || '').toLowerCase() === 'customer'; });
-        });
-      });
-    }
-    // Load booked slots from existing page data
     _abBuildBookedSlots();
     var modal = document.getElementById('addBookingModal');
     modal.style.display = '';
@@ -555,7 +559,7 @@
     }).slice(0, 8);
     if (!matches.length) { dd.innerHTML='<div style="padding:10px 14px;font-size:13px;color:#718096;">No customers found.</div>'; dd.style.display='block'; return; }
     dd.innerHTML = matches.map(function(c) {
-      return '<div onclick="abSelectCustomer(\'' + c.uid + '\')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f4f8;transition:background .12s;" onmouseover="this.style.background=\'#f0f4ff\'" onmouseout="this.style.background=\'white\'">'
+      return '<div onclick="abSelectCustomer(\'' + c.uid + '\')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f4f8;transition:background .12s;" onmouseover="this.style.background=\'#fff5f5\'" onmouseout="this.style.background=\'white\'">'
         + '<div style="font-size:13px;font-weight:600;color:#1a202c;">' + _abEsc(c.name||'—') + '</div>'
         + '<div style="font-size:11px;color:#718096;">' + _abEsc(c.email||'') + '</div>'
         + '</div>';
@@ -606,14 +610,14 @@
     el.innerHTML = _abCustomerVehicles.map(function(v) {
       var isSel = _abSelectedVehicle && _abSelectedVehicle.id === v.id;
       return '<div class="ab-vehicle-chip' + (isSel?' ab-veh-sel':'') + '" onclick="abSelectVehicle(\'' + v.id + '\')">'
-        + '<div style="width:36px;height:36px;background:' + (isSel?'#003087':'#e2e8f0') + ';border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .12s;">'
+        + '<div style="width:36px;height:36px;background:' + (isSel?'#E8001C':'#e2e8f0') + ';border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .12s;">'
         + '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + (isSel?'white':'#718096') + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>'
         + '</div>'
         + '<div style="flex:1;min-width:0;">'
         + '<div style="font-size:13px;font-weight:700;color:#1a202c;">' + _abEsc(v.plate||'—') + '</div>'
         + '<div style="font-size:11px;color:#718096;">' + _abEsc([(v.year||''),(v.make||''),(v.model||'')].filter(Boolean).join(' ')) + '</div>'
         + '</div>'
-        + (isSel?'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#003087" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':'')
+        + (isSel?'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':'')
         + '</div>';
     }).join('');
   }
@@ -649,11 +653,17 @@
   window.abRenderServicesList = function() {
     var q = (document.getElementById('abSvcSearch').value || '').trim().toLowerCase();
     var list = _abAllServices.filter(function(s) {
-      return !q || (s.name||'').toLowerCase().includes(q) || (s.category||'').toLowerCase().includes(q);
+      return !q || (s.itemName||s.name||'').toLowerCase().includes(q) || (s.commodityGroup||s.category||'').toLowerCase().includes(q);
     });
     var countEl = document.getElementById('abSvcCount');
     var sel = Object.keys(_abSelectedServices).filter(function(k){ return _abSelectedServices[k]; }).length;
     if(countEl) countEl.textContent = sel ? sel + ' selected' : '';
+    if (!_abAllServices.length) {
+      // Still loading — retry after 600ms
+      document.getElementById('abSvcList').innerHTML = '<div style="padding:20px;text-align:center;font-size:13px;color:#718096;">Loading services...</div>';
+      setTimeout(function() { if (typeof abRenderServicesList === 'function') abRenderServicesList(); }, 600);
+      return;
+    }
     if (!list.length) {
       document.getElementById('abSvcList').innerHTML = '<div style="padding:20px;text-align:center;font-size:13px;color:#718096;">No services found.</div>';
       return;
@@ -665,10 +675,10 @@
         + (isSel?'<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':'')
         + '</div>'
         + '<div style="flex:1;min-width:0;">'
-        + '<div style="font-size:13px;font-weight:600;color:#1a202c;">' + _abEsc(s.name||'—') + '</div>'
-        + (s.category?'<div style="font-size:11px;color:#718096;">' + _abEsc(s.category) + '</div>':'')
+        + '<div style="font-size:13px;font-weight:600;color:#1a202c;">' + _abEsc(s.itemName||s.name||'—') + '</div>'
+        + ((s.commodityGroup||s.category)?'<div style="font-size:11px;color:#718096;">' + _abEsc(s.commodityGroup||s.category) + '</div>':'')
         + '</div>'
-        + (s.cost?'<div style="font-size:12px;font-weight:700;color:#003087;white-space:nowrap;">₱' + _abEsc(String(s.cost)) + '</div>':'')
+        + (s.cost?'<div style="font-size:12px;font-weight:700;color:#E8001C;white-space:nowrap;">₱' + _abEsc(String(s.cost)) + '</div>':'')
         + '</div>';
     }).join('');
   };
@@ -692,8 +702,8 @@
     el.style.display = 'flex';
     el.innerHTML = keys.map(function(id) {
       var svc = _abAllServices.find(function(s){ return s.id===id; });
-      var name = svc ? (svc.name||id) : id;
-      return '<span style="display:inline-flex;align-items:center;gap:4px;background:#ebf8ff;color:#003087;border:1px solid #c7d2fe;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;">'
+      var name = svc ? (svc.itemName||svc.name||id) : id;
+      return '<span style="display:inline-flex;align-items:center;gap:4px;background:#fff5f5;color:#E8001C;border:1px solid #feb2b2;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;">'
         + _abEsc(name)
         + '<span onclick="abToggleService(\'' + id + '\');_abRenderSelectedServicesTags();_abUpdateServicesBtnLabel();_abSetSubmitState();" style="cursor:pointer;font-size:14px;line-height:1;color:#718096;margin-left:2px;">×</span>'
         + '</span>';
@@ -784,7 +794,7 @@
     if (!svcIds.length) return;
     var svcNames = svcIds.map(function(id) {
       var s = _abAllServices.find(function(x){ return x.id===id; });
-      return s ? (s.name||id) : id;
+      return s ? (s.itemName||s.name||id) : id;
     });
     var btn = document.getElementById('abSubmitBtn');
     btn.disabled = true; btn.textContent = 'Booking...'; btn.style.opacity = '0.7';
