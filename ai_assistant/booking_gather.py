@@ -277,12 +277,13 @@ def _format_confirmation(plate: str, services: list[str],
     """Pre-booking summary the customer must confirm before anything is saved."""
     svc_list = ", ".join(services)
     return (
-        "Please confirm your booking details:\n\n"
-        f"\u2022 Vehicle: **{plate}**\n"
-        f"\u2022 Service(s): **{svc_list}**\n"
-        f"\u2022 Date: **{date_display}**\n"
-        f"\u2022 Time: **{time_txt}**\n\n"
-        f"Shall I proceed with this booking? (yes/no) {_CONFIRM_MARKER}"
+        "📋 **Booking Preview**\n\n"
+        "Please review your booking details carefully:\n\n"
+        f"• **Vehicle:** {plate}\n"
+        f"• **Service(s):** {svc_list}\n"
+        f"• **Date:** {date_display}\n"
+        f"• **Time:** {time_txt}\n\n"
+        "**Please confirm:** Type **yes** to proceed with this booking, or **no** to cancel. {_CONFIRM_MARKER}"
     )
 
 
