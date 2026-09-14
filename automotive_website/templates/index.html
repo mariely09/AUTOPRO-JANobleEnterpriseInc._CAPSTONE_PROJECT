@@ -426,18 +426,44 @@
                  style="display:block;border-radius:6px;" />
           </div>
           <p style="font-size:12px;color:#a0aec0;margin:0;">Scan to download the app</p>
+          <p style="font-size:10px;color:#cbd5e0;margin:0;max-width:240px;line-height:1.4;">Point your camera at the QR code to download and install the AutoPro mobile app on your Android device.</p>
         </div>
         <script>
         (function() {
+          // Construct the full APK download URL
           var apkUrl = window.location.origin + '/download/autopro.apk';
+          
+          // Use QR Server API with optimized settings for mobile scanning
           var qrApi  = 'https://api.qrserver.com/v1/create-qr-code/'
-                     + '?size=130x130'
+                     + '?size=300x300'  // Higher resolution for better scanning
                      + '&data=' + encodeURIComponent(apkUrl)
-                     + '&color=1a202c&bgcolor=ffffff&margin=2&qzone=1';
+                     + '&color=1a202c'  // Dark color for better contrast
+                     + '&bgcolor=ffffff'  // White background
+                     + '&margin=10'  // Adequate margin for scanning
+                     + '&qzone=2'  // Quiet zone for better readability
+                     + '&format=png';  // PNG format
+          
           var img = document.getElementById('apkQrImg');
           if (img) {
             img.src = qrApi;
-            img.title = apkUrl;
+            img.title = 'Download AutoPro APK: ' + apkUrl;
+            img.alt = 'QR Code to download AutoPro mobile app';
+            
+            // Add loading state
+            img.onload = function() {
+              console.log('QR Code loaded successfully for:', apkUrl);
+            };
+            
+            img.onerror = function() {
+              console.error('Failed to load QR code');
+              // Fallback: show download link
+              var container = img.parentElement.parentElement;
+              var fallback = document.createElement('a');
+              fallback.href = apkUrl;
+              fallback.textContent = 'Click here to download';
+              fallback.style.cssText = 'display:block;padding:10px 20px;background:#E8001C;color:white;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;text-align:center;margin-top:10px;';
+              container.appendChild(fallback);
+            };
           }
         })();
         </script>
