@@ -336,6 +336,45 @@ window.ragCopyPrompt = function(btn, text) {
   });
 };
 
+// ── Copy AI response to clipboard ─────────────────────────────────────────
+window.ragCopyAiResponse = function(btn, text) {
+  // Decode HTML entities and strip formatting
+  var temp = document.createElement('div');
+  temp.innerHTML = text;
+  var plainText = temp.textContent || temp.innerText || '';
+  
+  navigator.clipboard.writeText(plainText).then(function() {
+    var orig = btn.innerHTML;
+    btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+    btn.classList.add('copied');
+    setTimeout(function() { 
+      btn.innerHTML = orig; 
+      btn.classList.remove('copied'); 
+    }, 2000);
+  }).catch(function(err) {
+    console.error('Copy failed:', err);
+    var ta = document.createElement('textarea');
+    ta.value = plainText; 
+    ta.style.position = 'fixed'; 
+    ta.style.top = '-9999px';
+    document.body.appendChild(ta); 
+    ta.select(); 
+    try {
+      document.execCommand('copy');
+      var orig = btn.innerHTML;
+      btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+      btn.classList.add('copied');
+      setTimeout(function() { 
+        btn.innerHTML = orig; 
+        btn.classList.remove('copied'); 
+      }, 2000);
+    } catch(e) {
+      console.error('Fallback copy failed:', e);
+    }
+    document.body.removeChild(ta);
+  });
+};
+
 // ── Edit message inline (make bubble editable) ────────────────────────────
 window.ragEditPrompt = function(text) {
   // Find the message index and the bubble element
@@ -950,8 +989,17 @@ function _ragAppend(role, html, rawText) {
       '</div>';
     row.innerHTML = '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex:1;margin-left:auto;">' + bub + actions + '</div>';
   } else {
+    // AI response with avatar + copy button
     var av = '<div class="rag-av ai">'+_AI_AVATAR_SVG+'</div>';
-    row.innerHTML = av + bub;
+    var escapedAi = (html.replace(/<[^>]*>/g, '').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&') || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
+    var aiActions =
+      '<div class="rag-user-actions" style="opacity:1;visibility:visible;margin-top:4px;">' +
+        '<button class="rag-user-action-btn" onclick="ragCopyAiResponse(this,\''+escapedAi+'\')" title="Copy response">' +
+          '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+          ' Copy' +
+        '</button>' +
+      '</div>';
+    row.innerHTML = av + '<div style="display:flex;flex-direction:column;gap:0;">' + bub + aiActions + '</div>';
   }
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
