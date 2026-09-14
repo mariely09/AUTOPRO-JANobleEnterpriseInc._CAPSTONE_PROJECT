@@ -571,8 +571,8 @@ body {
   flex-shrink: 0;
   color: #E8001C;
 }
-.cu-recent-svc   { font-size: 13px; font-weight: 600; color: #1a202c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cu-recent-plate { font-size: 11px; color: #718096; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cu-recent-plate { font-size: 13px; font-weight: 700; color: #1a202c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cu-recent-svc   { font-size: 11px; font-weight: 400; color: #718096; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cu-recent-badge {
   padding: 3px 8px; border-radius: 20px;
   font-size: 9px; font-weight: 700;

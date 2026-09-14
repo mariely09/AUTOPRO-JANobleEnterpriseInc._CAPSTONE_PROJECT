@@ -723,8 +723,8 @@
           return `<div class="cu-recent-row">
             <div class="cu-recent-icon">${buildIcon}</div>
             <div style="flex:1;min-width:0;">
-              <div class="cu-recent-svc">${_escR(svcText)}</div>
               <div class="cu-recent-plate">${_escR(plate)}${desc ? ' · ' + _escR(desc) : ''}</div>
+              <div class="cu-recent-svc">${_escR(svcText)}</div>
             </div>
             ${dateStr ? `<div class="cu-recent-date" style="flex-shrink:0;margin:0 16px;white-space:nowrap;text-align:center;">${_escR(dateStr)}</div>` : ''}
             <div style="flex-shrink:0;"><div class="cu-recent-badge">Completed</div></div>

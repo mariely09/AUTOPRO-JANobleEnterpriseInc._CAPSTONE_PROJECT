@@ -355,10 +355,11 @@ def admin_chat(req: ChatRequest):
 
     Flow:
       1. Validate message (empty / symbols-only → 422).
-      2. Resolve or create a session_id.
-      3. Check admin daily usage limit (high/unlimited by default).
-      4. Classify intent using deterministic rules (zero tokens).
-      5. Try the admin fast-path classifier:
+      2. Check for simple conversation (greetings, thanks, help) → instant response.
+      3. Resolve or create a session_id.
+      4. Check admin daily usage limit (high/unlimited by default).
+      5. Classify intent using deterministic rules (zero tokens).
+      6. Try the admin fast-path classifier:
            - blocked (out-of-scope / prompt-injection / future-prediction):
                return deterministic refusal (0 LLM tokens).
            - arithmetic / reorder-point / remaining-stock:
@@ -366,10 +367,10 @@ def admin_chat(req: ChatRequest):
            - DB lookup (DATABASE_LOOKUP/CALCULATION):
                return template reply from pre-fetched DB data (0 LLM tokens).
            - other fast-path: call 8B once with data already fetched.
-      6. Otherwise: full LLM tool-calling loop with selected model.
-      7. Record token usage against the admin's daily limit.
-      8. Append exchange to session store.
-      9. Return reply + session_id.
+      7. Otherwise: full LLM tool-calling loop with selected model.
+      8. Record token usage against the admin's daily limit.
+      9. Append exchange to session store.
+      10. Return reply + session_id.
     """
     # -- Step 1: empty / symbols-only input validation -------------------------
     if not req.message or not req.message.strip():
@@ -386,6 +387,30 @@ def admin_chat(req: ChatRequest):
         session_id = req.session_id or str(uuid.uuid4())
         return ChatResponse(
             reply="I didn't quite catch that. Please type a question about the system.",
+            session_id=session_id,
+        )
+
+    # -- Step 1.5: Simple conversation fast-path (0 tokens, <1ms) -------------
+    # Check for greetings, thanks, help questions BEFORE any other processing.
+    # This provides instant responses for the most common conversational messages.
+    from simple_conversation import get_simple_response
+    simple_reply = get_simple_response(req.message, role="admin")
+    if simple_reply is not None:
+        session_id = req.session_id or str(uuid.uuid4())
+        admin_id   = session_id[:20]
+        # Record the interaction without any token usage
+        append_turn(session_id, req.message, simple_reply)
+        token_tracker.record(
+            user_id=admin_id,
+            role="admin",
+            model="local",
+            intent="SIMPLE_CONVERSATION",
+            input_tokens=0,
+            output_tokens=0,
+        )
+        usage_limiter.record_usage(admin_id, "admin", 0, 0)
+        return ChatResponse(
+            reply=simple_reply,
             session_id=session_id,
         )
 
@@ -1973,13 +1998,14 @@ def customer_chat_endpoint(req: CustomerChatRequest):
 
     Flow:
       1. Validate customer_uid and customer_name (required  -  auth enforcement).
-      2. Check customer daily usage limit.
-      3. Classify intent using customer-specific deterministic rules (0 tokens).
-      4. Try direct DB path for data retrieval intents (0 LLM tokens).
-      5. Out-of-scope pre-check (blocks inventory/report/off-topic before LLM).
-      6. Full LLM tool-calling loop if needed (customer_tools only, UID injected).
-      7. Record token usage.
-      8. Return reply + session_id.
+      2. Check for simple conversation (greetings, thanks, help) → instant response.
+      3. Check customer daily usage limit.
+      4. Classify intent using customer-specific deterministic rules (0 tokens).
+      5. Try direct DB path for data retrieval intents (0 LLM tokens).
+      6. Out-of-scope pre-check (blocks inventory/report/off-topic before LLM).
+      7. Full LLM tool-calling loop if needed (customer_tools only, UID injected).
+      8. Record token usage.
+      9. Return reply + session_id.
 
     Security:
       - customer_uid is NEVER taken from the LLM or message content.
@@ -2008,6 +2034,29 @@ def customer_chat_endpoint(req: CustomerChatRequest):
         session_id = req.session_id or f"customer-{req.customer_uid}"
         return ChatResponse(
             reply="I didn't understand that. Please type a question about your vehicles, bookings, or services.",
+            session_id=session_id,
+        )
+
+    # -- Step 1.5: Simple conversation fast-path (0 tokens, <1ms) -------------
+    # Check for greetings, thanks, help questions BEFORE any other processing.
+    # This provides instant responses for the most common conversational messages.
+    from simple_conversation import get_simple_response
+    simple_reply = get_simple_response(req.message, role="customer")
+    if simple_reply is not None:
+        session_id = req.session_id or f"customer-{req.customer_uid}"
+        # Record the interaction without any token usage
+        append_turn(session_id, req.message, simple_reply)
+        token_tracker.record(
+            user_id=req.customer_uid,
+            role="customer",
+            model="local",
+            intent="SIMPLE_CONVERSATION",
+            input_tokens=0,
+            output_tokens=0,
+        )
+        usage_limiter.record_usage(req.customer_uid, "customer", 0, 0)
+        return ChatResponse(
+            reply=simple_reply,
             session_id=session_id,
         )
 
