@@ -528,7 +528,7 @@ function _svcRefreshData() {
         supplierCode: i.supplierCode || '',
         itemType: i.type || 'Material',
         uom: i.uom || '',
-        cost: parseFloat(String(i.cost || 0).replace(/[?,]/g, '')) || 0,
+        cost: parseFloat(String(i.cost || 0).replace(/[₱,]/g, '')) || 0,
       };
     });
   }
@@ -563,7 +563,7 @@ function _svcEnsureDataThen(callback) {
         supplierCode: i.supplierCode || '',
         itemName: i.name || '',
         uom: i.uom || '',
-        cost: parseFloat(String(i.cost || 0).replace(/[?,]/g, '')) || 0,
+        cost: parseFloat(String(i.cost || 0).replace(/[₱,]/g, '')) || 0,
         itemType: i.type || 'Material',
       };
     });
@@ -1236,8 +1236,8 @@ function openAddServiceModal() { svcOpenAddModal(); }
     var raw = decodeURIComponent(hash.substring('#startService='.length));
     var params = {};
     try { params = JSON.parse(raw); } catch(e) { return; }
-    // Wait for data to load then open modal pre-filled
-    setTimeout(function() {
+
+    function _openFromBooking() {
       _svcEnsureDataThen(function() {
       _svcEnsureVehiclesThen(function() {
         _svcLoadMechanics();
@@ -1291,7 +1291,14 @@ function openAddServiceModal() { svcOpenAddModal(); }
         history.replaceState(null, '', window.location.pathname);
       }); // _svcEnsureVehiclesThen
       }); // _svcEnsureDataThen
-    }, 1200);
+    }
+
+    // Open immediately — no artificial delay
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', _openFromBooking);
+    } else {
+      _openFromBooking();
+    }
   }
 })();
 
