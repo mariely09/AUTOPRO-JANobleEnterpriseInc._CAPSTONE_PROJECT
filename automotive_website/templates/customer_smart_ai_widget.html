@@ -951,18 +951,111 @@
     const av = role === 'user'
       ? '' // No avatar for user
       : `<div class="ai-av bot">${_BOT_AVATAR_SVG}</div>`;
-    const bub = document.createElement('div');
-    bub.className = `ai-bubble ${role === 'user' ? 'user' : 'bot'}`;
+    
     if (role === 'user') {
-      bub.textContent = text; // user text is plain ??escape it
+      // User bubble with Copy/Edit buttons
+      const wrapper = document.createElement('div');
+      wrapper.style.display = 'flex';
+      wrapper.style.flexDirection = 'column';
+      wrapper.style.alignItems = 'flex-end';
+      wrapper.style.gap = '4px';
+      
+      const bub = document.createElement('div');
+      bub.className = 'ai-bubble user';
+      bub.textContent = text;
+      
+      const actions = document.createElement('div');
+      actions.style.display = 'flex';
+      actions.style.gap = '6px';
+      actions.style.marginTop = '2px';
+      
+      // Copy button
+      const copyBtn = document.createElement('button');
+      copyBtn.innerHTML = '<svg style="width:10px;height:10px;margin-right:3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy</span>';
+      copyBtn.style.cssText = 'padding:4px 8px;background:#f4f6f9;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;color:#64748b;cursor:pointer;display:flex;align-items:center;font-family:inherit;transition:all .15s;';
+      copyBtn.onclick = function() {
+        navigator.clipboard.writeText(text).then(() => {
+          const orig = copyBtn.innerHTML;
+          copyBtn.innerHTML = '<svg style="width:10px;height:10px;margin-right:3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Copied!</span>';
+          copyBtn.style.color = '#22c55e';
+          copyBtn.style.borderColor = '#22c55e';
+          setTimeout(() => { copyBtn.innerHTML = orig; copyBtn.style.color = '#64748b'; copyBtn.style.borderColor = '#e2e8f0'; }, 2000);
+        });
+      };
+      
+      // Edit button
+      const editBtn = document.createElement('button');
+      editBtn.innerHTML = '<svg style="width:10px;height:10px;margin-right:3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>Edit</span>';
+      editBtn.style.cssText = 'padding:4px 8px;background:#f4f6f9;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;color:#64748b;cursor:pointer;display:flex;align-items:center;font-family:inherit;transition:all .15s;';
+      editBtn.onclick = function() {
+        const msgIndex = Array.from(msgs.querySelectorAll('.ai-row.user')).indexOf(row);
+        if (msgIndex === -1) return;
+        const historyIndex = _chatHistory.map((m,i) => m.role === 'user' ? i : -1).filter(i => i >= 0)[msgIndex];
+        if (historyIndex === undefined) return;
+        
+        // Make bubble editable
+        bub.contentEditable = 'true';
+        bub.focus();
+        bub.style.outline = '2px solid #E8001C';
+        bub.style.background = 'linear-gradient(135deg,#ff1744 0%,#E8001C 100%)';
+        
+        // Replace Edit button with Save/Cancel
+        const saveBtn = document.createElement('button');
+        saveBtn.innerHTML = '<span>Save</span>';
+        saveBtn.style.cssText = 'padding:4px 10px;background:#22c55e;border:1px solid #22c55e;border-radius:6px;font-size:11px;color:white;cursor:pointer;font-family:inherit;font-weight:600;';
+        saveBtn.onclick = function() {
+          const editedText = bub.textContent.trim();
+          if (!editedText) { alert('Message cannot be empty'); return; }
+          if (editedText === text) { bub.contentEditable = 'false'; bub.style.outline = ''; bub.style.background = ''; actions.replaceChild(editBtn, saveBtn); actions.removeChild(cancelBtn); return; }
+          
+          // Remove this message and all after it
+          _chatHistory = _chatHistory.slice(0, historyIndex);
+          const userRows = Array.from(msgs.querySelectorAll('.ai-row'));
+          const rowIndex = userRows.indexOf(row);
+          for (let i = userRows.length - 1; i >= rowIndex; i--) {
+            userRows[i].remove();
+          }
+          _savedSig = null;
+          _saveChat();
+          
+          // Send edited message
+          document.getElementById('aiInput').value = editedText;
+          window.send();
+        };
+        
+        const cancelBtn = document.createElement('button');
+        cancelBtn.innerHTML = '<span>Cancel</span>';
+        cancelBtn.style.cssText = 'padding:4px 10px;background:#f4f6f9;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;color:#64748b;cursor:pointer;font-family:inherit;';
+        cancelBtn.onclick = function() {
+          bub.contentEditable = 'false';
+          bub.textContent = text;
+          bub.style.outline = '';
+          bub.style.background = '';
+          actions.replaceChild(editBtn, saveBtn);
+          actions.removeChild(cancelBtn);
+        };
+        
+        actions.replaceChild(saveBtn, editBtn);
+        actions.appendChild(cancelBtn);
+      };
+      
+      actions.appendChild(copyBtn);
+      actions.appendChild(editBtn);
+      wrapper.appendChild(bub);
+      wrapper.appendChild(actions);
+      row.appendChild(wrapper);
     } else {
+      // AI bubble
+      const bub = document.createElement('div');
+      bub.className = 'ai-bubble bot';
       bub.innerHTML = _md(text); // AI response gets markdown rendering
+      row.insertAdjacentHTML('beforeend', av);
+      row.appendChild(bub);
     }
-    if (role === 'user') { row.appendChild(bub); } // No avatar for user
-    else { row.insertAdjacentHTML('beforeend', av); row.appendChild(bub); }
+    
     msgs.appendChild(row);
     row.scrollIntoView({ behavior: 'smooth' });
-    return bub;
+    return row;
   }
   // _addBubbleAndSave: same as _addBubble but also records to _chatHistory
   function _addBubbleAndSave(text, role) {
