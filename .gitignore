@@ -16,3 +16,8 @@ __pycache__/
 # Build artifacts
 rag_module.py
 generated_reports/
+
+# APK files (too large for Git, deploy separately)
+*.apk
+automotive_website/static/download/
+automotive_website/static/apk/
