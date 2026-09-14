@@ -56,12 +56,12 @@ _ADMIN_CAPABILITY_QUESTIONS = {
     
     # Who are you
     r"^(who\s+are\s+you|what\s+are\s+you|what\s+is\s+this)[\?!.]*$":
-        "I'm the Admin AI Assistant for the Caltex AutoPro Integrated Vehicle Maintenance and Inventory Management System. "
+        "I'm the Admin AI Assistant for the AutoPro Integrated Vehicle Maintenance and Inventory Management System. "
         "I can answer questions about your inventory, maintenance records, bookings, users, and generate reports.",
     
     # What is this system
     r"^(what\s+is\s+this\s+system|what\s+is\s+this\s+for|what\s+does\s+this\s+system\s+do)[\?!.]*$":
-        "This is the **Caltex AutoPro Integrated Vehicle Maintenance and Inventory Management System**. "
+        "This is the **AutoPro Integrated Vehicle Maintenance and Inventory Management System**. "
         "It helps you manage automotive service operations including:\n\n"
         "• Vehicle fleet tracking and preventive maintenance schedules\n"
         "• Inventory and stock management\n"
@@ -132,7 +132,7 @@ _CUSTOMER_CAPABILITY_QUESTIONS = {
     
     # Who are you
     r"^(who\s+are\s+you|what\s+are\s+you|sino\s+ka)[\?!.]*$":
-        "I'm your AI Assistant for Caltex AutoPro! I can help you check your vehicle maintenance schedules, "
+        "I'm your AI Assistant for AutoPro! I can help you check your vehicle maintenance schedules, "
         "book service appointments, view your service history, and answer questions about our services.",
     
     # Help

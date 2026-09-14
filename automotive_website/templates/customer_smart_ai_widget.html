@@ -79,9 +79,6 @@
             align-self:flex-start;display:flex;gap:5px;align-items:center;
             box-shadow:0 2px 10px rgba(0,0,0,0.06);
         }
-        .ai-typing span { width:7px;height:7px;background:#cbd5e0;border-radius:50%;animation:bounce .9s ease-in-out infinite; }
-        .ai-typing span:nth-child(2) { animation-delay:.15s; }
-        .ai-typing span:nth-child(3) { animation-delay:.3s; }
         @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
         @keyframes aiRingPulse { 0%{transform:scale(1);opacity:0.55} 100%{transform:scale(1.7);opacity:0} }
 
@@ -935,12 +932,12 @@
     s = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     s = s.replace(/__(.+?)__/g, '<strong>$1</strong>');
-    s = s.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
+    // Process bullets BEFORE italic asterisks
+    s = s.replace(/^[\-\*\u2022] (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;flex-shrink:0;">\u2022</span><span>$1</span></div>');
+    s = s.replace(/^(\d+)\. (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;font-weight:700;flex-shrink:0;min-width:16px;">$1.</span><span>$2</span></div>');
     s = s.replace(/`([^`\n]+?)`/g, '<code style="background:#f1f5f9;padding:1px 5px;border-radius:4px;font-family:monospace;font-size:0.92em;">$1</code>');
     s = s.replace(/^### (.+)$/gm, '<div style="font-weight:700;font-size:13.5px;margin:8px 0 3px;color:#1a202c;">$1</div>');
     s = s.replace(/^## (.+)$/gm,  '<div style="font-weight:700;font-size:14px;margin:8px 0 3px;color:#1a202c;">$1</div>');
-    s = s.replace(/^[\-\*\u2022] (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;flex-shrink:0;">\u2022</span><span>$1</span></div>');
-    s = s.replace(/^(\d+)\. (.+)$/gm, '<div style="display:flex;gap:7px;margin:2px 0;"><span style="color:#E8001C;font-weight:700;flex-shrink:0;min-width:16px;">$1.</span><span>$2</span></div>');
     s = s.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid #e2e8f0;margin:8px 0;">');
     s = s.replace(/\n\n/g, '<div style="height:6px;"></div>');
     s = s.replace(/\n/g, '<br>');
@@ -952,7 +949,7 @@
     const row = document.createElement('div');
     row.className = 'ai-row' + (role === 'user' ? ' user' : '');
     const av = role === 'user'
-      ? `<div class="ai-av usr">${_customerInitials}</div>`
+      ? '' // No avatar for user
       : `<div class="ai-av bot">${_BOT_AVATAR_SVG}</div>`;
     const bub = document.createElement('div');
     bub.className = `ai-bubble ${role === 'user' ? 'user' : 'bot'}`;
@@ -961,7 +958,7 @@
     } else {
       bub.innerHTML = _md(text); // AI response gets markdown rendering
     }
-    if (role === 'user') { row.appendChild(bub); row.insertAdjacentHTML('beforeend', av); }
+    if (role === 'user') { row.appendChild(bub); } // No avatar for user
     else { row.insertAdjacentHTML('beforeend', av); row.appendChild(bub); }
     msgs.appendChild(row);
     row.scrollIntoView({ behavior: 'smooth' });
@@ -978,7 +975,12 @@
     const msgs = document.getElementById('aiMessages');
     const row = document.createElement('div');
     row.className = 'ai-row'; row.id = '_aiTyping';
-    row.innerHTML = `<div class="ai-av bot">${_BOT_AVATAR_SVG}</div><div class="ai-typing"><span></span><span></span><span></span></div>`;
+    
+    // Alternate between "Thinking..." and "Processing..."
+    const thinkingTexts = ['Thinking...', 'Processing...'];
+    const randomText = thinkingTexts[Math.floor(Math.random() * thinkingTexts.length)];
+    
+    row.innerHTML = `<div class="ai-av bot">${_BOT_AVATAR_SVG}</div><div class="ai-typing"><span style="font-size:12px;color:#64748b;font-style:italic;">${randomText}</span></div>`;
     msgs.appendChild(row); row.scrollIntoView({ behavior: 'smooth' });
     return row;
   }
