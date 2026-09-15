@@ -654,15 +654,14 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
         count = result.get("low_stock_count", len(result.get("items", [])))
         if count == 0:
             return "Good news — all items are currently at acceptable stock levels. Nothing is below the reorder point right now."
-        items = result.get("items", [])[:10]
+        items = result.get("items", [])  # Show ALL low stock items without truncation
         lines = [
             f"• **{it['name']}** — {it['stock']} {it['uom']} remaining (reorder at {it['reorder']})"
             for it in items
         ]
-        tail = f"\n\n*...and {count - 10} more item(s) below reorder point.*" if count > 10 else ""
         intro = (f"There {'is' if count == 1 else 'are'} **{count}** item{'s' if count != 1 else ''} "
                  f"at or below the reorder point:")
-        return intro + "\n\n" + "\n".join(lines) + tail
+        return intro + "\n\n" + "\n".join(lines)
 
     # ── User / customer count ─────────────────────────────────────────────────
     if any(k in msg_l for k in ("how many", "count", "users", "customers", "staff")):
@@ -676,6 +675,44 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
 
     # ── Vehicles ──────────────────────────────────────────────────────────────
     if "vehicle" in msg_l or "fleet" in msg_l:
+        # Check if this is a fleet breakdown request
+        if "breakdown" in result or (isinstance(result.get("breakdown"), list)):
+            # Fleet breakdown by customer/company
+            breakdown = result.get("breakdown", [])
+            total_companies = result.get("total_companies", len(breakdown))
+            total_vehicles = result.get("total_vehicles", 0)
+            
+            if not breakdown:
+                return "No fleet data available."
+            
+            lines = []
+            for i, company_data in enumerate(breakdown, 1):
+                company = company_data.get("company", "Unknown")
+                vehicle_count = company_data.get("vehicle_count", 0)
+                vehicles = company_data.get("vehicles", [])
+                
+                # Format: Customer 1 - Company Name - X cars/trucks
+                vehicle_types = {}
+                for v in vehicles:
+                    vtype = v.get("type", "vehicle")
+                    vehicle_types[vtype] = vehicle_types.get(vtype, 0) + 1
+                
+                type_str = "/".join([f"{count} {vtype}{'s' if count > 1 else ''}" for vtype, count in vehicle_types.items()])
+                
+                lines.append(f"**Customer {i} - {company}** - {type_str}")
+                
+                # List each vehicle with plate number
+                for v in vehicles:
+                    plate = v.get("plate", "N/A")
+                    desc = v.get("desc", "N/A")
+                    status = v.get("status", "N/A")
+                    lines.append(f"   • {plate} - {desc} (Status: {status})")
+                
+                lines.append("")  # Empty line between companies
+            
+            return f"Fleet breakdown for **{total_companies}** {'company' if total_companies == 1 else 'companies'} (total **{total_vehicles}** vehicles):\n\n" + "\n".join(lines)
+        
+        # Regular vehicle query
         total = result.get("total_vehicles", 0)
         by_status = result.get("by_status", {})
         if by_status:
@@ -708,6 +745,25 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
         by_status = result.get("by_status", {})
         if total == 0:
             return "There are no service bookings in the system yet."
+        
+        # Check if "pending" is being asked - show approved/confirmed but not completed
+        if "pending" in msg_l:
+            # Pending means approved/confirmed but not finished (auto-approved bookings)
+            bookings = result.get("bookings", [])
+            pending_bookings = [b for b in bookings if b.get("status", "").lower() in ("approved", "pending", "confirmed") and b.get("status", "").lower() != "completed"]
+            if not pending_bookings:
+                return "There are no pending service bookings. All bookings are either completed or cancelled."
+            lines = []
+            for i, b in enumerate(pending_bookings, 1):
+                customer = b.get("customerName", "Unknown")
+                plate = b.get("plate", "N/A")
+                date = b.get("preferredDate", "N/A")
+                time = b.get("preferredTime", "N/A")
+                services = ", ".join(b.get("services", [])) if b.get("services") else "N/A"
+                status = b.get("status", "N/A")
+                lines.append(f"{i}. **{customer}** - {plate} | {date} at {time} | Services: {services} | Status: {status}")
+            return f"There are **{len(pending_bookings)}** pending (approved but not finished) service bookings:\n\n" + "\n".join(lines)
+        
         if by_status:
             parts = [f"**{v}** {k}" for k, v in by_status.items()]
             breakdown = ", ".join(parts)
@@ -757,15 +813,15 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
         low   = sum(1 for it in items if (it.get("status") or "").lower() == "low")
         if total == 0:
             return "The inventory is currently empty — no items are on record."
+        # Show ALL items without truncation
         lines = [
             f"• **{it['name']}** — {it['stock']} {it.get('uom', '')} "
             f"{'⚠️ Low' if (it.get('status') or '').lower() == 'low' else ''}"
-            for it in items[:10]
+            for it in items
         ]
-        tail = f"\n\n*...and {total - 10} more item(s). Ask for a specific item or group to narrow results.*" if total > 10 else ""
         low_note = f" ({low} item{'s' if low != 1 else ''} flagged low)" if low else ""
         intro = f"Here are **{total}** inventory item{low_note}:" if total > 1 else f"Here is the inventory item{low_note}:"
-        return intro + "\n\n" + "\n".join(lines) + tail
+        return intro + "\n\n" + "\n".join(lines)
 
     # ── Generic fallback ──────────────────────────────────────────────────────
     import json as _json

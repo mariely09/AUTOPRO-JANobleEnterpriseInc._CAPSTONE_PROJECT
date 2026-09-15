@@ -318,7 +318,7 @@ def get_maintenance_jobs(status: str | None = None,
         "filter_owner":  owner or "all owners",
         "total_jobs":    len(jobs),
         "total_cost":    round(total_cost, 2),
-        "jobs":          jobs[:20],
+        "jobs":          jobs,  # Show ALL jobs without truncation
     }
 
 
@@ -346,6 +346,9 @@ def get_service_bookings(status: str | None = None) -> dict:
     List service bookings with resolved customer name/email and vehicle details.
     Joins:  customerId → users doc ID
             vehicleId  → vehicles doc ID
+    
+    NOTE: "Pending" means bookings that are approved/confirmed but not yet completed.
+    Auto-approved bookings have status='Approved' until service is marked as finished.
     """
     db = get_db()
     user_by_id    = _build_user_lookup(db)
@@ -392,7 +395,7 @@ def get_service_bookings(status: str | None = None) -> dict:
         "filter_status":  status or "all statuses",
         "total_bookings": len(bookings),
         "by_status":      dict(by_status),
-        "bookings":       bookings[:20],
+        "bookings":       bookings,  # Show ALL bookings without truncation
     }
 
 
@@ -493,7 +496,7 @@ def get_deliveries(status: str | None = None) -> dict:
         "filter_status":    status or "all statuses",
         "total_deliveries": len(deliveries),
         "by_status":        dict(by_status),
-        "deliveries":       deliveries[:20],
+        "deliveries":       deliveries,  # Show ALL deliveries without truncation
     }
 
 
@@ -574,6 +577,48 @@ def get_user_count(role: str | None = None) -> dict:
         "filter_role": role or "all roles",
         "total_users": total,
         "by_role":     dict(by_role),
+    }
+
+
+def get_fleet_breakdown_by_customer() -> dict:
+    """
+    Return fleet breakdown showing how many vehicles each customer/company owns.
+    Groups vehicles by owner (company name), showing vehicle details per customer.
+    AI cannot retrieve customer names, but can display company names and vehicle details.
+    """
+    db = get_db()
+    vehicle_by_id = _build_vehicle_lookup_by_id(db)
+    
+    # Group vehicles by owner/company
+    fleet_by_owner: dict = defaultdict(list)
+    
+    for vid, vdata in vehicle_by_id.items():
+        owner = vdata.get("owner", "Unknown Owner").strip() or "Unknown Owner"
+        fleet_by_owner[owner].append({
+            "vehicleId": vid,
+            "plate": vdata.get("plate", "N/A"),
+            "desc": vdata.get("desc", "N/A"),
+            "type": vdata.get("type", "N/A"),
+            "status": vdata.get("status", "N/A"),
+        })
+    
+    # Sort each owner's fleet by plate number
+    for owner in fleet_by_owner:
+        fleet_by_owner[owner].sort(key=lambda v: v["plate"])
+    
+    # Convert to list format for easier display
+    breakdown = []
+    for owner, vehicles in sorted(fleet_by_owner.items()):
+        breakdown.append({
+            "company": owner,
+            "vehicle_count": len(vehicles),
+            "vehicles": vehicles,
+        })
+    
+    return {
+        "total_companies": len(breakdown),
+        "total_vehicles": sum(len(v["vehicles"]) for v in breakdown),
+        "breakdown": breakdown,
     }
 
 
@@ -735,17 +780,30 @@ TOOL_SCHEMAS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_fleet_breakdown_by_customer",
+            "description": (
+                "Fleet breakdown showing how many vehicles each customer/company owns. "
+                "Returns vehicles grouped by owner/company name with plate numbers and vehicle types. "
+                "Use this when admin asks 'how many vehicles per customer' or 'fleet breakdown by company'."
+            ),
+            "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False},
+        },
+    },
 ]
 
 TOOL_FUNCTIONS = {
-    "get_stock_levels":        get_stock_levels,
-    "get_low_stock_items":     get_low_stock_items,
-    "get_item_catalog":        get_item_catalog,
-    "get_maintenance_jobs":    get_maintenance_jobs,
-    "get_maintenance_summary": get_maintenance_summary,
-    "get_service_bookings":    get_service_bookings,
-    "get_issuances":           get_issuances,
-    "get_deliveries":          get_deliveries,
-    "get_vehicles":            get_vehicles,
-    "get_user_count":          get_user_count,
+    "get_stock_levels":               get_stock_levels,
+    "get_low_stock_items":            get_low_stock_items,
+    "get_item_catalog":               get_item_catalog,
+    "get_maintenance_jobs":           get_maintenance_jobs,
+    "get_maintenance_summary":        get_maintenance_summary,
+    "get_service_bookings":           get_service_bookings,
+    "get_issuances":                  get_issuances,
+    "get_deliveries":                 get_deliveries,
+    "get_vehicles":                   get_vehicles,
+    "get_user_count":                 get_user_count,
+    "get_fleet_breakdown_by_customer": get_fleet_breakdown_by_customer,
 }
