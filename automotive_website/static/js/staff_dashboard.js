@@ -17,13 +17,13 @@
   window.addEventListener('pageshow', function (e) {
     var hasSession = sessionStorage.getItem('spUser') || sessionStorage.getItem('apUser');
     if (!hasSession) {
-      window.location.replace('/login.html');
+      window.location.replace('/login');
       return;
     }
     if (e.persisted) {
       if (typeof firebase !== 'undefined' && firebase.auth && !firebase.auth().currentUser) {
         sessionStorage.removeItem('spUser');
-        window.location.replace('/login.html');
+        window.location.replace('/login');
       }
     }
   });
@@ -60,7 +60,7 @@
         loadVehicles();
       } else {
         console.log('No Firebase user, redirecting to login');
-        window.location.href = '/login.html';
+        window.location.href = '/login';
       }
     });
   });
@@ -99,8 +99,8 @@
     localStorage.setItem('_loggedOut', Date.now().toString());
     auth.signOut().finally(() => {
       sessionStorage.removeItem('spUser');
-      history.replaceState(null, '', '/index.html');
-      window.location.replace('/index.html');
+      history.replaceState(null, '', '/login');
+      window.location.replace('/login');
     });
   };
 

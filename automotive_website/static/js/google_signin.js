@@ -404,7 +404,7 @@ const GoogleSignInModule = {
 
       // Check mustChangePassword
       if (this._pendingUserData.mustChangePassword) {
-        window.location.href = 'change_password.html';
+        window.location.href = '/change_password';
         return;
       }
 
@@ -508,7 +508,7 @@ const GoogleSignInModule = {
   },
 
   redirectByRole: function(role) {
-    const map = { admin:'admin_dashboard.html', staff:'staff_dashboard.html', customer:'customer_dashboard.html' };
+    const map = { admin:'/admin_dashboard', staff:'/staff_dashboard', customer:'/customer_dashboard' };
     
     // Mark that we're about to redirect from a successful Google sign-in
     // This prevents login.html's onAuthStateChanged from signing us out
@@ -520,7 +520,7 @@ const GoogleSignInModule = {
     localStorage.setItem('_loggedIn', Date.now().toString());
     localStorage.removeItem('_loggedOut');
     
-    setTimeout(() => { window.location.href = map[role] || 'customer_dashboard.html'; }, 100);
+    setTimeout(() => { window.location.href = map[role] || '/customer_dashboard'; }, 100);
   },
 
   showToast: function(message, type = 'error') {
