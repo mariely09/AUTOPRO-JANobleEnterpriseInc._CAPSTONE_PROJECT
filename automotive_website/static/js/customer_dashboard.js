@@ -118,7 +118,7 @@
         loadUserInfo(user);
       } else {
         console.log('No Firebase user, redirecting to login');
-        window.location.href = '/login.html';
+        window.location.href = '/login';
       }
     });
   });
@@ -542,7 +542,7 @@
               <div style="font-size:12px;font-weight:700;color:${badgeColor};">${badgeTitle}</div>
               <div style="font-size:11px;color:#718096;margin-top:2px;">${subText}</div>
             </div>
-            <a href="customer_my_bookings.html" style="padding:6px 14px;background:${badgeColor};border:none;border-radius:8px;color:white;font-size:11px;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;">View</a>
+            <a href="/customer_my_bookings" style="padding:6px 14px;background:${badgeColor};border:none;border-radius:8px;color:white;font-size:11px;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;">View</a>
           </div>
         </div>`;
       } else {
@@ -556,7 +556,7 @@
               <div style="font-size:12px;font-weight:700;color:#E8001C;">PMS is overdue</div>
               <div style="font-size:11px;color:#718096;margin-top:2px;">Book a service now to avoid further issues.</div>
             </div>
-            <a href="customer_book_service.html?vehicleId=${v.id}" style="padding:8px 14px;background:#E8001C;border:none;border-radius:8px;color:white;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;">Book</a>
+            <a href="/customer_book_service?vehicleId=${v.id}" style="padding:8px 14px;background:#E8001C;border:none;border-radius:8px;color:white;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;">Book</a>
           </div>
         </div>`;
       }
@@ -769,8 +769,8 @@
     } catch(e) {}
     auth.signOut().finally(() => {
       sessionStorage.removeItem('cpUser');
-      history.replaceState(null, '', '/index.html');
-      window.location.replace('/index.html');
+      history.replaceState(null, '', '/login');
+      window.location.replace('/login');
     });
   };
 

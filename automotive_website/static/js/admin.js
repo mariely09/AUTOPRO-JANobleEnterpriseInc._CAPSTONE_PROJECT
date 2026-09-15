@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const user = sessionStorage.getItem('apUser');
     if (!user) {
         console.log('No apUser in sessionStorage, redirecting to login');
-        window.location.href = '/login.html';
+        window.location.href = '/login';
         return;
     }
 
@@ -36,12 +36,12 @@ document.addEventListener('DOMContentLoaded', function () {
             sessionStorage.removeItem('apUser');
             if (typeof firebase !== 'undefined' && firebase.auth) {
                 firebase.auth().signOut().finally(() => {
-                    history.replaceState(null, '', '/index.html');
-                    window.location.replace('/index.html');
+                    history.replaceState(null, '', '/login');
+                    window.location.replace('/login');
                 });
             } else {
-                history.replaceState(null, '', '/index.html');
-                window.location.replace('/index.html');
+                history.replaceState(null, '', '/login');
+                window.location.replace('/login');
             }
         }
     });
@@ -246,19 +246,19 @@ window._adminNotifClick = function(i) {
     let url = null;
 
     if (title.includes('pms') || title.includes('preventive') || msg.includes('pms'))
-        url = 'admin_dss.html#dss-pms';
+        url = '/admin_dss#dss-pms';
     else if (title.includes('out of stock') || title.includes('low stock') || title.includes('stock'))
-        url = 'admin_dss.html';
+        url = '/admin_dss';
     else if (title.includes('booking') || title.includes('rescheduled') || msg.includes('booking'))
-        url = 'admin_service_bookings.html';
+        url = '/admin_service_bookings';
     else if (title.includes('service') || title.includes('maintenance') || msg.includes('service'))
-        url = 'admin_vehicle_maintenance.html';
+        url = '/admin_vehicle_maintenance';
     else if (title.includes('receiving') || title.includes('delivery') || msg.includes('delivery'))
-        url = 'admin_receiving.html';
+        url = '/admin_receiving';
     else if (title.includes('user') || msg.includes('account'))
-        url = 'admin_users.html';
+        url = '/admin_users';
     else if (title.includes('vehicle') || msg.includes('vehicle') || msg.includes('plate'))
-        url = 'admin_vehicle_list.html';
+        url = '/admin_vehicle_list';
 
     // Close panel immediately
     document.getElementById('adminNotifPanel').style.display = 'none';

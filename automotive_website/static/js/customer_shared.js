@@ -114,12 +114,12 @@
         sessionStorage.removeItem('spUser');
         if (typeof firebase !== 'undefined' && firebase.auth) {
             firebase.auth().signOut().finally(function () {
-                history.replaceState(null, '', '/index.html');
-                window.location.replace('/index.html');
+                history.replaceState(null, '', '/login');
+                window.location.replace('/login');
             });
         } else {
-            history.replaceState(null, '', '/index.html');
-            window.location.replace('/index.html');
+            history.replaceState(null, '', '/login');
+            window.location.replace('/login');
         }
     };
 
@@ -127,7 +127,7 @@
     window.addEventListener('pageshow', function (e) {
         var hasSession = sessionStorage.getItem('cpUser') || sessionStorage.getItem('spUser') || sessionStorage.getItem('apUser');
         if (!hasSession) {
-            window.location.replace('/login.html');
+            window.location.replace('/login');
             return;
         }
         // bfcache restore — check Firebase synchronously
@@ -136,7 +136,7 @@
                 if (!firebase.auth().currentUser) {
                     sessionStorage.removeItem('cpUser');
                     sessionStorage.removeItem('spUser');
-                    window.location.replace('/login.html');
+                    window.location.replace('/login');
                 }
             }
             return;
@@ -150,7 +150,7 @@
                             if (!stillHasSession) {
                                 sessionStorage.removeItem('cpUser');
                                 sessionStorage.removeItem('spUser');
-                                window.location.replace('/login.html');
+                                window.location.replace('/login');
                             }
                         }
                     }, 500);
@@ -271,31 +271,31 @@
         var url = null;
         if (role === 'admin') {
             if (title.includes('pms') || msg.includes('pms'))
-                url = 'admin_dss.html#dss-pms';
+                url = '/admin_dss#dss-pms';
             else if (title.includes('stock') || msg.includes('stock'))
-                url = 'admin_dss.html';
+                url = '/admin_dss';
             else if (title.includes('booking') || msg.includes('booking'))
-                url = 'admin_service_bookings.html';
+                url = '/admin_service_bookings';
             else if (title.includes('service') || title.includes('maintenance'))
-                url = 'admin_vehicle_maintenance.html';
+                url = '/admin_vehicle_maintenance';
             else if (title.includes('receiving') || title.includes('delivery'))
-                url = 'admin_receiving.html';
+                url = '/admin_receiving';
             else if (title.includes('vehicle') || msg.includes('plate'))
-                url = 'admin_vehicle_list.html';
+                url = '/admin_vehicle_list';
         } else if (role === 'staff') {
             if (title.includes('pms') || msg.includes('pms'))
-                url = 'admin_dss.html#dss-pms';
+                url = '/admin_dss#dss-pms';
             else if (title.includes('booking') || msg.includes('booking'))
-                url = 'admin_service_bookings.html';
+                url = '/admin_service_bookings';
             else if (title.includes('service') || title.includes('maintenance'))
-                url = 'admin_vehicle_maintenance.html';
+                url = '/admin_vehicle_maintenance';
             else if (title.includes('receiving') || title.includes('delivery'))
-                url = 'admin_receiving.html';
+                url = '/admin_receiving';
         } else {
             if (title.includes('booking') || title.includes('rescheduled') || msg.includes('booking'))
-                url = 'customer_my_bookings.html';
+                url = '/customer_my_bookings';
             else if (title.includes('pms') || title.includes('service') || msg.includes('pms'))
-                url = 'customer_dashboard.html';
+                url = '/customer_dashboard';
         }
 
         // Close the panel
