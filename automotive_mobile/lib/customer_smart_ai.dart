@@ -31,7 +31,8 @@ const _kCustomerDailyTokenLimit = 0; // 0 = unlimited
 class CustomerChatStore {
   static final List<_ChatMsg> messages = [];
   static String? sessionId;
-  static String? localSessionId; // stable local conversation id (pre server assignment)
+  static String?
+  localSessionId; // stable local conversation id (pre server assignment)
   static bool rateLimited = false;
   static String resetIn = '';
   static String? _lastSavedSig; // dedupe guard: signature of the last save
@@ -108,7 +109,6 @@ class CustomerChatStore {
     _lastSavedSig = null;
   }
 
-
   static String _tokenKey(String uid) {
     final today = DateTime.now().toIso8601String().substring(0, 10);
     return 'cust_ai_tokens_${uid}_$today';
@@ -121,7 +121,8 @@ class CustomerChatStore {
     if (messages.isEmpty) return;
     try {
       // Dedupe guard — avoid re-writing identical state on every event
-      final sig = '${effectiveSid ?? ''}|${messages.length}|${messages.last.text}';
+      final sig =
+          '${effectiveSid ?? ''}|${messages.length}|${messages.last.text}';
       if (sig == _lastSavedSig) return;
       _lastSavedSig = sig;
       final prefs = await SharedPreferences.getInstance();
@@ -198,12 +199,7 @@ class CustomerChatStore {
         final role = m['role'] as String? ?? 'ai';
         final text = m['text'] as String? ?? '';
         if (role == prevRole && text == prevText) continue; // duplicate row
-        messages.add(
-          _ChatMsg(
-            role: role,
-            text: text,
-          ),
-        );
+        messages.add(_ChatMsg(role: role, text: text));
         prevRole = role;
         prevText = text;
       }
@@ -604,9 +600,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     if (mounted) {
       setState(() {
         _loading = false;
-        _messages.add(
-          _ChatMsg(role: 'ai', text: '⏹ Generation stopped.'),
-        );
+        _messages.add(_ChatMsg(role: 'ai', text: '⏹ Generation stopped.'));
       });
     }
     CustomerChatStore._lastSavedSig = null;
@@ -721,7 +715,9 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         // Adopt the server session id in place (rename stored history entry)
         // so no duplicate history item is created.
         final serverId = data['session_id'] as String?;
-        if (serverId != null && serverId.isNotEmpty && _customerUid.isNotEmpty) {
+        if (serverId != null &&
+            serverId.isNotEmpty &&
+            _customerUid.isNotEmpty) {
           await CustomerChatStore.adoptServerSession(_customerUid, serverId);
         } else if (serverId != null && serverId.isNotEmpty) {
           _sessionId = serverId;
@@ -1326,7 +1322,8 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                       _FocusInputBar(
                         inputCtrl: _inputCtrl,
                         loading: _loading,
-                        rateLimited: _rateLimited || _tokenLimitReached || _aiPaused,
+                        rateLimited:
+                            _rateLimited || _tokenLimitReached || _aiPaused,
                         hint: _aiPaused
                             ? 'AI Assistant is temporarily unavailable'
                             : _tokenLimitReached
@@ -1527,8 +1524,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                         final time =
                             '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}';
                         final isActive =
-                            s['id'] ==
-                            CustomerChatStore.effectiveSid;
+                            s['id'] == CustomerChatStore.effectiveSid;
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1750,7 +1746,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     // Randomly choose between "Thinking..." and "Processing..."
     final thinkingTexts = ['Thinking...', 'Processing...'];
     final randomText = thinkingTexts[DateTime.now().millisecond % 2];
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -1858,12 +1854,14 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                           // Find message index
                           final msgIndex = _messages.indexOf(msg);
                           if (msgIndex == -1) return;
-                          
+
                           // Show edit dialog with the message
                           showDialog(
                             context: context,
                             builder: (ctx) {
-                              final editCtrl = TextEditingController(text: msg.text);
+                              final editCtrl = TextEditingController(
+                                text: msg.text,
+                              );
                               return AlertDialog(
                                 title: const Text('Edit Message'),
                                 content: TextField(
@@ -1888,9 +1886,13 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                                     onPressed: () {
                                       final editedText = editCtrl.text.trim();
                                       if (editedText.isEmpty) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           const SnackBar(
-                                            content: Text('Message cannot be empty'),
+                                            content: Text(
+                                              'Message cannot be empty',
+                                            ),
                                             behavior: SnackBarBehavior.floating,
                                           ),
                                         );
@@ -1901,15 +1903,18 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                                         return;
                                       }
                                       Navigator.pop(ctx);
-                                      
+
                                       // Remove this message and all after it
                                       setState(() {
-                                        _messages.removeRange(msgIndex, _messages.length);
+                                        _messages.removeRange(
+                                          msgIndex,
+                                          _messages.length,
+                                        );
                                       });
-                                      
+
                                       // Send edited message
                                       _inputCtrl.text = editedText;
-                                      _sendMessage();
+                                      _send();
                                     },
                                     child: const Text('Send'),
                                   ),
@@ -2110,10 +2115,11 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
       ),
       boxShadow: [
         BoxShadow(
-          color: (_backendOnline
-                  ? const Color(0xFF4ade80)
-                  : const Color(0xFFF97316))
-              .withValues(alpha: 0.35),
+          color:
+              (_backendOnline
+                      ? const Color(0xFF4ade80)
+                      : const Color(0xFFF97316))
+                  .withValues(alpha: 0.35),
           blurRadius: 5,
         ),
       ],

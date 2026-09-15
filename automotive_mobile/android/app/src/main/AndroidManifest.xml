@@ -33,6 +33,14 @@
         
         <!-- OneSignal Notification Icon (custom notification icon) -->
         <meta-data
+            android:name="com.onesignal.NotificationAccentColor.DEFAULT"
+            android:value="FFE8001C" />
+        <meta-data
+            android:name="com.onesignal.NotificationIcon.DEFAULT"
+            android:resource="@drawable/ic_notification" />
+        
+        <!-- Legacy meta-data for backward compatibility -->
+        <meta-data
             android:name="com.onesignal.NotificationServiceExtension.small_icon"
             android:resource="@drawable/ic_notification" />
         
