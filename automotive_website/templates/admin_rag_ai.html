@@ -223,6 +223,30 @@
   transform:translateY(-1px);
 }
 
+/* ── Related query chips ── */
+.rag-related-chip {
+  display:inline-flex;
+  align-items:center;
+  padding:6px 12px;
+  background:#f8f9fb;
+  border:1.5px solid #e2e8f0;
+  border-radius:16px;
+  font-size:11px;
+  font-weight:500;
+  color:#475569;
+  cursor:pointer;
+  transition:all .18s ease;
+  font-family:inherit;
+  white-space:nowrap;
+}
+.rag-related-chip:hover {
+  background:#fff5f5;
+  border-color:#E8001C;
+  color:#E8001C;
+  box-shadow:0 2px 8px rgba(232,0,28,0.12);
+  transform:translateY(-1px);
+}
+
 /* ── User message actions (Copy / Edit) ── */
 .rag-user-actions { display:flex;gap:5px;margin-top:5px;opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s; }
 .rag-row.user:hover .rag-user-actions { opacity:1;visibility:visible; }
@@ -989,17 +1013,33 @@ function _ragAppend(role, html, rawText) {
       '</div>';
     row.innerHTML = '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex:1;margin-left:auto;">' + bub + actions + '</div>';
   } else {
-    // AI response with avatar + copy button
+    // AI response with avatar + timestamp + related queries
     var av = '<div class="rag-av ai">'+_AI_AVATAR_SVG+'</div>';
     var escapedAi = (html.replace(/<[^>]*>/g, '').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&') || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
-    var aiActions =
-      '<div class="rag-user-actions" style="opacity:1;visibility:visible;margin-top:4px;">' +
-        '<button class="rag-user-action-btn" onclick="ragCopyAiResponse(this,\''+escapedAi+'\')" title="Copy response">' +
-          '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
-          ' Copy' +
-        '</button>' +
+    
+    // Generate timestamp
+    var now = new Date();
+    var hours = now.getHours();
+    var minutes = now.getMinutes();
+    var ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    var timestamp = ('0' + hours).slice(-2) + ':' + ('0' + minutes).slice(-2) + ' ' + ampm;
+    
+    // Timestamp with AI Assistant label
+    var timestampHtml =
+      '<div style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:10.5px;color:#94a3b8;">' +
+        '<span style="font-weight:600;">AI Assistant</span>' +
+        '<span style="color:#cbd5e0;">·</span>' +
+        '<span>' + timestamp + '</span>' +
       '</div>';
-    row.innerHTML = av + '<div style="display:flex;flex-direction:column;gap:0;">' + bub + aiActions + '</div>';
+    
+    // Related query chips container (will be populated after response is complete)
+    var relatedChipsId = 'rag-related-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+    var relatedChipsHtml =
+      '<div id="' + relatedChipsId + '" class="rag-related-chips" style="display:none;margin-top:8px;gap:6px;flex-wrap:wrap;">' +
+      '</div>';
+    
+    row.innerHTML = av + '<div style="display:flex;flex-direction:column;gap:0;">' + bub + timestampHtml + relatedChipsHtml + '</div>';
   }
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
@@ -1021,6 +1061,116 @@ function _ragTyping() {
 
 function _ragRemoveTyping() { var el=document.getElementById('ragTyping'); if(el)el.remove(); }
 
+// Generate 3 contextually relevant follow-up queries based on the user query and AI response
+function _ragGenerateRelatedQueries(userQuery, aiResponse) {
+  var q = userQuery.toLowerCase();
+  var resp = aiResponse.toLowerCase();
+  
+  // Define role-specific query sets (admin)
+  var queryBank = {
+    inventory: [
+      'Show items that need replenishment',
+      'Generate inventory report as Excel',
+      'What are the most used items this month?',
+      'Show inventory stock levels by category',
+      'Which items are overstocked?'
+    ],
+    maintenance: [
+      'Show vehicles due for maintenance soon',
+      'Generate maintenance report as PDF',
+      'Which vehicles are currently under maintenance?',
+      'Show maintenance history for this month',
+      'List overdue maintenance schedules'
+    ],
+    reports: [
+      'Generate issuance report as Excel',
+      'Create maintenance report for this month',
+      'Show vehicle fleet report as PDF',
+      'Generate bookings report',
+      'Create inventory report for last month'
+    ],
+    bookings: [
+      'Show upcoming service bookings',
+      'List completed bookings this month',
+      'Which bookings are pending confirmation?',
+      'Show today\'s service appointments',
+      'Generate bookings report as Excel'
+    ],
+    fleet: [
+      'Show all vehicles and their status',
+      'Which vehicles need attention?',
+      'List vehicles by service history',
+      'Show vehicle maintenance summary',
+      'What\'s the fleet utilization rate?'
+    ],
+    general: [
+      'Show me today\'s summary',
+      'What needs immediate attention?',
+      'Generate a comprehensive report',
+      'Show inventory overview',
+      'List all active service bookings'
+    ]
+  };
+  
+  // Determine context from user query and AI response
+  var context = 'general';
+  if (/inventory|stock|item|material|supply/i.test(q + ' ' + resp)) context = 'inventory';
+  else if (/maintenance|service|repair|pms|schedule/i.test(q + ' ' + resp)) context = 'maintenance';
+  else if (/report|generate|export|pdf|excel/i.test(q + ' ' + resp)) context = 'reports';
+  else if (/booking|appointment|reservation/i.test(q + ' ' + resp)) context = 'bookings';
+  else if (/vehicle|fleet|car|plate/i.test(q + ' ' + resp)) context = 'fleet';
+  
+  // Get relevant queries and shuffle
+  var relevantQueries = queryBank[context] || queryBank.general;
+  var shuffled = relevantQueries.slice().sort(function() { return Math.random() - 0.5; });
+  
+  // Filter out queries too similar to the current user query
+  var filtered = shuffled.filter(function(sq) {
+    return sq.toLowerCase().indexOf(q) === -1 && q.indexOf(sq.toLowerCase()) === -1;
+  });
+  
+  // Return first 3 unique queries
+  return filtered.slice(0, 3);
+}
+
+// Add related query chips to the latest AI response
+function _ragShowRelatedQueries(userQuery, aiResponse) {
+  if (_ragGenerating) return; // Don't show while generating
+  
+  // Find the latest related chips container
+  var containers = document.querySelectorAll('.rag-related-chips');
+  if (containers.length === 0) return;
+  
+  var container = containers[containers.length - 1];
+  var relatedQueries = _ragGenerateRelatedQueries(userQuery, aiResponse);
+  
+  if (relatedQueries.length === 0) return;
+  
+  // Build chips HTML
+  var chipsHtml = relatedQueries.map(function(query) {
+    var escapedQuery = _ragEsc(query).replace(/'/g, '&#39;');
+    return '<button class="rag-related-chip" data-query="' + escapedQuery + '">' + _ragEsc(query) + '</button>';
+  }).join('');
+  
+  container.innerHTML = chipsHtml;
+  container.style.display = 'flex';
+  
+  // Attach click handlers
+  var chips = container.querySelectorAll('.rag-related-chip');
+  chips.forEach(function(chip) {
+    chip.addEventListener('click', function() {
+      var query = chip.getAttribute('data-query').replace(/&#39;/g, "'");
+      if (query) {
+        // Hide all related chips when a new query is sent
+        document.querySelectorAll('.rag-related-chips').forEach(function(c) {
+          c.style.display = 'none';
+        });
+        window.ragAiSend(query);
+      }
+    });
+  });
+}
+
 window.ragAiSend = function(preset) {
   var input = document.getElementById('ragAiInput');
   var text = (preset||input.value).trim();
@@ -1031,6 +1181,12 @@ window.ragAiSend = function(preset) {
   var wb = document.getElementById('ragWelcomeBlock');
   if (wb) wb.remove();
   document.getElementById('ragAiChips').style.display='none';
+  
+  // Hide all previous related query chips
+  document.querySelectorAll('.rag-related-chips').forEach(function(c) {
+    c.style.display = 'none';
+  });
+  
   _ragAppend('user', _ragEsc(text), text);
   _ragMessages.push({ role: 'user', text: text });
   input.value=''; input.style.height='auto';
@@ -1180,6 +1336,7 @@ window.ragAiSend = function(preset) {
         }
       });
       _ragAppend('ai', answer + btnHtml);
+      _ragShowRelatedQueries(text, data.answer || 'Report ready.');
       _ragSaveChat();
     } else if (data.answer) {
       var cleanAnswer = data.answer
@@ -1191,6 +1348,7 @@ window.ragAiSend = function(preset) {
       }
       _ragMessages.push({ role: 'ai', text: cleanAnswer });
       _ragAppend('ai', _ragMarkdown(cleanAnswer));
+      _ragShowRelatedQueries(text, cleanAnswer);
       _ragSaveChat();
     } else {
       var result = _ragProcess(text);
@@ -1449,34 +1607,94 @@ function _ragShowWelcome() {
   if (!chat) return;
   // Don't show welcome if a session has already been restored
   if (_ragMessages.length > 0) return;
-  var suggestions = [
-    'Show me the fleet summary',
-    'Generate issuance report as Excel',
-    'Show all service bookings'
+  
+  // Six quick query cards with titles, descriptions, and icons
+  var quickQueries = [
+    {
+      title: 'Inventory Overview',
+      desc: 'Check stock levels and available items',
+      icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
+      query: 'Show me current inventory levels and stock summary'
+    },
+    {
+      title: 'Low Stock & Replenishment',
+      desc: 'Find items that need restocking',
+      icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+      query: 'Which items are low on stock and need replenishment?'
+    },
+    {
+      title: 'Generate Reports',
+      desc: 'Create inventory and service reports',
+      icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+      query: 'Generate inventory report for this month as PDF'
+    },
+    {
+      title: 'Maintenance & PMS',
+      desc: 'Review upcoming maintenance schedules',
+      icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+      query: 'Show upcoming vehicle maintenance and PMS schedules'
+    },
+    {
+      title: 'Service & Materials',
+      desc: 'Explore services and material usage',
+      icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+      query: 'Show recent service transactions and material usage'
+    },
+    {
+      title: 'Business Insights',
+      desc: 'Analyze service and inventory performance',
+      icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>',
+      query: 'Give me business insights on service and inventory trends'
+    }
   ];
+  
   var div = document.createElement('div');
   div.id = 'ragWelcomeBlock';
-  div.style.cssText = 'padding:8px 2px 4px;';
+  div.style.cssText = 'padding:12px 8px 8px;';
   div.innerHTML =
-    '<div style="text-align:center;margin-bottom:18px;padding:0 4px;">' +
-      '<div style="width:68px;height:68px;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;box-shadow:0 4px 16px rgba(0,0,0,0.12);border:2px solid rgba(232,0,28,0.15);">' +
-        '<img src="../static/img/AI_LOGO.png" style="width:68px;height:68px;object-fit:cover;display:block;" alt="AI">' +
+    '<div style="text-align:center;margin-bottom:20px;padding:0 4px;">' +
+      '<div style="width:64px;height:64px;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;box-shadow:0 4px 20px rgba(232,0,28,0.15);border:2.5px solid #22c55e;">' +
+        '<img src="../static/img/AI_LOGO.png" style="width:58px;height:58px;object-fit:cover;display:block;" alt="AI">' +
       '</div>' +
-      '<div style="font-size:15px;font-weight:800;color:#1a202c;margin-bottom:5px;letter-spacing:-0.2px;">Hey, how can I help?</div>' +
-      '<div style="font-size:11.5px;color:#94a3b8;line-height:1.6;max-width:240px;margin:0 auto;">Ask me about fleet, inventory, maintenance, or generate reports.</div>' +
+      '<div style="font-size:16px;font-weight:800;color:#1a202c;margin-bottom:6px;letter-spacing:-0.3px;">Hey, how can I help?</div>' +
+      '<div style="font-size:12px;color:#94a3b8;line-height:1.6;max-width:280px;margin:0 auto;">Choose a quick query below or ask me anything about fleet, inventory, maintenance, or reports.</div>' +
     '</div>' +
-    '<div id="ragSuggestList" style="display:flex;flex-direction:column;gap:8px;">' +
-    suggestions.map(function(s) {
-      return '<button class="rag-suggest-pill" data-q="' + _ragEsc(s) + '">' + _ragEsc(s) + '</button>';
+    '<div style="display:grid;grid-template-columns:1fr;gap:10px;max-width:340px;margin:0 auto;">' +
+    quickQueries.map(function(q) {
+      return '<button class="rag-quick-card" data-q="' + _ragEsc(q.query) + '" style="' +
+        'background:white;border:1.5px solid #e8edf2;border-radius:12px;padding:12px 14px;' +
+        'text-align:left;cursor:pointer;transition:all .2s ease;display:flex;gap:12px;align-items:flex-start;' +
+        'box-shadow:0 2px 8px rgba(0,0,0,0.04);font-family:inherit;' +
+        '">' +
+        '<div style="flex-shrink:0;width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#fff5f5,#ffe4e6);display:flex;align-items:center;justify-content:center;color:#E8001C;">' +
+          q.icon +
+        '</div>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-size:13px;font-weight:700;color:#1a202c;margin-bottom:3px;line-height:1.3;">' + _ragEsc(q.title) + '</div>' +
+          '<div style="font-size:11px;color:#718096;line-height:1.5;">' + _ragEsc(q.desc) + '</div>' +
+        '</div>' +
+      '</button>';
     }).join('') +
     '</div>';
   chat.appendChild(div);
 
-  // Attach click handlers after DOM insertion — avoids inline onclick quoting issues
-  var pills = div.querySelectorAll('.rag-suggest-pill');
-  pills.forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var q = btn.getAttribute('data-q');
+  // Attach click handlers with hover effects
+  var cards = div.querySelectorAll('.rag-quick-card');
+  cards.forEach(function(card) {
+    card.addEventListener('mouseenter', function() {
+      card.style.borderColor = '#E8001C';
+      card.style.background = '#fffbfb';
+      card.style.boxShadow = '0 4px 16px rgba(232,0,28,0.12)';
+      card.style.transform = 'translateY(-2px)';
+    });
+    card.addEventListener('mouseleave', function() {
+      card.style.borderColor = '#e8edf2';
+      card.style.background = 'white';
+      card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)';
+      card.style.transform = 'translateY(0)';
+    });
+    card.addEventListener('click', function() {
+      var q = card.getAttribute('data-q');
       if (q) window.ragAiSend(q);
     });
   });
