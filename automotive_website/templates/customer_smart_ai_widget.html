@@ -372,7 +372,7 @@
   });
 
   const stored = sessionStorage.getItem('cpUser');
-  if (!stored) { window.location.href = 'login.html'; }
+  if (!stored) { window.location.href = '/login'; }
   const cpUser = JSON.parse(stored || '{}');
   const db = firebase.firestore();
 
@@ -1486,7 +1486,7 @@
         }
       });
     } else {
-      window.location.href = 'login.html';
+      window.location.href = '/login';
     }
   });
 
@@ -1541,7 +1541,7 @@
   }
   _checkAiHealth(false);
 
-  fetch('customer_sidebar.html').then(r => r.text()).then(html => {
+  fetch('/customer_sidebar').then(r => r.text()).then(html => {
     document.getElementById('customerSidebar').innerHTML = html;
     if (typeof setGreeting === 'function') setGreeting();
     if (typeof setActiveTab === 'function') setActiveTab();
@@ -1557,7 +1557,7 @@
     }
   });
 
-  fetch('customer_header.html').then(r => r.text()).then(html => {
+  fetch('/customer_header').then(r => r.text()).then(html => {
     document.getElementById('customerHeader').innerHTML = html;
   });
 </script>
