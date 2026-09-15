@@ -211,7 +211,7 @@
     <button class="btn-signin" id="registerBtn" type="button">Create Account</button>
 
     <div class="signin-row">
-      Already have an account? <a href="login.html">Sign In</a>
+      Already have an account? <a href="/login">Sign In</a>
     </div>
   </div>
 </div>
@@ -225,7 +225,7 @@
       Your account is pending admin approval.<br/><br/>
       You will receive an email once your account has been approved.
     </div>
-    <button class="btn-back" onclick="window.location.href='login.html'">Back to Login</button>
+    <button class="btn-back" onclick="window.location.href='/login'">Back to Login</button>
   </div>
 </div>
 
@@ -343,7 +343,7 @@
 
       // 5. Show success toast and redirect to login
       showToast('Account created successfully! You can now sign in.', 'success');
-      setTimeout(function() { window.location.href = 'login.html'; }, 2000);
+      setTimeout(function() { window.location.href = '/login'; }, 2000);
 
     } catch (e) {
       let msg = 'Registration failed. Please try again.';

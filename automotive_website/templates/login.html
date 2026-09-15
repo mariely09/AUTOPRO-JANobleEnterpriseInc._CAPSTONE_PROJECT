@@ -58,7 +58,7 @@
         <input type="checkbox" id="rememberMe" style="width:14px;height:14px;accent-color:#E8001C;cursor:pointer;" />
         Remember me
       </label>
-      <a href="forgot_password.html">Forgot Password?</a>
+      <a href="/forgot_password">Forgot Password?</a>
     </div>
 
     <button class="btn-signin" id="signinBtn" type="button">Sign In</button>
@@ -79,7 +79,7 @@
 
     <p style="text-align:center;margin-top:20px;font-size:13px;color:#718096;">
       Don't have an account?
-      <a href="regsiter.html" style="color:#E8001C;font-weight:700;text-decoration:none;">Sign Up</a>
+      <a href="/register" style="color:#E8001C;font-weight:700;text-decoration:none;">Sign Up</a>
     </p>
   </div>
 </div>
@@ -140,14 +140,14 @@
     sessionStorage.removeItem('spUser');
     sessionStorage.removeItem('cpUser');
     // Replace current history entry so back button from login cannot return to dashboard
-    history.replaceState(null, '', '/login.html');
+    history.replaceState(null, '', '/login');
   });
 
   // Prevent bfcache from restoring dashboard pages when back is pressed from login
   window.addEventListener('pageshow', function(e) {
     if (e.persisted) {
       // Page was restored from bfcache â€â€ if we're on login, push state to block further back
-      history.replaceState(null, '', '/login.html');
+      history.replaceState(null, '', '/login');
     }
   });
 </script>
@@ -392,7 +392,7 @@
         localStorage.setItem('_loggedIn', Date.now().toString());
         localStorage.removeItem('_loggedOut');
         sessionStorage.setItem('_tempPass', document.getElementById('password').value);
-        window.location.href = 'change_password.html';
+        window.location.href = '/change_password';
         return;
       }
 
@@ -447,11 +447,11 @@
   function redirectByRole(role) {
     console.log('Redirecting role:', role); // Debug log
     const map = {
-      admin:    'admin_dashboard.html',
-      staff:    'staff_dashboard.html',
-      customer: 'customer_dashboard.html',
+      admin:    '/admin_dashboard',
+      staff:    '/staff_dashboard',
+      customer: '/customer_dashboard',
     };
-    const target = map[role] || 'customer_dashboard.html';
+    const target = map[role] || '/customer_dashboard';
     console.log('Redirecting to:', target); // Debug log
     // Mark login time so the auth guard knows this is a fresh login
     localStorage.setItem('_loggedIn', Date.now().toString());

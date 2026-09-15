@@ -644,6 +644,7 @@ def download_apk():
         return redirect(firebase_apk_url, code=302)
 
 # ── Auth ────────────────────────────────────────────────────
+@app.route('/login')
 @app.route('/login.html')
 def login():
     return render_template('login.html')
@@ -656,150 +657,183 @@ def redirect_to_dashboard():
     """
     data = request.get_json(silent=True) or {}
     role = data.get('role', 'customer').lower()
-    
-    # Map role to dashboard
+
+    # Map role to dashboard (clean URLs)
     dashboard_map = {
-        'admin': '/admin_dashboard.html',
-        'staff': '/staff_dashboard.html',
-        'customer': '/customer_dashboard.html',
+        'admin':    '/admin_dashboard',
+        'staff':    '/staff_dashboard',
+        'customer': '/customer_dashboard',
     }
-    
-    target = dashboard_map.get(role, '/customer_dashboard.html')
+
+    target = dashboard_map.get(role, '/customer_dashboard')
     print(f'Redirecting user with role "{role}" to {target}')
-    
+
     return jsonify({'ok': True, 'redirect': target})
 
+@app.route('/forgot_password')
 @app.route('/forgot_password.html')
 def forgot_password():
     return render_template('forgot_password.html')
 
+@app.route('/register')
 @app.route('/regsiter.html')
 def register():
     return render_template('regsiter.html')
 
 # ── Admin ────────────────────────────────────────────────────
+@app.route('/admin_dashboard')
 @app.route('/admin_dashboard.html')
 def admin_dashboard():
     return render_template('admin_dashboard.html')
 
+@app.route('/admin_transactions')
 @app.route('/admin_transactions.html')
 def admin_transactions():
     return render_template('admin_transactions.html')
 
+@app.route('/admin_issuances')
 @app.route('/admin_issuances.html')
 def admin_issuances():
     return render_template('admin_issuances.html')
 
+@app.route('/admin_inventory_items')
 @app.route('/admin_inventory_itemaster.html')
 def admin_inventory_items():
     return render_template('admin_inventory_itemaster.html')
 
+@app.route('/admin_inventory_stock')
 @app.route('/admin_inventory_stock.html')
 def admin_inventory_stock():
     return render_template('admin_inventory_stock.html')
 
+@app.route('/admin_vehicle_list')
 @app.route('/admin_vehicle_list.html')
 def admin_vehicles():
     return render_template('admin_vehicle_list.html')
 
+@app.route('/admin_vehicle_maintenance')
 @app.route('/admin_vehicle_maintenance.html')
 def admin_vehicle_maintenance():
     return render_template('admin_vehicle_maintenance.html')
 
+@app.route('/admin_users')
 @app.route('/admin_users.html')
 def admin_users():
     return render_template('admin_users.html')
 
+@app.route('/admin_dss')
 @app.route('/admin_dss.html')
 def admin_dss():
     return render_template('admin_dss.html')
 
+@app.route('/admin_domain_management')
 @app.route('/admin_domain_management.html')
 def admin_domains():
     return render_template('admin_domain_management.html')
 
+@app.route('/admin_service_bookings')
 @app.route('/admin_service_bookings.html')
 def admin_service_bookings():
     return render_template('admin_service_bookings.html')
 
+@app.route('/admin_receiving')
 @app.route('/admin_receiving.html')
 def admin_receiving():
     return render_template('admin_receiving.html')
 
+@app.route('/print_layout')
 @app.route('/print_layout.html')
 def print_layout():
     return render_template('print_layout.html')
 
+@app.route('/admin_sidebar')
 @app.route('/admin_sidebar.html')
 def admin_sidebar():
     return render_template('admin_sidebar.html')
 
+@app.route('/admin_header')
 @app.route('/admin_header.html')
 def admin_header():
     return render_template('admin_header.html')
 
+@app.route('/calendarview_widget')
 @app.route('/calendarview_widget.html')
 def calendarview_widget():
     return render_template('calendarview_widget.html')
 
+@app.route('/notifications')
 @app.route('/notifications.html')
 def notifications():
     return render_template('notifications.html')
 
+@app.route('/profile')
 @app.route('/profile.html')
 def profile():
     return render_template('profile.html')
 
+@app.route('/change_password')
 @app.route('/change_password.html')
 def change_password():
     return render_template('change_password.html')
 
+@app.route('/help_support')
 @app.route('/help_support.html')
 def help_support():
     return render_template('help_support.html')
 
 # ── Staff ────────────────────────────────────────────────────
+@app.route('/staff_dashboard')
 @app.route('/staff_dashboard.html')
 def staff_dashboard():
     return render_template('staff_dashboard.html')
 
+@app.route('/staff_inventory')
 @app.route('/staff_inventory.html')
 def staff_inventory():
     return render_template('staff_inventory.html')
 
+@app.route('/staff_maintenance')
 @app.route('/staff_maintenance.html')
 def staff_maintenance():
     return render_template('staff_maintenance.html')
 
+@app.route('/staff_vehicle_list')
 @app.route('/staff_vehicle_list.html')
 def staff_vehicle_list():
     return render_template('staff_vehicle_list.html')
 
 # ── Customer ─────────────────────────────────────────────────
+@app.route('/customer_dashboard')
 @app.route('/customer_dashboard.html')
 def customer_dashboard():
     return render_template('customer_dashboard.html')
 
+@app.route('/customer_pms_history')
 @app.route('/customer_pms_history.html')
 def customer_pms_history():
     return render_template('customer_pms_history.html')
 
+@app.route('/customer_book_service')
 @app.route('/customer_book_service.html')
 def customer_book_service():
     return render_template('customer_book_service.html')
 
+@app.route('/pms_history_details')
 @app.route('/pms_history_details.html')
 def pms_history_details():
     return render_template('pms_history_details.html')
 
+@app.route('/customer_smart_ai')
 @app.route('/customer_smart_ai.html')
 def customer_smart_ai():
     return render_template('customer_smart_ai_widget.html')
 
+@app.route('/customer_header')
 @app.route('/customer_header.html')
 def customer_header():
     return render_template('customer_header.html')
 
+@app.route('/customer_sidebar')
 @app.route('/customer_sidebar.html')
 def customer_sidebar():
     return render_template('customer_sidebar.html')
@@ -1406,16 +1440,19 @@ def ai_generate_report():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/customer_my_bookings')
 @app.route('/customer_my_bookings.html')
 def customer_my_bookings():
     return render_template('customer_my_bookings.html')
 
 
+@app.route('/privacy_policy')
 @app.route('/privacy_policy.html')
 def privacy_policy():
     return render_template('privacy_policy.html')
 
 
+@app.route('/terms_conditions')
 @app.route('/terms_condiion.html')
 def terms_conditions():
     return render_template('terms_condiion.html')
@@ -2011,16 +2048,19 @@ def _offline_response():
                     'error': 'AI service offline. Start it with ai_assistant\\start.bat'}), 503
 
 
+@app.route('/setup_notifications')
 @app.route('/setup_notifications.html')
 def setup_notifications():
     """Setup page to create notifications collection in Firestore"""
     return render_template('setup_notifications.html')
 
+@app.route('/fix_item_numbers')
 @app.route('/fix_item_numbers.html')
 def fix_item_numbers():
     """One-time utility to fix duplicate item numbers in item_master"""
     return render_template('fix_item_numbers.html')
 
+@app.route('/admin_archive')
 @app.route('/admin_archive.html')
 def admin_archive():
     """Archive page for archived item master records"""
