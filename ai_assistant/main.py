@@ -1550,7 +1550,7 @@ def _customer_direct_lookup(message: str, customer_uid: str,
             lines = []
             for b in shown:
                 bid = b.get("booking_id", "")
-                bid_str = f"\nBooking ID: `{bid}`" if bid else ""
+                bid_str = f"\nBook Number: `{bid}`" if bid else ""
                 lines.append(
                     f"**{b.get('date','')} {b.get('time','')}  -  {b.get('plate','')}**\n"
                     f"Services: {b.get('services',' - ')} | Status: {b.get('status',' - ')}"

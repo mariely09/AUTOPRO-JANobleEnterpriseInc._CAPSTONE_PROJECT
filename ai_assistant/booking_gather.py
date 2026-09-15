@@ -690,7 +690,7 @@ def try_handle_booking(message: str, customer_uid: str, customer_name: str,
             svc_list = ", ".join(services)
             reply = (
                 f"✅ Your booking is confirmed!\n\n"
-                f"• Booking ID: **{res.get('booking_id', '')}**\n"
+                f"• Book Number: **{res.get('booking_id', '')}**\n"
                 f"• Vehicle: **{plate}**\n"
                 f"• Service(s): **{svc_list}**\n"
                 f"• Date: **{res.get('date', date_str)}**\n"

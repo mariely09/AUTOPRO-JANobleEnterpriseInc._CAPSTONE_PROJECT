@@ -841,6 +841,28 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     _scrollToBottom();
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Stop generation
+  // ─────────────────────────────────────────────────────────────────────────
+  void _stopGeneration() {
+    if (_activeClient != null) {
+      _activeClient!.close();
+      _activeClient = null;
+    }
+    if (mounted) {
+      setState(() {
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Generation stopped'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   String _parseError(String body) {
     try {
       final d = jsonDecode(body) as Map<String, dynamic>;

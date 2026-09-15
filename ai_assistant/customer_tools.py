@@ -1434,7 +1434,7 @@ def create_customer_booking(customer_uid: str, customer_name: str,
                 "notes":        notes,
                 "message":      (
                     f"✅ Your booking has been successfully created! "
-                    f"Booking ID: {booking_id}. "
+                    f"Book Number: {booking_id}. "
                     f"Status: Approved. "
                     f"We look forward to serving you on "
                     f"{date_formatted} at {preferred_time}. "
@@ -1639,7 +1639,7 @@ def create_customer_booking(customer_uid: str, customer_name: str,
             "notes":        notes or "",
             "message":      (
                 f"Your booking has been successfully created! "
-                f"Booking ID: {booking_id}. "
+                f"Book Number: {booking_id}. "
                 f"Status: Approved. "
                 f"We look forward to serving you on "
                 f"{req_date.strftime('%B %d, %Y')} at {preferred_time}. "
