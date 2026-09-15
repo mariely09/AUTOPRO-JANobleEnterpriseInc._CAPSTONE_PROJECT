@@ -118,12 +118,11 @@
 
         <div class="admin-content">
             <!-- Stat cards -->
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.5rem;">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;">
                 <div class="stat-card" onclick="setFilter('Pending',document.querySelectorAll('#rcvFilterPills .dss-pill')[1])" style="cursor:pointer;"><div class="stat-icon" style="background:rgba(113,128,150,0.1);color:#718096;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><div class="stat-number" id="statPending" style="color:#718096;">0</div><div class="stat-label">Pending</div></div>
                 <div class="stat-card" onclick="setFilter('For Admin Review',document.querySelectorAll('#rcvFilterPills .dss-pill')[2])" style="cursor:pointer;"><div class="stat-icon red"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><div class="stat-number" id="statForReview">0</div><div class="stat-label">For Review</div></div>
                 <div class="stat-card" onclick="setFilter('Awaiting Double Check',document.querySelectorAll('#rcvFilterPills .dss-pill')[3])" style="cursor:pointer;"><div class="stat-icon orange"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-number" id="statAwaiting">0</div><div class="stat-label">Awaiting Review</div></div>
                 <div class="stat-card" onclick="setFilter('Approved',document.querySelectorAll('#rcvFilterPills .dss-pill')[4])" style="cursor:pointer;"><div class="stat-icon green"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="stat-number" id="statApproved">0</div><div class="stat-label">Approved</div></div>
-                <div class="stat-card" onclick="setFilter('Rejected',document.querySelectorAll('#rcvFilterPills .dss-pill')[5])" style="cursor:pointer;"><div class="stat-icon red"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="stat-number" id="statRejected">0</div><div class="stat-label">Rejected</div></div>
             </div>
             <!-- Filter pills -->
             <div class="dss-filter-bar">
@@ -149,10 +148,6 @@
                         <button class="dss-pill dss-pill--ontrack" onclick="setFilter('Approved',this)">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                             Approved
-                        </button>
-                        <button class="dss-pill dss-pill--overdue" onclick="setFilter('Rejected',this)">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                            Rejected
                         </button>
                     </div>
                 </div>
@@ -420,11 +415,7 @@ function fabOpenEditPO() {
     </div>
     <!-- Footer -->
     <div id="rvFooter" style="padding:1rem 1.75rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;flex-wrap:wrap;">
-      <button type="button" onclick="if(!confirm('Are you sure you want to reject this service?')) return; submitReview('Rejected')" style="flex:1;min-width:140px;padding:0.75rem;background:white;border:2px solid #E8001C;border-radius:10px;color:#E8001C;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;" onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-        Reject
-      </button>
-      <button type="button" onclick="submitReview('Approved')" style="flex:1.5;min-width:140px;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;">
+      <button type="button" onclick="submitReview('Approved')" style="flex:1;min-width:140px;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         Approve &amp; Update Stock
       </button>
@@ -538,7 +529,7 @@ function _getItemDate(item, d) {
 window._updateStats = function _updateStats() {
   var s = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
   // Count by per-item status (not delivery-level)
-  var pending = 0, forReview = 0, awaiting = 0, approved = 0, rejected = 0;
+  var pending = 0, forReview = 0, awaiting = 0, approved = 0;
   _allDeliveries.forEach(function(d) {
     var deliveryStatus = d.status || 'Pending';
     (d.items || []).forEach(function(item) {
@@ -548,7 +539,6 @@ window._updateStats = function _updateStats() {
         case 'For Admin Review':      forReview++; break;
         case 'Awaiting Double Check': awaiting++; break;
         case 'Approved':              approved++; break;
-        case 'Rejected':              rejected++; break;
       }
     });
   });
@@ -556,7 +546,6 @@ window._updateStats = function _updateStats() {
   s('statForReview', forReview);
   s('statAwaiting', awaiting);
   s('statApproved', approved);
-  s('statRejected', rejected);
   // Update Print PO button visibility + list
   _updatePrintPOMenu();
 }
@@ -1014,7 +1003,7 @@ function _ivInfoCard(label, value, valueColor) {
       // Paint stats immediately from cache
       (function() {
         var s = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
-        var pending = 0, forReview = 0, awaiting = 0, approved = 0, rejected = 0;
+        var pending = 0, forReview = 0, awaiting = 0, approved = 0;
         docs.forEach(function(d) {
           var ds = d.status || 'Pending';
           (d.items || []).forEach(function(item) {
@@ -1023,7 +1012,6 @@ function _ivInfoCard(label, value, valueColor) {
               case 'For Admin Review':      forReview++; break;
               case 'Awaiting Double Check': awaiting++; break;
               case 'Approved':              approved++; break;
-              case 'Rejected':              rejected++; break;
             }
           });
         });
@@ -1031,7 +1019,6 @@ function _ivInfoCard(label, value, valueColor) {
         s('statForReview', forReview);
         s('statAwaiting',  awaiting);
         s('statApproved',  approved);
-        s('statRejected',  rejected);
       })();
 
       // Render table from cache; live snapshot will overwrite shortly
