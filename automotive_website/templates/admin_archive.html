@@ -749,8 +749,8 @@ window.permanentlyDeleteDelivery = function(docId, supplier) {
     var imRaw = sessionStorage.getItem('archiveIM_' + uid);
     if (imRaw) {
       var imData = JSON.parse(imRaw);
-      if (Array.isArray(imData) && imData.length && !window._archivedItems.length) {
-        window._archivedItems = imData;
+      if (Array.isArray(imData) && imData.length) {
+        _archivedItems = imData;
         restored = true;
       }
     }
@@ -759,8 +759,8 @@ window.permanentlyDeleteDelivery = function(docId, supplier) {
     var maintRaw = sessionStorage.getItem('archiveMaint_' + uid);
     if (maintRaw) {
       var maintData = JSON.parse(maintRaw);
-      if (Array.isArray(maintData) && maintData.length && !window._archivedMaintenance.length) {
-        window._archivedMaintenance = maintData;
+      if (Array.isArray(maintData) && maintData.length) {
+        _archivedMaintenance = maintData;
         restored = true;
       }
     }
@@ -769,8 +769,8 @@ window.permanentlyDeleteDelivery = function(docId, supplier) {
     var vehRaw = sessionStorage.getItem('archiveVeh_' + uid);
     if (vehRaw) {
       var vehData = JSON.parse(vehRaw);
-      if (Array.isArray(vehData) && vehData.length && !window._archivedVehicles.length) {
-        window._archivedVehicles = vehData;
+      if (Array.isArray(vehData) && vehData.length) {
+        _archivedVehicles = vehData;
         restored = true;
       }
     }
@@ -779,8 +779,8 @@ window.permanentlyDeleteDelivery = function(docId, supplier) {
     var usersRaw = sessionStorage.getItem('archiveUsers_' + uid);
     if (usersRaw) {
       var usersData = JSON.parse(usersRaw);
-      if (Array.isArray(usersData) && usersData.length && !window._archivedUsers.length) {
-        window._archivedUsers = usersData;
+      if (Array.isArray(usersData) && usersData.length) {
+        _archivedUsers = usersData;
         restored = true;
       }
     }
@@ -789,15 +789,15 @@ window.permanentlyDeleteDelivery = function(docId, supplier) {
     var delRaw = sessionStorage.getItem('archiveDel_' + uid);
     if (delRaw) {
       var delData = JSON.parse(delRaw);
-      if (Array.isArray(delData) && delData.length && !window._archivedDeliveries.length) {
-        window._archivedDeliveries = delData;
+      if (Array.isArray(delData) && delData.length) {
+        _archivedDeliveries = delData;
         restored = true;
       }
     }
     
     // Immediate render if data was restored
-    if (restored && typeof window.renderCurrentTab === 'function') {
-      window.renderCurrentTab();
+    if (restored && typeof renderCurrentTab === 'function') {
+      renderCurrentTab();
     }
   } catch(e) {}
 })();
