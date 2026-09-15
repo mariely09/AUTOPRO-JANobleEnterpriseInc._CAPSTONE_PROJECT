@@ -21,7 +21,7 @@
   var loginTime  = localStorage.getItem('_loggedIn');
   if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
     document.documentElement.style.display = 'none';
-    window.location.replace('/login.html');
+    window.location.replace('/login');
     return;
   }
   var hasSession = sessionStorage.getItem('apUser') ||
@@ -29,7 +29,7 @@
                    sessionStorage.getItem('cpUser');
   if (!hasSession) {
     document.documentElement.style.display = 'none';
-    window.location.replace('/login.html');
+    window.location.replace('/login');
   }
 })();
 </script>
@@ -174,7 +174,7 @@
     <div class="cu-recent-card">
         <div class="cu-recent-card-head">
             <span class="cu-recent-card-title">Recent Services</span>
-            <a href="customer_pms_history.html" class="cu-recent-card-link">See all →</a>
+            <a href="/customer_pms_history" class="cu-recent-card-link">See all →</a>
         </div>
         <div class="cu-recent-divider"></div>
         <div id="cuRecentServices">
@@ -1287,7 +1287,7 @@ function _renderServices(services) {
             + '</div>'
             + '<canvas id="'+canvasId+'" class="cu-svc-canvas"></canvas>'
             + '<div class="cu-svc-actions">'
-            +   '<a href="customer_book_service.html" class="cu-svc-book-btn">Book Now</a>'
+            +   '<a href="/customer_book_service" class="cu-svc-book-btn">Book Now</a>'
             +   '<button class="cu-svc-next-btn" onclick="_svcNext()">'+nextArrow+'</button>'
             + '</div>'
             + '</div>'
@@ -1680,7 +1680,7 @@ window._initServicesAndCalendar = function() {
   var _parts = _name.trim().split(' ').filter(Boolean);
   var _ini = _parts.length >= 2 ? (_parts[0][0]+_parts[1][0]).toUpperCase() : (_parts[0] ? _parts[0][0].toUpperCase() : 'CU');
 
-  fetch('customer_sidebar.html').then(r => r.text()).then(html => {
+  fetch('/customer_sidebar').then(r => r.text()).then(html => {
     document.getElementById('customerSidebar').innerHTML = html;
     if (typeof setGreeting === 'function') setGreeting();
     if (typeof setActiveTab === 'function') setActiveTab();
@@ -1696,7 +1696,7 @@ window._initServicesAndCalendar = function() {
     }
   });
 
-  fetch('customer_header.html').then(r => r.text()).then(html => {
+  fetch('/customer_header').then(r => r.text()).then(html => {
     document.getElementById('customerHeader').innerHTML = html;
   });
 </script>

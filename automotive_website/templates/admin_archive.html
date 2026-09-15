@@ -18,10 +18,10 @@
   var loginTime  = localStorage.getItem('_loggedIn');
   if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
     document.documentElement.style.display = 'none';
-    window.location.replace('/login.html'); return;
+    window.location.replace('/login'); return;
   }
   var hasSession = sessionStorage.getItem('apUser') || sessionStorage.getItem('spUser') || sessionStorage.getItem('cpUser');
-  if (!hasSession) { document.documentElement.style.display = 'none'; window.location.replace('/login.html'); }
+  if (!hasSession) { document.documentElement.style.display = 'none'; window.location.replace('/login'); }
 })();
 </script>
 
@@ -356,7 +356,7 @@ window.restoreItem = function(docId, name) {
                 var supplierCode = data.supplierCode || '';
                 showToast('"' + name + '" restored! Redirecting to Stock Inventory...', 'success');
                 setTimeout(function() {
-                    window.location.href = 'admin_inventory_stock.html#add='
+                    window.location.href = '/admin_inventory_stock#add='
                         + encodeURIComponent(num + '|' + itemName + '|' + group + '|' + uom + '|' + supplierCode);
                 }, 1000);
             });

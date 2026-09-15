@@ -746,9 +746,15 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         }
 
         if (mounted) {
+          // Generate related queries for AI response
+          final relatedQueries = _generateRelatedQueries(text, answer);
           setState(() {
             _loading = false;
-            _messages.add(_ChatMsg(role: 'ai', text: answer));
+            _messages.add(_ChatMsg(
+              role: 'ai',
+              text: answer,
+              relatedQueries: relatedQueries.isNotEmpty ? relatedQueries : null,
+            ));
           });
         }
 
@@ -1602,16 +1608,50 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         ? _customerName.split(' ').first
         : '';
     final sub = first.isEmpty
-        ? 'Ask me anything about your vehicles — PMS status, history, costs, and more.'
+        ? 'Choose a quick query below or ask me anything about your vehicles, bookings, or services.'
         : _vehicleCount > 0
         ? 'Hi $first! You have $_vehicleCount registered '
-              'vehicle${_vehicleCount != 1 ? 's' : ''}. Ask me anything about them.'
+              'vehicle${_vehicleCount != 1 ? 's' : ''}. How can I help you today?'
         : 'Hi $first! No vehicles are registered under your account yet.';
 
-    final suggestions = [
-      'Show my complete service history',
-      'List all my registered vehicles',
-      'What services do you offer and what are the prices?',
+    // Six quick query cards with titles, descriptions, and icons
+    final quickQueries = [
+      {
+        'title': 'My Vehicle',
+        'desc': 'View your vehicle information',
+        'icon': Icons.directions_car_outlined,
+        'query': 'Show my vehicle information and status',
+      },
+      {
+        'title': 'Book a Service',
+        'desc': 'Schedule your vehicle maintenance',
+        'icon': Icons.calendar_today_outlined,
+        'query': 'I want to book a service for my vehicle',
+      },
+      {
+        'title': 'Service History',
+        'desc': 'View your previous vehicle services',
+        'icon': Icons.history_outlined,
+        'query': 'Show my complete service history',
+      },
+      {
+        'title': 'Maintenance Schedule',
+        'desc': 'Check your upcoming maintenance',
+        'icon': Icons.schedule_outlined,
+        'query': 'When is my next maintenance due?',
+      },
+      {
+        'title': 'Services & Pricing',
+        'desc': 'Explore services and estimated costs',
+        'icon': Icons.attach_money_outlined,
+        'query': 'What services do you offer and what are the prices?',
+      },
+      {
+        'title': 'My Booking Status',
+        'desc': 'Check your service appointment',
+        'icon': Icons.info_outline,
+        'query': 'What is the status of my booking?',
+      },
     ];
 
     return SingleChildScrollView(
@@ -1619,20 +1659,21 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // AI logo — transparent circle with image
+          // AI logo
           Container(
-            width: 72,
-            height: 72,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: const Color(0xFFE8001C).withValues(alpha: 0.2),
-                width: 2,
+                color: const Color(0xFF22c55e),
+                width: 2.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFE8001C).withValues(alpha: 0.12),
-                  blurRadius: 16,
+                  color: const Color(0xFF22c55e).withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -1642,11 +1683,12 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           ),
           const SizedBox(height: 14),
           const Text(
-            'AI Assistant',
+            'Hey, how can I help?',
             style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               color: Color(0xFF1a202c),
+              letterSpacing: -0.3,
             ),
           ),
           const SizedBox(height: 6),
@@ -1655,22 +1697,19 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 13,
-              color: Color(0xFF718096),
-              height: 1.5,
+              color: Color(0xFF94a3b8),
+              height: 1.6,
             ),
           ),
           const SizedBox(height: 24),
-          ...suggestions.map(
-            (s) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+          ...quickQueries.map(
+            (q) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
               child: GestureDetector(
-                onTap: () => _send(s),
+                onTap: () => _send(q['query'] as String),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 11,
-                  ),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -1678,6 +1717,69 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                       color: const Color(0xFFe8edf2),
                       width: 1.5,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFF5F5), Color(0xFFFFE4E6)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Icon(
+                          q['icon'] as IconData,
+                          color: const Color(0xFFE8001C),
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              q['title'] as String,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1a202c),
+                                height: 1.3,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              q['desc'] as String,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF718096),
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.04),
@@ -1752,6 +1854,93 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   // ─────────────────────────────────────────────────────────────────────────
   //  Chat bubbles
   // ─────────────────────────────────────────────────────────────────────────
+  
+  // Generate 3 contextually relevant follow-up queries (customer-specific)
+  List<String> _generateRelatedQueries(String userQuery, String aiResponse) {
+    final q = userQuery.toLowerCase();
+    final resp = aiResponse.toLowerCase();
+
+    // Define customer-specific query bank
+    final queryBank = {
+      'vehicle': [
+        'Show my vehicle maintenance history',
+        'When is my next service due?',
+        'What are common issues for my vehicle?',
+        'Show my vehicle warranty status',
+        'Update my vehicle mileage'
+      ],
+      'booking': [
+        'Book another service appointment',
+        'Reschedule my current booking',
+        'What services are included in my booking?',
+        'Cancel my appointment',
+        'What are your available time slots?'
+      ],
+      'history': [
+        'Show my most recent service',
+        'What repairs have been done?',
+        'Generate my service history report',
+        'Show service costs over time',
+        'What parts were replaced?'
+      ],
+      'pricing': [
+        'Get a quote for oil change',
+        'What is included in basic service?',
+        'Do you offer service packages?',
+        'Compare service prices',
+        'What payment methods do you accept?'
+      ],
+      'maintenance': [
+        'What maintenance is overdue?',
+        'Show my PMS schedule',
+        'Set reminders for next service',
+        'What is the recommended service interval?',
+        'Show maintenance alerts'
+      ],
+      'general': [
+        'Show my vehicle information',
+        'Book a service',
+        'View my service history',
+        'Check service pricing',
+        'What are your operating hours?'
+      ]
+    };
+
+    // Determine context
+    String context = 'general';
+    if (RegExp(r'vehicle|car|plate|registration', caseSensitive: false)
+        .hasMatch('$q $resp')) {
+      context = 'vehicle';
+    } else if (RegExp(r'book|appointment|schedule|reservation',
+            caseSensitive: false)
+        .hasMatch('$q $resp')) {
+      context = 'booking';
+    } else if (RegExp(r'history|past|previous|completed', caseSensitive: false)
+        .hasMatch('$q $resp')) {
+      context = 'history';
+    } else if (RegExp(r'price|cost|quote|payment|fee', caseSensitive: false)
+        .hasMatch('$q $resp')) {
+      context = 'pricing';
+    } else if (RegExp(r'maintenance|service|pms|due|overdue',
+            caseSensitive: false)
+        .hasMatch('$q $resp')) {
+      context = 'maintenance';
+    }
+
+    // Get relevant queries and shuffle
+    final relevantQueries = queryBank[context] ?? queryBank['general']!;
+    final shuffled = List<String>.from(relevantQueries)..shuffle();
+
+    // Filter out queries too similar to current user query
+    final filtered = shuffled
+        .where((sq) =>
+            !sq.toLowerCase().contains(q) && !q.contains(sq.toLowerCase()))
+        .toList();
+
+    // Return first 3
+    return filtered.take(3).toList();
+  }
+
   Widget _buildBubble(_ChatMsg msg) {
     // ── User bubble ──
     if (msg.role == 'user') {
@@ -2039,30 +2228,109 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                   decoration: _aiBubbleDecoration(),
                   child: _renderMarkdown(msg.text),
                 ),
-                const SizedBox(height: 4),
-                // Copy button for AI response
-                _userPromptActionBtn(
-                  icon: Icons.copy_outlined,
-                  label: 'Copy',
-                  onTap: () async {
-                    await Clipboard.setData(ClipboardData(text: msg.text));
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Copied to clipboard'),
-                          duration: Duration(seconds: 2),
-                          behavior: SnackBarBehavior.floating,
+                // Copy button and timestamp
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, left: 2),
+                  child: Row(
+                    children: [
+                      // Copy button for AI responses
+                      _userPromptActionBtn(
+                        icon: Icons.copy_outlined,
+                        label: 'Copy',
+                        onTap: () async {
+                          await Clipboard.setData(
+                            ClipboardData(text: msg.text),
+                          );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Copied to clipboard'),
+                                duration: Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'AI Assistant',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF94a3b8),
                         ),
-                      );
-                    }
-                  },
+                      ),
+                      const SizedBox(width: 5),
+                      const Text(
+                        '·',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFFcbd5e0),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _formatTimestamp(msg.timestamp ?? DateTime.now()),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF94a3b8),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                // Related query chips
+                if (msg.relatedQueries != null && msg.relatedQueries!.isNotEmpty && !_loading) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: msg.relatedQueries!
+                        .map(
+                          (query) => GestureDetector(
+                            onTap: () => _send(query),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 7,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8F9FB),
+                                border: Border.all(
+                                  color: const Color(0xFFe2e8f0),
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                query,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF475569),
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  // Format timestamp to HH:MM AM/PM
+  String _formatTimestamp(DateTime dt) {
+    final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
   }
 
   // ── Shared decoration for AI bubble ──
@@ -2472,5 +2740,14 @@ class _ChatMsg {
   final String role;
   final String text;
   final bool isRateLimit;
-  _ChatMsg({required this.role, required this.text, this.isRateLimit = false});
+  final DateTime? timestamp;
+  final List<String>? relatedQueries;
+
+  _ChatMsg({
+    required this.role,
+    required this.text,
+    this.isRateLimit = false,
+    DateTime? timestamp,
+    this.relatedQueries,
+  }) : timestamp = timestamp ?? DateTime.now();
 }

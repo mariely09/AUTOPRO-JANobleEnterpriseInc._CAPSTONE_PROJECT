@@ -19,7 +19,7 @@
   var loginTime  = localStorage.getItem('_loggedIn');
   if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
     document.documentElement.style.display = 'none';
-    window.location.replace('/login.html');
+    window.location.replace('/login');
     return;
   }
   var hasSession = sessionStorage.getItem('apUser') ||
@@ -27,7 +27,7 @@
                    sessionStorage.getItem('cpUser');
   if (!hasSession) {
     document.documentElement.style.display = 'none';
-    window.location.replace('/login.html');
+    window.location.replace('/login');
   }
 })();
 </script>

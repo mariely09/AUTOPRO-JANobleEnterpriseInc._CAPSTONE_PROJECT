@@ -1159,9 +1159,8 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     # -- Step 1c: direct DB path for simple lookups (0 LLM tokens) ------------
     direct = _customer_direct_lookup(message, customer_uid, customer_name, intent)
     if direct is not None:
-        # Convert markdown bold to HTML for consistency
-        from format_utils import markdown_to_html
-        direct["reply"] = markdown_to_html(direct.get("reply", ""))
+        # Note: Direct replies use **text** markdown format
+        # Flutter's _renderMarkdown already handles the rendering
         
         token_tracker.record(
             user_id=customer_uid,
@@ -1462,6 +1461,9 @@ def _customer_direct_lookup(message: str, customer_uid: str,
         get_service_recommendations, get_my_bookings,
         get_service_prices, get_customer_materials,
     )
+    
+    # Note: All replies use **text** markdown format
+    # Flutter's _renderMarkdown handles the rendering automatically
 
     # -- MY_VEHICLES -----------------------------------------------------------
     if intent == MY_VEHICLES or re.search(
@@ -2198,9 +2200,8 @@ def customer_chat_endpoint(req: CustomerChatRequest):
         )
         reply = result["reply"]
         
-        # Convert markdown bold (**text**) to HTML bold (<b>text</b>) for web/mobile display
-        from format_utils import markdown_to_html
-        reply = markdown_to_html(reply)
+        # Note: Flutter's _renderMarkdown already handles **text** markdown rendering
+        # No need to convert to HTML tags
 
         append_turn(session_id, req.message, reply)
 

@@ -1,16 +1,16 @@
 ﻿// Page → URL mapping for navigation
 const PAGE_URLS = {
-    'overview':                 'admin_dashboard.html',
-    'item-master':              'admin_inventory_itemaster.html',
-    'inventory':                'admin_inventory_stock.html',
-    'inventory-transactions':   'admin_transactions.html',
-    'assets':                   'admin_vehicle_list.html',
-    'asset-servicing':          'admin_vehicle_maintenance.html',
-    'issuance':                 'admin_issuances.html',
-    'dss':                      'admin_dss.html',
-    'dss-pms':                  'admin_dss.html#dss-pms',
-    'users':                    'admin_users.html',
-    'domains':                  'admin_domain_management.html',
+    'overview':                 '/admin_dashboard',
+    'item-master':              '/admin_inventory_items',
+    'inventory':                '/admin_inventory_stock',
+    'inventory-transactions':   '/admin_transactions',
+    'assets':                   '/admin_vehicle_list',
+    'asset-servicing':          '/admin_vehicle_maintenance',
+    'issuance':                 '/admin_issuances',
+    'dss':                      '/admin_dss',
+    'dss-pms':                  '/admin_dss#dss-pms',
+    'users':                    '/admin_users',
+    'domains':                  '/admin_domain_management',
 };
 
 // ── Inject mobile-only styles that override inline styles ──────────────
@@ -66,10 +66,10 @@ function navigateTo(section) {
     if (!url) return;
 
     // If we're navigating to a hash on the same page, update data-page and active state in place
-    const currentPage = window.location.pathname.split('/').pop();
-    const [targetFile, targetHash] = url.split('#');
+    const currentPath = window.location.pathname.replace(/\/$/, '');
+    const [targetPath, targetHash] = url.split('#');
 
-    if (currentPage === targetFile && targetHash) {
+    if (currentPath === targetPath && targetHash) {
         document.body.setAttribute('data-page', section);
         initSidebarActive();
         window.location.hash = targetHash;
@@ -77,7 +77,7 @@ function navigateTo(section) {
         if (typeof switchAdminSection === 'function') switchAdminSection(section);
         if (typeof switchDSSSection === 'function') switchDSSSection(section);
         _closeSidebar();
-    } else if (currentPage === targetFile && !targetHash) {
+    } else if (currentPath === targetPath && !targetHash) {
         document.body.setAttribute('data-page', section);
         initSidebarActive();
         history.pushState(null, '', window.location.pathname);
@@ -141,29 +141,29 @@ function initSidebarActive() {
 // Pages that use the expand/collapse (icon ↔ full-width) sidebar pattern.
 // All other admin pages use the drawer (hidden ↔ slide-in) pattern.
 const EXPAND_COLLAPSE_PAGES = [
-    'admin_dashboard.html',
-    'admin_inventory_stock.html',
-    'admin_inventory_itemaster.html',
-    'admin_vehicle_list.html',
-    'admin_vehicle_maintenance.html',
-    'admin_service_bookings.html',
-    'admin_receiving.html',
-    'admin_dss.html',
-    'admin_users.html',
-    'admin_domain_management.html',
-    'admin_archive.html',
-    'admin_transactions.html',
-    'admin_issuances.html',
-    'profile.html',
-    'change_password.html',
-    'notifications.html',
-    'help_support.html',
-    'ai_usage_controls.html',
+    '/admin_dashboard',
+    '/admin_inventory_stock',
+    '/admin_inventory_items',
+    '/admin_vehicle_list',
+    '/admin_vehicle_maintenance',
+    '/admin_service_bookings',
+    '/admin_receiving',
+    '/admin_dss',
+    '/admin_users',
+    '/admin_domain_management',
+    '/admin_archive',
+    '/admin_transactions',
+    '/admin_issuances',
+    '/profile',
+    '/change_password',
+    '/notifications',
+    '/help_support',
+    '/ai_usage_controls',
 ];
 
 function _isExpandCollapsePage() {
-    const page = window.location.pathname.split('/').pop();
-    return EXPAND_COLLAPSE_PAGES.indexOf(page) !== -1;
+    const path = window.location.pathname.replace(/\/$/, '');
+    return EXPAND_COLLAPSE_PAGES.indexOf(path) !== -1;
 }
 
 function bindHeaderControls() {
@@ -329,7 +329,7 @@ function bindHeaderControls() {
     const sidebarContainer = document.getElementById('sidebarContainer');
 
     const headerPromise = headerContainer
-        ? fetch('admin_header.html')
+        ? fetch('/admin_header')
             .then(r => r.text())
             .then(html => {
                 headerContainer.innerHTML = html;
@@ -337,7 +337,7 @@ function bindHeaderControls() {
         : Promise.resolve();
 
     const sidebarPromise = sidebarContainer
-        ? fetch('admin_sidebar.html')
+        ? fetch('/admin_sidebar')
             .then(r => r.text())
             .then(html => {
                 sidebarContainer.innerHTML = html;
@@ -440,12 +440,12 @@ window.adminAvatarLogout = function() {
     sessionStorage.removeItem('cpUser');
     if (typeof firebase !== 'undefined' && firebase.auth) {
         firebase.auth().signOut().finally(() => {
-            history.replaceState(null, '', '/index.html');
-            window.location.replace('/index.html');
+            history.replaceState(null, '', '/login');
+            window.location.replace('/login');
         });
     } else {
-        history.replaceState(null, '', '/index.html');
-        window.location.replace('/index.html');
+        history.replaceState(null, '', '/login');
+        window.location.replace('/login');
     }
 };
 
@@ -473,7 +473,7 @@ window.addEventListener('pageshow', function(e) {
 
     if (!hasSession) {
         // No session at all — go to login immediately, no delay
-        window.location.replace('/login.html');
+        window.location.replace('/login');
         return;
     }
 
@@ -485,7 +485,7 @@ window.addEventListener('pageshow', function(e) {
                 sessionStorage.removeItem('apUser');
                 sessionStorage.removeItem('spUser');
                 sessionStorage.removeItem('cpUser');
-                window.location.replace('/login.html');
+                window.location.replace('/login');
             }
         }
         return;
@@ -501,7 +501,7 @@ window.addEventListener('pageshow', function(e) {
                         sessionStorage.removeItem('apUser');
                         sessionStorage.removeItem('spUser');
                         sessionStorage.removeItem('cpUser');
-                        window.location.replace('/login.html');
+                        window.location.replace('/login');
                     }
                 }, 500);
             }

@@ -20,7 +20,7 @@
   // If logged out more recently than logged in, block access
   if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
     document.documentElement.style.display = 'none';
-    window.location.replace('/login.html');
+    window.location.replace('/login');
     return;
   }
   var hasSession = sessionStorage.getItem('apUser') ||
@@ -28,7 +28,7 @@
                    sessionStorage.getItem('cpUser');
   if (!hasSession) {
     document.documentElement.style.display = 'none';
-    window.location.replace('/login.html');
+    window.location.replace('/login');
   }
 })();
 </script>

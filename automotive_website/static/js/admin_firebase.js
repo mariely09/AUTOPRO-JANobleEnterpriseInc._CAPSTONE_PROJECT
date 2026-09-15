@@ -37,7 +37,7 @@
         const stored = sessionStorage.getItem('apUser');
         if (!stored) {
           console.log('No apUser in sessionStorage and no Firebase user, redirecting to login');
-          window.location.href = '/login.html';
+          window.location.href = '/login';
         }
         return;
       }

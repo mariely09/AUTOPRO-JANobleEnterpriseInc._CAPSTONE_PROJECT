@@ -99,7 +99,7 @@
   // If logged out more recently than logged in, block access
   if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
     document.documentElement.style.display = 'none';
-    window.location.replace('/login.html');
+    window.location.replace('/login');
     return;
   }
   var hasSession = sessionStorage.getItem('apUser') ||
@@ -107,7 +107,7 @@
                    sessionStorage.getItem('cpUser');
   if (!hasSession) {
     document.documentElement.style.display = 'none';
-    window.location.replace('/login.html');
+    window.location.replace('/login');
   }
 })();
 </script>
@@ -119,7 +119,7 @@
 
 <main class="cu-main">
   <div class="bs-page">
-    <a href="customer_my_bookings.html" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#718096;text-decoration:none;margin-bottom:16px;transition:color .2s;" onmouseover="this.style.color='#E8001C'" onmouseout="this.style.color='#718096'">
+    <a href="/customer_my_bookings" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#718096;text-decoration:none;margin-bottom:16px;transition:color .2s;" onmouseover="this.style.color='#E8001C'" onmouseout="this.style.color='#718096'">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       Back to My Bookings
     </a>
@@ -333,7 +333,7 @@ function _renderCostSummary() {
   var name = sess.name || '';
   var parts = name.trim().split(' ').filter(Boolean);
   var ini = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : (parts[0]?parts[0][0].toUpperCase():'CU');
-  fetch('customer_sidebar.html').then(function(r){return r.text();}).then(function(html){
+  fetch('/customer_sidebar').then(function(r){return r.text();}).then(function(html){
     document.getElementById('customerSidebar').innerHTML = html;
     if (typeof setGreeting === 'function') setGreeting();
     if (typeof setActiveTab === 'function') setActiveTab();
@@ -344,14 +344,14 @@ function _renderCostSummary() {
       var mn = document.getElementById('cuAvatarName'); if(mn) mn.textContent = name;
     }
   });
-  fetch('customer_header.html').then(function(r){return r.text();}).then(function(html){
+  fetch('/customer_header').then(function(r){return r.text();}).then(function(html){
     document.getElementById('customerHeader').innerHTML = html;
   });
 })();
 
 // Load data
 firebase.auth().onAuthStateChanged(function(user){
-  if (!user) { window.location.href = 'login.html'; return; }
+  if (!user) { window.location.href = '/login'; return; }
 
   // ── Cache restore — show vehicles instantly before Firestore loads ──
   (function() {
@@ -963,7 +963,7 @@ window.bsSubmit = async function() {
     });
 
     _toast('Booking successfully!', 'success');
-    setTimeout(function(){ window.location.href = 'customer_my_bookings.html'; }, 2000);
+    setTimeout(function(){ window.location.href = '/customer_my_bookings'; }, 2000);
   } catch(e) {
     _toast('Error: '+e.message,'error');
     btn.disabled = false; btn.textContent = 'Book Service';
