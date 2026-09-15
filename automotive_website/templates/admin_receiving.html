@@ -968,35 +968,51 @@ function _ivInfoCard(label, value, valueColor) {
         });
       });
 
-      // Populate window._fbDeliveries immediately so initData will use it
+      // Populate window._fbDeliveries AND _allDeliveries immediately
       window._fbDeliveries = docs;
+      _allDeliveries = docs;
+
+      // Enrich with cached item master and inventory data if available
+      if (window._fbItemMaster && window._fbInventory) {
+        _enrichDeliveries(_allDeliveries);
+      }
 
       // Paint stats immediately from cache
-      (function() {
-        var s = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
-        var pending = 0, forReview = 0, awaiting = 0, approved = 0;
-        docs.forEach(function(d) {
-          var ds = d.status || 'Pending';
-          (d.items || []).forEach(function(item) {
-            switch (item.itemStatus || ds) {
-              case 'Pending':               pending++;  break;
-              case 'For Admin Review':      forReview++; break;
-              case 'Awaiting Double Check': awaiting++; break;
-              case 'Approved':              approved++; break;
-            }
-          });
+      var pending = 0, forReview = 0, awaiting = 0, approved = 0;
+      docs.forEach(function(d) {
+        var ds = d.status || 'Pending';
+        (d.items || []).forEach(function(item) {
+          switch (item.itemStatus || ds) {
+            case 'Pending':               pending++;  break;
+            case 'For Admin Review':      forReview++; break;
+            case 'Awaiting Double Check': awaiting++; break;
+            case 'Approved':              approved++; break;
+          }
         });
-        s('statPending',   pending);
-        s('statForReview', forReview);
-        s('statAwaiting',  awaiting);
-        s('statApproved',  approved);
-      })();
+      });
+      var s = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+      s('statPending',   pending);
+      s('statForReview', forReview);
+      s('statAwaiting',  awaiting);
+      s('statApproved',  approved);
+
+      // Render table immediately from cache
+      _populateMonthFilter();
+      _renderList();
+      
+      // Mark that cache was loaded
+      window._rcvCacheLoaded = true;
     } catch(e) {}
   })();
 
   // ── Immediate data load with instant fallback ──────────────────────────
   (function initData() {
-    // Try global cache first (from admin_firebase.js listener or cache restore above)
+    // Skip if cache was already loaded and rendered
+    if (window._rcvCacheLoaded && _allDeliveries.length) {
+      return;
+    }
+    
+    // Try global cache first (from admin_firebase.js listener)
     if (window._fbDeliveries && window._fbDeliveries.length) {
       _allDeliveries = window._fbDeliveries;
       _enrichDeliveries(_allDeliveries);
