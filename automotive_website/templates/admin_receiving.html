@@ -946,61 +946,55 @@ function _ivInfoCard(label, value, valueColor) {
     _updateStats(); _populateMonthFilter(); _renderList();
   };
 
-  // ── Fast path: use already-loaded window._fbDeliveries ──────────────────
-  // The global listener in admin_firebase.js starts at login and fires before
-  // the user navigates here. If data is ready, paint instantly (0 ms).
-  // If not ready yet, poll every 100 ms (max 4 s) then fall back to .get().
-  function _loadFromGlobal() {
-    var docs = window._fbDeliveries;
-    if (!docs || !docs.length) return false;
-    _allDeliveries = docs;
-    _enrichDeliveries(_allDeliveries);
-    _updateStats(); _populateMonthFilter(); _renderList();
-    return true;
-  }
+  // ── Immediate data load with instant fallback ──────────────────────────
+  (function initData() {
+    // Try global cache first (from admin_firebase.js listener)
+    if (window._fbDeliveries && window._fbDeliveries.length) {
+      _allDeliveries = window._fbDeliveries;
+      _enrichDeliveries(_allDeliveries);
+      _updateStats(); _populateMonthFilter(); _renderList();
+      return;
+    }
 
-  if (!_loadFromGlobal()) {
-    var _rcvPollCount = 0;
-    var _rcvPoll = setInterval(function() {
-      _rcvPollCount++;
-      if (_loadFromGlobal() || _rcvPollCount >= 40) {
-        clearInterval(_rcvPoll);
-        // Hard fallback: direct Firestore .get() if global listener hasn't fired in 4 s
-        if (!_allDeliveries.length) {
-          Promise.all([
-            db.collection('deliveries').orderBy('createdAt', 'desc').get(),
-            db.collection('item_master').where('type', '==', 'Material').get(),
-            db.collection('stock_inventory').get()
-          ]).then(function(results) {
-            _allDeliveries = results[0].docs
-              .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
-              .filter(function(d) { return !d.archived; });
-            var numToCost = {}, numToStock = {};
-            results[1].docs.forEach(function(d) {
-              var data = d.data(); var n = data.num || '';
-              if (n) numToCost[n] = parseFloat((data.cost || '0').toString().replace(/[₱,]/g, '')) || 0;
-            });
-            results[2].docs.forEach(function(d) {
-              var data = d.data(); var n = data.num || '';
-              if (n) numToStock[n] = parseInt(data.stock) || 0;
-            });
-            _allDeliveries.forEach(function(del) {
-              (del.items || []).forEach(function(item) {
-                var n = item.itemNum || '';
-                item._cost = numToCost[n] || 0;
-                item._stock = (item.stockAtReceive !== undefined && item.stockAtReceive !== null)
-                  ? item.stockAtReceive
-                  : (numToStock[n] !== undefined ? numToStock[n] : null);
-              });
-            });
-            _updateStats(); _populateMonthFilter(); _renderList();
-          }).catch(function() {
-            _renderList();
-          });
-        }
-      }
-    }, 100);
-  }
+    // Immediate fallback: fetch directly from Firestore without waiting
+    Promise.all([
+      db.collection('deliveries').orderBy('createdAt', 'desc').get(),
+      db.collection('item_master').where('type', '==', 'Material').get(),
+      db.collection('stock_inventory').get()
+    ]).then(function(results) {
+      // Only process if no data loaded yet (avoid overwriting real-time data)
+      if (_allDeliveries.length) return;
+      
+      _allDeliveries = results[0].docs
+        .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
+        .filter(function(d) { return !d.archived; });
+      
+      var numToCost = {}, numToStock = {};
+      results[1].docs.forEach(function(d) {
+        var data = d.data(); var n = data.num || '';
+        if (n) numToCost[n] = parseFloat((data.cost || '0').toString().replace(/[₱,]/g, '')) || 0;
+      });
+      results[2].docs.forEach(function(d) {
+        var data = d.data(); var n = data.num || '';
+        if (n) numToStock[n] = parseInt(data.stock) || 0;
+      });
+      
+      _allDeliveries.forEach(function(del) {
+        (del.items || []).forEach(function(item) {
+          var n = item.itemNum || '';
+          item._cost = numToCost[n] || 0;
+          item._stock = (item.stockAtReceive !== undefined && item.stockAtReceive !== null)
+            ? item.stockAtReceive
+            : (numToStock[n] !== undefined ? numToStock[n] : null);
+        });
+      });
+      
+      _updateStats(); _populateMonthFilter(); _renderList();
+    }).catch(function(err) {
+      console.error('Failed to load deliveries:', err);
+      _renderList(); // Show empty state
+    });
+  })();
 </script>
 <script>
 // ── Instant cache restore — runs before DOMContentLoaded ──────────────────
