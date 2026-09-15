@@ -20,7 +20,7 @@
   // If logged out more recently than logged in, block access
   if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
     document.documentElement.style.display = 'none';
-    window.location.replace('/login.html');
+    window.location.replace('/login');
     return;
   }
   var hasSession = sessionStorage.getItem('apUser') ||
@@ -28,7 +28,7 @@
                    sessionStorage.getItem('cpUser');
   if (!hasSession) {
     document.documentElement.style.display = 'none';
-    window.location.replace('/login.html');
+    window.location.replace('/login');
   }
 })();
 </script>
@@ -609,7 +609,7 @@
   // Auto-open stock level modal after adding a Material item
   window.openAddInventoryModalWithItem = function(item) {
     // Navigate to stock inventory page with the item pre-selected
-    window.location.href = 'admin_inventory_stock.html#add=' + encodeURIComponent(item.itemNum + '|' + item.itemName + '|' + item.commodityGroup + '|' + item.uom + '|' + (item.supplierCode || ''));
+    window.location.href = '/admin_inventory_stock#add=' + encodeURIComponent(item.itemNum + '|' + item.itemName + '|' + item.commodityGroup + '|' + item.uom + '|' + (item.supplierCode || ''));
   };
 
   // Update Item Master stat cards from live data
