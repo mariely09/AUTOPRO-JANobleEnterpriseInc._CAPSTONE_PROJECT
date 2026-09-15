@@ -106,7 +106,7 @@
   // If logged out more recently than logged in, block access
   if (logoutTime && (!loginTime || parseInt(logoutTime) > parseInt(loginTime))) {
     document.documentElement.style.display = 'none';
-    window.location.replace('/login.html');
+    window.location.replace('/login');
     return;
   }
   var hasSession = sessionStorage.getItem('apUser') ||
@@ -114,7 +114,7 @@
                    sessionStorage.getItem('cpUser');
   if (!hasSession) {
     document.documentElement.style.display = 'none';
-    window.location.replace('/login.html');
+    window.location.replace('/login');
   }
 })();
 </script>
@@ -167,7 +167,7 @@
   });
 
   const stored = sessionStorage.getItem('cpUser');
-  if (!stored) { window.location.href = 'login.html'; }
+  if (!stored) { window.location.href = '/login'; }
   const cpUser = JSON.parse(stored || '{}');
   const db = firebase.firestore();
 
@@ -213,7 +213,7 @@
     try {
       if (!user) {
         document.getElementById('phVehiclesList').innerHTML =
-          '<div class="cu-empty" style="color:#E8001C;">Session expired. <a href="login.html">Please log in again.</a></div>';
+          '<div class="cu-empty" style="color:#E8001C;">Session expired. <a href="/login">Please log in again.</a></div>';
         return;
       }
 
@@ -287,7 +287,7 @@
             : parseFloat(String(raw).replace(/[^0-9.]/g, '')) || 0;
           return sum + num;
         }, 0);
-        const detailsUrl = `pms_history_details.html?plate=${encodeURIComponent(v.plate)}&desc=${encodeURIComponent(v.desc || '—')}&type=${encodeURIComponent(v.type || '')}`;
+        const detailsUrl = `/pms_history_details?plate=${encodeURIComponent(v.plate)}&desc=${encodeURIComponent(v.desc || '—')}&type=${encodeURIComponent(v.type || '')}`;
         // Pre-cache this vehicle's records + odometer so the details page renders instantly
         const cacheKey = 'phdCache_' + (v.plate || '').toLowerCase().replace(/\s+/g,'_');
         try {
@@ -344,7 +344,7 @@
   // Wait for Firebase Auth, then load data
   firebase.auth().onAuthStateChanged((user) => {
     if (user) init(user);
-    else window.location.href = 'login.html';
+    else window.location.href = '/login';
   });
 
   // -- Search / filter --------------------------------------
@@ -379,7 +379,7 @@
     var name = sess.name || '';
     var parts = name.trim().split(' ').filter(Boolean);
     var ini = parts.length >= 2 ? (parts[0][0]+parts[1][0]).toUpperCase() : (parts[0]?parts[0][0].toUpperCase():'CU');
-    fetch('customer_sidebar.html').then(r => r.text()).then(html => {
+    fetch('/customer_sidebar').then(r => r.text()).then(html => {
       document.getElementById('customerSidebar').innerHTML = html;
       if (typeof setGreeting === 'function') setGreeting();
       if (typeof setActiveTab === 'function') setActiveTab();
@@ -390,7 +390,7 @@
         var mn = document.getElementById('cuAvatarName'); if(mn) mn.textContent = name;
       }
     });
-    fetch('customer_header.html').then(r => r.text()).then(html => {
+    fetch('/customer_header').then(r => r.text()).then(html => {
       document.getElementById('customerHeader').innerHTML = html;
     });
   })();
