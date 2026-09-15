@@ -156,7 +156,7 @@ Future<void> _sendViaOneSignal({
 }) async {
   if (userIds.isEmpty) return;
   if (kIsWeb) {
-    debugPrint('?? OneSignal push skipped on web');
+    debugPrint('OneSignal push skipped on web');
     return;
   }
   try {
@@ -175,9 +175,9 @@ Future<void> _sendViaOneSignal({
         'data': {'type': type},
       }),
     );
-    debugPrint('?? OneSignal ? ${res.statusCode}: ${res.body}');
+    debugPrint('OneSignal response ${res.statusCode}: ${res.body}');
   } catch (e) {
-    debugPrint('? OneSignal send error: $e');
+    debugPrint('OneSignal send error: $e');
   }
 }
 
@@ -203,13 +203,13 @@ class _AppNotificationsState extends State<AppNotifications> {
   void _setupListeners() {
     if (kIsWeb) return; // OneSignal not supported on web
     OneSignal.Notifications.addForegroundWillDisplayListener((event) {
-      debugPrint('?? Foreground: ${event.notification.title}');
+      debugPrint('Foreground notification: ${event.notification.title}');
       event.preventDefault(); // prevent auto-display so we show our own dialog
       _showNotificationDialog(event.notification);
     });
 
     OneSignal.Notifications.addClickListener((event) {
-      debugPrint('?? Tapped: ${event.notification.title}');
+      debugPrint('Notification tapped: ${event.notification.title}');
     });
   }
 
@@ -328,13 +328,13 @@ class _AppNotificationsState extends State<AppNotifications> {
               'type': type,
             }),
           );
-          debugPrint('?? Email sent to $userEmail');
+          debugPrint('Email sent to $userEmail');
         } catch (e) {
-          debugPrint('?? Email to $uid failed (non-fatal): $e');
+          debugPrint('Email to $uid failed (non-fatal): $e');
         }
       }
     } catch (e) {
-      debugPrint('?? Notification email send failed (non-fatal): $e');
+      debugPrint('Notification email send failed (non-fatal): $e');
     }
 
     // 3. Filter by pref then push via OneSignal
@@ -365,9 +365,7 @@ class _AppNotificationsState extends State<AppNotifications> {
     try {
       final markerDoc = await markerRef.get();
       if (markerDoc.exists) {
-        debugPrint(
-          '?? DSS alerts already generated today ($todayStr), skipping.',
-        );
+        debugPrint('DSS alerts already generated today ($todayStr), skipping.');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Alerts already sent today.')),
@@ -378,9 +376,7 @@ class _AppNotificationsState extends State<AppNotifications> {
       // Write marker immediately to prevent race conditions
       await markerRef.set({'generatedAt': FieldValue.serverTimestamp()});
     } catch (e) {
-      debugPrint(
-        '?? DSS marker check failed: $e � skipping to avoid duplicates',
-      );
+      debugPrint('DSS marker check failed: $e - skipping to avoid duplicates');
       return;
     }
 
@@ -622,10 +618,10 @@ class _AppNotificationsState extends State<AppNotifications> {
               }
             }
             if (ownerId != null && ownerId.isNotEmpty) {
-              debugPrint('? Resolved owner UID for $ownerName ? $ownerId');
+              debugPrint('Resolved owner UID for $ownerName: $ownerId');
             } else {
               debugPrint(
-                '?? Could not resolve owner UID for vehicle $plate (owner: $ownerName)',
+                'Could not resolve owner UID for vehicle $plate (owner: $ownerName)',
               );
             }
           }
@@ -677,14 +673,14 @@ class _AppNotificationsState extends State<AppNotifications> {
         }
       }
 
-      debugPrint('? DSS alerts generated and pushed');
+      debugPrint('DSS alerts generated and pushed');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('DSS alerts sent')));
       }
     } catch (e) {
-      debugPrint('? generateDSSAlerts error: $e');
+      debugPrint('generateDSSAlerts error: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,

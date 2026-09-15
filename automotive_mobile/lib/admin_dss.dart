@@ -39,9 +39,9 @@ Future<void> _sendViaOneSignal({
         'data': {'type': type},
       }),
     );
-    debugPrint('?? OneSignal ? ${res.statusCode}: ${res.body}');
+    debugPrint('OneSignal response ${res.statusCode}: ${res.body}');
   } catch (e) {
-    debugPrint('? OneSignal send error: $e');
+    debugPrint('OneSignal send error: $e');
   }
 }
 
@@ -113,7 +113,7 @@ class _AdminDSSState extends State<AdminDSS> {
     final sentinelRef = db.collection('dss_alert_log').doc(todayKey);
     final sentinelSnap = await sentinelRef.get();
     if (sentinelSnap.exists) {
-      debugPrint('? DSS alerts already sent today ($todayKey), skipping');
+      debugPrint('DSS alerts already sent today ($todayKey), skipping');
       return;
     }
     // Mark as sent for today immediately (before writing alerts, to prevent
@@ -185,7 +185,7 @@ class _AdminDSSState extends State<AdminDSS> {
           // Only push to admins who have lowStock alerts enabled
           final targets = await filterByPref(adminIds, 'lowStock');
           await db.collection('notifications').add({
-            'title': '?? URGENT: Out of Stock',
+            'title': '🚨 URGENT: Out of Stock',
             'message':
                 '$name is out of stock. Recommend ordering $recommendQty $uom.',
             'type': 'warning',
@@ -198,7 +198,7 @@ class _AdminDSSState extends State<AdminDSS> {
           if (targets.isNotEmpty) {
             await _sendViaOneSignal(
               userIds: targets,
-              title: '?? URGENT: Out of Stock',
+              title: '🚨 URGENT: Out of Stock',
               message:
                   '$name is out of stock. Recommend ordering $recommendQty $uom.',
               type: 'warning',
@@ -208,7 +208,7 @@ class _AdminDSSState extends State<AdminDSS> {
           // Only push to admins who have lowStock alerts enabled
           final targets = await filterByPref(adminIds, 'lowStock');
           await db.collection('notifications').add({
-            'title': '?? Low Stock Alert',
+            'title': '⚠️ Low Stock Alert',
             'message':
                 '$name is low ($stock $uom). Recommend ordering $recommendQty $uom.',
             'type': 'warning',
@@ -221,7 +221,7 @@ class _AdminDSSState extends State<AdminDSS> {
           if (targets.isNotEmpty) {
             await _sendViaOneSignal(
               userIds: targets,
-              title: '?? Low Stock Alert',
+              title: '⚠️ Low Stock Alert',
               message:
                   '$name is low ($stock $uom). Recommend ordering $recommendQty $uom.',
               type: 'warning',
@@ -261,7 +261,7 @@ class _AdminDSSState extends State<AdminDSS> {
         if (daysUntil < 0) {
           final targets = await filterByPref(adminIds, 'pmsOverdue');
           await db.collection('notifications').add({
-            'title': '?? PMS Overdue',
+            'title': '🚗 PMS Overdue',
             'message':
                 '$plate is ${(-daysUntil)} day(s) overdue for maintenance.',
             'type': 'warning',
@@ -274,7 +274,7 @@ class _AdminDSSState extends State<AdminDSS> {
           if (targets.isNotEmpty) {
             await _sendViaOneSignal(
               userIds: targets,
-              title: '?? PMS Overdue',
+              title: '🚗 PMS Overdue',
               message:
                   '$plate is ${(-daysUntil)} day(s) overdue for maintenance.',
               type: 'warning',
@@ -283,7 +283,7 @@ class _AdminDSSState extends State<AdminDSS> {
         } else if (daysUntil == 0) {
           final targets = await filterByPref(adminIds, 'pmsDueThisWeek');
           await db.collection('notifications').add({
-            'title': '?? PMS Due Today',
+            'title': '⏰ PMS Due Today',
             'message': '$plate is due for maintenance today.',
             'type': 'warning',
             'targetRole': 'admin',
@@ -295,7 +295,7 @@ class _AdminDSSState extends State<AdminDSS> {
           if (targets.isNotEmpty) {
             await _sendViaOneSignal(
               userIds: targets,
-              title: '?? PMS Due Today',
+              title: '⏰ PMS Due Today',
               message: '$plate is due for maintenance today.',
               type: 'warning',
             );
@@ -303,7 +303,7 @@ class _AdminDSSState extends State<AdminDSS> {
         } else if (daysUntil <= 7) {
           final targets = await filterByPref(adminIds, 'pmsDueThisWeek');
           await db.collection('notifications').add({
-            'title': '?? PMS Due This Week',
+            'title': '📅 PMS Due This Week',
             'message':
                 '$plate is due for maintenance this week ($daysUntil day(s)).',
             'type': 'warning',
@@ -316,7 +316,7 @@ class _AdminDSSState extends State<AdminDSS> {
           if (targets.isNotEmpty) {
             await _sendViaOneSignal(
               userIds: targets,
-              title: '?? PMS Due This Week',
+              title: '📅 PMS Due This Week',
               message:
                   '$plate is due for maintenance this week ($daysUntil day(s)).',
               type: 'warning',
@@ -325,7 +325,7 @@ class _AdminDSSState extends State<AdminDSS> {
         } else if (daysUntil <= 14) {
           final targets = await filterByPref(adminIds, 'pmsDueSoon');
           await db.collection('notifications').add({
-            'title': '?? PMS Due Soon',
+            'title': '🔔 PMS Due Soon',
             'message': '$plate is due for maintenance in $daysUntil day(s).',
             'type': 'info',
             'targetRole': 'admin',
@@ -337,7 +337,7 @@ class _AdminDSSState extends State<AdminDSS> {
           if (targets.isNotEmpty) {
             await _sendViaOneSignal(
               userIds: targets,
-              title: '?? PMS Due Soon',
+              title: '🔔 PMS Due Soon',
               message: '$plate is due for maintenance in $daysUntil day(s).',
               type: 'info',
             );
@@ -354,7 +354,7 @@ class _AdminDSSState extends State<AdminDSS> {
           if (daysUntil < 0) {
             final targets = await filterByPref([ownerId], 'pmsOverdue');
             await db.collection('notifications').add({
-              'title': '?? Your PMS is Overdue',
+              'title': '🚗 Your PMS is Overdue',
               'message':
                   'Your $plate is ${(-daysUntil)} day(s) overdue for maintenance.',
               'type': 'warning',
@@ -367,7 +367,7 @@ class _AdminDSSState extends State<AdminDSS> {
             if (targets.isNotEmpty) {
               await _sendViaOneSignal(
                 userIds: targets,
-                title: '?? Your PMS is Overdue',
+                title: '🚗 Your PMS is Overdue',
                 message:
                     'Your $plate is ${(-daysUntil)} day(s) overdue for maintenance.',
                 type: 'warning',
@@ -376,7 +376,7 @@ class _AdminDSSState extends State<AdminDSS> {
           } else if (daysUntil == 0) {
             final targets = await filterByPref([ownerId], 'pmsDueThisWeek');
             await db.collection('notifications').add({
-              'title': '?? Your PMS is Due Today',
+              'title': '⏰ Your PMS is Due Today',
               'message': 'Your $plate is due for maintenance today.',
               'type': 'warning',
               'targetRole': '',
@@ -388,7 +388,7 @@ class _AdminDSSState extends State<AdminDSS> {
             if (targets.isNotEmpty) {
               await _sendViaOneSignal(
                 userIds: targets,
-                title: '?? Your PMS is Due Today',
+                title: '⏰ Your PMS is Due Today',
                 message: 'Your $plate is due for maintenance today.',
                 type: 'warning',
               );
@@ -396,7 +396,7 @@ class _AdminDSSState extends State<AdminDSS> {
           } else if (daysUntil <= 7) {
             final targets = await filterByPref([ownerId], 'pmsDueThisWeek');
             await db.collection('notifications').add({
-              'title': '?? Your PMS is Due This Week',
+              'title': '📅 Your PMS is Due This Week',
               'message':
                   'Your $plate is due for maintenance this week ($daysUntil day(s)).',
               'type': 'warning',
@@ -409,7 +409,7 @@ class _AdminDSSState extends State<AdminDSS> {
             if (targets.isNotEmpty) {
               await _sendViaOneSignal(
                 userIds: targets,
-                title: '?? Your PMS is Due This Week',
+                title: '📅 Your PMS is Due This Week',
                 message:
                     'Your $plate is due for maintenance this week ($daysUntil day(s)).',
                 type: 'warning',
@@ -418,7 +418,7 @@ class _AdminDSSState extends State<AdminDSS> {
           } else if (daysUntil <= 14) {
             final targets = await filterByPref([ownerId], 'pmsDueSoon');
             await db.collection('notifications').add({
-              'title': '?? Your PMS is Due Soon',
+              'title': '🔔 Your PMS is Due Soon',
               'message':
                   'Your $plate is due for maintenance in $daysUntil day(s).',
               'type': 'info',
@@ -431,7 +431,7 @@ class _AdminDSSState extends State<AdminDSS> {
             if (targets.isNotEmpty) {
               await _sendViaOneSignal(
                 userIds: targets,
-                title: '?? Your PMS is Due Soon',
+                title: '🔔 Your PMS is Due Soon',
                 message:
                     'Your $plate is due for maintenance in $daysUntil day(s).',
                 type: 'info',
@@ -441,9 +441,9 @@ class _AdminDSSState extends State<AdminDSS> {
         }
       }
 
-      debugPrint('? DSS alerts sent from AdminDSS screen');
+      debugPrint('DSS alerts sent from AdminDSS screen');
     } catch (e) {
-      debugPrint('? Error sending DSS alerts: $e');
+      debugPrint('Error sending DSS alerts: $e');
     }
   }
 
@@ -545,14 +545,14 @@ class _AdminDSSState extends State<AdminDSS> {
                       ),
                       _popItem(
                         'name-asc',
-                        'Item Name A ? Z',
+                        'Item Name A → Z',
                         Icons.sort_by_alpha,
                         _stockSort == 'name-asc',
                         _red,
                       ),
                       _popItem(
                         'name-desc',
-                        'Item Name Z ? A',
+                        'Item Name Z → A',
                         Icons.sort_by_alpha,
                         _stockSort == 'name-desc',
                         _red,
@@ -586,14 +586,14 @@ class _AdminDSSState extends State<AdminDSS> {
                       ),
                       _popItem(
                         'plate-asc',
-                        'Plate A ? Z',
+                        'Plate A → Z',
                         Icons.sort_by_alpha,
                         _pmsSort == 'plate-asc',
                         _red,
                       ),
                       _popItem(
                         'plate-desc',
-                        'Plate Z ? A',
+                        'Plate Z → A',
                         Icons.sort_by_alpha,
                         _pmsSort == 'plate-desc',
                         _red,
@@ -1298,7 +1298,7 @@ class _AdminDSSState extends State<AdminDSS> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            '??  STOCK INFO',
+                            '📦 STOCK INFO',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
@@ -1326,7 +1326,7 @@ class _AdminDSSState extends State<AdminDSS> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            '??  ANALYSIS',
+                            '📊 ANALYSIS',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
@@ -1781,7 +1781,7 @@ class _AdminDSSState extends State<AdminDSS> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            '??  VEHICLE INFO',
+                            '🚗 VEHICLE INFO',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
@@ -1810,7 +1810,7 @@ class _AdminDSSState extends State<AdminDSS> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            '??  MAINTENANCE SCHEDULE',
+                            '🔧 MAINTENANCE SCHEDULE',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,

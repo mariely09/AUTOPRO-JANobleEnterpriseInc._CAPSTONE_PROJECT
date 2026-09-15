@@ -837,28 +837,6 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     _scrollToBottom();
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  //  Stop generation
-  // ─────────────────────────────────────────────────────────────────────────
-  void _stopGeneration() {
-    if (_activeClient != null) {
-      _activeClient!.close();
-      _activeClient = null;
-    }
-    if (mounted) {
-      setState(() {
-        _loading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Generation stopped'),
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
   String _parseError(String body) {
     try {
       final d = jsonDecode(body) as Map<String, dynamic>;
@@ -2054,7 +2032,10 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.78,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: _aiBubbleDecoration(),
                   child: _renderMarkdown(msg.text),
                 ),
@@ -2064,9 +2045,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                   icon: Icons.copy_outlined,
                   label: 'Copy',
                   onTap: () async {
-                    await Clipboard.setData(
-                      ClipboardData(text: msg.text),
-                    );
+                    await Clipboard.setData(ClipboardData(text: msg.text));
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -2133,56 +2112,66 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   Widget _renderMarkdown(String text) {
     // Replace <br> tags with newlines before processing
     text = text.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n');
-    
+
     final spans = <TextSpan>[];
     final lines = text.split('\n');
-    
+
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
       final lineSpans = <InlineSpan>[];
-      
+
       // Check for bullet point
-      if (line.startsWith('• ') || line.startsWith('- ') || line.startsWith('* ')) {
-        lineSpans.add(const TextSpan(
-          text: '• ',
-          style: TextStyle(color: Color(0xFFE8001C), fontWeight: FontWeight.bold),
-        ));
+      if (line.startsWith('• ') ||
+          line.startsWith('- ') ||
+          line.startsWith('* ')) {
+        lineSpans.add(
+          const TextSpan(
+            text: '• ',
+            style: TextStyle(
+              color: Color(0xFFE8001C),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
         line = line.substring(2);
       }
-      
+
       // Process bold (**text**, __text__, or <b>text</b>)
       final boldPattern = RegExp(r'\*\*(.+?)\*\*|__(.+?)__|<b>(.+?)</b>');
       var lastIndex = 0;
-      
+
       for (final match in boldPattern.allMatches(line)) {
         // Add text before the match
         if (match.start > lastIndex) {
           lineSpans.add(TextSpan(text: line.substring(lastIndex, match.start)));
         }
-        
+
         // Add bold text (check all three groups: **, __, and <b>)
-        final boldText = match.group(1) ?? match.group(2) ?? match.group(3) ?? '';
-        lineSpans.add(TextSpan(
-          text: boldText,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ));
-        
+        final boldText =
+            match.group(1) ?? match.group(2) ?? match.group(3) ?? '';
+        lineSpans.add(
+          TextSpan(
+            text: boldText,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        );
+
         lastIndex = match.end;
       }
-      
+
       // Add remaining text
       if (lastIndex < line.length) {
         lineSpans.add(TextSpan(text: line.substring(lastIndex)));
       }
-      
+
       spans.add(TextSpan(children: lineSpans));
-      
+
       // Add line break if not the last line
       if (i < lines.length - 1) {
         spans.add(const TextSpan(text: '\n'));
       }
     }
-    
+
     return SelectableText.rich(
       TextSpan(
         children: spans,
