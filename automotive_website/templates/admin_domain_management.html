@@ -95,7 +95,7 @@
                 <div id="dmHeaderActions" style="display:none;gap:0.5rem;align-items:center;">
                     <div style="position:relative;display:flex;align-items:center;">
                         <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                        <input type="text" class="search-bar" placeholder="Search items..." id="dmSearch" style="width:200px;padding-left:2rem;" oninput="dmRenderItems()">
+                        <input type="text" class="search-bar" placeholder="Search items..." id="dmSearch" style="width:200px;padding-left:2rem;" oninput="dmRenderItems()" onpaste="setTimeout(function(){ dmRenderItems(); }, 50)">
                     </div>
                 </div>
             </div>
