@@ -41,6 +41,29 @@ const _kReportTypeKeywords = {
   'bookings': ['booking', 'appointment'],
 };
 
+/// Strip any <think>...</think> reasoning blocks that may have leaked from the AI model.
+/// This is a defense-in-depth safety measure — the backend should already strip these,
+/// but this ensures they never reach the UI even if backend stripping fails.
+String _stripReasoning(String text) {
+  if (text.isEmpty) return text;
+  
+  // Remove complete <think>...</think> blocks
+  var cleaned = text.replaceAll(RegExp(r'<think\b[^>]*>.*?</think\s*>', 
+    caseSensitive: false, 
+    dotAll: true), '');
+  
+  // Remove unclosed <think> blocks (model was cut off mid-reasoning)
+  cleaned = cleaned.replaceAll(RegExp(r'<think\b[^>]*>.*$', 
+    caseSensitive: false, 
+    dotAll: true), '');
+  
+  // Remove orphaned think tags
+  cleaned = cleaned.replaceAll(RegExp(r'</?think\b[^>]*>', 
+    caseSensitive: false), '');
+  
+  return cleaned.trim();
+}
+
 String? _detectReportIntent(String message) {
   final lower = message.toLowerCase();
   final isReportRequest = RegExp(
@@ -634,6 +657,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
         final rawReply = (data['reply'] as String? ?? '').trim();
+        
+        // Strip any reasoning tags that may have leaked (defense in depth)
+        final cleanReply = _stripReasoning(rawReply);
 
         // Persist session_id for continuity across turns — adopt it in place
         // (rename stored history entry) so no duplicate history item is created.
@@ -673,7 +699,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         final rpMatch = RegExp(
           r'```report_payload\s*\n(.*?)\n```',
           dotAll: true,
-        ).firstMatch(rawReply);
+        ).firstMatch(cleanReply);
 
         if (rpMatch != null) {
           try {
@@ -681,7 +707,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 jsonDecode(rpMatch.group(1)!.trim()) as Map<String, dynamic>;
             if (rpJson['report_type'] != null) {
               // Strip the JSON block from the visible reply text
-              final cleanReply = rawReply
+              final cleanReplyText = cleanReply
                   .replaceAll(
                     RegExp(r'\n?```report_payload\s*\n.*?\n```', dotAll: true),
                     '',
@@ -751,8 +777,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                 return;
               }
 
-              final displayReply = cleanReply.isNotEmpty
-                  ? cleanReply
+              final displayReply = cleanReplyText.isNotEmpty
+                  ? cleanReplyText
                   : 'Your ${_kReportTypes[reportType] ?? reportType} is ready.';
 
               // Generate related queries
@@ -785,8 +811,8 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         }
 
         // ── Normal reply (no report_payload) ───────────────────────────────
-        final answer = rawReply.isNotEmpty
-            ? rawReply
+        final answer = cleanReply.isNotEmpty
+            ? cleanReply
             : 'No response generated.';
         
         // Generate related queries
@@ -1931,12 +1957,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         'desc': 'Explore services and material usage',
         'icon': Icons.handyman_outlined,
         'query': 'Show recent service transactions and material usage',
-      },
-      {
-        'title': 'Business Insights',
-        'desc': 'Analyze service and inventory performance',
-        'icon': Icons.analytics_outlined,
-        'query': 'Give me business insights on service and inventory trends',
       },
     ];
 

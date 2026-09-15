@@ -454,6 +454,8 @@ def admin_chat(req: ChatRequest):
                 reply = fp_result.get("reply",
                     "I can only answer questions related to the Automotive "
                     "Service and Inventory Management System.")
+                # Strip any reasoning tags before returning (defense in depth)
+                reply = _strip_reasoning(reply)
                 append_turn(session_id, req.message, reply)
                 token_tracker.record(
                     user_id=admin_id, role="admin", model="none",
@@ -471,6 +473,8 @@ def admin_chat(req: ChatRequest):
                              "remaining_stock_calculation",
                              "arithmetic_calculation"):
                 reply = _format_admin_calc_reply(req.message, fp_result)
+                # Strip any reasoning tags before returning (defense in depth)
+                reply = _strip_reasoning(reply)
                 append_turn(session_id, req.message, reply)
                 token_tracker.record(
                     user_id=admin_id, role="admin", model="none",
@@ -486,6 +490,8 @@ def admin_chat(req: ChatRequest):
             # ── DB lookups
             if intent in (DATABASE_LOOKUP, DATABASE_CALCULATION):
                 reply = _format_admin_db_reply(req.message, fp_result)
+                # Strip any reasoning tags before returning (defense in depth)
+                reply = _strip_reasoning(reply)
                 append_turn(session_id, req.message, reply)
                 # Zero LLM tokens  -  record request count only
                 token_tracker.record(
@@ -518,6 +524,8 @@ def admin_chat(req: ChatRequest):
                 user_id=admin_id,
             )
             reply = result["reply"]
+            # Strip any reasoning tags before returning (defense in depth)
+            reply = _strip_reasoning(reply)
             tool_calls_out = [fast_path]
         else:
             result = llm_chat(
@@ -528,6 +536,8 @@ def admin_chat(req: ChatRequest):
                 user_id=admin_id,
             )
             reply = result["reply"]
+            # Strip any reasoning tags before returning (defense in depth)
+            reply = _strip_reasoning(reply)
             tool_calls_out = result["tool_calls"]
 
         # -- Record usage (already tracked in client.py, no need to duplicate) --
