@@ -2247,11 +2247,31 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                   decoration: _aiBubbleDecoration(),
                   child: _renderMarkdown(msg.text),
                 ),
-                // Timestamp with AI Assistant label
+                // Copy button and timestamp
                 Padding(
                   padding: const EdgeInsets.only(top: 6, left: 2),
                   child: Row(
                     children: [
+                      // Copy button for AI responses
+                      _userPromptActionBtn(
+                        icon: Icons.copy_outlined,
+                        label: 'Copy',
+                        onTap: () async {
+                          await Clipboard.setData(
+                            ClipboardData(text: msg.text),
+                          );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Copied to clipboard'),
+                                duration: Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 10),
                       const Text(
                         'AI Assistant',
                         style: TextStyle(
