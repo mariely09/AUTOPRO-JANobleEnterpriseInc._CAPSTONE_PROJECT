@@ -837,6 +837,28 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
     _scrollToBottom();
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Stop generation
+  // ─────────────────────────────────────────────────────────────────────────
+  void _stopGeneration() {
+    if (_activeClient != null) {
+      _activeClient!.close();
+      _activeClient = null;
+    }
+    if (mounted) {
+      setState(() {
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Generation stopped'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   String _parseError(String body) {
     try {
       final d = jsonDecode(body) as Map<String, dynamic>;
@@ -2109,6 +2131,9 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
 
   // ── Simple markdown renderer for AI responses ──
   Widget _renderMarkdown(String text) {
+    // Replace <br> tags with newlines before processing
+    text = text.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n');
+    
     final spans = <TextSpan>[];
     final lines = text.split('\n');
     
@@ -2125,8 +2150,8 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         line = line.substring(2);
       }
       
-      // Process bold (**text** or __text__)
-      final boldPattern = RegExp(r'\*\*(.+?)\*\*|__(.+?)__');
+      // Process bold (**text**, __text__, or <b>text</b>)
+      final boldPattern = RegExp(r'\*\*(.+?)\*\*|__(.+?)__|<b>(.+?)</b>');
       var lastIndex = 0;
       
       for (final match in boldPattern.allMatches(line)) {
@@ -2135,8 +2160,8 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           lineSpans.add(TextSpan(text: line.substring(lastIndex, match.start)));
         }
         
-        // Add bold text
-        final boldText = match.group(1) ?? match.group(2) ?? '';
+        // Add bold text (check all three groups: **, __, and <b>)
+        final boldText = match.group(1) ?? match.group(2) ?? match.group(3) ?? '';
         lineSpans.add(TextSpan(
           text: boldText,
           style: const TextStyle(fontWeight: FontWeight.bold),

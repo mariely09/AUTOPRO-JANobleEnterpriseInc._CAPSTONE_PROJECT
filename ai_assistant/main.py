@@ -654,15 +654,14 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
         count = result.get("low_stock_count", len(result.get("items", [])))
         if count == 0:
             return "Good news — all items are currently at acceptable stock levels. Nothing is below the reorder point right now."
-        items = result.get("items", [])[:10]
+        items = result.get("items", [])  # Show ALL low stock items without truncation
         lines = [
             f"• **{it['name']}** — {it['stock']} {it['uom']} remaining (reorder at {it['reorder']})"
             for it in items
         ]
-        tail = f"\n\n*...and {count - 10} more item(s) below reorder point.*" if count > 10 else ""
         intro = (f"There {'is' if count == 1 else 'are'} **{count}** item{'s' if count != 1 else ''} "
                  f"at or below the reorder point:")
-        return intro + "\n\n" + "\n".join(lines) + tail
+        return intro + "\n\n" + "\n".join(lines)
 
     # ── User / customer count ─────────────────────────────────────────────────
     if any(k in msg_l for k in ("how many", "count", "users", "customers", "staff")):
@@ -676,6 +675,44 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
 
     # ── Vehicles ──────────────────────────────────────────────────────────────
     if "vehicle" in msg_l or "fleet" in msg_l:
+        # Check if this is a fleet breakdown request
+        if "breakdown" in result or (isinstance(result.get("breakdown"), list)):
+            # Fleet breakdown by customer/company
+            breakdown = result.get("breakdown", [])
+            total_companies = result.get("total_companies", len(breakdown))
+            total_vehicles = result.get("total_vehicles", 0)
+            
+            if not breakdown:
+                return "No fleet data available."
+            
+            lines = []
+            for i, company_data in enumerate(breakdown, 1):
+                company = company_data.get("company", "Unknown")
+                vehicle_count = company_data.get("vehicle_count", 0)
+                vehicles = company_data.get("vehicles", [])
+                
+                # Format: Customer 1 - Company Name - X cars/trucks
+                vehicle_types = {}
+                for v in vehicles:
+                    vtype = v.get("type", "vehicle")
+                    vehicle_types[vtype] = vehicle_types.get(vtype, 0) + 1
+                
+                type_str = "/".join([f"{count} {vtype}{'s' if count > 1 else ''}" for vtype, count in vehicle_types.items()])
+                
+                lines.append(f"**Customer {i} - {company}** - {type_str}")
+                
+                # List each vehicle with plate number
+                for v in vehicles:
+                    plate = v.get("plate", "N/A")
+                    desc = v.get("desc", "N/A")
+                    status = v.get("status", "N/A")
+                    lines.append(f"   • {plate} - {desc} (Status: {status})")
+                
+                lines.append("")  # Empty line between companies
+            
+            return f"Fleet breakdown for **{total_companies}** {'company' if total_companies == 1 else 'companies'} (total **{total_vehicles}** vehicles):\n\n" + "\n".join(lines)
+        
+        # Regular vehicle query
         total = result.get("total_vehicles", 0)
         by_status = result.get("by_status", {})
         if by_status:
@@ -708,6 +745,25 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
         by_status = result.get("by_status", {})
         if total == 0:
             return "There are no service bookings in the system yet."
+        
+        # Check if "pending" is being asked - show approved/confirmed but not completed
+        if "pending" in msg_l:
+            # Pending means approved/confirmed but not finished (auto-approved bookings)
+            bookings = result.get("bookings", [])
+            pending_bookings = [b for b in bookings if b.get("status", "").lower() in ("approved", "pending", "confirmed") and b.get("status", "").lower() != "completed"]
+            if not pending_bookings:
+                return "There are no pending service bookings. All bookings are either completed or cancelled."
+            lines = []
+            for i, b in enumerate(pending_bookings, 1):
+                customer = b.get("customerName", "Unknown")
+                plate = b.get("plate", "N/A")
+                date = b.get("preferredDate", "N/A")
+                time = b.get("preferredTime", "N/A")
+                services = ", ".join(b.get("services", [])) if b.get("services") else "N/A"
+                status = b.get("status", "N/A")
+                lines.append(f"{i}. **{customer}** - {plate} | {date} at {time} | Services: {services} | Status: {status}")
+            return f"There are **{len(pending_bookings)}** pending (approved but not finished) service bookings:\n\n" + "\n".join(lines)
+        
         if by_status:
             parts = [f"**{v}** {k}" for k, v in by_status.items()]
             breakdown = ", ".join(parts)
@@ -757,15 +813,15 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
         low   = sum(1 for it in items if (it.get("status") or "").lower() == "low")
         if total == 0:
             return "The inventory is currently empty — no items are on record."
+        # Show ALL items without truncation
         lines = [
             f"• **{it['name']}** — {it['stock']} {it.get('uom', '')} "
             f"{'⚠️ Low' if (it.get('status') or '').lower() == 'low' else ''}"
-            for it in items[:10]
+            for it in items
         ]
-        tail = f"\n\n*...and {total - 10} more item(s). Ask for a specific item or group to narrow results.*" if total > 10 else ""
         low_note = f" ({low} item{'s' if low != 1 else ''} flagged low)" if low else ""
         intro = f"Here are **{total}** inventory item{low_note}:" if total > 1 else f"Here is the inventory item{low_note}:"
-        return intro + "\n\n" + "\n".join(lines) + tail
+        return intro + "\n\n" + "\n".join(lines)
 
     # ── Generic fallback ──────────────────────────────────────────────────────
     import json as _json
@@ -971,12 +1027,14 @@ PRIVACY (absolute):
 - Garbage/symbols-only → "I didn't quite catch that. Could you rephrase your question about your vehicles, bookings, or services?"
 
 BOOKING WORKFLOW:
-1. Collect ALL required info BEFORE create_customer_booking: plate (get_my_vehicles if unknown), service(s) (get_service_prices if uncertain), date, time. Don't re-ask what history already provided.
+1. Collect ALL required info: plate (get_my_vehicles if unknown), service(s) (get_service_prices if uncertain), date, time. Don't re-ask what history already provided.
 2. No date given → call suggest_booking_date first; present conversationally.
-3. ALWAYS check_booking_availability BEFORE create_customer_booking.
-4. NEVER claim success until create_customer_booking returns success=True. On error, give the specific reason + alternatives.
-5. Reschedule/cancel: get booking_id via get_my_bookings, then update_my_booking / cancel_my_booking. Never touch another customer's booking.
-6. On success confirm: ✅ booking ID, vehicle, service(s), date, time + status — tell the customer to check **My Bookings**, then ask "Would you like to book another service?".
+3. ALWAYS check_booking_availability BEFORE preview.
+4. Call preview_customer_booking to show booking details and request confirmation. NEVER call create_customer_booking directly without preview.
+5. Wait for customer response: "yes"/"confirm"/"proceed" → call create_customer_booking with use_pending=True and session_id; "no"/"cancel" → acknowledge cancellation.
+6. NEVER claim success until create_customer_booking returns success=True. On error, give the specific reason + alternatives.
+7. Reschedule/cancel: get booking_id via get_my_bookings, then update_my_booking / cancel_my_booking. Never touch another customer's booking.
+8. On success confirm: ✅ booking ID, vehicle, service(s), date, time + status — tell the customer to check **My Bookings**, then ask "Would you like to book another service?".
 
 RULES:
 - Only this customer's data; call tools for data — never invent records, prices, or schedules.
@@ -1009,7 +1067,7 @@ CUSTOMER_SYSTEM_PROMPT = _build_customer_system_prompt("")  # fallback reference
 
 
 def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
-                       history: list[dict], intent: str = UNKNOWN) -> dict:
+                       history: list[dict], intent: str = UNKNOWN, session_id: str | None = None) -> dict:
     """
     Core customer LLM loop.
 
@@ -1101,6 +1159,10 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
     # -- Step 1c: direct DB path for simple lookups (0 LLM tokens) ------------
     direct = _customer_direct_lookup(message, customer_uid, customer_name, intent)
     if direct is not None:
+        # Convert markdown bold to HTML for consistency
+        from format_utils import markdown_to_html
+        direct["reply"] = markdown_to_html(direct.get("reply", ""))
+        
         token_tracker.record(
             user_id=customer_uid,
             role="customer",
@@ -1311,11 +1373,23 @@ def _run_customer_chat(message: str, customer_uid: str, customer_name: str,
                     # Security: ALWAYS remove any uid/name the LLM may have injected
                     fn_args.pop("customer_uid", None)
                     fn_args.pop("customer_name", None)
+                    
+                    # Inject session_id for booking tools that need it
+                    if fn_name in ("preview_customer_booking", "create_customer_booking") and session_id:
+                        fn_args["session_id"] = session_id
+                    
                     result = fn(
                         customer_uid=customer_uid,
                         customer_name=customer_name,
                         **fn_args,
                     )
+                    
+                    # Store pending booking data after successful preview
+                    if fn_name == "preview_customer_booking" and result.get("valid") and session_id:
+                        from session_store import set_pending_booking
+                        booking_data = result.get("booking_data")
+                        if booking_data:
+                            set_pending_booking(session_id, booking_data)
                 except Exception as e:
                     result = {"error": str(e)}
 
@@ -1532,7 +1606,7 @@ def _customer_direct_lookup(message: str, customer_uid: str,
             lines = []
             for b in shown:
                 bid = b.get("booking_id", "")
-                bid_str = f"\nBooking ID: `{bid}`" if bid else ""
+                bid_str = f"\nBook Number: `{bid}`" if bid else ""
                 lines.append(
                     f"**{b.get('date','')} {b.get('time','')}  -  {b.get('plate','')}**\n"
                     f"Services: {b.get('services',' - ')} | Status: {b.get('status',' - ')}"
@@ -2120,8 +2194,13 @@ def customer_chat_endpoint(req: CustomerChatRequest):
             customer_name=req.customer_name,
             history=effective_history,
             intent=intent,
+            session_id=session_id,
         )
         reply = result["reply"]
+        
+        # Convert markdown bold (**text**) to HTML bold (<b>text</b>) for web/mobile display
+        from format_utils import markdown_to_html
+        reply = markdown_to_html(reply)
 
         append_turn(session_id, req.message, reply)
 
