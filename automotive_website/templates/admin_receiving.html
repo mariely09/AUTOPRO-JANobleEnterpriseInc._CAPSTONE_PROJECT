@@ -946,9 +946,57 @@ function _ivInfoCard(label, value, valueColor) {
     _updateStats(); _populateMonthFilter(); _renderList();
   };
 
+  // ── Instant cache restore — runs FIRST to populate data immediately ──────────────────
+  // Paints stale data from sessionStorage immediately so the table isn't blank
+  // while admin_firebase.js waits for the Firestore snapshot to return.
+  (function() {
+    try {
+      var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+      if (!uid) return;
+      var raw = sessionStorage.getItem('deliveriesCache_' + uid);
+      if (!raw) return;
+      var docs = JSON.parse(raw);
+      if (!Array.isArray(docs) || !docs.length) return;
+
+      // Restore serialised Timestamps
+      docs.forEach(function(d) {
+        ['createdAt', 'receivedAt', 'archivedAt'].forEach(function(k) {
+          if (d[k] && d[k]._ms) {
+            var ms = d[k]._ms;
+            d[k] = { toMillis: function() { return ms; }, seconds: Math.floor(ms / 1000) };
+          }
+        });
+      });
+
+      // Populate window._fbDeliveries immediately so initData will use it
+      window._fbDeliveries = docs;
+
+      // Paint stats immediately from cache
+      (function() {
+        var s = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+        var pending = 0, forReview = 0, awaiting = 0, approved = 0;
+        docs.forEach(function(d) {
+          var ds = d.status || 'Pending';
+          (d.items || []).forEach(function(item) {
+            switch (item.itemStatus || ds) {
+              case 'Pending':               pending++;  break;
+              case 'For Admin Review':      forReview++; break;
+              case 'Awaiting Double Check': awaiting++; break;
+              case 'Approved':              approved++; break;
+            }
+          });
+        });
+        s('statPending',   pending);
+        s('statForReview', forReview);
+        s('statAwaiting',  awaiting);
+        s('statApproved',  approved);
+      })();
+    } catch(e) {}
+  })();
+
   // ── Immediate data load with instant fallback ──────────────────────────
   (function initData() {
-    // Try global cache first (from admin_firebase.js listener)
+    // Try global cache first (from admin_firebase.js listener or cache restore above)
     if (window._fbDeliveries && window._fbDeliveries.length) {
       _allDeliveries = window._fbDeliveries;
       _enrichDeliveries(_allDeliveries);
@@ -997,60 +1045,6 @@ function _ivInfoCard(label, value, valueColor) {
   })();
 </script>
 <script>
-// ── Instant cache restore — runs before DOMContentLoaded ──────────────────
-// Paints stale data from sessionStorage immediately so the table isn't blank
-// while admin_firebase.js waits for the Firestore snapshot to return.
-(function() {
-  try {
-    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
-    if (!uid) return;
-    var raw = sessionStorage.getItem('deliveriesCache_' + uid);
-    if (!raw) return;
-    var docs = JSON.parse(raw);
-    if (!Array.isArray(docs) || !docs.length) return;
-
-    // Restore serialised Timestamps
-    docs.forEach(function(d) {
-      ['createdAt', 'receivedAt', 'archivedAt'].forEach(function(k) {
-        if (d[k] && d[k]._ms) {
-          var ms = d[k]._ms;
-          d[k] = { toMillis: function() { return ms; }, seconds: Math.floor(ms / 1000) };
-        }
-      });
-    });
-
-    // Only paint if global listener hasn't already populated _allDeliveries
-    if (!window._fbDeliveries || !window._fbDeliveries.length) {
-      window._fbDeliveries = docs;
-
-      // Paint stats immediately from cache
-      (function() {
-        var s = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
-        var pending = 0, forReview = 0, awaiting = 0, approved = 0;
-        docs.forEach(function(d) {
-          var ds = d.status || 'Pending';
-          (d.items || []).forEach(function(item) {
-            switch (item.itemStatus || ds) {
-              case 'Pending':               pending++;  break;
-              case 'For Admin Review':      forReview++; break;
-              case 'Awaiting Double Check': awaiting++; break;
-              case 'Approved':              approved++; break;
-            }
-          });
-        });
-        s('statPending',   pending);
-        s('statForReview', forReview);
-        s('statAwaiting',  awaiting);
-        s('statApproved',  approved);
-      })();
-
-      // Render table from cache; live snapshot will overwrite shortly
-      if (typeof window._rcvOnDeliveries === 'function') {
-        window._rcvOnDeliveries(docs);
-      }
-    }
-  } catch(e) {}
-})();
 </script>
 <script>
 function _loadItemMaster() {
