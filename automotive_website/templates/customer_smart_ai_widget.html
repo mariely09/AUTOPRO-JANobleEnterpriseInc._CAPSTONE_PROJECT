@@ -50,6 +50,26 @@
             border-color:#E8001C;color:#E8001C;background:#fff5f5;
             box-shadow:0 4px 14px rgba(232,0,28,0.13);transform:translateY(-1px);
         }
+        
+        /* ???? Quick Query Cards ???? */
+        .ai-quick-card:hover {
+            border-color:#E8001C !important;
+            background:#fffbfb !important;
+            box-shadow:0 4px 16px rgba(232,0,28,0.12) !important;
+            transform:translateY(-2px);
+        }
+        
+        /* ???? Related Query Chips ???? */
+        .ai-related-chip {
+            display:inline-flex;align-items:center;padding:7px 12px;
+            background:#f8f9fb;border:1.5px solid #e2e8f0;border-radius:16px;
+            font-size:11px;font-weight:500;color:#475569;cursor:pointer;
+            transition:all .18s ease;font-family:inherit;white-space:nowrap;
+        }
+        .ai-related-chip:hover {
+            background:#fff5f5;border-color:#E8001C;color:#E8001C;
+            box-shadow:0 2px 8px rgba(232,0,28,0.12);transform:translateY(-1px);
+        }
 
         /* ???? Row + avatars ???? */
         .ai-row { display:flex;gap:8px;align-items:flex-end; }
@@ -259,14 +279,66 @@
 <div class="ai-messages" id="aiMessages">
     <div class="ai-welcome" id="aiWelcome" style="display:none;">
         <div class="ai-welcome-icon">
-            <img src="../static/img/AI_LOGO.png" width="72" height="72" style="object-fit:cover;display:block;" alt="AI Assistant" />
+            <img src="../static/img/AI_LOGO.png" width="64" height="64" style="object-fit:cover;display:block;border-radius:50%;" alt="AI Assistant" />
         </div>
-        <div class="ai-welcome-title">AI Assistant</div>
-        <div class="ai-welcome-sub" id="aiWelcomeSub">Ask me anything about your vehicles &mdash; PMS status, maintenance history, bookings, and more.</div>
-        <div class="ai-suggestions" id="aiSuggestions">
-            <button class="ai-suggest-pill" data-q="Show my complete service history">Show my complete service history</button>
-            <button class="ai-suggest-pill" data-q="List all my registered vehicles">List all my registered vehicles</button>
-            <button class="ai-suggest-pill" data-q="What services do you offer and what are the prices?">What services do you offer and what are the prices?</button>
+        <div class="ai-welcome-title">Hey, how can I help?</div>
+        <div class="ai-welcome-sub" id="aiWelcomeSub">Choose a quick query below or ask me anything about your vehicles, bookings, or services.</div>
+        <div class="ai-suggestions" id="aiSuggestions" style="display:grid;grid-template-columns:1fr;gap:12px;padding-top:24px;max-width:360px;margin:0 auto;">
+            <!-- Quick Query Cards -->
+            <button class="ai-quick-card" data-q="Show my vehicle information and status" style="background:white;border:1.5px solid #e8edf2;border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:all .2s ease;display:flex;gap:14px;align-items:flex-start;box-shadow:0 2px 8px rgba(0,0,0,0.04);font-family:inherit;">
+                <div style="flex-shrink:0;width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#fff5f5,#ffe4e6);display:flex;align-items:center;justify-content:center;color:#E8001C;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 18h-3.5a3.5 3.5 0 0 1 0-7h7A1.5 1.5 0 0 1 23 12.5 1.5 1.5 0 0 1 21.5 14H20M6 6h3.5a3.5 3.5 0 0 1 0 7h-7A1.5 1.5 0 0 1 1 11.5 1.5 1.5 0 0 1 2.5 10H4"/><circle cx="12" cy="12" r="2"/></svg>
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:700;color:#1a202c;margin-bottom:3px;line-height:1.3;">My Vehicle</div>
+                    <div style="font-size:12px;color:#718096;line-height:1.5;">View your vehicle information</div>
+                </div>
+            </button>
+            <button class="ai-quick-card" data-q="I want to book a service for my vehicle" style="background:white;border:1.5px solid #e8edf2;border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:all .2s ease;display:flex;gap:14px;align-items:flex-start;box-shadow:0 2px 8px rgba(0,0,0,0.04);font-family:inherit;">
+                <div style="flex-shrink:0;width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#fff5f5,#ffe4e6);display:flex;align-items:center;justify-content:center;color:#E8001C;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:700;color:#1a202c;margin-bottom:3px;line-height:1.3;">Book a Service</div>
+                    <div style="font-size:12px;color:#718096;line-height:1.5;">Schedule your vehicle maintenance</div>
+                </div>
+            </button>
+            <button class="ai-quick-card" data-q="Show my complete service history" style="background:white;border:1.5px solid #e8edf2;border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:all .2s ease;display:flex;gap:14px;align-items:flex-start;box-shadow:0 2px 8px rgba(0,0,0,0.04);font-family:inherit;">
+                <div style="flex-shrink:0;width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#fff5f5,#ffe4e6);display:flex;align-items:center;justify-content:center;color:#E8001C;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:700;color:#1a202c;margin-bottom:3px;line-height:1.3;">Service History</div>
+                    <div style="font-size:12px;color:#718096;line-height:1.5;">View your previous vehicle services</div>
+                </div>
+            </button>
+            <button class="ai-quick-card" data-q="When is my next maintenance due?" style="background:white;border:1.5px solid #e8edf2;border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:all .2s ease;display:flex;gap:14px;align-items:flex-start;box-shadow:0 2px 8px rgba(0,0,0,0.04);font-family:inherit;">
+                <div style="flex-shrink:0;width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#fff5f5,#ffe4e6);display:flex;align-items:center;justify-content:center;color:#E8001C;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:700;color:#1a202c;margin-bottom:3px;line-height:1.3;">Maintenance Schedule</div>
+                    <div style="font-size:12px;color:#718096;line-height:1.5;">Check your upcoming maintenance</div>
+                </div>
+            </button>
+            <button class="ai-quick-card" data-q="What services do you offer and what are the prices?" style="background:white;border:1.5px solid #e8edf2;border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:all .2s ease;display:flex;gap:14px;align-items:flex-start;box-shadow:0 2px 8px rgba(0,0,0,0.04);font-family:inherit;">
+                <div style="flex-shrink:0;width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#fff5f5,#ffe4e6);display:flex;align-items:center;justify-content:center;color:#E8001C;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:700;color:#1a202c;margin-bottom:3px;line-height:1.3;">Services & Pricing</div>
+                    <div style="font-size:12px;color:#718096;line-height:1.5;">Explore services and estimated costs</div>
+                </div>
+            </button>
+            <button class="ai-quick-card" data-q="What's the status of my booking?" style="background:white;border:1.5px solid #e8edf2;border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:all .2s ease;display:flex;gap:14px;align-items:flex-start;box-shadow:0 2px 8px rgba(0,0,0,0.04);font-family:inherit;">
+                <div style="flex-shrink:0;width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#fff5f5,#ffe4e6);display:flex;align-items:center;justify-content:center;color:#E8001C;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:14px;font-weight:700;color:#1a202c;margin-bottom:3px;line-height:1.3;">My Booking Status</div>
+                    <div style="font-size:12px;color:#718096;line-height:1.5;">Check your service appointment</div>
+                </div>
+            </button>
         </div>
     </div>
 </div>
@@ -953,6 +1025,77 @@
     return s;
   }
 
+  // Generate 3 contextually relevant follow-up queries (customer-specific)
+  function _generateRelatedQueries(userQuery, aiResponse) {
+    var q = userQuery.toLowerCase();
+    var resp = aiResponse.toLowerCase();
+    
+    var queryBank = {
+      vehicle: [
+        'Show my vehicle maintenance history',
+        'When is my next service due?',
+        'What are common issues for my vehicle?',
+        'Show my vehicle warranty status',
+        'Update my vehicle mileage'
+      ],
+      booking: [
+        'Book another service appointment',
+        'Reschedule my current booking',
+        'What services are included in my booking?',
+        'Cancel my appointment',
+        'What are your available time slots?'
+      ],
+      history: [
+        'Show my most recent service',
+        'What repairs have been done?',
+        'Generate my service history report',
+        'Show service costs over time',
+        'What parts were replaced?'
+      ],
+      pricing: [
+        'Get a quote for oil change',
+        'What is included in basic service?',
+        'Do you offer service packages?',
+        'Compare service prices',
+        'What payment methods do you accept?'
+      ],
+      maintenance: [
+        'What maintenance is overdue?',
+        'Show my PMS schedule',
+        'Set reminders for next service',
+        'What is the recommended service interval?',
+        'Show maintenance alerts'
+      ],
+      general: [
+        'Show my vehicle information',
+        'Book a service',
+        'View my service history',
+        'Check service pricing',
+        'What are your operating hours?'
+      ]
+    };
+    
+    // Determine context
+    var context = 'general';
+    if (/vehicle|car|plate|registration/i.test(q + ' ' + resp)) context = 'vehicle';
+    else if (/book|appointment|schedule|reservation/i.test(q + ' ' + resp)) context = 'booking';
+    else if (/history|past|previous|completed/i.test(q + ' ' + resp)) context = 'history';
+    else if (/price|cost|quote|payment|fee/i.test(q + ' ' + resp)) context = 'pricing';
+    else if (/maintenance|service|pms|due|overdue/i.test(q + ' ' + resp)) context = 'maintenance';
+    
+    // Get relevant queries and shuffle
+    var relevantQueries = queryBank[context] || queryBank.general;
+    var shuffled = relevantQueries.slice().sort(function() { return Math.random() - 0.5; });
+    
+    // Filter out queries too similar to current query
+    var filtered = shuffled.filter(function(sq) {
+      return sq.toLowerCase().indexOf(q) === -1 && q.indexOf(sq.toLowerCase()) === -1;
+    });
+    
+    // Return first 3
+    return filtered.slice(0, 3);
+  }
+
   function _addBubble(text, role) {
     const msgs = document.getElementById('aiMessages');
     const row = document.createElement('div');
@@ -1054,32 +1197,41 @@
       wrapper.appendChild(actions);
       row.appendChild(wrapper);
     } else {
-      // AI bubble with copy button
+      // AI bubble with timestamp and related query chips
       const wrapper = document.createElement('div');
       wrapper.style.display = 'flex';
       wrapper.style.flexDirection = 'column';
-      wrapper.style.gap = '4px';
+      wrapper.style.gap = '0';
       
       const bub = document.createElement('div');
       bub.className = 'ai-bubble bot';
       bub.innerHTML = _md(text); // AI response gets markdown rendering
       
-      const copyBtn = document.createElement('button');
-      copyBtn.innerHTML = '<svg style="width:10px;height:10px;margin-right:3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy</span>';
-      copyBtn.style.cssText = 'padding:4px 8px;background:#f4f6f9;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;color:#64748b;cursor:pointer;display:flex;align-items:center;font-family:inherit;transition:all .15s;align-self:flex-start;';
-      copyBtn.onclick = function() {
-        navigator.clipboard.writeText(text).then(() => {
-          const orig = copyBtn.innerHTML;
-          copyBtn.innerHTML = '<svg style="width:10px;height:10px;margin-right:3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span>Copied!</span>';
-          copyBtn.style.color = '#22c55e';
-          copyBtn.style.borderColor = '#22c55e';
-          setTimeout(() => { copyBtn.innerHTML = orig; copyBtn.style.color = '#64748b'; copyBtn.style.borderColor = '#e2e8f0'; }, 2000);
-        });
-      };
+      // Timestamp with AI Assistant label
+      const timestamp = document.createElement('div');
+      const now = new Date();
+      const hours = now.getHours() > 12 ? now.getHours() - 12 : (now.getHours() === 0 ? 12 : now.getHours());
+      const minutes = ('0' + now.getMinutes()).slice(-2);
+      const period = now.getHours() >= 12 ? 'PM' : 'AM';
+      const timeStr = hours + ':' + minutes + ' ' + period;
+      
+      timestamp.innerHTML = `
+        <div style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;color:#94a3b8;padding-left:2px;">
+          <span style="font-weight:600;">AI Assistant</span>
+          <span style="color:#cbd5e0;">·</span>
+          <span>${timeStr}</span>
+        </div>
+      `;
+      
+      // Related query chips container (empty for now, populated later)
+      const chipsContainer = document.createElement('div');
+      chipsContainer.className = 'ai-related-chips-container';
+      chipsContainer.style.cssText = 'display:none;margin-top:8px;gap:6px;flex-wrap:wrap;';
       
       row.insertAdjacentHTML('beforeend', av);
       wrapper.appendChild(bub);
-      wrapper.appendChild(copyBtn);
+      wrapper.appendChild(timestamp);
+      wrapper.appendChild(chipsContainer);
       row.appendChild(wrapper);
     }
     
@@ -1087,6 +1239,45 @@
     row.scrollIntoView({ behavior: 'smooth' });
     return row;
   }
+  
+  // Add related query chips to the latest AI response
+  function _addRelatedChips(userQuery, aiResponse) {
+    if (_isSending) return; // Don't show while sending
+    
+    const msgs = document.getElementById('aiMessages');
+    const allRows = Array.from(msgs.querySelectorAll('.ai-row'));
+    const lastRow = allRows[allRows.length - 1];
+    
+    if (!lastRow || lastRow.classList.contains('user')) return;
+    
+    const chipsContainer = lastRow.querySelector('.ai-related-chips-container');
+    if (!chipsContainer) return;
+    
+    const relatedQueries = _generateRelatedQueries(userQuery, aiResponse);
+    if (relatedQueries.length === 0) return;
+    
+    // Clear existing chips
+    chipsContainer.innerHTML = '';
+    
+    // Create chips
+    relatedQueries.forEach(function(query) {
+      const chip = document.createElement('button');
+      chip.className = 'ai-related-chip';
+      chip.textContent = query;
+      chip.onclick = function() {
+        // Hide all previous related chips
+        document.querySelectorAll('.ai-related-chips-container').forEach(function(c) {
+          c.style.display = 'none';
+        });
+        document.getElementById('aiInput').value = query;
+        window.send();
+      };
+      chipsContainer.appendChild(chip);
+    });
+    
+    chipsContainer.style.display = 'flex';
+  }
+  
   // _addBubbleAndSave: same as _addBubble but also records to _chatHistory
   function _addBubbleAndSave(text, role) {
     _chatHistory.push({ role: role, text: text, ts: Date.now() });
@@ -1123,6 +1314,11 @@
 
     _isSending = true;
     _currentAbortController = new AbortController();
+
+    // Hide all previous related query chips
+    document.querySelectorAll('.ai-related-chips-container').forEach(function(c) {
+      c.style.display = 'none';
+    });
 
     // ???? Hide welcome, show clear button ????????????????????????????????????????????????????????????????????
     const welcome = document.getElementById('aiWelcome');
@@ -1185,6 +1381,10 @@
         }
         _savedSig = null; // history changed � allow the save
         _addBubbleAndSave(data.answer, 'bot');
+        
+        // Add related query chips
+        _addRelatedChips(text, data.answer);
+        
         // Track tokens used: estimate ~1 token per 4 chars (user msg + reply)
         if (_currentUid) {
           const approxTokens = Math.ceil((text.length + data.answer.length) / 4);

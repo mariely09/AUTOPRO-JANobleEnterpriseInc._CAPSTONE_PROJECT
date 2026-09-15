@@ -755,6 +755,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                   ? cleanReply
                   : 'Your ${_kReportTypes[reportType] ?? reportType} is ready.';
 
+              // Generate related queries
+              final relatedQueries = _generateRelatedQueries(text, displayReply);
+
               setState(() {
                 _loading = false;
                 _messages.add(
@@ -769,6 +772,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                     reportEndDate: reportEndDate,
                     reportFilters: rawFilters,
                     reportLabel: _kReportTypes[reportType] ?? reportType,
+                    relatedQueries: relatedQueries.isNotEmpty ? relatedQueries : null,
                   ),
                 );
               });
@@ -784,9 +788,17 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         final answer = rawReply.isNotEmpty
             ? rawReply
             : 'No response generated.';
+        
+        // Generate related queries
+        final relatedQueries = _generateRelatedQueries(text, answer);
+        
         setState(() {
           _loading = false;
-          _messages.add(_ChatMessage(role: 'ai', text: answer));
+          _messages.add(_ChatMessage(
+            role: 'ai',
+            text: answer,
+            relatedQueries: relatedQueries.isNotEmpty ? relatedQueries : null,
+          ));
         });
         _activeClient = null; // Clear after successful completion
       } else {
@@ -1888,17 +1900,44 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   // ── Welcome screen ─────────────────────────────────────────────────────────
 
   Widget _buildWelcome() {
-    final suggestions = [
-      'Show me the fleet summary',
-      'Which vehicles have PMS overdue?',
-      'What items are low in stock?',
-      'What is the total repair cost this month?',
-      'How many services are currently pending?',
-      'List all registered vehicles',
-      'Show all service bookings',
-      'Generate inventory report as PDF',
-      'Generate issuance report as Excel',
-      'Generate maintenance report as PDF',
+    // Six quick query cards with titles, descriptions, and icons
+    final quickQueries = [
+      {
+        'title': 'Inventory Overview',
+        'desc': 'Check stock levels and available items',
+        'icon': Icons.inventory_2_outlined,
+        'query': 'Show me current inventory levels and stock summary',
+      },
+      {
+        'title': 'Low Stock & Replenishment',
+        'desc': 'Find items that need restocking',
+        'icon': Icons.trending_down_outlined,
+        'query': 'Which items are low on stock and need replenishment?',
+      },
+      {
+        'title': 'Generate Reports',
+        'desc': 'Create inventory and service reports',
+        'icon': Icons.description_outlined,
+        'query': 'Generate inventory report for this month as PDF',
+      },
+      {
+        'title': 'Maintenance & PMS',
+        'desc': 'Review upcoming maintenance schedules',
+        'icon': Icons.build_outlined,
+        'query': 'Show upcoming vehicle maintenance and PMS schedules',
+      },
+      {
+        'title': 'Service & Materials',
+        'desc': 'Explore services and material usage',
+        'icon': Icons.handyman_outlined,
+        'query': 'Show recent service transactions and material usage',
+      },
+      {
+        'title': 'Business Insights',
+        'desc': 'Analyze service and inventory performance',
+        'icon': Icons.analytics_outlined,
+        'query': 'Give me business insights on service and inventory trends',
+      },
     ];
 
     return SingleChildScrollView(
@@ -1906,20 +1945,21 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // AI logo — transparent circle with image
+          // AI logo
           Container(
-            width: 72,
-            height: 72,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: const Color(0xFFE8001C).withValues(alpha: 0.2),
-                width: 2,
+                color: const Color(0xFF22c55e),
+                width: 2.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFE8001C).withValues(alpha: 0.12),
-                  blurRadius: 16,
+                  color: const Color(0xFF22c55e).withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -1929,35 +1969,33 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           ),
           const SizedBox(height: 14),
           const Text(
-            'AI Assistant',
+            'Hey, how can I help?',
             style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               color: Color(0xFF1a202c),
+              letterSpacing: -0.3,
             ),
           ),
           const SizedBox(height: 6),
           const Text(
-            'Ask me about fleet, inventory, maintenance costs, or generate PDF/Excel reports.',
+            'Choose a quick query below or ask me anything about fleet, inventory, maintenance, or reports.',
             style: TextStyle(
               fontSize: 13,
-              color: Color(0xFF718096),
-              height: 1.5,
+              color: Color(0xFF94a3b8),
+              height: 1.6,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          ...suggestions.map(
-            (s) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+          ...quickQueries.map(
+            (q) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
               child: GestureDetector(
-                onTap: () => _sendQuery(s),
+                onTap: () => _sendQuery(q['query'] as String),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 11,
-                  ),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -1968,29 +2006,54 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 4,
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
                   child: Row(
                     children: [
                       Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFE8001C),
-                          shape: BoxShape.circle,
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFF5F5), Color(0xFFFFE4E6)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Icon(
+                          q['icon'] as IconData,
+                          color: const Color(0xFFE8001C),
+                          size: 22,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 14),
                       Expanded(
-                        child: Text(
-                          s,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF4a5568),
-                            fontWeight: FontWeight.w500,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              q['title'] as String,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1a202c),
+                                height: 1.3,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              q['desc'] as String,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF718096),
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -2005,6 +2068,93 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   }
 
   // ── Typing indicator ───────────────────────────────────────────────────────
+
+  // ── Typing indicator — 3 bouncing dots (matches web design) ──────────────
+
+  // ── Generate related queries based on context ──────────────────────────────
+  List<String> _generateRelatedQueries(String userQuery, String aiResponse) {
+    final q = userQuery.toLowerCase();
+    final resp = aiResponse.toLowerCase();
+
+    // Define admin-specific query bank
+    final queryBank = {
+      'inventory': [
+        'Show items that need replenishment',
+        'Generate inventory report as Excel',
+        'What are the most used items this month?',
+        'Show inventory stock levels by category',
+        'Which items are overstocked?',
+      ],
+      'maintenance': [
+        'Show vehicles due for maintenance soon',
+        'Generate maintenance report as PDF',
+        'Which vehicles are currently under maintenance?',
+        'Show maintenance history for this month',
+        'List overdue maintenance schedules',
+      ],
+      'reports': [
+        'Generate issuance report as Excel',
+        'Create maintenance report for this month',
+        'Show vehicle fleet report as PDF',
+        'Generate bookings report',
+        'Create inventory report for last month',
+      ],
+      'bookings': [
+        'Show upcoming service bookings',
+        'List completed bookings this month',
+        'Which bookings are pending confirmation?',
+        'Show today\'s service appointments',
+        'Generate bookings report as Excel',
+      ],
+      'fleet': [
+        'Show all vehicles and their status',
+        'Which vehicles need attention?',
+        'List vehicles by service history',
+        'Show vehicle maintenance summary',
+        'What\'s the fleet utilization rate?',
+      ],
+      'general': [
+        'Show me today\'s summary',
+        'What needs immediate attention?',
+        'Generate a comprehensive report',
+        'Show inventory overview',
+        'List all active service bookings',
+      ],
+    };
+
+    // Determine context
+    String context = 'general';
+    if (RegExp(r'inventory|stock|item|material|supply', caseSensitive: false)
+        .hasMatch('$q $resp')) {
+      context = 'inventory';
+    } else if (RegExp(r'maintenance|service|repair|pms|schedule',
+            caseSensitive: false)
+        .hasMatch('$q $resp')) {
+      context = 'maintenance';
+    } else if (RegExp(r'report|generate|export|pdf|excel', caseSensitive: false)
+        .hasMatch('$q $resp')) {
+      context = 'reports';
+    } else if (RegExp(r'booking|appointment|reservation', caseSensitive: false)
+        .hasMatch('$q $resp')) {
+      context = 'bookings';
+    } else if (RegExp(r'vehicle|fleet|car|plate', caseSensitive: false)
+        .hasMatch('$q $resp')) {
+      context = 'fleet';
+    }
+
+    // Get relevant queries and shuffle
+    final relevantQueries = queryBank[context] ?? queryBank['general']!;
+    final shuffled = List<String>.from(relevantQueries)..shuffle();
+
+    // Filter out queries too similar to current user query
+    final filtered = shuffled
+        .where((sq) =>
+            !sq.toLowerCase().contains(q) && !q.contains(sq.toLowerCase()))
+        .toList();
+
+    // Return first 3
+    return filtered.take(3).toList();
+  }
 
   // ── Typing indicator — 3 bouncing dots (matches web design) ──────────────
 
@@ -2313,78 +2463,138 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           _aiAvatar(),
           const SizedBox(width: 8),
           Flexible(
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.76,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-              decoration: _aiBubbleDecoration(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _renderMarkdown(msg.text ?? ''),
-                  // ── Copy button for AI response ──
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: _userPromptActionBtn(
-                      icon: Icons.copy_outlined,
-                      label: 'Copy',
-                      onTap: () async {
-                        await Clipboard.setData(
-                          ClipboardData(text: msg.text ?? ''),
-                        );
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Copied to clipboard'),
-                              duration: Duration(seconds: 2),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        }
-                      },
-                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.76,
                   ),
-                  // ── Downloaded report: Open + Share buttons ──────────────
-                  if (msg.reportFile != null) ...[
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        _actionBtn(
-                          Icons.folder_open_outlined,
-                          'Open',
-                          const Color(0xFFE8001C),
-                          () async {
-                            await OpenFile.open(msg.reportFile!.path);
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        _actionBtn(
-                          Icons.share_outlined,
-                          'Share',
-                          const Color(0xFF003087),
-                          () async {
-                            await Printing.sharePdf(
-                              bytes: await msg.reportFile!.readAsBytes(),
-                              filename: msg.reportFile!.path.split('/').last,
-                            );
-                          },
+                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+                  decoration: _aiBubbleDecoration(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _renderMarkdown(msg.text ?? ''),
+                      // ── Downloaded report: Open + Share buttons ──────────────
+                      if (msg.reportFile != null) ...[
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            _actionBtn(
+                              Icons.folder_open_outlined,
+                              'Open',
+                              const Color(0xFFE8001C),
+                              () async {
+                                await OpenFile.open(msg.reportFile!.path);
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            _actionBtn(
+                              Icons.share_outlined,
+                              'Share',
+                              const Color(0xFF003087),
+                              () async {
+                                await Printing.sharePdf(
+                                  bytes: await msg.reportFile!.readAsBytes(),
+                                  filename: msg.reportFile!.path.split('/').last,
+                                );
+                              },
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ],
-                  // ── Report-ready from AI: Download PDF / Excel buttons ───
-                  if (msg.reportReady && msg.reportType != null) ...[
-                    const SizedBox(height: 10),
-                    _buildReportDownloadButtons(msg),
-                  ],
+                      // ── Report-ready from AI: Download PDF / Excel buttons ───
+                      if (msg.reportReady && msg.reportType != null) ...[
+                        const SizedBox(height: 10),
+                        _buildReportDownloadButtons(msg),
+                      ],
+                    ],
+                  ),
+                ),
+                // ── Timestamp with AI Assistant label ──
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, left: 2),
+                  child: Row(
+                    children: [
+                      const Text(
+                        'AI Assistant',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF94a3b8),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      const Text(
+                        '·',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFFcbd5e0),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _formatTimestamp(msg.timestamp ?? DateTime.now()),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF94a3b8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // ── Related query chips ──
+                if (msg.relatedQueries != null && msg.relatedQueries!.isNotEmpty && !_loading) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: msg.relatedQueries!
+                        .map(
+                          (query) => GestureDetector(
+                            onTap: () => _sendQuery(query),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 7,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8F9FB),
+                                border: Border.all(
+                                  color: const Color(0xFFe2e8f0),
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                query,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF475569),
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
                 ],
-              ),
+              ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  // Format timestamp to HH:MM AM/PM
+  String _formatTimestamp(DateTime dt) {
+    final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
   }
 
   // ── Avatar helpers ─────────────────────────────────────────────────────────
@@ -2801,6 +3011,10 @@ class _ChatMessage {
   final String? reportStartDate;
   final String? reportEndDate;
   final Map<String, dynamic>? reportFilters;
+  
+  // Timestamp and related queries for UI enhancements
+  final DateTime? timestamp;
+  final List<String>? relatedQueries;
 
   _ChatMessage({
     required this.role,
@@ -2815,5 +3029,7 @@ class _ChatMessage {
     this.reportStartDate,
     this.reportEndDate,
     this.reportFilters,
-  });
+    DateTime? timestamp,
+    this.relatedQueries,
+  }) : timestamp = timestamp ?? DateTime.now();
 }
