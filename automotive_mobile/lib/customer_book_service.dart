@@ -286,7 +286,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       await _sendAlertToUsers(
         db: db,
         uids: adminUids,
-        title: '?? New Booking � $vLabel',
+        title: 'New Booking - $vLabel',
         message: bookingMsg,
         type: 'info',
         targetRole: 'admin',
@@ -296,7 +296,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       await _sendAlertToUsers(
         db: db,
         uids: staffUids,
-        title: '?? New Booking � $vLabel',
+        title: 'New Booking - $vLabel',
         message: bookingMsg,
         type: 'info',
         targetRole: 'staff',
@@ -315,7 +315,7 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
 
       // -- Notify customer: in-app only --
       await db.collection('notifications').add({
-        'title': '✅ Booking Confirmed',
+        'title': 'Booking Confirmed',
         'message':
             'Your service booking on ${_fmtDatePretty(_preferredDate!)} at $_preferredTime has been confirmed.\n$detailedMsg',
         'type': 'success',
@@ -327,15 +327,21 @@ class _CustomerBookServiceState extends State<CustomerBookService> {
       });
 
       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Booking created successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Use pop instead of pushReplacement to avoid navigation issues
+        Navigator.of(context).popUntil((route) => route.isFirst);
+
+        // Navigate to bookings tab
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const CustomerMyBookings()),
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Booking successfully!'),
-            backgroundColor: Colors.green,
-          ),
         );
       }
     } catch (e) {
