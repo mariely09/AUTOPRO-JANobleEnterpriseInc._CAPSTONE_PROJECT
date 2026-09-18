@@ -27,8 +27,8 @@ TTL_SERVICE_CATALOG = 60    # 60s — keeps AI price/material answers close to r
                             # when admins update the catalog; shared across all
                             # requests so the extra read cost is negligible
 TTL_STOCK_INVENTORY = 300   # 5  minutes — stock changes more often
-TTL_USER_LOOKUP     = 300   # 5  minutes — admin user lookup table
-TTL_VEHICLE_LOOKUP  = 180   # 3  minutes — vehicle lookup table
+TTL_USER_LOOKUP     = 600   # 10 minutes — admin user lookup table (increased for performance)
+TTL_VEHICLE_LOOKUP  = 600   # 10 minutes — vehicle lookup table (increased for performance)
 
 # ── Internal store ────────────────────────────────────────────────────────────
 _lock  = threading.Lock()

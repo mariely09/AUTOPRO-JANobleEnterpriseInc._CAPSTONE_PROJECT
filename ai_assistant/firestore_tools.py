@@ -40,7 +40,7 @@ def _build_user_lookup(db) -> dict:
         return cached
     # Fallback: build inline (should not normally reach here)
     lookup = {}
-    for doc in db.collection("users").stream():
+    for doc in db.collection("users").limit(500).stream():
         d = doc.to_dict()
         lookup[doc.id] = {
             "name":  d.get("name", d.get("firstName", "") + " " + d.get("lastName", "")).strip(),
@@ -57,7 +57,7 @@ def _build_vehicle_lookup_by_id(db) -> dict:
         return cached
     # Fallback
     lookup = {}
-    for doc in db.collection("vehicles").stream():
+    for doc in db.collection("vehicles").limit(500).stream():
         d = doc.to_dict()
         lookup[doc.id] = {
             "plate":   d.get("plateNumber") or d.get("plate") or "",
@@ -77,7 +77,7 @@ def _build_vehicle_lookup_by_plate(db) -> dict:
         return cached
     # Fallback
     lookup = {}
-    for doc in db.collection("vehicles").stream():
+    for doc in db.collection("vehicles").limit(500).stream():
         d = doc.to_dict()
         plate = (d.get("plateNumber") or d.get("plate") or "").strip()
         if plate:
@@ -131,7 +131,8 @@ def get_low_stock_items() -> dict:
     """Return all items at or below their reorder point (reorder point must be > 0)."""
     db = get_db()
     items = []
-    for doc in db.collection("stock_inventory").stream():
+    # Add limit to prevent full collection scan
+    for doc in db.collection("stock_inventory").limit(200).stream():
         d = doc.to_dict()
         stock   = int(d.get("stock",   0))
         reorder = int(d.get("reorder", 0))
@@ -327,7 +328,7 @@ def get_maintenance_summary() -> dict:
     db = get_db()
     by_status: dict = defaultdict(int)
     total_cost = 0.0
-    for doc in db.collection("maintenance").stream():
+    for doc in db.collection("maintenance").limit(500).stream():
         d = doc.to_dict()
         by_status[d.get("status", "Unknown")] += 1
         total_cost += _strip_currency(d.get("cost", 0))
