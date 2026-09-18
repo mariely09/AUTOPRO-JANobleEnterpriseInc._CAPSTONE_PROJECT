@@ -2564,6 +2564,32 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                     ],
                   ),
                 ),
+                // ── AI message actions (Copy button - always visible) ──
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, left: 2),
+                  child: Row(
+                    children: [
+                      _aiMessageActionBtn(
+                        icon: Icons.copy_outlined,
+                        label: 'Copy',
+                        onTap: () async {
+                          await Clipboard.setData(
+                            ClipboardData(text: msg.text ?? ''),
+                          );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Copied to clipboard'),
+                                duration: Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
                 // ── Related query chips ──
                 if (msg.relatedQueries != null && msg.relatedQueries!.isNotEmpty && !_loading) ...[
                   const SizedBox(height: 8),
@@ -2747,6 +2773,39 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   );
 
   Widget _userPromptActionBtn({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF4F6F9),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 10, color: const Color(0xFF64748B)),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _aiMessageActionBtn({
     required IconData icon,
     required String label,
     required VoidCallback onTap,
