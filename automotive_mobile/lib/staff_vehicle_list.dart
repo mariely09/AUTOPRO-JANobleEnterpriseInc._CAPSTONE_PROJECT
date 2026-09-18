@@ -975,22 +975,103 @@ class _StaffVehicleListState extends State<StaffVehicleList> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        DropdownButtonFormField<String>(
-                          value: selectedType,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Vehicle Type *',
-                            border: OutlineInputBorder(),
+                        // Vehicle Type — bottom sheet picker (same style as admin)
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () async {
+                            final picked = await showModalBottomSheet<String>(
+                              context: sheetCtx,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(20),
+                                ),
+                              ),
+                              builder: (pickerCtx) => Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Padding(
+                                    padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                                    child: Text(
+                                      'Select Vehicle Type',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const Divider(height: 1),
+                                  Flexible(
+                                    child: ListView(
+                                      shrinkWrap: true,
+                                      children: types
+                                          .map(
+                                            (t) => ListTile(
+                                              title: Text(t),
+                                              trailing: selectedType == t
+                                                  ? const Icon(
+                                                      Icons.check,
+                                                      color: Color(0xFFE8001C),
+                                                    )
+                                                  : null,
+                                              onTap: () =>
+                                                  Navigator.pop(pickerCtx, t),
+                                            ),
+                                          )
+                                          .toList(),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                ],
+                              ),
+                            );
+                            if (picked != null)
+                              setModal(() => selectedType = picked);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 15,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: const Color(0xFFbdbdbd),
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Vehicle Type *',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: const Color(0xFF666666),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        selectedType ?? 'Select type',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: selectedType != null
+                                              ? const Color(0xFF1a202c)
+                                              : const Color(0xFF9e9e9e),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Color(0xFF718096),
+                                ),
+                              ],
+                            ),
                           ),
-                          hint: const Text('Select type'),
-                          items: types
-                              .map(
-                                (t) =>
-                                    DropdownMenuItem(value: t, child: Text(t)),
-                              )
-                              .toList(),
-                          onChanged: (v) => setModal(() => selectedType = v),
-                          borderRadius: BorderRadius.circular(10),
                         ),
                         const SizedBox(height: 10),
                         _OwnerAutocomplete(controller: ownerCtrl),

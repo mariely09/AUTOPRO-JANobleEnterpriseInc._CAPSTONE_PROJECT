@@ -35,7 +35,7 @@
         <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;padding:0.6rem 1.5rem;background:white;border-bottom:1px solid #f0f4f8;flex-shrink:0;position:relative;z-index:10;">
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <input type="text" class="search-bar" placeholder="Search archived items..." id="archiveSearch" style="width:220px;padding-left:2rem;" oninput="_archiveResetPage(); renderCurrentTab();">
+                    <input type="text" class="search-bar" placeholder="Search archived items..." id="archiveSearch" style="width:220px;padding-left:2rem;" oninput="_archiveResetPage(); renderCurrentTab();" onpaste="setTimeout(function(){ _archiveResetPage(); renderCurrentTab(); }, 50)">
                 </div>
             </div>
 
@@ -297,7 +297,16 @@ db.collection('archive').doc('item_master').collection('items').onSnapshot(funct
       // Cache for instant restore
       try {
         var _arUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
-        if (_arUid) sessionStorage.setItem('archiveIM_' + _arUid, JSON.stringify(_archivedItems.slice(0, 500)));
+        if (_arUid) {
+          var cacheData = _archivedItems.slice(0, 500).map(function(item) {
+            var copy = Object.assign({}, item);
+            if (copy.archivedAt && typeof copy.archivedAt.toMillis === 'function') {
+              copy.archivedAt = { _ms: copy.archivedAt.toMillis() };
+            }
+            return copy;
+          });
+          sessionStorage.setItem('archiveIM_' + _arUid, JSON.stringify(cacheData));
+        }
       } catch(e) {}
 });
 
@@ -399,7 +408,16 @@ db.collection('archive').doc('maintenance').collection('records').onSnapshot(fun
       // Cache for instant restore
       try {
         var _arUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
-        if (_arUid) sessionStorage.setItem('archiveMaint_' + _arUid, JSON.stringify(_archivedMaintenance.slice(0, 500)));
+        if (_arUid) {
+          var cacheData = _archivedMaintenance.slice(0, 500).map(function(item) {
+            var copy = Object.assign({}, item);
+            if (copy.archivedAt && typeof copy.archivedAt.toMillis === 'function') {
+              copy.archivedAt = { _ms: copy.archivedAt.toMillis() };
+            }
+            return copy;
+          });
+          sessionStorage.setItem('archiveMaint_' + _arUid, JSON.stringify(cacheData));
+        }
       } catch(e) {}
 });
 
@@ -484,7 +502,16 @@ db.collection('archive').doc('vehicles').collection('vehicles').onSnapshot(funct
       // Cache for instant restore
       try {
         var _arUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
-        if (_arUid) sessionStorage.setItem('archiveVeh_' + _arUid, JSON.stringify(_archivedVehicles.slice(0, 500)));
+        if (_arUid) {
+          var cacheData = _archivedVehicles.slice(0, 500).map(function(item) {
+            var copy = Object.assign({}, item);
+            if (copy.archivedAt && typeof copy.archivedAt.toMillis === 'function') {
+              copy.archivedAt = { _ms: copy.archivedAt.toMillis() };
+            }
+            return copy;
+          });
+          sessionStorage.setItem('archiveVeh_' + _arUid, JSON.stringify(cacheData));
+        }
       } catch(e) {}
 });
 
@@ -569,7 +596,16 @@ db.collection('archive').doc('users').collection('users').onSnapshot(function(sn
     // Cache for instant restore
     try {
       var _arUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
-      if (_arUid) sessionStorage.setItem('archiveUsers_' + _arUid, JSON.stringify(_archivedUsers.slice(0, 500)));
+      if (_arUid) {
+        var cacheData = _archivedUsers.slice(0, 500).map(function(item) {
+          var copy = Object.assign({}, item);
+          if (copy.archivedAt && typeof copy.archivedAt.toMillis === 'function') {
+            copy.archivedAt = { _ms: copy.archivedAt.toMillis() };
+          }
+          return copy;
+        });
+        sessionStorage.setItem('archiveUsers_' + _arUid, JSON.stringify(cacheData));
+      }
     } catch(e) {}
 });
 
@@ -662,7 +698,19 @@ db.collection('deliveries').where('archived', '==', true).onSnapshot(function(sn
       // Cache for instant restore
       try {
         var _arUid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
-        if (_arUid) sessionStorage.setItem('archiveDel_' + _arUid, JSON.stringify(_archivedDeliveries.slice(0, 500)));
+        if (_arUid) {
+          var cacheData = _archivedDeliveries.slice(0, 500).map(function(item) {
+            var copy = Object.assign({}, item);
+            if (copy.archivedAt && typeof copy.archivedAt.toMillis === 'function') {
+              copy.archivedAt = { _ms: copy.archivedAt.toMillis() };
+            }
+            if (copy.createdAt && typeof copy.createdAt.toMillis === 'function') {
+              copy.createdAt = { _ms: copy.createdAt.toMillis() };
+            }
+            return copy;
+          });
+          sessionStorage.setItem('archiveDel_' + _arUid, JSON.stringify(cacheData));
+        }
       } catch(e) {}
 }, function() {});
 
@@ -745,12 +793,29 @@ window.permanentlyDeleteDelivery = function(docId, supplier) {
     
     var restored = false;
     
+    // Helper to restore Timestamp-like objects
+    function restoreTimestamp(obj) {
+      if (!obj) return obj;
+      if (obj._ms) {
+        // Serialized timestamp with _ms field
+        return {
+          toDate: function() { return new Date(obj._ms); },
+          toMillis: function() { return obj._ms; },
+          seconds: Math.floor(obj._ms / 1000)
+        };
+      }
+      return obj;
+    }
+    
     // Restore Item Master archive
     var imRaw = sessionStorage.getItem('archiveIM_' + uid);
     if (imRaw) {
       var imData = JSON.parse(imRaw);
-      if (Array.isArray(imData) && imData.length && !window._archivedItems.length) {
-        window._archivedItems = imData;
+      if (Array.isArray(imData) && imData.length) {
+        _archivedItems = imData.map(function(item) {
+          if (item.archivedAt) item.archivedAt = restoreTimestamp(item.archivedAt);
+          return item;
+        });
         restored = true;
       }
     }
@@ -759,8 +824,11 @@ window.permanentlyDeleteDelivery = function(docId, supplier) {
     var maintRaw = sessionStorage.getItem('archiveMaint_' + uid);
     if (maintRaw) {
       var maintData = JSON.parse(maintRaw);
-      if (Array.isArray(maintData) && maintData.length && !window._archivedMaintenance.length) {
-        window._archivedMaintenance = maintData;
+      if (Array.isArray(maintData) && maintData.length) {
+        _archivedMaintenance = maintData.map(function(item) {
+          if (item.archivedAt) item.archivedAt = restoreTimestamp(item.archivedAt);
+          return item;
+        });
         restored = true;
       }
     }
@@ -769,8 +837,11 @@ window.permanentlyDeleteDelivery = function(docId, supplier) {
     var vehRaw = sessionStorage.getItem('archiveVeh_' + uid);
     if (vehRaw) {
       var vehData = JSON.parse(vehRaw);
-      if (Array.isArray(vehData) && vehData.length && !window._archivedVehicles.length) {
-        window._archivedVehicles = vehData;
+      if (Array.isArray(vehData) && vehData.length) {
+        _archivedVehicles = vehData.map(function(item) {
+          if (item.archivedAt) item.archivedAt = restoreTimestamp(item.archivedAt);
+          return item;
+        });
         restored = true;
       }
     }
@@ -779,8 +850,11 @@ window.permanentlyDeleteDelivery = function(docId, supplier) {
     var usersRaw = sessionStorage.getItem('archiveUsers_' + uid);
     if (usersRaw) {
       var usersData = JSON.parse(usersRaw);
-      if (Array.isArray(usersData) && usersData.length && !window._archivedUsers.length) {
-        window._archivedUsers = usersData;
+      if (Array.isArray(usersData) && usersData.length) {
+        _archivedUsers = usersData.map(function(item) {
+          if (item.archivedAt) item.archivedAt = restoreTimestamp(item.archivedAt);
+          return item;
+        });
         restored = true;
       }
     }
@@ -789,15 +863,19 @@ window.permanentlyDeleteDelivery = function(docId, supplier) {
     var delRaw = sessionStorage.getItem('archiveDel_' + uid);
     if (delRaw) {
       var delData = JSON.parse(delRaw);
-      if (Array.isArray(delData) && delData.length && !window._archivedDeliveries.length) {
-        window._archivedDeliveries = delData;
+      if (Array.isArray(delData) && delData.length) {
+        _archivedDeliveries = delData.map(function(item) {
+          if (item.archivedAt) item.archivedAt = restoreTimestamp(item.archivedAt);
+          if (item.createdAt) item.createdAt = restoreTimestamp(item.createdAt);
+          return item;
+        });
         restored = true;
       }
     }
     
     // Immediate render if data was restored
-    if (restored && typeof window.renderCurrentTab === 'function') {
-      window.renderCurrentTab();
+    if (restored && typeof renderCurrentTab === 'function') {
+      renderCurrentTab();
     }
   } catch(e) {}
 })();

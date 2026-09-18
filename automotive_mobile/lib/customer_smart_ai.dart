@@ -750,11 +750,15 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
           final relatedQueries = _generateRelatedQueries(text, answer);
           setState(() {
             _loading = false;
-            _messages.add(_ChatMsg(
-              role: 'ai',
-              text: answer,
-              relatedQueries: relatedQueries.isNotEmpty ? relatedQueries : null,
-            ));
+            _messages.add(
+              _ChatMsg(
+                role: 'ai',
+                text: answer,
+                relatedQueries: relatedQueries.isNotEmpty
+                    ? relatedQueries
+                    : null,
+              ),
+            );
           });
         }
 
@@ -841,28 +845,6 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
       }
     }
     _scrollToBottom();
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  //  Stop generation
-  // ─────────────────────────────────────────────────────────────────────────
-  void _stopGeneration() {
-    if (_activeClient != null) {
-      _activeClient!.close();
-      _activeClient = null;
-    }
-    if (mounted) {
-      setState(() {
-        _loading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Generation stopped'),
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
   }
 
   String _parseError(String body) {
@@ -1687,10 +1669,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
             height: 64,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFF22c55e),
-                width: 2.5,
-              ),
+              border: Border.all(color: const Color(0xFF22c55e), width: 2.5),
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFF22c55e).withValues(alpha: 0.2),
@@ -1802,44 +1781,6 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
       ),
     );
   }
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 4,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFE8001C),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          s,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF4a5568),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   //  Typing indicator — 3 bouncing dots (matches website animation)
@@ -1876,7 +1817,7 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   // ─────────────────────────────────────────────────────────────────────────
   //  Chat bubbles
   // ─────────────────────────────────────────────────────────────────────────
-  
+
   // Generate 3 contextually relevant follow-up queries (customer-specific)
   List<String> _generateRelatedQueries(String userQuery, String aiResponse) {
     final q = userQuery.toLowerCase();
@@ -1889,63 +1830,71 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
         'When is my next service due?',
         'What are common issues for my vehicle?',
         'Show my vehicle warranty status',
-        'Update my vehicle mileage'
+        'Update my vehicle mileage',
       ],
       'booking': [
         'Book another service appointment',
         'Reschedule my current booking',
         'What services are included in my booking?',
         'Cancel my appointment',
-        'What are your available time slots?'
+        'What are your available time slots?',
       ],
       'history': [
         'Show my most recent service',
         'What repairs have been done?',
         'Generate my service history report',
         'Show service costs over time',
-        'What parts were replaced?'
+        'What parts were replaced?',
       ],
       'pricing': [
         'Get a quote for oil change',
         'What is included in basic service?',
         'Do you offer service packages?',
         'Compare service prices',
-        'What payment methods do you accept?'
+        'What payment methods do you accept?',
       ],
       'maintenance': [
         'What maintenance is overdue?',
         'Show my PMS schedule',
         'Set reminders for next service',
         'What is the recommended service interval?',
-        'Show maintenance alerts'
+        'Show maintenance alerts',
       ],
       'general': [
         'Show my vehicle information',
         'Book a service',
         'View my service history',
         'Check service pricing',
-        'What are your operating hours?'
-      ]
+        'What are your operating hours?',
+      ],
     };
 
     // Determine context
     String context = 'general';
-    if (RegExp(r'vehicle|car|plate|registration', caseSensitive: false)
-        .hasMatch('$q $resp')) {
+    if (RegExp(
+      r'vehicle|car|plate|registration',
+      caseSensitive: false,
+    ).hasMatch('$q $resp')) {
       context = 'vehicle';
-    } else if (RegExp(r'book|appointment|schedule|reservation',
-            caseSensitive: false)
-        .hasMatch('$q $resp')) {
+    } else if (RegExp(
+      r'book|appointment|schedule|reservation',
+      caseSensitive: false,
+    ).hasMatch('$q $resp')) {
       context = 'booking';
-    } else if (RegExp(r'history|past|previous|completed', caseSensitive: false)
-        .hasMatch('$q $resp')) {
+    } else if (RegExp(
+      r'history|past|previous|completed',
+      caseSensitive: false,
+    ).hasMatch('$q $resp')) {
       context = 'history';
-    } else if (RegExp(r'price|cost|quote|payment|fee', caseSensitive: false)
-        .hasMatch('$q $resp')) {
+    } else if (RegExp(
+      r'price|cost|quote|payment|fee',
+      caseSensitive: false,
+    ).hasMatch('$q $resp')) {
       context = 'pricing';
-    } else if (RegExp(r'maintenance|service|pms|due|overdue',
-            caseSensitive: false)
-        .hasMatch('$q $resp')) {
+    } else if (RegExp(
+      r'maintenance|service|pms|due|overdue',
+      caseSensitive: false,
+    ).hasMatch('$q $resp')) {
       context = 'maintenance';
     }
 
@@ -1955,8 +1904,10 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
 
     // Filter out queries too similar to current user query
     final filtered = shuffled
-        .where((sq) =>
-            !sq.toLowerCase().contains(q) && !q.contains(sq.toLowerCase()))
+        .where(
+          (sq) =>
+              !sq.toLowerCase().contains(q) && !q.contains(sq.toLowerCase()),
+        )
         .toList();
 
     // Return first 3
@@ -2243,7 +2194,10 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.78,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: _aiBubbleDecoration(),
                   child: _renderMarkdown(msg.text),
                 ),
@@ -2300,7 +2254,9 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
                   ),
                 ),
                 // Related query chips
-                if (msg.relatedQueries != null && msg.relatedQueries!.isNotEmpty && !_loading) ...[
+                if (msg.relatedQueries != null &&
+                    msg.relatedQueries!.isNotEmpty &&
+                    !_loading) ...[
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
@@ -2399,56 +2355,66 @@ class _CustomerSmartAIState extends State<CustomerSmartAI> {
   Widget _renderMarkdown(String text) {
     // Replace <br> tags with newlines before processing
     text = text.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n');
-    
+
     final spans = <TextSpan>[];
     final lines = text.split('\n');
-    
+
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
       final lineSpans = <InlineSpan>[];
-      
+
       // Check for bullet point
-      if (line.startsWith('• ') || line.startsWith('- ') || line.startsWith('* ')) {
-        lineSpans.add(const TextSpan(
-          text: '• ',
-          style: TextStyle(color: Color(0xFFE8001C), fontWeight: FontWeight.bold),
-        ));
+      if (line.startsWith('• ') ||
+          line.startsWith('- ') ||
+          line.startsWith('* ')) {
+        lineSpans.add(
+          const TextSpan(
+            text: '• ',
+            style: TextStyle(
+              color: Color(0xFFE8001C),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
         line = line.substring(2);
       }
-      
+
       // Process bold (**text**, __text__, or <b>text</b>)
       final boldPattern = RegExp(r'\*\*(.+?)\*\*|__(.+?)__|<b>(.+?)</b>');
       var lastIndex = 0;
-      
+
       for (final match in boldPattern.allMatches(line)) {
         // Add text before the match
         if (match.start > lastIndex) {
           lineSpans.add(TextSpan(text: line.substring(lastIndex, match.start)));
         }
-        
+
         // Add bold text (check all three groups: **, __, and <b>)
-        final boldText = match.group(1) ?? match.group(2) ?? match.group(3) ?? '';
-        lineSpans.add(TextSpan(
-          text: boldText,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ));
-        
+        final boldText =
+            match.group(1) ?? match.group(2) ?? match.group(3) ?? '';
+        lineSpans.add(
+          TextSpan(
+            text: boldText,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        );
+
         lastIndex = match.end;
       }
-      
+
       // Add remaining text
       if (lastIndex < line.length) {
         lineSpans.add(TextSpan(text: line.substring(lastIndex)));
       }
-      
+
       spans.add(TextSpan(children: lineSpans));
-      
+
       // Add line break if not the last line
       if (i < lines.length - 1) {
         spans.add(const TextSpan(text: '\n'));
       }
     }
-    
+
     return SelectableText.rich(
       TextSpan(
         children: spans,

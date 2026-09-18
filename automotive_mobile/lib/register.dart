@@ -115,6 +115,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _loading = true);
     try {
+      // Check if email already exists in Firestore users collection
+      final existingUsers = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (existingUsers.docs.isNotEmpty) {
+        _showError('An account with this email already exists.');
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+
       // Create Firebase Auth account
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
@@ -141,7 +154,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       // Notify admins about new registration
       await FirebaseFirestore.instance.collection('notifications').add({
-        'title': '?? New Account Registered',
+        'title': '👤 New Account Registered',
         'message': '$firstName $lastName ($email) has created a new account.',
         'type': 'info',
         'targetRole': 'admin',
@@ -152,7 +165,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
 
       if (!mounted) return;
-      // Sign out � they need to login with their new credentials
+      // Sign out — they need to login with their new credentials
       await FirebaseAuth.instance.signOut();
 
       // Show success and go back to login
@@ -174,6 +187,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _ => e.message ?? 'Registration failed.',
       };
       _showError(msg);
+    } catch (e) {
+      _showError('Registration failed. Please try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

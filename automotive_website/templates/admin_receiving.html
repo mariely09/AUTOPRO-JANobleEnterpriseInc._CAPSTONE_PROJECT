@@ -85,7 +85,7 @@
                 <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <input type="text" class="search-bar" placeholder="Search deliveries..." id="deliverySearch" style="width:220px;padding-left:2rem;" oninput="deliveryApplySearch()">
+                    <input type="text" class="search-bar" placeholder="Search deliveries..." id="deliverySearch" style="width:220px;padding-left:2rem;" oninput="deliveryApplySearch()" onpaste="setTimeout(function(){ deliveryApplySearch(); }, 50)">
                 </div>
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
@@ -118,12 +118,11 @@
 
         <div class="admin-content">
             <!-- Stat cards -->
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.5rem;">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;">
                 <div class="stat-card" onclick="setFilter('Pending',document.querySelectorAll('#rcvFilterPills .dss-pill')[1])" style="cursor:pointer;"><div class="stat-icon" style="background:rgba(113,128,150,0.1);color:#718096;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><div class="stat-number" id="statPending" style="color:#718096;">0</div><div class="stat-label">Pending</div></div>
                 <div class="stat-card" onclick="setFilter('For Admin Review',document.querySelectorAll('#rcvFilterPills .dss-pill')[2])" style="cursor:pointer;"><div class="stat-icon red"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><div class="stat-number" id="statForReview">0</div><div class="stat-label">For Review</div></div>
                 <div class="stat-card" onclick="setFilter('Awaiting Double Check',document.querySelectorAll('#rcvFilterPills .dss-pill')[3])" style="cursor:pointer;"><div class="stat-icon orange"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="stat-number" id="statAwaiting">0</div><div class="stat-label">Awaiting Review</div></div>
                 <div class="stat-card" onclick="setFilter('Approved',document.querySelectorAll('#rcvFilterPills .dss-pill')[4])" style="cursor:pointer;"><div class="stat-icon green"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="stat-number" id="statApproved">0</div><div class="stat-label">Approved</div></div>
-                <div class="stat-card" onclick="setFilter('Rejected',document.querySelectorAll('#rcvFilterPills .dss-pill')[5])" style="cursor:pointer;"><div class="stat-icon red"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="stat-number" id="statRejected">0</div><div class="stat-label">Rejected</div></div>
             </div>
             <!-- Filter pills -->
             <div class="dss-filter-bar">
@@ -149,10 +148,6 @@
                         <button class="dss-pill dss-pill--ontrack" onclick="setFilter('Approved',this)">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                             Approved
-                        </button>
-                        <button class="dss-pill dss-pill--overdue" onclick="setFilter('Rejected',this)">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                            Rejected
                         </button>
                     </div>
                 </div>
@@ -420,11 +415,7 @@ function fabOpenEditPO() {
     </div>
     <!-- Footer -->
     <div id="rvFooter" style="padding:1rem 1.75rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;flex-wrap:wrap;">
-      <button type="button" onclick="if(!confirm('Are you sure you want to reject this service?')) return; submitReview('Rejected')" style="flex:1;min-width:140px;padding:0.75rem;background:white;border:2px solid #E8001C;border-radius:10px;color:#E8001C;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;" onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-        Reject
-      </button>
-      <button type="button" onclick="submitReview('Approved')" style="flex:1.5;min-width:140px;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;">
+      <button type="button" onclick="submitReview('Approved')" style="flex:1;min-width:140px;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         Approve &amp; Update Stock
       </button>
@@ -475,6 +466,35 @@ function fabOpenEditPO() {
     </div>
     <div id="ivBody" style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;"></div>
     <div id="ivFooter" style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;"></div>
+  </div>
+</div>
+
+<!-- ----------------------------------------------------------
+     MODAL - Edit Receiving (for shortage/defective items)
+---------------------------------------------------------- -->
+<div class="modal" id="editReceivingModal">
+  <div class="modal-content" style="max-width:520px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#E8001C,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
+      <div style="flex:1;">
+        <div style="color:white;font-size:1rem;font-weight:800;">Edit Receiving</div>
+        <div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.1rem;">Update actual quantity and condition</div>
+      </div>
+      <button onclick="closeModal('editReceivingModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.75rem;">
+      <div id="ermItemCard"></div>
+    </div>
+    <!-- Footer -->
+    <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
+      <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('editReceivingModal')">Cancel</button>
+      <button type="button" id="ermSubmitBtn" onclick="submitEditReceiving()" style="flex:2;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        &nbsp;Update
+      </button>
+    </div>
   </div>
 </div>
 
@@ -538,7 +558,7 @@ function _getItemDate(item, d) {
 window._updateStats = function _updateStats() {
   var s = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
   // Count by per-item status (not delivery-level)
-  var pending = 0, forReview = 0, awaiting = 0, approved = 0, rejected = 0;
+  var pending = 0, forReview = 0, awaiting = 0, approved = 0;
   _allDeliveries.forEach(function(d) {
     var deliveryStatus = d.status || 'Pending';
     (d.items || []).forEach(function(item) {
@@ -548,7 +568,6 @@ window._updateStats = function _updateStats() {
         case 'For Admin Review':      forReview++; break;
         case 'Awaiting Double Check': awaiting++; break;
         case 'Approved':              approved++; break;
-        case 'Rejected':              rejected++; break;
       }
     });
   });
@@ -556,7 +575,6 @@ window._updateStats = function _updateStats() {
   s('statForReview', forReview);
   s('statAwaiting', awaiting);
   s('statApproved', approved);
-  s('statRejected', rejected);
   // Update Print PO button visibility + list
   _updatePrintPOMenu();
 }
@@ -928,119 +946,121 @@ function _ivInfoCard(label, value, valueColor) {
     _updateStats(); _populateMonthFilter(); _renderList();
   };
 
-  // ── Fast path: use already-loaded window._fbDeliveries ──────────────────
-  // The global listener in admin_firebase.js starts at login and fires before
-  // the user navigates here. If data is ready, paint instantly (0 ms).
-  // If not ready yet, poll every 100 ms (max 4 s) then fall back to .get().
-  function _loadFromGlobal() {
-    var docs = window._fbDeliveries;
-    if (!docs || !docs.length) return false;
-    _allDeliveries = docs;
-    _enrichDeliveries(_allDeliveries);
-    _updateStats(); _populateMonthFilter(); _renderList();
-    return true;
-  }
+  // ── Instant cache restore — runs FIRST to populate data immediately ──────────────────
+  // Paints stale data from sessionStorage immediately so the table isn't blank
+  // while admin_firebase.js waits for the Firestore snapshot to return.
+  (function() {
+    try {
+      var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
+      if (!uid) return;
+      var raw = sessionStorage.getItem('deliveriesCache_' + uid);
+      if (!raw) return;
+      var docs = JSON.parse(raw);
+      if (!Array.isArray(docs) || !docs.length) return;
 
-  if (!_loadFromGlobal()) {
-    var _rcvPollCount = 0;
-    var _rcvPoll = setInterval(function() {
-      _rcvPollCount++;
-      if (_loadFromGlobal() || _rcvPollCount >= 40) {
-        clearInterval(_rcvPoll);
-        // Hard fallback: direct Firestore .get() if global listener hasn't fired in 4 s
-        if (!_allDeliveries.length) {
-          Promise.all([
-            db.collection('deliveries').orderBy('createdAt', 'desc').get(),
-            db.collection('item_master').where('type', '==', 'Material').get(),
-            db.collection('stock_inventory').get()
-          ]).then(function(results) {
-            _allDeliveries = results[0].docs
-              .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
-              .filter(function(d) { return !d.archived; });
-            var numToCost = {}, numToStock = {};
-            results[1].docs.forEach(function(d) {
-              var data = d.data(); var n = data.num || '';
-              if (n) numToCost[n] = parseFloat((data.cost || '0').toString().replace(/[₱,]/g, '')) || 0;
-            });
-            results[2].docs.forEach(function(d) {
-              var data = d.data(); var n = data.num || '';
-              if (n) numToStock[n] = parseInt(data.stock) || 0;
-            });
-            _allDeliveries.forEach(function(del) {
-              (del.items || []).forEach(function(item) {
-                var n = item.itemNum || '';
-                item._cost = numToCost[n] || 0;
-                item._stock = (item.stockAtReceive !== undefined && item.stockAtReceive !== null)
-                  ? item.stockAtReceive
-                  : (numToStock[n] !== undefined ? numToStock[n] : null);
-              });
-            });
-            _updateStats(); _populateMonthFilter(); _renderList();
-          }).catch(function() {
-            _renderList();
-          });
-        }
-      }
-    }, 100);
-  }
-</script>
-<script>
-// ── Instant cache restore — runs before DOMContentLoaded ──────────────────
-// Paints stale data from sessionStorage immediately so the table isn't blank
-// while admin_firebase.js waits for the Firestore snapshot to return.
-(function() {
-  try {
-    var uid = (JSON.parse(sessionStorage.getItem('apUser') || '{}')).uid || '';
-    if (!uid) return;
-    var raw = sessionStorage.getItem('deliveriesCache_' + uid);
-    if (!raw) return;
-    var docs = JSON.parse(raw);
-    if (!Array.isArray(docs) || !docs.length) return;
-
-    // Restore serialised Timestamps
-    docs.forEach(function(d) {
-      ['createdAt', 'receivedAt', 'archivedAt'].forEach(function(k) {
-        if (d[k] && d[k]._ms) {
-          var ms = d[k]._ms;
-          d[k] = { toMillis: function() { return ms; }, seconds: Math.floor(ms / 1000) };
-        }
+      // Restore serialised Timestamps
+      docs.forEach(function(d) {
+        ['createdAt', 'receivedAt', 'archivedAt'].forEach(function(k) {
+          if (d[k] && d[k]._ms) {
+            var ms = d[k]._ms;
+            d[k] = { toMillis: function() { return ms; }, seconds: Math.floor(ms / 1000) };
+          }
+        });
       });
-    });
 
-    // Only paint if global listener hasn't already populated _allDeliveries
-    if (!window._fbDeliveries || !window._fbDeliveries.length) {
+      // Populate window._fbDeliveries AND _allDeliveries immediately
       window._fbDeliveries = docs;
+      _allDeliveries = docs;
+
+      // Enrich with cached item master and inventory data if available
+      if (window._fbItemMaster && window._fbInventory) {
+        _enrichDeliveries(_allDeliveries);
+      }
 
       // Paint stats immediately from cache
-      (function() {
-        var s = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
-        var pending = 0, forReview = 0, awaiting = 0, approved = 0, rejected = 0;
-        docs.forEach(function(d) {
-          var ds = d.status || 'Pending';
-          (d.items || []).forEach(function(item) {
-            switch (item.itemStatus || ds) {
-              case 'Pending':               pending++;  break;
-              case 'For Admin Review':      forReview++; break;
-              case 'Awaiting Double Check': awaiting++; break;
-              case 'Approved':              approved++; break;
-              case 'Rejected':              rejected++; break;
-            }
-          });
+      var pending = 0, forReview = 0, awaiting = 0, approved = 0;
+      docs.forEach(function(d) {
+        var ds = d.status || 'Pending';
+        (d.items || []).forEach(function(item) {
+          switch (item.itemStatus || ds) {
+            case 'Pending':               pending++;  break;
+            case 'For Admin Review':      forReview++; break;
+            case 'Awaiting Double Check': awaiting++; break;
+            case 'Approved':              approved++; break;
+          }
         });
-        s('statPending',   pending);
-        s('statForReview', forReview);
-        s('statAwaiting',  awaiting);
-        s('statApproved',  approved);
-        s('statRejected',  rejected);
-      })();
+      });
+      var s = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+      s('statPending',   pending);
+      s('statForReview', forReview);
+      s('statAwaiting',  awaiting);
+      s('statApproved',  approved);
 
-      // Render table from cache; live snapshot will overwrite shortly
-      if (typeof window._rcvOnDeliveries === 'function') {
-        window._rcvOnDeliveries(docs);
-      }
+      // Render table immediately from cache
+      _populateMonthFilter();
+      _renderList();
+      
+      // Mark that cache was loaded
+      window._rcvCacheLoaded = true;
+    } catch(e) {}
+  })();
+
+  // ── Immediate data load with instant fallback ──────────────────────────
+  (function initData() {
+    // Skip if cache was already loaded and rendered
+    if (window._rcvCacheLoaded && _allDeliveries.length) {
+      return;
     }
-  } catch(e) {}
-})();
+    
+    // Try global cache first (from admin_firebase.js listener)
+    if (window._fbDeliveries && window._fbDeliveries.length) {
+      _allDeliveries = window._fbDeliveries;
+      _enrichDeliveries(_allDeliveries);
+      _updateStats(); _populateMonthFilter(); _renderList();
+      return;
+    }
+
+    // Immediate fallback: fetch directly from Firestore without waiting
+    Promise.all([
+      db.collection('deliveries').orderBy('createdAt', 'desc').get(),
+      db.collection('item_master').where('type', '==', 'Material').get(),
+      db.collection('stock_inventory').get()
+    ]).then(function(results) {
+      // Only process if no data loaded yet (avoid overwriting real-time data)
+      if (_allDeliveries.length) return;
+      
+      _allDeliveries = results[0].docs
+        .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
+        .filter(function(d) { return !d.archived; });
+      
+      var numToCost = {}, numToStock = {};
+      results[1].docs.forEach(function(d) {
+        var data = d.data(); var n = data.num || '';
+        if (n) numToCost[n] = parseFloat((data.cost || '0').toString().replace(/[₱,]/g, '')) || 0;
+      });
+      results[2].docs.forEach(function(d) {
+        var data = d.data(); var n = data.num || '';
+        if (n) numToStock[n] = parseInt(data.stock) || 0;
+      });
+      
+      _allDeliveries.forEach(function(del) {
+        (del.items || []).forEach(function(item) {
+          var n = item.itemNum || '';
+          item._cost = numToCost[n] || 0;
+          item._stock = (item.stockAtReceive !== undefined && item.stockAtReceive !== null)
+            ? item.stockAtReceive
+            : (numToStock[n] !== undefined ? numToStock[n] : null);
+        });
+      });
+      
+      _updateStats(); _populateMonthFilter(); _renderList();
+    }).catch(function(err) {
+      console.error('Failed to load deliveries:', err);
+      _renderList(); // Show empty state
+    });
+  })();
+</script>
+<script>
 </script>
 <script>
 function _loadItemMaster() {
@@ -1898,6 +1918,133 @@ window.submitReceiving = function() {
 <script>
 // -- Review Modal (per-item) --
 var _rvItemIdx = null;
+var _ermDeliveryId = null;
+var _ermItemIdx = null;
+
+// -- Open Edit Receiving Modal --
+window.openEditReceivingModal = function(deliveryId, itemIdx) {
+  var d = _allDeliveries.find(function(x){ return x.id === deliveryId; });
+  if (!d) return;
+  var item = (d.items || [])[itemIdx];
+  if (!item) return;
+
+  _ermDeliveryId = deliveryId;
+  _ermItemIdx = itemIdx;
+
+  var uom = item.uom || '';
+  var uomLabel = uom ? ' <span style="font-size:0.75rem;font-weight:400;color:#718096;">(' + uom + ')</span>' : '';
+
+  document.getElementById('ermItemCard').innerHTML =
+    '<div style="background:white;border:1.5px solid #90cdf4;border-radius:12px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">'
+    + '<div style="font-weight:700;font-size:0.9rem;color:#1a202c;">' + (item.itemName||'') + uomLabel + '</div>'
+    + '<div style="font-size:0.75rem;color:#718096;margin-top:3px;">'
+    +   (item.supplierCode ? item.supplierCode + ' · ' : '') + 'Order Qty: <strong style="color:#1a202c;">' + (item.expectedQty||0) + '</strong>'
+    + '</div>'
+    + '<div style="height:1px;background:#f0f4f8;margin:10px 0;"></div>'
+    + '<div style="margin-bottom:10px;">'
+    +   '<label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Actual Qty *</label>'
+    +   '<input type="number" id="ermActual" value="' + (item.actualQty||item.expectedQty||0) + '" min="0"'
+    +     ' oninput="ermAutoCondition(' + (item.expectedQty||0) + ')"'
+    +     ' style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.9rem;outline:none;box-sizing:border-box;transition:border-color .15s;"'
+    +     ' onfocus="this.style.borderColor=\'#003087\'" onblur="this.style.borderColor=\'#e2e8f0\'">'
+    + '</div>'
+    + '<div style="margin-bottom:10px;">'
+    +   '<label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:6px;">Condition</label>'
+    +   '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+    +     '<button id="ermCond_ok" onclick="ermSetCondition(\'OK\')" style="padding:6px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:white;color:#718096;transition:all .15s;">&#x2705; OK</button>'
+    +     '<button id="ermCond_defect" onclick="ermSetCondition(\'Defective\')" style="padding:6px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:white;color:#718096;transition:all .15s;">&#x274C; Defective</button>'
+    +     '<button id="ermCond_shortage" onclick="ermSetCondition(\'Shortage\')" style="padding:6px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:white;color:#718096;transition:all .15s;">&#x26A0;&#xFE0F; Shortage</button>'
+    +   '</div>'
+    + '</div>'
+    + '<div>'
+    +   '<label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Remarks <span style="font-weight:400;color:#a0aec0;">(optional)</span></label>'
+    +   '<input type="text" id="ermRemark" value="' + (item.remark||'') + '" placeholder="e.g. 1 unit damaged packaging"'
+    +     ' style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.55rem 0.75rem;font-size:0.83rem;outline:none;box-sizing:border-box;transition:border-color .15s;"'
+    +     ' onfocus="this.style.borderColor=\'#003087\'" onblur="this.style.borderColor=\'#e2e8f0\'">'
+    + '</div>'
+    + '</div>';
+
+  // Set current condition
+  ermSetCondition(item.condition || 'OK');
+  document.getElementById('editReceivingModal').classList.add('active');
+};
+
+window.ermAutoCondition = function(expectedQty) {
+  var actualEl = document.getElementById('ermActual');
+  if (!actualEl) return;
+  var actual = parseInt(actualEl.value) || 0;
+  ermSetCondition(actual < expectedQty ? 'Shortage' : 'OK');
+};
+
+window.ermSetCondition = function(cond) {
+  var styles = {
+    'OK':        { id: 'ermCond_ok',       border: '#38a169', bg: 'rgba(56,161,105,0.1)',  color: '#38a169' },
+    'Defective': { id: 'ermCond_defect',   border: '#E8001C', bg: 'rgba(232,0,28,0.1)',   color: '#E8001C' },
+    'Shortage':  { id: 'ermCond_shortage', border: '#d69e2e', bg: 'rgba(214,158,46,0.1)', color: '#d69e2e' }
+  };
+  Object.keys(styles).forEach(function(k) {
+    var b = document.getElementById(styles[k].id);
+    if (!b) return;
+    b.style.borderColor = '#e2e8f0';
+    b.style.background  = 'white';
+    b.style.color       = '#718096';
+    b.removeAttribute('data-active');
+  });
+  var active = styles[cond];
+  if (active) {
+    var b = document.getElementById(active.id);
+    if (b) {
+      b.style.borderColor = active.border;
+      b.style.background  = active.bg;
+      b.style.color       = active.color;
+      b.setAttribute('data-active', '1');
+    }
+  }
+};
+
+window.submitEditReceiving = function() {
+  if (!_ermDeliveryId || _ermItemIdx === null) return;
+  var d = _allDeliveries.find(function(x){ return x.id === _ermDeliveryId; });
+  if (!d) return;
+
+  var defectBtn   = document.getElementById('ermCond_defect');
+  var shortageBtn = document.getElementById('ermCond_shortage');
+  var cond = 'OK';
+  if (defectBtn   && defectBtn.getAttribute('data-active'))   cond = 'Defective';
+  if (shortageBtn && shortageBtn.getAttribute('data-active')) cond = 'Shortage';
+  
+  var actualEl = document.getElementById('ermActual');
+  var remarkEl = document.getElementById('ermRemark');
+  var actualQty = parseInt(actualEl ? actualEl.value : 0) || 0;
+  var remark = remarkEl ? remarkEl.value.trim() : '';
+
+  var btn = document.getElementById('ermSubmitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.49"/></svg> Updating…';
+
+  var updatedItems = (d.items||[]).slice();
+  updatedItems[_ermItemIdx] = Object.assign({}, updatedItems[_ermItemIdx], {
+    actualQty: actualQty,
+    condition: cond,
+    remark: remark,
+    receivedAt: new Date().toISOString()
+  });
+
+  db.collection('deliveries').doc(_ermDeliveryId).update({ items: updatedItems })
+    .then(function() {
+      closeModal('editReceivingModal');
+      // Refresh the review modal if it's open
+      if (document.getElementById('reviewModal').classList.contains('active')) {
+        openReviewModal(_ermDeliveryId, _ermItemIdx);
+      }
+      showToast('Receiving updated successfully!', 'success');
+    })
+    .catch(function(err) { showToast('Error: ' + err.message, 'error'); })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Update';
+    });
+};
 
 window.openReviewModal = function(id, itemIdx) {
   var d = _allDeliveries.find(function(x){ return x.id===id; });
@@ -1942,16 +2089,22 @@ window.openReviewModal = function(id, itemIdx) {
   // Received By
   document.getElementById('rvReceivedBy').value = item.receivedBy || d.receivedBy || '<span style="color:#a0aec0;">—</span>';
 
+  // Check if there's a shortage or defective condition
+  var hasIssue = (item.condition === 'Shortage' || item.condition === 'Defective' || diff < 0);
+  
   // Item details card
   document.getElementById('rvItemRows').innerHTML =
     '<div style="background:white;border:1.2px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.03);">'
-    // Item name + condition badge
+    // Item name + condition badge + edit button (if has issue)
     + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">'
     +   '<div style="flex:1;">'
     +     '<div style="font-weight:700;font-size:0.95rem;color:#1a202c;">' + (item.itemName||'<span style="color:#a0aec0;">—</span>') + (item.uom ? '&nbsp;&nbsp;<span style="font-weight:400;font-size:0.78rem;color:#718096;">(' + item.uom + ')</span>' : '') + '</div>'
     +     (item.supplierCode ? '<div style="font-size:0.75rem;color:#718096;margin-top:3px;">' + item.supplierCode + '</div>' : '')
     +   '</div>'
-    +   '<span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:' + cc + '1a;color:' + cc + ';flex-shrink:0;">' + (item.condition||'<span style="color:#a0aec0;">—</span>') + '</span>'
+    +   '<div style="display:flex;align-items:center;gap:8px;">'
+    +     '<span style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:' + cc + '1a;color:' + cc + ';flex-shrink:0;">' + (item.condition||'<span style="color:#a0aec0;">—</span>') + '</span>'
+    +     (hasIssue ? '<button onclick="openEditReceivingModal(\'' + id + '\',' + itemIdx + ')" style="padding:5px 12px;background:#fff5f5;border:1.5px solid #feb2b2;border-radius:8px;color:#E8001C;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .15s;flex-shrink:0;" onmouseover="this.style.background=\'#fee2e2\'" onmouseout="this.style.background=\'#fff5f5\'"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>' : '')
+    +   '</div>'
     + '</div>'
     // Stats grid
     + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid #f0f4f8;">'

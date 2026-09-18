@@ -46,7 +46,7 @@
                 <!-- Search -->
                 <div style="position:relative;display:flex;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <input type="text" class="search-bar" placeholder="Search parts..." id="inventorySearch" style="width:200px;padding-left:2rem;" oninput="renderInventoryList()">
+                    <input type="text" class="search-bar" placeholder="Search parts..." id="inventorySearch" style="width:200px;padding-left:2rem;" oninput="renderInventoryList()" onpaste="setTimeout(function(){ renderInventoryList(); }, 50)">
                 </div>
                 <!-- Sort By -->
                 <div style="position:relative;display:flex;align-items:center;">
@@ -364,7 +364,7 @@
         <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
             <div style="position:relative;">
                 <svg style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);pointer-events:none;color:#a0aec0;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" id="invItemSearch" placeholder="Search item name, number, supplier code..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.9rem 0.65rem 2.2rem;font-size:0.88rem;outline:none;box-sizing:border-box;" oninput="stockSearchMasterItem(this.value)">
+                <input type="text" id="invItemSearch" placeholder="Search or paste item name, number, supplier code..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:0.65rem 0.9rem 0.65rem 2.2rem;font-size:0.88rem;outline:none;box-sizing:border-box;" oninput="stockSearchMasterItem(this.value)" onpaste="invHandlePaste(event)">
             </div>
             <!-- Search results list -->
             <div id="invSearchResults" style="display:none;display:flex;flex-direction:column;gap:0.5rem;"></div>
@@ -608,6 +608,17 @@ function openAddInventoryModal() {
         document.getElementById(id).value = '';
     });
     document.getElementById('addInventoryModal').classList.add('active');
+}
+
+function invHandlePaste(event) {
+    // Wait for paste to complete, then trigger search
+    setTimeout(function() {
+        var input = document.getElementById('invItemSearch');
+        if (input) {
+            var value = input.value || '';
+            stockSearchMasterItem(value);
+        }
+    }, 50);
 }
 
 function stockSearchMasterItem(query) {

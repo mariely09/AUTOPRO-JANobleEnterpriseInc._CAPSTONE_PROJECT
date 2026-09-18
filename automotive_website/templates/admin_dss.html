@@ -54,14 +54,14 @@
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <input type="text" class="search-bar dss-header-search" id="dssSearch"
                         placeholder="Search item..." style="width:220px;padding-left:2rem;"
-                        oninput="dssApplySearch()">
+                        oninput="dssApplySearch()" onpaste="setTimeout(function(){ dssApplySearch(); }, 50)">
                 </div>
                 <!-- PMS search (visible on dss-pms section) -->
                 <div id="dssPmsSearchWrap" style="position:relative;display:none;align-items:center;">
                     <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;z-index:1;" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <input type="text" class="search-bar dss-header-search" id="dssPmsSearch"
                         placeholder="Search vehicle..." style="width:220px;padding-left:2rem;"
-                        oninput="dssPMSApplySearch()">
+                        oninput="dssPMSApplySearch()" onpaste="setTimeout(function(){ dssPMSApplySearch(); }, 50)">
                 </div>
                 <!-- Stock Sort By -->
                 <div id="dssSortWrap" style="position:relative;display:flex;align-items:center;">

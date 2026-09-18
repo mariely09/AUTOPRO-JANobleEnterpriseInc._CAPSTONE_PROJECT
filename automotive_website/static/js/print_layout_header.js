@@ -82,7 +82,6 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     '<div class="ap-header">'
     +   '<div class="ap-header-inner">'
     +     '<div class="ap-header-left">'
-    +       '<img src="/static/img/LOGO_CALTEX.png" class="ap-logo" alt="Caltex" onerror="this.style.display=\'none\'">'
     +       '<div class="ap-brand-block">'
     +         '<div class="ap-brand">JA Noble Enterprise Inc.</div>'
     +         '<div class="ap-brand-sub">Caltex San Pedro</div>'
@@ -99,7 +98,6 @@ function _doPrint(title, summary, columns, rows, footer, options) {
     + '</div>'
     + '<div class="ap-header-rule"></div>'
     + '<div class="ap-content">'
-    +   summaryHtml
     +   '<div class="ap-table-wrap"><table>' + colGroupHtml + '<thead><tr>' + theadHtml + '</tr></thead><tbody>' + tbodyHtml + '</tbody></table></div>'
     +   tfootHtml
     + '</div>'

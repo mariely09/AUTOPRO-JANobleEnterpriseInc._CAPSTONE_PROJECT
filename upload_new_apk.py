@@ -44,8 +44,24 @@ print("   Please wait...")
 
 blob = bucket.blob('autopro.apk')
 
-# Upload file with progress callback
-blob.upload_from_filename(apk_path, content_type='application/vnd.android.package-archive')
+# Upload file with longer timeout for large APK
+import google.api_core.retry as retry_module
+retry_strategy = retry_module.Retry(
+    initial=1.0,
+    maximum=60.0,
+    multiplier=2.0,
+    deadline=600.0,  # 10 minutes timeout
+    predicate=retry_module.if_exception_type(
+        Exception,  # Retry on any exception
+    )
+)
+
+blob.upload_from_filename(
+    apk_path, 
+    content_type='application/vnd.android.package-archive',
+    timeout=600,  # 10 minutes
+    retry=retry_strategy
+)
 
 print("\n🔓 Making file publicly accessible...")
 blob.make_public()
