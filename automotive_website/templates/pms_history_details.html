@@ -90,7 +90,33 @@
   const _PHD_CACHE_KEY = 'phdCache_' + (plate || '').toLowerCase().replace(/\s+/g, '_');
 
   // ── Shared render helpers ─────────────────────────────────────────────────
-  function _buildSidebarHtml(records, totalCost, lastSvcOdo) {
+  function _buildSidebarHtml(records, totalCost, lastSvcOdo, customerInfo) {
+    const customerCard = customerInfo ? `
+      <div style="background:white;border-radius:14px;padding:16px;box-shadow:0 4px 12px rgba(0,0,0,0.06);margin-top:14px;border:1px solid #f0f4f8;">
+        <div style="font-size:11px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Customer Info</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#004B5F,#EE152A);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <span style="font-size:12px;font-weight:700;color:#fff;">${(customerInfo.name||'?').split(' ').filter(Boolean).map(p=>p[0]).join('').toUpperCase().slice(0,2)}</span>
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#1a202c;line-height:1.3;">${customerInfo.name}</div>
+              ${customerInfo.company ? `<div style="font-size:11px;color:#718096;">${customerInfo.company}</div>` : ''}
+            </div>
+          </div>
+          ${customerInfo.email && customerInfo.email !== '—' ? `
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f8fafc;border-radius:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <span style="font-size:12px;color:#4a5568;word-break:break-all;">${customerInfo.email}</span>
+          </div>` : ''}
+          ${customerInfo.phone ? `
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f8fafc;border-radius:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.1 9.81 19.79 19.79 0 0 1 1.08 1.18 2 2 0 0 1 3.06 0h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 7.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span style="font-size:12px;color:#4a5568;">${customerInfo.phone}</span>
+          </div>` : ''}
+        </div>
+      </div>` : '';
+
     return `
       <div class="phd-sidebar">
         <a href="/customer_pms_history" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#718096;text-decoration:none;margin-bottom:16px;transition:color .2s;" onmouseover="this.style.color='#E8001C'" onmouseout="this.style.color='#718096'">
@@ -131,6 +157,7 @@
             </div>` : ''}
           </div>
         </div>
+        ${customerCard}
       </div>`;
   }
 
@@ -159,9 +186,9 @@
     }).join('');
   }
 
-  function _render(records, totalCost, lastSvcOdo) {
+  function _render(records, totalCost, lastSvcOdo, customerInfo) {
     window._phdRecords = records;
-    const sidebarHtml = _buildSidebarHtml(records, totalCost, lastSvcOdo);
+    const sidebarHtml = _buildSidebarHtml(records, totalCost, lastSvcOdo, customerInfo);
     const recordsHtml = _buildRecordsHtml(records);
     document.getElementById('phdMain').innerHTML = sidebarHtml + `<div class="phd-records">${recordsHtml}</div>`;
   }
@@ -174,7 +201,7 @@
       if (!raw) return;
       const cached = JSON.parse(raw);
       if (!cached || !Array.isArray(cached.records)) return;
-      _render(cached.records, cached.totalCost || 0, cached.lastSvcOdo || '');
+      _render(cached.records, cached.totalCost || 0, cached.lastSvcOdo || '', cached.customerInfo || null);
     } catch(e) {}
   })();
 
@@ -214,22 +241,48 @@
 
       // Get last service odometer from vehicle document
       let lastSvcOdo = '';
+      let customerInfo = null;
       const vSnap = await db.collection('vehicles').where('plate', '==', plate).limit(1).get();
       if (!vSnap.empty) {
         const vData = vSnap.docs[0].data();
         const odo = vData.lastSvcOdo || vData.lastServiceOdometer || '';
         if (odo) lastSvcOdo = String(odo).replace(/[^0-9]/g, '');
+
+        // Fetch customer info from users collection
+        const ownerId = vData.ownerId || '';
+        const ownerName = vData.owner || '';
+        try {
+          let uSnap = null;
+          if (ownerId) {
+            const uDoc = await db.collection('users').doc(ownerId).get();
+            if (uDoc.exists) uSnap = uDoc.data();
+          }
+          if (!uSnap && ownerName) {
+            const byName = await db.collection('users').where('name', '==', ownerName).limit(1).get();
+            if (!byName.empty) uSnap = byName.docs[0].data();
+          }
+          if (uSnap) {
+            customerInfo = {
+              name:    uSnap.name        || ownerName || '—',
+              email:   uSnap.email       || '—',
+              phone:   uSnap.phone       || uSnap.contactNumber || uSnap.mobile || '',
+              company: uSnap.companyName || '',
+            };
+          } else if (ownerName) {
+            customerInfo = { name: ownerName, email: '—', phone: '', company: '' };
+          }
+        } catch(_) {}
       }
 
       // Persist fresh data back to cache (including odometer)
       try {
         sessionStorage.setItem(_PHD_CACHE_KEY, JSON.stringify({
           plate, desc: desc || '', type: type || '',
-          records, totalCost, lastSvcOdo, savedAt: Date.now(),
+          records, totalCost, lastSvcOdo, customerInfo, savedAt: Date.now(),
         }));
       } catch(e) {}
 
-      _render(records, totalCost, lastSvcOdo);
+      _render(records, totalCost, lastSvcOdo, customerInfo);
 
     } catch (err) {
       console.error('Error loading PMS history:', err);
