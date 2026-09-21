@@ -638,207 +638,164 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     _scrollToBottom();
     AdminChatStore._lastSavedSig = null; // user message changed state
 
-    // session memory is handled server-side via _sessionId
+    // ══════════════════════════════════════════════════════════════════════════
+    // STREAMING REQUEST - renders response as chunks arrive from backend
+    // ══════════════════════════════════════════════════════════════════════════
 
     try {
       _activeClient = http.Client(); // Create client for cancellation support
-      final resp = await _activeClient!
-          .post(
-            Uri.parse('$_kAiBaseUrl/admin/chat'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'message': text,
-              'session_id': _sessionId, // server-side memory key
-            }),
-          )
-          .timeout(const Duration(seconds: 120));
-      _activeClient = null;
+      
+      final request = http.Request(
+        'POST',
+        Uri.parse('$_kAiBaseUrl/admin/chat/stream'),
+      );
+      request.headers['Content-Type'] = 'application/json';
+      request.body = jsonEncode({
+        'message': text,
+        'session_id': _sessionId,
+      });
 
-      if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body) as Map<String, dynamic>;
-        final rawReply = (data['reply'] as String? ?? '').trim();
-        
-        // Strip any reasoning tags that may have leaked (defense in depth)
-        final cleanReply = _stripReasoning(rawReply);
-
-        // Persist session_id for continuity across turns — adopt it in place
-        // (rename stored history entry) so no duplicate history item is created.
-        final serverId = data['session_id'] as String?;
-        if (serverId != null && serverId.isNotEmpty && _currentUid.isNotEmpty) {
-          await AdminChatStore.adoptServerSession(_currentUid, serverId);
-        } else if (serverId != null && serverId.isNotEmpty) {
-          _sessionId = serverId;
-        }
-
-        // Handle rate limit
-        if (data['rate_limited'] == true) {
-          final resetIn = data['reset_in'] as String? ?? 'some time';
-          setState(() {
-            _loading = false;
-            _rateLimited = true;
-            _resetIn = resetIn;
-            _messages.add(
-              _ChatMessage(
-                role: 'ai',
-                text:
-                    'AI Unavailable\n\n'
-                    'The AI service has reached its daily token limit (Groq free tier).\n\n'
-                    'The limit resets in $resetIn.\n\n'
-                    'You cannot send new messages until the quota resets automatically.',
-                isRateLimit: true,
-              ),
-            );
-          });
-          return;
-        }
-
-        // ── Parse report_payload block from the raw reply ──────────────────
-        // The FastAPI backend embeds a ```report_payload {...} ``` block when
-        // it detects a report request. We parse it here (mirroring Flask proxy
-        // logic) so we can show a proper download button instead of raw JSON.
-        final rpMatch = RegExp(
-          r'```report_payload\s*\n(.*?)\n```',
-          dotAll: true,
-        ).firstMatch(cleanReply);
-
-        if (rpMatch != null) {
-          try {
-            final rpJson =
-                jsonDecode(rpMatch.group(1)!.trim()) as Map<String, dynamic>;
-            if (rpJson['report_type'] != null) {
-              // Strip the JSON block from the visible reply text
-              final cleanReplyText = cleanReply
-                  .replaceAll(
-                    RegExp(r'\n?```report_payload\s*\n.*?\n```', dotAll: true),
-                    '',
-                  )
-                  .trim();
-
-              final rawFilters = Map<String, dynamic>.from(
-                (rpJson['filters'] as Map<String, dynamic>?) ?? {},
-              );
-              final reportMonth = rawFilters.remove('month') as String?;
-              final reportStartDate =
-                  rawFilters.remove('start_date') as String?;
-              final reportEndDate = rawFilters.remove('end_date') as String?;
-              final reportType = rpJson['report_type'] as String;
-              final rawFmt = ((rpJson['format'] as String?) ?? 'pdf')
-                  .toLowerCase()
-                  .replaceAll('xlsx', 'excel');
-
-              // ── Future-date guard ────────────────────────────────────────
-              bool isFuture = false;
-              if (reportMonth != null) {
-                final mMatch = RegExp(
-                  r'([A-Za-z]+)\s+(\d{4})',
-                ).firstMatch(reportMonth);
-                if (mMatch != null) {
-                  const monthNames = [
-                    'january',
-                    'february',
-                    'march',
-                    'april',
-                    'may',
-                    'june',
-                    'july',
-                    'august',
-                    'september',
-                    'october',
-                    'november',
-                    'december',
-                  ];
-                  final mIdx = monthNames.indexOf(
-                    mMatch.group(1)!.toLowerCase(),
-                  );
-                  final yr = int.tryParse(mMatch.group(2)!) ?? 0;
-                  final now = DateTime.now();
-                  if (mIdx >= 0) {
-                    final mo = mIdx + 1;
-                    isFuture =
-                        yr > now.year || (yr == now.year && mo > now.month);
-                  }
-                }
-              }
-
-              if (isFuture) {
-                final label = reportMonth ?? 'the requested period';
-                setState(() {
-                  _loading = false;
-                  _messages.add(
-                    _ChatMessage(
-                      role: 'ai',
-                      text:
-                          'No records found for **$label** — that date range is in the future. '
-                          'Reports can only be generated for dates with existing historical data.',
-                    ),
-                  );
-                });
-                _scrollToBottom();
-                return;
-              }
-
-              final displayReply = cleanReplyText.isNotEmpty
-                  ? cleanReplyText
-                  : 'Your ${_kReportTypes[reportType] ?? reportType} is ready.';
-
-              // Generate related queries
-              final relatedQueries = _generateRelatedQueries(text, displayReply);
-
-              setState(() {
-                _loading = false;
-                _messages.add(
-                  _ChatMessage(
-                    role: 'ai',
-                    text: displayReply,
-                    reportReady: true,
-                    reportType: reportType,
-                    reportFormat: rawFmt,
-                    reportMonth: reportMonth,
-                    reportStartDate: reportStartDate,
-                    reportEndDate: reportEndDate,
-                    reportFilters: rawFilters,
-                    reportLabel: _kReportTypes[reportType] ?? reportType,
-                    relatedQueries: relatedQueries.isNotEmpty ? relatedQueries : null,
-                  ),
-                );
-              });
-              _scrollToBottom();
-              return;
-            }
-          } catch (_) {
-            // JSON parse failed — fall through to normal reply rendering
-          }
-        }
-
-        // ── Normal reply (no report_payload) ───────────────────────────────
-        final answer = cleanReply.isNotEmpty
-            ? cleanReply
-            : 'No response generated.';
-        
-        // Generate related queries
-        final relatedQueries = _generateRelatedQueries(text, answer);
-        
+      final streamedResponse = await _activeClient!.send(request);
+      
+      if (streamedResponse.statusCode != 200) {
+        // Non-streaming error response
+        final errorBody = await streamedResponse.stream.bytesToString();
+        _activeClient = null;
         setState(() {
           _loading = false;
           _messages.add(_ChatMessage(
             role: 'ai',
-            text: answer,
-            relatedQueries: relatedQueries.isNotEmpty ? relatedQueries : null,
+            text: 'Error: ${streamedResponse.statusCode} - $errorBody',
           ));
         });
-        _activeClient = null; // Clear after successful completion
-      } else {
-        // Non-200 response — try to extract a friendly reply from the body first
-        String errorMsg =
-            "I'm having trouble processing your request right now. Please try again in a moment.";
+        return;
+      }
+
+      // Add placeholder message immediately for instant visual feedback
+      final aiMessageIndex = _messages.length;
+      setState(() {
+        _messages.add(_ChatMessage(role: 'ai', text: '', isTyping: true));
+      });
+      _scrollToBottom();
+
+      String accumulatedText = '';
+      String? finalSessionId;
+      bool rateLimited = false;
+      String? resetIn;
+
+      // Process Server-Sent Events stream
+      await for (final chunk in streamedResponse.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())) {
+        
+        if (chunk.isEmpty || !chunk.startsWith('data: ')) continue;
+        
+        final jsonStr = chunk.substring(6); // Remove "data: " prefix
+        if (jsonStr.trim().isEmpty) continue;
+
         try {
-          final errData = jsonDecode(resp.body) as Map<String, dynamic>;
-          final bodyReply =
-              (errData['reply'] as String? ??
-                      errData['detail'] as String? ??
-                      '')
-                  .trim();
-          if (bodyReply.isNotEmpty &&
+          final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+
+          // Handle error
+          if (data.containsKey('error')) {
+            accumulatedText = data['error'] as String;
+            setState(() {
+              if (aiMessageIndex < _messages.length) {
+                _messages[aiMessageIndex] = _ChatMessage(
+                  role: 'ai',
+                  text: accumulatedText,
+                );
+              }
+            });
+            break;
+          }
+
+          // Handle text chunk
+          if (data.containsKey('chunk')) {
+            final textChunk = data['chunk'] as String;
+            accumulatedText += textChunk;
+            
+            // Update the AI message in real-time (remove typing indicator on first chunk)
+            setState(() {
+              if (aiMessageIndex < _messages.length) {
+                _messages[aiMessageIndex] = _ChatMessage(
+                  role: 'ai',
+                  text: _stripReasoning(accumulatedText),
+                  isTyping: false, // Remove typing indicator once content starts arriving
+                );
+              }
+            });
+            _scrollToBottom();
+          }
+
+          // Handle completion
+          if (data['done'] == true) {
+            finalSessionId = data['session_id'] as String?;
+            rateLimited = data['rate_limited'] == true;
+            resetIn = data['reset_in'] as String?;
+            break;
+          }
+        } catch (e) {
+          // Skip malformed JSON chunks
+          continue;
+        }
+      }
+
+      _activeClient = null;
+
+      // Strip reasoning tags from final accumulated text
+      final cleanReply = _stripReasoning(accumulatedText);
+
+      // Update final message
+      setState(() {
+        _loading = false;
+        if (aiMessageIndex < _messages.length) {
+          _messages[aiMessageIndex] = _ChatMessage(
+            role: 'ai',
+            text: cleanReply,
+            isRateLimit: rateLimited,
+          );
+        }
+      });
+
+      // Persist session_id for continuity
+      if (finalSessionId != null && finalSessionId.isNotEmpty && _currentUid.isNotEmpty) {
+        await AdminChatStore.adoptServerSession(_currentUid, finalSessionId);
+      } else if (finalSessionId != null && finalSessionId.isNotEmpty) {
+        _sessionId = finalSessionId;
+      }
+
+      // Handle rate limit
+      if (rateLimited) {
+        setState(() {
+          _rateLimited = true;
+          _resetIn = resetIn ?? 'some time';
+        });
+      }
+
+      // Save chat history
+      if (_currentUid.isNotEmpty) {
+        AdminChatStore.saveChat(_currentUid);
+      }
+
+      _scrollToBottom();
+
+    } on http.ClientException {
+      // Request was cancelled (Stop button pressed)
+      setState(() {
+        _loading = false;
+      });
+    } catch (e) {
+      _activeClient = null;
+      setState(() {
+        _loading = false;
+        _messages.add(_ChatMessage(
+          role: 'ai',
+          text: "I'm having trouble processing your request right now. Please try again in a moment.",
+        ));
+      });
+    }
+  }
               !bodyReply.contains('Error') &&
               !bodyReply.contains('500') &&
               !bodyReply.contains('503')) {
@@ -2495,7 +2452,25 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _renderMarkdown(msg.text ?? ''),
+                      // Show typing indicator or actual content
+                      if (msg.isTyping)
+                        const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _BouncingDots(),
+                            SizedBox(width: 8),
+                            Text(
+                              'Generating response...',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF718096),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        _renderMarkdown(msg.text ?? ''),
                       // ── Downloaded report: Open + Share buttons ──────────────
                       if (msg.reportFile != null) ...[
                         const SizedBox(height: 10),
@@ -3082,6 +3057,7 @@ class _ChatMessage {
   final String? reportFormat;
   final String? reportLabel;
   final bool isRateLimit;
+  final bool isTyping; // Shows typing indicator for placeholder messages
 
   // Fields for AI-detected report-ready messages (from report_payload parsing)
   final bool reportReady;
@@ -3102,6 +3078,7 @@ class _ChatMessage {
     this.reportFormat,
     this.reportLabel,
     this.isRateLimit = false,
+    this.isTyping = false,
     this.reportReady = false,
     this.reportType,
     this.reportMonth,

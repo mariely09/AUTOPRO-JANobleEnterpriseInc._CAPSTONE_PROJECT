@@ -345,16 +345,18 @@ def _is_model_not_found(exc: Exception) -> bool:
 
 
 def _call_groq(messages: list[dict], tools: list[dict] | None = None,
-               model: str | None = None):
+               model: str | None = None, stream: bool = False):
     """
     Thin wrapper around the Groq API call with token limits enforced.
 
     model — pass an explicit model string to override the default (8B).
+    stream — if True, returns a streaming response iterator; if False, returns complete response.
     max_tokens is capped at GROQ_MAX_OUTPUT_TOKENS.
     RateLimitError  → re-raised as RateLimitedError (friendly rate-limit message).
     AuthenticationError → re-raised as InvalidApiKeyError (friendly auth message).
 
     Returns the raw Groq response (usage.prompt_tokens etc. available on it).
+    When stream=True, returns an iterator that yields chunks.
     """
     api_key = settings.GROQ_API_KEY
     if not api_key:
@@ -373,16 +375,20 @@ def _call_groq(messages: list[dict], tools: list[dict] | None = None,
                 "model":      chosen_model,
                 "messages":   messages,
                 "max_tokens": settings.GROQ_MAX_OUTPUT_TOKENS,
+                "stream":     stream,
             }
             if tools:
                 kwargs["tools"] = tools
             resp = create_with_optional_thinking_disable(client, kwargs)
-        try:
-            u = resp.usage
-            perf_metrics.record_usage(getattr(u, "prompt_tokens", 0) or 0,
-                                      getattr(u, "completion_tokens", 0) or 0)
-        except Exception:
-            pass
+        
+        # For non-streaming responses, record usage immediately
+        if not stream:
+            try:
+                u = resp.usage
+                perf_metrics.record_usage(getattr(u, "prompt_tokens", 0) or 0,
+                                          getattr(u, "completion_tokens", 0) or 0)
+            except Exception:
+                pass
         return resp
     except AuthenticationError as exc:
         logger.error(
@@ -649,3 +655,118 @@ def _record_usage(response, model: str, intent: str, user_id: str,
             )
     except Exception:
         pass  # never let tracking crash the main request
+
+
+def chat_stream(user_message: str, history: list[dict] | None = None,
+                model: str | None = None,
+                intent: str = "UNKNOWN",
+                user_id: str = "admin"):
+    """
+    Streaming version of admin LLM chat.
+    
+    Yields text chunks as they arrive from Groq, enabling real-time response display.
+    
+    NOTE: Streaming is NOT compatible with tool calling. When tools are needed,
+    this function will fall back to the non-streaming chat() function and yield
+    the complete response at once.
+    
+    Yields:
+        str: Text chunks from the AI response as they arrive
+    """
+    from model_router import GENERAL_AI_QUESTION, COMPLEX_ANALYSIS
+    from input_guard import truncate_message, build_request_context
+
+    # Request-level memoization for read-only tools
+    import request_cache
+    _bucket = request_cache.begin_request()
+    
+    # Oversized-input guard
+    safe_message = truncate_message(user_message, settings.MAX_INPUT_CHARS)
+
+    # Trim history
+    trimmed_history: list[dict] = []
+    if history:
+        valid = [m for m in history if isinstance(m, dict) and "role" in m]
+        trimmed_history = valid[-settings.GROQ_MAX_HISTORY_MSGS:]
+
+    chosen_model = model or settings.GROQ_MODEL_PRIMARY
+
+    # Conditional report block
+    system_prompt = ADMIN_SYSTEM_PROMPT
+    if _REPORT_REQUEST_RE.search(safe_message):
+        system_prompt += REPORT_PROMPT_BLOCK
+
+    # Build request context with token budget
+    messages, _budget_stats = build_request_context(
+        system_prompt,
+        trimmed_history,
+        safe_message,
+        history_max_msgs=settings.GROQ_MAX_HISTORY_MSGS,
+        history_msg_max_chars=settings.HISTORY_MSG_MAX_CHARS,
+        budget_tokens=settings.ADMIN_MAX_REQUEST_TOKENS,
+    )
+
+    t0 = time.time()
+    
+    try:
+        # First, try streaming without tools
+        response_stream = _call_groq(messages, tools=None, model=chosen_model, stream=True)
+        
+        accumulated_content = ""
+        input_tokens = 0
+        output_tokens = 0
+        
+        for chunk in response_stream:
+            if hasattr(chunk, 'choices') and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                
+                # Check if model is trying to call tools (shouldn't happen without tools param)
+                if hasattr(delta, 'tool_calls') and delta.tool_calls:
+                    # Tool calling detected - must fall back to non-streaming
+                    logger.info("Tool calling detected during streaming - falling back to non-streaming mode")
+                    request_cache.end_request(_bucket)
+                    
+                    # Call non-streaming version and yield complete response
+                    result = chat(user_message, history, model, intent, user_id)
+                    yield result["reply"]
+                    return
+                
+                # Stream content chunks
+                if hasattr(delta, 'content') and delta.content:
+                    content_chunk = strip_reasoning(delta.content)
+                    if content_chunk:
+                        accumulated_content += content_chunk
+                        yield content_chunk
+                
+                # Track usage from x-groq headers or final chunk
+                if hasattr(chunk, 'x_groq'):
+                    usage = chunk.x_groq.get('usage', {})
+                    if usage:
+                        input_tokens = usage.get('prompt_tokens', input_tokens)
+                        output_tokens = usage.get('completion_tokens', output_tokens)
+        
+        # Record final usage
+        elapsed = time.time() - t0
+        if input_tokens or output_tokens:
+            token_tracker.record(
+                user_id=user_id,
+                role="admin",
+                model=chosen_model,
+                intent=intent,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                response_ms=elapsed * 1000,
+                success=True,
+            )
+        
+        request_cache.end_request(_bucket)
+        
+    except (RateLimitError, AllKeysRateLimitedError):
+        request_cache.end_request(_bucket)
+        raise
+    except Exception as e:
+        logger.error("Streaming error: %s", e, exc_info=True)
+        request_cache.end_request(_bucket)
+        # Fall back to non-streaming on error
+        result = chat(user_message, history, model, intent, user_id)
+        yield result["reply"]

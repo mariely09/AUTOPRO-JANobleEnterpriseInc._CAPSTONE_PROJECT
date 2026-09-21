@@ -2,12 +2,13 @@ import traceback
 import uuid
 import re
 import time
+import json
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from schemas import ChatRequest, ChatResponse, CustomerChatRequest, SessionInfoResponse
-from client import chat as llm_chat, AllKeysRateLimitedError as _AllKeysRateLimitedError, InvalidApiKeyError as _InvalidApiKeyError
+from client import chat as llm_chat, chat_stream as llm_chat_stream, AllKeysRateLimitedError as _AllKeysRateLimitedError, InvalidApiKeyError as _InvalidApiKeyError
 from intent_classifier import classify_and_run
 from input_normalizer import normalize as _normalize_input
 from model_router import (
@@ -836,6 +837,221 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
     # ── Generic fallback ──────────────────────────────────────────────────────
     import json as _json
     return "Here's what I found:\n\n```\n" + _json.dumps(result, indent=2)[:1500] + "\n```"
+
+
+# -- Admin chat streaming ------------------------------------------------------
+
+@app.post("/admin/chat/stream")
+async def admin_chat_stream(req: ChatRequest):
+    """
+    Streaming version of admin chat endpoint.
+    
+    Returns Server-Sent Events (SSE) that deliver AI response chunks as they arrive,
+    enabling <1-2s time-to-first-token instead of waiting for complete response.
+    
+    Flow:
+      1. Validate message (same as admin_chat)
+      2. Check for simple conversation → return complete response immediately
+      3. Check usage limits
+      4. Classify intent and check fast-path (arithmetic, DB lookup)
+         - Fast-path responses return immediately (non-streaming)
+      5. For LLM queries: stream response chunks as they arrive from Groq
+      
+    Response format: Server-Sent Events (SSE)
+      - Each chunk: data: {"chunk": "text"}\n\n
+      - Final event: data: {"done": true, "session_id": "..."}\n\n
+      - Error event: data: {"error": "message"}\n\n
+    
+    NOTE: Tool-calling queries fall back to complete response (tools require
+    full context). Most queries don't need tools and will stream properly.
+    """
+    import asyncio
+    from fastapi.responses import StreamingResponse
+    
+    async def generate():
+        # -- Step 1: Validation (same as admin_chat) ---------------------------
+        if not req.message or not req.message.strip():
+            yield f'data: {json.dumps({"error": "message must not be empty"})}\n\n'
+            return
+        
+        import unicodedata as _ucd
+        _stripped = req.message.strip()
+        _meaningful = sum(1 for c in _stripped if _ucd.category(c).startswith(('L', 'N')))
+        if len(_stripped) > 0 and _meaningful == 0:
+            session_id = req.session_id or str(uuid.uuid4())
+            reply = "I didn't quite catch that. Please type a question about the system."
+            yield f'data: {json.dumps({"chunk": reply})}\n\n'
+            yield f'data: {json.dumps({"done": True, "session_id": session_id})}\n\n'
+            return
+
+        # -- Step 1.5: Simple conversation fast-path (instant) -----------------
+        from simple_conversation import get_simple_response
+        simple_reply = get_simple_response(req.message, role="admin")
+        if simple_reply is not None:
+            session_id = req.session_id or str(uuid.uuid4())
+            admin_id = session_id[:20]
+            append_turn(session_id, req.message, simple_reply)
+            token_tracker.record(
+                user_id=admin_id, role="admin", model="local",
+                intent="SIMPLE_CONVERSATION", input_tokens=0, output_tokens=0,
+            )
+            usage_limiter.record_usage(admin_id, "admin", 0, 0)
+            yield f'data: {json.dumps({"chunk": simple_reply})}\n\n'
+            yield f'data: {json.dumps({"done": True, "session_id": session_id})}\n\n'
+            return
+
+        session_id = req.session_id or str(uuid.uuid4())
+        admin_id = session_id[:20]
+
+        import perf_metrics
+        _perf = perf_metrics.push(admin_id, "admin", "?")
+        
+        try:
+            # -- Step 3: Usage check -------------------------------------------
+            limit_check = usage_limiter.check_limit(admin_id, role="admin")
+            if not limit_check["allowed"]:
+                reply = limit_check["reason"]
+                yield f'data: {json.dumps({"chunk": reply})}\n\n'
+                yield f'data: {json.dumps({"done": True, "session_id": session_id, "rate_limited": True})}\n\n'
+                return
+
+            server_history = get_history(session_id)
+            effective_history = _merge_history(server_history, req.history)
+
+            # -- Step 4: Intent classification ---------------------------------
+            with perf_metrics.stage("intent"):
+                intent = classify_intent(req.message)
+            _perf["intent"] = intent
+            
+            with perf_metrics.stage("context"):
+                chosen_model = select_model(intent)
+
+            # -- Step 5: Fast-path (instant responses) -------------------------
+            with perf_metrics.stage("firestore"):
+                fast_path = classify_and_run(req.message)
+
+            if fast_path:
+                fp_intent = fast_path.get("intent", "")
+                fp_result = fast_path.get("result", {})
+
+                # Blocked intents
+                if fp_intent in ("out_of_scope", "prompt_injection_blocked",
+                                 "future_prediction_refused"):
+                    reply = fp_result.get("reply", "I can only answer questions related to the system.")
+                    reply = _strip_reasoning(reply)
+                    append_turn(session_id, req.message, reply)
+                    token_tracker.record(
+                        user_id=admin_id, role="admin", model="none",
+                        intent=fp_intent, input_tokens=0, output_tokens=0,
+                    )
+                    usage_limiter.record_usage(admin_id, "admin", 0, 0)
+                    yield f'data: {json.dumps({"chunk": reply})}\n\n'
+                    yield f'data: {json.dumps({"done": True, "session_id": session_id})}\n\n'
+                    return
+
+                # Arithmetic fast-paths
+                if fp_intent in ("reorder_point_calculation", "remaining_stock_calculation",
+                                 "arithmetic_calculation"):
+                    reply = _format_admin_calc_reply(req.message, fp_result)
+                    reply = _strip_reasoning(reply)
+                    append_turn(session_id, req.message, reply)
+                    token_tracker.record(
+                        user_id=admin_id, role="admin", model="none",
+                        intent=fp_intent, input_tokens=0, output_tokens=0,
+                    )
+                    usage_limiter.record_usage(admin_id, "admin", 0, 0)
+                    yield f'data: {json.dumps({"chunk": reply})}\n\n'
+                    yield f'data: {json.dumps({"done": True, "session_id": session_id})}\n\n'
+                    return
+
+                # DB lookups
+                if intent in (DATABASE_LOOKUP, DATABASE_CALCULATION):
+                    reply = _format_admin_db_reply(req.message, fp_result)
+                    reply = _strip_reasoning(reply)
+                    append_turn(session_id, req.message, reply)
+                    token_tracker.record(
+                        user_id=admin_id, role="admin", model="none",
+                        intent=intent, input_tokens=0, output_tokens=0,
+                    )
+                    usage_limiter.record_usage(admin_id, "admin", 0, 0)
+                    yield f'data: {json.dumps({"chunk": reply})}\n\n'
+                    yield f'data: {json.dumps({"done": True, "session_id": session_id})}\n\n'
+                    return
+
+                # Fast-path with LLM phrasing (still streams)
+                phrasing_prompt = (
+                    f'The user asked: "{req.message}"\n\n'
+                    f"Here is the exact data retrieved from the database:\n"
+                    f"{fp_result}\n\n"
+                    f"Answer the user's question using ONLY this data. "
+                    f"Be concise. Do not recalculate anything."
+                )
+                
+                accumulated = ""
+                for chunk in llm_chat_stream(
+                    phrasing_prompt,
+                    history=effective_history,
+                    model=_settings.GROQ_MODEL_PRIMARY,
+                    intent=intent,
+                    user_id=admin_id,
+                ):
+                    accumulated += chunk
+                    yield f'data: {json.dumps({"chunk": chunk})}\n\n'
+                
+                reply = _strip_reasoning(accumulated)
+                append_turn(session_id, req.message, reply)
+                yield f'data: {json.dumps({"done": True, "session_id": session_id})}\n\n'
+                return
+
+            # -- Step 6: Full LLM streaming (no fast-path) ---------------------
+            accumulated = ""
+            for chunk in llm_chat_stream(
+                req.message,
+                history=effective_history,
+                model=chosen_model,
+                intent=intent,
+                user_id=admin_id,
+            ):
+                accumulated += chunk
+                yield f'data: {json.dumps({"chunk": chunk})}\n\n'
+
+            reply = _strip_reasoning(accumulated)
+            append_turn(session_id, req.message, reply)
+            yield f'data: {json.dumps({"done": True, "session_id": session_id})}\n\n'
+
+        except Exception as e:
+            _perf["intent"] = str(e)[:60]
+            if _is_rate_limit(e):
+                rl = _rate_limit_reply(str(e))
+                token_tracker.record(
+                    user_id=admin_id, role="admin",
+                    model=_settings.GROQ_MODEL_PRIMARY, intent="UNKNOWN",
+                    input_tokens=0, output_tokens=0,
+                    success=False, rate_limited=True,
+                )
+                yield f'data: {json.dumps({"chunk": rl["reply"]})}\n\n'
+                yield f'data: {json.dumps({"done": True, "session_id": session_id, "rate_limited": True, "reset_in": rl["reset_in"]})}\n\n'
+            elif _is_invalid_key(e):
+                ik = _invalid_key_reply(e)
+                yield f'data: {json.dumps({"error": ik["reply"]})}\n\n'
+            else:
+                traceback.print_exc()
+                yield f'data: {json.dumps({"error": "I\'m having trouble processing your request right now."})}\n\n'
+        finally:
+            if _perf.get("intent") in (None, "?"):
+                _perf["intent"] = "UNKNOWN"
+            perf_metrics.log_summary(_perf)
+            perf_metrics.pop()
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        }
+    )
 
 
 # -- Admin report --------------------------------------------------------------

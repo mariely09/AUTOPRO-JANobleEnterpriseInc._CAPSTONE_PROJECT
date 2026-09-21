@@ -184,8 +184,20 @@ def _extract_number(pattern: str, text: str) -> float | None:
 
 
 def classify_and_run(text: str) -> dict | None:
+    """
+    Two-phase fast-path classifier:
+    Phase 1: Quick checks (0ms, 0 DB reads) - guards and arithmetic
+    Phase 2: Database queries (only when Phase 1 returns None)
+    
+    This avoids unnecessary Firestore reads for simple queries like greetings,
+    arithmetic, blocked content, and general AI questions.
+    """
     t = _normalize_input(text) or text.lower().strip()
     orig = text  # keep original for regex that need original casing / numbers
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # PHASE 1: INSTANT CHECKS (no database access)
+    # ═══════════════════════════════════════════════════════════════════════════
 
     # ── Prompt injection guard (0 tokens, 0 DB reads) ────────────────────────
     # Must run first — before any intent-based routing — so crafted inputs
@@ -311,6 +323,12 @@ def classify_and_run(text: str) -> dict | None:
                     },
                 }
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # PHASE 2: DATABASE QUERIES (only reached if Phase 1 returned None)
+    # ═══════════════════════════════════════════════════════════════════════════
+    # These patterns trigger Firestore reads, so they're deferred until we know
+    # the query actually needs data. Queries like "hello", "what is 2+2", or
+    # general AI questions never reach this section.
 
     if re.search(
         r"low.?stock|reorder|running.?low|below.?reorder|out.?of.?stock"
