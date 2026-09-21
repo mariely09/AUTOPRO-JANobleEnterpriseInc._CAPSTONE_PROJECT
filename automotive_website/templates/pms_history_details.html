@@ -7,6 +7,17 @@
     <link rel="icon" type="image/png" href="../static/img/LOGO_CALTEX.png" />
     <link rel="stylesheet" href="../static/css/customer_dashboard.css">
     <style>
+        /* ── Print styles ── */
+        @media print {
+            body * { visibility: hidden; }
+            #phdPrintArea, #phdPrintArea * { visibility: visible; }
+            #phdPrintArea {
+                position: fixed; inset: 0; width: 100%; padding: 20px;
+                font-family: Arial, sans-serif; font-size: 12px; color: #1a202c;
+                background: white;
+            }
+        }
+        /* ── Layout styles ── */
         .phd-layout {
             display: grid;
             grid-template-columns: 320px 1fr;
@@ -90,7 +101,7 @@
   const _PHD_CACHE_KEY = 'phdCache_' + (plate || '').toLowerCase().replace(/\s+/g, '_');
 
   // ── Shared render helpers ─────────────────────────────────────────────────
-  function _buildSidebarHtml(records, totalCost, lastSvcOdo) {
+  function _buildSidebarHtml(records, totalCost, lastSvcOdo, customerInfo) {
     return `
       <div class="phd-sidebar">
         <a href="/customer_pms_history" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#718096;text-decoration:none;margin-bottom:16px;transition:color .2s;" onmouseover="this.style.color='#E8001C'" onmouseout="this.style.color='#718096'">
@@ -130,6 +141,36 @@
               </div>
             </div>` : ''}
           </div>
+          ${customerInfo ? `
+          <div style="margin-top:14px;border-top:1px solid rgba(255,255,255,0.15);padding-top:14px;">
+            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Customer Info</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <span style="font-size:11px;font-weight:700;color:#fff;">${(customerInfo.name||'?').split(' ').filter(Boolean).map(p=>p[0]).join('').toUpperCase().slice(0,2)}</span>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#fff;line-height:1.3;">${customerInfo.name}</div>
+                ${customerInfo.company ? `<div style="font-size:11px;color:rgba(255,255,255,0.6);">${customerInfo.company}</div>` : ''}
+              </div>
+            </div>
+            ${customerInfo.email && customerInfo.email !== '—' ? `
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <span style="font-size:11px;color:rgba(255,255,255,0.75);word-break:break-all;">${customerInfo.email}</span>
+            </div>` : ''}
+            ${customerInfo.phone ? `
+            <div style="display:flex;align-items:center;gap:8px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.1 9.81 19.79 19.79 0 0 1 1.08 1.18 2 2 0 0 1 3.06 0h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.09 7.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              <span style="font-size:11px;color:rgba(255,255,255,0.75);">${customerInfo.phone}</span>
+            </div>` : ''}
+          </div>` : ''}
+          <!-- ── Report Buttons ── -->
+          <div style="margin-top:14px;">
+            <button onclick="phdPrint()" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 10px;width:100%;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.30);border-radius:10px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .18s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Print Report
+            </button>
+          </div>
         </div>
       </div>`;
   }
@@ -159,9 +200,9 @@
     }).join('');
   }
 
-  function _render(records, totalCost, lastSvcOdo) {
+  function _render(records, totalCost, lastSvcOdo, customerInfo) {
     window._phdRecords = records;
-    const sidebarHtml = _buildSidebarHtml(records, totalCost, lastSvcOdo);
+    const sidebarHtml = _buildSidebarHtml(records, totalCost, lastSvcOdo, customerInfo);
     const recordsHtml = _buildRecordsHtml(records);
     document.getElementById('phdMain').innerHTML = sidebarHtml + `<div class="phd-records">${recordsHtml}</div>`;
   }
@@ -174,7 +215,7 @@
       if (!raw) return;
       const cached = JSON.parse(raw);
       if (!cached || !Array.isArray(cached.records)) return;
-      _render(cached.records, cached.totalCost || 0, cached.lastSvcOdo || '');
+      _render(cached.records, cached.totalCost || 0, cached.lastSvcOdo || '', cached.customerInfo || null);
     } catch(e) {}
   })();
 
@@ -214,22 +255,48 @@
 
       // Get last service odometer from vehicle document
       let lastSvcOdo = '';
+      let customerInfo = null;
       const vSnap = await db.collection('vehicles').where('plate', '==', plate).limit(1).get();
       if (!vSnap.empty) {
         const vData = vSnap.docs[0].data();
         const odo = vData.lastSvcOdo || vData.lastServiceOdometer || '';
         if (odo) lastSvcOdo = String(odo).replace(/[^0-9]/g, '');
+
+        // Fetch customer info from users collection
+        const ownerId = vData.ownerId || '';
+        const ownerName = vData.owner || '';
+        try {
+          let uSnap = null;
+          if (ownerId) {
+            const uDoc = await db.collection('users').doc(ownerId).get();
+            if (uDoc.exists) uSnap = uDoc.data();
+          }
+          if (!uSnap && ownerName) {
+            const byName = await db.collection('users').where('name', '==', ownerName).limit(1).get();
+            if (!byName.empty) uSnap = byName.docs[0].data();
+          }
+          if (uSnap) {
+            customerInfo = {
+              name:    uSnap.name        || ownerName || '—',
+              email:   uSnap.email       || '—',
+              phone:   uSnap.phone       || uSnap.contactNumber || uSnap.mobile || '',
+              company: uSnap.companyName || '',
+            };
+          } else if (ownerName) {
+            customerInfo = { name: ownerName, email: '—', phone: '', company: '' };
+          }
+        } catch(_) {}
       }
 
       // Persist fresh data back to cache (including odometer)
       try {
         sessionStorage.setItem(_PHD_CACHE_KEY, JSON.stringify({
           plate, desc: desc || '', type: type || '',
-          records, totalCost, lastSvcOdo, savedAt: Date.now(),
+          records, totalCost, lastSvcOdo, customerInfo, savedAt: Date.now(),
         }));
       } catch(e) {}
 
-      _render(records, totalCost, lastSvcOdo);
+      _render(records, totalCost, lastSvcOdo, customerInfo);
 
     } catch (err) {
       console.error('Error loading PMS history:', err);
@@ -356,6 +423,139 @@
   });
 </script>
 </div><!-- /.cu-page-shell -->
+
+<!-- Hidden print area — populated by phdPrint() -->
+<div id="phdPrintArea" style="display:none;"></div>
+
+<script>
+// ── Shared helpers ──────────────────────────────────────────────────────────
+function _phdParseCost(val) {
+  if (typeof val === 'number') return val;
+  return parseFloat(String(val || '0').replace(/[^0-9.]/g, '')) || 0;
+}
+function _phdFmtPeso(n) {
+  return '₱' + Number(n).toLocaleString('en-PH', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function _phdGetCustomerInfo() {
+  // Try to get from cached data in sessionStorage
+  try {
+    const raw = sessionStorage.getItem('phdCache_' + (plate||'').toLowerCase().replace(/\s+/g,'_'));
+    if (raw) {
+      const c = JSON.parse(raw);
+      return c.customerInfo || null;
+    }
+  } catch(_) {}
+  return null;
+}
+function _phdNow() {
+  const d = new Date();
+  return d.toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'})
+       + ' ' + d.toLocaleTimeString('en-PH', {hour:'2-digit',minute:'2-digit'});
+}
+
+// ── PRINT ───────────────────────────────────────────────────────────────────
+function phdPrint() {
+  const records = window._phdRecords || [];
+  const ci = _phdGetCustomerInfo();
+  const totalCost = records.reduce((s, r) => s + _phdParseCost(r.cost || r.totalCost), 0);
+
+  // Build print-friendly HTML
+  let html = `
+    <div style="font-family:Arial,sans-serif;font-size:12px;color:#1a202c;max-width:900px;margin:0 auto;">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #E8001C;padding-bottom:14px;margin-bottom:20px;">
+        <div>
+          <div style="font-size:20px;font-weight:900;color:#1a202c;">PMS Service History</div>
+          <div style="font-size:13px;color:#718096;margin-top:2px;">Vehicle Maintenance Report</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:11px;color:#718096;">Generated</div>
+          <div style="font-size:12px;font-weight:600;">${_phdNow()}</div>
+        </div>
+      </div>
+
+      <!-- Vehicle + Customer info row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div style="background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #e2e8f0;">
+          <div style="font-size:10px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Vehicle</div>
+          <div style="font-size:16px;font-weight:800;color:#1a202c;">${plate || '—'}</div>
+          <div style="font-size:12px;color:#718096;margin-top:2px;">${desc || '—'}</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:10px;padding:14px;border:1px solid #e2e8f0;">
+          <div style="font-size:10px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Customer</div>
+          <div style="font-size:14px;font-weight:700;color:#1a202c;">${ci ? ci.name : '—'}</div>
+          ${ci && ci.company ? `<div style="font-size:11px;color:#718096;">${ci.company}</div>` : ''}
+          ${ci && ci.email && ci.email !== '—' ? `<div style="font-size:11px;color:#718096;margin-top:2px;">${ci.email}</div>` : ''}
+          ${ci && ci.phone ? `<div style="font-size:11px;color:#718096;">${ci.phone}</div>` : ''}
+        </div>
+      </div>
+
+      <!-- Summary stats -->
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:24px;">
+        <div style="background:#EFF6FF;border-radius:10px;padding:12px 14px;border:1px solid #DBEAFE;">
+          <div style="font-size:10px;font-weight:700;color:#2563EB;text-transform:uppercase;letter-spacing:0.5px;">Total Records</div>
+          <div style="font-size:22px;font-weight:800;color:#1E40AF;margin-top:2px;">${records.length}</div>
+        </div>
+        <div style="background:#FFF5F5;border-radius:10px;padding:12px 14px;border:1px solid #FED7D7;">
+          <div style="font-size:10px;font-weight:700;color:#E8001C;text-transform:uppercase;letter-spacing:0.5px;">Total Spent</div>
+          <div style="font-size:22px;font-weight:800;color:#C53030;margin-top:2px;">${_phdFmtPeso(totalCost)}</div>
+        </div>
+      </div>
+
+      <!-- Records table -->
+      <div style="font-size:12px;font-weight:700;color:#1a202c;margin-bottom:8px;">Service Records (${records.length})</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead>
+          <tr style="background:linear-gradient(135deg,#004B5F,#E8001C);color:#fff;">
+            <th style="padding:9px 12px;text-align:left;font-weight:700;">#</th>
+            <th style="padding:9px 12px;text-align:left;font-weight:700;">Date</th>
+            <th style="padding:9px 12px;text-align:left;font-weight:700;">Mechanic</th>
+            <th style="padding:9px 12px;text-align:left;font-weight:700;">Services</th>
+            <th style="padding:9px 12px;text-align:left;font-weight:700;">Materials</th>
+            <th style="padding:9px 12px;text-align:left;font-weight:700;">Odometer</th>
+            <th style="padding:9px 12px;text-align:right;font-weight:700;">Total Cost</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${records.map((r, i) => {
+            const svcNames = (r.svcRows||[]).filter(s=>s.name).map(s=>s.name).join(', ') || '—';
+            const matNames = (r.matRows||[]).filter(m=>m.name).map(m=>m.name).join(', ') || '—';
+            const cost = _phdFmtPeso(_phdParseCost(r.cost || r.totalCost));
+            const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
+            return `<tr style="background:${bg};border-bottom:1px solid #e2e8f0;">
+              <td style="padding:9px 12px;color:#718096;">${i+1}</td>
+              <td style="padding:9px 12px;font-weight:600;">${r.date || '—'}</td>
+              <td style="padding:9px 12px;">${r.mechanic || '—'}</td>
+              <td style="padding:9px 12px;max-width:160px;">${svcNames}</td>
+              <td style="padding:9px 12px;max-width:160px;">${matNames}</td>
+              <td style="padding:9px 12px;">${r.odometer ? r.odometer + ' km' : '—'}</td>
+              <td style="padding:9px 12px;text-align:right;font-weight:700;color:#E8001C;">${cost}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="background:#f0f4f8;border-top:2px solid #e2e8f0;">
+            <td colspan="6" style="padding:10px 12px;font-weight:700;font-size:12px;">Total</td>
+            <td style="padding:10px 12px;text-align:right;font-weight:800;font-size:13px;color:#E8001C;">${_phdFmtPeso(totalCost)}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#a0aec0;display:flex;justify-content:space-between;">
+        <span>JA Noble Enterprise Inc. · Caltex San Pedro</span>
+        <span>Plate: ${plate} · Printed: ${_phdNow()}</span>
+      </div>
+    </div>`;
+
+  const area = document.getElementById('phdPrintArea');
+  area.innerHTML = html;
+  area.style.display = 'block';
+  window.print();
+  area.style.display = 'none';
+}
+
+</script>
 </body>
 </html>
 
