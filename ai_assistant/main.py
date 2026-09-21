@@ -663,15 +663,27 @@ def _format_admin_db_reply(message: str, result: dict) -> str:
     # ── Low-stock / reorder ───────────────────────────────────────────────────
     if ("low" in msg_l and "stock" in msg_l) or "reorder" in msg_l or "restock" in msg_l:
         count = result.get("low_stock_count", len(result.get("items", [])))
+        total_items = result.get("total_inventory_items", 0)
+        
         if count == 0:
             return "Good news — all items are currently at acceptable stock levels. Nothing is below the reorder point right now."
+        
         items = result.get("items", [])  # Show ALL low stock items without truncation
         lines = [
             f"• **{it['name']}** — {it['stock']} {it['uom']} remaining (reorder at {it['reorder']})"
             for it in items
         ]
+        
+        # Accurate count statement with verification
         intro = (f"There {'is' if count == 1 else 'are'} **{count}** item{'s' if count != 1 else ''} "
-                 f"at or below the reorder point:")
+                 f"at or below the reorder point")
+        
+        # Add verification note if total inventory is available
+        if total_items > 0:
+            intro += f" (out of {total_items} total inventory items)"
+        
+        intro += ":"
+        
         return intro + "\n\n" + "\n".join(lines)
 
     # ── User / customer count ─────────────────────────────────────────────────

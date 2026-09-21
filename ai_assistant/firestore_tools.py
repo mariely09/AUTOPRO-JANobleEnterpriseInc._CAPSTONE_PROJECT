@@ -152,8 +152,13 @@ def get_stock_levels(group: str | None = None, status: str | None = None) -> dic
 
 def get_low_stock_items() -> dict:
     """
-    Return all items at or below their reorder point (reorder point must be > 0).
+    Return all items at or below their reorder point.
     Uses current Firestore data - NO caching, NO local fallback.
+    
+    Low stock criteria (any one triggers inclusion):
+    1. status field is explicitly set to "Low"
+    2. stock <= min level (when min > 0)
+    3. stock <= reorder point (when reorder > 0)
     """
     import logging
     import time
@@ -167,8 +172,8 @@ def get_low_stock_items() -> dict:
     items = []
     doc_count = 0
     
-    # Add limit to prevent full collection scan
-    for doc in db.collection("stock_inventory").limit(200).stream():
+    # Scan ALL inventory items (no limit - ensure accurate count)
+    for doc in db.collection("stock_inventory").stream():
         doc_count += 1
         d = doc.to_dict()
         stock   = int(d.get("stock",   0))
@@ -176,12 +181,14 @@ def get_low_stock_items() -> dict:
         min_lvl = int(d.get("min",     0))
         status  = (d.get("status") or "").strip()
 
-        # Match the frontend logic: status=='Low' OR (stock <= min AND min > 0)
+        # Determine if item is low stock
+        # Note: These conditions should be mutually evaluated but item only added once
         is_low = (
             status.lower() == "low"
             or (min_lvl > 0 and stock <= min_lvl)
             or (reorder > 0 and stock <= reorder)
         )
+        
         if is_low:
             items.append({
                 "num":     d.get("num", ""),
@@ -199,15 +206,16 @@ def get_low_stock_items() -> dict:
     elapsed = time.time() - start_time
     logger.info(
         f"[FIRESTORE_QUERY] get_low_stock_items - COMPLETE | "
-        f"docs_scanned: {doc_count} | low_stock_found: {len(items)} | "
+        f"total_inventory_items: {doc_count} | low_stock_found: {len(items)} | "
         f"elapsed: {elapsed:.3f}s | data_source: firestore_realtime"
     )
     
     return {
         "low_stock_count": len(items), 
+        "total_inventory_items": doc_count,  # Added for verification
         "items": items,
-        "data_source": "firestore_realtime",  # Proof of data source
-        "query_time_seconds": round(elapsed, 3)  # Proof of freshness
+        "data_source": "firestore_realtime",
+        "query_time_seconds": round(elapsed, 3)
     }
 
 
