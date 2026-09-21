@@ -964,14 +964,33 @@ async def admin_chat_stream(req: ChatRequest):
                     yield f'data: {json.dumps({"done": True, "session_id": session_id})}\n\n'
                     return
 
-                # DB lookups
-                if intent in (DATABASE_LOOKUP, DATABASE_CALCULATION):
+                # Database query intents - instant Python-formatted responses (no LLM)
+                # These should return immediately without calling Groq
+                DB_QUERY_INTENTS = {
+                    "low_stock", "service_bookings", "stock_levels",
+                    "item_catalog_services", "item_catalog_all", 
+                    "maintenance_summary", "maintenance_jobs",
+                    "deliveries", "vehicles", "user_count",
+                    "system_summary", "issuances"
+                }
+                
+                if fp_intent in DB_QUERY_INTENTS:
+                    # Log performance: Database query completed, returning instant response
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    firestore_time = perf_metrics.current()["stages"].get("firestore", 0)
+                    logger.info(
+                        f"[FAST_PATH_DB] intent={fp_intent} | "
+                        f"firestore_ms={firestore_time*1000:.0f} | "
+                        f"returning instant formatted response (no LLM call)"
+                    )
+                    
                     reply = _format_admin_db_reply(req.message, fp_result)
                     reply = _strip_reasoning(reply)
                     append_turn(session_id, req.message, reply)
                     token_tracker.record(
                         user_id=admin_id, role="admin", model="none",
-                        intent=intent, input_tokens=0, output_tokens=0,
+                        intent=fp_intent, input_tokens=0, output_tokens=0,
                     )
                     usage_limiter.record_usage(admin_id, "admin", 0, 0)
                     yield f'data: {json.dumps({"chunk": reply})}\n\n'

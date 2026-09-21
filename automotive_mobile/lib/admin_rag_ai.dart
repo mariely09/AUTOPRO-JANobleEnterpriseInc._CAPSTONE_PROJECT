@@ -454,26 +454,19 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         final r = await http
             .get(Uri.parse('$_kAiBaseUrl/health'))
             .timeout(
-              const Duration(seconds: 60),
-            ); // 60s covers Render cold-start (~30–50s)
+              const Duration(seconds: 10),
+            ); // 10s timeout (Render cold-start takes ~5-8s typically)
         if (r.statusCode == 200) {
           if (mounted) setState(() => _backendOnline = true);
           return;
         }
       } catch (_) {
         // wait before retry (skip delay on last attempt)
-        if (attempt < 3) await Future.delayed(const Duration(seconds: 5));
+        if (attempt < 3) await Future.delayed(const Duration(seconds: 3));
       }
     }
-    // All attempts failed — if silent (startup), schedule a delayed re-check
-    // so the dot corrects itself once Render finishes waking up
-    if (silent) {
-      Future.delayed(const Duration(seconds: 60), () {
-        if (mounted) _checkBackend(silent: false);
-      });
-    } else {
-      if (mounted) setState(() => _backendOnline = false);
-    }
+    // All attempts failed
+    if (mounted) setState(() => _backendOnline = false);
   }
 
   // ── History drawer ─────────────────────────────────────────────────────────

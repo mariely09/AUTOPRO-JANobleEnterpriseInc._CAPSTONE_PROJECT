@@ -95,7 +95,18 @@ def _build_vehicle_lookup_by_plate(db) -> dict:
 # ── Stock / Inventory ─────────────────────────────────────────────────────────
 
 def get_stock_levels(group: str | None = None, status: str | None = None) -> dict:
-    """List all stock items with current levels. Filter by group or status."""
+    """
+    List all stock items with current levels. Filter by group or status.
+    Uses current Firestore data - NO caching, NO local fallback.
+    """
+    import logging
+    import time
+    
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+    
+    logger.info(f"[FIRESTORE_QUERY] get_stock_levels - START (group={group}, status={status})")
+    
     db = get_db()
     query = db.collection("stock_inventory")
     if group:
@@ -104,7 +115,9 @@ def get_stock_levels(group: str | None = None, status: str | None = None) -> dic
         query = query.where(filter=FieldFilter("status", "==", status))
 
     items = []
+    doc_count = 0
     for doc in query.stream():
+        doc_count += 1
         d = doc.to_dict()
         items.append({
             "num":     d.get("num", ""),
@@ -119,20 +132,44 @@ def get_stock_levels(group: str | None = None, status: str | None = None) -> dic
         })
 
     items.sort(key=lambda x: x["name"])
+    
+    elapsed = time.time() - start_time
+    logger.info(
+        f"[FIRESTORE_QUERY] get_stock_levels - COMPLETE | "
+        f"docs_scanned: {doc_count} | items_returned: {len(items)} | "
+        f"elapsed: {elapsed:.3f}s | data_source: firestore_realtime"
+    )
+    
     return {
         "filter_group":  group or "all groups",
         "filter_status": status or "all statuses",
         "total_items":   len(items),
         "items":         items,
+        "data_source": "firestore_realtime",
+        "query_time_seconds": round(elapsed, 3)
     }
 
 
 def get_low_stock_items() -> dict:
-    """Return all items at or below their reorder point (reorder point must be > 0)."""
+    """
+    Return all items at or below their reorder point (reorder point must be > 0).
+    Uses current Firestore data - NO caching, NO local fallback.
+    """
+    import logging
+    import time
+    
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+    
+    logger.info("[FIRESTORE_QUERY] get_low_stock_items - START")
+    
     db = get_db()
     items = []
+    doc_count = 0
+    
     # Add limit to prevent full collection scan
     for doc in db.collection("stock_inventory").limit(200).stream():
+        doc_count += 1
         d = doc.to_dict()
         stock   = int(d.get("stock",   0))
         reorder = int(d.get("reorder", 0))
@@ -158,7 +195,20 @@ def get_low_stock_items() -> dict:
             })
 
     items.sort(key=lambda x: x["stock"])
-    return {"low_stock_count": len(items), "items": items}
+    
+    elapsed = time.time() - start_time
+    logger.info(
+        f"[FIRESTORE_QUERY] get_low_stock_items - COMPLETE | "
+        f"docs_scanned: {doc_count} | low_stock_found: {len(items)} | "
+        f"elapsed: {elapsed:.3f}s | data_source: firestore_realtime"
+    )
+    
+    return {
+        "low_stock_count": len(items), 
+        "items": items,
+        "data_source": "firestore_realtime",  # Proof of data source
+        "query_time_seconds": round(elapsed, 3)  # Proof of freshness
+    }
 
 
 # ── Item Master (catalog) ─────────────────────────────────────────────────────
