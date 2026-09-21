@@ -1879,34 +1879,22 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
     // Six quick query cards with titles, descriptions, and icons
     final quickQueries = [
       {
-        'title': 'Inventory Overview',
-        'desc': 'Check stock levels and available items',
-        'icon': Icons.inventory_2_outlined,
-        'query': 'Show me current inventory levels and stock summary',
+        'title': 'Generate Issuance Report (PDF)',
+        'desc': 'Create issuance report in PDF format',
+        'icon': Icons.picture_as_pdf_outlined,
+        'query': 'Generate issuance report as PDF',
       },
       {
-        'title': 'Low Stock & Replenishment',
-        'desc': 'Find items that need restocking',
+        'title': 'Inventory Report (Excel)',
+        'desc': 'Export inventory data to Excel spreadsheet',
+        'icon': Icons.table_chart_outlined,
+        'query': 'Generate inventory report as Excel',
+      },
+      {
+        'title': 'Low Stock Items',
+        'desc': 'Check items that need reordering',
         'icon': Icons.trending_down_outlined,
         'query': 'Which items are low on stock and need replenishment?',
-      },
-      {
-        'title': 'Generate Reports',
-        'desc': 'Create inventory and service reports',
-        'icon': Icons.description_outlined,
-        'query': 'Generate inventory report for this month as PDF',
-      },
-      {
-        'title': 'Maintenance & PMS',
-        'desc': 'Review upcoming maintenance schedules',
-        'icon': Icons.build_outlined,
-        'query': 'Show upcoming vehicle maintenance and PMS schedules',
-      },
-      {
-        'title': 'Service & Materials',
-        'desc': 'Explore services and material usage',
-        'icon': Icons.handyman_outlined,
-        'query': 'Show recent service transactions and material usage',
       },
     ];
 
