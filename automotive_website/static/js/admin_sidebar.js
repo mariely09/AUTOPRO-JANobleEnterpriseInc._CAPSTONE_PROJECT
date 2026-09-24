@@ -174,7 +174,7 @@ function bindHeaderControls() {
         'overview':               'Dashboard',
         'item-master':            'Item Master',
         'inventory':              'Stock Inventory',
-        'receiving':              'Purchase Orders (PO)',
+        'receiving':              'Receiving Items',
         'inventory-transactions': 'Inventory Transactions',
         'assets':                 'Vehicle List',
         'asset-servicing':        'Vehicle Maintenance',
@@ -190,6 +190,7 @@ function bindHeaderControls() {
         'notifications':          'Notifications',
         'help_support':           'Help & Support',
         'ai_usage_controls':      'AI Usage Controls',
+        'purchase-orders':        'Purchase Orders (PO)',
     };
     var titleEl = document.getElementById('adminPageTitle');
     if (titleEl) {

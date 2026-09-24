@@ -11,62 +11,104 @@
     <link rel="stylesheet" href="../static/css/style.css">
     <link rel="stylesheet" href="../static/css/admin.css">
     <style>
-        /* ── Status badges ── */
+        /* ── PO card grid ── */
+        .po-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1rem;
+        }
+        .po-card {
+            background: white;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 18px 20px;
+            cursor: pointer;
+            transition: box-shadow .15s, transform .15s, border-color .15s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .po-card:hover {
+            box-shadow: 0 6px 20px rgba(0,0,0,0.09);
+            transform: translateY(-2px);
+            border-color: #cbd5e0;
+        }
+        .po-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .po-card-id {
+            font-size: 13px;
+            font-weight: 800;
+            color: #1a202c;
+            letter-spacing: 0.2px;
+        }
+        .po-card-date {
+            font-size: 11px;
+            color: #718096;
+            margin-top: 2px;
+        }
         .po-badge {
-            display:inline-flex;align-items:center;gap:5px;
-            padding:3px 10px;border-radius:20px;
-            font-size:11px;font-weight:700;white-space:nowrap;
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
-        /* ── Filter pills ── */
-        .po-pill {
-            padding:6px 16px;border-radius:20px;
-            border:1.5px solid #e2e8f0;background:white;
-            font-size:12px;font-weight:600;color:#4a5568;
-            cursor:pointer;transition:all .15s;
+        .po-card-divider {
+            border: none;
+            border-top: 1px solid #f0f4f8;
+            margin: 10px 0;
         }
-        .po-pill:hover { border-color:#003087;color:#003087; }
-        .po-pill.active { background:#003087;color:white;border-color:#003087; }
-        /* ── Item rows ── */
-        .po-item-row {
-            display:grid;grid-template-columns:1.4fr 1fr 0.7fr 0.7fr 0.8fr;
-            gap:10px;align-items:center;
-            padding:10px 14px;border-bottom:1px solid #f0f4f8;
-            font-size:12px;
+        .po-card-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
         }
-        .po-item-row:last-child { border-bottom:none; }
-        /* ── Modal form helpers ── */
-        .po-label { font-size:0.78rem;font-weight:600;color:#4a5568;display:block;margin-bottom:0.3rem; }
-        .po-input {
-            width:100%;padding:0.55rem 0.75rem;
-            border:1px solid #e2e8f0;border-radius:8px;
-            font-size:0.83rem;font-family:inherit;
-            transition:border-color .2s;box-sizing:border-box;
+        .po-card-items-preview {
+            font-size: 11px;
+            color: #718096;
+            margin-top: 6px;
+            line-height: 1.5;
+            /* truncate to 2 lines */
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
-        .po-input:focus { outline:none;border-color:#E8001C; }
-        /* ── Shimmer skeleton ── */
+        /* ── Skeleton shimmer ── */
         @keyframes poShimmer { 0%{background-position:-600px 0}100%{background-position:600px 0} }
-        .po-skel-row {
-            display:grid;
-            grid-template-columns:110px 90px 1.2fr 1.6fr 0.7fr 0.7fr 0.8fr 0.9fr 130px 110px;
-            padding:13px 16px;border-bottom:1px solid #f0f4f8;align-items:center;
+        .po-skel-card {
+            background: white;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 18px 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
         .po-skel-cell {
-            height:13px;border-radius:6px;margin-right:18px;
-            background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);
-            background-size:600px 100%;animation:poShimmer 1.4s infinite linear;
+            height: 12px;
+            border-radius: 6px;
+            background: linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);
+            background-size: 600px 100%;
+            animation: poShimmer 1.4s infinite linear;
+            margin-bottom: 8px;
         }
-        .po-skel-cell.short  { width:55%; }
-        .po-skel-cell.medium { width:75%; }
-        .po-skel-cell.badge  { width:80px;height:20px;border-radius:20px; }
-        .po-skel-cell.btn    { width:88px;height:24px;border-radius:7px; }
+        .po-skel-cell.short  { width: 45%; }
+        .po-skel-cell.medium { width: 70%; }
+        .po-skel-cell.wide   { width: 90%; }
+        .po-skel-cell.badge  { width: 80px; height: 20px; border-radius: 20px; }
         /* number input — hide spinners */
         input[type=number]::-webkit-inner-spin-button,
-        input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none;margin:0; }
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
 <body class="portal-body" data-page="purchase-orders">
 
-<!-- ── Instant auth guard ─────────────────────────────────── -->
+<!-- ── Instant auth guard ──────────────────────────────────────────────────── -->
 <script>
 (function() {
     var logoutTime = localStorage.getItem('_loggedOut');
@@ -86,7 +128,7 @@
 })();
 </script>
 
-<!-- ── Layout shell ───────────────────────────────────────── -->
+<!-- ── Layout shell ────────────────────────────────────────────────────────── -->
 <div class="admin-dashboard" style="display:flex;flex-direction:row;">
     <div id="sidebarContainer"></div>
 
@@ -109,7 +151,8 @@
                             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                         </svg>
                         <input type="text" class="search-bar" id="poSearch"
-                               placeholder="Search POs…" style="width:220px;padding-left:2rem;"
+                               placeholder="Search PO number, items…"
+                               style="width:240px;padding-left:2rem;"
                                oninput="_poRender()" onpaste="setTimeout(_poRender,50)">
                     </div>
                     <!-- Sort -->
@@ -129,8 +172,8 @@
                                        appearance:none;-webkit-appearance:none;min-width:170px;outline:none;">
                             <option value="date-desc">Date (Newest First)</option>
                             <option value="date-asc">Date (Oldest First)</option>
-                            <option value="items-desc">Items ↑ Most</option>
-                            <option value="items-asc">Items ↓ Fewest</option>
+                            <option value="total-desc">Total ↑ Highest</option>
+                            <option value="total-asc">Total ↓ Lowest</option>
                         </select>
                         <svg style="position:absolute;right:0.55rem;pointer-events:none;color:#a0aec0;"
                              xmlns="http://www.w3.org/2000/svg" width="12" height="12"
@@ -144,7 +187,7 @@
 
             <div class="admin-content">
 
-                <!-- ── Stat cards ──────────────────────────── -->
+                <!-- ── Stat cards ─────────────────────────────────────────── -->
                 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;">
                     <div class="stat-card" onclick="_poSetFilter('Pending',this)" style="cursor:pointer;">
                         <div class="stat-icon" style="background:rgba(113,128,150,0.1);color:#718096;">
@@ -153,30 +196,30 @@
                         <div class="stat-number" id="poStatPending" style="color:#718096;">0</div>
                         <div class="stat-label">Pending</div>
                     </div>
-                    <div class="stat-card" onclick="_poSetFilter('For Admin Review',this)" style="cursor:pointer;">
-                        <div class="stat-icon red">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <div class="stat-card" onclick="_poSetFilter('Ordered',this)" style="cursor:pointer;">
+                        <div class="stat-icon" style="background:rgba(0,48,135,0.08);color:#003087;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                         </div>
-                        <div class="stat-number" id="poStatForReview">0</div>
-                        <div class="stat-label">For Review</div>
+                        <div class="stat-number" id="poStatOrdered" style="color:#003087;">0</div>
+                        <div class="stat-label">Ordered</div>
                     </div>
-                    <div class="stat-card" onclick="_poSetFilter('Awaiting Double Check',this)" style="cursor:pointer;">
+                    <div class="stat-card" onclick="_poSetFilter('Partially Received',this)" style="cursor:pointer;">
                         <div class="stat-icon orange">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         </div>
-                        <div class="stat-number" id="poStatAwaiting">0</div>
-                        <div class="stat-label">Awaiting Review</div>
+                        <div class="stat-number" id="poStatPartial">0</div>
+                        <div class="stat-label">Partially Received</div>
                     </div>
-                    <div class="stat-card" onclick="_poSetFilter('Approved',this)" style="cursor:pointer;">
+                    <div class="stat-card" onclick="_poSetFilter('Received',this)" style="cursor:pointer;">
                         <div class="stat-icon green">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         </div>
-                        <div class="stat-number" id="poStatApproved">0</div>
-                        <div class="stat-label">Approved</div>
+                        <div class="stat-number" id="poStatReceived">0</div>
+                        <div class="stat-label">Received</div>
                     </div>
                 </div>
 
-                <!-- ── Filter pills ────────────────────────── -->
+                <!-- ── Filter pills ───────────────────────────────────────── -->
                 <div class="dss-filter-bar">
                     <div class="dss-filter-group">
                         <label class="dss-filter-label">Filter by Status</label>
@@ -189,63 +232,71 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
                                 Pending
                             </button>
-                            <button class="dss-pill dss-pill--overdue" onclick="_poSetFilter('For Admin Review',this)">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                For Review
-                            </button>
-                            <button class="dss-pill dss-pill--duesoon" onclick="_poSetFilter('Awaiting Double Check',this)">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                Awaiting Review
-                            </button>
-                            <button class="dss-pill dss-pill--ontrack" onclick="_poSetFilter('Approved',this)">
+                            <button class="dss-pill" onclick="_poSetFilter('Ordered',this)">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                Approved
+                                Ordered
+                            </button>
+                            <button class="dss-pill dss-pill--duesoon" onclick="_poSetFilter('Partially Received',this)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                Partially Received
+                            </button>
+                            <button class="dss-pill dss-pill--ontrack" onclick="_poSetFilter('Received',this)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg>
+                                Received
+                            </button>
+                            <button class="dss-pill dss-pill--overdue" onclick="_poSetFilter('Cancelled',this)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                Cancelled
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- ── Data table ──────────────────────────── -->
-                <div class="data-table">
-                    <div class="table-row"
-                         style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;
-                                grid-template-columns:110px 110px 1fr 1.4fr 0.7fr 0.8fr 1fr 130px 110px;">
-                        <div>Order Date</div>
-                        <div>Received Date</div>
-                        <div>Supplier Code</div>
-                        <div>Item Description</div>
-                        <div>Order Qty</div>
-                        <div>Unit Price</div>
-                        <div>Subtotal</div>
-                        <div>Status</div>
-                        <div>Actions</div>
-                    </div>
-                    <div id="poList">
-                        <!-- Skeleton -->
-                        <div id="poSkeleton">
-                            <div class="po-skel-row"><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell medium"></div><div class="po-skel-cell medium"></div><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell badge"></div><div class="po-skel-cell btn"></div></div>
-                            <div class="po-skel-row"><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell medium"></div><div class="po-skel-cell medium"></div><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell badge"></div><div class="po-skel-cell btn"></div></div>
-                            <div class="po-skel-row"><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell medium"></div><div class="po-skel-cell medium"></div><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell badge"></div><div class="po-skel-cell btn"></div></div>
-                            <div class="po-skel-row"><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell medium"></div><div class="po-skel-cell medium"></div><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell badge"></div><div class="po-skel-cell btn"></div></div>
-                            <div class="po-skel-row"><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell medium"></div><div class="po-skel-cell medium"></div><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell short"></div><div class="po-skel-cell badge"></div><div class="po-skel-cell btn"></div></div>
+                <!-- ── PO card grid ───────────────────────────────────────── -->
+                <div id="poGrid" class="po-grid">
+                    <!-- Skeleton cards -->
+                    <div class="po-skel-card">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                            <div><div class="po-skel-cell short"></div><div class="po-skel-cell" style="width:55%;height:10px;margin-top:4px;"></div></div>
+                            <div class="po-skel-cell badge"></div>
                         </div>
+                        <div class="po-skel-cell" style="height:1px;background:#f0f4f8;margin:10px 0;animation:none;"></div>
+                        <div class="po-skel-cell medium"></div>
+                        <div class="po-skel-cell wide"></div>
                     </div>
-                </div><!-- /data-table -->
+                    <div class="po-skel-card">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                            <div><div class="po-skel-cell short"></div><div class="po-skel-cell" style="width:55%;height:10px;margin-top:4px;"></div></div>
+                            <div class="po-skel-cell badge"></div>
+                        </div>
+                        <div class="po-skel-cell" style="height:1px;background:#f0f4f8;margin:10px 0;animation:none;"></div>
+                        <div class="po-skel-cell medium"></div>
+                        <div class="po-skel-cell wide"></div>
+                    </div>
+                    <div class="po-skel-card">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                            <div><div class="po-skel-cell short"></div><div class="po-skel-cell" style="width:55%;height:10px;margin-top:4px;"></div></div>
+                            <div class="po-skel-cell badge"></div>
+                        </div>
+                        <div class="po-skel-cell" style="height:1px;background:#f0f4f8;margin:10px 0;animation:none;"></div>
+                        <div class="po-skel-cell medium"></div>
+                        <div class="po-skel-cell wide"></div>
+                    </div>
+                </div><!-- /po-grid -->
 
             </div><!-- /admin-content -->
         </div><!-- /admin-main -->
     </div><!-- /admin-page-shell -->
 </div><!-- /admin-dashboard -->
 
-<!-- ── Toast ──────────────────────────────────────────────── -->
+<!-- ── Toast ───────────────────────────────────────────────────────────────── -->
 <div id="toast"></div>
 
-<!-- ── FAB speed dial ─────────────────────────────────────── -->
+<!-- ── FAB ─────────────────────────────────────────────────────────────────── -->
 <div id="fabContainer"
      style="position:fixed;bottom:2rem;right:2rem;z-index:9999;
             display:flex;flex-direction:column;align-items:flex-end;gap:10px;">
     <div id="fabActions" style="display:none;flex-direction:column;align-items:flex-end;gap:10px;">
-        <!-- Create new PO -->
         <div style="display:flex;align-items:center;gap:10px;">
             <div onclick="if(_fabOpen)_toggleFab();_fabOpenNewPO()"
                  style="background:white;padding:6px 14px;border-radius:20px;
@@ -271,8 +322,7 @@
     <button id="fabMainBtn" onclick="_toggleFab()"
             style="width:56px;height:56px;border-radius:50%;background:#E31E24;border:none;
                    color:white;cursor:pointer;box-shadow:0 4px 16px rgba(227,30,36,0.4);
-                   display:flex;align-items:center;justify-content:center;
-                   transition:transform .2s,box-shadow .2s;"
+                   display:flex;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s;"
             onmouseover="this.style.boxShadow='0 6px 24px rgba(227,30,36,0.5)'"
             onmouseout="this.style.boxShadow='0 4px 16px rgba(227,30,36,0.4)'">
         <svg id="fabIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -286,53 +336,68 @@
 <div id="fabBackdrop" onclick="_toggleFab()"
      style="display:none;position:fixed;inset:0;z-index:9998;"></div>
 
-<!-- ── New PO Modal ───────────────────────────────────────── -->
+<!-- ── Create PO Modal ─────────────────────────────────────────────────────── -->
 <div class="modal" id="poNewModal">
   <div class="modal-content"
-       style="max-width:560px;padding:0;border-radius:20px;overflow:hidden;
+       style="max-width:580px;padding:0;border-radius:20px;overflow:hidden;
               display:flex;flex-direction:column;max-height:92vh;">
-    <!-- Header -->
     <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);
-                padding:1.25rem 1.5rem;display:flex;align-items:center;
-                gap:0.85rem;flex-shrink:0;">
+                padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
         <div style="flex:1;">
-            <div style="color:white;font-size:1rem;font-weight:700;">
-                Create Purchase Order (PO)
-            </div>
-            <div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.1rem;">
-                Add items that need replenishment
-            </div>
+            <div style="color:white;font-size:1rem;font-weight:700;">Create Purchase Order (PO)</div>
+            <div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.1rem;">Select items that need replenishment</div>
         </div>
         <button onclick="closeModal('poNewModal')"
                 style="background:rgba(255,255,255,0.2);border:none;color:white;
                        width:32px;height:32px;border-radius:50%;font-size:1.1rem;
-                       cursor:pointer;display:flex;align-items:center;justify-content:center;">
-            &times;
-        </button>
+                       cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
     </div>
-    <!-- Body -->
     <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;">
-        <!-- Items that need replenishment (auto-loaded) -->
-        <div style="font-size:0.75rem;color:#718096;margin-bottom:0.6rem;">
-            Items that need replenishment
+        <div style="font-size:0.75rem;color:#718096;margin-bottom:0.5rem;">Items that need replenishment</div>
+        <!-- Search -->
+        <div style="position:relative;display:flex;align-items:center;margin-bottom:0.6rem;">
+            <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;"
+                 xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input id="poReplenishSearch" type="text"
+                   placeholder="Search by name, supplier code…"
+                   oninput="_poRenderReplenishList()"
+                   style="width:100%;padding:0.5rem 2rem 0.5rem 2.1rem;
+                          border:1.5px solid #e2e8f0;border-radius:8px;
+                          font-size:0.82rem;font-family:inherit;color:#1a202c;
+                          background:white;outline:none;box-sizing:border-box;transition:border-color .15s;"
+                   onfocus="this.style.borderColor='#E8001C'"
+                   onblur="this.style.borderColor='#e2e8f0'">
+            <button id="poReplenishSearchClear"
+                    onclick="document.getElementById('poReplenishSearch').value='';_poRenderReplenishList();"
+                    style="display:none;position:absolute;right:0.5rem;background:none;border:none;
+                           cursor:pointer;color:#a0aec0;padding:2px;line-height:1;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                     viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
         </div>
+        <!-- Replenishment list -->
         <div id="poReplenishList"
              style="border:1.5px solid #e2e8f0;border-radius:12px;background:white;
-                    max-height:240px;overflow-y:auto;margin-bottom:1rem;">
-            <div style="padding:1.5rem;text-align:center;color:#a0aec0;font-size:12px;">
-                Loading…
-            </div>
+                    height:260px;overflow-y:auto;margin-bottom:1rem;
+                    box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+            <div style="padding:1rem;text-align:center;color:#a0aec0;font-size:12px;">Loading…</div>
         </div>
         <!-- Added items -->
         <div id="poAddedSection" style="display:none;">
-            <div style="font-size:0.75rem;color:#718096;margin-bottom:0.5rem;">Added items</div>
+            <div style="font-size:0.75rem;color:#718096;margin-bottom:0.5rem;">
+                Added items <span id="poAddedCount" style="color:#1a202c;font-weight:700;"></span>
+            </div>
             <div id="poAddedList"
                  style="border:1.5px solid #e2e8f0;border-radius:12px;
-                        background:white;margin-bottom:1rem;overflow:hidden;">
-            </div>
-            <!-- Estimated total -->
-            <div id="poEstimatedTotal"
-                 style="display:flex;justify-content:space-between;align-items:center;
+                        background:white;margin-bottom:0.75rem;overflow:hidden;"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;
                         padding:10px 14px;background:white;border:1.5px solid #e2e8f0;
                         border-radius:10px;margin-bottom:0.5rem;">
                 <span style="font-size:13px;font-weight:600;color:#4a5568;">Estimated Total</span>
@@ -340,64 +405,54 @@
             </div>
         </div>
     </div>
-    <!-- Footer -->
     <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;
                 display:flex;justify-content:flex-end;gap:0.75rem;flex-shrink:0;">
-        <button onclick="closeModal('poNewModal')"
-                class="btn btn-secondary">Cancel</button>
+        <button onclick="closeModal('poNewModal')" class="btn btn-secondary">Cancel</button>
         <button id="poSaveBtn" onclick="_poSave()"
-                class="btn btn-primary"
-                style="background:#E8001C;color:white;border:none;">
+                class="btn btn-primary" style="background:#E8001C;color:white;border:none;">
             Save Purchase Order
         </button>
     </div>
   </div>
 </div>
 
-<!-- ── View PO Modal ──────────────────────────────────────── -->
+<!-- ── View PO Modal ───────────────────────────────────────────────────────── -->
 <div class="modal" id="poViewModal">
   <div class="modal-content"
-       style="max-width:600px;padding:0;border-radius:20px;overflow:hidden;
+       style="max-width:620px;padding:0;border-radius:20px;overflow:hidden;
               display:flex;flex-direction:column;max-height:92vh;">
-    <!-- Header -->
-    <div id="poViewHeader"
-         style="background:linear-gradient(135deg,#E31E24,#C41E3A);
-                padding:1.25rem 1.5rem;display:flex;align-items:center;
-                gap:0.85rem;flex-shrink:0;">
+    <div style="background:linear-gradient(135deg,#E31E24,#C41E3A);
+                padding:1.25rem 1.5rem;display:flex;align-items:flex-start;gap:0.85rem;flex-shrink:0;">
         <div style="flex:1;">
-            <div id="poViewTitle" style="color:white;font-size:1rem;font-weight:700;">
-                Purchase Order
-            </div>
-            <div id="poViewSubtitle"
-                 style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.1rem;">
-            </div>
+            <div id="poViewPoNum" style="color:white;font-size:1rem;font-weight:800;letter-spacing:0.3px;"></div>
+            <div id="poViewSubtitle" style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.2rem;"></div>
         </div>
+        <div id="poViewBadge" style="flex-shrink:0;"></div>
         <button onclick="closeModal('poViewModal')"
                 style="background:rgba(255,255,255,0.2);border:none;color:white;
                        width:32px;height:32px;border-radius:50%;font-size:1.1rem;
-                       cursor:pointer;display:flex;align-items:center;justify-content:center;">
-            &times;
-        </button>
+                       cursor:pointer;display:flex;align-items:center;justify-content:center;
+                       flex-shrink:0;">&times;</button>
     </div>
-    <!-- Body -->
-    <div id="poViewBody"
-         style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;">
-    </div>
-    <!-- Footer -->
+    <div id="poViewBody" style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;"></div>
     <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;
                 display:flex;justify-content:flex-end;gap:0.75rem;flex-shrink:0;">
-        <button onclick="closeModal('poViewModal')"
-                class="btn btn-secondary">Close</button>
-        <button id="poViewApproveBtn" onclick="_poApprove()"
+        <button onclick="closeModal('poViewModal')" class="btn btn-secondary">Close</button>
+        <button id="poViewMarkOrderedBtn" onclick="_poMarkOrdered()"
                 class="btn btn-primary"
-                style="display:none;background:#E8001C;color:white;border:none;">
-            Approve Request
+                style="display:none;background:#003087;color:white;border:none;">
+            Mark as Ordered
+        </button>
+        <button id="poViewCancelBtn" onclick="_poCancelPO()"
+                class="btn"
+                style="display:none;background:none;border:1.5px solid #E8001C;color:#E8001C;cursor:pointer;">
+            Cancel PO
         </button>
     </div>
   </div>
 </div>
 
-<!-- ── Firebase & shared scripts ─────────────────────────── -->
+<!-- ── Firebase & shared scripts ──────────────────────────────────────────── -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -417,13 +472,14 @@
 <script src="../static/js/admin.js?v=202608120002"></script>
 <script src="../static/js/admin_sidebar.js"></script>
 
-<!-- ── Page logic ─────────────────────────────────────────── -->
+<!-- ── Page logic ──────────────────────────────────────────────────────────── -->
 <script>
-var db = firebase.firestore();
-var _allPOs   = [];   // all delivery docs (non-archived)
+var db       = firebase.firestore();
+var _PO_COL  = 'purchase_orders';          // new dedicated Firestore collection
+var _allPOs  = [];
 var _poFilter = 'all';
-var _poViewId = null; // delivery id currently open in view modal
-var MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var _poViewId = null;
+var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function _fmtDate(raw) {
@@ -432,262 +488,207 @@ function _fmtDate(raw) {
     if (raw && typeof raw === 'object' && raw.seconds) raw = new Date(raw.seconds * 1000).toISOString();
     var dt = new Date(raw);
     if (isNaN(dt)) return raw;
-    return MONTHS_SHORT[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+    return MO[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
 }
-
 function _fmtPeso(v) {
     v = parseFloat(v) || 0;
     return '₱' + v.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-
 function _msDate(d) {
-    var raw = d.createdAt || d.date || '';
+    var raw = d.createdAt || '';
     if (raw && typeof raw === 'object' && raw.toDate) raw = raw.toDate().toISOString();
     if (raw && typeof raw === 'object' && raw.seconds) raw = new Date(raw.seconds * 1000).toISOString();
     var dt = new Date(typeof raw === 'string' ? raw : '');
     return isNaN(dt) ? 0 : dt.getTime();
 }
+// Generate PO number: PO-YYYYMMDD-XXXX
+function _genPoNum() {
+    var now = new Date();
+    var y   = now.getFullYear();
+    var m   = String(now.getMonth() + 1).padStart(2, '0');
+    var d   = String(now.getDate()).padStart(2, '0');
+    var rand = String(Math.floor(1000 + Math.random() * 9000));
+    return 'PO-' + y + m + d + '-' + rand;
+}
 
-// ── Real-time listener ───────────────────────────────────────────────────────
+// Status colors: [text, background]
+var _ST_COLORS = {
+    'Pending':             ['#718096','rgba(113,128,150,0.10)'],
+    'Ordered':             ['#003087','rgba(0,48,135,0.08)'],
+    'Partially Received':  ['#d69e2e','rgba(214,158,46,0.10)'],
+    'Received':            ['#38a169','rgba(56,161,105,0.10)'],
+    'Cancelled':           ['#E8001C','rgba(232,0,28,0.08)']
+};
+function _stColor(status) {
+    return _ST_COLORS[status] || ['#718096','rgba(113,128,150,0.10)'];
+}
+
+// ── Real-time listener ────────────────────────────────────────────────────────
 (function _listen() {
-    db.collection('deliveries')
+    db.collection(_PO_COL)
       .orderBy('createdAt', 'desc')
       .onSnapshot(function(snap) {
-          _allPOs = snap.docs
-              .map(function(d) { return Object.assign({ id: d.id }, d.data()); })
-              .filter(function(d) { return d.archived !== true; });
+          _allPOs = snap.docs.map(function(d) {
+              return Object.assign({ _docId: d.id }, d.data());
+          });
           _poUpdateStats();
           _poRender();
       }, function(err) {
           console.error('PO listener error:', err);
+          // Fallback — collection may not exist yet, show empty state gracefully
+          document.getElementById('poGrid').innerHTML =
+              '<div style="grid-column:1/-1;padding:4rem;text-align:center;color:#718096;font-size:13px;">No purchase orders found. Create the first one using the + button.</div>';
       });
 })();
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
 function _poUpdateStats() {
-    var counts = { Pending: 0, 'For Admin Review': 0, 'Awaiting Double Check': 0, Approved: 0 };
-    _allPOs.forEach(function(d) {
-        var deliverySt = d.status || 'Pending';
-        (d.items || []).forEach(function(item) {
-            var st = item.itemStatus || deliverySt;
-            if (counts[st] !== undefined) counts[st]++;
-        });
+    var c = { Pending: 0, Ordered: 0, 'Partially Received': 0, Received: 0 };
+    _allPOs.forEach(function(po) {
+        var s = po.status || 'Pending';
+        if (c[s] !== undefined) c[s]++;
     });
-    document.getElementById('poStatPending').textContent  = counts['Pending'];
-    document.getElementById('poStatForReview').textContent = counts['For Admin Review'];
-    document.getElementById('poStatAwaiting').textContent  = counts['Awaiting Double Check'];
-    document.getElementById('poStatApproved').textContent  = counts['Approved'];
+    document.getElementById('poStatPending').textContent  = c['Pending'];
+    document.getElementById('poStatOrdered').textContent  = c['Ordered'];
+    document.getElementById('poStatPartial').textContent  = c['Partially Received'];
+    document.getElementById('poStatReceived').textContent = c['Received'];
 }
 
 // ── Filter pills ──────────────────────────────────────────────────────────────
 function _poSetFilter(status, el) {
-    _poFilter = status;
-    document.querySelectorAll('#poFilterPills .dss-pill').forEach(function(p) {
-        p.classList.remove('active');
-    });
-    if (el) el.classList.add('active');
+    _poFilter = (el && el.nodeType) ? status : status; // accept both call styles
+    document.querySelectorAll('#poFilterPills .dss-pill').forEach(function(p) { p.classList.remove('active'); });
+    if (el && el.classList) el.classList.add('active');
     _poRender();
 }
 
-// ── Render table ──────────────────────────────────────────────────────────────
+// ── Render card grid ──────────────────────────────────────────────────────────
 function _poRender() {
-    var q = ((document.getElementById('poSearch') || {}).value || '').trim().toLowerCase();
-    var sort = ((document.getElementById('poSort') || {}).value || 'date-desc');
+    var q    = ((document.getElementById('poSearch') || {}).value || '').trim().toLowerCase();
+    var sort = ((document.getElementById('poSort')   || {}).value || 'date-desc');
+    var grid = document.getElementById('poGrid');
 
-    // Filter by status
-    var list = _poFilter === 'all' ? _allPOs.slice() : _allPOs.filter(function(d) {
-        var deliverySt = d.status || 'Pending';
-        var items = d.items || [];
-        if (!items.length) return deliverySt === _poFilter;
-        return items.some(function(i) { return (i.itemStatus || deliverySt) === _poFilter; });
-    });
+    var list = _poFilter === 'all' ? _allPOs.slice()
+        : _allPOs.filter(function(po) { return (po.status || 'Pending') === _poFilter; });
 
-    // Search
     if (q) {
-        list = list.filter(function(d) {
-            var inItems = (d.items || []).some(function(i) {
-                return (i.itemName || '').toLowerCase().includes(q) ||
-                       (i.itemNum  || '').toLowerCase().includes(q) ||
-                       (i.supplierCode || '').toLowerCase().includes(q);
-            });
-            return inItems || (d.supplier || '').toLowerCase().includes(q);
+        list = list.filter(function(po) {
+            return (po.poNum || '').toLowerCase().includes(q) ||
+                   (po.notes || '').toLowerCase().includes(q) ||
+                   (po.items || []).some(function(i) {
+                       return (i.itemName || '').toLowerCase().includes(q) ||
+                              (i.supplierCode || '').toLowerCase().includes(q) ||
+                              (i.itemNum || '').toLowerCase().includes(q);
+                   });
         });
     }
 
-    // Sort
     list.sort(function(a, b) {
         switch (sort) {
             case 'date-asc':   return _msDate(a) - _msDate(b);
-            case 'items-desc': return (b.items||[]).length - (a.items||[]).length;
-            case 'items-asc':  return (a.items||[]).length - (b.items||[]).length;
+            case 'total-desc': return (b.totalAmount || 0) - (a.totalAmount || 0);
+            case 'total-asc':  return (a.totalAmount || 0) - (b.totalAmount || 0);
             default:           return _msDate(b) - _msDate(a);
         }
     });
 
-    // Build rows (one row per item)
-    var el = document.getElementById('poList');
-    var skel = document.getElementById('poSkeleton');
-    if (skel) skel.remove();
-
     if (!list.length) {
-        el.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">No purchase orders found.</div>';
+        grid.innerHTML = '<div style="grid-column:1/-1;padding:4rem;text-align:center;color:#718096;font-size:13px;">'
+            + (_allPOs.length ? 'No purchase orders match your search.' : 'No purchase orders yet. Create the first one using the + button.')
+            + '</div>';
         return;
     }
 
-    var stColors = {
-        'Pending':               ['#718096','rgba(113,128,150,0.1)'],
-        'For Admin Review':      ['#E8001C','rgba(232,0,28,0.08)'],
-        'Awaiting Double Check': ['#d69e2e','rgba(214,158,46,0.1)'],
-        'Approved':              ['#38a169','rgba(56,161,105,0.1)'],
-        'Rejected':              ['#E8001C','rgba(232,0,28,0.1)']
-    };
-    var rows = [];
-    var COL = 'grid-template-columns:110px 110px 1fr 1.4fr 0.7fr 0.8fr 1fr 130px 110px;';
+    grid.innerHTML = list.map(function(po) {
+        var c         = _stColor(po.status || 'Pending');
+        var badge     = '<span class="po-badge" style="color:' + c[0] + ';background:' + c[1] + ';">' + (po.status || 'Pending') + '</span>';
+        var itemNames = (po.items || []).map(function(i) { return i.itemName || ''; }).filter(Boolean).join(', ');
+        var total     = po.totalAmount > 0 ? _fmtPeso(po.totalAmount) : '—';
+        var itemCount = (po.items || []).length;
 
-    list.forEach(function(d) {
-        var items = d.items || [];
-        var orderDate = _fmtDate(d.createdAt || d.date || '');
-
-        if (!items.length) {
-            // Delivery with no items — show a single placeholder row
-            var c = stColors[d.status] || stColors['Pending'];
-            var badge = '<span class="po-badge" style="color:' + c[0] + ';background:' + c[1] + ';">' + (d.status || 'Pending') + '</span>';
-            rows.push('<div class="table-row" style="' + COL + 'align-items:center;">'
-                + '<div style="font-size:11px;color:#718096;">' + orderDate + '</div>'
-                + '<div style="font-size:11px;color:#a0aec0;">—</div>'
-                + '<div style="font-size:11px;color:#a0aec0;">—</div>'
-                + '<div style="font-size:12px;color:#a0aec0;">—</div>'
-                + '<div style="font-size:12px;color:#a0aec0;">—</div>'
-                + '<div style="font-size:12px;color:#a0aec0;">—</div>'
-                + '<div style="font-size:12px;color:#a0aec0;">—</div>'
-                + '<div>' + badge + '</div>'
-                + '<div><button class="btn-small btn-primary" onclick="event.stopPropagation();_poOpenView(\'' + d.id + '\')" title="View">View</button></div>'
-                + '</div>');
-            return;
-        }
-
-        items.forEach(function(item, idx) {
-            var itemSt = item.itemStatus || d.status || 'Pending';
-            var c = stColors[itemSt] || stColors['Pending'];
-            var badge = '<span class="po-badge" style="color:' + c[0] + ';background:' + c[1] + ';">'
-                + (itemSt === 'Awaiting Double Check' ? 'Awaiting Review' : itemSt)
-                + '</span>';
-            var receivedDate = item.receivedAt ? _fmtDate(item.receivedAt)
-                             : (d.receivedAt  ? _fmtDate(d.receivedAt)  : '—');
-
-            // Unit cost from item_master (live) or stored in item
-            var rawCost = parseFloat((item.unitCost || '0').toString().replace(/[₱,]/g, '')) || 0;
-            var qty = parseInt(item.expectedQty) || 0;
-            var subtotal = rawCost * qty;
-
-            rows.push('<div class="table-row" style="' + COL + 'align-items:center;">'
-                + '<div style="font-size:11px;color:#718096;">' + (idx === 0 ? orderDate : '') + '</div>'
-                + '<div style="font-size:11px;color:#718096;">' + receivedDate + '</div>'
-                + '<div style="font-size:11px;color:#4a5568;">' + (item.supplierCode || '—') + '</div>'
-                + '<div style="font-size:12px;color:#1a202c;font-weight:600;">' + (item.itemName || '—') + '</div>'
-                + '<div style="font-size:12px;color:#4a5568;">' + qty + ' ' + (item.uom || '') + '</div>'
-                + '<div style="font-size:12px;color:#4a5568;">' + (rawCost > 0 ? _fmtPeso(rawCost) : '—') + '</div>'
-                + '<div style="font-size:12px;color:#4a5568;font-weight:600;">' + (subtotal > 0 ? _fmtPeso(subtotal) : '—') + '</div>'
-                + '<div>' + badge + '</div>'
-                + '<div>'
-                +   '<button class="btn-small btn-primary" onclick="event.stopPropagation();_poOpenView(\'' + d.id + '\')" title="View">View</button>'
-                + '</div>'
-                + '</div>');
-        });
-    });
-
-    el.innerHTML = rows.join('');
+        return '<div class="po-card" onclick="_poOpenView(\'' + po._docId + '\')">'
+            + '<div class="po-card-header">'
+            +   '<div>'
+            +     '<div class="po-card-id">' + (po.poNum || po._docId) + '</div>'
+            +     '<div class="po-card-date">' + _fmtDate(po.createdAt) + '</div>'
+            +   '</div>'
+            +   badge
+            + '</div>'
+            + '<hr class="po-card-divider">'
+            + '<div class="po-card-meta">'
+            +   '<div style="font-size:12px;color:#4a5568;">'
+            +     '<span style="font-weight:700;color:#1a202c;">' + itemCount + '</span> item' + (itemCount !== 1 ? 's' : '')
+            +   '</div>'
+            +   '<div style="font-size:13px;font-weight:800;color:#1a202c;">' + total + '</div>'
+            + '</div>'
+            + (itemNames ? '<div class="po-card-items-preview">' + itemNames + '</div>' : '')
+            + '</div>';
+    }).join('');
 }
 
-// ── View modal ────────────────────────────────────────────────────────────────
-function _poOpenView(deliveryId) {
-    var d = _allPOs.find(function(x) { return x.id === deliveryId; });
-    if (!d) return;
-    _poViewId = deliveryId;
+// ── View PO Modal ─────────────────────────────────────────────────────────────
+function _poOpenView(docId) {
+    var po = _allPOs.find(function(x) { return x._docId === docId; });
+    if (!po) return;
+    _poViewId = docId;
 
-    var status   = d.status || 'Pending';
-    var items    = d.items || [];
-    var orderDate = _fmtDate(d.createdAt || d.date || '');
+    var status  = po.status || 'Pending';
+    var items   = po.items  || [];
+    var c       = _stColor(status);
 
-    document.getElementById('poViewTitle').textContent    = 'Purchase Order — ' + orderDate;
-    document.getElementById('poViewSubtitle').textContent = items.length + ' item' + (items.length !== 1 ? 's' : '') + '  •  ' + status;
+    document.getElementById('poViewPoNum').textContent     = po.poNum || docId;
+    document.getElementById('poViewSubtitle').textContent  = _fmtDate(po.createdAt) + '  •  ' + items.length + ' item' + (items.length !== 1 ? 's' : '');
+    document.getElementById('poViewBadge').innerHTML = '<span class="po-badge" style="color:' + c[0] + ';background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.5);font-size:11px;">' + status + '</span>';
 
-    // Approve button — visible only for "For Admin Review" deliveries
-    var approveBtn = document.getElementById('poViewApproveBtn');
-    approveBtn.style.display = (status === 'For Admin Review') ? 'inline-flex' : 'none';
+    // Footer buttons
+    document.getElementById('poViewMarkOrderedBtn').style.display = (status === 'Pending') ? 'inline-flex' : 'none';
+    document.getElementById('poViewCancelBtn').style.display      = (status === 'Pending' || status === 'Ordered') ? 'inline-flex' : 'none';
 
-    var stColors = {
-        'Pending':               ['#718096','rgba(113,128,150,0.1)'],
-        'For Admin Review':      ['#E8001C','rgba(232,0,28,0.08)'],
-        'Awaiting Double Check': ['#d69e2e','rgba(214,158,46,0.1)'],
-        'Approved':              ['#38a169','rgba(56,161,105,0.1)'],
-        'Rejected':              ['#E8001C','rgba(232,0,28,0.1)']
-    };
-
+    // Build body
     var html = '';
-    if (!items.length) {
-        html = '<div style="text-align:center;padding:2rem;color:#718096;font-size:13px;">No items in this purchase order.</div>';
-    } else {
-        items.forEach(function(item) {
-            var itemSt = item.itemStatus || status;
-            var c = stColors[itemSt] || stColors['Pending'];
-            var badge = '<span class="po-badge" style="color:' + c[0] + ';background:' + c[1] + ';">'
-                + (itemSt === 'Awaiting Double Check' ? 'Awaiting Review' : itemSt)
-                + '</span>';
-            var rawCost = parseFloat((item.unitCost || '0').toString().replace(/[₱,]/g, '')) || 0;
-            var qty = parseInt(item.expectedQty) || 0;
-            var subtotal = rawCost * qty;
 
-            html += '<div style="background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;">'
+    // Items table
+    if (!items.length) {
+        html += '<div style="text-align:center;padding:2rem;color:#718096;font-size:13px;">No items in this PO.</div>';
+    } else {
+        html += '<div style="font-size:0.75rem;color:#718096;margin-bottom:0.5rem;">Items</div>';
+        items.forEach(function(item) {
+            var cost     = parseFloat((item.unitCost || '0').toString().replace(/[₱,]/g,'')) || 0;
+            var qty      = parseInt(item.expectedQty) || 0;
+            var subtotal = cost * qty;
+            html += '<div style="background:white;border:1.5px solid #e2e8f0;border-radius:12px;'
+                +         'padding:14px 16px;margin-bottom:10px;">'
                 +   '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">'
                 +     '<div>'
-                +       '<div style="font-size:13px;font-weight:700;color:#1a202c;">' + (item.itemName || '—') + '</div>'
-                +       '<div style="font-size:11px;color:#718096;margin-top:2px;">' + (item.supplierCode || item.itemNum || '—') + (item.uom ? '  •  ' + item.uom : '') + '</div>'
+                +       '<div style="font-weight:700;font-size:13px;color:#1a202c;">' + (item.itemName || '—') + '</div>'
+                +       '<div style="font-size:11px;color:#718096;margin-top:2px;">'
+                +         (item.supplierCode || item.itemNum || '—') + (item.uom ? '  •  ' + item.uom : '')
+                +       '</div>'
                 +     '</div>'
-                +     badge
                 +   '</div>'
-                +   '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px;">'
-                +     _poViewCell('Order Qty',   qty + (item.uom ? ' ' + item.uom : ''))
-                +     _poViewCell('Unit Price',  rawCost > 0 ? _fmtPeso(rawCost) : '—')
-                +     _poViewCell('Subtotal',    subtotal > 0 ? _fmtPeso(subtotal) : '—', '#E8001C')
-                +   '</div>';
-
-            if (item.actualQty !== undefined && item.actualQty !== null) {
-                var diff = parseInt(item.actualQty) - qty;
-                html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px;border-top:1px solid #f0f4f8;padding-top:8px;">'
-                    +     _poViewCell('Actual Received', item.actualQty + (item.uom ? ' ' + item.uom : ''))
-                    +     _poViewCell('Condition', item.condition || '—')
-                    +     _poViewCell('Difference', (diff > 0 ? '+' : '') + diff, diff < 0 ? '#E8001C' : diff > 0 ? '#d69e2e' : '#38a169')
-                    + '</div>';
-                if (item.remark) {
-                    html += '<div style="margin-top:8px;padding:8px 10px;background:#fffbeb;border-radius:8px;font-size:11px;color:#92400e;">Remarks: ' + item.remark + '</div>';
-                }
-            }
-
-            if (item.receivedBy) html += '<div style="margin-top:6px;font-size:11px;color:#718096;">Received by: <strong>' + item.receivedBy + '</strong></div>';
-            html += '</div>';
+                +   '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">'
+                +     _vCell('Order Qty',  qty + (item.uom ? ' ' + item.uom : ''))
+                +     _vCell('Unit Price', cost > 0 ? _fmtPeso(cost) : '—')
+                +     _vCell('Subtotal',   subtotal > 0 ? _fmtPeso(subtotal) : '—', '#E8001C')
+                +   '</div>'
+                + '</div>';
         });
 
         // Grand total
-        var total = items.reduce(function(sum, i) {
-            var c = parseFloat((i.unitCost || '0').toString().replace(/[₱,]/g, '')) || 0;
-            return sum + c * (parseInt(i.expectedQty) || 0);
-        }, 0);
-        if (total > 0) {
+        if (po.totalAmount > 0) {
             html += '<div style="display:flex;justify-content:space-between;align-items:center;'
                 +         'padding:12px 14px;background:white;border:1.5px solid #e2e8f0;border-radius:10px;margin-top:4px;">'
-                +     '<span style="font-size:13px;font-weight:600;color:#4a5568;">Estimated Total</span>'
-                +     '<span style="font-size:16px;font-weight:800;color:#1a202c;">' + _fmtPeso(total) + '</span>'
+                +     '<span style="font-size:13px;font-weight:600;color:#4a5568;">Total Amount</span>'
+                +     '<span style="font-size:16px;font-weight:800;color:#1a202c;">' + _fmtPeso(po.totalAmount) + '</span>'
                 + '</div>';
         }
     }
 
-    // Delivery meta (received by, review notes)
-    if (d.receivedBy || d.checkedBy || d.reviewNotes) {
+    // Meta (notes, createdBy)
+    if (po.notes || po.createdBy) {
         html += '<div style="margin-top:14px;background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 16px;">';
-        if (d.receivedBy)   html += _poViewRow('Received By',   d.receivedBy);
-        if (d.checkedBy)    html += _poViewRow('Checked By',    d.checkedBy);
-        if (d.reviewNotes)  html += _poViewRow('Review Notes',  d.reviewNotes);
+        if (po.createdBy) html += _vRow('Created By', po.createdBy);
+        if (po.notes)     html += _vRow('Notes',      po.notes);
         html += '</div>';
     }
 
@@ -695,125 +696,162 @@ function _poOpenView(deliveryId) {
     document.getElementById('poViewModal').classList.add('active');
 }
 
-function _poViewCell(label, val, color) {
+function _vCell(label, val, color) {
     return '<div>'
         + '<div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px;">' + label + '</div>'
         + '<div style="font-size:13px;font-weight:600;color:' + (color || '#1a202c') + ';">' + val + '</div>'
         + '</div>';
 }
-function _poViewRow(label, val) {
+function _vRow(label, val) {
     return '<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid #f0f4f8;">'
-        + '<div style="width:120px;font-size:12px;color:#718096;flex-shrink:0;">' + label + '</div>'
+        + '<div style="width:110px;font-size:12px;color:#718096;flex-shrink:0;">' + label + '</div>'
         + '<div style="font-size:12px;font-weight:600;color:#1a202c;">' + val + '</div>'
         + '</div>';
 }
 
-// ── Approve (For Admin Review → Pending) ──────────────────────────────────────
-function _poApprove() {
-    var d = _allPOs.find(function(x) { return x.id === _poViewId; });
-    if (!d) return;
-    if (!confirm('Approve this purchase order request? It will be set to Pending for receiving.')) return;
+// ── Mark as Ordered ───────────────────────────────────────────────────────────
+function _poMarkOrdered() {
+    if (!confirm('Mark this PO as Ordered?')) return;
     closeModal('poViewModal');
-    db.collection('deliveries').doc(_poViewId).update({ status: 'Pending' })
-      .then(function() { showToast('Purchase order approved! Status set to Pending.', 'success'); })
+    db.collection(_PO_COL).doc(_poViewId).update({ status: 'Ordered' })
+      .then(function() { showToast('PO marked as Ordered.', 'success'); })
       .catch(function(e) { showToast('Error: ' + e.message, 'error'); });
 }
 
-// ── New PO Modal ──────────────────────────────────────────────────────────────
-var _poNewItems = [];   // { num, name, uom, stock, min, max, cost, supplierCode }
-var _poAdded   = {};   // num → qty (TextInput value tracked)
+// ── Cancel PO ─────────────────────────────────────────────────────────────────
+function _poCancelPO() {
+    if (!confirm('Cancel this purchase order? This cannot be undone.')) return;
+    closeModal('poViewModal');
+    db.collection(_PO_COL).doc(_poViewId).update({ status: 'Cancelled' })
+      .then(function() { showToast('Purchase order cancelled.', 'error'); })
+      .catch(function(e) { showToast('Error: ' + e.message, 'error'); });
+}
+
+// ── Create PO Modal ───────────────────────────────────────────────────────────
+var _poNewItems = [];
+var _poAdded    = {};  // itemNum → qty
 
 function _poOpenNewModal() {
-    _poAdded = {};
+    _poAdded    = {};
     _poNewItems = [];
     document.getElementById('poAddedSection').style.display = 'none';
     document.getElementById('poAddedList').innerHTML = '';
     document.getElementById('poTotalAmt').textContent = '₱0.00';
-    document.getElementById('poReplenishList').innerHTML = '<div style="padding:1.5rem;text-align:center;color:#a0aec0;font-size:12px;">Loading…</div>';
+    var srch = document.getElementById('poReplenishSearch');
+    if (srch) srch.value = '';
+    var clr = document.getElementById('poReplenishSearchClear');
+    if (clr) clr.style.display = 'none';
+    document.getElementById('poReplenishList').innerHTML =
+        '<div style="padding:1rem;text-align:center;color:#a0aec0;font-size:12px;">Loading…</div>';
     document.getElementById('poNewModal').classList.add('active');
 
-    // Load items needing replenishment
     Promise.all([
         db.collection('stock_inventory').get(),
         db.collection('item_master').get()
     ]).then(function(results) {
         var stockSnap  = results[0];
         var masterSnap = results[1];
-
-        // Build cost/supplierCode lookup from item_master
-        var masterMap = {};
+        var masterMap  = {};
         masterSnap.forEach(function(d) {
             var data = d.data();
             var n = (data.num || '').trim();
-            if (n) masterMap[n] = { cost: data.cost || '0', supplierCode: data.supplierCode || '' };
+            if (n) masterMap[n] = {
+                cost:         parseFloat((data.cost || '0').toString().replace(/[₱,]/g,'')) || 0,
+                supplierCode: data.supplierCode || ''
+            };
         });
-
-        var needReplenish = [];
+        var need = [];
         stockSnap.forEach(function(d) {
-            var s = d.data();
+            var s     = d.data();
             var stock = parseInt(s.stock) || 0;
             var min   = parseInt(s.min)   || 0;
-            if (stock > min) return; // sufficiently stocked
-            var n = (s.num || '').trim();
+            if (stock > min) return;
+            var n      = (s.num || '').trim();
             var master = masterMap[n] || {};
-            var rawCost = parseFloat((master.cost || '0').toString().replace(/[₱,]/g, '')) || 0;
-            needReplenish.push({
+            need.push({
                 num:          n,
                 name:         s.name  || '',
                 uom:          s.uom   || '',
                 stock:        stock,
                 min:          min,
                 max:          parseInt(s.max) || 0,
-                cost:         rawCost,
+                cost:         master.cost         || 0,
                 supplierCode: master.supplierCode || ''
             });
         });
-
-        needReplenish.sort(function(a, b) {
+        need.sort(function(a, b) {
             if (a.stock === 0 && b.stock !== 0) return -1;
-            if (b.stock === 0 && a.stock !== 0) return 1;
+            if (b.stock === 0 && a.stock !== 0) return  1;
             return a.name.localeCompare(b.name);
         });
-        _poNewItems = needReplenish;
+        _poNewItems = need;
         _poRenderReplenishList();
     }).catch(function(err) {
         document.getElementById('poReplenishList').innerHTML =
-            '<div style="padding:1.5rem;text-align:center;color:#E8001C;font-size:12px;">Error loading items: ' + err.message + '</div>';
+            '<div style="padding:1.5rem;text-align:center;color:#E8001C;font-size:12px;">Error: ' + err.message + '</div>';
     });
 }
 
 function _poRenderReplenishList() {
-    var el = document.getElementById('poReplenishList');
+    var el  = document.getElementById('poReplenishList');
+    var q   = ((document.getElementById('poReplenishSearch') || {}).value || '').trim().toLowerCase();
+    var clr = document.getElementById('poReplenishSearchClear');
+    if (clr) clr.style.display = q ? 'block' : 'none';
+
     if (!_poNewItems.length) {
-        el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:#38a169;font-size:12px;font-weight:600;">✓ All items are sufficiently stocked.</div>';
+        el.innerHTML = '<div style="padding:1rem;text-align:center;color:#38a169;font-size:0.83rem;">✅ All items are sufficiently stocked.</div>';
         return;
     }
-    el.innerHTML = _poNewItems.map(function(item, idx) {
-        var added = _poAdded.hasOwnProperty(item.num);
-        var oos = item.stock === 0;
-        var suggestQty = item.max > item.stock ? (item.max - item.stock) : 1;
-        return '<div onclick="_poToggleItem(' + idx + ')" '
-            + 'style="display:flex;align-items:center;gap:12px;padding:10px 14px;'
-            + 'border-bottom:1px solid #f0f4f8;cursor:pointer;'
-            + (added ? 'background:#f0fff4;opacity:0.5;pointer-events:none;' : '')
-            + '" onmouseover="if(!this.style.pointerEvents||this.style.pointerEvents!==\'none\')this.style.background=\'#f7fafc\'" onmouseout="this.style.background=\'' + (added ? '#f0fff4' : 'white') + '\'">'
+
+    var filtered = q ? _poNewItems.filter(function(item) {
+        return item.name.toLowerCase().includes(q) ||
+               (item.supplierCode || '').toLowerCase().includes(q) ||
+               (item.num || '').toLowerCase().includes(q);
+    }) : _poNewItems;
+
+    if (!filtered.length) {
+        el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:#718096;font-size:0.83rem;">No items match "<strong>' + q + '</strong>".</div>';
+        return;
+    }
+
+    function _stBadge(stock, min) {
+        if (stock === 0)    return '<span style="background:rgba(229,62,62,0.08);color:#e53e3e;border:1.5px solid rgba(229,62,62,0.3);padding:1px 8px;border-radius:20px;font-size:0.7rem;font-weight:700;">Out of Stock</span>';
+        if (stock <= min)   return '<span style="background:rgba(214,158,46,0.08);color:#d69e2e;border:1.5px solid rgba(214,158,46,0.3);padding:1px 8px;border-radius:20px;font-size:0.7rem;font-weight:700;">Low Stock</span>';
+        return '';
+    }
+
+    el.innerHTML = filtered.map(function(item, fi) {
+        var origIdx = _poNewItems.indexOf(item);
+        var added   = _poAdded.hasOwnProperty(item.num);
+        var isLast  = fi === filtered.length - 1;
+        var recQty  = item.max > item.stock ? Math.max(0, item.max - item.stock) : 0;
+        var infoHtml = (item.supplierCode ? '<span style="font-size:0.75rem;color:#718096;">' + item.supplierCode + '</span>' : '')
+            + '<span style="font-size:0.75rem;color:#718096;">' + (item.supplierCode ? '&nbsp;·&nbsp;' : '') + 'Current: <strong style="color:#1a202c;">' + item.stock + '</strong></span>'
+            + (item.cost > 0 ? '<span style="font-size:0.75rem;color:#718096;">₱' + item.cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '/unit</span>' : '');
+        var recHtml = recQty > 0 ? '<span style="font-size:0.7rem;color:#718096;">Suggest order: <strong style="color:#1a202c;">' + recQty + '</strong></span>' : '';
+
+        return '<div onclick="' + (added ? '' : '_poToggleItem(' + origIdx + ')') + '" '
+            + 'style="padding:12px 16px;cursor:' + (added ? 'default' : 'pointer') + ';display:flex;align-items:center;justify-content:space-between;gap:12px;'
+            + (isLast ? '' : 'border-bottom:1px solid #f0f4f8;')
+            + 'background:' + (added ? '#f0fff4' : 'white') + ';opacity:' + (added ? '0.55' : '1') + ';transition:background 0.12s;" '
+            + (added ? '' : 'onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'white\'"') + '>'
             + '<div style="flex:1;min-width:0;">'
-            +   '<div style="font-size:13px;font-weight:700;color:#1a202c;">' + item.name + (item.uom ? ' <span style="font-size:11px;font-weight:400;color:#718096;">(' + item.uom + ')</span>' : '') + '</div>'
-            +   '<div style="font-size:11px;color:#718096;margin-top:2px;">'
-            +     (item.supplierCode ? item.supplierCode + '  •  ' : '')
-            +     'Stock: <strong style="color:' + (oos ? '#E8001C' : '#d69e2e') + ';">' + item.stock + '</strong>'
-            +     (item.cost > 0 ? '  •  ' + _fmtPeso(item.cost) + '/unit' : '')
-            +     (suggestQty > 0 && !added ? '  •  Suggest: ' + suggestQty : '')
+            +   '<div style="font-weight:600;font-size:0.88rem;color:#1a202c;">' + item.name
+            +     (item.uom ? '&nbsp;&nbsp;<span style="font-weight:400;font-size:0.78rem;color:#718096;">(' + item.uom + ')</span>' : '')
+            +   '</div>'
+            +   '<div style="display:flex;align-items:center;gap:0.5rem;margin-top:3px;flex-wrap:wrap;">'
+            +     infoHtml + _stBadge(item.stock, item.min) + recHtml
             +   '</div>'
             + '</div>'
-            + (added ? '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
-                     : '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>')
+            + (added
+                ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>'
+                : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>')
             + '</div>';
     }).join('');
 }
 
-function _poToggleItem(idx) {
-    var item = _poNewItems[idx];
+function _poToggleItem(origIdx) {
+    var item = _poNewItems[origIdx];
     if (!item) return;
     var suggestQty = item.max > item.stock ? (item.max - item.stock) : 1;
     _poAdded[item.num] = suggestQty;
@@ -822,28 +860,30 @@ function _poToggleItem(idx) {
 }
 
 function _poRenderAdded() {
-    var keys = Object.keys(_poAdded);
+    var keys    = Object.keys(_poAdded);
     var section = document.getElementById('poAddedSection');
     if (!keys.length) { section.style.display = 'none'; return; }
     section.style.display = 'block';
+    var cntEl = document.getElementById('poAddedCount');
+    if (cntEl) cntEl.textContent = '(' + keys.length + ')';
 
     var html = keys.map(function(num) {
-        var item = _poNewItems.find(function(i) { return i.num === num; });
+        var item     = _poNewItems.find(function(i) { return i.num === num; });
         if (!item) return '';
-        var qty = _poAdded[num];
+        var qty      = parseInt(_poAdded[num]) || 1;
         var subtotal = item.cost * qty;
         return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #f0f4f8;">'
             + '<div style="flex:1;min-width:0;">'
             +   '<div style="font-size:13px;font-weight:700;color:#1a202c;">' + item.name + '</div>'
-            +   '<div style="font-size:11px;color:#718096;">' + item.uom + (item.cost > 0 ? '  •  ' + _fmtPeso(item.cost) + '/unit' : '') + '</div>'
+            +   '<div style="font-size:11px;color:#718096;">' + (item.uom || '') + (item.cost > 0 ? '  •  ' + _fmtPeso(item.cost) + '/unit' : '') + '</div>'
             + '</div>'
-            + '<div style="display:flex;align-items:center;gap:8px;">'
+            + '<div style="display:flex;align-items:center;gap:6px;">'
             +   '<label style="font-size:11px;color:#718096;">Qty:</label>'
             +   '<input type="number" min="1" value="' + qty + '" '
             +          'onchange="_poAdded[\'' + num + '\']=Math.max(1,parseInt(this.value)||1);_poUpdateTotal();" '
             +          'style="width:60px;padding:4px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;text-align:center;">'
             + '</div>'
-            + '<div style="font-size:13px;font-weight:700;color:#E8001C;min-width:70px;text-align:right;">' + (subtotal > 0 ? _fmtPeso(subtotal) : '—') + '</div>'
+            + '<div style="font-size:13px;font-weight:700;color:#E8001C;min-width:68px;text-align:right;">' + (subtotal > 0 ? _fmtPeso(subtotal) : '—') + '</div>'
             + '<button onclick="_poRemoveAdded(\'' + num + '\')" title="Remove" '
             +         'style="background:none;border:none;cursor:pointer;color:#a0aec0;padding:4px;">'
             +   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
@@ -863,11 +903,9 @@ function _poRemoveAdded(num) {
 function _poUpdateTotal() {
     var total = Object.keys(_poAdded).reduce(function(sum, num) {
         var item = _poNewItems.find(function(i) { return i.num === num; });
-        var qty  = parseInt(_poAdded[num]) || 0;
-        return sum + (item ? item.cost * qty : 0);
+        return sum + (item ? item.cost * (parseInt(_poAdded[num]) || 0) : 0);
     }, 0);
     document.getElementById('poTotalAmt').textContent = _fmtPeso(total);
-    // Refresh subtotals in added list
     _poRenderAdded();
 }
 
@@ -876,7 +914,7 @@ function _poSave() {
     if (!keys.length) { showToast('Add at least one item first.', 'error'); return; }
 
     var btn = document.getElementById('poSaveBtn');
-    btn.disabled = true;
+    btn.disabled    = true;
     btn.textContent = 'Saving…';
 
     var items = keys.map(function(num) {
@@ -884,34 +922,45 @@ function _poSave() {
         var qty  = parseInt(_poAdded[num]) || 1;
         return {
             itemNum:      num,
-            itemName:     item ? item.name : num,
-            uom:          item ? item.uom  : '',
+            itemName:     item ? item.name          : num,
+            uom:          item ? item.uom           : '',
             expectedQty:  qty,
-            supplierCode: item ? item.supplierCode : '',
+            supplierCode: item ? item.supplierCode  : '',
             unitCost:     item ? item.cost.toFixed(2) : '0.00'
         };
     });
 
-    db.collection('deliveries').add({
-        items:     items,
-        status:    'Pending',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    var totalAmount = items.reduce(function(s, i) {
+        return s + (parseFloat(i.unitCost) || 0) * (i.expectedQty || 0);
+    }, 0);
+
+    // Get current user name for createdBy
+    var sess      = JSON.parse(sessionStorage.getItem('apUser') || sessionStorage.getItem('spUser') || '{}');
+    var createdBy = sess.name || '';
+
+    db.collection(_PO_COL).add({
+        poNum:       _genPoNum(),
+        items:       items,
+        status:      'Pending',
+        totalAmount: totalAmount,
+        createdBy:   createdBy,
+        createdAt:   firebase.firestore.FieldValue.serverTimestamp()
     }).then(function() {
         closeModal('poNewModal');
-        showToast('Purchase order created!', 'success');
+        showToast('Purchase order created successfully!', 'success');
     }).catch(function(err) {
         showToast('Error: ' + err.message, 'error');
     }).finally(function() {
-        btn.disabled = false;
+        btn.disabled    = false;
         btn.textContent = 'Save Purchase Order';
     });
 }
 
-// ── FAB ───────────────────────────────────────────────────────────────────────
+// ── FAB ────────────────────────────────────────────────────────────────────────
 var _fabOpen = false;
 function _toggleFab() {
     _fabOpen = !_fabOpen;
-    document.getElementById('fabActions').style.display  = _fabOpen ? 'flex' : 'none';
+    document.getElementById('fabActions').style.display  = _fabOpen ? 'flex'  : 'none';
     document.getElementById('fabBackdrop').style.display = _fabOpen ? 'block' : 'none';
     document.getElementById('fabIcon').style.transform   = _fabOpen ? 'rotate(45deg)' : 'rotate(0deg)';
 }
