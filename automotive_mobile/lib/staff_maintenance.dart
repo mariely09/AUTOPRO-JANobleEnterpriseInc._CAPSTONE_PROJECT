@@ -60,7 +60,7 @@ class _StaffMaintenanceState extends State<StaffMaintenance> {
                 ),
               )
             : const Text(
-                'Vehicle Maintenance',
+                'Asset Maintenance',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,

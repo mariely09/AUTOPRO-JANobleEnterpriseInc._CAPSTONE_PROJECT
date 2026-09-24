@@ -194,9 +194,9 @@ class _StaffVehicleListState extends State<StaffVehicleList> {
               )
             : Text(
                 _tab == 0
-                    ? 'Vehicle List'
+                    ? 'Asset List'
                     : _tab == 1
-                    ? 'Vehicle Maintenance'
+                    ? 'Asset Maintenance'
                     : 'Service Bookings',
                 style: const TextStyle(
                   color: Colors.white,
@@ -358,7 +358,7 @@ class _StaffVehicleListState extends State<StaffVehicleList> {
             color: Colors.white,
             child: Row(
               children: [
-                _tabBtn(0, 'Vehicles'),
+                _tabBtn(0, 'Assets'),
                 _tabBtn(1, 'Maintenance'),
                 _tabBtn(2, 'Bookings'),
               ],

@@ -25,9 +25,9 @@ class _AdminVehiclesListState extends State<AdminVehiclesList> {
   String _maintSortBy = 'date-desc';
   String _vehicleSortBy = 'plate-asc';
 
-  static const _tabs = ['Vehicles', 'Maintenance', 'Bookings', 'Issuances'];
+  static const _tabs = ['Assets', 'Maintenance', 'Bookings', 'Issuances'];
   static const _tabTitles = [
-    'Vehicle List',
+    'Asset List',
     'Maintenance',
     'Bookings',
     'Issuances',

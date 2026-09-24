@@ -40,11 +40,11 @@ class _AdminInventoryHubState extends State<AdminInventoryHub> {
   final _stockBodyKey = GlobalKey<AdminInventoryStockBodyState>();
   final _itemMasterKey = GlobalKey<AdminInventoryItemMasterBodyState>();
 
-  static const _tabs = ['Stock', 'Item Master', 'Purchase Orders (PO)', 'Transactions'];
+  static const _tabs = ['Stock', 'Item Master', 'Receiving Items', 'Transactions'];
   static const _tabTitles = [
-    'Stock Inventory',
+    'Inventory',
     'Item Master',
-    'Purchase Orders (PO)',
+    'Receiving Items',
     'Transactions',
   ];
 

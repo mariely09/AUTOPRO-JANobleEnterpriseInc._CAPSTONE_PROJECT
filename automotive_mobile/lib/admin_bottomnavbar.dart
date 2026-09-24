@@ -29,7 +29,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
   static const _navItems = [
     (icon: Icons.dashboard_outlined, label: 'Dashboard'),
     (icon: Icons.inventory_2_outlined, label: 'Inventory'),
-    (icon: Icons.directions_car_outlined, label: 'Vehicles'),
+    (icon: Icons.directions_car_outlined, label: 'Assets'),
     (icon: Icons.person_outline, label: 'Profile'),
   ];
 

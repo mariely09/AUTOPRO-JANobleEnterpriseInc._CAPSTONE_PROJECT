@@ -39,7 +39,7 @@ class _AdminInventoryStockState extends State<AdminInventoryStock> {
         backgroundColor: _red,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('Stock Inventory',
+        title: const Text('Inventory',
             style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         actions: [
           const SyncIndicator(),

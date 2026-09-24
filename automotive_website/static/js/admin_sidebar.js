@@ -11,6 +11,7 @@ const PAGE_URLS = {
     'dss-pms':                  '/admin_dss#dss-pms',
     'users':                    '/admin_users',
     'domains':                  '/admin_domain_management',
+    'purchase-orders':          '/admin_PO',
 };
 
 // ── Inject mobile-only styles that override inline styles ──────────────
@@ -148,6 +149,7 @@ const EXPAND_COLLAPSE_PAGES = [
     '/admin_vehicle_maintenance',
     '/admin_service_bookings',
     '/admin_receiving',
+    '/admin_PO',
     '/admin_dss',
     '/admin_users',
     '/admin_domain_management',

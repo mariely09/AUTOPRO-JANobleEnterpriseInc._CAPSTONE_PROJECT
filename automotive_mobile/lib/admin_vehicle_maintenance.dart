@@ -59,7 +59,7 @@ class _AdminVehicleMaintenanceState extends State<AdminVehicleMaintenance> {
                   border: InputBorder.none,
                 ),
               )
-            : const Text('Vehicle Maintenance',
+            : const Text('Asset Maintenance',
                 style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         actions: [
           const SyncIndicator(),

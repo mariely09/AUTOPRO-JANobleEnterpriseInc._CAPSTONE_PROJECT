@@ -17,7 +17,7 @@ class StaffBottomNavBar extends StatelessWidget {
   static const List<_NavItem> navItems = [
     _NavItem(icon: Icons.dashboard_outlined, label: 'Dashboard'),
     _NavItem(icon: Icons.inventory_2_outlined, label: 'Inventory'),
-    _NavItem(icon: Icons.directions_car_outlined, label: 'Vehicle'),
+    _NavItem(icon: Icons.directions_car_outlined, label: 'Assets'),
     _NavItem(icon: Icons.person_outline, label: 'Profile'),
   ];
 

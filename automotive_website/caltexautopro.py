@@ -741,6 +741,11 @@ def admin_service_bookings():
 def admin_receiving():
     return render_template('admin_receiving.html')
 
+@app.route('/admin_PO')
+@app.route('/admin_PO.html')
+def admin_po():
+    return render_template('admin_PO.html')
+
 @app.route('/print_layout')
 @app.route('/print_layout.html')
 def print_layout():
