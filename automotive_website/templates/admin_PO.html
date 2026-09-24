@@ -347,7 +347,7 @@
             <div style="color:white;font-size:1rem;font-weight:700;">Create Purchase Order (PO)</div>
             <div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.1rem;">Select items that need replenishment</div>
         </div>
-        <button onclick="closeModal('poNewModal')"
+        <button onclick="closeModal('poNewModal');_poResetNewModal();"
                 style="background:rgba(255,255,255,0.2);border:none;color:white;
                        width:32px;height:32px;border-radius:50%;font-size:1.1rem;
                        cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
@@ -406,7 +406,7 @@
     </div>
     <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;
                 display:flex;justify-content:flex-end;gap:0.75rem;flex-shrink:0;">
-        <button onclick="closeModal('poNewModal')" class="btn btn-secondary">Cancel</button>
+        <button onclick="closeModal('poNewModal');_poResetNewModal();" class="btn btn-secondary">Cancel</button>
         <button id="poSaveBtn" onclick="_poSave()"
                 class="btn btn-primary" style="background:#E8001C;color:white;border:none;">
             Save Purchase Order
@@ -459,7 +459,7 @@
                 Edit
             </button>
         </div>
-        <!-- Right: Close + Cancel + Mark as Ordered -->
+        <!-- Right: Cancel + Mark as Ordered -->
         <div style="display:flex;align-items:center;gap:0.5rem;">
             <button id="poViewCancelBtn" onclick="_poCancelPO()"
                     style="display:none;align-items:center;gap:6px;padding:0.5rem 1rem;
@@ -470,14 +470,6 @@
                     onmouseout="this.style.background='white'">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 Cancel PO
-            </button>
-            <button onclick="closeModal('poViewModal')"
-                    style="padding:0.5rem 1.1rem;background:white;border:1.5px solid #e2e8f0;
-                           border-radius:8px;color:#4a5568;font-size:0.82rem;font-weight:600;
-                           cursor:pointer;transition:all .15s;"
-                    onmouseover="this.style.background='#f7fafc'"
-                    onmouseout="this.style.background='white'">
-                Close
             </button>
             <button id="poViewMarkOrderedBtn" onclick="_poMarkOrdered()"
                     style="display:none;align-items:center;gap:6px;padding:0.5rem 1.1rem;
@@ -782,81 +774,293 @@ function _poCancelPO() {
       .catch(function(e) { showToast('Error: ' + e.message, 'error'); });
 }
 
-// ── Print PO ──────────────────────────────────────────────────────────────────
+// ── Print PO (same layout as admin_receiving.html generatePO) ─────────────────
 function _poPrint() {
     var po = _allPOs.find(function(x) { return x._docId === _poViewId; });
     if (!po) return;
-    var items  = po.items || [];
-    var rows   = items.map(function(item, i) {
-        var cost     = parseFloat((item.unitCost || '0').toString().replace(/[₱,]/g,'')) || 0;
-        var qty      = parseInt(item.expectedQty) || 0;
-        var subtotal = cost * qty;
-        return '<tr style="border-bottom:1px solid #e2e8f0;">'
-            + '<td style="padding:8px 10px;font-size:12px;">' + (i + 1) + '</td>'
-            + '<td style="padding:8px 10px;font-size:12px;font-weight:600;">' + (item.itemName || '—') + '</td>'
-            + '<td style="padding:8px 10px;font-size:12px;color:#718096;">' + (item.supplierCode || '—') + '</td>'
-            + '<td style="padding:8px 10px;font-size:12px;">' + (item.uom || '—') + '</td>'
-            + '<td style="padding:8px 10px;font-size:12px;text-align:right;">' + qty + '</td>'
-            + '<td style="padding:8px 10px;font-size:12px;text-align:right;">' + (cost > 0 ? _fmtPeso(cost) : '—') + '</td>'
-            + '<td style="padding:8px 10px;font-size:12px;font-weight:700;text-align:right;color:#E8001C;">' + (subtotal > 0 ? _fmtPeso(subtotal) : '—') + '</td>'
-            + '</tr>';
-    }).join('');
 
-    var printWin = window.open('', '_blank', 'width=860,height=700');
-    printWin.document.write(
-        '<!DOCTYPE html><html><head>'
-        + '<meta charset="UTF-8">'
-        + '<title>' + (po.poNum || po._docId) + '</title>'
-        + '<style>'
-        + 'body{font-family:system-ui,sans-serif;margin:0;padding:32px;color:#1a202c;}'
-        + '@media print{body{padding:16px;}button{display:none!important;}}'
-        + 'table{width:100%;border-collapse:collapse;}'
-        + 'th{background:#f7fafc;padding:8px 10px;font-size:11px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.4px;text-align:left;border-bottom:2px solid #e2e8f0;}'
-        + 'th:nth-child(5),th:nth-child(6),th:nth-child(7){text-align:right;}'
+    var MO   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+    function fmtTs(raw) {
+        if (!raw) return '';
+        var dt;
+        if (raw.toDate) dt = raw.toDate();
+        else if (raw.seconds) dt = new Date(raw.seconds * 1000);
+        else dt = new Date(raw);
+        if (isNaN(dt)) return '';
+        return MO[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+    }
+
+    var now     = new Date();
+    var dateStr = MO[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
+
+    var items    = po.items || [];
+    var MIN_ROWS = 15;
+    var subtotalQty = 0, grandTotal = 0;
+    items.forEach(function(it) {
+        subtotalQty += parseInt(it.expectedQty || 0);
+        grandTotal  += parseFloat(it.unitCost || 0) * parseInt(it.expectedQty || 0);
+    });
+
+    // Build table rows — pad to MIN_ROWS
+    var rowsHtml = '';
+    for (var i = 0; i < MIN_ROWS; i++) {
+        var it  = items[i];
+        var bg  = i % 2 === 1 ? '#dce9f7' : '#ffffff';
+        var c1='', c2='', c3='', c4='', c5='', c6='', c7='', c8='', c9='';
+        if (it) {
+            c1 = it.itemNum      || '';
+            c2 = it.supplierCode || '';
+            c3 = '';
+            c4 = it.itemName     || '';
+            c5 = '0';
+            var qty   = parseInt(it.expectedQty || 0);
+            var price = parseFloat(it.unitCost   || 0);
+            var total = qty * price;
+            c6 = '' + qty;
+            c7 = price > 0 ? price.toLocaleString('en-PH', {minimumFractionDigits:2}) : '0.00';
+            c8 = total > 0 ? total.toLocaleString('en-PH', {minimumFractionDigits:2}) : '0.00';
+            c9 = '';
+        }
+        var td = 'border:1px solid #94b5d8;padding:2px 3px;font-size:7.5px;vertical-align:top;word-break:break-word;';
+        rowsHtml +=
+            '<tr style="background:' + bg + ';height:19px;">'
+            + '<td style="' + td + 'text-align:center;">' + (i+1) + '</td>'
+            + '<td style="' + td + '">' + c1 + '</td>'
+            + '<td style="' + td + '">' + c2 + '</td>'
+            + '<td style="' + td + '">' + c3 + '</td>'
+            + '<td style="' + td + '">' + c4 + '</td>'
+            + '<td style="' + td + 'text-align:center;">' + c5 + '</td>'
+            + '<td style="' + td + 'text-align:center;font-weight:700;">' + c6 + '</td>'
+            + '<td style="' + td + 'text-align:right;">' + c7 + '</td>'
+            + '<td style="' + td + 'text-align:right;font-weight:700;">' + c8 + '</td>'
+            + '<td style="' + td + '">' + c9 + '</td>'
+            + '</tr>';
+    }
+
+    var notesText = (po.notes || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    var _apUser   = JSON.parse(sessionStorage.getItem('apUser') || sessionStorage.getItem('spUser') || '{}');
+    var preparedBy = (_apUser.name || _apUser.displayName || po.createdBy || '').toUpperCase();
+    var opsHead    = 'JUAN PAOLO F. TONGCO';
+
+    var inner =
+        '<style>'
+        + '*{box-sizing:border-box;margin:0;padding:0;}'
+        + 'body{font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#1a202c;padding:5mm 6mm;}'
+        + 'h2{font-size:10.5px;font-weight:900;text-align:center;margin-bottom:4px;}'
+        + '.meta{margin-bottom:4px;}'
+        + '.meta-row{display:flex;gap:4px;margin-bottom:2px;font-size:8px;}'
+        + '.meta-row .lbl{font-weight:700;width:115px;flex-shrink:0;}'
+        + '.meta-row .val{border-bottom:1px solid #000;flex:1;padding-bottom:1px;}'
+        + 'table.po{width:100%;border-collapse:collapse;table-layout:fixed;}'
+        + 'table.po th{background:#1a202c;color:#fff;font-size:7px;font-weight:700;border:1px solid #94b5d8;padding:2px 3px;text-align:center;white-space:normal;line-height:1.25;word-break:break-word;}'
+        + 'table.po td{border:1px solid #94b5d8;padding:2px 3px;font-size:7.5px;vertical-align:top;word-break:break-word;overflow-wrap:break-word;}'
+        + '.sub-row td{background:#1a202c;color:#fff;font-size:8px;font-weight:700;border:1px solid #94b5d8;padding:2px 3px;}'
+        + '.notes-label{font-weight:700;margin-top:4px;margin-bottom:2px;font-size:8px;}'
+        + '.notes-box{border:1px solid #94b5d8;padding:3px 5px;min-height:18px;font-size:7.5px;white-space:pre-wrap;}'
+        + '.sigs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:20px;}'
+        + '.sig-line{border-bottom:1px solid #000;min-height:16px;font-size:8px;padding-bottom:2px;font-weight:700;text-align:center;}'
+        + '.sig-label{font-size:7px;color:#555;margin-top:2px;text-align:center;}'
+        + '@media print{'
+        + '  @page{margin:6mm;size:A4 portrait;}'
+        + '  body{padding:0;}'
+        + '  table.po{page-break-inside:auto;}'
+        + '  tr{page-break-inside:avoid;}'
+        + '}'
         + '</style>'
-        + '</head><body>'
-        + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">'
-        +   '<div>'
-        +     '<div style="font-size:22px;font-weight:800;color:#1a202c;letter-spacing:0.3px;">' + (po.poNum || po._docId) + '</div>'
-        +     '<div style="font-size:13px;color:#718096;margin-top:4px;">Purchase Order</div>'
-        +   '</div>'
-        +   '<div style="text-align:right;">'
-        +     '<div style="font-size:12px;color:#718096;">Date: <strong>' + _fmtDate(po.createdAt) + '</strong></div>'
-        +     '<div style="margin-top:6px;display:inline-flex;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(113,128,150,0.1);color:#718096;">' + (po.status || 'Pending') + '</div>'
-        +   '</div>'
+        + '<h2>Internal Purchase Order Form</h2>'
+        + '<div class="meta">'
+        + '<div class="meta-row"><span class="lbl">PO Number:</span><span class="val">' + (po.poNum || po._docId) + '</span></div>'
+        + '<div class="meta-row"><span class="lbl">Order Type (Normal/Rush):</span><span class="val">Normal</span></div>'
+        + '<div class="meta-row"><span class="lbl">Date:</span><span class="val">' + fmtTs(po.createdAt) + '</span></div>'
         + '</div>'
-        + '<table>'
-        +   '<thead><tr>'
-        +     '<th style="width:36px;">#</th>'
-        +     '<th>Item Description</th>'
-        +     '<th>Supplier Code</th>'
-        +     '<th>UOM</th>'
-        +     '<th>Qty</th>'
-        +     '<th>Unit Price</th>'
-        +     '<th>Subtotal</th>'
-        +   '</tr></thead>'
-        +   '<tbody>' + rows + '</tbody>'
-        + '</table>'
-        + (po.totalAmount > 0
-            ? '<div style="display:flex;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:2px solid #e2e8f0;">'
-            +   '<div style="font-size:14px;font-weight:800;">Total: <span style="color:#E8001C;">' + _fmtPeso(po.totalAmount) + '</span></div>'
-            + '</div>'
-            : '')
-        + (po.createdBy ? '<div style="margin-top:20px;font-size:11px;color:#718096;">Created by: ' + po.createdBy + '</div>' : '')
-        + '<div style="margin-top:24px;text-align:center;">'
-        +   '<button onclick="window.print()" style="padding:8px 24px;background:#E8001C;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">🖨 Print</button>'
-        + '</div>'
-        + '</body></html>'
-    );
-    printWin.document.close();
+        + '<table class="po"><colgroup>'
+        + '<col style="width:3.5%">'
+        + '<col style="width:9%">'
+        + '<col style="width:12%">'
+        + '<col style="width:9%">'
+        + '<col style="width:27%">'
+        + '<col style="width:4.5%">'
+        + '<col style="width:6%">'
+        + '<col style="width:9%">'
+        + '<col style="width:10%">'
+        + '<col style="width:10%">'
+        + '</colgroup><thead><tr>'
+        + '<th></th>'
+        + '<th>Item Number</th>'
+        + '<th>Supplier Item Code</th>'
+        + '<th>OEM #</th>'
+        + '<th>Description</th>'
+        + '<th>Curbal</th>'
+        + '<th>Order Qty</th>'
+        + '<th>Supplier Price</th>'
+        + '<th>Total Amount</th>'
+        + '<th>Status: (Compl/ Return)</th>'
+        + '</tr></thead><tbody>' + rowsHtml
+        + '<tr class="sub-row">'
+        + '<td colspan="6" style="text-align:right;padding-right:5px;">Subtotal:</td>'
+        + '<td style="text-align:center;background:#E8001C;border:1px solid #94b5d8;">' + subtotalQty + '</td>'
+        + '<td style="text-align:right;padding-right:3px;">Total Amount</td>'
+        + '<td style="text-align:right;padding-right:3px;background:#E8001C;border:1px solid #94b5d8;">' + (grandTotal > 0 ? grandTotal.toLocaleString('en-PH',{minimumFractionDigits:2}) : '0.00') + '</td>'
+        + '<td></td>'
+        + '</tr>'
+        + '</tbody></table>'
+        + '<div class="notes-label">Notes</div>'
+        + '<div class="notes-box">' + notesText + '</div>'
+        + '<div class="sigs">'
+        + '<div><div class="sig-line">' + preparedBy + '</div><div class="sig-label">Prepared by Name &amp; Signature</div></div>'
+        + '<div><div class="sig-line">' + opsHead    + '</div><div class="sig-label">Operations Head/Name &amp; Signature</div></div>'
+        + '<div><div class="sig-line">' + dateStr    + '</div><div class="sig-label">Date</div></div>'
+        + '</div>';
+
+    // ── Same-page print (identical mechanism to admin_receiving.html) ──
+    var prev = document.getElementById('_apPrintContent');
+    if (prev) prev.remove();
+    var prevStyle = document.getElementById('_apPrintStyle');
+    if (prevStyle) prevStyle.remove();
+
+    var printDiv = document.createElement('div');
+    printDiv.id  = '_apPrintContent';
+    printDiv.innerHTML = inner;
+
+    var styleEl = document.createElement('style');
+    styleEl.id  = '_apPrintStyle';
+    styleEl.textContent = [
+        '@media print {',
+        '  body > *:not(#_apPrintContent) { display: none !important; }',
+        '  #_apPrintContent { display: block !important; }',
+        '  @page { margin: 8mm; size: A4 portrait; }',
+        '}',
+        '#_apPrintContent { display: none; }',
+    ].join('\n');
+
+    document.head.appendChild(styleEl);
+    document.body.appendChild(printDiv);
+
+    setTimeout(function() {
+        window.print();
+        setTimeout(function() {
+            var s  = document.getElementById('_apPrintStyle');
+            var d2 = document.getElementById('_apPrintContent');
+            if (s)  s.remove();
+            if (d2) d2.remove();
+        }, 500);
+    }, 120);
 }
 
-// ── Edit PO (Pending only) ────────────────────────────────────────────────────
+// ── Edit PO (Pending only) — opens create modal pre-filled ───────────────────
+var _poEditingId = null;   // docId of PO being edited (null = new PO)
+
 function _poEdit() {
     var po = _allPOs.find(function(x) { return x._docId === _poViewId; });
     if (!po || po.status !== 'Pending') return;
     closeModal('poViewModal');
-    showToast('Edit mode — coming soon. For now, Cancel the PO and create a new one.', 'error');
+    _poEditingId = po._docId;
+    _poAdded     = {};
+    _poNewItems  = [];
+
+    // Reset search
+    var srch = document.getElementById('poReplenishSearch');
+    if (srch) srch.value = '';
+    var clr = document.getElementById('poReplenishSearchClear');
+    if (clr) clr.style.display = 'none';
+
+    // Update modal header to say "Edit PO"
+    var hTitle = document.querySelector('#poNewModal .modal-content > div:first-child > div > div:first-child');
+    if (hTitle) hTitle.textContent = 'Edit Purchase Order (PO)';
+    var hSub = document.querySelector('#poNewModal .modal-content > div:first-child > div > div:last-child');
+    if (hSub) hSub.textContent = po.poNum || po._docId;
+
+    // Update save button text
+    var saveBtn = document.getElementById('poSaveBtn');
+    if (saveBtn) saveBtn.textContent = 'Update Purchase Order';
+
+    document.getElementById('poAddedSection').style.display = 'none';
+    document.getElementById('poAddedList').innerHTML = '';
+    document.getElementById('poTotalAmt').textContent = '₱0.00';
+    document.getElementById('poReplenishList').innerHTML =
+        '<div style="padding:1rem;text-align:center;color:#a0aec0;font-size:12px;">Loading…</div>';
+    document.getElementById('poNewModal').classList.add('active');
+
+    // Load replenishment items then pre-select the PO's existing items
+    Promise.all([
+        db.collection('stock_inventory').get(),
+        db.collection('item_master').get()
+    ]).then(function(results) {
+        var stockSnap  = results[0];
+        var masterSnap = results[1];
+        var masterMap  = {};
+        masterSnap.forEach(function(d) {
+            var data = d.data();
+            var n = (data.num || '').trim();
+            if (n) masterMap[n] = {
+                cost:         parseFloat((data.cost || '0').toString().replace(/[₱,]/g,'')) || 0,
+                supplierCode: data.supplierCode || ''
+            };
+        });
+
+        // Build full replenishment list (low/out of stock)
+        var need = [];
+        var inNeed = {};
+        stockSnap.forEach(function(d) {
+            var s     = d.data();
+            var stock = parseInt(s.stock) || 0;
+            var min   = parseInt(s.min)   || 0;
+            if (stock > min) return;
+            var n      = (s.num || '').trim();
+            var master = masterMap[n] || {};
+            var item = {
+                num:          n,
+                name:         s.name  || '',
+                uom:          s.uom   || '',
+                stock:        stock,
+                min:          min,
+                max:          parseInt(s.max) || 0,
+                cost:         master.cost         || 0,
+                supplierCode: master.supplierCode || ''
+            };
+            need.push(item);
+            inNeed[n] = true;
+        });
+        need.sort(function(a, b) {
+            if (a.stock === 0 && b.stock !== 0) return -1;
+            if (b.stock === 0 && a.stock !== 0) return  1;
+            return a.name.localeCompare(b.name);
+        });
+
+        // Also add the PO's existing items that are NOT already in the replenishment list
+        // (so they can still be edited even if stock recovered)
+        (po.items || []).forEach(function(it) {
+            var n = (it.itemNum || '').trim();
+            if (!n || inNeed[n]) return;
+            var master = masterMap[n] || {};
+            need.unshift({
+                num:          n,
+                name:         it.itemName     || '',
+                uom:          it.uom          || '',
+                stock:        0,
+                min:          0,
+                max:          parseInt(it.expectedQty) || 0,
+                cost:         parseFloat(it.unitCost || master.cost || 0),
+                supplierCode: it.supplierCode || master.supplierCode || ''
+            });
+        });
+
+        _poNewItems = need;
+
+        // Pre-populate _poAdded with existing PO items + quantities
+        (po.items || []).forEach(function(it) {
+            var n = (it.itemNum || '').trim();
+            if (n) _poAdded[n] = parseInt(it.expectedQty) || 1;
+        });
+
+        _poRenderReplenishList();
+        _poRenderAdded();
+    }).catch(function(err) {
+        document.getElementById('poReplenishList').innerHTML =
+            '<div style="padding:1.5rem;text-align:center;color:#E8001C;font-size:12px;">Error: ' + err.message + '</div>';
+    });
 }
 
 // ── Create PO Modal ───────────────────────────────────────────────────────────
@@ -1106,26 +1310,47 @@ function _poSave() {
         return s + (parseFloat(i.unitCost) || 0) * (i.expectedQty || 0);
     }, 0);
 
-    // Get current user name for createdBy
     var sess      = JSON.parse(sessionStorage.getItem('apUser') || sessionStorage.getItem('spUser') || '{}');
     var createdBy = sess.name || '';
 
-    db.collection(_PO_COL).add({
-        poNum:       _genPoNum(),
-        items:       items,
-        status:      'Pending',
-        totalAmount: totalAmount,
-        createdBy:   createdBy,
-        createdAt:   firebase.firestore.FieldValue.serverTimestamp()
-    }).then(function() {
+    var isEdit = !!_poEditingId;
+
+    var promise = isEdit
+        ? db.collection(_PO_COL).doc(_poEditingId).update({
+            items:       items,
+            totalAmount: totalAmount,
+            updatedAt:   firebase.firestore.FieldValue.serverTimestamp()
+          })
+        : db.collection(_PO_COL).add({
+            poNum:       _genPoNum(),
+            items:       items,
+            status:      'Pending',
+            totalAmount: totalAmount,
+            createdBy:   createdBy,
+            createdAt:   firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+    promise.then(function() {
+        _poResetNewModal();
         closeModal('poNewModal');
-        showToast('Purchase order created successfully!', 'success');
+        showToast(isEdit ? 'Purchase order updated!' : 'Purchase order created!', 'success');
     }).catch(function(err) {
         showToast('Error: ' + err.message, 'error');
     }).finally(function() {
         btn.disabled    = false;
-        btn.textContent = 'Save Purchase Order';
+        btn.textContent = isEdit ? 'Update Purchase Order' : 'Save Purchase Order';
     });
+}
+
+// Reset new/edit modal to default "create" state
+function _poResetNewModal() {
+    _poEditingId = null;
+    var hTitle = document.querySelector('#poNewModal .modal-content > div:first-child > div > div:first-child');
+    if (hTitle) hTitle.textContent = 'Create Purchase Order (PO)';
+    var hSub = document.querySelector('#poNewModal .modal-content > div:first-child > div > div:last-child');
+    if (hSub) hSub.textContent = 'Select items that need replenishment';
+    var saveBtn = document.getElementById('poSaveBtn');
+    if (saveBtn) saveBtn.textContent = 'Save Purchase Order';
 }
 
 // ── FAB ────────────────────────────────────────────────────────────────────────
