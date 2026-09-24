@@ -564,7 +564,13 @@ function _stColor(status) {
     return _ST_COLORS[status] || ['#718096','rgba(113,128,150,0.10)'];
 }
 
-// ── Real-time listener ────────────────────────────────────────────────────────
+// ── Card click — event delegation on #poGrid ─────────────────────────────────
+document.getElementById('poGrid').addEventListener('click', function(e) {
+    var card = e.target.closest('.po-card');
+    if (!card) return;
+    var docId = card.getAttribute('data-docid');
+    if (docId) window._poOpenView(docId);
+});
 (function _listen() {
     // No server-side orderBy — avoids index requirements on a new collection.
     // Sorting is handled client-side in _poRender().
@@ -652,7 +658,7 @@ function _poRender() {
         var total     = po.totalAmount > 0 ? _fmtPeso(po.totalAmount) : '—';
         var itemCount = (po.items || []).length;
 
-        return '<div class="po-card" onclick="window._poOpenView(\'' + po._docId + '\')" style="cursor:pointer;">'
+        return '<div class="po-card" data-docid="' + po._docId + '" style="cursor:pointer;">'
             + '<div class="po-card-header">'
             +   '<div>'
             +     '<div class="po-card-id">' + (po.poNum || po._docId) + '</div>'
@@ -667,7 +673,6 @@ function _poRender() {
             +   '</div>'
             +   '<div style="display:flex;align-items:center;gap:8px;">'
             +     '<span style="font-size:13px;font-weight:800;color:#1a202c;">' + total + '</span>'
-            +     '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
             +   '</div>'
             + '</div>'
             + (itemNames ? '<div class="po-card-items-preview">' + itemNames + '</div>' : '')
