@@ -395,8 +395,7 @@
                 Added items <span id="poAddedCount" style="color:#1a202c;font-weight:700;"></span>
             </div>
             <div id="poAddedList"
-                 style="border:1.5px solid #e2e8f0;border-radius:12px;
-                        background:white;margin-bottom:0.75rem;overflow:hidden;"></div>
+                 style="margin-bottom:0.75rem;"></div>
             <div style="display:flex;justify-content:space-between;align-items:center;
                         padding:10px 14px;background:white;border:1.5px solid #e2e8f0;
                         border-radius:10px;margin-bottom:0.5rem;">
@@ -435,19 +434,62 @@
                        flex-shrink:0;">&times;</button>
     </div>
     <div id="poViewBody" style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;"></div>
-    <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;
-                display:flex;justify-content:flex-end;gap:0.75rem;flex-shrink:0;">
-        <button onclick="closeModal('poViewModal')" class="btn btn-secondary">Close</button>
-        <button id="poViewMarkOrderedBtn" onclick="_poMarkOrdered()"
-                class="btn btn-primary"
-                style="display:none;background:#003087;color:white;border:none;">
-            Mark as Ordered
-        </button>
-        <button id="poViewCancelBtn" onclick="_poCancelPO()"
-                class="btn"
-                style="display:none;background:none;border:1.5px solid #E8001C;color:#E8001C;cursor:pointer;">
-            Cancel PO
-        </button>
+    <div style="padding:0.85rem 1.5rem;background:white;border-top:1px solid #e2e8f0;
+                display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-shrink:0;flex-wrap:wrap;">
+        <!-- Left: Print + Edit -->
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+            <button id="poViewPrintBtn" onclick="_poPrint()"
+                    style="display:none;align-items:center;gap:6px;padding:0.5rem 1rem;
+                           background:white;border:1.5px solid #e2e8f0;border-radius:8px;
+                           color:#4a5568;font-size:0.82rem;font-weight:600;cursor:pointer;
+                           transition:all .15s;"
+                    onmouseover="this.style.background='#f7fafc';this.style.borderColor='#cbd5e0'"
+                    onmouseout="this.style.background='white';this.style.borderColor='#e2e8f0'">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Print PO
+            </button>
+            <button id="poViewEditBtn" onclick="_poEdit()"
+                    style="display:none;align-items:center;gap:6px;padding:0.5rem 1rem;
+                           background:white;border:1.5px solid #e2e8f0;border-radius:8px;
+                           color:#4a5568;font-size:0.82rem;font-weight:600;cursor:pointer;
+                           transition:all .15s;"
+                    onmouseover="this.style.background='#f7fafc';this.style.borderColor='#cbd5e0'"
+                    onmouseout="this.style.background='white';this.style.borderColor='#e2e8f0'">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit
+            </button>
+        </div>
+        <!-- Right: Close + Cancel + Mark as Ordered -->
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+            <button id="poViewCancelBtn" onclick="_poCancelPO()"
+                    style="display:none;align-items:center;gap:6px;padding:0.5rem 1rem;
+                           background:white;border:1.5px solid #E8001C;border-radius:8px;
+                           color:#E8001C;font-size:0.82rem;font-weight:600;cursor:pointer;
+                           transition:all .15s;"
+                    onmouseover="this.style.background='#fff5f5'"
+                    onmouseout="this.style.background='white'">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Cancel PO
+            </button>
+            <button onclick="closeModal('poViewModal')"
+                    style="padding:0.5rem 1.1rem;background:white;border:1.5px solid #e2e8f0;
+                           border-radius:8px;color:#4a5568;font-size:0.82rem;font-weight:600;
+                           cursor:pointer;transition:all .15s;"
+                    onmouseover="this.style.background='#f7fafc'"
+                    onmouseout="this.style.background='white'">
+                Close
+            </button>
+            <button id="poViewMarkOrderedBtn" onclick="_poMarkOrdered()"
+                    style="display:none;align-items:center;gap:6px;padding:0.5rem 1.1rem;
+                           background:#003087;border:none;border-radius:8px;
+                           color:white;font-size:0.82rem;font-weight:700;cursor:pointer;
+                           transition:opacity .15s;"
+                    onmouseover="this.style.opacity='0.88'"
+                    onmouseout="this.style.opacity='1'">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Mark as Ordered
+            </button>
+        </div>
     </div>
   </div>
 </div>
@@ -501,14 +543,20 @@ function _msDate(d) {
     var dt = new Date(typeof raw === 'string' ? raw : '');
     return isNaN(dt) ? 0 : dt.getTime();
 }
-// Generate PO number: PO-YYYYMMDD-XXXX
+// Generate PO number: PO-YYYYMMDD-0001, 0002, ...
+// Queries purchase_orders for today's date prefix to get the next sequence number.
 function _genPoNum() {
     var now = new Date();
     var y   = now.getFullYear();
     var m   = String(now.getMonth() + 1).padStart(2, '0');
     var d   = String(now.getDate()).padStart(2, '0');
-    var rand = String(Math.floor(1000 + Math.random() * 9000));
-    return 'PO-' + y + m + d + '-' + rand;
+    var prefix = 'PO-' + y + m + d + '-';
+    // Count existing POs with today's prefix and increment
+    var todayPOs = _allPOs.filter(function(po) {
+        return (po.poNum || '').startsWith(prefix);
+    });
+    var next = todayPOs.length + 1;
+    return prefix + String(next).padStart(4, '0');
 }
 
 // Status colors: [text, background]
@@ -640,9 +688,11 @@ function _poOpenView(docId) {
     document.getElementById('poViewSubtitle').textContent  = _fmtDate(po.createdAt) + '  •  ' + items.length + ' item' + (items.length !== 1 ? 's' : '');
     document.getElementById('poViewBadge').innerHTML = '<span class="po-badge" style="color:' + c[0] + ';background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.5);font-size:11px;">' + status + '</span>';
 
-    // Footer buttons
+    // Footer buttons — visibility depends on status
     document.getElementById('poViewMarkOrderedBtn').style.display = (status === 'Pending') ? 'inline-flex' : 'none';
     document.getElementById('poViewCancelBtn').style.display      = (status === 'Pending' || status === 'Ordered') ? 'inline-flex' : 'none';
+    document.getElementById('poViewPrintBtn').style.display       = 'inline-flex';
+    document.getElementById('poViewEditBtn').style.display        = (status === 'Pending') ? 'inline-flex' : 'none';
 
     // Build body
     var html = '';
@@ -725,6 +775,83 @@ function _poCancelPO() {
     db.collection(_PO_COL).doc(_poViewId).update({ status: 'Cancelled' })
       .then(function() { showToast('Purchase order cancelled.', 'error'); })
       .catch(function(e) { showToast('Error: ' + e.message, 'error'); });
+}
+
+// ── Print PO ──────────────────────────────────────────────────────────────────
+function _poPrint() {
+    var po = _allPOs.find(function(x) { return x._docId === _poViewId; });
+    if (!po) return;
+    var items  = po.items || [];
+    var rows   = items.map(function(item, i) {
+        var cost     = parseFloat((item.unitCost || '0').toString().replace(/[₱,]/g,'')) || 0;
+        var qty      = parseInt(item.expectedQty) || 0;
+        var subtotal = cost * qty;
+        return '<tr style="border-bottom:1px solid #e2e8f0;">'
+            + '<td style="padding:8px 10px;font-size:12px;">' + (i + 1) + '</td>'
+            + '<td style="padding:8px 10px;font-size:12px;font-weight:600;">' + (item.itemName || '—') + '</td>'
+            + '<td style="padding:8px 10px;font-size:12px;color:#718096;">' + (item.supplierCode || '—') + '</td>'
+            + '<td style="padding:8px 10px;font-size:12px;">' + (item.uom || '—') + '</td>'
+            + '<td style="padding:8px 10px;font-size:12px;text-align:right;">' + qty + '</td>'
+            + '<td style="padding:8px 10px;font-size:12px;text-align:right;">' + (cost > 0 ? _fmtPeso(cost) : '—') + '</td>'
+            + '<td style="padding:8px 10px;font-size:12px;font-weight:700;text-align:right;color:#E8001C;">' + (subtotal > 0 ? _fmtPeso(subtotal) : '—') + '</td>'
+            + '</tr>';
+    }).join('');
+
+    var printWin = window.open('', '_blank', 'width=860,height=700');
+    printWin.document.write(
+        '<!DOCTYPE html><html><head>'
+        + '<meta charset="UTF-8">'
+        + '<title>' + (po.poNum || po._docId) + '</title>'
+        + '<style>'
+        + 'body{font-family:system-ui,sans-serif;margin:0;padding:32px;color:#1a202c;}'
+        + '@media print{body{padding:16px;}button{display:none!important;}}'
+        + 'table{width:100%;border-collapse:collapse;}'
+        + 'th{background:#f7fafc;padding:8px 10px;font-size:11px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:0.4px;text-align:left;border-bottom:2px solid #e2e8f0;}'
+        + 'th:nth-child(5),th:nth-child(6),th:nth-child(7){text-align:right;}'
+        + '</style>'
+        + '</head><body>'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">'
+        +   '<div>'
+        +     '<div style="font-size:22px;font-weight:800;color:#1a202c;letter-spacing:0.3px;">' + (po.poNum || po._docId) + '</div>'
+        +     '<div style="font-size:13px;color:#718096;margin-top:4px;">Purchase Order</div>'
+        +   '</div>'
+        +   '<div style="text-align:right;">'
+        +     '<div style="font-size:12px;color:#718096;">Date: <strong>' + _fmtDate(po.createdAt) + '</strong></div>'
+        +     '<div style="margin-top:6px;display:inline-flex;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(113,128,150,0.1);color:#718096;">' + (po.status || 'Pending') + '</div>'
+        +   '</div>'
+        + '</div>'
+        + '<table>'
+        +   '<thead><tr>'
+        +     '<th style="width:36px;">#</th>'
+        +     '<th>Item Description</th>'
+        +     '<th>Supplier Code</th>'
+        +     '<th>UOM</th>'
+        +     '<th>Qty</th>'
+        +     '<th>Unit Price</th>'
+        +     '<th>Subtotal</th>'
+        +   '</tr></thead>'
+        +   '<tbody>' + rows + '</tbody>'
+        + '</table>'
+        + (po.totalAmount > 0
+            ? '<div style="display:flex;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:2px solid #e2e8f0;">'
+            +   '<div style="font-size:14px;font-weight:800;">Total: <span style="color:#E8001C;">' + _fmtPeso(po.totalAmount) + '</span></div>'
+            + '</div>'
+            : '')
+        + (po.createdBy ? '<div style="margin-top:20px;font-size:11px;color:#718096;">Created by: ' + po.createdBy + '</div>' : '')
+        + '<div style="margin-top:24px;text-align:center;">'
+        +   '<button onclick="window.print()" style="padding:8px 24px;background:#E8001C;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">🖨 Print</button>'
+        + '</div>'
+        + '</body></html>'
+    );
+    printWin.document.close();
+}
+
+// ── Edit PO (Pending only) ────────────────────────────────────────────────────
+function _poEdit() {
+    var po = _allPOs.find(function(x) { return x._docId === _poViewId; });
+    if (!po || po.status !== 'Pending') return;
+    closeModal('poViewModal');
+    showToast('Edit mode — coming soon. For now, Cancel the PO and create a new one.', 'error');
 }
 
 // ── Create PO Modal ───────────────────────────────────────────────────────────
@@ -860,6 +987,7 @@ function _poToggleItem(origIdx) {
 }
 
 function _poRenderAdded() {
+function _poRenderAdded() {
     var keys    = Object.keys(_poAdded);
     var section = document.getElementById('poAddedSection');
     if (!keys.length) { section.style.display = 'none'; return; }
@@ -867,31 +995,72 @@ function _poRenderAdded() {
     var cntEl = document.getElementById('poAddedCount');
     if (cntEl) cntEl.textContent = '(' + keys.length + ')';
 
-    var html = keys.map(function(num) {
-        var item     = _poNewItems.find(function(i) { return i.num === num; });
-        if (!item) return '';
-        var qty      = parseInt(_poAdded[num]) || 1;
-        var subtotal = item.cost * qty;
-        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #f0f4f8;">'
+    // ── Meta chip helper (matches admin_receiving.html card style) ──
+    function _chip(text, icon, color) {
+        return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;color:' + color + ';background:' + color + '0f;border:1px solid ' + color + '26;">'
+            + '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + icon + '</svg>'
+            + text + '</span>';
+    }
+
+    var container = document.getElementById('poAddedList');
+    container.innerHTML = '';
+
+    keys.forEach(function(num) {
+        var item    = _poNewItems.find(function(x) { return x.num === num; });
+        if (!item) return;
+        var qty     = parseInt(_poAdded[num]) || 1;
+        var cost    = item.cost || 0;
+        var stock   = item.stock !== undefined ? item.stock : null;
+        var maxQty  = item.max > item.stock ? Math.max(1, item.max - item.stock) : 999;
+        var safeNum = num.replace(/[^a-zA-Z0-9]/g, '_');
+        var qtyId   = 'poQty_' + safeNum;
+        var subId   = 'poSub_' + safeNum;
+        var subtotal = cost * qty;
+
+        var metaChips = '';
+        if (item.supplierCode) metaChips += _chip(item.supplierCode, '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h3v3H7z"/>', '#4a5568');
+        if (cost > 0)          metaChips += _chip('\u20b1' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}), '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>', '#003087');
+        if (stock !== null)    metaChips += _chip('Stock: ' + stock, '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>', stock === 0 ? '#e53e3e' : '#718096');
+
+        var card = document.createElement('div');
+        card.style.cssText = 'background:white;border:1.2px solid #e2e8f0;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:0;box-shadow:0 2px 8px rgba(0,0,0,0.03),0 1px 2px rgba(0,0,0,0.02);margin-bottom:8px;';
+        card.innerHTML =
+            '<div style="display:flex;align-items:flex-start;gap:10px;">'
             + '<div style="flex:1;min-width:0;">'
-            +   '<div style="font-size:13px;font-weight:700;color:#1a202c;">' + item.name + '</div>'
-            +   '<div style="font-size:11px;color:#718096;">' + (item.uom || '') + (item.cost > 0 ? '  •  ' + _fmtPeso(item.cost) + '/unit' : '') + '</div>'
+            +   '<div style="font-weight:700;font-size:0.9rem;color:#1a202c;line-height:1.35;">'
+            +     item.name
+            +     (item.uom ? '&nbsp;&nbsp;<span style="font-weight:400;font-size:0.76rem;color:#718096;">(' + item.uom + ')</span>' : '')
+            +   '</div>'
             + '</div>'
-            + '<div style="display:flex;align-items:center;gap:6px;">'
-            +   '<label style="font-size:11px;color:#718096;">Qty:</label>'
-            +   '<input type="number" min="1" value="' + qty + '" '
-            +          'onchange="_poAdded[\'' + num + '\']=Math.max(1,parseInt(this.value)||1);_poUpdateTotal();" '
-            +          'style="width:60px;padding:4px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;text-align:center;">'
+            + '<button type="button" onclick="_poRemoveAdded(\'' + num + '\')" '
+            +   'style="background:#fef2f2;border:1px solid #fecaca;color:#e53e3e;cursor:pointer;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1rem;line-height:1;transition:all .15s;" '
+            +   'onmouseover="this.style.background=\'#fee2e2\'" onmouseout="this.style.background=\'#fef2f2\'">\u00d7</button>'
             + '</div>'
-            + '<div style="font-size:13px;font-weight:700;color:#E8001C;min-width:68px;text-align:right;">' + (subtotal > 0 ? _fmtPeso(subtotal) : '—') + '</div>'
-            + '<button onclick="_poRemoveAdded(\'' + num + '\')" title="Remove" '
-            +         'style="background:none;border:none;cursor:pointer;color:#a0aec0;padding:4px;">'
-            +   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
-            + '</button>'
-            + '</div>';
-    }).join('');
-    document.getElementById('poAddedList').innerHTML = html;
-    _poUpdateTotal();
+            + (metaChips ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">' + metaChips + '</div>' : '')
+            + '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">'
+            +   '<span style="font-size:0.78rem;font-weight:600;color:#4a5568;">Order Quantity</span>'
+            +   '<div style="display:flex;align-items:center;background:white;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);overflow:hidden;">'
+            +     '<button type="button" onclick="(function(){var el=document.getElementById(\'' + qtyId + '\');var v=Math.max(1,(parseInt(el.value)||1)-1);el.value=v;el.dispatchEvent(new Event(\'input\'));})()" '
+            +       'style="background:none;border:none;color:#718096;width:34px;height:34px;cursor:pointer;font-size:1.1rem;line-height:1;display:flex;align-items:center;justify-content:center;" '
+            +       'onmouseover="this.style.background=\'#f0f4f8\'" onmouseout="this.style.background=\'none\'">&minus;</button>'
+            +     '<input type="number" id="' + qtyId + '" value="' + qty + '" min="1" max="' + maxQty + '" '
+            +       'style="width:48px;border:none;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;background:white;font-size:0.9rem;font-weight:700;text-align:center;outline:none;padding:4px 0;height:34px;box-sizing:border-box;-moz-appearance:textfield;" '
+            +       'oninput="(function(el,n,mx,c){var v=Math.min(mx,Math.max(1,parseInt(el.value)||1));if(parseInt(el.value)!==v)el.value=v;_poAdded[n]=v;var sub=document.getElementById(\'poSub_\'+n.replace(/[^a-zA-Z0-9]/g,\'_\'));if(sub)sub.textContent=c>0?\'\u20b1\'+(c*v).toLocaleString(\'en-PH\',{minimumFractionDigits:2}):\'\';_poCalcTotal();})(this,\'' + num + '\',' + maxQty + ',' + cost + ')">'
+            +     '<button type="button" onclick="(function(){var el=document.getElementById(\'' + qtyId + '\');var v=Math.min(' + maxQty + ',(parseInt(el.value)||1)+1);el.value=v;el.dispatchEvent(new Event(\'input\'));})()" '
+            +       'style="background:none;border:none;color:#E8001C;width:34px;height:34px;cursor:pointer;font-size:1.1rem;line-height:1;display:flex;align-items:center;justify-content:center;" '
+            +       'onmouseover="this.style.background=\'#fff5f5\'" onmouseout="this.style.background=\'none\'">+</button>'
+            +   '</div>'
+            + '</div>'
+            + (cost > 0
+                ? '<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:10px;">'
+                +   '<span style="font-size:0.72rem;color:#a0aec0;font-weight:500;">Subtotal</span>'
+                +   '<strong id="' + subId + '" style="font-size:0.9rem;color:#E8001C;font-weight:800;">\u20b1' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</strong>'
+                + '</div>'
+                : '');
+        container.appendChild(card);
+    });
+
+    _poCalcTotal();
 }
 
 function _poRemoveAdded(num) {
@@ -900,13 +1069,12 @@ function _poRemoveAdded(num) {
     _poRenderAdded();
 }
 
-function _poUpdateTotal() {
+function _poCalcTotal() {
     var total = Object.keys(_poAdded).reduce(function(sum, num) {
         var item = _poNewItems.find(function(i) { return i.num === num; });
         return sum + (item ? item.cost * (parseInt(_poAdded[num]) || 0) : 0);
     }, 0);
     document.getElementById('poTotalAmt').textContent = _fmtPeso(total);
-    _poRenderAdded();
 }
 
 function _poSave() {
