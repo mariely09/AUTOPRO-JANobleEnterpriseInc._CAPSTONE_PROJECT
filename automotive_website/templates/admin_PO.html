@@ -564,8 +564,8 @@ function _stColor(status) {
     return _ST_COLORS[status] || ['#718096','rgba(113,128,150,0.10)'];
 }
 
-// ── Card click — event delegation on #poGrid ─────────────────────────────────
-document.getElementById('poGrid').addEventListener('click', function(e) {
+// ── Card click — event delegation on document (survives DOM mutations) ────────
+document.addEventListener('click', function(e) {
     var card = e.target.closest('.po-card');
     if (!card) return;
     var docId = card.getAttribute('data-docid');

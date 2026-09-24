@@ -46,10 +46,51 @@
         .rv-grid { display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:10px;align-items:center;margin-top:10px; }
         .rv-col-label { font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px; }
         .rv-col-val { font-size:13px;font-weight:600;color:#1a202c; }
-        @keyframes spin { to { transform:rotate(360deg); } }
-        /* Hide number input spinners */
-        input[type=number]::-webkit-inner-spin-button,
-        input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none;margin:0; }
+        /* ── Receiving card grid (same style as admin_PO.html) ── */
+        .rcv-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1rem;
+        }
+        .rcv-card {
+            background: white;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 18px 20px;
+            cursor: pointer;
+            transition: box-shadow .15s, transform .15s, border-color .15s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .rcv-card:hover {
+            box-shadow: 0 6px 20px rgba(0,0,0,0.09);
+            transform: translateY(-2px);
+            border-color: #cbd5e0;
+        }
+        .rcv-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .rcv-card-id   { font-size: 13px; font-weight: 800; color: #1a202c; letter-spacing: 0.2px; }
+        .rcv-card-date { font-size: 11px; color: #718096; margin-top: 2px; }
+        .rcv-card-divider { border: none; border-top: 1px solid #f0f4f8; margin: 10px 0; }
+        .rcv-card-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+        .rcv-card-lines-preview {
+            font-size: 11px;
+            color: #718096;
+            margin-top: 6px;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body class="portal-body" data-page="receiving">
@@ -152,31 +193,37 @@
                     </div>
                 </div>
             </div>
-            <!-- Table -->
-            <div class="data-table">
-                <div class="table-row" style="background:#f7fafc;font-weight:bold;border-bottom:2px solid #e2e8f0;grid-template-columns:110px 100px 1.1fr 1.6fr 0.6fr 0.6fr 0.7fr 0.8fr 120px 130px;">
-                    <div>RCV No. / Date</div><div>PO Ref.</div><div>Supplier Code</div><div>Item Description</div><div>Stock</div><div>PO Qty</div><div>Rcv Qty</div><div>Subtotal</div><div>Line Status</div><div>Actions</div>
-                </div>
-                <div id="deliveriesList">
-                    <!-- Skeleton rows -->
-                    <div id="rcvSkeleton">
-                      <style>
-                        @keyframes rcvShimmer { 0% { background-position:-600px 0; } 100% { background-position:600px 0; } }
-                        .rcv-skel-row { display:grid; grid-template-columns:110px 100px 1.1fr 1.6fr 0.6fr 0.6fr 0.7fr 0.8fr 120px 130px; padding:13px 16px; border-bottom:1px solid #f0f4f8; align-items:center; gap:0; }
-                        .rcv-skel-cell { height:13px; border-radius:6px; background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%); background-size:600px 100%; animation:rcvShimmer 1.4s infinite linear; margin-right:20px; }
-                        .rcv-skel-cell.short  { width:55%; }
-                        .rcv-skel-cell.medium { width:75%; }
-                        .rcv-skel-cell.badge  { width:80px; height:20px; border-radius:20px; }
-                        .rcv-skel-cell.btn    { width:90px; height:24px; border-radius:7px; }
-                      </style>
-                      <div class="rcv-skel-row"><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell badge"></div><div class="rcv-skel-cell btn"></div></div>
-                      <div class="rcv-skel-row"><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell badge"></div><div class="rcv-skel-cell btn"></div></div>
-                      <div class="rcv-skel-row"><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell badge"></div><div class="rcv-skel-cell btn"></div></div>
-                      <div class="rcv-skel-row"><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell badge"></div><div class="rcv-skel-cell btn"></div></div>
-                      <div class="rcv-skel-row"><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell medium"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell short"></div><div class="rcv-skel-cell badge"></div><div class="rcv-skel-cell btn"></div></div>
+            <!-- Receiving card grid -->
+            <div id="deliveriesList" class="rcv-grid">
+                <!-- Skeleton cards -->
+                <div class="rcv-card" style="cursor:default;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                        <div><div style="height:12px;border-radius:6px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;width:120px;margin-bottom:6px;"></div><div style="height:10px;border-radius:6px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;width:80px;"></div></div>
+                        <div style="height:20px;width:80px;border-radius:20px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;"></div>
                     </div>
+                    <div style="height:1px;background:#f0f4f8;margin:10px 0;"></div>
+                    <div style="height:12px;border-radius:6px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;width:70%;margin-bottom:8px;"></div>
+                    <div style="height:11px;border-radius:6px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;width:90%;"></div>
                 </div>
-            </div>
+                <div class="rcv-card" style="cursor:default;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                        <div><div style="height:12px;border-radius:6px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;width:120px;margin-bottom:6px;"></div><div style="height:10px;border-radius:6px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;width:80px;"></div></div>
+                        <div style="height:20px;width:80px;border-radius:20px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;"></div>
+                    </div>
+                    <div style="height:1px;background:#f0f4f8;margin:10px 0;"></div>
+                    <div style="height:12px;border-radius:6px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;width:70%;margin-bottom:8px;"></div>
+                    <div style="height:11px;border-radius:6px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;width:90%;"></div>
+                </div>
+                <div class="rcv-card" style="cursor:default;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                        <div><div style="height:12px;border-radius:6px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;width:120px;margin-bottom:6px;"></div><div style="height:10px;border-radius:6px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;width:80px;"></div></div>
+                        <div style="height:20px;width:80px;border-radius:20px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;"></div>
+                    </div>
+                    <div style="height:1px;background:#f0f4f8;margin:10px 0;"></div>
+                    <div style="height:12px;border-radius:6px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;width:70%;margin-bottom:8px;"></div>
+                    <div style="height:11px;border-radius:6px;background:linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%);background-size:600px 100%;animation:rcvShimmer 1.4s infinite linear;width:90%;"></div>
+                </div>
+            </div><!-- /rcv-grid -->
         </div>
     </div><!-- /.admin-page-shell -->
 </div><!-- /admin-dashboard -->
@@ -359,6 +406,39 @@ function _genRcvNum() {
   return prefix + String(todayCount + 1).padStart(4,'0');
 }
 
+// ── Card click — event delegation (survives DOM mutations) ───────────────────
+document.addEventListener('click', function(e) {
+  var card = e.target.closest('.rcv-card');
+  if (!card) return;
+  // Ignore clicks on action buttons inside the card
+  if (e.target.closest('button')) return;
+  var docId = card.getAttribute('data-rcvid');
+  if (docId) rcvOpenCard(docId);
+});
+
+// Open the first pending line, or the item view for completed records
+window.rcvOpenCard = function(docId) {
+  var r = _allRcv.find(function(x){ return x._docId === docId; });
+  if (!r) return;
+  var lines = r.receivingLines || [];
+  if (!lines.length) {
+    showToast('No lines in this receiving record.', 'error');
+    return;
+  }
+  // Find first DRAFT line
+  var firstDraft = -1;
+  for (var i = 0; i < lines.length; i++) {
+    if ((lines[i].lineStatus || 'DRAFT') === 'DRAFT') { firstDraft = i; break; }
+  }
+  var s = r.status || 'DRAFT';
+  if ((s === 'INPROG' || s === 'DRAFT') && firstDraft >= 0) {
+    openReceiveModal(docId, firstDraft);
+  } else {
+    // All lines done — open view of first line
+    openItemViewModal(docId, 0);
+  }
+};
+
 // ── Real-time listener ────────────────────────────────────────────────────────
 (function _listen() {
   db.collection(_RCV_COL)
@@ -387,18 +467,16 @@ function _rcvUpdateStats() {
 // ── Filter & render ───────────────────────────────────────────────────────────
 window.setFilter = function(f, btn) {
   _currentFilter = f;
-  _apPages['deliveriesList'] = 1;
   document.querySelectorAll('#rcvFilterPills .dss-pill').forEach(function(b){ b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
   _rcvRenderList();
 };
 
-window.deliveryApplySearch = function() { _apPages['deliveriesList'] = 1; _rcvRenderList(); };
+window.deliveryApplySearch = function() { _rcvRenderList(); };
 
 function _rcvRenderList() {
   var q    = ((document.getElementById('deliverySearch')||{}).value||'').trim().toLowerCase();
   var sort = ((document.getElementById('deliverySortSelect')||{}).value||'date-desc');
-  var COL  = 'grid-template-columns:110px 100px 1.1fr 1.6fr 0.6fr 0.6fr 0.7fr 0.8fr 120px 130px;';
 
   var list = _currentFilter === 'all' ? _allRcv.slice()
     : _allRcv.filter(function(r){ return (r.status||'DRAFT') === _currentFilter; });
@@ -415,7 +493,6 @@ function _rcvRenderList() {
     });
   }
 
-  // Sort
   function _ms(r) {
     var raw = r.createdAt || '';
     if (raw && typeof raw === 'object' && raw.toDate) raw = raw.toDate().toISOString();
@@ -425,87 +502,78 @@ function _rcvRenderList() {
   }
   list.sort(function(a,b){ return sort === 'date-asc' ? _ms(a)-_ms(b) : _ms(b)-_ms(a); });
 
-  var el = document.getElementById('deliveriesList');
-  var skel = document.getElementById('rcvSkeleton');
-  if (skel) skel.remove();
+  var grid = document.getElementById('deliveriesList');
+
+  // Clear skeleton cards on first real render
+  var skel = grid.querySelector('.rcv-card[style*="cursor:default"]');
+  if (skel) grid.innerHTML = '';
 
   if (!list.length) {
-    el.innerHTML = '<div style="padding:3rem;text-align:center;color:#718096;font-size:13px;">No receiving records found.</div>';
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:4rem;text-align:center;color:#718096;font-size:13px;">'
+      + (_allRcv.length ? 'No receiving records match your search.' : 'No receiving records found. Create one using the + button.')
+      + '</div>';
     return;
   }
 
-  var rows = [];
-  list.forEach(function(r) {
-    var lines = r.receivingLines || [];
-    var rDate = _fmtDate(r.createdAt);
-    var poRef = r.poNum || '—';
-    var hdrStatus = r.status || 'DRAFT';
+  // Line status summary helper
+  function _lineSummary(lines) {
+    if (!lines.length) return '';
+    var total = lines.length;
+    var comp  = lines.filter(function(l){ return l.lineStatus === 'COMP'; }).length;
+    var done  = lines.filter(function(l){ return l.lineStatus !== 'DRAFT'; }).length;
+    return comp + '/' + total + ' lines received';
+  }
 
-    if (!lines.length) {
-      // Header-only row (blank receiving with no lines yet)
-      rows.push('<div class="table-row" style="' + COL + 'align-items:center;">'
-        + '<div style="font-size:11px;color:#1a202c;font-weight:700;">' + (r.receivingNum||'—') + '<br><span style="color:#718096;font-weight:400;">' + rDate + '</span></div>'
-        + '<div style="font-size:11px;color:#718096;">' + poRef + '</div>'
-        + '<div style="font-size:11px;color:#a0aec0;">—</div>'
-        + '<div style="font-size:12px;color:#a0aec0;">—</div>'
-        + '<div style="font-size:12px;color:#a0aec0;">—</div>'
-        + '<div style="font-size:12px;color:#a0aec0;">—</div>'
-        + '<div style="font-size:12px;color:#a0aec0;">—</div>'
-        + '<div style="font-size:12px;color:#a0aec0;">—</div>'
-        + '<div>' + _badge(_STATUS_CFG, hdrStatus) + '</div>'
-        + '<div><button class="btn-small btn-primary" onclick="rcvStartReceiving(\'' + r._docId + '\')" style="width:100%;padding:0.3rem 0;">'
-        +   (hdrStatus==='DRAFT' ? 'Start' : 'Open') + '</button></div>'
-        + '</div>');
-      return;
+  // Build action buttons based on status
+  function _cardActions(r) {
+    var s = r.status || 'DRAFT';
+    if (s === 'DRAFT') {
+      return '<button onclick="event.stopPropagation();rcvStartReceiving(\'' + r._docId + '\')" '
+        + 'style="padding:5px 14px;background:#003087;border:none;border-radius:8px;color:white;'
+        + 'font-size:11px;font-weight:700;cursor:pointer;transition:opacity .15s;" '
+        + 'onmouseover="this.style.opacity=\'0.85\'" onmouseout="this.style.opacity=\'1\'">▶ Start</button>';
     }
+    if (s === 'INPROG') {
+      return '<button onclick="event.stopPropagation();rcvOpenCard(\'' + r._docId + '\')" '
+        + 'style="padding:5px 14px;background:#E8001C;border:none;border-radius:8px;color:white;'
+        + 'font-size:11px;font-weight:700;cursor:pointer;transition:opacity .15s;" '
+        + 'onmouseover="this.style.opacity=\'0.85\'" onmouseout="this.style.opacity=\'1\'">▶ Continue</button>';
+    }
+    return '';
+  }
 
-    lines.forEach(function(line, idx) {
-      if (_currentFilter !== 'all') {
-        var lineSt = line.lineStatus || 'DRAFT';
-        // Header filter maps to line filter
-        var filterToLineSt = { 'DRAFT':'DRAFT', 'INPROG':'DRAFT', 'COMP':'COMP', 'PARTIAL':'COMP' };
-        // For INPROG show lines that are DRAFT (unprocessed), for PARTIAL show non-DRAFT
-        if (_currentFilter === 'INPROG' && lineSt !== 'DRAFT') return;
-        if (_currentFilter === 'PARTIAL' && lineSt === 'DRAFT') return;
-        if (_currentFilter === 'COMP' && lineSt !== 'COMP') return;
-        if (_currentFilter === 'DRAFT' && hdrStatus !== 'DRAFT') return;
-      }
+  grid.innerHTML = list.map(function(r) {
+    var c         = _STATUS_CFG[r.status||'DRAFT'] || _STATUS_CFG['DRAFT'];
+    var badge     = '<span class="rcv-badge" style="color:' + c[0] + ';background:' + c[1] + ';flex-shrink:0;">' + c[2] + '</span>';
+    var lines     = r.receivingLines || [];
+    var lineCount = lines.length;
+    var lineSumm  = _lineSummary(lines);
+    var itemNames = lines.map(function(l){ return l.itemName||''; }).filter(Boolean).join(', ');
+    var total     = lines.reduce(function(s,l){ return s + (parseFloat(l.unitCost||0)||0)*(parseInt(l.receivedQty)||0); }, 0);
+    var totalStr  = total > 0 ? '₱'+total.toLocaleString('en-PH',{minimumFractionDigits:2}) : '—';
+    var actions   = _cardActions(r);
 
-      var lineStatus = line.lineStatus || 'DRAFT';
-      var cost   = parseFloat(line.unitCost || 0) || 0;
-      var poQty  = parseInt(line.poQty) || 0;
-      var rcvQty = parseInt(line.receivedQty) || 0;
-      var subtotal = cost * rcvQty;
-      var stock  = line.stockAtReceive !== undefined ? line.stockAtReceive : '—';
-
-      var lineBadge = _badge(_LINE_STATUS_CFG, lineStatus);
-
-      var canReceive = (hdrStatus === 'INPROG' || hdrStatus === 'DRAFT') && lineStatus === 'DRAFT';
-      var actionBtn = canReceive
-        ? '<button class="btn-small btn-primary" onclick="openReceiveModal(\'' + r._docId + '\',' + idx + ')" style="width:100%;padding:0.3rem 0;">Receive</button>'
-        : '<button class="btn-small btn-secondary" onclick="openItemViewModal(\'' + r._docId + '\',' + idx + ')" style="width:100%;padding:0.3rem 0;">View</button>';
-
-      var startBtn = (hdrStatus === 'DRAFT' && idx === 0)
-        ? '<button class="btn-small btn-secondary" onclick="rcvStartReceiving(\'' + r._docId + '\')" style="width:100%;padding:0.3rem 0;margin-top:2px;">Start</button>'
-        : '';
-
-      rows.push('<div class="table-row" style="' + COL + 'align-items:center;">'
-        + '<div style="font-size:11px;color:#1a202c;font-weight:700;">' + (idx===0 ? (r.receivingNum||'—') + '<br><span style="color:#718096;font-weight:400;">' + rDate + '</span>' : '') + '</div>'
-        + '<div style="font-size:11px;color:#718096;">' + (idx===0 ? poRef : '') + '</div>'
-        + '<div style="font-size:11px;color:#718096;">' + (line.supplierCode||'—') + '</div>'
-        + '<div><div style="font-weight:600;color:#1a202c;font-size:12px;">' + (line.itemName||'—') + '</div>'
-        +   (line.uom ? '<div style="font-size:10px;color:#a0aec0;">' + line.uom + '</div>' : '') + '</div>'
-        + '<div style="font-size:12px;color:#4a5568;">' + stock + '</div>'
-        + '<div style="font-size:12px;font-weight:600;color:#1a202c;">' + poQty + '</div>'
-        + '<div style="font-size:12px;color:' + (rcvQty>0?'#38a169':'#718096') + ';font-weight:600;">' + (rcvQty||'—') + '</div>'
-        + '<div style="font-size:11px;font-weight:600;color:#1a202c;">' + (subtotal>0 ? '₱'+subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) : '—') + '</div>'
-        + '<div>' + lineBadge + '</div>'
-        + '<div style="display:flex;flex-direction:column;gap:2px;">' + actionBtn + startBtn + '</div>'
-        + '</div>');
-    });
-  });
-
-  apRenderPaged('deliveriesList', rows, 15, '_rcvRenderList');
+    return '<div class="rcv-card" data-rcvid="' + r._docId + '">'
+      + '<div class="rcv-card-header">'
+      +   '<div>'
+      +     '<div class="rcv-card-id">' + (r.receivingNum||r._docId) + '</div>'
+      +     '<div class="rcv-card-date">' + _fmtDate(r.createdAt) + (r.poNum ? '  •  PO: ' + r.poNum : '') + '</div>'
+      +   '</div>'
+      +   badge
+      + '</div>'
+      + '<hr class="rcv-card-divider">'
+      + '<div class="rcv-card-meta">'
+      +   '<div style="font-size:12px;color:#4a5568;">'
+      +     '<span style="font-weight:700;color:#1a202c;">' + lineCount + '</span> item' + (lineCount!==1?'s':'')
+      +     (lineSumm ? ' <span style="color:#718096;">— ' + lineSumm + '</span>' : '')
+      +   '</div>'
+      +   '<div style="display:flex;align-items:center;gap:8px;">'
+      +     (actions ? actions : '<span style="font-size:13px;font-weight:800;color:#1a202c;">' + totalStr + '</span>')
+      +   '</div>'
+      + '</div>'
+      + (itemNames ? '<div class="rcv-card-lines-preview">' + itemNames + '</div>' : '')
+      + '</div>';
+  }).join('');
 }
 
 // ── Start Receiving (DRAFT → INPROG) ─────────────────────────────────────────
