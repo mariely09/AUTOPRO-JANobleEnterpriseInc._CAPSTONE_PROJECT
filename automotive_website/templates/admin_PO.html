@@ -573,8 +573,9 @@ function _stColor(status) {
 
 // ── Real-time listener ────────────────────────────────────────────────────────
 (function _listen() {
+    // No server-side orderBy — avoids index requirements on a new collection.
+    // Sorting is handled client-side in _poRender().
     db.collection(_PO_COL)
-      .orderBy('createdAt', 'desc')
       .onSnapshot(function(snap) {
           _allPOs = snap.docs.map(function(d) {
               return Object.assign({ _docId: d.id }, d.data());
@@ -583,9 +584,9 @@ function _stColor(status) {
           _poRender();
       }, function(err) {
           console.error('PO listener error:', err);
-          // Fallback — collection may not exist yet, show empty state gracefully
           document.getElementById('poGrid').innerHTML =
-              '<div style="grid-column:1/-1;padding:4rem;text-align:center;color:#718096;font-size:13px;">No purchase orders found. Create the first one using the + button.</div>';
+              '<div style="grid-column:1/-1;padding:4rem;text-align:center;color:#718096;font-size:13px;">'
+              + 'No purchase orders found. Create the first one using the + button.</div>';
       });
 })();
 
@@ -615,6 +616,10 @@ function _poRender() {
     var q    = ((document.getElementById('poSearch') || {}).value || '').trim().toLowerCase();
     var sort = ((document.getElementById('poSort')   || {}).value || 'date-desc');
     var grid = document.getElementById('poGrid');
+
+    // Always clear skeleton on first data callback (even if empty)
+    var skel = grid.querySelector('.po-skel-card');
+    if (skel) grid.innerHTML = '';
 
     var list = _poFilter === 'all' ? _allPOs.slice()
         : _allPOs.filter(function(po) { return (po.status || 'Pending') === _poFilter; });
@@ -986,7 +991,6 @@ function _poToggleItem(origIdx) {
     _poRenderAdded();
 }
 
-function _poRenderAdded() {
 function _poRenderAdded() {
     var keys    = Object.keys(_poAdded);
     var section = document.getElementById('poAddedSection');
