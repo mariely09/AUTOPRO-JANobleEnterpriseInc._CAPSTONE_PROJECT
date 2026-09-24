@@ -426,7 +426,18 @@
             <div id="poViewPoNum" style="color:white;font-size:1rem;font-weight:800;letter-spacing:0.3px;"></div>
             <div id="poViewSubtitle" style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.2rem;"></div>
         </div>
-        <div id="poViewBadge" style="flex-shrink:0;"></div>
+        <div id="poViewBadge" style="flex-shrink:0;">
+            <button id="poViewPrintBtnHeader" onclick="_poPrint()"
+                    style="display:none;align-items:center;gap:6px;padding:0.4rem 0.9rem;
+                           background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.45);
+                           border-radius:8px;color:white;font-size:0.78rem;font-weight:600;
+                           cursor:pointer;transition:background .15s;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.28)'"
+                    onmouseout="this.style.background='rgba(255,255,255,0.18)'">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Print PO
+            </button>
+        </div>
         <button onclick="closeModal('poViewModal')"
                 style="background:rgba(255,255,255,0.2);border:none;color:white;
                        width:32px;height:32px;border-radius:50%;font-size:1.1rem;
@@ -436,18 +447,8 @@
     <div id="poViewBody" style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;"></div>
     <div style="padding:0.85rem 1.5rem;background:white;border-top:1px solid #e2e8f0;
                 display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-shrink:0;flex-wrap:wrap;">
-        <!-- Left: Print + Edit -->
+        <!-- Left: Edit only -->
         <div style="display:flex;align-items:center;gap:0.5rem;">
-            <button id="poViewPrintBtn" onclick="_poPrint()"
-                    style="display:none;align-items:center;gap:6px;padding:0.5rem 1rem;
-                           background:white;border:1.5px solid #e2e8f0;border-radius:8px;
-                           color:#4a5568;font-size:0.82rem;font-weight:600;cursor:pointer;
-                           transition:all .15s;"
-                    onmouseover="this.style.background='#f7fafc';this.style.borderColor='#cbd5e0'"
-                    onmouseout="this.style.background='white';this.style.borderColor='#e2e8f0'">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                Print PO
-            </button>
             <button id="poViewEditBtn" onclick="_poEdit()"
                     style="display:none;align-items:center;gap:6px;padding:0.5rem 1rem;
                            background:white;border:1.5px solid #e2e8f0;border-radius:8px;
@@ -683,12 +684,12 @@ function _poOpenView(docId) {
 
     document.getElementById('poViewPoNum').textContent     = po.poNum || docId;
     document.getElementById('poViewSubtitle').textContent  = _fmtDate(po.createdAt) + '  •  ' + items.length + ' item' + (items.length !== 1 ? 's' : '');
-    document.getElementById('poViewBadge').innerHTML = '<span class="po-badge" style="color:' + c[0] + ';background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.5);font-size:11px;">' + status + '</span>';
+    document.getElementById('poViewBadge').innerHTML = '';
+    document.getElementById('poViewPrintBtnHeader').style.display = 'inline-flex';
 
     // Footer buttons — visibility depends on status
     document.getElementById('poViewMarkOrderedBtn').style.display = (status === 'Pending') ? 'inline-flex' : 'none';
     document.getElementById('poViewCancelBtn').style.display      = (status === 'Pending' || status === 'Ordered') ? 'inline-flex' : 'none';
-    document.getElementById('poViewPrintBtn').style.display       = 'inline-flex';
     document.getElementById('poViewEditBtn').style.display        = (status === 'Pending') ? 'inline-flex' : 'none';
 
     // Build body
@@ -713,8 +714,9 @@ function _poOpenView(docId) {
                 +       '</div>'
                 +     '</div>'
                 +   '</div>'
-                +   '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">'
-                +     _vCell('Order Qty',  qty + (item.uom ? ' ' + item.uom : ''))
+                +   '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">'
+                +     _vCell('Order Qty',  qty + '')
+                +     _vCell('Stock',      _vStock(item))
                 +     _vCell('Unit Price', cost > 0 ? _fmtPeso(cost) : '—')
                 +     _vCell('Subtotal',   subtotal > 0 ? _fmtPeso(subtotal) : '—', '#E8001C')
                 +   '</div>'
@@ -748,6 +750,15 @@ function _vCell(label, val, color) {
         + '<div style="font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px;">' + label + '</div>'
         + '<div style="font-size:13px;font-weight:600;color:' + (color || '#1a202c') + ';">' + val + '</div>'
         + '</div>';
+}
+function _vStock(item) {
+    // Prefer stockAtReceive (frozen at receive time) if available, then _stock field, else '—'
+    var s = item.stockAtReceive !== undefined && item.stockAtReceive !== null ? item.stockAtReceive
+          : item._stock         !== undefined && item._stock         !== null ? item._stock
+          : null;
+    if (s === null) return '—';
+    var color = s === 0 ? '#e53e3e' : s <= (item.min || 0) ? '#d69e2e' : '#38a169';
+    return '<span style="font-weight:700;color:' + color + ';">' + s + '</span>';
 }
 function _vRow(label, val) {
     return '<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid #f0f4f8;">'
