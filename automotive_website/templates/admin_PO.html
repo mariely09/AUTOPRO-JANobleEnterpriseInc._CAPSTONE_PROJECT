@@ -253,7 +253,7 @@
                 </div>
 
                 <!-- ── PO card grid ───────────────────────────────────────── -->
-                <div id="poGrid" class="po-grid" onclick="(function(e){var c=e.target.closest('.po-card');if(c){var id=c.getAttribute('data-docid');if(id&&window._poOpenView)window._poOpenView(id);}})(event)">
+                <div id="poGrid" class="po-grid">
                     <!-- Skeleton cards -->
                     <div class="po-skel-card">
                         <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
@@ -564,12 +564,13 @@ function _stColor(status) {
     return _ST_COLORS[status] || ['#718096','rgba(113,128,150,0.10)'];
 }
 
-// ── Card click — event delegation on document (survives DOM mutations) ────────
+// ── Card click — event delegation (same pattern as admin_receiving.html) ─────
 document.addEventListener('click', function(e) {
     var card = e.target.closest('.po-card');
     if (!card) return;
+    if (e.target.closest('button')) return;
     var docId = card.getAttribute('data-docid');
-    if (docId) window._poOpenView(docId);
+    if (docId) _poOpenView(docId);
 });
 (function _listen() {
     // No server-side orderBy — avoids index requirements on a new collection.
@@ -658,7 +659,7 @@ function _poRender() {
         var total     = po.totalAmount > 0 ? _fmtPeso(po.totalAmount) : '—';
         var itemCount = (po.items || []).length;
 
-        return '<div class="po-card" data-docid="' + po._docId + '" onclick="if(window._poOpenView)window._poOpenView(\'' + po._docId + '\')" style="cursor:pointer;">'
+        return '<div class="po-card" data-docid="' + po._docId + '" style="cursor:pointer;">'
             + '<div class="po-card-header">'
             +   '<div>'
             +     '<div class="po-card-id">' + (po.poNum || po._docId) + '</div>'
@@ -681,7 +682,7 @@ function _poRender() {
 }
 
 // ── View PO Modal ─────────────────────────────────────────────────────────────
-window._poOpenView = function _poOpenView(docId) {
+function _poOpenView(docId) {
     var po = _allPOs.find(function(x) { return x._docId === docId; });
     if (!po) return;
     _poViewId = docId;
