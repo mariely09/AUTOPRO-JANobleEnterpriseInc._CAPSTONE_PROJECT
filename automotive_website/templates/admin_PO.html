@@ -253,7 +253,7 @@
                 </div>
 
                 <!-- ── PO card grid ───────────────────────────────────────── -->
-                <div id="poGrid" class="po-grid" onclick="(function(e){var c=e.target.closest('.po-card');if(c){var id=c.getAttribute('data-docid');if(id&&window._poOpenView)window._poOpenView(id);}})()">
+                <div id="poGrid" class="po-grid" onclick="(function(e){var c=e.target.closest('.po-card');if(c){var id=c.getAttribute('data-docid');if(id&&window._poOpenView)window._poOpenView(id);}})(event)">
                     <!-- Skeleton cards -->
                     <div class="po-skel-card">
                         <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
