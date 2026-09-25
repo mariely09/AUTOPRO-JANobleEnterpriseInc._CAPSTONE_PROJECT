@@ -253,7 +253,7 @@
                 </div>
 
                 <!-- ── PO card grid ───────────────────────────────────────── -->
-                <div id="poGrid" class="po-grid">
+                <div id="poGrid" class="po-grid" onclick="(function(e){var c=e.target.closest('.po-card');if(c){var id=c.getAttribute('data-docid');if(id&&window._poOpenView)window._poOpenView(id);}})()">
                     <!-- Skeleton cards -->
                     <div class="po-skel-card">
                         <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
@@ -658,7 +658,7 @@ function _poRender() {
         var total     = po.totalAmount > 0 ? _fmtPeso(po.totalAmount) : '—';
         var itemCount = (po.items || []).length;
 
-        return '<div class="po-card" data-docid="' + po._docId + '" style="cursor:pointer;">'
+        return '<div class="po-card" data-docid="' + po._docId + '" onclick="if(window._poOpenView)window._poOpenView(\'' + po._docId + '\')" style="cursor:pointer;">'
             + '<div class="po-card-header">'
             +   '<div>'
             +     '<div class="po-card-id">' + (po.poNum || po._docId) + '</div>'
