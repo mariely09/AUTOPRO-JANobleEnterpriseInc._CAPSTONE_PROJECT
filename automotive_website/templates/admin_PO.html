@@ -693,13 +693,17 @@ function _poOpenView(docId) {
 
     document.getElementById('poViewPoNum').textContent     = po.poNum || docId;
     document.getElementById('poViewSubtitle').textContent  = _fmtDate(po.createdAt) + '  •  ' + items.length + ' item' + (items.length !== 1 ? 's' : '');
-    document.getElementById('poViewBadge').innerHTML = '';
-    document.getElementById('poViewPrintBtnHeader').style.display = 'inline-flex';
+    // Don't clear poViewBadge — poViewPrintBtnHeader lives inside it
+    var printBtn = document.getElementById('poViewPrintBtnHeader');
+    if (printBtn) printBtn.style.display = 'inline-flex';
 
     // Footer buttons — visibility depends on status
-    document.getElementById('poViewMarkOrderedBtn').style.display = (status === 'Pending') ? 'inline-flex' : 'none';
-    document.getElementById('poViewCancelBtn').style.display      = (status === 'Pending' || status === 'Ordered') ? 'inline-flex' : 'none';
-    document.getElementById('poViewEditBtn').style.display        = (status === 'Pending') ? 'inline-flex' : 'none';
+    var mrkBtn  = document.getElementById('poViewMarkOrderedBtn');
+    var cncBtn  = document.getElementById('poViewCancelBtn');
+    var edtBtn  = document.getElementById('poViewEditBtn');
+    if (mrkBtn) mrkBtn.style.display = (status === 'Pending') ? 'inline-flex' : 'none';
+    if (cncBtn) cncBtn.style.display = (status === 'Pending' || status === 'Ordered') ? 'inline-flex' : 'none';
+    if (edtBtn) edtBtn.style.display = (status === 'Pending') ? 'inline-flex' : 'none';
 
     // Build body
     var html = '';
