@@ -788,57 +788,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
         ));
       });
     }
-  }
-              !bodyReply.contains('Error') &&
-              !bodyReply.contains('500') &&
-              !bodyReply.contains('503')) {
-            errorMsg = bodyReply;
-          }
-        } catch (_) {}
-        setState(() {
-          _loading = false;
-          _messages.add(_ChatMessage(role: 'ai', text: errorMsg));
-        });
-      }
-    } on http.ClientException catch (_) {
-      // If _activeClient is null, the request was cancelled intentionally — ignore
-      if (_activeClient == null) {
-        if (mounted) setState(() => _loading = false);
-        return;
-      }
-      setState(() {
-        _loading = false;
-        _messages.add(
-          _ChatMessage(
-            role: 'ai',
-            text:
-                'Cannot reach the AI service. Please check your internet connection and try again.',
-          ),
-        );
-      });
-      _activeClient = null;
-    } on Exception catch (e) {
-      // If _activeClient is null, the request was cancelled intentionally — ignore
-      if (_activeClient == null) {
-        if (mounted) setState(() => _loading = false);
-        return;
-      }
-      // Covers TimeoutException and other network errors
-      setState(() {
-        _loading = false;
-        _messages.add(
-          _ChatMessage(
-            role: 'ai',
-            text:
-                e.toString().contains('TimeoutException') ||
-                    e.toString().contains('timed out')
-                ? 'The request took too long. Please check your connection and try again.'
-                : "I'm having trouble processing your request right now. Please try again in a moment.",
-          ),
-        );
-      });
-      _activeClient = null;
-    }
+    
     _scrollToBottom();
     // Persist the exchange to history after every turn
     if (_currentUid.isNotEmpty) AdminChatStore.saveChat(_currentUid);
