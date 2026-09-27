@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
 import 'admin_inventory_itemaster.dart';
 import 'admin_inventory_stock.dart';
+import 'admin_po.dart';
 import 'admin_receiving.dart';
 import 'admin_transactions.dart';
 import 'sync_indicator.dart';
 
-/// Full-screen Inventory hub — AppBar with 4 sub-tabs, no bottom nav.
-/// Mirrors the same pattern as AdminVehiclesList.
+/// Full-screen Inventory hub — AppBar with 5 sub-tabs, no bottom nav.
+/// Tabs: 0=Stock, 1=Item Master, 2=Receiving Items, 3=Purchase Orders, 4=Transactions
 class AdminInventoryHub extends StatefulWidget {
-  /// Which tab to open initially (0=Stock, 1=Item Master, 2=Receiving, 3=Transactions)
+  /// Which tab to open initially (0=Stock, 1=Item Master, 2=Receiving, 3=PO, 4=Transactions)
   final int initialTab;
 
-  /// If set, auto-opens the receive modal for this delivery on the Receiving tab.
-  final Map<String, dynamic>? deliveryToReceive;
+  /// If set, auto-opens the view modal for this receiving record on the Receiving tab.
+  final Map<String, dynamic>? receivingToOpen;
   const AdminInventoryHub({
     super.key,
     this.initialTab = 0,
-    this.deliveryToReceive,
+    this.receivingToOpen,
   });
 
   @override
@@ -26,7 +27,7 @@ class AdminInventoryHub extends StatefulWidget {
 class _AdminInventoryHubState extends State<AdminInventoryHub> {
   static const _red = Color(0xFFE8001C);
 
-  // 0=Stock, 1=Item Master, 2=Receiving, 3=Transactions
+  // 0=Stock, 1=Item Master, 2=Receiving, 3=PO, 4=Transactions
   late int _tab;
   bool _searching = false;
   final _searchCtrl = TextEditingController();
@@ -40,22 +41,23 @@ class _AdminInventoryHubState extends State<AdminInventoryHub> {
   final _stockBodyKey = GlobalKey<AdminInventoryStockBodyState>();
   final _itemMasterKey = GlobalKey<AdminInventoryItemMasterBodyState>();
 
-  static const _tabs = ['Stock', 'Item Master', 'Receiving Items', 'Transactions'];
+  static const _tabs = ['Stock', 'Item Master', 'Receiving Items', 'Purchase Orders (PO)', 'Transactions'];
   static const _tabTitles = [
     'Inventory',
     'Item Master',
     'Receiving Items',
+    'Purchase Orders',
     'Transactions',
   ];
 
   @override
   void initState() {
     super.initState();
-    _tab = widget.initialTab.clamp(0, 3);
-    // Auto-open the receive modal after the first frame if a delivery was passed
-    if (widget.deliveryToReceive != null) {
+    _tab = widget.initialTab.clamp(0, 4);
+    // Auto-open the view modal after the first frame if a receiving record was passed
+    if (widget.receivingToOpen != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _receivingKey.currentState?.openReceiveModal(widget.deliveryToReceive!);
+        _receivingKey.currentState?.openReceiveModal(widget.receivingToOpen!);
       });
     }
   }
@@ -382,7 +384,11 @@ class _AdminInventoryHubState extends State<AdminInventoryHub> {
         ),
         Offstage(
           offstage: _tab != 3,
-          child: AdminTransactionsBody(searchQuery: _tab == 3 ? sq : ''),
+          child: const AdminPOBody(),
+        ),
+        Offstage(
+          offstage: _tab != 4,
+          child: AdminTransactionsBody(searchQuery: _tab == 4 ? sq : ''),
         ),
       ],
     );
@@ -412,35 +418,6 @@ class _AdminInventoryHubState extends State<AdminInventoryHub> {
           if (active) ...[
             const Spacer(),
             Icon(Icons.check, size: 14, color: color),
-          ],
-        ],
-      ),
-    );
-  }
-
-  PopupMenuItem<String> _stockSortItem(
-    String value,
-    String label,
-    IconData icon,
-  ) {
-    final active = _stockSortOrder == value;
-    return PopupMenuItem(
-      value: value,
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: active ? _red : const Color(0xFF718096)),
-          const SizedBox(width: 10),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: active ? _red : const Color(0xFF1a202c),
-              fontWeight: active ? FontWeight.w700 : FontWeight.normal,
-            ),
-          ),
-          if (active) ...[
-            const Spacer(),
-            const Icon(Icons.check, size: 14, color: Color(0xFFE8001C)),
           ],
         ],
       ),

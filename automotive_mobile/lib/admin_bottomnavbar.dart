@@ -1,9 +1,7 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'barcode_scanner_screen.dart';
-import 'admin_inventory_hub.dart';
 import 'admin_vehicle_maintenance.dart';
 import 'admin_receiving.dart';
 
@@ -65,7 +63,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
                       decoration: BoxDecoration(
                         color: _red,
                         shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: _red.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))],
+                        boxShadow: [BoxShadow(color: _red.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))],
                         border: Border.all(color: Colors.white, width: 3),
                       ),
                       child: const Icon(Icons.qr_code_scanner, color: Colors.white, size: 26),
@@ -185,7 +183,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
         debugPrint('✅ Match: ${d['name']} [bc=${d['barcode']}, qr=${d['qr']}, scanned=$trimmed]');
       } else {
         searchResults = all.docs
-            .map((d) => {'id': d.id, ...(d.data() as Map<String, dynamic>)})
+            .map((d) => {'id': d.id, ...d.data()})
             .where((item) =>
                 str(item['name']).toLowerCase().contains(query) ||
                 bcMatch(str(item['barcode']), trimmed) ||
@@ -234,7 +232,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
                 controller: ctrl,
                 padding: const EdgeInsets.all(16),
                 itemCount: searchResults.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                separatorBuilder: (context, i) => const SizedBox(height: 8),
                 itemBuilder: (_, i) {
                   final item = searchResults[i];
                   return GestureDetector(
@@ -245,7 +243,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFe2e8f0)),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4)]),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)]),
                       child: Row(children: [
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text(str(item['name']),
@@ -279,7 +277,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
             .where('num', isEqualTo: str(masterItem['num']))
             .limit(1).get();
         if (snap.docs.isNotEmpty) {
-          final d = snap.docs.first.data() as Map<String, dynamic>;
+          final d = snap.docs.first.data();
           final stock = (d['stock'] as num?)?.toInt() ?? 0;
           final min   = (d['min']   as num?)?.toInt() ?? 0;
           final max   = (d['max']   as num?)?.toInt() ?? 0;
@@ -302,7 +300,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
       final deliveriesSnap = await FirebaseFirestore.instance
           .collection('deliveries').orderBy('createdAt', descending: true).get();
       for (final doc in deliveriesSnap.docs) {
-        final d = {...doc.data() as Map<String, dynamic>, 'id': doc.id};
+        final d = {...doc.data(), 'id': doc.id};
         final deliveryStatus = d['status'] as String? ?? 'Pending';
         if (deliveryStatus == 'Approved' || deliveryStatus == 'Rejected') continue;
         final items = (d['items'] as List? ?? []);
@@ -340,10 +338,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
     int foundItemIdx = -1,
   ]) {
     final itemName  = masterItem?['name']?.toString()  ?? rawValue;
-    final itemNum   = masterItem?['num']?.toString()   ?? '—';
-    final itemGroup = masterItem?['group']?.toString() ?? '';
     final itemUom   = masterItem?['uom']?.toString()   ?? '';
-    final itemCost  = masterItem?['cost']?.toString()  ?? '';
     final itemType  = masterItem?['type']?.toString()  ?? '';
     final isMaterial = itemType == 'Material' || masterItem == null;
 
@@ -490,272 +485,6 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
     );
   }
 
-  // ── Receive Items modal (mirrors AdminReceivingBodyState._showReceiveModal) ──
-  static const _green = Color(0xFF38a169);
-  static const _amber = Color(0xFFd69e2e);
-  static const _months = [
-    'Jan','Feb','Mar','Apr','May','Jun',
-    'Jul','Aug','Sep','Oct','Nov','Dec',
-  ];
-
-  String _fmtDate(String? d) {
-    if (d == null || d.isEmpty) return '—';
-    final dt = DateTime.tryParse(d);
-    if (dt != null) return '${_months[dt.month - 1]} ${dt.day}, ${dt.year}';
-    return d;
-  }
-
-  void _showReceiveModal(BuildContext context, Map<String, dynamic> delivery) async {
-    String currentUserName = '';
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      currentUserName = (doc.data()?['name'] as String?) ?? '';
-    }
-    if (!mounted) return;
-
-    final items = List<Map<String, dynamic>>.from(
-      (delivery['items'] as List? ?? []).map((i) => Map<String, dynamic>.from(i as Map)),
-    );
-    final receivedByCtrl = TextEditingController(text: currentUserName);
-    final qtyCtrlrs = List.generate(items.length, (i) =>
-        TextEditingController(text: '${items[i]['expectedQty'] ?? 0}'));
-    final conditionList = List<String>.filled(items.length, 'OK');
-    final remarkCtrlrs = List.generate(items.length, (_) => TextEditingController());
-    bool submitting = false;
-
-    showModalBottomSheet(
-      context: context, isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setModal) => DraggableScrollableSheet(
-          expand: false, initialChildSize: 0.92, maxChildSize: 0.97,
-          builder: (_, ctrl) => SingleChildScrollView(
-            controller: ctrl,
-            child: Column(children: [
-              // Header
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                decoration: const BoxDecoration(
-                  color: _red,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-                child: Row(children: [
-                  Expanded(child: const Text('Receive Items',
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
-                  GestureDetector(onTap: () => Navigator.pop(ctx),
-                    child: const Icon(Icons.close, color: Colors.white)),
-                ]),
-              ),
-              // Step indicator
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                child: Row(children: [
-                  _rcvStep('1', 'Input Quantities', active: true),
-                  const Expanded(child: Divider()),
-                  _rcvStep('2', 'Awaiting Check'),
-                  const Expanded(child: Divider()),
-                  _rcvStep('3', 'Approved'),
-                ]),
-              ),
-              Padding(
-                padding: EdgeInsets.only(left: 20, right: 20, top: 16,
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 24),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  ...items.asMap().entries.map((e) {
-                    final i = e.key;
-                    final item = e.value;
-                    final expected = item['expectedQty'] as int? ?? 0;
-                    return _rcvItemCard(
-                      index: i, item: item, expected: expected,
-                      qtyCtrl: qtyCtrlrs[i],
-                      remarkCtrl: remarkCtrlrs[i],
-                      condition: conditionList[i],
-                      onCondChange: (c) => setModal(() => conditionList[i] = c),
-                      onQtyChange: () => setModal(() {}),
-                    );
-                  }),
-                  const SizedBox(height: 12),
-                  // Received By (read-only display)
-                  const Text('Received By',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF4a5568))),
-                  const SizedBox(height: 6),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF7F8FA),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFe2e8f0)),
-                    ),
-                    child: Row(children: [
-                      const Icon(Icons.person_outline, size: 16, color: Color(0xFF718096)),
-                      const SizedBox(width: 8),
-                      Text(receivedByCtrl.text.isNotEmpty ? receivedByCtrl.text : '—',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1a202c))),
-                    ]),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: submitting ? null : () async {
-                        if (receivedByCtrl.text.trim().isEmpty) return;
-                        setModal(() => submitting = true);
-                        final updatedItems = items.asMap().entries.map((e) {
-                          final i = e.key;
-                          return {
-                            ...e.value,
-                            'actualQty': int.tryParse(qtyCtrlrs[i].text) ?? e.value['expectedQty'],
-                            'condition': conditionList[i],
-                            'remark': remarkCtrlrs[i].text.trim(),
-                          };
-                        }).toList();
-                        try {
-                          await FirebaseFirestore.instance
-                              .collection('deliveries')
-                              .doc(delivery['id'] as String)
-                              .update({
-                            'items': updatedItems,
-                            'receivedBy': receivedByCtrl.text.trim(),
-                            'status': 'Awaiting Double Check',
-                            'receivedAt': FieldValue.serverTimestamp(),
-                          });
-                          if (ctx.mounted) {
-                            Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                              content: Text('Submitted!'),
-                              backgroundColor: Colors.orange,
-                              behavior: SnackBarBehavior.floating));
-                          }
-                        } catch (err) {
-                          setModal(() => submitting = false);
-                          if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(
-                            SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red));
-                        }
-                      },
-                      icon: submitting
-                        ? const SizedBox(width: 16, height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.check_circle_outline, size: 16),
-                      label: Text(submitting ? 'Submitting…' : 'Submit'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _red, foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14)),
-                    ),
-                  ),
-                ]),
-              ),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _rcvStep(String num, String label, {bool active = false}) => Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Container(
-        width: 22, height: 22,
-        decoration: BoxDecoration(
-          color: active ? _red : const Color(0xFFe2e8f0),
-          shape: BoxShape.circle),
-        child: Center(child: Text(num,
-          style: TextStyle(
-            color: active ? Colors.white : const Color(0xFF718096),
-            fontWeight: FontWeight.w700, fontSize: 11)))),
-      const SizedBox(height: 2),
-      Text(label, style: const TextStyle(fontSize: 8, color: Color(0xFF718096)), textAlign: TextAlign.center),
-    ],
-  );
-
-  Widget _rcvItemCard({
-    required int index, required Map<String, dynamic> item, required int expected,
-    required TextEditingController qtyCtrl, required TextEditingController remarkCtrl,
-    required String condition, required ValueChanged<String> onCondChange,
-    required VoidCallback onQtyChange,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF90cdf4)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(item['itemName'] as String? ?? '—',
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-        Text('${item['itemNum'] ?? ''} · Expected: $expected ${item['uom'] ?? ''}',
-          style: const TextStyle(fontSize: 11, color: Color(0xFF718096))),
-        const SizedBox(height: 10),
-        TextField(
-          controller: qtyCtrl, keyboardType: TextInputType.number,
-          onChanged: (_) => onQtyChange(),
-          decoration: InputDecoration(
-            labelText: 'Actual Qty *', border: const OutlineInputBorder(), isDense: true),
-        ),
-        const SizedBox(height: 10),
-        const Text('Condition', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF4a5568))),
-        const SizedBox(height: 6),
-        Row(children: [
-          _rcvCondBtn('✅ OK',        'OK',        condition, onCondChange),
-          const SizedBox(width: 6),
-          _rcvCondBtn('❌ Defective', 'Defective', condition, onCondChange),
-          const SizedBox(width: 6),
-          _rcvCondBtn('⚠️ Shortage', 'Shortage',  condition, onCondChange),
-        ]),
-        const SizedBox(height: 10),
-        TextField(
-          controller: remarkCtrl,
-          decoration: const InputDecoration(
-            labelText: 'Remarks (optional)', border: OutlineInputBorder(), isDense: true,
-            hintText: 'e.g. 1 unit damaged packaging')),
-      ]),
-    );
-  }
-
-  Widget _rcvCondBtn(String label, String value, String current, ValueChanged<String> onChange) {
-    final active = current == value;
-    Color color;
-    switch (value) {
-      case 'OK':        color = _green; break;
-      case 'Defective': color = _red;   break;
-      default:          color = _amber;
-    }
-    return GestureDetector(
-      onTap: () => onChange(value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: active ? color.withValues(alpha: 0.1) : Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: active ? color : const Color(0xFFe2e8f0), width: 1.5)),
-        child: Text(label, style: TextStyle(
-          fontSize: 10, fontWeight: FontWeight.w700,
-          color: active ? color : const Color(0xFF718096)))),
-    );
-  }
-
-  Widget _infoBadge(IconData icon, String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 12, color: color),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
-      ]),
-    );
-  }
-
   Widget _actionTile({
     required BuildContext context,
     required IconData icon,
@@ -777,7 +506,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFe2e8f0)),
           boxShadow: disabled ? [] : [
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))
+            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))
           ],
         ),
         child: Row(children: [
@@ -800,7 +529,7 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: (badgeColor ?? const Color(0xFF718096)).withOpacity(0.1),
+                color: (badgeColor ?? const Color(0xFF718096)).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20)),
               child: Text(badge, style: TextStyle(
                 fontSize: 10, fontWeight: FontWeight.w700,
@@ -821,7 +550,6 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
     final isOut      = stock == 0;
     final isLow      = !isOut && status == 'Low';
     final isOver     = !isOut && !isLow && status == 'Over';
-    final progress   = max > 0 ? (stock / max).clamp(0.0, 1.0) : 0.0;
     final barColor   = isOut ? Colors.red : isLow ? Colors.orange : isOver ? Colors.purple : Colors.green;
     final statusLabel = isOut ? 'Out of Stock' : isLow ? 'Low Stock' : isOver ? 'Over Max' : 'In Stock';
 
@@ -921,10 +649,12 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
   );
 }
 
-// ── Receiving page wrapper that auto-opens the receive modal ────────────────
+// ── Receiving page wrapper (navigated to from scan result) ─────────────────
+// NOTE: Previously auto-opened a 'deliveries' modal; now just shows the
+// Receiving Items list since the collection moved to 'receivings'.
 class _ReceivingWithModal extends StatefulWidget {
-  final Map<String, dynamic> delivery;
-  final int itemIdx;
+  final Map<String, dynamic> delivery; // kept for call-site compat; not used
+  final int itemIdx;                   // kept for call-site compat; not used
   const _ReceivingWithModal({required this.delivery, this.itemIdx = -1});
 
   @override
@@ -938,13 +668,8 @@ class _ReceivingWithModalState extends State<_ReceivingWithModal> {
   @override
   void initState() {
     super.initState();
-    // Open the receive modal as soon as the page is laid out
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _bodyKey.currentState?.openReceiveModal(
-        widget.delivery,
-        itemIdx: widget.itemIdx >= 0 ? widget.itemIdx : null,
-      );
-    });
+    // No auto-modal: the old delivery data is from a different collection.
+    // Users can find their record in the Receiving list.
   }
 
   @override
@@ -989,7 +714,6 @@ class _ScanAddStockWidgetState extends State<_ScanAddStockWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final uom = widget.itemData['uom'] ?? '';
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1040,14 +764,17 @@ class _ScanAddStockWidgetState extends State<_ScanAddStockWidget> {
               final reorder = int.tryParse(_reorderCtrl.text.trim()) ?? 0;
               if (_stockCtrl.text.isEmpty || _minCtrl.text.isEmpty || _maxCtrl.text.isEmpty) return;
               setState(() => _loading = true);
+              final messenger = ScaffoldMessenger.of(context);
               try {
                 final existing = await FirebaseFirestore.instance
                     .collection('stock_inventory')
                     .where('num', isEqualTo: widget.itemData['num'])
                     .limit(1).get();
                 if (existing.docs.isNotEmpty) {
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Already in stock inventory.'), backgroundColor: Colors.orange));
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Already in stock inventory.'), backgroundColor: Colors.orange));
+                  }
                   setState(() => _loading = false);
                   return;
                 }
@@ -1061,13 +788,15 @@ class _ScanAddStockWidgetState extends State<_ScanAddStockWidget> {
                 });
                 // No transaction logged for initial stock add
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     const SnackBar(content: Text('Added to stock inventory.'), backgroundColor: Colors.green));
                   widget.onDone();
                 }
               } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                }
                 setState(() => _loading = false);
               }
             },
@@ -1135,6 +864,7 @@ class _ScanReceiveWidgetState extends State<_ScanReceiveWidget> {
               final qty = int.tryParse(_qtyCtrl.text.trim()) ?? 0;
               if (qty <= 0) return;
               setState(() => _loading = true);
+              final messenger = ScaffoldMessenger.of(context);
               try {
                 final newStock = currentStock + qty;
                 await FirebaseFirestore.instance.collection('stock_inventory').doc(widget.stockId).update({
@@ -1153,14 +883,16 @@ class _ScanReceiveWidgetState extends State<_ScanReceiveWidget> {
                   'stockId': widget.stockId, 'createdAt': FieldValue.serverTimestamp(),
                 });
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  messenger.showSnackBar(SnackBar(
                     content: Text('+$qty ${widget.uom} received. New stock: $newStock'),
                     backgroundColor: Colors.green));
                   widget.onDone();
                 }
               } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                }
                 setState(() => _loading = false);
               }
             },

@@ -189,33 +189,33 @@
 
                 <!-- ── Stat cards ─────────────────────────────────────────── -->
                 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;">
-                    <div class="stat-card" onclick="_poSetFilter('Pending',this)" style="cursor:pointer;">
+                    <div class="stat-card" onclick="_poSetFilter('Draft',this)" style="cursor:pointer;">
                         <div class="stat-icon" style="background:rgba(113,128,150,0.1);color:#718096;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                         </div>
-                        <div class="stat-number" id="poStatPending" style="color:#718096;">0</div>
-                        <div class="stat-label">Pending</div>
+                        <div class="stat-number" id="poStatDraft" style="color:#718096;">0</div>
+                        <div class="stat-label">Draft</div>
+                    </div>
+                    <div class="stat-card" onclick="_poSetFilter('Pending Approval',this)" style="cursor:pointer;">
+                        <div class="stat-icon" style="background:rgba(214,158,46,0.1);color:#d69e2e;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <div class="stat-number" id="poStatPendingApproval" style="color:#d69e2e;">0</div>
+                        <div class="stat-label">Pending Approval</div>
+                    </div>
+                    <div class="stat-card" onclick="_poSetFilter('Approved',this)" style="cursor:pointer;">
+                        <div class="stat-icon" style="background:rgba(56,161,105,0.1);color:#38a169;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
+                        <div class="stat-number" id="poStatApproved" style="color:#38a169;">0</div>
+                        <div class="stat-label">Approved</div>
                     </div>
                     <div class="stat-card" onclick="_poSetFilter('Ordered',this)" style="cursor:pointer;">
                         <div class="stat-icon" style="background:rgba(0,48,135,0.08);color:#003087;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
                         </div>
                         <div class="stat-number" id="poStatOrdered" style="color:#003087;">0</div>
                         <div class="stat-label">Ordered</div>
-                    </div>
-                    <div class="stat-card" onclick="_poSetFilter('Partially Received',this)" style="cursor:pointer;">
-                        <div class="stat-icon orange">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        </div>
-                        <div class="stat-number" id="poStatPartial">0</div>
-                        <div class="stat-label">Partially Received</div>
-                    </div>
-                    <div class="stat-card" onclick="_poSetFilter('Received',this)" style="cursor:pointer;">
-                        <div class="stat-icon green">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        </div>
-                        <div class="stat-number" id="poStatReceived">0</div>
-                        <div class="stat-label">Received</div>
                     </div>
                 </div>
 
@@ -228,21 +228,29 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
                                 All
                             </button>
-                            <button class="dss-pill dss-pill--pending" onclick="_poSetFilter('Pending',this)">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
-                                Pending
+                            <button class="dss-pill dss-pill--pending" onclick="_poSetFilter('Draft',this)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                Draft
                             </button>
-                            <button class="dss-pill" onclick="_poSetFilter('Ordered',this)">
+                            <button class="dss-pill dss-pill--duesoon" onclick="_poSetFilter('Pending Approval',this)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                Pending Approval
+                            </button>
+                            <button class="dss-pill dss-pill--ontrack" onclick="_poSetFilter('Approved',this)">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                Approved
+                            </button>
+                            <button class="dss-pill" style="border-color:#003087;color:#003087;" onclick="_poSetFilter('Ordered',this)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
                                 Ordered
                             </button>
                             <button class="dss-pill dss-pill--duesoon" onclick="_poSetFilter('Partially Received',this)">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg>
                                 Partially Received
                             </button>
-                            <button class="dss-pill dss-pill--ontrack" onclick="_poSetFilter('Received',this)">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg>
-                                Received
+                            <button class="dss-pill dss-pill--ontrack" onclick="_poSetFilter('Completed',this)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                Completed
                             </button>
                             <button class="dss-pill dss-pill--overdue" onclick="_poSetFilter('Cancelled',this)">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -445,44 +453,8 @@
                        flex-shrink:0;">&times;</button>
     </div>
     <div id="poViewBody" style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;"></div>
-    <div style="padding:0.85rem 1.5rem;background:white;border-top:1px solid #e2e8f0;
+    <div id="poViewFooter" style="padding:0.85rem 1.5rem;background:white;border-top:1px solid #e2e8f0;
                 display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-shrink:0;flex-wrap:wrap;">
-        <!-- Left: Edit only -->
-        <div style="display:flex;align-items:center;gap:0.5rem;">
-            <button id="poViewEditBtn" onclick="_poEdit()"
-                    style="display:none;align-items:center;gap:6px;padding:0.5rem 1rem;
-                           background:white;border:1.5px solid #e2e8f0;border-radius:8px;
-                           color:#4a5568;font-size:0.82rem;font-weight:600;cursor:pointer;
-                           transition:all .15s;"
-                    onmouseover="this.style.background='#f7fafc';this.style.borderColor='#cbd5e0'"
-                    onmouseout="this.style.background='white';this.style.borderColor='#e2e8f0'">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                Edit
-            </button>
-        </div>
-        <!-- Right: Cancel + Mark as Ordered -->
-        <div style="display:flex;align-items:center;gap:0.5rem;">
-            <button id="poViewCancelBtn" onclick="_poCancelPO()"
-                    style="display:none;align-items:center;gap:6px;padding:0.5rem 1rem;
-                           background:white;border:1.5px solid #E8001C;border-radius:8px;
-                           color:#E8001C;font-size:0.82rem;font-weight:600;cursor:pointer;
-                           transition:all .15s;"
-                    onmouseover="this.style.background='#fff5f5'"
-                    onmouseout="this.style.background='white'">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                Cancel PO
-            </button>
-            <button id="poViewMarkOrderedBtn" onclick="_poMarkOrdered()"
-                    style="display:none;align-items:center;gap:6px;padding:0.5rem 1.1rem;
-                           background:#003087;border:none;border-radius:8px;
-                           color:white;font-size:0.82rem;font-weight:700;cursor:pointer;
-                           transition:opacity .15s;"
-                    onmouseover="this.style.opacity='0.88'"
-                    onmouseout="this.style.opacity='1'">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                Mark as Ordered
-            </button>
-        </div>
     </div>
   </div>
 </div>
@@ -554,11 +526,16 @@ function _genPoNum() {
 
 // Status colors: [text, background]
 var _ST_COLORS = {
-    'Pending':             ['#718096','rgba(113,128,150,0.10)'],
+    'Draft':               ['#718096','rgba(113,128,150,0.10)'],
+    'Pending Approval':    ['#d69e2e','rgba(214,158,46,0.10)'],
+    'Approved':            ['#38a169','rgba(56,161,105,0.10)'],
     'Ordered':             ['#003087','rgba(0,48,135,0.08)'],
     'Partially Received':  ['#d69e2e','rgba(214,158,46,0.10)'],
+    'Completed':           ['#38a169','rgba(56,161,105,0.10)'],
+    'Cancelled':           ['#E8001C','rgba(232,0,28,0.08)'],
+    // legacy aliases kept for backward compat
+    'Pending':             ['#718096','rgba(113,128,150,0.10)'],
     'Received':            ['#38a169','rgba(56,161,105,0.10)'],
-    'Cancelled':           ['#E8001C','rgba(232,0,28,0.08)']
 };
 function _stColor(status) {
     return _ST_COLORS[status] || ['#718096','rgba(113,128,150,0.10)'];
@@ -592,15 +569,15 @@ document.addEventListener('click', function(e) {
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
 function _poUpdateStats() {
-    var c = { Pending: 0, Ordered: 0, 'Partially Received': 0, Received: 0 };
+    var c = { 'Draft':0, 'Pending Approval':0, 'Approved':0, 'Ordered':0 };
     _allPOs.forEach(function(po) {
-        var s = po.status || 'Pending';
+        var s = po.status || 'Draft';
         if (c[s] !== undefined) c[s]++;
     });
-    document.getElementById('poStatPending').textContent  = c['Pending'];
-    document.getElementById('poStatOrdered').textContent  = c['Ordered'];
-    document.getElementById('poStatPartial').textContent  = c['Partially Received'];
-    document.getElementById('poStatReceived').textContent = c['Received'];
+    document.getElementById('poStatDraft').textContent           = c['Draft'];
+    document.getElementById('poStatPendingApproval').textContent = c['Pending Approval'];
+    document.getElementById('poStatApproved').textContent        = c['Approved'];
+    document.getElementById('poStatOrdered').textContent         = c['Ordered'];
 }
 
 // ── Filter pills ──────────────────────────────────────────────────────────────
@@ -653,16 +630,59 @@ function _poRender() {
     }
 
     grid.innerHTML = list.map(function(po) {
-        var c         = _stColor(po.status || 'Pending');
-        var badge     = '<span class="po-badge" style="color:' + c[0] + ';background:' + c[1] + ';">' + (po.status || 'Pending') + '</span>';
+        var status    = po.status || 'Draft';
+        var c         = _stColor(status);
+        var badge     = '<span class="po-badge" style="color:' + c[0] + ';background:' + c[1] + ';">' + status + '</span>';
         var itemNames = (po.items || []).map(function(i) { return i.itemName || ''; }).filter(Boolean).join(', ');
         var total     = po.totalAmount > 0 ? _fmtPeso(po.totalAmount) : '—';
         var itemCount = (po.items || []).length;
+        var id        = po._docId;
+        var pn        = (po.poNum || '').replace(/'/g, '');
 
-        return '<div class="po-card" data-docid="' + po._docId + '" style="cursor:pointer;">'
+        // Helper: build a card action button
+        function _btn(label, icon, color, bg, border, fn) {
+            return '<button onclick="event.stopPropagation();' + fn + '" '
+                + 'style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 0;'
+                + 'background:' + bg + ';border:1.5px solid ' + border + ';border-radius:8px;'
+                + 'font-size:11px;font-weight:600;color:' + color + ';cursor:pointer;transition:all .15s;">'
+                + '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + icon + '</svg>'
+                + label + '</button>';
+        }
+
+        var btns = [];
+        if (status === 'Draft') {
+            btns.push(_btn('Edit',   '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',   '#4a5568', 'white',   '#e2e8f0', '_poCardEdit(\'' + id + '\')'));
+            btns.push(_btn('Delete', '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>',  '#e53e3e', 'white',   '#fecaca', '_poCardDelete(\'' + id + '\',\'' + pn + '\')'));
+            btns.push(_btn('Submit', '<polyline points="22 2 15 22 11 13 2 9 22 2"/>',                                                                                                                       '#003087', '#ebf4ff', '#bee3f8', '_poSubmitForApproval(\'' + id + '\')'));
+        } else if (status === 'Pending Approval') {
+            btns.push(_btn('View',   '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',                                                                              '#4a5568', 'white',   '#e2e8f0', '_poOpenView(\'' + id + '\')'));
+            btns.push(_btn('Revise', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',                       '#d69e2e', '#fffbeb', '#fcd34d', '_poRevise(\'' + id + '\')'));
+        } else if (status === 'Approved') {
+            btns.push(_btn('Send to Supplier', '<path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/>',                                                                                            'white',   '#003087', '#003087', '_poSendToSupplier(\'' + id + '\')'));
+            btns.push(_btn('Print', '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>', '#4a5568', 'white',   '#e2e8f0', '_poViewId=\'' + id + '\';_poPrint()'));
+        } else if (status === 'Ordered') {
+            btns.push(_btn('Receive Items', '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',                           'white',   '#E8001C', '#E8001C', '_poReceiveItems(\'' + id + '\')'));
+            btns.push(_btn('Print', '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>', '#4a5568', 'white',   '#e2e8f0', '_poViewId=\'' + id + '\';_poPrint()'));
+        } else if (status === 'Partially Received') {
+            btns.push(_btn('Continue Receiving', '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',                    'white',   '#d69e2e', '#d69e2e', '_poContinueReceiving(\'' + id + '\')'));
+            btns.push(_btn('Print', '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>', '#4a5568', 'white',   '#e2e8f0', '_poViewId=\'' + id + '\';_poPrint()'));
+        } else if (status === 'Completed') {
+            btns.push(_btn('View',    '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',                                                                             '#4a5568', 'white',   '#e2e8f0', '_poOpenView(\'' + id + '\')'));
+            btns.push(_btn('Print',   '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',  '#4a5568', 'white',   '#e2e8f0', '_poViewId=\'' + id + '\';_poPrint()'));
+            btns.push(_btn('Archive', '<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>',                                            '#718096', 'white',   '#e2e8f0', '_poArchive(\'' + id + '\',\'' + pn + '\')'));
+        } else if (status === 'Cancelled') {
+            btns.push(_btn('View',  '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',                                                                               '#4a5568', 'white',   '#e2e8f0', '_poOpenView(\'' + id + '\')'));
+            btns.push(_btn('Print', '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',  '#4a5568', 'white',   '#e2e8f0', '_poViewId=\'' + id + '\';_poPrint()'));
+        }
+
+        var cardActions = btns.length
+            ? '<div style="display:flex;align-items:center;gap:6px;margin-top:10px;" onclick="event.stopPropagation();">' + btns.join('') + '</div>'
+            : '';
+
+        return '<div class="po-card" data-docid="' + id + '" style="cursor:pointer;">'
             + '<div class="po-card-header">'
             +   '<div>'
-            +     '<div class="po-card-id">' + (po.poNum || po._docId) + '</div>'
+            +     '<div class="po-card-id">' + (po.poNum || id) + '</div>'
             +     '<div class="po-card-date">' + _fmtDate(po.createdAt) + '</div>'
             +   '</div>'
             +   badge
@@ -672,11 +692,10 @@ function _poRender() {
             +   '<div style="font-size:12px;color:#4a5568;">'
             +     '<span style="font-weight:700;color:#1a202c;">' + itemCount + '</span> item' + (itemCount !== 1 ? 's' : '')
             +   '</div>'
-            +   '<div style="display:flex;align-items:center;gap:8px;">'
-            +     '<span style="font-size:13px;font-weight:800;color:#1a202c;">' + total + '</span>'
-            +   '</div>'
+            +   '<span style="font-size:13px;font-weight:800;color:#1a202c;">' + total + '</span>'
             + '</div>'
             + (itemNames ? '<div class="po-card-items-preview">' + itemNames + '</div>' : '')
+            + cardActions
             + '</div>';
     }).join('');
 }
@@ -697,13 +716,6 @@ function _poOpenView(docId) {
     var printBtn = document.getElementById('poViewPrintBtnHeader');
     if (printBtn) printBtn.style.display = 'inline-flex';
 
-    // Footer buttons — visibility depends on status
-    var mrkBtn  = document.getElementById('poViewMarkOrderedBtn');
-    var cncBtn  = document.getElementById('poViewCancelBtn');
-    var edtBtn  = document.getElementById('poViewEditBtn');
-    if (mrkBtn) mrkBtn.style.display = (status === 'Pending') ? 'inline-flex' : 'none';
-    if (cncBtn) cncBtn.style.display = (status === 'Pending' || status === 'Ordered') ? 'inline-flex' : 'none';
-    if (edtBtn) edtBtn.style.display = (status === 'Pending') ? 'inline-flex' : 'none';
 
     // Build body
     var html = '';
@@ -755,6 +767,52 @@ function _poOpenView(docId) {
     }
 
     document.getElementById('poViewBody').innerHTML = html;
+
+    // ── Build footer buttons based on status ──
+    function _fbtn(label, icon, bg, color, border, fn, extraStyle) {
+        return '<button onclick="' + fn + '" style="display:inline-flex;align-items:center;gap:6px;'
+            + 'padding:0.5rem 1rem;background:' + bg + ';border:1.5px solid ' + border + ';border-radius:8px;'
+            + 'color:' + color + ';font-size:0.82rem;font-weight:600;cursor:pointer;transition:all .15s;'
+            + (extraStyle||'') + '">'
+            + '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + icon + '</svg>'
+            + label + '</button>';
+    }
+
+    var leftBtns = '', rightBtns = '';
+    var printIcon = '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>';
+    var cancelIcon = '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
+
+    // Print always on left when available
+    if (status !== 'Cancelled') {
+        leftBtns += _fbtn('Print PO', printIcon, 'white', '#4a5568', '#e2e8f0', '_poPrint()', '');
+    }
+
+    if (status === 'Draft') {
+        rightBtns += _fbtn('Cancel PO', cancelIcon, 'white', '#E8001C', '#E8001C', '_poCancelPO()', '');
+        rightBtns += _fbtn('Submit for Approval', '<polyline points="22 2 15 22 11 13 2 9 22 2"/>', '#003087', 'white', '#003087', '_poSubmitForApproval(\'' + _poViewId + '\')', '');
+    } else if (status === 'Pending Approval') {
+        rightBtns += _fbtn('Revise', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>', '#fffbeb', '#d69e2e', '#fcd34d', '_poRevise(\'' + _poViewId + '\')', '');
+        rightBtns += _fbtn('Approve', '<polyline points="20 6 9 17 4 12"/>', '#38a169', 'white', '#38a169', '_poApprove(\'' + _poViewId + '\')', '');
+    } else if (status === 'Approved') {
+        rightBtns += _fbtn('Cancel PO', cancelIcon, 'white', '#E8001C', '#E8001C', '_poCancelPO()', '');
+        rightBtns += _fbtn('Send to Supplier', '<path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/>', '#003087', 'white', '#003087', '_poSendToSupplier(\'' + _poViewId + '\')', '');
+    } else if (status === 'Ordered') {
+        rightBtns += _fbtn('Receive Items', '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>', '#E8001C', 'white', '#E8001C', '_poReceiveItems(\'' + _poViewId + '\')', '');
+    } else if (status === 'Partially Received') {
+        rightBtns += _fbtn('Continue Receiving', '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>', '#d69e2e', 'white', '#d69e2e', '_poContinueReceiving(\'' + _poViewId + '\')', '');
+    } else if (status === 'Completed') {
+        rightBtns += _fbtn('Archive', '<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>', 'white', '#718096', '#e2e8f0', '_poArchive(\'' + _poViewId + '\',\'' + (po.poNum||'') + '\')', '');
+    } else if (status === 'Cancelled') {
+        rightBtns += _fbtn('Print PO', printIcon, 'white', '#4a5568', '#e2e8f0', '_poPrint()', '');
+        leftBtns = ''; // Print goes right for cancelled
+    }
+
+    var footer = document.getElementById('poViewFooter');
+    if (footer) {
+        footer.innerHTML = '<div style="display:flex;gap:0.5rem;">' + leftBtns + '</div>'
+            + '<div style="display:flex;gap:0.5rem;">' + rightBtns + '</div>';
+    }
+
     document.getElementById('poViewModal').classList.add('active');
 }
 
@@ -780,21 +838,81 @@ function _vRow(label, val) {
         + '</div>';
 }
 
-// ── Mark as Ordered ───────────────────────────────────────────────────────────
-function _poMarkOrdered() {
-    if (!confirm('Mark this PO as Ordered?')) return;
-    closeModal('poViewModal');
-    db.collection(_PO_COL).doc(_poViewId).update({ status: 'Ordered' })
-      .then(function() { showToast('PO marked as Ordered.', 'success'); })
+// ── Status action functions ───────────────────────────────────────────────────
+
+function _poStatusUpdate(docId, newStatus, successMsg) {
+    db.collection(_PO_COL).doc(docId).update({ status: newStatus })
+      .then(function() { showToast(successMsg, 'success'); })
       .catch(function(e) { showToast('Error: ' + e.message, 'error'); });
 }
 
-// ── Cancel PO ─────────────────────────────────────────────────────────────────
+// Draft → Pending Approval
+function _poSubmitForApproval(docId) {
+    if (!confirm('Submit this PO for approval?')) return;
+    closeModal('poViewModal');
+    _poStatusUpdate(docId || _poViewId, 'Pending Approval', 'PO submitted for approval.');
+}
+
+// Pending Approval → Approved
+function _poApprove(docId) {
+    if (!confirm('Approve this purchase order?')) return;
+    closeModal('poViewModal');
+    _poStatusUpdate(docId || _poViewId, 'Approved', 'PO approved!');
+}
+
+// Pending Approval → Draft (return for revision)
+function _poRevise(docId) {
+    if (!confirm('Return this PO to Draft for revision?')) return;
+    closeModal('poViewModal');
+    _poStatusUpdate(docId || _poViewId, 'Draft', 'PO returned for revision.');
+}
+
+// Approved → Ordered (sent to supplier)
+function _poSendToSupplier(docId) {
+    if (!confirm('Mark this PO as Ordered (sent to supplier)?')) return;
+    closeModal('poViewModal');
+    _poStatusUpdate(docId || _poViewId, 'Ordered', 'PO marked as Ordered.');
+}
+
+// Ordered → open receiving page
+function _poReceiveItems(docId) {
+    closeModal('poViewModal');
+    window.location.href = '/admin_receiving';
+}
+
+// Partially Received → continue receiving
+function _poContinueReceiving(docId) {
+    closeModal('poViewModal');
+    window.location.href = '/admin_receiving';
+}
+
+// Completed → Archived (soft-archive by setting status)
+function _poArchive(docId, poNum) {
+    var label = poNum || docId;
+    if (!confirm('Archive "' + label + '"? It will be hidden from the main list.')) return;
+    closeModal('poViewModal');
+    _poStatusUpdate(docId || _poViewId, 'Archived', label + ' archived.');
+}
+
+// Cancel PO
 function _poCancelPO() {
     if (!confirm('Cancel this purchase order? This cannot be undone.')) return;
     closeModal('poViewModal');
-    db.collection(_PO_COL).doc(_poViewId).update({ status: 'Cancelled' })
-      .then(function() { showToast('Purchase order cancelled.', 'error'); })
+    _poStatusUpdate(_poViewId, 'Cancelled', 'Purchase order cancelled.');
+}
+
+// Card-level Edit (opens edit modal)
+function _poCardEdit(docId) {
+    _poViewId = docId;
+    _poEdit();
+}
+
+// Card-level Delete (hard delete — Draft only)
+function _poCardDelete(docId, poNum) {
+    var label = poNum || docId;
+    if (!confirm('Permanently delete "' + label + '"?\n\nThis cannot be undone.')) return;
+    db.collection(_PO_COL).doc(docId).delete()
+      .then(function() { showToast(label + ' deleted.', 'success'); })
       .catch(function(e) { showToast('Error: ' + e.message, 'error'); });
 }
 
