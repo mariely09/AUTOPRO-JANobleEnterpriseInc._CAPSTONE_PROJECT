@@ -605,7 +605,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
       final doc = await ref.get();
       if (!mounted) return;
       _showViewModal({
-        ...doc.data() as Map<String, dynamic>,
+        ...doc.data()!,
         'id': doc.id,
       });
     } catch (e) {
@@ -857,7 +857,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
       ));
 
       _showViewModal({
-        ...doc.data() as Map<String, dynamic>,
+        ...doc.data()!,
         'id': doc.id,
       });
     } catch (e) {
@@ -872,9 +872,12 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // START RECEIVING  (DRAFT → INPROG)
+  // START RECEIVING  (DRAFT → INPROG, then immediately open the session)
   // ─────────────────────────────────────────────────────────────────────────
 
+  /// Called from the card "▶ Start" button.
+  /// Transitions status DRAFT→INPROG, then opens the view modal so staff
+  /// can immediately start processing lines (mirrors web rcvStartReceiving).
   Future<void> _startReceiving(Map<String, dynamic> r) async {
     try {
       await SyncStatusNotifier.instance.trackWrite(() =>
@@ -885,6 +888,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
         'status':    'INPROG',
         'startedAt': FieldValue.serverTimestamp(),
       }));
+      if (!mounted) return;
+      // Open the view modal with the updated status so staff can receive lines
+      _showViewModal({...r, 'status': 'INPROG'});
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1145,6 +1151,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
 
                 // ── Footer actions ──
                 if (status == 'DRAFT') ...[
+                  // STEP 3: "Start Receiving" transitions DRAFT → INPROG
+                  // and immediately opens the lines for processing
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -1152,14 +1160,15 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                         Navigator.pop(ctx);
                         _startReceiving(r);
                       },
-                      icon: const Icon(Icons.play_arrow_outlined, size: 16),
-                      label: const Text('Start Receiving',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      icon: const Icon(Icons.play_arrow_outlined, size: 18),
+                      label: const Text('▶ Start Receiving',
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w800)),
                       style: ElevatedButton.styleFrom(
                           backgroundColor: _blue,
                           foregroundColor: Colors.white,
                           padding:
-                              const EdgeInsets.symmetric(vertical: 14),
+                              const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30))),
                     ),
@@ -1176,7 +1185,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                           size: 14, color: Colors.red),
                       label: const Text('Archive',
                           style: TextStyle(
-                              color: Colors.red, fontWeight: FontWeight.w600)),
+                              color: Colors.red,
+                              fontWeight: FontWeight.w600)),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.red),
                         padding:
@@ -1187,39 +1197,126 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                     ),
                   ),
                 ] else if (status == 'INPROG') ...[
-                  // Show receive buttons for remaining DRAFT lines
-                  ...lines.asMap().entries
-                      .where((e) =>
-                          (e.value['lineStatus'] as String? ?? 'DRAFT') ==
-                          'DRAFT')
-                      .map((e) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  Navigator.pop(ctx);
-                                  _showReceiveLineModal(r, e.key);
-                                },
-                                icon: const Icon(
-                                    Icons.download_outlined, size: 16),
-                                label: Text(
-                                  'Receive: ${e.value['itemName'] ?? 'Item ${e.key + 1}'}',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w700),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                    backgroundColor: _red,
-                                    foregroundColor: Colors.white,
-                                    padding:
-                                        const EdgeInsets.symmetric(vertical: 12),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(30))),
-                              ),
+                  // ── STEP 4: Per-line "Receive Item" buttons ──
+                  // Each DRAFT line gets its own button. Completed lines
+                  // show a read-only checkmark row.
+                  Builder(builder: (_) {
+                    final draftLines = lines.asMap().entries
+                        .where((e) =>
+                            (e.value['lineStatus'] as String? ?? 'DRAFT') ==
+                            'DRAFT')
+                        .toList();
+                    final allDone = draftLines.isEmpty;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Per-line receive buttons (only DRAFT lines)
+                        ...draftLines.map((e) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _showReceiveLineModal(r, e.key);
+                            },
+                            icon: const Icon(
+                                Icons.download_outlined, size: 15),
+                            label: Text(
+                              'Receive: ${(e.value['itemName'] as String? ?? '').isNotEmpty ? e.value['itemName'] : 'Item ${e.key + 1}'}',
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          )),
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: _red,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(30))),
+                          ),
+                        )),
+
+                        if (draftLines.isNotEmpty)
+                          const SizedBox(height: 8),
+
+                        // ── STEP 5: "Complete Receiving" / "Save & Finish" ──
+                        // Enabled only when ALL lines are processed (no more DRAFT lines).
+                        // Disabled with grey style when lines still remain.
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: allDone
+                                ? () {
+                                    Navigator.pop(ctx);
+                                    _completeReceiving(r, lines);
+                                  }
+                                : null,
+                            icon: allDone
+                                ? const Icon(
+                                    Icons.check_circle_outline, size: 18)
+                                : const Icon(Icons.hourglass_empty_outlined,
+                                    size: 16),
+                            label: Text(
+                              allDone
+                                  ? '✅ Complete Receiving'
+                                  : '${draftLines.length} item${draftLines.length == 1 ? '' : 's'} remaining…',
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  allDone ? _green : const Color(0xFFe2e8f0),
+                              foregroundColor:
+                                  allDone ? Colors.white : const Color(0xFF718096),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(30)),
+                              elevation: allDone ? 4 : 0,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
                 ] else if (status == 'COMP' || status == 'PARTIAL') ...[
+                  // Already finalised — just offer archive
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: (status == 'COMP' ? _green : _amber)
+                          .withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: (status == 'COMP' ? _green : _amber)
+                              .withValues(alpha: 0.3)),
+                    ),
+                    child: Row(children: [
+                      Icon(
+                        status == 'COMP'
+                            ? Icons.task_alt_outlined
+                            : Icons.timelapse_outlined,
+                        size: 16,
+                        color: status == 'COMP' ? _green : _amber,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        status == 'COMP'
+                            ? 'Receiving completed. All items processed.'
+                            : 'Partially received. Some items not fully received.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: status == 'COMP' ? _green : _amber,
+                        ),
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
@@ -1281,6 +1378,49 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
               color: color ?? const Color(0xFF4a5568))),
         ]),
       );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // COMPLETE RECEIVING  (called by "✅ Complete Receiving" button)
+  // All lines are done — write final header status to Firestore.
+  // Web equivalent: the auto-status computed in submitReceiving when allDone.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _completeReceiving(
+    Map<String, dynamic> r,
+    List<Map<String, dynamic>> lines,
+  ) async {
+    final finalStatus = _computeHeaderStatus(lines);
+    try {
+      await SyncStatusNotifier.instance.trackWrite(() =>
+          FirebaseFirestore.instance
+              .collection(_col)
+              .doc(r['id'] as String)
+              .update({
+        'status':      finalStatus,
+        'completedAt': FieldValue.serverTimestamp(),
+        'updatedAt':   FieldValue.serverTimestamp(),
+      }));
+      if (!mounted) return;
+      final isComp = finalStatus == 'COMP';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(isComp
+            ? '${r['receivingNum'] ?? 'Receiving'} completed! Stock updated.'
+            : '${r['receivingNum'] ?? 'Receiving'} saved as Partial.'),
+        backgroundColor: isComp ? _green : _amber,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10)),
+      ));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: _red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // RECEIVE LINE MODAL
@@ -1663,6 +1803,24 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10)),
         ));
+
+        // ── Auto-advance: open next DRAFT line if one exists ──
+        // This mirrors the web flow where staff moves line-by-line.
+        if (newHeaderStatus == 'INPROG' && mounted) {
+          final nextDraftIdx = allLines.indexWhere((l) =>
+              (l['lineStatus'] as String? ?? 'DRAFT') == 'DRAFT');
+          if (nextDraftIdx >= 0) {
+            // Small delay so the snack bar appears first
+            Future.delayed(const Duration(milliseconds: 400), () {
+              if (mounted) {
+                _showReceiveLineModal(
+                  {...r, 'receivingLines': allLines},
+                  nextDraftIdx,
+                );
+              }
+            });
+          }
+        }
       }
     } catch (e) {
       if (ctx.mounted) {
