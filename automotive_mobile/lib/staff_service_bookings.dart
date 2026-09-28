@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'staff_maintenance.dart';
+import 'create_booking_sheet.dart';
 
 class StaffServiceBookingsBody extends StatefulWidget {
   final String searchQuery;
@@ -80,7 +81,6 @@ class _StaffServiceBookingsBodyState extends State<StaffServiceBookingsBody> {
         final approved    = allBookings.where((d) => d['status'] == 'Approved' && !_isRescheduled(d)).length;
         final rescheduled = allBookings.where((d) => d['status'] == 'Approved' && _isRescheduled(d)).length;
         final cancelled   = allBookings.where((d) => d['status'] == 'Cancelled').length;
-        final total       = allBookings.length;
 
         final afterFilter = _filter == 'all'
             ? allBookings
@@ -102,7 +102,9 @@ class _StaffServiceBookingsBodyState extends State<StaffServiceBookingsBody> {
                     svcs.contains(q) || date.contains(q);
               }).toList();
 
-        return Column(children: [
+        return Stack(
+          children: [
+            Column(children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Row(children: [
@@ -129,7 +131,30 @@ class _StaffServiceBookingsBodyState extends State<StaffServiceBookingsBody> {
                         _buildCard(filtered[i]['docId'] as String, filtered[i]),
                   ),
           ),
-        ]);
+        ]),
+            // ── Floating Action Button ──
+            Positioned(
+              bottom: 20,
+              right: 16,
+              child: FloatingActionButton(
+                onPressed: () => showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.white,
+                  shape: const RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(20))),
+                  builder: (_) =>
+                      const CreateBookingSheet(bookedBy: 'staff'),
+                ),
+                backgroundColor: const Color(0xFFE8001C),
+                elevation: 6,
+                tooltip: 'Add New Booking',
+                child: const Icon(Icons.add, size: 28),
+              ),
+            ),
+          ],
+        );
       },
     );
   }
@@ -833,7 +858,7 @@ class _StaffRescheduleSheetState extends State<_StaffRescheduleSheet> {
           'to_name':  name,
           'plate':    widget.plate,
           'old_date': _fmt(widget.currentDate) + (widget.currentTime.isNotEmpty ? ' at ${widget.currentTime}' : ''),
-          'new_date': _fmt(_selectedDate!) + ' at $_selectedTime',
+          'new_date': '${_fmt(_selectedDate!)} at $_selectedTime',
           'services': services,
         }),
       );

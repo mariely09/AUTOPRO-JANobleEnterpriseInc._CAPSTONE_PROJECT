@@ -1134,6 +1134,7 @@ class _AdminUsersState extends State<AdminUsers> {
         : 'Staff';
     String selectedStatus = user?['status'] ?? 'Active';
     bool saving = false;
+    bool noEmail = false; // non-user account — skip email on add
 
     showModalBottomSheet(
       context: context,
@@ -1315,6 +1316,51 @@ class _AdminUsersState extends State<AdminUsers> {
                                     fontSize: 11,
                                     color: Colors.green,
                                   ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // ── Non-user account checkbox ──
+                        const SizedBox(height: 10),
+                        GestureDetector(
+                          onTap: () => setModal(() => noEmail = !noEmail),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: Checkbox(
+                                  value: noEmail,
+                                  activeColor: _red,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4)),
+                                  onChanged: (v) =>
+                                      setModal(() => noEmail = v ?? false),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Non-user account',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF1a202c),
+                                      ),
+                                    ),
+                                    Text(
+                                      'Record only — no email will be sent',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFF718096),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -1622,21 +1668,22 @@ class _AdminUsersState extends State<AdminUsers> {
                                           // 4. Send welcome email
                                           bool sent = false;
                                           String emailError = '';
-                                          try {
-                                            sent = await _sendWelcomeEmail(
-                                              toEmail: emailCtrl.text.trim(),
-                                              toName: fullName,
-                                              tempPassword: tempPass,
-                                              role: selectedRole,
-                                            );
-                                          } catch (e) {
-                                            emailError = e.toString();
-                                            debugPrint('Email send caught: $e');
+                                          if (!noEmail) {
+                                            try {
+                                              sent = await _sendWelcomeEmail(
+                                                toEmail: emailCtrl.text.trim(),
+                                                toName: fullName,
+                                                tempPassword: tempPass,
+                                                role: selectedRole,
+                                              );
+                                            } catch (e) {
+                                              emailError = e.toString();
+                                              debugPrint('Email send caught: $e');
+                                            }
                                           }
 
                                           if (ctx.mounted) {
                                             Navigator.pop(ctx);
-                                            // Always show green success — user was created regardless of email
                                             ScaffoldMessenger.of(
                                               context,
                                             ).showSnackBar(
@@ -1652,7 +1699,9 @@ class _AdminUsersState extends State<AdminUsers> {
                                                     const SizedBox(width: 8),
                                                     Expanded(
                                                       child: Text(
-                                                        sent
+                                                        noEmail
+                                                            ? 'User record created (non-user account, no email sent).'
+                                                            : sent
                                                             ? 'User added! Credentials sent to ${emailCtrl.text.trim()}.'
                                                             : 'User added! Email failed: ${emailError.isNotEmpty ? emailError.substring(0, emailError.length.clamp(0, 120)) : "unknown error"}',
                                                       ),

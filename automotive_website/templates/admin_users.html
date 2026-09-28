@@ -278,10 +278,22 @@
                 <input type="text" name="companyName" placeholder=" ">
                 <label>Company Name</label>
             </div>
-            <div id="addUserEmailNote" style="display:none;background:#f0fff4;border:1px solid #9ae6b4;border-radius:10px;padding:0.75rem 1rem;font-size:0.82rem;color:#276749;display:none;align-items:center;gap:0.5rem;">
+            <div id="addUserEmailNote" style="display:none;background:#f0fff4;border:1px solid #9ae6b4;border-radius:10px;padding:0.75rem 1rem;font-size:0.82rem;color:#276749;align-items:center;gap:0.5rem;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                 A temporary password will be auto-generated and sent to the user's email.
             </div>
+            <!-- Non-user account checkbox (add mode only) -->
+            <label id="noEmailRow" style="display:none;align-items:center;gap:10px;cursor:pointer;padding:0.5rem 0;user-select:none;">
+                <input type="checkbox" id="noEmailAccount" name="noEmailAccount"
+                    style="width:16px;height:16px;accent-color:#E31E24;cursor:pointer;flex-shrink:0;"
+                    onchange="
+                        var note = document.getElementById('addUserEmailNote');
+                        note.style.display = this.checked ? 'none' : 'flex';
+                    ">
+                <span style="font-size:0.83rem;color:#4a5568;line-height:1.4;">
+                    <strong style="color:#1a202c;">Non-user account</strong> — record only, no email will be sent
+                </span>
+            </label>
             <div style="display:flex;gap:0.75rem;padding-top:0.5rem;">
                 <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('addUserModal')">Cancel</button>
                 <button type="submit" id="userSubmitBtn" class="btn-primary" style="flex:1;display:flex;align-items:center;justify-content:center;gap:0.4rem;">
@@ -551,6 +563,11 @@ function openAddUserModal() {
     // Show email note for add mode
     var note = document.getElementById('addUserEmailNote');
     if (note) note.style.display = 'flex';
+    // Show non-user checkbox row and reset it
+    var noEmailRow = document.getElementById('noEmailRow');
+    if (noEmailRow) noEmailRow.style.display = 'flex';
+    var noEmailChk = document.getElementById('noEmailAccount');
+    if (noEmailChk) noEmailChk.checked = false;
     // Hide company name field (default role is Staff)
     var companyField = document.getElementById('companyNameField');
     if (companyField) companyField.style.display = 'none';
@@ -624,6 +641,9 @@ function editUser(userId) {
     // Hide email note in edit mode
     var note = document.getElementById('addUserEmailNote');
     if (note) note.style.display = 'none';
+    // Hide non-user checkbox row in edit mode
+    var noEmailRow = document.getElementById('noEmailRow');
+    if (noEmailRow) noEmailRow.style.display = 'none';
     document.getElementById('addUserModal').classList.add('active');
 }
 
@@ -760,6 +780,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 })
                 .then(function(pass) {
+                    var isNonUser = document.getElementById('noEmailAccount')?.checked;
+                    if (isNonUser) {
+                        closeModal('addUserModal');
+                        showToast('User record created (no email sent — non-user account).', 'success');
+                        return;
+                    }
                     return _sendWelcomeEmail(email, fullName, pass, role)
                         .then(function(sent) {
                             closeModal('addUserModal');

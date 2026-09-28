@@ -291,6 +291,34 @@ function fabOpenNewBlank() {
   </div>
 </div>
 
+<!-- ── Receiving Session Modal ───────────────────────────────
+     Opens when staff clicks ▶ Start or ▶ Continue on a card.
+     Shows all lines with status + per-line Receive buttons,
+     and a "✅ Complete Receiving" footer button.
+──────────────────────────────────────────────────────────── -->
+<div class="modal" id="rcvSessionModal">
+  <div class="modal-content" style="max-width:560px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
+    <!-- Header -->
+    <div id="rsmHeader" style="background:linear-gradient(135deg,#003087,#E8001C);padding:1.25rem 1.5rem;display:flex;align-items:flex-start;gap:0.85rem;flex-shrink:0;">
+      <div style="flex:1;">
+        <div id="rsmTitle" style="color:white;font-size:1rem;font-weight:800;">Receiving Session</div>
+        <div id="rsmSubtitle" style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:2px;"></div>
+      </div>
+      <div id="rsmStatusBadge" style="flex-shrink:0;"></div>
+      <button onclick="closeModal('rcvSessionModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">&times;</button>
+    </div>
+    <!-- Lines list -->
+    <div id="rsmLinesList" style="overflow-y:auto;flex:1;background:#f8fafc;padding:1rem 1.25rem;display:flex;flex-direction:column;gap:0.6rem;">
+    </div>
+    <!-- Footer -->
+    <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;flex-shrink:0;">
+      <button id="rsmCompleteBtn" onclick="completeReceiving()" style="width:100%;padding:0.85rem;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;">
+        ✅ Complete Receiving
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Receive Line Modal ─────────────────────────────────── -->
 <div class="modal" id="receiveModal">
   <div class="modal-content" style="max-width:520px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
@@ -416,7 +444,7 @@ document.addEventListener('click', function(e) {
   if (docId) rcvOpenCard(docId);
 });
 
-// Open the first pending line, or the item view for completed records
+// Open the session modal (▶ Continue on INPROG card, or after ▶ Start)
 window.rcvOpenCard = function(docId) {
   var r = _allRcv.find(function(x){ return x._docId === docId; });
   if (!r) return;
@@ -425,16 +453,12 @@ window.rcvOpenCard = function(docId) {
     showToast('No lines in this receiving record.', 'error');
     return;
   }
-  // Find first DRAFT line
-  var firstDraft = -1;
-  for (var i = 0; i < lines.length; i++) {
-    if ((lines[i].lineStatus || 'DRAFT') === 'DRAFT') { firstDraft = i; break; }
-  }
   var s = r.status || 'DRAFT';
-  if ((s === 'INPROG' || s === 'DRAFT') && firstDraft >= 0) {
-    openReceiveModal(docId, firstDraft);
+  if (s === 'INPROG' || s === 'DRAFT') {
+    // Always open the session overview first (Step 3 in spec)
+    openRcvSessionModal(docId);
   } else {
-    // All lines done — open view of first line
+    // Completed/partial — open view of first line
     openItemViewModal(docId, 0);
   }
 };
@@ -576,16 +600,19 @@ function _rcvRenderList() {
   }).join('');
 }
 
-// ── Start Receiving (DRAFT → INPROG) ─────────────────────────────────────────
+// ── Start Receiving (DRAFT → INPROG) — then open session modal ───────────────
 window.rcvStartReceiving = function(docId) {
   var r = _allRcv.find(function(x){ return x._docId === docId; });
   if (!r) return;
-  if (r.status === 'INPROG') { showToast('Already in progress.', 'error'); return; }
+  if (r.status === 'INPROG') { openRcvSessionModal(docId); return; }
   db.collection(_RCV_COL).doc(docId).update({
     status: 'INPROG',
     startedAt: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(function(){ showToast('Receiving started!', 'success'); })
-    .catch(function(e){ showToast('Error: '+e.message, 'error'); });
+  }).then(function(){
+    showToast('Receiving started!', 'success');
+    // Open session modal immediately — user can now receive lines
+    openRcvSessionModal(docId);
+  }).catch(function(e){ showToast('Error: '+e.message, 'error'); });
 };
 
 // ── Open Receive Modal (per line) ─────────────────────────────────────────────
@@ -731,6 +758,15 @@ window.submitReceiving = function() {
       closeModal('receiveModal');
       showToast('Line updated — ' + lineStatus + '!', 'success');
 
+      // ── Auto-advance: re-open session modal (refreshed from _allRcv) ──────
+      // The onSnapshot listener will have updated _allRcv with the new line
+      // statuses. We open the session modal after a short delay so the toast
+      // is visible first, then the user sees the updated lines list and can
+      // either receive the next item or click "Complete Receiving".
+      setTimeout(function() {
+        openRcvSessionModal(_currentRcvId);
+      }, 500);
+
       // ── Update stock for COMP or INCOMP lines ─────────────────────────────
       if ((lineStatus === 'COMP' || lineStatus === 'INCOMP') && rcvQty > 0) {
         var itemNum  = origLine.itemNum  || '';
@@ -772,6 +808,131 @@ window.submitReceiving = function() {
     })
     .catch(function(err){ showToast('Error: '+err.message, 'error'); })
     .finally(function(){ btn.disabled=false; btn.textContent='Submit'; });
+};
+
+// ── Receiving Session Modal ───────────────────────────────────────────────────
+// Shows all lines with status, per-line Receive buttons, and the
+// "✅ Complete Receiving" footer button. Opens after ▶ Start and ▶ Continue.
+
+window.openRcvSessionModal = function(docId) {
+  // Use latest data from the real-time listener
+  var r = _allRcv.find(function(x){ return x._docId === docId; });
+  if (!r) return;
+
+  var lines   = r.receivingLines || [];
+  var rcvNum  = r.receivingNum || docId;
+  var status  = r.status || 'DRAFT';
+  var sc      = _STATUS_CFG[status] || _STATUS_CFG['DRAFT'];
+  var doneCount = lines.filter(function(l){ return l.lineStatus !== 'DRAFT'; }).length;
+  var total   = lines.length;
+  var allDone = doneCount === total && total > 0;
+
+  // ── Header ──
+  document.getElementById('rsmTitle').textContent = rcvNum;
+  document.getElementById('rsmSubtitle').textContent =
+    (r.poNum ? 'PO: ' + r.poNum + '  •  ' : '') +
+    doneCount + '/' + total + ' lines received';
+  document.getElementById('rsmStatusBadge').innerHTML =
+    '<span class="rcv-badge" style="color:' + sc[0] + ';background:' + sc[1] + ';font-size:10px;">' + sc[2] + '</span>';
+
+  // ── Lines list ──
+  var listEl = document.getElementById('rsmLinesList');
+  if (!lines.length) {
+    listEl.innerHTML =
+      '<div style="text-align:center;padding:2rem;color:#a0aec0;font-size:13px;">' +
+      'No items in this receiving record.</div>';
+  } else {
+    listEl.innerHTML = lines.map(function(line, idx) {
+      var ls  = line.lineStatus || 'DRAFT';
+      var lsc = _LINE_STATUS_CFG[ls] || ['#718096','rgba(113,128,150,0.1)', ls];
+      var isDraft = ls === 'DRAFT';
+      var uom = line.uom || '';
+      var pQty = parseInt(line.poQty) || 0;
+      var rQty = parseInt(line.receivedQty) || 0;
+
+      return '<div style="background:white;border:1.5px solid ' + (isDraft ? '#e2e8f0' : lsc[1].replace('rgba','rgba').replace(/,[\d.]+\)$/,',0.3)')) + ';border-radius:12px;padding:12px 14px;">'
+        + '<div style="display:flex;align-items:center;gap:10px;">'
+        +   '<div style="width:22px;height:22px;background:' + lsc[1] + ';border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+        +     (isDraft
+                ? '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="' + lsc[0] + '" stroke-width="2.5"><circle cx="12" cy="12" r="9"/></svg>'
+                : '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="' + lsc[0] + '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>')
+        +   '</div>'
+        +   '<div style="flex:1;min-width:0;">'
+        +     '<div style="font-weight:700;font-size:13px;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+        +       (line.itemName||'—') + (uom ? ' <span style="font-weight:400;font-size:11px;color:#718096;">(' + uom + ')</span>' : '')
+        +     '</div>'
+        +     '<div style="font-size:11px;color:#718096;margin-top:1px;">'
+        +       (line.supplierCode ? line.supplierCode + '  •  ' : '')
+        +       'PO Qty: <strong style="color:#1a202c;">' + pQty + '</strong>'
+        +       (isDraft ? '' : '  →  Rcv: <strong style="color:' + lsc[0] + ';">' + rQty + '</strong>')
+        +     '</div>'
+        +   '</div>'
+        +   '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">'
+        +     '<span class="rcv-badge" style="color:' + lsc[0] + ';background:' + lsc[1] + ';font-size:9px;">' + lsc[2] + '</span>'
+        +     (isDraft
+                ? '<button onclick="closeModal(\'rcvSessionModal\');openReceiveModal(\'' + docId + '\',' + idx + ')" '
+                +   'style="padding:4px 12px;background:#E8001C;border:none;border-radius:8px;color:white;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">'
+                +   '▶ Receive</button>'
+                : '<button onclick="openItemViewModal(\'' + docId + '\',' + idx + ')" '
+                +   'style="padding:4px 10px;background:#f0f4f8;border:none;border-radius:8px;color:#4a5568;font-size:11px;font-weight:600;cursor:pointer;">View</button>')
+        +   '</div>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  // ── Complete Receiving button state ──
+  var btn = document.getElementById('rsmCompleteBtn');
+  if (allDone) {
+    btn.disabled = false;
+    btn.style.background = 'linear-gradient(135deg,#38a169,#2f855a)';
+    btn.style.color      = 'white';
+    btn.style.boxShadow  = '0 4px 14px rgba(56,161,105,0.35)';
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><polyline points="20 6 9 17 4 12"/></svg>✅ Complete Receiving';
+  } else {
+    var remaining = total - doneCount;
+    btn.disabled = true;
+    btn.style.background = '#e2e8f0';
+    btn.style.color      = '#a0aec0';
+    btn.style.boxShadow  = 'none';
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+      + remaining + ' item' + (remaining !== 1 ? 's' : '') + ' remaining…';
+  }
+
+  document.getElementById('rcvSessionModal').classList.add('active');
+};
+
+// ── Complete Receiving ────────────────────────────────────────────────────────
+// Called by the "✅ Complete Receiving" footer button.
+// All lines are done — write final COMP or PARTIAL status.
+window.completeReceiving = function() {
+  var r = _allRcv.find(function(x){ return x._docId === _currentRcvId; });
+  if (!r) return;
+
+  var lines    = r.receivingLines || [];
+  var allComp  = lines.every(function(l){ return l.lineStatus === 'COMP'; });
+  var anyComp  = lines.some(function(l){  return l.lineStatus === 'COMP'; });
+  var allDone  = lines.every(function(l){ return l.lineStatus !== 'DRAFT'; });
+  var finalStatus = allComp ? 'COMP' : (allDone && anyComp) ? 'PARTIAL' : 'PARTIAL';
+
+  var btn = document.getElementById('rsmCompleteBtn');
+  btn.disabled = true;
+  btn.innerHTML = 'Saving…';
+
+  db.collection(_RCV_COL).doc(_currentRcvId).update({
+    status:      finalStatus,
+    completedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function() {
+    closeModal('rcvSessionModal');
+    var msg = finalStatus === 'COMP'
+      ? 'Receiving completed! Stock has been updated.'
+      : 'Saved as Partial — some items were not fully received.';
+    showToast(msg, 'success');
+  }).catch(function(e){
+    btn.disabled = false;
+    btn.innerHTML = '✅ Complete Receiving';
+    showToast('Error: ' + e.message, 'error');
+  });
 };
 
 // ── Item View Modal ───────────────────────────────────────────────────────────
