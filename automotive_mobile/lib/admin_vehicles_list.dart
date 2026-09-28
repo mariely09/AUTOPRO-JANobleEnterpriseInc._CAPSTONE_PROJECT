@@ -5,6 +5,10 @@ import 'admin_vehicle_maintenance.dart';
 import 'admin_service_bookings.dart';
 import 'admin_issuances.dart';
 import 'sync_indicator.dart';
+import 'admin_bottomnavbar.dart';
+import 'admin_dashboard.dart';
+import 'admin_inventory_hub.dart';
+import 'profile.dart';
 
 /// Full-screen Vehicles hub — has its own AppBar + sub-tabs.
 /// No bottom nav bar visible. Launched via Navigator.push from the dashboard.
@@ -322,6 +326,43 @@ class _AdminVehiclesListState extends State<AdminVehiclesList> {
             ),
           ],
         ),
+      ),
+      floatingActionButton: _tab == 3
+          ? FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AddIssuanceScreen()),
+                );
+              },
+              backgroundColor: const Color(0xFFE31E24),
+              child: const Icon(Icons.add, color: Colors.white, size: 28),
+            )
+          : null,
+      bottomNavigationBar: AdminBottomNavBar(
+        currentIndex: 2,
+        onTap: (i) {
+          if (i == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminDashboard()),
+            );
+          } else if (i == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminInventoryHub()),
+            );
+          } else if (i == 2) {
+            // Already on Vehicles
+          } else if (i == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const UserProfile(role: UserRole.admin),
+              ),
+            );
+          }
+        },
       ),
     );
   }

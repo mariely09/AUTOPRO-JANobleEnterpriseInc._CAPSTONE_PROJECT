@@ -3,15 +3,48 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'admin_vehicle_maintenance.dart';
+import 'admin_bottomnavbar.dart';
+import 'admin_dashboard.dart';
+import 'admin_inventory_hub.dart';
+import 'admin_vehicles_list.dart';
+import 'profile.dart';
 
 class AdminServiceBookings extends StatelessWidget {
   const AdminServiceBookings({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFFF7F8FA),
-      body: AdminServiceBookingsBody(),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F8FA),
+      body: const AdminServiceBookingsBody(),
+      bottomNavigationBar: AdminBottomNavBar(
+        currentIndex: 0,
+        onTap: (i) {
+          if (i == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminDashboard()),
+            );
+          } else if (i == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminInventoryHub()),
+            );
+          } else if (i == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminVehiclesList()),
+            );
+          } else if (i == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const UserProfile(role: UserRole.admin),
+              ),
+            );
+          }
+        },
+      ),
     );
   }
 }

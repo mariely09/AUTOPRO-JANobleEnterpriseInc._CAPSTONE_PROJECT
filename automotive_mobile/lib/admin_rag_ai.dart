@@ -46,21 +46,25 @@ const _kReportTypeKeywords = {
 /// but this ensures they never reach the UI even if backend stripping fails.
 String _stripReasoning(String text) {
   if (text.isEmpty) return text;
-  
+
   // Remove complete <think>...</think> blocks
-  var cleaned = text.replaceAll(RegExp(r'<think\b[^>]*>.*?</think\s*>', 
-    caseSensitive: false, 
-    dotAll: true), '');
-  
+  var cleaned = text.replaceAll(
+    RegExp(r'<think\b[^>]*>.*?</think\s*>', caseSensitive: false, dotAll: true),
+    '',
+  );
+
   // Remove unclosed <think> blocks (model was cut off mid-reasoning)
-  cleaned = cleaned.replaceAll(RegExp(r'<think\b[^>]*>.*$', 
-    caseSensitive: false, 
-    dotAll: true), '');
-  
+  cleaned = cleaned.replaceAll(
+    RegExp(r'<think\b[^>]*>.*$', caseSensitive: false, dotAll: true),
+    '',
+  );
+
   // Remove orphaned think tags
-  cleaned = cleaned.replaceAll(RegExp(r'</?think\b[^>]*>', 
-    caseSensitive: false), '');
-  
+  cleaned = cleaned.replaceAll(
+    RegExp(r'</?think\b[^>]*>', caseSensitive: false),
+    '',
+  );
+
   return cleaned.trim();
 }
 
@@ -637,29 +641,28 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
 
     try {
       _activeClient = http.Client(); // Create client for cancellation support
-      
+
       final request = http.Request(
         'POST',
         Uri.parse('$_kAiBaseUrl/admin/chat/stream'),
       );
       request.headers['Content-Type'] = 'application/json';
-      request.body = jsonEncode({
-        'message': text,
-        'session_id': _sessionId,
-      });
+      request.body = jsonEncode({'message': text, 'session_id': _sessionId});
 
       final streamedResponse = await _activeClient!.send(request);
-      
+
       if (streamedResponse.statusCode != 200) {
         // Non-streaming error response
         final errorBody = await streamedResponse.stream.bytesToString();
         _activeClient = null;
         setState(() {
           _loading = false;
-          _messages.add(_ChatMessage(
-            role: 'ai',
-            text: 'Error: ${streamedResponse.statusCode} - $errorBody',
-          ));
+          _messages.add(
+            _ChatMessage(
+              role: 'ai',
+              text: 'Error: ${streamedResponse.statusCode} - $errorBody',
+            ),
+          );
         });
         return;
       }
@@ -677,12 +680,12 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       String? resetIn;
 
       // Process Server-Sent Events stream
-      await for (final chunk in streamedResponse.stream
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())) {
-        
+      await for (final chunk
+          in streamedResponse.stream
+              .transform(utf8.decoder)
+              .transform(const LineSplitter())) {
         if (chunk.isEmpty || !chunk.startsWith('data: ')) continue;
-        
+
         final jsonStr = chunk.substring(6); // Remove "data: " prefix
         if (jsonStr.trim().isEmpty) continue;
 
@@ -707,14 +710,15 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
           if (data.containsKey('chunk')) {
             final textChunk = data['chunk'] as String;
             accumulatedText += textChunk;
-            
+
             // Update the AI message in real-time (remove typing indicator on first chunk)
             setState(() {
               if (aiMessageIndex < _messages.length) {
                 _messages[aiMessageIndex] = _ChatMessage(
                   role: 'ai',
                   text: _stripReasoning(accumulatedText),
-                  isTyping: false, // Remove typing indicator once content starts arriving
+                  isTyping:
+                      false, // Remove typing indicator once content starts arriving
                 );
               }
             });
@@ -752,7 +756,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       });
 
       // Persist session_id for continuity
-      if (finalSessionId != null && finalSessionId.isNotEmpty && _currentUid.isNotEmpty) {
+      if (finalSessionId != null &&
+          finalSessionId.isNotEmpty &&
+          _currentUid.isNotEmpty) {
         await AdminChatStore.adoptServerSession(_currentUid, finalSessionId);
       } else if (finalSessionId != null && finalSessionId.isNotEmpty) {
         _sessionId = finalSessionId;
@@ -772,7 +778,6 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       }
 
       _scrollToBottom();
-
     } on http.ClientException {
       // Request was cancelled (Stop button pressed)
       setState(() {
@@ -782,13 +787,16 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
       _activeClient = null;
       setState(() {
         _loading = false;
-        _messages.add(_ChatMessage(
-          role: 'ai',
-          text: "I'm having trouble processing your request right now. Please try again in a moment.",
-        ));
+        _messages.add(
+          _ChatMessage(
+            role: 'ai',
+            text:
+                "I'm having trouble processing your request right now. Please try again in a moment.",
+          ),
+        );
       });
     }
-    
+
     _scrollToBottom();
     // Persist the exchange to history after every turn
     if (_currentUid.isNotEmpty) AdminChatStore.saveChat(_currentUid);
@@ -1859,10 +1867,7 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
             height: 64,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFF22c55e),
-                width: 2.5,
-              ),
+              border: Border.all(color: const Color(0xFF22c55e), width: 2.5),
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFF22c55e).withValues(alpha: 0.2),
@@ -2032,21 +2037,30 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
 
     // Determine context
     String context = 'general';
-    if (RegExp(r'inventory|stock|item|material|supply', caseSensitive: false)
-        .hasMatch('$q $resp')) {
+    if (RegExp(
+      r'inventory|stock|item|material|supply',
+      caseSensitive: false,
+    ).hasMatch('$q $resp')) {
       context = 'inventory';
-    } else if (RegExp(r'maintenance|service|repair|pms|schedule',
-            caseSensitive: false)
-        .hasMatch('$q $resp')) {
+    } else if (RegExp(
+      r'maintenance|service|repair|pms|schedule',
+      caseSensitive: false,
+    ).hasMatch('$q $resp')) {
       context = 'maintenance';
-    } else if (RegExp(r'report|generate|export|pdf|excel', caseSensitive: false)
-        .hasMatch('$q $resp')) {
+    } else if (RegExp(
+      r'report|generate|export|pdf|excel',
+      caseSensitive: false,
+    ).hasMatch('$q $resp')) {
       context = 'reports';
-    } else if (RegExp(r'booking|appointment|reservation', caseSensitive: false)
-        .hasMatch('$q $resp')) {
+    } else if (RegExp(
+      r'booking|appointment|reservation',
+      caseSensitive: false,
+    ).hasMatch('$q $resp')) {
       context = 'bookings';
-    } else if (RegExp(r'vehicle|fleet|car|plate', caseSensitive: false)
-        .hasMatch('$q $resp')) {
+    } else if (RegExp(
+      r'vehicle|fleet|car|plate',
+      caseSensitive: false,
+    ).hasMatch('$q $resp')) {
       context = 'fleet';
     }
 
@@ -2056,8 +2070,10 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
 
     // Filter out queries too similar to current user query
     final filtered = shuffled
-        .where((sq) =>
-            !sq.toLowerCase().contains(q) && !q.contains(sq.toLowerCase()))
+        .where(
+          (sq) =>
+              !sq.toLowerCase().contains(q) && !q.contains(sq.toLowerCase()),
+        )
         .toList();
 
     // Return first 3
@@ -2378,7 +2394,10 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.76,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 13,
+                    vertical: 10,
+                  ),
                   decoration: _aiBubbleDecoration(),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -2423,7 +2442,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                               () async {
                                 await Printing.sharePdf(
                                   bytes: await msg.reportFile!.readAsBytes(),
-                                  filename: msg.reportFile!.path.split('/').last,
+                                  filename: msg.reportFile!.path
+                                      .split('/')
+                                      .last,
                                 );
                               },
                             ),
@@ -2497,7 +2518,9 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
                   ),
                 ),
                 // ── Related query chips ──
-                if (msg.relatedQueries != null && msg.relatedQueries!.isNotEmpty && !_loading) ...[
+                if (msg.relatedQueries != null &&
+                    msg.relatedQueries!.isNotEmpty &&
+                    !_loading) ...[
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
@@ -2583,53 +2606,62 @@ class _AdminSmartReportsState extends State<AdminSmartReports> {
   Widget _renderMarkdown(String text) {
     final spans = <TextSpan>[];
     final lines = text.split('\n');
-    
+
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i];
       final lineSpans = <InlineSpan>[];
-      
+
       // Check for bullet point
-      if (line.startsWith('• ') || line.startsWith('- ') || line.startsWith('* ')) {
-        lineSpans.add(const TextSpan(
-          text: '• ',
-          style: TextStyle(color: Color(0xFFE8001C), fontWeight: FontWeight.bold),
-        ));
+      if (line.startsWith('• ') ||
+          line.startsWith('- ') ||
+          line.startsWith('* ')) {
+        lineSpans.add(
+          const TextSpan(
+            text: '• ',
+            style: TextStyle(
+              color: Color(0xFFE8001C),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
         line = line.substring(2);
       }
-      
+
       // Process bold (**text** or __text__)
       final boldPattern = RegExp(r'\*\*(.+?)\*\*|__(.+?)__');
       var lastIndex = 0;
-      
+
       for (final match in boldPattern.allMatches(line)) {
         // Add text before the match
         if (match.start > lastIndex) {
           lineSpans.add(TextSpan(text: line.substring(lastIndex, match.start)));
         }
-        
+
         // Add bold text
         final boldText = match.group(1) ?? match.group(2) ?? '';
-        lineSpans.add(TextSpan(
-          text: boldText,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ));
-        
+        lineSpans.add(
+          TextSpan(
+            text: boldText,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        );
+
         lastIndex = match.end;
       }
-      
+
       // Add remaining text
       if (lastIndex < line.length) {
         lineSpans.add(TextSpan(text: line.substring(lastIndex)));
       }
-      
+
       spans.add(TextSpan(children: lineSpans));
-      
+
       // Add line break if not the last line
       if (i < lines.length - 1) {
         spans.add(const TextSpan(text: '\n'));
       }
     }
-    
+
     return SelectableText.rich(
       TextSpan(
         children: spans,
@@ -2997,7 +3029,7 @@ class _ChatMessage {
   final String? reportStartDate;
   final String? reportEndDate;
   final Map<String, dynamic>? reportFilters;
-  
+
   // Timestamp and related queries for UI enhancements
   final DateTime? timestamp;
   final List<String>? relatedQueries;

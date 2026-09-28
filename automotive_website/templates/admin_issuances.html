@@ -172,6 +172,11 @@
     </div><!-- /.admin-page-shell -->
 </div><!-- /.admin-dashboard -->
 
+<!-- ── Floating Add Button ─────────────────────────────────────────────── -->
+<button onclick="openAddIssuanceModal()" style="position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;box-shadow:0 8px 20px rgba(227,30,36,0.3);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1000;transition:all 0.3s ease;" onmouseenter="this.style.transform='scale(1.1)';this.style.boxShadow='0 12px 28px rgba(227,30,36,0.4)';" onmouseleave="this.style.transform='scale(1)';this.style.boxShadow='0 8px 20px rgba(227,30,36,0.3)';">
+    <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+
 <!-- ── Issuance Details Modal ─────────────────────────────────────────────── -->
 <div class="modal" id="issuanceDetailsModal">
     <div class="modal-content" style="max-width:640px;padding:0;border-radius:20px;overflow:hidden;">
@@ -218,10 +223,27 @@
             <div class="form-group"><label>Date *</label><input type="date" name="issuanceDate" required></div>
             <div class="form-group"><label>Vehicle *</label><select name="assetNum" id="issuanceAssetSelect" required onchange="loadAssetDescription()"><option value="">Select Asset</option></select></div>
             <div class="form-group"><label>Description</label><input type="text" id="issuanceAssetDescription" readonly style="background:#f7fafc;"></div>
-            <div class="form-group"><label>Item *</label><select name="itemNum" id="issuanceItemSelect" required onchange="loadItemDetails()"><option value="">Select Item</option></select></div>
+            
+            <!-- Commodity Group Filter -->
+            <div class="form-group">
+                <label>Commodity Group *</label>
+                <select id="issuanceCommodityGroupFilter" required onchange="filterItemsByCommodityGroup()">
+                    <option value="">Select Commodity Group</option>
+                </select>
+            </div>
+            
+            <!-- Item Search & Select (combined) -->
+            <div class="form-group" id="itemSearchGroup" style="display:none;">
+                <label>Search & Select Item *</label>
+                <input type="text" id="issuanceItemSearch" placeholder="Type to search items..." style="margin-bottom:0.5rem;" oninput="searchItems()">
+                <select name="itemNum" id="issuanceItemSelect" required onchange="loadItemDetails()" size="6" style="width:100%;height:150px;">
+                    <option value="">Select Commodity Group first</option>
+                </select>
+            </div>
+            
             <div class="form-group"><label>Description</label><input type="text" id="issuanceDescription" readonly style="background:#f7fafc;"></div>
-            <div class="form-group"><label>Item Type *</label><select name="itemType" required><option value="">Select Type</option><option value="Service">Service</option><option value="Material">Material</option></select></div>
-            <div class="form-group"><label>Commodity Group</label><input type="text" id="issuanceCommodityGroup" readonly style="background:#f7fafc;"></div>
+            <div class="form-group"><label>Item Type *</label><input type="text" name="itemType" id="issuanceItemType" required readonly style="background:#f7fafc;"></div>
+            <div class="form-group"><label>Commodity Group (Selected)</label><input type="text" id="issuanceCommodityGroup" readonly style="background:#f7fafc;"></div>
             <div class="form-group"><label>UOM</label><input type="text" id="issuanceUOM" readonly style="background:#f7fafc;"></div>
             <div class="form-group"><label>Quantity *</label><input type="number" name="quantity" placeholder="Enter quantity" step="1" min="1" required onchange="calculateSubtotal()"></div>
             <div class="form-group"><label>Unit Cost</label><input type="number" id="issuanceUnitCost" readonly style="background:#f7fafc;"></div>
@@ -356,6 +378,386 @@ window._issPopulateCommodityFilterDropdown = function() {
 document.addEventListener('DOMContentLoaded', function() {
   window._issPopulateCommodityFilterDropdown();
 });
+
+// ── Open Add Issuance Modal ───────────────────────────────────────────────
+window._allItemsData = []; // Store all items globally
+window._commodityGroupItemTypes = {}; // Store item type mapping
+
+function openAddIssuanceModal() {
+  // Reset form
+  document.getElementById('addIssuanceForm').reset();
+  document.getElementById('issuanceModalTitle').textContent = 'New Issuance';
+  document.getElementById('subtotalDisplay').textContent = '₱0.00';
+  
+  // Reset and hide item search group
+  document.getElementById('issuanceItemSearch').value = '';
+  document.getElementById('itemSearchGroup').style.display = 'none';
+  document.getElementById('issuanceItemSelect').innerHTML = '<option value="">Select Commodity Group first</option>';
+  
+  // Set today's date
+  var today = new Date();
+  var dateStr = today.getFullYear() + '-' + 
+                ('0' + (today.getMonth() + 1)).slice(-2) + '-' + 
+                ('0' + today.getDate()).slice(-2);
+  document.querySelector('[name="issuanceDate"]').value = dateStr;
+  
+  // Load vehicles and commodity groups
+  loadVehiclesForIssuance();
+  loadCommodityGroupsForIssuance();
+  loadAllItemsForIssuance();
+  
+  // Show modal
+  document.getElementById('addIssuanceModal').style.display = 'flex';
+}
+
+function loadCommodityGroupsForIssuance() {
+  var sel = document.getElementById('issuanceCommodityGroupFilter');
+  if (!sel) return;
+  
+  firebase.firestore().collection('domains').doc('commodity_groups').collection('items').orderBy('name').get()
+    .then(function(snap) {
+      sel.innerHTML = '<option value="">Select Commodity Group</option>';
+      var groups = [];
+      snap.forEach(function(doc) {
+        var name = doc.data().name || '';
+        if (name && groups.indexOf(name) === -1) groups.push(name);
+      });
+      if (!groups.length) groups = ['Lubricants','Spare Parts','Filter','AutoService'];
+      groups.forEach(function(g) {
+        var opt = document.createElement('option');
+        opt.value = g;
+        opt.textContent = g;
+        sel.appendChild(opt);
+      });
+    })
+    .catch(function(err) {
+      console.error('Error loading commodity groups:', err);
+      sel.innerHTML = '<option value="">Select Commodity Group</option>';
+      ['Lubricants','Spare Parts','Filter','AutoService'].forEach(function(g) {
+        var opt = document.createElement('option');
+        opt.value = g;
+        opt.textContent = g;
+        sel.appendChild(opt);
+      });
+    });
+}
+
+function loadAllItemsForIssuance() {
+  console.log('🔍 Loading items from item_master...');
+  firebase.firestore().collection('item_master').orderBy('name').get()
+    .then(function(snap) {
+      console.log('📦 Found ' + snap.docs.length + ' documents');
+      
+      window._allItemsData = [];
+      window._commodityGroupItemTypes = {};
+      
+      snap.forEach(function(doc) {
+        var d = doc.data();
+        
+        // Use correct field names: 'num', 'name', 'group', 'cost'
+        var itemNum = d.num || '';
+        var name = d.name || '';
+        var group = d.group || '';  // 'group' not 'commodityGroup'
+        var cost = d.cost || 0;  // 'cost' not 'unitCost'
+        
+        // Auto-detect: "Service" if AutoService, otherwise "Material"
+        var itemType = (group === 'AutoService') ? 'Service' : 'Material';
+        
+        if (itemNum && name && group) {
+          window._allItemsData.push({
+            itemNum: itemNum,
+            name: name,
+            uom: d.uom || '',
+            unitCost: cost,
+            commodityGroup: group,
+            itemType: itemType
+          });
+          
+          // Track item type for each commodity group
+          if (!window._commodityGroupItemTypes[group]) {
+            window._commodityGroupItemTypes[group] = itemType;
+          }
+        }
+      });
+      
+      console.log('✅ Loaded ' + window._allItemsData.length + ' items');
+      console.log('📋 Groups found:', Object.keys(window._commodityGroupItemTypes));
+    })
+    .catch(function(err) {
+      console.error('❌ Error loading items:', err);
+    });
+}
+
+function filterItemsByCommodityGroup() {
+  var groupSel = document.getElementById('issuanceCommodityGroupFilter');
+  var itemSearchGroup = document.getElementById('itemSearchGroup');
+  var itemSearch = document.getElementById('issuanceItemSearch');
+  var itemSel = document.getElementById('issuanceItemSelect');
+  var itemTypeInput = document.getElementById('issuanceItemType');
+  
+  if (!groupSel || !itemSearch || !itemSel || !itemSearchGroup) return;
+  
+  var selectedGroup = groupSel.value;
+  
+  if (!selectedGroup) {
+    itemSearchGroup.style.display = 'none';
+    itemSel.innerHTML = '<option value="">Select Commodity Group first</option>';
+    document.getElementById('issuanceCommodityGroup').value = '';
+    if (itemTypeInput) itemTypeInput.value = '';
+    return;
+  }
+  
+  // Show search group
+  itemSearchGroup.style.display = 'block';
+  itemSearch.value = '';
+  
+  // Auto-set item type based on commodity group
+  var detectedItemType = window._commodityGroupItemTypes[selectedGroup] || 'Material';
+  if (itemTypeInput) itemTypeInput.value = detectedItemType;
+  
+  // Filter items by commodity group
+  var filtered = window._allItemsData.filter(function(item) {
+    return item.commodityGroup === selectedGroup;
+  });
+  
+  // Populate item select
+  itemSel.innerHTML = '<option value="">Type to search or select below</option>';
+  filtered.forEach(function(item) {
+    var opt = document.createElement('option');
+    opt.value = item.itemNum;
+    opt.textContent = item.itemNum + ' - ' + item.name;
+    opt.setAttribute('data-name', item.name);
+    opt.setAttribute('data-uom', item.uom);
+    opt.setAttribute('data-cost', item.unitCost);
+    opt.setAttribute('data-group', item.commodityGroup);
+    opt.setAttribute('data-itemtype', item.itemType);
+    itemSel.appendChild(opt);
+  });
+  
+  // Update commodity group display
+  document.getElementById('issuanceCommodityGroup').value = selectedGroup;
+  
+  if (filtered.length === 0) {
+    itemSel.innerHTML = '<option value="">No items in this group</option>';
+  }
+}
+
+function searchItems() {
+  var searchInput = document.getElementById('issuanceItemSearch');
+  var itemSel = document.getElementById('issuanceItemSelect');
+  var groupSel = document.getElementById('issuanceCommodityGroupFilter');
+  
+  if (!searchInput || !itemSel || !groupSel) {
+    console.log('searchItems: Missing elements');
+    return;
+  }
+  
+  var query = searchInput.value.toLowerCase();
+  var selectedGroup = groupSel.value;
+  
+  console.log('searchItems called:', {
+    query: query,
+    selectedGroup: selectedGroup,
+    totalItems: (window._allItemsData || []).length
+  });
+  
+  if (!selectedGroup) {
+    console.log('No commodity group selected');
+    return;
+  }
+  
+  // Filter by commodity group and search query
+  var filtered = (window._allItemsData || []).filter(function(item) {
+    if (item.commodityGroup !== selectedGroup) return false;
+    if (!query) return true;
+    return item.itemNum.toLowerCase().includes(query) || 
+           item.name.toLowerCase().includes(query);
+  });
+  
+  console.log('Filtered items:', filtered.length);
+  
+  // Populate item select
+  itemSel.innerHTML = '';
+  if (query) {
+    itemSel.innerHTML = '<option value="">Search results (' + filtered.length + '):</option>';
+  } else {
+    itemSel.innerHTML = '<option value="">Type to search or select below (' + filtered.length + ' items)</option>';
+  }
+  
+  filtered.forEach(function(item) {
+    var opt = document.createElement('option');
+    opt.value = item.itemNum;
+    opt.textContent = item.itemNum + ' - ' + item.name;
+    opt.setAttribute('data-name', item.name);
+    opt.setAttribute('data-uom', item.uom);
+    opt.setAttribute('data-cost', item.unitCost);
+    opt.setAttribute('data-group', item.commodityGroup);
+    opt.setAttribute('data-itemtype', item.itemType);
+    itemSel.appendChild(opt);
+  });
+  
+  if (filtered.length === 0) {
+    itemSel.innerHTML = '<option value="">No matching items</option>';
+  }
+}
+  if (filtered.length === 0) {
+    itemSel.innerHTML = '<option value="">No matching items</option>';
+  }
+}
+
+function loadVehiclesForIssuance() {
+  var sel = document.getElementById('issuanceAssetSelect');
+  if (!sel) return;
+  
+  firebase.firestore().collection('vehicles').orderBy('plate').get()
+    .then(function(snap) {
+      sel.innerHTML = '<option value="">Select Vehicle</option>';
+      snap.forEach(function(doc) {
+        var d = doc.data();
+        var plate = d.plate || '';
+        var desc = d.desc || d.assetDescription || '';
+        if (plate) {
+          var opt = document.createElement('option');
+          opt.value = plate;
+          opt.textContent = plate + (desc ? ' - ' + desc : '');
+          opt.setAttribute('data-desc', desc);
+          sel.appendChild(opt);
+        }
+      });
+    })
+    .catch(function(err) {
+      console.error('Error loading vehicles:', err);
+    });
+}
+
+function loadAssetDescription() {
+  var sel = document.getElementById('issuanceAssetSelect');
+  var descInput = document.getElementById('issuanceAssetDescription');
+  if (!sel || !descInput) return;
+  
+  var selectedOpt = sel.options[sel.selectedIndex];
+  if (selectedOpt && selectedOpt.getAttribute('data-desc')) {
+    descInput.value = selectedOpt.getAttribute('data-desc');
+  } else {
+    descInput.value = '';
+  }
+}
+
+function loadItemDetails() {
+  var sel = document.getElementById('issuanceItemSelect');
+  if (!sel) return;
+  
+  var selectedOpt = sel.options[sel.selectedIndex];
+  if (!selectedOpt || !selectedOpt.value) {
+    document.getElementById('issuanceDescription').value = '';
+    document.getElementById('issuanceCommodityGroup').value = '';
+    document.getElementById('issuanceUOM').value = '';
+    document.getElementById('issuanceUnitCost').value = '';
+    return;
+  }
+  
+  document.getElementById('issuanceDescription').value = selectedOpt.getAttribute('data-name') || '';
+  document.getElementById('issuanceCommodityGroup').value = selectedOpt.getAttribute('data-group') || '';
+  document.getElementById('issuanceUOM').value = selectedOpt.getAttribute('data-uom') || '';
+  document.getElementById('issuanceUnitCost').value = selectedOpt.getAttribute('data-cost') || '0';
+  
+  calculateSubtotal();
+}
+
+function calculateSubtotal() {
+  var qtyInput = document.querySelector('[name="quantity"]');
+  var costInput = document.getElementById('issuanceUnitCost');
+  var display = document.getElementById('subtotalDisplay');
+  
+  if (!qtyInput || !costInput || !display) return;
+  
+  var qty = parseFloat(qtyInput.value) || 0;
+  var cost = parseFloat(costInput.value) || 0;
+  var subtotal = qty * cost;
+  
+  display.textContent = '₱' + subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+// ── Save Issuance ─────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  var form = document.getElementById('addIssuanceForm');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      saveIssuance();
+    });
+  }
+});
+
+function saveIssuance() {
+  var form = document.getElementById('addIssuanceForm');
+  var formData = new FormData(form);
+  
+  var date = formData.get('issuanceDate');
+  var assetNum = formData.get('assetNum');
+  var itemNum = formData.get('itemNum');
+  var itemType = document.getElementById('issuanceItemType').value; // Get from readonly field
+  var qty = parseFloat(formData.get('quantity')) || 0;
+  
+  var itemName = document.getElementById('issuanceDescription').value;
+  var assetDesc = document.getElementById('issuanceAssetDescription').value;
+  var group = document.getElementById('issuanceCommodityGroup').value;
+  var uom = document.getElementById('issuanceUOM').value;
+  var unitCost = parseFloat(document.getElementById('issuanceUnitCost').value) || 0;
+  var subtotal = qty * unitCost;
+  
+  if (!date || !assetNum || !itemNum || !itemType || qty <= 0 || !group) {
+    alert('Please fill in all required fields');
+    return;
+  }
+  
+  var user = JSON.parse(sessionStorage.getItem('apUser') || '{}');
+  var userName = user.displayName || user.email || 'Admin';
+  
+  // Format date
+  var dateObj = new Date(date);
+  var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var formattedDate = months[dateObj.getMonth()] + ' ' + dateObj.getDate() + ', ' + dateObj.getFullYear();
+  
+  var issuance = {
+    date: formattedDate,
+    plate: assetNum,
+    assetNum: assetNum,
+    assetDesc: assetDesc,
+    itemNum: itemNum,
+    itemName: itemName,
+    itemType: itemType,
+    commodityGroup: group,
+    uom: uom,
+    qty: qty,
+    quantity: qty,
+    unitCost: unitCost,
+    subtotal: subtotal,
+    createdBy: userName,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  
+  // Show loading
+  var submitBtn = form.querySelector('button[type="submit"]');
+  var originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Saving...';
+  
+  firebase.firestore().collection('issuances').add(issuance)
+    .then(function() {
+      closeModal('addIssuanceModal');
+      showToast('Issuance added successfully', 'success');
+      form.reset();
+    })
+    .catch(function(err) {
+      console.error('Error saving issuance:', err);
+      showToast('Error saving issuance: ' + err.message, 'error');
+    })
+    .finally(function() {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+    });
+}
 
 // ── Print ─────────────────────────────────────────────────────────────────
 function printIssuances() {

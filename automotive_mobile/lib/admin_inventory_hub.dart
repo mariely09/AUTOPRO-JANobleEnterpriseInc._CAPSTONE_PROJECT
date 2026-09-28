@@ -5,6 +5,10 @@ import 'admin_po.dart';
 import 'admin_receiving.dart';
 import 'admin_transactions.dart';
 import 'sync_indicator.dart';
+import 'admin_bottomnavbar.dart';
+import 'admin_dashboard.dart';
+import 'admin_vehicles_list.dart';
+import 'profile.dart';
 
 /// Full-screen Inventory hub — AppBar with 5 sub-tabs, no bottom nav.
 /// Tabs: 0=Stock, 1=Item Master, 2=Receiving Items, 3=Purchase Orders, 4=Transactions
@@ -41,7 +45,13 @@ class _AdminInventoryHubState extends State<AdminInventoryHub> {
   final _stockBodyKey = GlobalKey<AdminInventoryStockBodyState>();
   final _itemMasterKey = GlobalKey<AdminInventoryItemMasterBodyState>();
 
-  static const _tabs = ['Stock', 'Item Master', 'Receiving Items', 'Purchase Orders (PO)', 'Transactions'];
+  static const _tabs = [
+    'Stock',
+    'Item Master',
+    'Receiving Items',
+    'Purchase Orders (PO)',
+    'Transactions',
+  ];
   static const _tabTitles = [
     'Inventory',
     'Item Master',
@@ -343,6 +353,31 @@ class _AdminInventoryHubState extends State<AdminInventoryHub> {
         ),
       ),
       body: OfflineSaveListener(child: _buildBody()),
+      bottomNavigationBar: AdminBottomNavBar(
+        currentIndex: 1,
+        onTap: (i) {
+          if (i == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminDashboard()),
+            );
+          } else if (i == 1) {
+            // Already on Inventory
+          } else if (i == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminVehiclesList()),
+            );
+          } else if (i == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const UserProfile(role: UserRole.admin),
+              ),
+            );
+          }
+        },
+      ),
     );
   }
 
@@ -382,10 +417,7 @@ class _AdminInventoryHubState extends State<AdminInventoryHub> {
             searchQuery: _tab == 2 ? sq : '',
           ),
         ),
-        Offstage(
-          offstage: _tab != 3,
-          child: const AdminPOBody(),
-        ),
+        Offstage(offstage: _tab != 3, child: const AdminPOBody()),
         Offstage(
           offstage: _tab != 4,
           child: AdminTransactionsBody(searchQuery: _tab == 4 ? sq : ''),

@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'sync_indicator.dart';
+import 'admin_bottomnavbar.dart';
+import 'admin_dashboard.dart';
+import 'admin_inventory_hub.dart';
+import 'admin_vehicles_list.dart';
+import 'profile.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // AdminPO — Purchase Orders screen
@@ -34,7 +39,11 @@ class AdminPO extends StatelessWidget {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.arrow_back_ios,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
@@ -47,7 +56,11 @@ class AdminPO extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const Icon(Icons.receipt_long_outlined, color: Colors.white70, size: 22),
+                  const Icon(
+                    Icons.receipt_long_outlined,
+                    color: Colors.white70,
+                    size: 22,
+                  ),
                 ],
               ),
             ),
@@ -55,6 +68,36 @@ class AdminPO extends StatelessWidget {
         ),
       ),
       body: const AdminPOBody(),
+      bottomNavigationBar: AdminBottomNavBar(
+        currentIndex: 1,
+        onTap: (i) {
+          if (i == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminDashboard()),
+            );
+          } else if (i == 1) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AdminInventoryHub(initialTab: 3),
+              ),
+            );
+          } else if (i == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminVehiclesList()),
+            );
+          } else if (i == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const UserProfile(role: UserRole.admin),
+              ),
+            );
+          }
+        },
+      ),
     );
   }
 }
@@ -76,16 +119,26 @@ class AdminPOBodyState extends State<AdminPOBody>
   bool get wantKeepAlive => true;
 
   // ── Colours ──────────────────────────────────────────────────────────────
-  static const _red   = Color(0xFFE8001C);
+  static const _red = Color(0xFFE8001C);
   static const _amber = Color(0xFFd69e2e);
   static const _green = Color(0xFF38a169);
-  static const _blue  = Color(0xFF003087);
-  static const _grey  = Color(0xFF718096);
+  static const _blue = Color(0xFF003087);
+  static const _grey = Color(0xFF718096);
 
   // ── Months helper ────────────────────────────────────────────────────────
   static const _months = [
-    'Jan','Feb','Mar','Apr','May','Jun',
-    'Jul','Aug','Sep','Oct','Nov','Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   // ── Firestore collection ─────────────────────────────────────────────────
@@ -97,7 +150,6 @@ class AdminPOBodyState extends State<AdminPOBody>
   StreamSubscription<QuerySnapshot>? _sub;
 
   String _filter = 'all';
-  bool _fabOpen = false;
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
   @override
@@ -108,16 +160,16 @@ class AdminPOBodyState extends State<AdminPOBody>
         .orderBy('createdAt', descending: true)
         .snapshots()
         .listen((snap) {
-      if (mounted) {
-        setState(() {
-          _pos = snap.docs
-              .map((d) => {...d.data(), 'id': d.id})
-              .where((d) => d['archived'] != true)
-              .toList();
-          _loading = false;
+          if (mounted) {
+            setState(() {
+              _pos = snap.docs
+                  .map((d) => {...d.data(), 'id': d.id})
+                  .where((d) => d['archived'] != true)
+                  .toList();
+              _loading = false;
+            });
+          }
         });
-      }
-    });
   }
 
   @override
@@ -143,22 +195,37 @@ class AdminPOBodyState extends State<AdminPOBody>
 
   String _fmtPeso(dynamic v) {
     if (v == null) return '₱0.00';
-    final d = double.tryParse(v.toString().replaceAll('₱', '').replaceAll(',', '').trim()) ?? 0;
+    final d =
+        double.tryParse(
+          v.toString().replaceAll('₱', '').replaceAll(',', '').trim(),
+        ) ??
+        0;
     final parts = d.toStringAsFixed(2).split('.');
-    final intPart = parts[0].replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');
+    final intPart = parts[0].replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => ',',
+    );
     return '₱$intPart.${parts[1]}';
   }
 
   Color _statusColor(String s) {
     switch (s) {
-      case 'Draft':               return _grey;
-      case 'Pending Approval':    return _amber;
-      case 'Approved':            return _green;
-      case 'Ordered':             return _blue;
-      case 'Partially Received':  return _amber;
-      case 'Completed':           return _green;
-      case 'Cancelled':           return _red;
-      default:                    return _grey;
+      case 'Draft':
+        return _grey;
+      case 'Pending Approval':
+        return _amber;
+      case 'Approved':
+        return _green;
+      case 'Ordered':
+        return _blue;
+      case 'Partially Received':
+        return _amber;
+      case 'Completed':
+        return _green;
+      case 'Cancelled':
+        return _red;
+      default:
+        return _grey;
     }
   }
 
@@ -202,19 +269,61 @@ class AdminPOBodyState extends State<AdminPOBody>
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      _statChip('Draft',    _count('Draft'),               _grey,  Icons.edit_note_outlined,       'Draft'),
+                      _statChip(
+                        'Draft',
+                        _count('Draft'),
+                        _grey,
+                        Icons.edit_note_outlined,
+                        'Draft',
+                      ),
                       const SizedBox(width: 6),
-                      _statChip('Pending',  _count('Pending Approval'),    _amber, Icons.hourglass_empty_outlined,  'Pending Approval'),
+                      _statChip(
+                        'Pending',
+                        _count('Pending Approval'),
+                        _amber,
+                        Icons.hourglass_empty_outlined,
+                        'Pending Approval',
+                      ),
                       const SizedBox(width: 6),
-                      _statChip('Approved', _count('Approved'),            _green, Icons.check_circle_outline,      'Approved'),
+                      _statChip(
+                        'Approved',
+                        _count('Approved'),
+                        _green,
+                        Icons.check_circle_outline,
+                        'Approved',
+                      ),
                       const SizedBox(width: 6),
-                      _statChip('Ordered',  _count('Ordered'),             _blue,  Icons.local_shipping_outlined,   'Ordered'),
+                      _statChip(
+                        'Ordered',
+                        _count('Ordered'),
+                        _blue,
+                        Icons.local_shipping_outlined,
+                        'Ordered',
+                      ),
                       const SizedBox(width: 6),
-                      _statChip('Partial',  _count('Partially Received'),  _amber, Icons.inventory_outlined,        'Partially Received'),
+                      _statChip(
+                        'Partial',
+                        _count('Partially Received'),
+                        _amber,
+                        Icons.inventory_outlined,
+                        'Partially Received',
+                      ),
                       const SizedBox(width: 6),
-                      _statChip('Done',     _count('Completed'),           _green, Icons.task_alt_outlined,         'Completed'),
+                      _statChip(
+                        'Done',
+                        _count('Completed'),
+                        _green,
+                        Icons.task_alt_outlined,
+                        'Completed',
+                      ),
                       const SizedBox(width: 6),
-                      _statChip('Cancelled',_count('Cancelled'),           _red,   Icons.cancel_outlined,           'Cancelled'),
+                      _statChip(
+                        'Cancelled',
+                        _count('Cancelled'),
+                        _red,
+                        Icons.cancel_outlined,
+                        'Cancelled',
+                      ),
                     ],
                   ),
                 ),
@@ -252,87 +361,62 @@ class AdminPOBodyState extends State<AdminPOBody>
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
                     : filtered.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.receipt_long_outlined,
-                                    size: 48, color: Colors.grey.shade300),
-                                const SizedBox(height: 12),
-                                const Text('No purchase orders found.',
-                                    style: TextStyle(color: Color(0xFF718096))),
-                              ],
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.receipt_long_outlined,
+                              size: 48,
+                              color: Colors.grey.shade300,
                             ),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-                            itemCount: filtered.length,
-                            separatorBuilder: (context, s) => const SizedBox(height: 10),
-                            itemBuilder: (_, i) {
-                              final po = filtered[i];
-                              return GestureDetector(
-                                onTap: () => _showViewModal(po),
-                                child: _poCard(po),
-                              );
-                            },
-                          ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'No purchase orders found.',
+                              style: TextStyle(color: Color(0xFF718096)),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+                        itemCount: filtered.length,
+                        separatorBuilder: (context, s) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (_, i) {
+                          final po = filtered[i];
+                          return GestureDetector(
+                            onTap: () => _showViewModal(po),
+                            child: _poCard(po),
+                          );
+                        },
+                      ),
               ),
             ],
           ),
 
-          // ── FAB backdrop ──
-          if (_fabOpen)
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => setState(() => _fabOpen = false),
-                child: Container(color: Colors.black.withValues(alpha: 0.15)),
-              ),
-            ),
-
-          // ── Speed-dial FAB ──
+          // ── Speed-dial FAB (simplified — direct to create) ──
           Positioned(
             bottom: 20,
             right: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (_fabOpen) ...[
-                  _fabAction(
-                    label: 'Create Purchase Order',
-                    icon: Icons.add_box_outlined,
-                    onTap: () {
-                      setState(() => _fabOpen = false);
-                      _showCreateModal();
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                ],
-                GestureDetector(
-                  onTap: () => setState(() => _fabOpen = !_fabOpen),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: _red,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: _red.withValues(alpha: 0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+            child: GestureDetector(
+              onTap: _showCreateModal,
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: _red,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _red.withOpacity(0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
-                    child: AnimatedRotation(
-                      turns: _fabOpen ? 0.125 : 0,
-                      duration: const Duration(milliseconds: 200),
-                      child: const Icon(Icons.add, color: Colors.white, size: 28),
-                    ),
-                  ),
+                  ],
                 ),
-              ],
+                child: const Icon(Icons.add, color: Colors.white, size: 28),
+              ),
             ),
           ),
         ],
@@ -345,7 +429,12 @@ class AdminPOBodyState extends State<AdminPOBody>
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _statChip(
-      String label, int count, Color color, IconData icon, String filter) {
+    String label,
+    int count,
+    Color color,
+    IconData icon,
+    String filter,
+  ) {
     final active = _filter == filter;
     return GestureDetector(
       onTap: () => setState(() => _filter = active ? 'all' : filter),
@@ -353,13 +442,14 @@ class AdminPOBodyState extends State<AdminPOBody>
         width: 70,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         decoration: BoxDecoration(
-          color: active ? color.withValues(alpha: 0.08) : Colors.white,
+          color: active ? color.withOpacity(0.08) : Colors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-              color: active ? color : Colors.transparent, width: 1.5),
+            color: active ? color : Colors.transparent,
+            width: 1.5,
+          ),
           boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)
+            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6),
           ],
         ),
         child: Column(
@@ -368,22 +458,27 @@ class AdminPOBodyState extends State<AdminPOBody>
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8)),
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Icon(icon, color: color, size: 14),
             ),
             const SizedBox(height: 4),
-            Text('$count',
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: color)),
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 8, color: Color(0xFF718096)),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
+            Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 8, color: Color(0xFF718096)),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),
@@ -401,7 +496,9 @@ class AdminPOBodyState extends State<AdminPOBody>
           color: active ? _red : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: active ? _red : const Color(0xFFe2e8f0), width: 1.5),
+            color: active ? _red : const Color(0xFFe2e8f0),
+            width: 1.5,
+          ),
         ),
         child: Text(
           label,
@@ -417,11 +514,11 @@ class AdminPOBodyState extends State<AdminPOBody>
 
   Widget _poCard(Map<String, dynamic> po) {
     final status = po['status'] as String? ?? 'Draft';
-    final color  = _statusColor(status);
-    final poNum  = po['poNum'] as String? ?? '—';
-    final items  = (po['items'] as List? ?? []);
-    final total  = po['totalAmount'] ?? 0;
-    final notes  = po['notes'] as String? ?? '';
+    final color = _statusColor(status);
+    final poNum = po['poNum'] as String? ?? '—';
+    final items = (po['items'] as List? ?? []);
+    final total = po['totalAmount'] ?? 0;
+    final notes = po['notes'] as String? ?? '';
 
     // Build preview of item names (first 2)
     final itemNames = items
@@ -438,9 +535,10 @@ class AdminPOBodyState extends State<AdminPOBody>
         border: Border.all(color: const Color(0xFFF0F4F8)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2))
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Column(
@@ -454,22 +552,25 @@ class AdminPOBodyState extends State<AdminPOBody>
                 child: Text(
                   poNum,
                   style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1a202c)),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1a202c),
+                  ),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                 decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20)),
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
                 child: Text(
                   status,
                   style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: color),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
                 ),
               ),
             ],
@@ -479,22 +580,26 @@ class AdminPOBodyState extends State<AdminPOBody>
           // ── Date + items count ──
           Row(
             children: [
-              const Icon(Icons.calendar_today_outlined,
-                  size: 12, color: Color(0xFFa0aec0)),
+              const Icon(
+                Icons.calendar_today_outlined,
+                size: 12,
+                color: Color(0xFFa0aec0),
+              ),
               const SizedBox(width: 4),
               Text(
                 _fmt(po['createdAt']),
-                style: const TextStyle(
-                    fontSize: 11, color: Color(0xFF718096)),
+                style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
               ),
               const SizedBox(width: 12),
-              const Icon(Icons.inventory_2_outlined,
-                  size: 12, color: Color(0xFFa0aec0)),
+              const Icon(
+                Icons.inventory_2_outlined,
+                size: 12,
+                color: Color(0xFFa0aec0),
+              ),
               const SizedBox(width: 4),
               Text(
                 '${items.length} item${items.length == 1 ? '' : 's'}',
-                style: const TextStyle(
-                    fontSize: 11, color: Color(0xFF718096)),
+                style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
               ),
             ],
           ),
@@ -505,9 +610,10 @@ class AdminPOBodyState extends State<AdminPOBody>
             Text(
               '$itemNames$moreItems',
               style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF4a5568),
-                  fontStyle: FontStyle.italic),
+                fontSize: 11,
+                color: Color(0xFF4a5568),
+                fontStyle: FontStyle.italic,
+              ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -530,16 +636,20 @@ class AdminPOBodyState extends State<AdminPOBody>
               Text(
                 _fmtPeso(total),
                 style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1a202c)),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1a202c),
+                ),
               ),
               const Spacer(),
               // Quick action buttons per status (shown on card)
               ..._cardActions(po),
               const SizedBox(width: 6),
-              const Icon(Icons.chevron_right,
-                  size: 18, color: Color(0xFFa0aec0)),
+              const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: Color(0xFFa0aec0),
+              ),
             ],
           ),
         ],
@@ -557,26 +667,42 @@ class AdminPOBodyState extends State<AdminPOBody>
           const SizedBox(width: 6),
           _cardBtn(Icons.delete_outline, _red, () => _deletePO(po)),
           const SizedBox(width: 6),
-          _cardBtn(Icons.send_outlined, _blue,
-              () => _submitForApproval(po), label: 'Submit'),
+          _cardBtn(
+            Icons.send_outlined,
+            _blue,
+            () => _submitForApproval(po),
+            label: 'Submit',
+          ),
         ];
       case 'Pending Approval':
         return [
-          _cardBtn(Icons.check_circle_outline, _green,
-              () => _approve(po), label: 'Approve'),
+          _cardBtn(
+            Icons.check_circle_outline,
+            _green,
+            () => _approve(po),
+            label: 'Approve',
+          ),
           const SizedBox(width: 6),
           _cardBtn(Icons.undo_outlined, _amber, () => _revise(po)),
         ];
       case 'Approved':
         return [
-          _cardBtn(Icons.local_shipping_outlined, _blue,
-              () => _sendToSupplier(po), label: 'Order'),
+          _cardBtn(
+            Icons.local_shipping_outlined,
+            _blue,
+            () => _sendToSupplier(po),
+            label: 'Order',
+          ),
         ];
       case 'Ordered':
       case 'Partially Received':
         return [
-          _cardBtn(Icons.download_outlined, _green,
-              () => _receiveItems(po), label: 'Receive'),
+          _cardBtn(
+            Icons.download_outlined,
+            _green,
+            () => _receiveItems(po),
+            label: 'Receive',
+          ),
         ];
       case 'Completed':
       case 'Cancelled':
@@ -586,15 +712,21 @@ class AdminPOBodyState extends State<AdminPOBody>
     }
   }
 
-  Widget _cardBtn(IconData icon, Color color, VoidCallback onTap,
-      {String? label}) {
+  Widget _cardBtn(
+    IconData icon,
+    Color color,
+    VoidCallback onTap, {
+    String? label,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: EdgeInsets.symmetric(
-            horizontal: label != null ? 8 : 6, vertical: 5),
+          horizontal: label != null ? 8 : 6,
+          vertical: 5,
+        ),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -603,11 +735,14 @@ class AdminPOBodyState extends State<AdminPOBody>
             Icon(icon, color: color, size: 14),
             if (label != null) ...[
               const SizedBox(width: 4),
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: color)),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
             ],
           ],
         ),
@@ -615,33 +750,37 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
   }
 
-  Widget _fabAction(
-      {required String label,
-      required IconData icon,
-      required VoidCallback onTap}) {
+  Widget _fabAction({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2))
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
-            child: Text(label,
-                style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1a202c))),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1a202c),
+              ),
+            ),
           ),
           const SizedBox(width: 10),
           Container(
@@ -652,9 +791,10 @@ class AdminPOBodyState extends State<AdminPOBody>
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2))
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
             child: Icon(icon, color: _red, size: 20),
@@ -670,14 +810,15 @@ class AdminPOBodyState extends State<AdminPOBody>
 
   void _showViewModal(Map<String, dynamic> po) {
     final status = po['status'] as String? ?? 'Draft';
-    final items  = (po['items'] as List? ?? []);
+    final items = (po['items'] as List? ?? []);
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.75,
@@ -690,15 +831,13 @@ class AdminPOBodyState extends State<AdminPOBody>
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF004B5F),
-                    _red,
-                  ],
+                  colors: [const Color(0xFF004B5F), _red],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -710,23 +849,28 @@ class AdminPOBodyState extends State<AdminPOBody>
                         Text(
                           po['poNum'] as String? ?? '—',
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800),
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 3),
+                            horizontal: 10,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.25),
-                              borderRadius: BorderRadius.circular(20)),
+                            color: Colors.white.withOpacity(0.25),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
                           child: Text(
                             status,
                             style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700),
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ],
@@ -738,10 +882,14 @@ class AdminPOBodyState extends State<AdminPOBody>
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                          color: Colors.white24,
-                          shape: BoxShape.circle),
-                      child: const Icon(Icons.close,
-                          color: Colors.white, size: 18),
+                        color: Colors.white24,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                     ),
                   ),
                 ],
@@ -760,15 +908,19 @@ class AdminPOBodyState extends State<AdminPOBody>
                     Row(
                       children: [
                         Expanded(
-                            child: _viewInfoCard(
-                                'CREATED',
-                                _fmt(po['createdAt']))),
+                          child: _viewInfoCard(
+                            'CREATED',
+                            _fmt(po['createdAt']),
+                          ),
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
-                            child: _viewInfoCard(
-                                'TOTAL',
-                                _fmtPeso(po['totalAmount']),
-                                valueColor: _red)),
+                          child: _viewInfoCard(
+                            'TOTAL',
+                            _fmtPeso(po['totalAmount']),
+                            valueColor: _red,
+                          ),
+                        ),
                       ],
                     ),
                     if ((po['notes'] as String? ?? '').isNotEmpty) ...[
@@ -780,21 +932,26 @@ class AdminPOBodyState extends State<AdminPOBody>
                           color: const Color(0xFFFFFBEB),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                              color: const Color(0xFFFFD54F), width: 1),
+                            color: const Color(0xFFFFD54F),
+                            width: 1,
+                          ),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.notes_outlined,
-                                size: 14,
-                                color: Color(0xFFd69e2e)),
+                            const Icon(
+                              Icons.notes_outlined,
+                              size: 14,
+                              color: Color(0xFFd69e2e),
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 po['notes'] as String,
                                 style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF92400E)),
+                                  fontSize: 12,
+                                  color: Color(0xFF92400E),
+                                ),
                               ),
                             ),
                           ],
@@ -807,9 +964,10 @@ class AdminPOBodyState extends State<AdminPOBody>
                     Text(
                       'Items (${items.length})',
                       style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1a202c)),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1a202c),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     ...items.asMap().entries.map((e) {
@@ -822,14 +980,18 @@ class AdminPOBodyState extends State<AdminPOBody>
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          const Icon(Icons.person_outline,
-                              size: 14, color: Color(0xFFa0aec0)),
+                          const Icon(
+                            Icons.person_outline,
+                            size: 14,
+                            color: Color(0xFFa0aec0),
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             'Created by: ${po['createdBy']}',
                             style: const TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF718096)),
+                              fontSize: 11,
+                              color: Color(0xFF718096),
+                            ),
                           ),
                         ],
                       ),
@@ -850,12 +1012,16 @@ class AdminPOBodyState extends State<AdminPOBody>
   }
 
   /// Action buttons shown in the view modal footer, per status
-  List<Widget> _viewModalActions(
-      Map<String, dynamic> po, BuildContext ctx) {
+  List<Widget> _viewModalActions(Map<String, dynamic> po, BuildContext ctx) {
     final status = po['status'] as String? ?? 'Draft';
 
-    Widget btn(String label, Color bg, IconData icon, VoidCallback onTap,
-        {bool outlined = false}) {
+    Widget btn(
+      String label,
+      Color bg,
+      IconData icon,
+      VoidCallback onTap, {
+      bool outlined = false,
+    }) {
       if (outlined) {
         return OutlinedButton.icon(
           onPressed: onTap,
@@ -865,22 +1031,23 @@ class AdminPOBodyState extends State<AdminPOBody>
             foregroundColor: bg,
             side: BorderSide(color: bg),
             padding: const EdgeInsets.symmetric(vertical: 13),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
+            ),
           ),
         );
       }
       return ElevatedButton.icon(
         onPressed: onTap,
         icon: Icon(icon, size: 16),
-        label: Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w700)),
+        label: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
         style: ElevatedButton.styleFrom(
           backgroundColor: bg,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 14),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
         ),
       );
     }
@@ -890,24 +1057,27 @@ class AdminPOBodyState extends State<AdminPOBody>
     switch (status) {
       case 'Draft':
         return [
-          Row(children: [
-            Expanded(
+          Row(
+            children: [
+              Expanded(
                 child: btn('Edit', _grey, Icons.edit_outlined, () {
-              pop();
-              _editPO(po);
-            }, outlined: true)),
-            const SizedBox(width: 10),
-            Expanded(
+                  pop();
+                  _editPO(po);
+                }, outlined: true),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
                 child: btn('Delete', _red, Icons.delete_outline, () {
-              pop();
-              _deletePO(po);
-            }, outlined: true)),
-          ]),
+                  pop();
+                  _deletePO(po);
+                }, outlined: true),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
-            child: btn('Submit for Approval', _blue,
-                Icons.send_outlined, () {
+            child: btn('Submit for Approval', _blue, Icons.send_outlined, () {
               pop();
               _submitForApproval(po);
             }),
@@ -916,20 +1086,23 @@ class AdminPOBodyState extends State<AdminPOBody>
 
       case 'Pending Approval':
         return [
-          Row(children: [
-            Expanded(
+          Row(
+            children: [
+              Expanded(
                 child: btn('Revise', _amber, Icons.undo_outlined, () {
-              pop();
-              _revise(po);
-            }, outlined: true)),
-            const SizedBox(width: 10),
-            Expanded(
-                child: btn('Approve', _green,
-                    Icons.check_circle_outline, () {
-              pop();
-              _approve(po);
-            })),
-          ]),
+                  pop();
+                  _revise(po);
+                }, outlined: true),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: btn('Approve', _green, Icons.check_circle_outline, () {
+                  pop();
+                  _approve(po);
+                }),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
@@ -944,11 +1117,15 @@ class AdminPOBodyState extends State<AdminPOBody>
         return [
           SizedBox(
             width: double.infinity,
-            child: btn('Send to Supplier / Mark as Ordered', _blue,
-                Icons.local_shipping_outlined, () {
-              pop();
-              _sendToSupplier(po);
-            }),
+            child: btn(
+              'Send to Supplier / Mark as Ordered',
+              _blue,
+              Icons.local_shipping_outlined,
+              () {
+                pop();
+                _sendToSupplier(po);
+              },
+            ),
           ),
           const SizedBox(height: 10),
           SizedBox(
@@ -964,8 +1141,7 @@ class AdminPOBodyState extends State<AdminPOBody>
         return [
           SizedBox(
             width: double.infinity,
-            child: btn('Receive Items', _green,
-                Icons.download_outlined, () {
+            child: btn('Receive Items', _green, Icons.download_outlined, () {
               pop();
               _receiveItems(po);
             }),
@@ -976,11 +1152,15 @@ class AdminPOBodyState extends State<AdminPOBody>
         return [
           SizedBox(
             width: double.infinity,
-            child: btn('Continue Receiving', _green,
-                Icons.download_outlined, () {
-              pop();
-              _continueReceiving(po);
-            }),
+            child: btn(
+              'Continue Receiving',
+              _green,
+              Icons.download_outlined,
+              () {
+                pop();
+                _continueReceiving(po);
+              },
+            ),
           ),
         ];
 
@@ -1003,8 +1183,7 @@ class AdminPOBodyState extends State<AdminPOBody>
     }
   }
 
-  Widget _viewInfoCard(String label, String value,
-      {Color? valueColor}) {
+  Widget _viewInfoCard(String label, String value, {Color? valueColor}) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1015,28 +1194,38 @@ class AdminPOBodyState extends State<AdminPOBody>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFFa0aec0),
-                  letterSpacing: 0.5)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFa0aec0),
+              letterSpacing: 0.5,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: valueColor ?? const Color(0xFF1a202c))),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: valueColor ?? const Color(0xFF1a202c),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _viewItemRow(int num, Map item) {
-    final qty  = item['expectedQty'] ?? 0;
-    final cost = double.tryParse(
-            (item['unitCost']?.toString() ?? '0')
-                .replaceAll('₱', '').replaceAll(',', '').trim()) ??
+    final qty = item['expectedQty'] ?? 0;
+    final cost =
+        double.tryParse(
+          (item['unitCost']?.toString() ?? '0')
+              .replaceAll('₱', '')
+              .replaceAll(',', '')
+              .trim(),
+        ) ??
         0;
     final subtotal = qty * cost;
 
@@ -1057,15 +1246,18 @@ class AdminPOBodyState extends State<AdminPOBody>
                 width: 20,
                 height: 20,
                 decoration: BoxDecoration(
-                  color: _red.withValues(alpha: 0.1),
+                  color: _red.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Center(
-                  child: Text('$num',
-                      style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: _red)),
+                  child: Text(
+                    '$num',
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: _red,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1073,9 +1265,10 @@ class AdminPOBodyState extends State<AdminPOBody>
                 child: Text(
                   item['itemName'] as String? ?? '—',
                   style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1a202c)),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1a202c),
+                  ),
                 ),
               ),
             ],
@@ -1085,16 +1278,14 @@ class AdminPOBodyState extends State<AdminPOBody>
             children: [
               _itemMeta('Qty', '$qty ${item['uom'] ?? ''}'),
               _itemMeta('Unit Cost', _fmtPeso(cost)),
-              _itemMeta('Subtotal', _fmtPeso(subtotal),
-                  color: _red),
+              _itemMeta('Subtotal', _fmtPeso(subtotal), color: _red),
             ],
           ),
           if ((item['supplierCode'] as String? ?? '').isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
               'Code: ${item['supplierCode']}',
-              style: const TextStyle(
-                  fontSize: 10, color: Color(0xFFa0aec0)),
+              style: const TextStyle(fontSize: 10, color: Color(0xFFa0aec0)),
             ),
           ],
         ],
@@ -1107,17 +1298,23 @@ class AdminPOBodyState extends State<AdminPOBody>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 9,
-                  color: Color(0xFFa0aec0),
-                  fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 9,
+              color: Color(0xFFa0aec0),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: color ?? const Color(0xFF4a5568))),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color ?? const Color(0xFF4a5568),
+            ),
+          ),
         ],
       ),
     );
@@ -1132,14 +1329,17 @@ class AdminPOBodyState extends State<AdminPOBody>
 
   void _showFormModal(Map<String, dynamic>? existing) {
     final isEdit = existing != null;
-    final notesCtrl =
-        TextEditingController(text: isEdit ? (existing['notes'] as String? ?? '') : '');
+    final notesCtrl = TextEditingController(
+      text: isEdit ? (existing['notes'] as String? ?? '') : '',
+    );
 
     // Items: each entry = {itemNum, itemName, uom, expectedQty, supplierCode, unitCost}
     final List<Map<String, dynamic>> itemRows = isEdit
         ? List<Map<String, dynamic>>.from(
-            (existing['items'] as List? ?? [])
-                .map((i) => Map<String, dynamic>.from(i as Map)))
+            (existing['items'] as List? ?? []).map(
+              (i) => Map<String, dynamic>.from(i as Map),
+            ),
+          )
         : [];
 
     // Low/out-of-stock items from stock_inventory for quick add
@@ -1157,7 +1357,7 @@ class AdminPOBodyState extends State<AdminPOBody>
         final all = snap.docs.map((d) {
           final data = d.data();
           final stock = (data['stock'] as num?)?.toInt() ?? 0;
-          final min   = (data['min'] as num?)?.toInt() ?? 0;
+          final min = (data['min'] as num?)?.toInt() ?? 0;
           return {...data, 'id': d.id, 'stock': stock, 'min': min};
         }).toList();
         // Show low/out-of-stock first, then rest
@@ -1183,7 +1383,8 @@ class AdminPOBodyState extends State<AdminPOBody>
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx2, setModal) {
           // Load stock items once
@@ -1195,22 +1396,21 @@ class AdminPOBodyState extends State<AdminPOBody>
           final visibleStock = query.isEmpty
               ? stockItems
               : stockItems.where((s) {
-                  final name =
-                      (s['name'] as String? ?? '').toLowerCase();
-                  final num  =
-                      (s['num']  as String? ?? '').toLowerCase();
+                  final name = (s['name'] as String? ?? '').toLowerCase();
+                  final num = (s['num'] as String? ?? '').toLowerCase();
                   return name.contains(query) || num.contains(query);
                 }).toList();
 
           double grandTotal = 0;
           for (final row in itemRows) {
-            final qty =
-                (row['expectedQty'] as num?)?.toInt() ?? 0;
-            final cost = double.tryParse(
-                    (row['unitCost']?.toString() ?? '0')
-                        .replaceAll('₱', '')
-                        .replaceAll(',', '')
-                        .trim()) ??
+            final qty = (row['expectedQty'] as num?)?.toInt() ?? 0;
+            final cost =
+                double.tryParse(
+                  (row['unitCost']?.toString() ?? '0')
+                      .replaceAll('₱', '')
+                      .replaceAll(',', '')
+                      .trim(),
+                ) ??
                 0;
             grandTotal += qty * cost;
           }
@@ -1232,7 +1432,8 @@ class AdminPOBodyState extends State<AdminPOBody>
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(20)),
+                      top: Radius.circular(20),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -1245,16 +1446,18 @@ class AdminPOBodyState extends State<AdminPOBody>
                                   ? 'Edit ${existing['poNum'] ?? 'PO'}'
                                   : 'Create Purchase Order',
                               style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700),
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             if (itemRows.isNotEmpty)
                               Text(
                                 '${itemRows.length} item${itemRows.length == 1 ? '' : 's'}  •  ${_fmtPeso(grandTotal)}',
                                 style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12),
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
                               ),
                           ],
                         ),
@@ -1265,10 +1468,14 @@ class AdminPOBodyState extends State<AdminPOBody>
                           width: 32,
                           height: 32,
                           decoration: BoxDecoration(
-                              color: Colors.white24,
-                              shape: BoxShape.circle),
-                          child: const Icon(Icons.close,
-                              color: Colors.white, size: 18),
+                            color: Colors.white24,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                         ),
                       ),
                     ],
@@ -1282,30 +1489,34 @@ class AdminPOBodyState extends State<AdminPOBody>
                       left: 20,
                       right: 20,
                       top: 16,
-                      bottom:
-                          MediaQuery.of(context).viewInsets.bottom + 24,
+                      bottom: MediaQuery.of(context).viewInsets.bottom + 24,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // ── Current items in PO ──
                         if (itemRows.isNotEmpty) ...[
-                          const Text('PO Items',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1a202c))),
+                          const Text(
+                            'PO Items',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1a202c),
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           ...itemRows.asMap().entries.map((e) {
-                            final i    = e.key;
-                            final row  = e.value;
-                            final qty  =
+                            final i = e.key;
+                            final row = e.value;
+                            final qty =
                                 (row['expectedQty'] as num?)?.toInt() ?? 1;
-                            final cost = double.tryParse(
-                                    (row['unitCost']?.toString() ?? '0')
-                                        .replaceAll('₱', '')
-                                        .replaceAll(',', '')
-                                        .trim()) ??
+                            final cost =
+                                double.tryParse(
+                                  (row['unitCost']?.toString() ?? '0')
+                                      .replaceAll('₱', '')
+                                      .replaceAll(',', '')
+                                      .trim(),
+                                ) ??
                                 0;
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
@@ -1314,17 +1525,17 @@ class AdminPOBodyState extends State<AdminPOBody>
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
-                                    color: const Color(0xFFe2e8f0)),
+                                  color: const Color(0xFFe2e8f0),
+                                ),
                                 boxShadow: [
                                   BoxShadow(
-                                      color: Colors.black
-                                          .withValues(alpha: 0.04),
-                                      blurRadius: 4)
+                                    color: Colors.black.withOpacity(0.04),
+                                    blurRadius: 4,
+                                  ),
                                 ],
                               ),
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
                                     children: [
@@ -1332,17 +1543,21 @@ class AdminPOBodyState extends State<AdminPOBody>
                                         child: Text(
                                           row['itemName'] as String? ?? '—',
                                           style: const TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w700,
-                                              color: Color(0xFF1a202c)),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF1a202c),
+                                          ),
                                         ),
                                       ),
                                       GestureDetector(
-                                        onTap: () =>
-                                            setModal(() => itemRows.removeAt(i)),
-                                        child: const Icon(Icons.close,
-                                            size: 18,
-                                            color: Color(0xFFa0aec0)),
+                                        onTap: () => setModal(
+                                          () => itemRows.removeAt(i),
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          size: 18,
+                                          color: Color(0xFFa0aec0),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -1350,11 +1565,13 @@ class AdminPOBodyState extends State<AdminPOBody>
                                   Row(
                                     children: [
                                       // Qty stepper
-                                      const Text('Qty',
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              color:
-                                                  Color(0xFF718096))),
+                                      const Text(
+                                        'Qty',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF718096),
+                                        ),
+                                      ),
                                       const SizedBox(width: 8),
                                       _qtyBtn(Icons.remove, () {
                                         setModal(() {
@@ -1365,19 +1582,22 @@ class AdminPOBodyState extends State<AdminPOBody>
                                         });
                                       }),
                                       Padding(
-                                        padding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 8),
-                                        child: Text('$qty',
-                                            style: const TextStyle(
-                                                fontSize: 14,
-                                                fontWeight:
-                                                    FontWeight.w700)),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                        ),
+                                        child: Text(
+                                          '$qty',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
                                       ),
                                       _qtyBtn(Icons.add, () {
-                                        setModal(() =>
-                                            itemRows[i]['expectedQty'] =
-                                                qty + 1);
+                                        setModal(
+                                          () => itemRows[i]['expectedQty'] =
+                                              qty + 1,
+                                        );
                                       }),
                                       const Spacer(),
                                       // Unit cost field
@@ -1387,35 +1607,39 @@ class AdminPOBodyState extends State<AdminPOBody>
                                           initialValue: cost == 0
                                               ? ''
                                               : cost.toStringAsFixed(2),
-                                          keyboardType:
-                                              TextInputType.number,
-                                          decoration:
-                                              const InputDecoration(
+                                          keyboardType: TextInputType.number,
+                                          decoration: const InputDecoration(
                                             isDense: true,
                                             prefixText: '₱',
                                             hintText: '0.00',
                                             contentPadding:
                                                 EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 8),
+                                                  horizontal: 8,
+                                                  vertical: 8,
+                                                ),
                                             border: OutlineInputBorder(),
                                           ),
                                           onChanged: (v) {
                                             itemRows[i]['unitCost'] =
-                                                double.tryParse(v.replaceAll('₱', '').trim()) ?? 0;
+                                                double.tryParse(
+                                                  v.replaceAll('₱', '').trim(),
+                                                ) ??
+                                                0;
                                             setModal(() {});
                                           },
                                         ),
                                       ),
                                     ],
                                   ),
-                                  if ((row['supplierCode'] as String? ?? '').isNotEmpty) ...[
+                                  if ((row['supplierCode'] as String? ?? '')
+                                      .isNotEmpty) ...[
                                     const SizedBox(height: 4),
                                     Text(
                                       'Code: ${row['supplierCode']}',
                                       style: const TextStyle(
-                                          fontSize: 10,
-                                          color: Color(0xFFa0aec0)),
+                                        fontSize: 10,
+                                        color: Color(0xFFa0aec0),
+                                      ),
                                     ),
                                   ],
                                 ],
@@ -1426,36 +1650,46 @@ class AdminPOBodyState extends State<AdminPOBody>
                         ],
 
                         // ── Search quick-add ──
-                        const Text('Add Items from Inventory',
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF1a202c))),
+                        const Text(
+                          'Add Items from Inventory',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1a202c),
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         TextField(
                           controller: searchCtrl,
                           decoration: InputDecoration(
                             hintText: 'Search item…',
-                            prefixIcon: const Icon(Icons.search,
-                                size: 18, color: Color(0xFFa0aec0)),
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              size: 18,
+                              color: Color(0xFFa0aec0),
+                            ),
                             suffixIcon: searchCtrl.text.isNotEmpty
                                 ? GestureDetector(
-                                    onTap: () => setModal(() =>
-                                        searchCtrl.clear()),
-                                    child: const Icon(Icons.close,
-                                        size: 16,
-                                        color: Color(0xFFa0aec0)),
+                                    onTap: () =>
+                                        setModal(() => searchCtrl.clear()),
+                                    child: const Icon(
+                                      Icons.close,
+                                      size: 16,
+                                      color: Color(0xFFa0aec0),
+                                    ),
                                   )
                                 : null,
                             isDense: true,
-                            contentPadding:
-                                const EdgeInsets.symmetric(
-                                    vertical: 10, horizontal: 12),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 10,
+                              horizontal: 12,
+                            ),
                             border: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                    color: Color(0xFFe2e8f0))),
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFe2e8f0),
+                              ),
+                            ),
                             filled: true,
                             fillColor: const Color(0xFFF7F8FA),
                           ),
@@ -1466,47 +1700,44 @@ class AdminPOBodyState extends State<AdminPOBody>
                         if (stockLoading)
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 16),
-                            child: Center(
-                                child: CircularProgressIndicator()),
+                            child: Center(child: CircularProgressIndicator()),
                           )
                         else if (visibleStock.isEmpty)
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Text('No items found.',
-                                style: TextStyle(
-                                    color: Color(0xFF718096),
-                                    fontSize: 12)),
+                            child: Text(
+                              'No items found.',
+                              style: TextStyle(
+                                color: Color(0xFF718096),
+                                fontSize: 12,
+                              ),
+                            ),
                           )
                         else
                           ...visibleStock.map((s) {
-                            final itemNum =
-                                s['num'] as String? ?? '';
-                            final name =
-                                s['name'] as String? ?? '—';
-                            final uom =
-                                s['uom'] as String? ?? '';
-                            final stock =
-                                (s['stock'] as num?)?.toInt() ?? 0;
-                            final min =
-                                (s['min'] as num?)?.toInt() ?? 0;
+                            final itemNum = s['num'] as String? ?? '';
+                            final name = s['name'] as String? ?? '—';
+                            final uom = s['uom'] as String? ?? '';
+                            final stock = (s['stock'] as num?)?.toInt() ?? 0;
+                            final min = (s['min'] as num?)?.toInt() ?? 0;
                             final isLow = stock <= min;
                             final alreadyAdded = itemRows.any(
-                                (r) => r['itemNum'] == itemNum);
+                              (r) => r['itemNum'] == itemNum,
+                            );
 
                             return Container(
-                              margin:
-                                  const EdgeInsets.only(bottom: 6),
+                              margin: const EdgeInsets.only(bottom: 6),
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
                                 color: isLow
                                     ? const Color(0xFFFFF5F5)
                                     : Colors.white,
-                                borderRadius:
-                                    BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
-                                    color: isLow
-                                        ? _red.withValues(alpha: 0.3)
-                                        : const Color(0xFFe2e8f0)),
+                                  color: isLow
+                                      ? _red.withOpacity(0.3)
+                                      : const Color(0xFFe2e8f0),
+                                ),
                               ),
                               child: Row(
                                 children: [
@@ -1515,50 +1746,51 @@ class AdminPOBodyState extends State<AdminPOBody>
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text(name,
-                                            style: const TextStyle(
-                                                fontSize: 12,
-                                                fontWeight:
-                                                    FontWeight.w700,
-                                                color: Color(
-                                                    0xFF1a202c))),
-                                        const SizedBox(height: 2),
-                                        Row(children: [
-                                          if (uom.isNotEmpty) ...[
-                                            Text(uom,
-                                                style: const TextStyle(
-                                                    fontSize: 10,
-                                                    color: Color(
-                                                        0xFF718096))),
-                                            const SizedBox(width: 8),
-                                          ],
-                                          Container(
-                                            padding: const EdgeInsets
-                                                .symmetric(
-                                                    horizontal: 6,
-                                                    vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: isLow
-                                                  ? _red.withValues(
-                                                      alpha: 0.1)
-                                                  : _green.withValues(
-                                                      alpha: 0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                      10),
-                                            ),
-                                            child: Text(
-                                              'Stock: $stock',
-                                              style: TextStyle(
-                                                  fontSize: 9,
-                                                  fontWeight:
-                                                      FontWeight.w700,
-                                                  color: isLow
-                                                      ? _red
-                                                      : _green),
-                                            ),
+                                        Text(
+                                          name,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF1a202c),
                                           ),
-                                        ]),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Row(
+                                          children: [
+                                            if (uom.isNotEmpty) ...[
+                                              Text(
+                                                uom,
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  color: Color(0xFF718096),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                            ],
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: isLow
+                                                    ? _red.withOpacity(0.1)
+                                                    : _green.withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: Text(
+                                                'Stock: $stock',
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: isLow ? _red : _green,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -1568,47 +1800,46 @@ class AdminPOBodyState extends State<AdminPOBody>
                                         : () {
                                             setModal(() {
                                               itemRows.add({
-                                                'itemNum':
-                                                    itemNum,
+                                                'itemNum': itemNum,
                                                 'itemName': name,
                                                 'uom': uom,
                                                 'expectedQty': 1,
                                                 'supplierCode':
                                                     s['supplierCode']
-                                                            ?.toString() ??
-                                                        '',
-                                                'unitCost': double.tryParse(
-                                                        (s['cost']?.toString() ?? '0')
-                                                            .replaceAll('₱', '')
-                                                            .replaceAll(',', '')
-                                                            .trim()) ??
+                                                        ?.toString() ??
+                                                    '',
+                                                'unitCost':
+                                                    double.tryParse(
+                                                      (s['cost']?.toString() ??
+                                                              '0')
+                                                          .replaceAll('₱', '')
+                                                          .replaceAll(',', '')
+                                                          .trim(),
+                                                    ) ??
                                                     0,
                                               });
                                             });
                                           },
                                     child: Container(
-                                      padding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 6),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: alreadyAdded
                                             ? const Color(0xFFe2e8f0)
                                             : _red,
-                                        borderRadius:
-                                            BorderRadius.circular(
-                                                20),
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: Text(
                                         alreadyAdded ? 'Added' : '+ Add',
                                         style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight:
-                                                FontWeight.w700,
-                                            color: alreadyAdded
-                                                ? const Color(
-                                                    0xFF718096)
-                                                : Colors.white),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: alreadyAdded
+                                              ? const Color(0xFF718096)
+                                              : Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1620,25 +1851,28 @@ class AdminPOBodyState extends State<AdminPOBody>
                         const SizedBox(height: 16),
 
                         // ── Notes ──
-                        const Text('Notes (Optional)',
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF4a5568))),
+                        const Text(
+                          'Notes (Optional)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF4a5568),
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         TextField(
                           controller: notesCtrl,
                           maxLines: 3,
                           decoration: InputDecoration(
-                            hintText:
-                                'Add remarks or special instructions…',
+                            hintText: 'Add remarks or special instructions…',
                             isDense: true,
                             contentPadding: const EdgeInsets.all(12),
                             border: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                    color: Color(0xFFe2e8f0))),
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFe2e8f0),
+                              ),
+                            ),
                             filled: true,
                             fillColor: const Color(0xFFF7F8FA),
                           ),
@@ -1660,24 +1894,24 @@ class AdminPOBodyState extends State<AdminPOBody>
                                     );
                                   },
                             icon: Icon(
-                                isEdit
-                                    ? Icons.save_outlined
-                                    : Icons.add_circle_outline,
-                                size: 16),
+                              isEdit
+                                  ? Icons.save_outlined
+                                  : Icons.add_circle_outline,
+                              size: 16,
+                            ),
                             label: Text(
-                                isEdit
-                                    ? 'Save Changes'
-                                    : 'Create PO (Draft)',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700)),
+                              isEdit ? 'Save Changes' : 'Create PO (Draft)',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _red,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(30)),
+                                borderRadius: BorderRadius.circular(30),
+                              ),
                             ),
                           ),
                         ),
@@ -1700,7 +1934,7 @@ class AdminPOBodyState extends State<AdminPOBody>
         width: 28,
         height: 28,
         decoration: BoxDecoration(
-          color: _red.withValues(alpha: 0.08),
+          color: _red.withOpacity(0.08),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, size: 16, color: _red),
@@ -1720,28 +1954,34 @@ class AdminPOBodyState extends State<AdminPOBody>
     final isEdit = existing != null;
     double total = 0;
     for (final row in items) {
-      final qty  = (row['expectedQty'] as num?)?.toInt() ?? 0;
-      final cost = double.tryParse(
-              (row['unitCost']?.toString() ?? '0')
-                  .replaceAll('₱', '').replaceAll(',', '').trim()) ?? 0;
+      final qty = (row['expectedQty'] as num?)?.toInt() ?? 0;
+      final cost =
+          double.tryParse(
+            (row['unitCost']?.toString() ?? '0')
+                .replaceAll('₱', '')
+                .replaceAll(',', '')
+                .trim(),
+          ) ??
+          0;
       total += qty * cost;
     }
 
     try {
       if (isEdit) {
-        await SyncStatusNotifier.instance.trackWrite(() =>
-            FirebaseFirestore.instance
-                .collection(_col)
-                .doc(existing['id'] as String)
-                .update({
-              'items': items,
-              'notes': notes,
-              'totalAmount': total,
-              'updatedAt': FieldValue.serverTimestamp(),
-            }));
+        await SyncStatusNotifier.instance.trackWrite(
+          () => FirebaseFirestore.instance
+              .collection(_col)
+              .doc(existing['id'] as String)
+              .update({
+                'items': items,
+                'notes': notes,
+                'totalAmount': total,
+                'updatedAt': FieldValue.serverTimestamp(),
+              }),
+        );
       } else {
         final poNum = await _genPoNum();
-        final uid   = FirebaseAuth.instance.currentUser?.uid;
+        final uid = FirebaseAuth.instance.currentUser?.uid;
         String createdBy = '';
         if (uid != null) {
           final doc = await FirebaseFirestore.instance
@@ -1750,34 +1990,40 @@ class AdminPOBodyState extends State<AdminPOBody>
               .get();
           createdBy = doc.data()?['name'] as String? ?? '';
         }
-        await SyncStatusNotifier.instance.trackWrite(() =>
-            FirebaseFirestore.instance.collection(_col).add({
-              'poNum':       poNum,
-              'status':      'Draft',
-              'items':       items,
-              'notes':       notes,
-              'totalAmount': total,
-              'createdBy':   createdBy,
-              'createdAt':   FieldValue.serverTimestamp(),
-              'updatedAt':   FieldValue.serverTimestamp(),
-            }));
+        await SyncStatusNotifier.instance.trackWrite(
+          () => FirebaseFirestore.instance.collection(_col).add({
+            'poNum': poNum,
+            'status': 'Draft',
+            'items': items,
+            'notes': notes,
+            'totalAmount': total,
+            'createdBy': createdBy,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }),
+        );
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(isEdit ? 'PO updated!' : 'PO created as Draft!'),
-          backgroundColor: _green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10)),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isEdit ? 'PO updated!' : 'PO created as Draft!'),
+            backgroundColor: _green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: _red,
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: _red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -1787,26 +2033,32 @@ class AdminPOBodyState extends State<AdminPOBody>
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _updateStatus(
-      Map<String, dynamic> po, String newStatus, String confirmMsg) async {
+    Map<String, dynamic> po,
+    String newStatus,
+    String confirmMsg,
+  ) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(confirmMsg,
-            style: const TextStyle(
-                fontSize: 15, fontWeight: FontWeight.w700)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          confirmMsg,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel',
-                style: TextStyle(color: Color(0xFF718096))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF718096)),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-                backgroundColor: _red,
-                foregroundColor: Colors.white),
+              backgroundColor: _red,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Confirm'),
           ),
         ],
@@ -1814,37 +2066,45 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
     if (ok != true || !mounted) return;
     try {
-      await SyncStatusNotifier.instance.trackWrite(() =>
-          FirebaseFirestore.instance
-              .collection(_col)
-              .doc(po['id'] as String)
-              .update({
-        'status': newStatus,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }));
+      await SyncStatusNotifier.instance.trackWrite(
+        () => FirebaseFirestore.instance
+            .collection(_col)
+            .doc(po['id'] as String)
+            .update({
+              'status': newStatus,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }),
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Status updated to "$newStatus"'),
-          backgroundColor: _statusColor(newStatus),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10)),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Status updated to "$newStatus"'),
+            backgroundColor: _statusColor(newStatus),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: _red,
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: _red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
 
-  void _submitForApproval(Map<String, dynamic> po) =>
-      _updateStatus(po, 'Pending Approval',
-          'Submit "${po['poNum']}" for approval?');
+  void _submitForApproval(Map<String, dynamic> po) => _updateStatus(
+    po,
+    'Pending Approval',
+    'Submit "${po['poNum']}" for approval?',
+  );
 
   void _approve(Map<String, dynamic> po) =>
       _updateStatus(po, 'Approved', 'Approve "${po['poNum']}"?');
@@ -1852,9 +2112,11 @@ class AdminPOBodyState extends State<AdminPOBody>
   void _revise(Map<String, dynamic> po) =>
       _updateStatus(po, 'Draft', 'Revise "${po['poNum']}" (back to Draft)?');
 
-  void _sendToSupplier(Map<String, dynamic> po) =>
-      _updateStatus(po, 'Ordered',
-          'Mark "${po['poNum']}" as Ordered / Sent to Supplier?');
+  void _sendToSupplier(Map<String, dynamic> po) => _updateStatus(
+    po,
+    'Ordered',
+    'Mark "${po['poNum']}" as Ordered / Sent to Supplier?',
+  );
 
   void _receiveItems(Map<String, dynamic> po) =>
       _showReceiveModal(po, continuing: false);
@@ -1869,24 +2131,28 @@ class AdminPOBodyState extends State<AdminPOBody>
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Archive this PO?',
-            style:
-                TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Archive this PO?',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
         content: const Text(
-            'Archived POs are hidden from the main list but not deleted.'),
+          'Archived POs are hidden from the main list but not deleted.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel',
-                style: TextStyle(color: Color(0xFF718096))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF718096)),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-                backgroundColor: _grey,
-                foregroundColor: Colors.white),
+              backgroundColor: _grey,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Archive'),
           ),
         ],
@@ -1894,27 +2160,32 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
     if (ok != true || !mounted) return;
     try {
-      await SyncStatusNotifier.instance.trackWrite(() =>
-          FirebaseFirestore.instance
-              .collection(_col)
-              .doc(po['id'] as String)
-              .update({
-        'archived': true,
-        'archivedAt': FieldValue.serverTimestamp(),
-      }));
+      await SyncStatusNotifier.instance.trackWrite(
+        () => FirebaseFirestore.instance
+            .collection(_col)
+            .doc(po['id'] as String)
+            .update({
+              'archived': true,
+              'archivedAt': FieldValue.serverTimestamp(),
+            }),
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('PO archived.'),
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PO archived.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: _red,
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: _red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -1923,24 +2194,28 @@ class AdminPOBodyState extends State<AdminPOBody>
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete this PO?',
-            style:
-                TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Delete this PO?',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
         content: Text(
-            'This will permanently delete "${po['poNum']}". This cannot be undone.'),
+          'This will permanently delete "${po['poNum']}". This cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel',
-                style: TextStyle(color: Color(0xFF718096))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF718096)),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-                backgroundColor: _red,
-                foregroundColor: Colors.white),
+              backgroundColor: _red,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -1948,27 +2223,33 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
     if (ok != true || !mounted) return;
     try {
-      await SyncStatusNotifier.instance.trackWrite(() =>
-          FirebaseFirestore.instance
-              .collection(_col)
-              .doc(po['id'] as String)
-              .delete());
+      await SyncStatusNotifier.instance.trackWrite(
+        () => FirebaseFirestore.instance
+            .collection(_col)
+            .doc(po['id'] as String)
+            .delete(),
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('PO deleted.'),
-          backgroundColor: _red,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10)),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('PO deleted.'),
+            backgroundColor: _red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: _red,
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: _red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -1977,16 +2258,21 @@ class AdminPOBodyState extends State<AdminPOBody>
   // RECEIVE ITEMS MODAL
   // ─────────────────────────────────────────────────────────────────────────
 
-  void _showReceiveModal(Map<String, dynamic> po,
-      {bool continuing = false}) {
+  void _showReceiveModal(Map<String, dynamic> po, {bool continuing = false}) {
     final items = List<Map<String, dynamic>>.from(
-        (po['items'] as List? ?? [])
-            .map((i) => Map<String, dynamic>.from(i as Map)));
+      (po['items'] as List? ?? []).map(
+        (i) => Map<String, dynamic>.from(i as Map),
+      ),
+    );
 
     // Pre-fill actual qty from expectedQty for new receiving
     final qtyCtrlrs = items
-        .map((i) => TextEditingController(
-            text: '${(i['actualQty'] as num?)?.toInt() ?? (i['expectedQty'] as num?)?.toInt() ?? 0}'))
+        .map(
+          (i) => TextEditingController(
+            text:
+                '${(i['actualQty'] as num?)?.toInt() ?? (i['expectedQty'] as num?)?.toInt() ?? 0}',
+          ),
+        )
         .toList();
     final notesCtrl = TextEditingController();
     bool submitting = false;
@@ -1996,7 +2282,8 @@ class AdminPOBodyState extends State<AdminPOBody>
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx2, setModal) => DraggableScrollableSheet(
           expand: false,
@@ -2007,51 +2294,57 @@ class AdminPOBodyState extends State<AdminPOBody>
               // Header
               Container(
                 width: double.infinity,
-                padding:
-                    const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(20)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 ),
-                child: Row(children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          continuing
-                              ? 'Continue Receiving'
-                              : 'Receive Items',
-                          style: const TextStyle(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            continuing ? 'Continue Receiving' : 'Receive Items',
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
-                              fontWeight: FontWeight.w700),
-                        ),
-                        Text(po['poNum'] as String? ?? '',
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            po['poNum'] as String? ?? '',
                             style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12)),
-                      ],
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(ctx2),
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
+                    GestureDetector(
+                      onTap: () => Navigator.pop(ctx2),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
                           color: Colors.white24,
-                          shape: BoxShape.circle),
-                      child: const Icon(Icons.close,
-                          color: Colors.white, size: 18),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
                     ),
-                  ),
-                ]),
+                  ],
+                ),
               ),
 
               Expanded(
@@ -2066,68 +2359,74 @@ class AdminPOBodyState extends State<AdminPOBody>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Enter Actual Quantities Received',
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1a202c))),
+                      const Text(
+                        'Enter Actual Quantities Received',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1a202c),
+                        ),
+                      ),
                       const SizedBox(height: 12),
 
                       ...items.asMap().entries.map((e) {
-                        final i    = e.key;
+                        final i = e.key;
                         final item = e.value;
-                        final exp  =
-                            (item['expectedQty'] as num?)?.toInt() ?? 0;
+                        final exp = (item['expectedQty'] as num?)?.toInt() ?? 0;
                         return Container(
                           margin: const EdgeInsets.only(bottom: 10),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                                color: const Color(0xFFe2e8f0)),
+                            border: Border.all(color: const Color(0xFFe2e8f0)),
                           ),
-                          child: Row(children: [
-                            Expanded(
-                              child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       item['itemName'] as String? ?? '—',
                                       style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF1a202c)),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF1a202c),
+                                      ),
                                     ),
                                     Text(
                                       'Expected: $exp ${item['uom'] ?? ''}',
                                       style: const TextStyle(
-                                          fontSize: 11,
-                                          color: Color(0xFF718096)),
+                                        fontSize: 11,
+                                        color: Color(0xFF718096),
+                                      ),
                                     ),
-                                  ]),
-                            ),
-                            const SizedBox(width: 12),
-                            SizedBox(
-                              width: 80,
-                              child: TextFormField(
-                                controller: qtyCtrlrs[i],
-                                keyboardType: TextInputType.number,
-                                textAlign: TextAlign.center,
-                                decoration: InputDecoration(
-                                  isDense: true,
-                                  hintText: '$exp',
-                                  contentPadding:
-                                      const EdgeInsets.symmetric(
-                                          vertical: 8, horizontal: 8),
-                                  border: OutlineInputBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(8)),
+                                  ],
                                 ),
                               ),
-                            ),
-                          ]),
+                              const SizedBox(width: 12),
+                              SizedBox(
+                                width: 80,
+                                child: TextFormField(
+                                  controller: qtyCtrlrs[i],
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.center,
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    hintText: '$exp',
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                      horizontal: 8,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         );
                       }),
 
@@ -2140,7 +2439,8 @@ class AdminPOBodyState extends State<AdminPOBody>
                           isDense: true,
                           contentPadding: const EdgeInsets.all(12),
                           border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10)),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                           filled: true,
                           fillColor: const Color(0xFFF7F8FA),
                         ),
@@ -2155,29 +2455,30 @@ class AdminPOBodyState extends State<AdminPOBody>
                               : () async {
                                   setModal(() => submitting = true);
                                   // Build updated items with actualQty
-                                  final updatedItems =
-                                      items.asMap().entries.map((e) {
-                                    final i    = e.key;
-                                    final item = e.value;
-                                    final actual = int.tryParse(
-                                            qtyCtrlrs[i].text) ??
-                                        (item['expectedQty'] as num?)
-                                            ?.toInt() ??
-                                        0;
-                                    return {
-                                      ...item,
-                                      'actualQty': actual,
-                                    };
-                                  }).toList();
+                                  final updatedItems = items
+                                      .asMap()
+                                      .entries
+                                      .map((e) {
+                                        final i = e.key;
+                                        final item = e.value;
+                                        final actual =
+                                            int.tryParse(qtyCtrlrs[i].text) ??
+                                            (item['expectedQty'] as num?)
+                                                ?.toInt() ??
+                                            0;
+                                        return {...item, 'actualQty': actual};
+                                      })
+                                      .toList();
 
                                   // Determine new status
                                   final allFull = updatedItems.every((item) {
                                     final exp =
-                                        (item['expectedQty'] as num?)?.toInt() ??
-                                            0;
+                                        (item['expectedQty'] as num?)
+                                            ?.toInt() ??
+                                        0;
                                     final act =
                                         (item['actualQty'] as num?)?.toInt() ??
-                                            0;
+                                        0;
                                     return act >= exp;
                                   });
                                   final newStatus = allFull
@@ -2185,47 +2486,50 @@ class AdminPOBodyState extends State<AdminPOBody>
                                       : 'Partially Received';
 
                                   try {
-                                    await SyncStatusNotifier.instance
-                                        .trackWrite(() =>
-                                            FirebaseFirestore.instance
-                                                .collection(_col)
-                                                .doc(po['id'] as String)
-                                                .update({
-                                              'items': updatedItems,
-                                              'status': newStatus,
-                                              'receiveNotes':
-                                                  notesCtrl.text.trim(),
-                                              'receivedAt':
-                                                  FieldValue.serverTimestamp(),
-                                              'updatedAt':
-                                                  FieldValue.serverTimestamp(),
-                                            }));
+                                    await SyncStatusNotifier.instance.trackWrite(
+                                      () => FirebaseFirestore.instance
+                                          .collection(_col)
+                                          .doc(po['id'] as String)
+                                          .update({
+                                            'items': updatedItems,
+                                            'status': newStatus,
+                                            'receiveNotes': notesCtrl.text
+                                                .trim(),
+                                            'receivedAt':
+                                                FieldValue.serverTimestamp(),
+                                            'updatedAt':
+                                                FieldValue.serverTimestamp(),
+                                          }),
+                                    );
                                     if (ctx2.mounted) {
                                       Navigator.pop(ctx2);
-                                      ScaffoldMessenger.of(ctx2)
-                                          .showSnackBar(SnackBar(
-                                        content: Text(
-                                            'Items received! Status: $newStatus'),
-                                        backgroundColor:
-                                            _statusColor(newStatus),
-                                        behavior:
-                                            SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(
-                                                    10)),
-                                      ));
+                                      ScaffoldMessenger.of(ctx2).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Items received! Status: $newStatus',
+                                          ),
+                                          backgroundColor: _statusColor(
+                                            newStatus,
+                                          ),
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
+                                      );
                                     }
                                   } catch (err) {
                                     setModal(() => submitting = false);
                                     if (ctx2.mounted) {
-                                      ScaffoldMessenger.of(ctx2)
-                                          .showSnackBar(SnackBar(
-                                        content: Text('Error: $err'),
-                                        backgroundColor: _red,
-                                        behavior:
-                                            SnackBarBehavior.floating,
-                                      ));
+                                      ScaffoldMessenger.of(ctx2).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Error: $err'),
+                                          backgroundColor: _red,
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
                                     }
                                   }
                                 },
@@ -2234,23 +2538,25 @@ class AdminPOBodyState extends State<AdminPOBody>
                                   width: 16,
                                   height: 16,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white))
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
                               : const Icon(
                                   Icons.check_circle_outline,
-                                  size: 16),
+                                  size: 16,
+                                ),
                           label: Text(
-                              submitting ? 'Saving…' : 'Confirm Receipt',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w700)),
+                            submitting ? 'Saving…' : 'Confirm Receipt',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _green,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(30)),
+                              borderRadius: BorderRadius.circular(30),
+                            ),
                           ),
                         ),
                       ),

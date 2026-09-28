@@ -21,6 +21,10 @@ import 'staff_bottomnavbar.dart';
 import 'staff_inventory.dart';
 import 'staff_vehicle_list.dart';
 import 'barcode_scanner_screen.dart';
+import 'admin_bottomnavbar.dart';
+import 'admin_dashboard.dart';
+import 'admin_inventory_hub.dart';
+import 'admin_vehicles_list.dart';
 
 enum UserRole { customer, staff, admin }
 
@@ -376,6 +380,33 @@ class _UserProfileState extends State<UserProfile> {
                     builder: (_) => const BarcodeScannerScreen(),
                   ),
                 );
+              },
+            )
+          : widget.role == UserRole.admin
+          ? AdminBottomNavBar(
+              currentIndex: 3,
+              onTap: (i) {
+                if (i == 3) return; // already here
+                if (i == 0) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AdminDashboard()),
+                  );
+                } else if (i == 1) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AdminInventoryHub(),
+                    ),
+                  );
+                } else if (i == 2) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AdminVehiclesList(),
+                    ),
+                  );
+                }
               },
             )
           : null,
