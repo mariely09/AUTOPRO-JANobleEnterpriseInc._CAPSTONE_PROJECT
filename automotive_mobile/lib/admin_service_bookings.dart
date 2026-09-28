@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'admin_vehicle_maintenance.dart';
+import 'create_booking_sheet.dart';
 
 class AdminServiceBookings extends StatelessWidget {
   const AdminServiceBookings({super.key});
@@ -152,7 +153,6 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
         final cancelled = allBookings
             .where((d) => d['status'] == 'Cancelled')
             .length;
-        final total = allBookings.length;
 
         // Apply filter
         final afterFilter = _filter == 'all'
@@ -188,7 +188,9 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
                     date.contains(activeQuery);
               }).toList();
 
-        return Column(
+        return Stack(
+          children: [
+            Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -251,6 +253,29 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
                         filtered[i],
                       ),
                     ),
+            ),
+          ],
+        ),
+            // ── Floating Action Button ──
+            Positioned(
+              bottom: 20,
+              right: 16,
+              child: FloatingActionButton(
+                onPressed: () => showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.white,
+                  shape: const RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(20))),
+                  builder: (_) =>
+                      const CreateBookingSheet(bookedBy: 'admin'),
+                ),
+                backgroundColor: const Color(0xFFE8001C),
+                elevation: 6,
+                tooltip: 'Add New Booking',
+                child: const Icon(Icons.add, size: 28),
+              ),
             ),
           ],
         );
@@ -618,7 +643,6 @@ class _AdminServiceBookingsBodyState extends State<AdminServiceBookingsBody> {
     );
 
     // Notify customer using already-loaded data (no extra Firestore read)
-    final customerId = data['customerId'] as String? ?? '';
     // NOTE: Notification creation removed here to avoid duplicate
     // Staff service bookings already creates this notification
 
@@ -844,11 +868,12 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
         if (!slots[date]!.contains(time)) slots[date]!.add(time);
       }
     }
-    if (mounted)
+    if (mounted) {
       setState(() {
         _bookedDates = slots;
         _loading = false;
       });
+    }
   }
 
   void _navMonth(int dir) {
@@ -944,7 +969,7 @@ class _RescheduleSheetState extends State<_RescheduleSheet> {
               (widget.currentTime.isNotEmpty
                   ? ' at ${widget.currentTime}'
                   : ''),
-          'new_date': _fmt(_selectedDate!) + ' at $_selectedTime',
+          'new_date': '${_fmt(_selectedDate!)} at $_selectedTime',
           'services': services,
         }),
       );
