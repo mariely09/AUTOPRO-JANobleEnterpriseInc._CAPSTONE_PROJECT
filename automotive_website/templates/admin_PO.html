@@ -669,11 +669,42 @@ function _poOpenView(docId) {
 
     var status  = po.status || 'Pending';
     var items   = po.items  || [];
-    var c       = _stColor(status);
 
     document.getElementById('poViewPoNum').textContent     = po.poNum || docId;
     document.getElementById('poViewSubtitle').textContent  = _fmtDate(po.createdAt) + '  •  ' + items.length + ' item' + (items.length !== 1 ? 's' : '');
 
+    // Show a brief loading state while stock is fetched
+    document.getElementById('poViewBody').innerHTML =
+        '<div style="padding:3rem;text-align:center;color:#a0aec0;font-size:13px;">Loading…</div>';
+    document.getElementById('poViewFooter').innerHTML = '';
+    document.getElementById('poViewModal').classList.add('active');
+
+    // ── Fetch live stock for each item, then render ──
+    // If any item already has stockAtReceive frozen, we still show live stock
+    // so the viewer can see the current inventory level.
+    var itemNums = items.map(function(i) { return (i.itemNum || '').trim(); }).filter(Boolean);
+    var stockMap = {};   // itemNum → current stock value
+
+    var fetchPromise = itemNums.length
+        ? db.collection('stock_inventory')
+              .get()
+              .then(function(snap) {
+                  snap.forEach(function(d) {
+                      var n = (d.data().num || '').trim();
+                      if (n) stockMap[n] = parseInt(d.data().stock) || 0;
+                  });
+              })
+              .catch(function() {}) // non-fatal — just show '—' on error
+        : Promise.resolve();
+
+    fetchPromise.then(function() {
+        _poRenderViewBody(po, stockMap);
+    });
+}
+
+function _poRenderViewBody(po, stockMap) {
+    var status  = po.status || 'Pending';
+    var items   = po.items  || [];
 
     // Build body
     var html = '';
@@ -687,6 +718,9 @@ function _poOpenView(docId) {
             var cost     = parseFloat((item.unitCost || '0').toString().replace(/[₱,]/g,'')) || 0;
             var qty      = parseInt(item.expectedQty) || 0;
             var subtotal = cost * qty;
+            // Resolve stock: live stockMap first, then frozen stockAtReceive, then item._stock
+            var liveSt   = (item.itemNum && stockMap && stockMap[item.itemNum] !== undefined)
+                           ? stockMap[item.itemNum] : null;
             html += '<div style="background:white;border:1.5px solid #e2e8f0;border-radius:12px;'
                 +         'padding:14px 16px;margin-bottom:10px;">'
                 +   '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">'
@@ -699,7 +733,7 @@ function _poOpenView(docId) {
                 +   '</div>'
                 +   '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">'
                 +     _vCell('Order Qty',  qty + '')
-                +     _vCell('Stock',      _vStock(item))
+                +     _vCell('Stock',      _vStockResolved(item, liveSt))
                 +     _vCell('Unit Price', cost > 0 ? _fmtPeso(cost) : '—')
                 +     _vCell('Subtotal',   subtotal > 0 ? _fmtPeso(subtotal) : '—', '#E8001C')
                 +   '</div>'
@@ -776,8 +810,7 @@ function _poOpenView(docId) {
         footer.innerHTML = '<div style="display:flex;gap:0.5rem;">' + leftBtns + '</div>'
             + '<div style="display:flex;gap:0.5rem;">' + rightBtns + '</div>';
     }
-
-    document.getElementById('poViewModal').classList.add('active');
+    // Modal is already open (opened in _poOpenView before fetch) — no need to re-add active
 }
 
 function _vCell(label, val, color) {
@@ -793,6 +826,17 @@ function _vStock(item) {
           : null;
     if (s === null) return '—';
     var color = s === 0 ? '#e53e3e' : s <= (item.min || 0) ? '#d69e2e' : '#38a169';
+    return '<span style="font-weight:700;color:' + color + ';">' + s + '</span>';
+}
+// _vStockResolved: uses live stock from stock_inventory (stockMap) fetched at modal-open time.
+// Falls back to frozen stockAtReceive / _stock fields if live data unavailable.
+function _vStockResolved(item, liveStock) {
+    var s = liveStock !== null && liveStock !== undefined ? liveStock
+          : item.stockAtReceive !== undefined && item.stockAtReceive !== null ? item.stockAtReceive
+          : item._stock         !== undefined && item._stock         !== null ? item._stock
+          : null;
+    if (s === null) return '—';
+    var color = s === 0 ? '#e53e3e' : '#1a202c';
     return '<span style="font-weight:700;color:' + color + ';">' + s + '</span>';
 }
 function _vRow(label, val) {
