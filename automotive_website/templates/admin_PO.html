@@ -301,48 +301,20 @@
 <div id="toast"></div>
 
 <!-- ── FAB ─────────────────────────────────────────────────────────────────── -->
-<div id="fabContainer"
-     style="position:fixed;bottom:2rem;right:2rem;z-index:9999;
-            display:flex;flex-direction:column;align-items:flex-end;gap:10px;">
-    <div id="fabActions" style="display:none;flex-direction:column;align-items:flex-end;gap:10px;">
-        <div style="display:flex;align-items:center;gap:10px;">
-            <div onclick="if(_fabOpen)_toggleFab();_fabOpenNewPO()"
-                 style="background:white;padding:6px 14px;border-radius:20px;
-                        box-shadow:0 2px 8px rgba(0,0,0,0.12);font-size:12px;
-                        font-weight:600;color:#1a202c;white-space:nowrap;cursor:pointer;">
-                Create Purchase Order (PO)
-            </div>
-            <div onclick="if(_fabOpen)_toggleFab();_fabOpenNewPO()"
-                 style="width:42px;height:42px;border-radius:50%;background:white;
-                        box-shadow:0 2px 8px rgba(0,0,0,0.15);display:flex;
-                        align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
-                     viewBox="0 0 24 24" fill="none" stroke="#E8001C"
-                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="12" y1="18" x2="12" y2="12"/>
-                    <line x1="9" y1="15" x2="15" y2="15"/>
-                </svg>
-            </div>
-        </div>
-    </div>
-    <button id="fabMainBtn" onclick="_toggleFab()"
-            style="width:56px;height:56px;border-radius:50%;background:#E31E24;border:none;
-                   color:white;cursor:pointer;box-shadow:0 4px 16px rgba(227,30,36,0.4);
-                   display:flex;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s;"
-            onmouseover="this.style.boxShadow='0 6px 24px rgba(227,30,36,0.5)'"
-            onmouseout="this.style.boxShadow='0 4px 16px rgba(227,30,36,0.4)'">
-        <svg id="fabIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-             stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s;">
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-    </button>
-</div>
-<div id="fabBackdrop" onclick="_toggleFab()"
-     style="display:none;position:fixed;inset:0;z-index:9998;"></div>
+<button id="fabMainBtn" onclick="_poOpenNewModal()"
+        style="position:fixed;bottom:2rem;right:2rem;z-index:9999;
+               width:56px;height:56px;border-radius:50%;background:#E31E24;border:none;
+               color:white;cursor:pointer;box-shadow:0 4px 16px rgba(227,30,36,0.4);
+               display:flex;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s;"
+        onmouseover="this.style.boxShadow='0 6px 24px rgba(227,30,36,0.5)'"
+        onmouseout="this.style.boxShadow='0 4px 16px rgba(227,30,36,0.4)'">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+         stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+</button>
 
 <!-- ── Create PO Modal ─────────────────────────────────────────────────────── -->
 <div class="modal" id="poNewModal">
@@ -434,18 +406,7 @@
             <div id="poViewPoNum" style="color:white;font-size:1rem;font-weight:800;letter-spacing:0.3px;"></div>
             <div id="poViewSubtitle" style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.2rem;"></div>
         </div>
-        <div id="poViewBadge" style="flex-shrink:0;">
-            <button id="poViewPrintBtnHeader" onclick="_poPrint()"
-                    style="display:none;align-items:center;gap:6px;padding:0.4rem 0.9rem;
-                           background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.45);
-                           border-radius:8px;color:white;font-size:0.78rem;font-weight:600;
-                           cursor:pointer;transition:background .15s;"
-                    onmouseover="this.style.background='rgba(255,255,255,0.28)'"
-                    onmouseout="this.style.background='rgba(255,255,255,0.18)'">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                Print PO
-            </button>
-        </div>
+        <div id="poViewBadge" style="flex-shrink:0;"></div>
         <button onclick="closeModal('poViewModal')"
                 style="background:rgba(255,255,255,0.2);border:none;color:white;
                        width:32px;height:32px;border-radius:50%;font-size:1.1rem;
@@ -712,9 +673,6 @@ function _poOpenView(docId) {
 
     document.getElementById('poViewPoNum').textContent     = po.poNum || docId;
     document.getElementById('poViewSubtitle').textContent  = _fmtDate(po.createdAt) + '  •  ' + items.length + ' item' + (items.length !== 1 ? 's' : '');
-    // Don't clear poViewBadge — poViewPrintBtnHeader lives inside it
-    var printBtn = document.getElementById('poViewPrintBtnHeader');
-    if (printBtn) printBtn.style.display = 'inline-flex';
 
 
     // Build body
@@ -779,16 +737,22 @@ function _poOpenView(docId) {
     }
 
     var leftBtns = '', rightBtns = '';
-    var printIcon = '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>';
+    var printIcon  = '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>';
     var cancelIcon = '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
+    var editIcon   = '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>';
+    var trashIcon  = '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>';
 
-    // Print always on left when available
-    if (status !== 'Cancelled') {
+    // Print on left for most statuses (not Draft, not Cancelled)
+    if (status !== 'Draft' && status !== 'Cancelled') {
         leftBtns += _fbtn('Print PO', printIcon, 'white', '#4a5568', '#e2e8f0', '_poPrint()', '');
     }
 
     if (status === 'Draft') {
-        rightBtns += _fbtn('Cancel PO', cancelIcon, 'white', '#E8001C', '#E8001C', '_poCancelPO()', '');
+        // Left: Edit + Delete
+        leftBtns += _fbtn('Edit',   editIcon,  'white',   '#4a5568', '#e2e8f0', '_poCardEdit(\'' + _poViewId + '\')', '');
+        leftBtns += _fbtn('Delete', trashIcon, '#fef2f2', '#e53e3e', '#fecaca',
+            '_poCardDelete(\'' + _poViewId + '\',\'' + (po.poNum || '').replace(/'/g,'') + '\')', '');
+        // Right: Submit for Approval
         rightBtns += _fbtn('Submit for Approval', '<polyline points="22 2 15 22 11 13 2 9 22 2"/>', '#003087', 'white', '#003087', '_poSubmitForApproval(\'' + _poViewId + '\')', '');
     } else if (status === 'Pending Approval') {
         rightBtns += _fbtn('Revise', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>', '#fffbeb', '#d69e2e', '#fcd34d', '_poRevise(\'' + _poViewId + '\')', '');
@@ -904,6 +868,7 @@ function _poCancelPO() {
 // Card-level Edit (opens edit modal)
 function _poCardEdit(docId) {
     _poViewId = docId;
+    closeModal('poViewModal');
     _poEdit();
 }
 
@@ -1096,7 +1061,7 @@ var _poEditingId = null;   // docId of PO being edited (null = new PO)
 
 function _poEdit() {
     var po = _allPOs.find(function(x) { return x._docId === _poViewId; });
-    if (!po || po.status !== 'Pending') return;
+    if (!po || (po.status !== 'Draft' && po.status !== 'Pending')) return;
     closeModal('poViewModal');
     _poEditingId = po._docId;
     _poAdded     = {};
@@ -1466,7 +1431,7 @@ function _poSave() {
         : db.collection(_PO_COL).add({
             poNum:       _genPoNum(),
             items:       items,
-            status:      'Pending',
+            status:      'Draft',
             totalAmount: totalAmount,
             createdBy:   createdBy,
             createdAt:   firebase.firestore.FieldValue.serverTimestamp()
@@ -1496,17 +1461,7 @@ function _poResetNewModal() {
 }
 
 // ── FAB ────────────────────────────────────────────────────────────────────────
-var _fabOpen = false;
-function _toggleFab() {
-    _fabOpen = !_fabOpen;
-    document.getElementById('fabActions').style.display  = _fabOpen ? 'flex'  : 'none';
-    document.getElementById('fabBackdrop').style.display = _fabOpen ? 'block' : 'none';
-    document.getElementById('fabIcon').style.transform   = _fabOpen ? 'rotate(45deg)' : 'rotate(0deg)';
-}
-function _fabOpenNewPO() {
-    if (_fabOpen) _toggleFab();
-    _poOpenNewModal();
-}
+// FAB now opens the create modal directly — no speed-dial layer needed.
 </script>
 </body>
 </html>

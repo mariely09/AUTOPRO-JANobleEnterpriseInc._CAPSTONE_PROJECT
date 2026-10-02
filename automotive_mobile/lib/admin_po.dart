@@ -9,11 +9,11 @@ import 'admin_inventory_hub.dart';
 import 'admin_vehicles_list.dart';
 import 'profile.dart';
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// AdminPO â€” Purchase Orders screen
+// ?â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â???
+// AdminPO ??Purchase Orders screen
 // Mirrors admin_PO.html: 7 statuses, card grid, stat chips, speed-dial FAB,
 // view/edit/create bottom-sheet modals, all status transition actions.
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ?â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â???
 
 class AdminPO extends StatelessWidget {
   const AdminPO({super.key});
@@ -102,9 +102,9 @@ class AdminPO extends StatelessWidget {
   }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ?â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â???
 // AdminPOBody
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ?â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â??â???
 
 class AdminPOBody extends StatefulWidget {
   const AdminPOBody({super.key});
@@ -118,14 +118,14 @@ class AdminPOBodyState extends State<AdminPOBody>
   @override
   bool get wantKeepAlive => true;
 
-  // â”€â”€ Colours â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€ Colours ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
   static const _red = Color(0xFFE8001C);
   static const _amber = Color(0xFFd69e2e);
   static const _green = Color(0xFF38a169);
   static const _blue = Color(0xFF003087);
   static const _grey = Color(0xFF718096);
 
-  // â”€â”€ Months helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€ Months helper ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
   static const _months = [
     'Jan',
     'Feb',
@@ -141,17 +141,17 @@ class AdminPOBodyState extends State<AdminPOBody>
     'Dec',
   ];
 
-  // â”€â”€ Firestore collection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€ Firestore collection ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
   static const _col = 'purchase_orders';
 
-  // â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€ State ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
   List<Map<String, dynamic>> _pos = [];
   bool _loading = true;
   StreamSubscription<QuerySnapshot>? _sub;
 
   String _filter = 'all';
 
-  // â”€â”€ Lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€ Lifecycle ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
   @override
   void initState() {
     super.initState();
@@ -178,9 +178,9 @@ class AdminPOBodyState extends State<AdminPOBody>
     super.dispose();
   }
 
-  // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€ Helpers ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
   String _fmt(dynamic raw) {
-    if (raw == null) return 'â€”';
+    if (raw == null) return '??;
     DateTime? dt;
     if (raw is Timestamp) {
       dt = raw.toDate();
@@ -189,15 +189,15 @@ class AdminPOBodyState extends State<AdminPOBody>
     } else if (raw is Map && raw['seconds'] != null) {
       dt = DateTime.fromMillisecondsSinceEpoch((raw['seconds'] as int) * 1000);
     }
-    if (dt == null) return 'â€”';
+    if (dt == null) return '??;
     return '${_months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
 
   String _fmtPeso(dynamic v) {
-    if (v == null) return 'â‚±0.00';
+    if (v == null) return '??.00';
     final d =
         double.tryParse(
-          v.toString().replaceAll('â‚±', '').replaceAll(',', '').trim(),
+          v.toString().replaceAll('??, '').replaceAll(',', '').trim(),
         ) ??
         0;
     final parts = d.toStringAsFixed(2).split('.');
@@ -205,12 +205,13 @@ class AdminPOBodyState extends State<AdminPOBody>
       RegExp(r'\B(?=(\d{3})+(?!\d))'),
       (_) => ',',
     );
-    return 'â‚±$intPart.${parts[1]}';
+    return '??intPart.${parts[1]}';
   }
 
   Color _statusColor(String s) {
     switch (s) {
       case 'Draft':
+      case 'Pending':        // legacy alias
         return _grey;
       case 'Pending Approval':
         return _amber;
@@ -244,11 +245,11 @@ class AdminPOBodyState extends State<AdminPOBody>
     return '$prefix${seq.toString().padLeft(4, '0')}';
   }
 
-  // â”€â”€ Status counts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€ Status counts ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
   int _count(String status) =>
       _pos.where((p) => (p['status'] as String? ?? '') == status).length;
 
-  // â”€â”€ Build â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€ Build ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -262,7 +263,7 @@ class AdminPOBodyState extends State<AdminPOBody>
         children: [
           Column(
             children: [
-              // â”€â”€ Stat chips â”€â”€
+              // ?€?€ Stat chips ?€?€
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: SingleChildScrollView(
@@ -329,7 +330,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                 ),
               ),
 
-              // â”€â”€ Filter pills â”€â”€
+              // ?€?€ Filter pills ?€?€
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
                 child: SingleChildScrollView(
@@ -356,7 +357,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                 ),
               ),
 
-              // â”€â”€ Cards â”€â”€
+              // ?€?€ Cards ?€?€
               Expanded(
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
@@ -395,7 +396,7 @@ class AdminPOBodyState extends State<AdminPOBody>
             ],
           ),
 
-          // â”€â”€ Speed-dial FAB (simplified â€” direct to create) â”€â”€
+          // ?€?€ Speed-dial FAB (simplified ??direct to create) ?€?€
           Positioned(
             bottom: 20,
             right: 16,
@@ -409,7 +410,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: _red.withOpacity(0.4),
+                      color: _red.withValues(alpha: 0.4),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -424,9 +425,9 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
   }
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
   // WIDGETS
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
   Widget _statChip(
     String label,
@@ -442,14 +443,14 @@ class AdminPOBodyState extends State<AdminPOBody>
         width: 70,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         decoration: BoxDecoration(
-          color: active ? color.withOpacity(0.08) : Colors.white,
+          color: active ? color.withValues(alpha: 0.08) : Colors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: active ? color : Colors.transparent,
             width: 1.5,
           ),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6),
           ],
         ),
         child: Column(
@@ -458,7 +459,7 @@ class AdminPOBodyState extends State<AdminPOBody>
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: color, size: 14),
@@ -515,7 +516,7 @@ class AdminPOBodyState extends State<AdminPOBody>
   Widget _poCard(Map<String, dynamic> po) {
     final status = po['status'] as String? ?? 'Draft';
     final color = _statusColor(status);
-    final poNum = po['poNum'] as String? ?? 'â€”';
+    final poNum = po['poNum'] as String? ?? '??;
     final items = (po['items'] as List? ?? []);
     final total = po['totalAmount'] ?? 0;
     final notes = po['notes'] as String? ?? '';
@@ -523,7 +524,7 @@ class AdminPOBodyState extends State<AdminPOBody>
     // Build preview of item names (first 2)
     final itemNames = items
         .take(2)
-        .map((i) => (i as Map)['itemName'] as String? ?? 'â€”')
+        .map((i) => (i as Map)['itemName'] as String? ?? '??)
         .join(', ');
     final moreItems = items.length > 2 ? ' +${items.length - 2} more' : '';
 
@@ -535,7 +536,7 @@ class AdminPOBodyState extends State<AdminPOBody>
         border: Border.all(color: const Color(0xFFF0F4F8)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -544,7 +545,7 @@ class AdminPOBodyState extends State<AdminPOBody>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // â”€â”€ Top row: PO num + status badge â”€â”€
+          // ?€?€ Top row: PO num + status badge ?€?€
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -561,7 +562,7 @@ class AdminPOBodyState extends State<AdminPOBody>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -577,7 +578,7 @@ class AdminPOBodyState extends State<AdminPOBody>
           ),
           const SizedBox(height: 6),
 
-          // â”€â”€ Date + items count â”€â”€
+          // ?€?€ Date + items count ?€?€
           Row(
             children: [
               const Icon(
@@ -605,7 +606,7 @@ class AdminPOBodyState extends State<AdminPOBody>
           ),
           const SizedBox(height: 6),
 
-          // â”€â”€ Item names preview â”€â”€
+          // ?€?€ Item names preview ?€?€
           if (items.isNotEmpty)
             Text(
               '$itemNames$moreItems',
@@ -630,7 +631,7 @@ class AdminPOBodyState extends State<AdminPOBody>
 
           const SizedBox(height: 8),
 
-          // â”€â”€ Bottom row: total + chevron â”€â”€
+          // ?€?€ Bottom row: total + chevron ?€?€
           Row(
             children: [
               Text(
@@ -662,6 +663,7 @@ class AdminPOBodyState extends State<AdminPOBody>
     final status = po['status'] as String? ?? 'Draft';
     switch (status) {
       case 'Draft':
+      case 'Pending': // legacy ??treat same as Draft
         return [
           _cardBtn(Icons.edit_outlined, _grey, () => _editPO(po)),
           const SizedBox(width: 6),
@@ -726,7 +728,7 @@ class AdminPOBodyState extends State<AdminPOBody>
           vertical: 5,
         ),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -767,7 +769,7 @@ class AdminPOBodyState extends State<AdminPOBody>
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
+                  color: Colors.black.withValues(alpha: 0.12),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -791,7 +793,7 @@ class AdminPOBodyState extends State<AdminPOBody>
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -804,9 +806,9 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
   }
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
   // VIEW MODAL
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
   void _showViewModal(Map<String, dynamic> po) {
     final status = po['status'] as String? ?? 'Draft';
@@ -825,7 +827,7 @@ class AdminPOBodyState extends State<AdminPOBody>
         maxChildSize: 0.95,
         builder: (_, ctrl) => Column(
           children: [
-            // â”€â”€ Gradient header â”€â”€
+            // ?€?€ Gradient header ?€?€
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
@@ -847,7 +849,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          po['poNum'] as String? ?? 'â€”',
+                          po['poNum'] as String? ?? '??,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -861,7 +863,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.25),
+                            color: Colors.white.withValues(alpha: 0.25),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -896,7 +898,7 @@ class AdminPOBodyState extends State<AdminPOBody>
               ),
             ),
 
-            // â”€â”€ Scrollable body â”€â”€
+            // ?€?€ Scrollable body ?€?€
             Expanded(
               child: SingleChildScrollView(
                 controller: ctrl,
@@ -904,7 +906,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // â”€â”€ Info row â”€â”€
+                    // ?€?€ Info row ?€?€
                     Row(
                       children: [
                         Expanded(
@@ -959,7 +961,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                       ),
                     ],
 
-                    // â”€â”€ Items list â”€â”€
+                    // ?€?€ Items list ?€?€
                     const SizedBox(height: 16),
                     Text(
                       'Items (${items.length})',
@@ -975,7 +977,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                       return _viewItemRow(e.key + 1, item);
                     }),
 
-                    // â”€â”€ Created by â”€â”€
+                    // ?€?€ Created by ?€?€
                     if ((po['createdBy'] as String? ?? '').isNotEmpty) ...[
                       const SizedBox(height: 16),
                       Row(
@@ -999,7 +1001,7 @@ class AdminPOBodyState extends State<AdminPOBody>
 
                     const SizedBox(height: 24),
 
-                    // â”€â”€ Action buttons per status â”€â”€
+                    // ?€?€ Action buttons per status ?€?€
                     ..._viewModalActions(po, ctx),
                   ],
                 ),
@@ -1056,6 +1058,7 @@ class AdminPOBodyState extends State<AdminPOBody>
 
     switch (status) {
       case 'Draft':
+      case 'Pending': // legacy ??treat same as Draft
         return [
           Row(
             children: [
@@ -1222,7 +1225,7 @@ class AdminPOBodyState extends State<AdminPOBody>
     final cost =
         double.tryParse(
           (item['unitCost']?.toString() ?? '0')
-              .replaceAll('â‚±', '')
+              .replaceAll('??, '')
               .replaceAll(',', '')
               .trim(),
         ) ??
@@ -1246,7 +1249,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                 width: 20,
                 height: 20,
                 decoration: BoxDecoration(
-                  color: _red.withOpacity(0.1),
+                  color: _red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Center(
@@ -1263,7 +1266,7 @@ class AdminPOBodyState extends State<AdminPOBody>
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  item['itemName'] as String? ?? 'â€”',
+                  item['itemName'] as String? ?? '??,
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -1320,9 +1323,9 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
   }
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
   // CREATE / EDIT MODAL
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
   void _showCreateModal() => _showFormModal(null);
   void _editPO(Map<String, dynamic> po) => _showFormModal(po);
@@ -1407,7 +1410,7 @@ class AdminPOBodyState extends State<AdminPOBody>
             final cost =
                 double.tryParse(
                   (row['unitCost']?.toString() ?? '0')
-                      .replaceAll('â‚±', '')
+                      .replaceAll('??, '')
                       .replaceAll(',', '')
                       .trim(),
                 ) ??
@@ -1421,7 +1424,7 @@ class AdminPOBodyState extends State<AdminPOBody>
             maxChildSize: 0.97,
             builder: (_, ctrl) => Column(
               children: [
-                // â”€â”€ Header â”€â”€
+                // ?€?€ Header ?€?€
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
@@ -1453,7 +1456,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                             ),
                             if (itemRows.isNotEmpty)
                               Text(
-                                '${itemRows.length} item${itemRows.length == 1 ? '' : 's'}  â€¢  ${_fmtPeso(grandTotal)}',
+                                '${itemRows.length} item${itemRows.length == 1 ? '' : 's'}  ?? ${_fmtPeso(grandTotal)}',
                                 style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
@@ -1494,7 +1497,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // â”€â”€ Current items in PO â”€â”€
+                        // ?€?€ Current items in PO ?€?€
                         if (itemRows.isNotEmpty) ...[
                           const Text(
                             'PO Items',
@@ -1513,7 +1516,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                             final cost =
                                 double.tryParse(
                                   (row['unitCost']?.toString() ?? '0')
-                                      .replaceAll('â‚±', '')
+                                      .replaceAll('??, '')
                                       .replaceAll(',', '')
                                       .trim(),
                                 ) ??
@@ -1529,7 +1532,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
+                                    color: Colors.black.withValues(alpha: 0.04),
                                     blurRadius: 4,
                                   ),
                                 ],
@@ -1541,7 +1544,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                                     children: [
                                       Expanded(
                                         child: Text(
-                                          row['itemName'] as String? ?? 'â€”',
+                                          row['itemName'] as String? ?? '??,
                                           style: const TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w700,
@@ -1610,7 +1613,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                                           keyboardType: TextInputType.number,
                                           decoration: const InputDecoration(
                                             isDense: true,
-                                            prefixText: 'â‚±',
+                                            prefixText: '??,
                                             hintText: '0.00',
                                             contentPadding:
                                                 EdgeInsets.symmetric(
@@ -1622,7 +1625,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                                           onChanged: (v) {
                                             itemRows[i]['unitCost'] =
                                                 double.tryParse(
-                                                  v.replaceAll('â‚±', '').trim(),
+                                                  v.replaceAll('??, '').trim(),
                                                 ) ??
                                                 0;
                                             setModal(() {});
@@ -1649,7 +1652,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                           const Divider(height: 24),
                         ],
 
-                        // â”€â”€ Search quick-add â”€â”€
+                        // ?€?€ Search quick-add ?€?€
                         const Text(
                           'Add Items from Inventory',
                           style: TextStyle(
@@ -1662,7 +1665,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                         TextField(
                           controller: searchCtrl,
                           decoration: InputDecoration(
-                            hintText: 'Search itemâ€¦',
+                            hintText: 'Search item??,
                             prefixIcon: const Icon(
                               Icons.search,
                               size: 18,
@@ -1716,7 +1719,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                         else
                           ...visibleStock.map((s) {
                             final itemNum = s['num'] as String? ?? '';
-                            final name = s['name'] as String? ?? 'â€”';
+                            final name = s['name'] as String? ?? '??;
                             final uom = s['uom'] as String? ?? '';
                             final stock = (s['stock'] as num?)?.toInt() ?? 0;
                             final min = (s['min'] as num?)?.toInt() ?? 0;
@@ -1735,7 +1738,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
                                   color: isLow
-                                      ? _red.withOpacity(0.3)
+                                      ? _red.withValues(alpha: 0.3)
                                       : const Color(0xFFe2e8f0),
                                 ),
                               ),
@@ -1775,8 +1778,8 @@ class AdminPOBodyState extends State<AdminPOBody>
                                                   ),
                                               decoration: BoxDecoration(
                                                 color: isLow
-                                                    ? _red.withOpacity(0.1)
-                                                    : _green.withOpacity(0.1),
+                                                    ? _red.withValues(alpha: 0.1)
+                                                    : _green.withValues(alpha: 0.1),
                                                 borderRadius:
                                                     BorderRadius.circular(10),
                                               ),
@@ -1812,7 +1815,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                                                     double.tryParse(
                                                       (s['cost']?.toString() ??
                                                               '0')
-                                                          .replaceAll('â‚±', '')
+                                                          .replaceAll('??, '')
                                                           .replaceAll(',', '')
                                                           .trim(),
                                                     ) ??
@@ -1850,7 +1853,7 @@ class AdminPOBodyState extends State<AdminPOBody>
 
                         const SizedBox(height: 16),
 
-                        // â”€â”€ Notes â”€â”€
+                        // ?€?€ Notes ?€?€
                         const Text(
                           'Notes (Optional)',
                           style: TextStyle(
@@ -1864,7 +1867,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                           controller: notesCtrl,
                           maxLines: 3,
                           decoration: InputDecoration(
-                            hintText: 'Add remarks or special instructionsâ€¦',
+                            hintText: 'Add remarks or special instructions??,
                             isDense: true,
                             contentPadding: const EdgeInsets.all(12),
                             border: OutlineInputBorder(
@@ -1879,7 +1882,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                         ),
                         const SizedBox(height: 20),
 
-                        // â”€â”€ Save button â”€â”€
+                        // ?€?€ Save button ?€?€
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
@@ -1934,7 +1937,7 @@ class AdminPOBodyState extends State<AdminPOBody>
         width: 28,
         height: 28,
         decoration: BoxDecoration(
-          color: _red.withOpacity(0.08),
+          color: _red.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, size: 16, color: _red),
@@ -1942,9 +1945,9 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
   }
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
   // SAVE PO (Create / Edit)
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
   Future<void> _savePO({
     Map<String, dynamic>? existing,
@@ -1958,7 +1961,7 @@ class AdminPOBodyState extends State<AdminPOBody>
       final cost =
           double.tryParse(
             (row['unitCost']?.toString() ?? '0')
-                .replaceAll('â‚±', '')
+                .replaceAll('??, '')
                 .replaceAll(',', '')
                 .trim(),
           ) ??
@@ -2028,9 +2031,9 @@ class AdminPOBodyState extends State<AdminPOBody>
     }
   }
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
   // STATUS TRANSITION ACTIONS
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
   Future<void> _updateStatus(
     Map<String, dynamic> po,
@@ -2254,9 +2257,9 @@ class AdminPOBodyState extends State<AdminPOBody>
     }
   }
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
   // RECEIVE ITEMS MODAL
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
 
   void _showReceiveModal(Map<String, dynamic> po, {bool continuing = false}) {
     final items = List<Map<String, dynamic>>.from(
@@ -2388,7 +2391,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      item['itemName'] as String? ?? 'â€”',
+                                      item['itemName'] as String? ?? '??,
                                       style: const TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,
@@ -2435,7 +2438,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                         controller: notesCtrl,
                         maxLines: 2,
                         decoration: InputDecoration(
-                          hintText: 'Receiving notes (optional)â€¦',
+                          hintText: 'Receiving notes (optional)??,
                           isDense: true,
                           contentPadding: const EdgeInsets.all(12),
                           border: OutlineInputBorder(
@@ -2547,7 +2550,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                                   size: 16,
                                 ),
                           label: Text(
-                            submitting ? 'Savingâ€¦' : 'Confirm Receipt',
+                            submitting ? 'Saving?? : 'Confirm Receipt',
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           style: ElevatedButton.styleFrom(
