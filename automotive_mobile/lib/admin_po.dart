@@ -118,14 +118,14 @@ class AdminPOBodyState extends State<AdminPOBody>
   @override
   bool get wantKeepAlive => true;
 
-  // ?�?� Colours ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?Colours ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
   static const _red = Color(0xFFE8001C);
   static const _amber = Color(0xFFd69e2e);
   static const _green = Color(0xFF38a169);
   static const _blue = Color(0xFF003087);
   static const _grey = Color(0xFF718096);
 
-  // ?�?� Months helper ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?Months helper ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
   static const _months = [
     'Jan',
     'Feb',
@@ -141,17 +141,17 @@ class AdminPOBodyState extends State<AdminPOBody>
     'Dec',
   ];
 
-  // ?�?� Firestore collection ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?Firestore collection ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
   static const _col = 'purchase_orders';
 
-  // ?�?� State ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?State ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
   List<Map<String, dynamic>> _pos = [];
   bool _loading = true;
   StreamSubscription<QuerySnapshot>? _sub;
 
   String _filter = 'all';
 
-  // ?�?� Lifecycle ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?Lifecycle ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
   @override
   void initState() {
     super.initState();
@@ -178,7 +178,7 @@ class AdminPOBodyState extends State<AdminPOBody>
     super.dispose();
   }
 
-  // ?�?� Helpers ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?Helpers ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
   String _fmt(dynamic raw) {
     if (raw == null) return '??;
     DateTime? dt;
@@ -245,11 +245,11 @@ class AdminPOBodyState extends State<AdminPOBody>
     return '$prefix${seq.toString().padLeft(4, '0')}';
   }
 
-  // ?�?� Status counts ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?Status counts ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
   int _count(String status) =>
       _pos.where((p) => (p['status'] as String? ?? '') == status).length;
 
-  // ?�?� Build ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?Build ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -263,7 +263,7 @@ class AdminPOBodyState extends State<AdminPOBody>
         children: [
           Column(
             children: [
-              // ?�?� Stat chips ?�?�
+              // ?�?�?Stat chips ?�?�?
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: SingleChildScrollView(
@@ -330,7 +330,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                 ),
               ),
 
-              // ?�?� Filter pills ?�?�
+              // ?�?�?Filter pills ?�?�?
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
                 child: SingleChildScrollView(
@@ -357,7 +357,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                 ),
               ),
 
-              // ?�?� Cards ?�?�
+              // ?�?�?Cards ?�?�?
               Expanded(
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
@@ -396,7 +396,7 @@ class AdminPOBodyState extends State<AdminPOBody>
             ],
           ),
 
-          // ?�?� Speed-dial FAB (simplified ??direct to create) ?�?�
+          // ?�?�?Speed-dial FAB (simplified ??direct to create) ?�?�?
           Positioned(
             bottom: 20,
             right: 16,
@@ -425,9 +425,9 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
   }
 
-  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
   // WIDGETS
-  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
 
   Widget _statChip(
     String label,
@@ -545,7 +545,7 @@ class AdminPOBodyState extends State<AdminPOBody>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ?�?� Top row: PO num + status badge ?�?�
+          // ?�?�?Top row: PO num + status badge ?�?�?
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -578,7 +578,7 @@ class AdminPOBodyState extends State<AdminPOBody>
           ),
           const SizedBox(height: 6),
 
-          // ?�?� Date + items count ?�?�
+          // ?�?�?Date + items count ?�?�?
           Row(
             children: [
               const Icon(
@@ -606,7 +606,7 @@ class AdminPOBodyState extends State<AdminPOBody>
           ),
           const SizedBox(height: 6),
 
-          // ?�?� Item names preview ?�?�
+          // ?�?�?Item names preview ?�?�?
           if (items.isNotEmpty)
             Text(
               '$itemNames$moreItems',
@@ -631,7 +631,7 @@ class AdminPOBodyState extends State<AdminPOBody>
 
           const SizedBox(height: 8),
 
-          // ?�?� Bottom row: total + chevron ?�?�
+          // ?�?�?Bottom row: total + chevron ?�?�?
           Row(
             children: [
               Text(
@@ -806,9 +806,9 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
   }
 
-  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
   // VIEW MODAL
-  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
 
   void _showViewModal(Map<String, dynamic> po) {
     final items = (po['items'] as List? ?? []);
@@ -821,27 +821,35 @@ class AdminPOBodyState extends State<AdminPOBody>
     Map<String, dynamic> po,
     List items,
   ) async {
-    // Build itemNum list
-    final nums = items
-        .map((i) => (i as Map)['itemNum']?.toString().trim() ?? '')
-        .where((n) => n.isNotEmpty)
-        .toSet()
-        .toList();
+    final status = po['status'] as String? ?? 'Draft';
+    final receivingInProgress = status == 'Ordered' ||
+        status == 'Partially Received' ||
+        status == 'Completed';
 
+    // For receiving-process statuses, skip the live fetch ??
+    // we'll use the frozen stockAtCreate value from the PO document.
     final stockMap = <String, int?>{};
-    if (nums.isNotEmpty) {
-      try {
-        final snap = await FirebaseFirestore.instance
-            .collection('stock_inventory')
-            .get();
-        for (final d in snap.docs) {
-          final n = (d.data()['num'] as String? ?? '').trim();
-          if (n.isNotEmpty) {
-            stockMap[n] = (d.data()['stock'] as num?)?.toInt();
+    if (!receivingInProgress) {
+      final nums = items
+          .map((i) => (i as Map)['itemNum']?.toString().trim() ?? '')
+          .where((n) => n.isNotEmpty)
+          .toSet()
+          .toList();
+
+      if (nums.isNotEmpty) {
+        try {
+          final snap = await FirebaseFirestore.instance
+              .collection('stock_inventory')
+              .get();
+          for (final d in snap.docs) {
+            final n = (d.data()['num'] as String? ?? '').trim();
+            if (n.isNotEmpty) {
+              stockMap[n] = (d.data()['stock'] as num?)?.toInt();
+            }
           }
+        } catch (_) {
+          // non-fatal ??stock column will just show '??
         }
-      } catch (_) {
-        // non-fatal — stock column will just show '—'
       }
     }
 
@@ -869,7 +877,7 @@ class AdminPOBodyState extends State<AdminPOBody>
         maxChildSize: 0.95,
         builder: (_, ctrl) => Column(
           children: [
-            // ?�?� Gradient header ?�?�
+            // ?�?�?Gradient header ?�?�?
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
@@ -940,7 +948,7 @@ class AdminPOBodyState extends State<AdminPOBody>
               ),
             ),
 
-            // ?�?� Scrollable body ?�?�
+            // ?�?�?Scrollable body ?�?�?
             Expanded(
               child: SingleChildScrollView(
                 controller: ctrl,
@@ -948,7 +956,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ?�?� Info row ?�?�
+                    // ?�?�?Info row ?�?�?
                     Row(
                       children: [
                         Expanded(
@@ -1003,7 +1011,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                       ),
                     ],
 
-                    // ?�?� Items list ?�?�
+                    // ?�?�?Items list ?�?�?
                     const SizedBox(height: 16),
                     Text(
                       'Items (${items.length})',
@@ -1016,10 +1024,10 @@ class AdminPOBodyState extends State<AdminPOBody>
                     const SizedBox(height: 8),
                     ...items.asMap().entries.map((e) {
                       final item = e.value as Map;
-                      return _viewItemRow(e.key + 1, item, stockMap);
+                      return _viewItemRow(e.key + 1, item, stockMap, status);
                     }),
 
-                    // ?�?� Created by ?�?�
+                    // ?�?�?Created by ?�?�?
                     if ((po['createdBy'] as String? ?? '').isNotEmpty) ...[
                       const SizedBox(height: 16),
                       Row(
@@ -1043,7 +1051,7 @@ class AdminPOBodyState extends State<AdminPOBody>
 
                     const SizedBox(height: 24),
 
-                    // ?�?� Action buttons per status ?�?�
+                    // ?�?�?Action buttons per status ?�?�?
                     ..._viewModalActions(po, ctx),
                   ],
                 ),
@@ -1262,30 +1270,47 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
   }
 
-  Widget _viewItemRow(int num, Map item, Map<String, int?> stockMap) {
+  Widget _viewItemRow(int num, Map item, Map<String, int?> stockMap, String status) {
     final qty = item['expectedQty'] ?? 0;
     final cost =
         double.tryParse(
           (item['unitCost']?.toString() ?? '0')
-              .replaceAll('₱', '')
+              .replaceAll('??, '')
               .replaceAll(',', '')
               .trim(),
         ) ??
         0;
     final subtotal = qty * cost;
 
-    // Resolve live stock: stockMap (from stock_inventory) → frozen stockAtReceive → '—'
-    final itemNum   = (item['itemNum'] as String? ?? '').trim();
-    final liveStock = stockMap[itemNum];
-    final stockVal  = liveStock ??
-        (item['stockAtReceive'] as num?)?.toInt() ??
-        (item['_stock']         as num?)?.toInt();
-    final stockStr  = stockVal != null ? '$stockVal' : '—';
+    // For receiving-process statuses, freeze the stock at the value saved
+    // when the PO was created (stockAtCreate). For earlier statuses show live.
+    final receivingInProgress = status == 'Ordered' ||
+        status == 'Partially Received' ||
+        status == 'Completed';
+    final itemNum = (item['itemNum'] as String? ?? '').trim();
+
+    int? stockVal;
+    if (receivingInProgress) {
+      // Frozen: stockAtCreate (saved at PO creation) ??legacy stockAtReceive ??_stock
+      stockVal = (item['stockAtCreate']  as num?)?.toInt() ??
+                 (item['stockAtReceive'] as num?)?.toInt() ??
+                 (item['_stock']         as num?)?.toInt();
+    } else {
+      // Live from stock_inventory ??fall back to frozen if unavailable
+      stockVal = stockMap[itemNum] ??
+                 (item['stockAtCreate']  as num?)?.toInt();
+    }
+
+    final stockStr = stockVal != null ? '$stockVal' : '??;
     final stockColor = stockVal == null
         ? const Color(0xFF718096)
         : stockVal == 0
             ? const Color(0xFFe53e3e)
-            : const Color(0xFF1a202c);        double.tryParse(
+            : const Color(0xFF1a202c);
+    // Show "(at order)" hint for frozen values
+    final stockLabel = receivingInProgress && stockVal != null
+        ? '$stockVal (at order)'
+        : stockStr;        double.tryParse(
           (item['unitCost']?.toString() ?? '0')
               .replaceAll('??, '')
               .replaceAll(',', '')
@@ -1342,7 +1367,7 @@ class AdminPOBodyState extends State<AdminPOBody>
           Row(
             children: [
               _itemMeta('Qty', '$qty ${item['uom'] ?? ''}'),
-              _itemMeta('Stock', stockStr, color: stockColor),
+              _itemMeta('Stock', stockLabel, color: stockColor),
               _itemMeta('Unit Cost', _fmtPeso(cost)),
               _itemMeta('Subtotal', _fmtPeso(subtotal), color: _red),
             ],
@@ -1386,9 +1411,9 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
   }
 
-  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
   // CREATE / EDIT MODAL
-  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
 
   void _showCreateModal() => _showFormModal(null);
   void _editPO(Map<String, dynamic> po) => _showFormModal(po);
@@ -1487,7 +1512,7 @@ class AdminPOBodyState extends State<AdminPOBody>
             maxChildSize: 0.97,
             builder: (_, ctrl) => Column(
               children: [
-                // ?�?� Header ?�?�
+                // ?�?�?Header ?�?�?
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
@@ -1560,7 +1585,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ?�?� Current items in PO ?�?�
+                        // ?�?�?Current items in PO ?�?�?
                         if (itemRows.isNotEmpty) ...[
                           const Text(
                             'PO Items',
@@ -1715,7 +1740,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                           const Divider(height: 24),
                         ],
 
-                        // ?�?� Search quick-add ?�?�
+                        // ?�?�?Search quick-add ?�?�?
                         const Text(
                           'Add Items from Inventory',
                           style: TextStyle(
@@ -1916,7 +1941,7 @@ class AdminPOBodyState extends State<AdminPOBody>
 
                         const SizedBox(height: 16),
 
-                        // ?�?� Notes ?�?�
+                        // ?�?�?Notes ?�?�?
                         const Text(
                           'Notes (Optional)',
                           style: TextStyle(
@@ -1945,7 +1970,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                         ),
                         const SizedBox(height: 20),
 
-                        // ?�?� Save button ?�?�
+                        // ?�?�?Save button ?�?�?
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
@@ -2008,9 +2033,9 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
   }
 
-  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
   // SAVE PO (Create / Edit)
-  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
 
   Future<void> _savePO({
     Map<String, dynamic>? existing,
@@ -2056,11 +2081,34 @@ class AdminPOBodyState extends State<AdminPOBody>
               .get();
           createdBy = doc.data()?['name'] as String? ?? '';
         }
+
+        // Snapshot current stock for each item at creation time.
+        // This is stored as stockAtCreate so the view modal can show
+        // the frozen value once receiving begins.
+        final stockSnap = await FirebaseFirestore.instance
+            .collection('stock_inventory')
+            .get();
+        final stockNow = <String, int>{};
+        for (final d in stockSnap.docs) {
+          final n = (d.data()['num'] as String? ?? '').trim();
+          if (n.isNotEmpty) {
+            stockNow[n] = (d.data()['stock'] as num?)?.toInt() ?? 0;
+          }
+        }
+
+        final itemsWithStock = items.map((row) {
+          final itemNum = (row['itemNum'] as String? ?? '').trim();
+          return {
+            ...row,
+            'stockAtCreate': stockNow[itemNum], // null if not found
+          };
+        }).toList();
+
         await SyncStatusNotifier.instance.trackWrite(
           () => FirebaseFirestore.instance.collection(_col).add({
             'poNum': poNum,
             'status': 'Draft',
-            'items': items,
+            'items': itemsWithStock,
             'notes': notes,
             'totalAmount': total,
             'createdBy': createdBy,
@@ -2094,9 +2142,9 @@ class AdminPOBodyState extends State<AdminPOBody>
     }
   }
 
-  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
   // STATUS TRANSITION ACTIONS
-  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
 
   Future<void> _updateStatus(
     Map<String, dynamic> po,
@@ -2184,11 +2232,31 @@ class AdminPOBodyState extends State<AdminPOBody>
     'Mark "${po['poNum']}" as Ordered / Sent to Supplier?',
   );
 
-  void _receiveItems(Map<String, dynamic> po) =>
-      _showReceiveModal(po, continuing: false);
+  void _receiveItems(Map<String, dynamic> po) {
+    final poNum = po['poNum'] as String? ?? '';
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AdminInventoryHub(
+          initialTab: 2, // Receiving Items tab
+          poNumToReceive: poNum,
+        ),
+      ),
+    );
+  }
 
-  void _continueReceiving(Map<String, dynamic> po) =>
-      _showReceiveModal(po, continuing: true);
+  void _continueReceiving(Map<String, dynamic> po) {
+    final poNum = po['poNum'] as String? ?? '';
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AdminInventoryHub(
+          initialTab: 2, // Receiving Items tab
+          poNumToReceive: poNum,
+        ),
+      ),
+    );
+  }
 
   void _cancelPO(Map<String, dynamic> po) =>
       _updateStatus(po, 'Cancelled', 'Cancel "${po['poNum']}"?');
@@ -2318,322 +2386,5 @@ class AdminPOBodyState extends State<AdminPOBody>
         );
       }
     }
-  }
-
-  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
-  // RECEIVE ITEMS MODAL
-  // ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
-
-  void _showReceiveModal(Map<String, dynamic> po, {bool continuing = false}) {
-    final items = List<Map<String, dynamic>>.from(
-      (po['items'] as List? ?? []).map(
-        (i) => Map<String, dynamic>.from(i as Map),
-      ),
-    );
-
-    // Pre-fill actual qty from expectedQty for new receiving
-    final qtyCtrlrs = items
-        .map(
-          (i) => TextEditingController(
-            text:
-                '${(i['actualQty'] as num?)?.toInt() ?? (i['expectedQty'] as num?)?.toInt() ?? 0}',
-          ),
-        )
-        .toList();
-    final notesCtrl = TextEditingController();
-    bool submitting = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx2, setModal) => DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.85,
-          maxChildSize: 0.97,
-          builder: (_, ctrl) => Column(
-            children: [
-              // Header
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            continuing ? 'Continue Receiving' : 'Receive Items',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            po['poNum'] as String? ?? '',
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(ctx2),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: ctrl,
-                  padding: EdgeInsets.only(
-                    left: 20,
-                    right: 20,
-                    top: 16,
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Enter Actual Quantities Received',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1a202c),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      ...items.asMap().entries.map((e) {
-                        final i = e.key;
-                        final item = e.value;
-                        final exp = (item['expectedQty'] as num?)?.toInt() ?? 0;
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFe2e8f0)),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item['itemName'] as String? ?? '??,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF1a202c),
-                                      ),
-                                    ),
-                                    Text(
-                                      'Expected: $exp ${item['uom'] ?? ''}',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: Color(0xFF718096),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              SizedBox(
-                                width: 80,
-                                child: TextFormField(
-                                  controller: qtyCtrlrs[i],
-                                  keyboardType: TextInputType.number,
-                                  textAlign: TextAlign.center,
-                                  decoration: InputDecoration(
-                                    isDense: true,
-                                    hintText: '$exp',
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                      horizontal: 8,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: notesCtrl,
-                        maxLines: 2,
-                        decoration: InputDecoration(
-                          hintText: 'Receiving notes (optional)??,
-                          isDense: true,
-                          contentPadding: const EdgeInsets.all(12),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          filled: true,
-                          fillColor: const Color(0xFFF7F8FA),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: submitting
-                              ? null
-                              : () async {
-                                  setModal(() => submitting = true);
-                                  // Build updated items with actualQty
-                                  final updatedItems = items
-                                      .asMap()
-                                      .entries
-                                      .map((e) {
-                                        final i = e.key;
-                                        final item = e.value;
-                                        final actual =
-                                            int.tryParse(qtyCtrlrs[i].text) ??
-                                            (item['expectedQty'] as num?)
-                                                ?.toInt() ??
-                                            0;
-                                        return {...item, 'actualQty': actual};
-                                      })
-                                      .toList();
-
-                                  // Determine new status
-                                  final allFull = updatedItems.every((item) {
-                                    final exp =
-                                        (item['expectedQty'] as num?)
-                                            ?.toInt() ??
-                                        0;
-                                    final act =
-                                        (item['actualQty'] as num?)?.toInt() ??
-                                        0;
-                                    return act >= exp;
-                                  });
-                                  final newStatus = allFull
-                                      ? 'Completed'
-                                      : 'Partially Received';
-
-                                  try {
-                                    await SyncStatusNotifier.instance.trackWrite(
-                                      () => FirebaseFirestore.instance
-                                          .collection(_col)
-                                          .doc(po['id'] as String)
-                                          .update({
-                                            'items': updatedItems,
-                                            'status': newStatus,
-                                            'receiveNotes': notesCtrl.text
-                                                .trim(),
-                                            'receivedAt':
-                                                FieldValue.serverTimestamp(),
-                                            'updatedAt':
-                                                FieldValue.serverTimestamp(),
-                                          }),
-                                    );
-                                    if (ctx2.mounted) {
-                                      Navigator.pop(ctx2);
-                                      ScaffoldMessenger.of(ctx2).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Items received! Status: $newStatus',
-                                          ),
-                                          backgroundColor: _statusColor(
-                                            newStatus,
-                                          ),
-                                          behavior: SnackBarBehavior.floating,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  } catch (err) {
-                                    setModal(() => submitting = false);
-                                    if (ctx2.mounted) {
-                                      ScaffoldMessenger.of(ctx2).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Error: $err'),
-                                          backgroundColor: _red,
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
-                                      );
-                                    }
-                                  }
-                                },
-                          icon: submitting
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.check_circle_outline,
-                                  size: 16,
-                                ),
-                          label: Text(
-                            submitting ? 'Saving?? : 'Confirm Receipt',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _green,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

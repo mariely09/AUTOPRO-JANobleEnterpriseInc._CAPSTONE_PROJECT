@@ -680,12 +680,13 @@ function _poOpenView(docId) {
     document.getElementById('poViewModal').classList.add('active');
 
     // ── Fetch live stock for each item, then render ──
-    // If any item already has stockAtReceive frozen, we still show live stock
-    // so the viewer can see the current inventory level.
+    // Only fetch live stock for statuses where receiving hasn't started yet.
+    // For Ordered/Partially Received/Completed we use the frozen stockAtCreate value.
+    var receivingInProgress = (status === 'Ordered' || status === 'Partially Received' || status === 'Completed');
     var itemNums = items.map(function(i) { return (i.itemNum || '').trim(); }).filter(Boolean);
     var stockMap = {};   // itemNum → current stock value
 
-    var fetchPromise = itemNums.length
+    var fetchPromise = (!receivingInProgress && itemNums.length)
         ? db.collection('stock_inventory')
               .get()
               .then(function(snap) {
@@ -733,7 +734,7 @@ function _poRenderViewBody(po, stockMap) {
                 +   '</div>'
                 +   '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">'
                 +     _vCell('Order Qty',  qty + '')
-                +     _vCell('Stock',      _vStockResolved(item, liveSt))
+                +     _vCell('Stock',      _vStockResolved(item, liveSt, status))
                 +     _vCell('Unit Price', cost > 0 ? _fmtPeso(cost) : '—')
                 +     _vCell('Subtotal',   subtotal > 0 ? _fmtPeso(subtotal) : '—', '#E8001C')
                 +   '</div>'
@@ -829,15 +830,31 @@ function _vStock(item) {
     return '<span style="font-weight:700;color:' + color + ';">' + s + '</span>';
 }
 // _vStockResolved: uses live stock from stock_inventory (stockMap) fetched at modal-open time.
-// Falls back to frozen stockAtReceive / _stock fields if live data unavailable.
-function _vStockResolved(item, liveStock) {
-    var s = liveStock !== null && liveStock !== undefined ? liveStock
+// For statuses where receiving is already in progress (Ordered, Partially Received, Completed),
+// shows the frozen stockAtCreate value so it reflects what was in stock when the PO was made.
+// For earlier statuses (Draft, Pending Approval, Approved), shows live stock.
+function _vStockResolved(item, liveStock, status) {
+    var receivingInProgress = (status === 'Ordered' || status === 'Partially Received' || status === 'Completed');
+
+    var s;
+    if (receivingInProgress) {
+        // Use frozen stock: prefer stockAtCreate (saved at PO creation),
+        // then legacy stockAtReceive, then item._stock.
+        s = item.stockAtCreate  !== undefined && item.stockAtCreate  !== null ? item.stockAtCreate
           : item.stockAtReceive !== undefined && item.stockAtReceive !== null ? item.stockAtReceive
           : item._stock         !== undefined && item._stock         !== null ? item._stock
           : null;
+    } else {
+        // Live stock for Draft / Pending Approval / Approved
+        s = liveStock !== null && liveStock !== undefined ? liveStock
+          : item.stockAtCreate  !== undefined && item.stockAtCreate  !== null ? item.stockAtCreate
+          : null;
+    }
+
     if (s === null) return '—';
     var color = s === 0 ? '#e53e3e' : '#1a202c';
-    return '<span style="font-weight:700;color:' + color + ';">' + s + '</span>';
+    var label = receivingInProgress ? s + ' <span style="font-size:9px;color:#a0aec0;">(at order)</span>' : '' + s;
+    return '<span style="font-weight:700;color:' + color + ';">' + label + '</span>';
 }
 function _vRow(label, val) {
     return '<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid #f0f4f8;">'
@@ -882,16 +899,20 @@ function _poSendToSupplier(docId) {
     _poStatusUpdate(docId || _poViewId, 'Ordered', 'PO marked as Ordered.');
 }
 
-// Ordered → open receiving page
+// Ordered → navigate to receiving page and open the session modal for this PO
 function _poReceiveItems(docId) {
+    var po = _allPOs.find(function(x) { return x._docId === docId || x._docId === _poViewId; });
     closeModal('poViewModal');
-    window.location.href = '/admin_receiving';
+    var poNum = po ? encodeURIComponent(po.poNum || docId) : encodeURIComponent(docId);
+    window.location.href = '/admin_receiving?po=' + poNum;
 }
 
-// Partially Received → continue receiving
+// Partially Received → same as above (continue receiving)
 function _poContinueReceiving(docId) {
+    var po = _allPOs.find(function(x) { return x._docId === docId || x._docId === _poViewId; });
     closeModal('poViewModal');
-    window.location.href = '/admin_receiving';
+    var poNum = po ? encodeURIComponent(po.poNum || docId) : encodeURIComponent(docId);
+    window.location.href = '/admin_receiving?po=' + poNum;
 }
 
 // Completed → Archived (soft-archive by setting status)
@@ -1453,7 +1474,10 @@ function _poSave() {
             uom:          item ? item.uom           : '',
             expectedQty:  qty,
             supplierCode: item ? item.supplierCode  : '',
-            unitCost:     item ? item.cost.toFixed(2) : '0.00'
+            unitCost:     item ? item.cost.toFixed(2) : '0.00',
+            // Snapshot stock at PO creation time so the value is frozen
+            // even after receiving updates the actual inventory.
+            stockAtCreate: item ? (item.stock !== undefined ? item.stock : null) : null
         };
     });
 

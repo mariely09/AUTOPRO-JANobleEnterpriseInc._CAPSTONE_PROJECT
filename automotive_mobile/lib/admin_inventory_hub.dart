@@ -18,10 +18,14 @@ class AdminInventoryHub extends StatefulWidget {
 
   /// If set, auto-opens the view modal for this receiving record on the Receiving tab.
   final Map<String, dynamic>? receivingToOpen;
+  /// If set, navigates to the Receiving tab and opens the session modal
+  /// for the receiving record linked to this PO number.
+  final String? poNumToReceive;
   const AdminInventoryHub({
     super.key,
     this.initialTab = 0,
     this.receivingToOpen,
+    this.poNumToReceive,
   });
 
   @override
@@ -68,6 +72,12 @@ class _AdminInventoryHubState extends State<AdminInventoryHub> {
     if (widget.receivingToOpen != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _receivingKey.currentState?.openReceiveModal(widget.receivingToOpen!);
+      });
+    }
+    // Auto-open the session modal for a PO's linked receiving record
+    if (widget.poNumToReceive != null && widget.poNumToReceive!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _receivingKey.currentState?.openSessionForPO(widget.poNumToReceive!);
       });
     }
   }

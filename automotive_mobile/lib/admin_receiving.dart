@@ -2366,4 +2366,36 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
   /// Called externally (e.g. from AdminInventoryHub via GlobalKey).
   void openReceiveModal(Map<String, dynamic> receiving, {int? itemIdx}) =>
       _showViewModal(receiving);
+
+  /// Called when navigating from the PO page (Receive Items / Continue Receiving).
+  /// Finds the receiving record linked to [poNum] and opens its session modal.
+  /// Retries for up to 4 seconds while the stream listener is still loading.
+  void openSessionForPO(String poNum) {
+    _findAndOpenForPO(poNum, attempts: 0);
+  }
+
+  void _findAndOpenForPO(String poNum, {required int attempts}) {
+    // Search loaded records
+    final match = _rcvs.firstWhere(
+      (r) =>
+          (r['poNum'] as String? ?? '') == poNum &&
+          ((r['status'] as String? ?? '') == 'DRAFT' ||
+           (r['status'] as String? ?? '') == 'INPROG' ||
+           (r['status'] as String? ?? '') == 'PARTIAL'),
+      orElse: () => {},
+    );
+
+    if (match.isNotEmpty) {
+      // Found — open the session view modal
+      if (mounted) _showViewModal(match);
+      return;
+    }
+
+    // Not found yet — retry if still loading (max 20 attempts × 200ms = 4s)
+    if (attempts < 20) {
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted) _findAndOpenForPO(poNum, attempts: attempts + 1);
+      });
+    }
+  }
 }

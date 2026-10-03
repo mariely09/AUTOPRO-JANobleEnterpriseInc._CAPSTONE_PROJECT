@@ -1104,6 +1104,40 @@ window._updatePrintPOMenu = function() {
   var wrap = document.getElementById('printPOWrap'); if (wrap) wrap.style.display='none';
 };
 window._rcvOnDeliveries = function() {}; // legacy stub
+
+// ── Auto-open session modal if navigated from PO page (?po=PO-xxx) ──────────
+// When "Receive Items" or "Continue Receiving" is clicked on admin_PO.html,
+// the page redirects to /admin_receiving?po=PO-20261002-0001.
+// Once the real-time listener fires and _allRcv is populated, we find the
+// receiving record whose poNum matches, then call openRcvSessionModal().
+(function _autoOpenFromPO() {
+  var params = new URLSearchParams(window.location.search);
+  var targetPO = params.get('po');
+  if (!targetPO) return;
+
+  // Clean the URL so the param doesn't persist on refresh
+  if (window.history && window.history.replaceState) {
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+
+  // Wait for _allRcv to be populated by the onSnapshot listener (max 8 s)
+  var attempts = 0;
+  var interval = setInterval(function() {
+    attempts++;
+    if (attempts > 40) { clearInterval(interval); return; } // give up after 8 s
+
+    var match = _allRcv.find(function(r) {
+      return (r.poNum || '') === targetPO &&
+             (r.status === 'DRAFT' || r.status === 'INPROG' || r.status === 'PARTIAL');
+    });
+
+    if (match) {
+      clearInterval(interval);
+      // Small delay so the page finishes rendering
+      setTimeout(function() { openRcvSessionModal(match._docId); }, 300);
+    }
+  }, 200);
+})();
 </script>
 </body>
 </html>
