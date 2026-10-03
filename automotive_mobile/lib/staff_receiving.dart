@@ -3150,32 +3150,54 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                                 Row(
                                   children: [
                                     _miniStat(
-                                      'Price',
-                                      _fmtPeso(itemCostVal),
-                                      const Color(0xFF003087),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    _miniStat(
-                                      'Qty',
+                                      'Order Qty',
                                       '$exp',
                                       const Color(0xFF1a202c),
                                     ),
                                     const SizedBox(width: 12),
                                     _miniStat(
-                                      'Total',
-                                      _fmtPeso(itemTotal),
-                                      const Color(0xFFE8001C),
+                                      'Rcv Qty',
+                                      (item['actualQty'] != null)
+                                          ? '${item['actualQty']}'
+                                          : '—',
+                                      const Color(0xFF1a202c),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _miniStat(
+                                      'OEM #',
+                                      (item['oem'] as String? ?? '').isNotEmpty
+                                          ? item['oem'] as String
+                                          : (item['itemNum'] as String? ?? '—'),
+                                      const Color(0xFF718096),
                                     ),
                                   ],
                                 ),
                               ] else ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Order Qty: $exp',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF718096),
-                                  ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    _miniStat(
+                                      'Order Qty',
+                                      '$exp',
+                                      const Color(0xFF1a202c),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _miniStat(
+                                      'Rcv Qty',
+                                      (item['actualQty'] != null)
+                                          ? '${item['actualQty']}'
+                                          : '—',
+                                      const Color(0xFF1a202c),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _miniStat(
+                                      'OEM #',
+                                      (item['oem'] as String? ?? '').isNotEmpty
+                                          ? item['oem'] as String
+                                          : (item['itemNum'] as String? ?? '—'),
+                                      const Color(0xFF718096),
+                                    ),
+                                  ],
                                 ),
                               ],
                               if ((item['remark'] as String? ?? '')

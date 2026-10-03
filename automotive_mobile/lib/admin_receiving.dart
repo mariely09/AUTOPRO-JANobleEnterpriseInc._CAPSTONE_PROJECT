@@ -1469,7 +1469,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                               const SizedBox(height: 8),
                               Row(
                                 children: [
-                                  _lineMeta('PO Qty', '$pQty'),
+                                  _lineMeta('Order Qty', '$pQty'),
                                   _lineMeta(
                                     'Rcv Qty',
                                     lst == 'DRAFT' ? '—' : '$rQty',
@@ -1477,8 +1477,12 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                         ? (rQty >= pQty ? _green : _amber)
                                         : null,
                                   ),
-                                  if ((line['uom'] as String? ?? '').isNotEmpty)
-                                    _lineMeta('UOM', line['uom'] as String),
+                                  _lineMeta(
+                                    'OEM #',
+                                    (line['oem'] as String? ?? '').isNotEmpty
+                                        ? line['oem'] as String
+                                        : (line['itemNum'] as String? ?? '—'),
+                                  ),
                                 ],
                               ),
                               if ((line['remark'] as String? ?? '')

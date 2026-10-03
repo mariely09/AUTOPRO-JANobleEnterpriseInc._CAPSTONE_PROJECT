@@ -278,7 +278,7 @@ function fabOpenNewBlank() {
 <!-- ── Copy from PO Modal ─────────────────────────────────── -->
 <div class="modal" id="copyFromPOModal">
   <div class="modal-content" style="max-width:520px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:88vh;">
-    <div style="background:linear-gradient(135deg,#003087,#0050c8);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
+    <div style="background:#E8001C;padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
       <div style="flex:1;">
         <div style="color:white;font-size:1rem;font-weight:700;">New Receiving from PO</div>
         <div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.1rem;">Select an ordered PO to create a receiving record</div>
@@ -299,7 +299,7 @@ function fabOpenNewBlank() {
 <div class="modal" id="rcvSessionModal">
   <div class="modal-content" style="max-width:560px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
     <!-- Header -->
-    <div id="rsmHeader" style="background:linear-gradient(135deg,#003087,#E8001C);padding:1.25rem 1.5rem;display:flex;align-items:flex-start;gap:0.85rem;flex-shrink:0;">
+    <div id="rsmHeader" style="background:#E8001C;padding:1.25rem 1.5rem;display:flex;align-items:flex-start;gap:0.85rem;flex-shrink:0;">
       <div style="flex:1;">
         <div id="rsmTitle" style="color:white;font-size:1rem;font-weight:800;">Receiving Session</div>
         <div id="rsmSubtitle" style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:2px;"></div>
@@ -453,14 +453,9 @@ window.rcvOpenCard = function(docId) {
     showToast('No lines in this receiving record.', 'error');
     return;
   }
-  var s = r.status || 'DRAFT';
-  if (s === 'INPROG' || s === 'DRAFT') {
-    // Always open the session overview first (Step 3 in spec)
-    openRcvSessionModal(docId);
-  } else {
-    // Completed/partial — open view of first line
-    openItemViewModal(docId, 0);
-  }
+  // Always open the session modal — it shows all lines with View buttons
+  // for completed lines and Receive buttons for draft lines.
+  openRcvSessionModal(docId);
 };
 
 // ── Real-time listener ────────────────────────────────────────────────────────
@@ -551,17 +546,31 @@ function _rcvRenderList() {
   // Build action buttons based on status
   function _cardActions(r) {
     var s = r.status || 'DRAFT';
+    var printBtn = '<button onclick="event.stopPropagation();_rcvPrint(\'' + r._docId + '\')" '
+      + 'style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 0;'
+      + 'background:white;border:1.5px solid #e2e8f0;border-radius:8px;'
+      + 'font-size:11px;font-weight:600;color:#4a5568;cursor:pointer;transition:all .15s;">'
+      + '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>'
+      + 'Print</button>';
     if (s === 'DRAFT') {
       return '<button onclick="event.stopPropagation();rcvStartReceiving(\'' + r._docId + '\')" '
-        + 'style="padding:5px 14px;background:#003087;border:none;border-radius:8px;color:white;'
+        + 'style="padding:5px 14px;background:#E8001C;border:none;border-radius:8px;color:white;'
         + 'font-size:11px;font-weight:700;cursor:pointer;transition:opacity .15s;" '
         + 'onmouseover="this.style.opacity=\'0.85\'" onmouseout="this.style.opacity=\'1\'">▶ Start</button>';
     }
     if (s === 'INPROG') {
-      return '<button onclick="event.stopPropagation();rcvOpenCard(\'' + r._docId + '\')" '
-        + 'style="padding:5px 14px;background:#E8001C;border:none;border-radius:8px;color:white;'
+      return '<div style="display:flex;gap:6px;width:100%;">'
+        + '<button onclick="event.stopPropagation();rcvOpenCard(\'' + r._docId + '\')" '
+        + 'style="flex:2;display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 0;'
+        + 'background:#E8001C;border:none;border-radius:8px;color:white;'
         + 'font-size:11px;font-weight:700;cursor:pointer;transition:opacity .15s;" '
-        + 'onmouseover="this.style.opacity=\'0.85\'" onmouseout="this.style.opacity=\'1\'">▶ Continue</button>';
+        + 'onmouseover="this.style.opacity=\'0.85\'" onmouseout="this.style.opacity=\'1\'">'
+        + '▶ Continue</button>'
+        + printBtn
+        + '</div>';
+    }
+    if (s === 'PARTIAL' || s === 'COMP') {
+      return '<div style="display:flex;gap:6px;width:100%;">' + printBtn + '</div>';
     }
     return '';
   }
@@ -596,6 +605,7 @@ function _rcvRenderList() {
       +   '</div>'
       + '</div>'
       + (itemNames ? '<div class="rcv-card-lines-preview">' + itemNames + '</div>' : '')
+      + (actions ? '<div style="display:flex;align-items:center;gap:6px;margin-top:10px;" onclick="event.stopPropagation();">' + actions + '</div>' : '')
       + '</div>';
   }).join('');
 }
@@ -955,10 +965,9 @@ window.openItemViewModal = function(docId, lineIdx) {
   var diff     = rcvQty - poQty;
 
   var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;">'
-    + _ivCard('PO Qty', ''+poQty)
+    + _ivCard('Order Qty', ''+poQty)
     + _ivCard('Received Qty', ''+rcvQty, rcvQty===poQty?'#38a169':rcvQty<poQty?'#E8001C':'#d69e2e')
-    + (cost>0 ? _ivCard('Unit Price','₱'+cost.toLocaleString('en-PH',{minimumFractionDigits:2})) : '')
-    + (subtotal>0 ? _ivCard('Subtotal','₱'+subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}),'#E8001C') : '')
+    + _ivCard('OEM #', line.oem || line.itemNum || '—')
     + '</div>';
 
   // Status + difference
@@ -1104,6 +1113,119 @@ window._updatePrintPOMenu = function() {
   var wrap = document.getElementById('printPOWrap'); if (wrap) wrap.style.display='none';
 };
 window._rcvOnDeliveries = function() {}; // legacy stub
+
+// ── Print Receiving Record ────────────────────────────────────────────────────
+window._rcvPrint = function(docId) {
+  var r = _allRcv.find(function(x){ return x._docId === docId; });
+  if (!r) return;
+
+  var lines    = r.receivingLines || [];
+  var MIN_ROWS = Math.max(lines.length, 10);
+  var now      = new Date();
+  var dateStr  = MO[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
+  var _apUser  = JSON.parse(sessionStorage.getItem('apUser') || sessionStorage.getItem('spUser') || '{}');
+  var preparedBy = (_apUser.name || _apUser.displayName || r.createdBy || '').toUpperCase();
+
+  var rowsHtml = '';
+  for (var i = 0; i < MIN_ROWS; i++) {
+    var line = lines[i];
+    var bg   = i % 2 === 1 ? '#dce9f7' : '#ffffff';
+    var c1='', c2='', c3='', c4='', c5='', c6='';
+    if (line) {
+      var lsc = _LINE_STATUS_CFG[line.lineStatus || 'DRAFT'] || ['#718096','','—'];
+      c1 = line.itemNum      || '';
+      c2 = line.supplierCode || '';
+      c3 = line.itemName     || '';
+      c4 = '' + (parseInt(line.poQty) || 0);
+      c5 = line.lineStatus !== 'DRAFT' ? '' + (parseInt(line.receivedQty) || 0) : '—';
+      c6 = lsc[2] || line.lineStatus || '—';
+    }
+    var td = 'border:1px solid #94b5d8;padding:2px 4px;font-size:7.5px;vertical-align:top;word-break:break-word;';
+    rowsHtml +=
+      '<tr style="background:' + bg + ';height:19px;">'
+      + '<td style="' + td + 'text-align:center;">' + (i+1) + '</td>'
+      + '<td style="' + td + '">' + c1 + '</td>'
+      + '<td style="' + td + '">' + c2 + '</td>'
+      + '<td style="' + td + '">' + c3 + '</td>'
+      + '<td style="' + td + 'text-align:center;">' + c4 + '</td>'
+      + '<td style="' + td + 'text-align:center;">' + c5 + '</td>'
+      + '<td style="' + td + 'text-align:center;">' + c6 + '</td>'
+      + '</tr>';
+  }
+
+  var sc = _STATUS_CFG[r.status || 'DRAFT'] || _STATUS_CFG['DRAFT'];
+
+  var inner =
+    '<style>'
+    + '*{box-sizing:border-box;margin:0;padding:0;}'
+    + 'body{font-family:Arial,Helvetica,sans-serif;font-size:8px;color:#1a202c;padding:5mm 6mm;}'
+    + 'h2{font-size:10.5px;font-weight:900;text-align:center;margin-bottom:4px;}'
+    + '.meta{margin-bottom:6px;}'
+    + '.meta-row{display:flex;gap:4px;margin-bottom:2px;font-size:8px;}'
+    + '.meta-row .lbl{font-weight:700;width:130px;flex-shrink:0;}'
+    + '.meta-row .val{border-bottom:1px solid #000;flex:1;padding-bottom:1px;}'
+    + 'table.rcv{width:100%;border-collapse:collapse;table-layout:fixed;}'
+    + 'table.rcv th{background:#1a202c;color:#fff;font-size:7px;font-weight:700;border:1px solid #94b5d8;padding:2px 4px;text-align:center;}'
+    + 'table.rcv td{border:1px solid #94b5d8;padding:2px 4px;font-size:7.5px;vertical-align:top;word-break:break-word;}'
+    + '.sigs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:18px;}'
+    + '.sig-line{border-bottom:1px solid #000;min-height:16px;font-size:8px;padding-bottom:2px;font-weight:700;text-align:center;}'
+    + '.sig-label{font-size:7px;color:#555;margin-top:2px;text-align:center;}'
+    + '@media print{@page{margin:6mm;size:A4 portrait;}body{padding:0;}table.rcv{page-break-inside:auto;}tr{page-break-inside:avoid;}}'
+    + '</style>'
+    + '<h2>Receiving Record</h2>'
+    + '<div class="meta">'
+    + '<div class="meta-row"><span class="lbl">Receiving No.:</span><span class="val">' + (r.receivingNum || r._docId) + '</span></div>'
+    + (r.poNum ? '<div class="meta-row"><span class="lbl">PO Reference:</span><span class="val">' + r.poNum + '</span></div>' : '')
+    + '<div class="meta-row"><span class="lbl">Status:</span><span class="val">' + (sc[2] || r.status) + '</span></div>'
+    + '<div class="meta-row"><span class="lbl">Date:</span><span class="val">' + dateStr + '</span></div>'
+    + (r.createdBy ? '<div class="meta-row"><span class="lbl">Received By:</span><span class="val">' + r.createdBy + '</span></div>' : '')
+    + '</div>'
+    + '<table class="rcv"><colgroup>'
+    + '<col style="width:3.5%"><col style="width:12%"><col style="width:14%">'
+    + '<col style="width:35%"><col style="width:10%"><col style="width:10%"><col style="width:15.5%">'
+    + '</colgroup><thead><tr>'
+    + '<th></th><th>Item No.</th><th>Supplier Code</th>'
+    + '<th>Description</th><th>Order Qty</th><th>Rcv Qty</th><th>Line Status</th>'
+    + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>'
+    + '<div class="sigs">'
+    + '<div><div class="sig-line">' + preparedBy + '</div><div class="sig-label">Received by Name &amp; Signature</div></div>'
+    + '<div><div class="sig-line"></div><div class="sig-label">Checked by Name &amp; Signature</div></div>'
+    + '<div><div class="sig-line">' + dateStr + '</div><div class="sig-label">Date</div></div>'
+    + '</div>';
+
+  var prev = document.getElementById('_apPrintContent');
+  if (prev) prev.remove();
+  var prevStyle = document.getElementById('_apPrintStyle');
+  if (prevStyle) prevStyle.remove();
+
+  var printDiv = document.createElement('div');
+  printDiv.id  = '_apPrintContent';
+  printDiv.innerHTML = inner;
+
+  var styleEl = document.createElement('style');
+  styleEl.id  = '_apPrintStyle';
+  styleEl.textContent = [
+    '@media print {',
+    '  body > *:not(#_apPrintContent) { display: none !important; }',
+    '  #_apPrintContent { display: block !important; }',
+    '  @page { margin: 8mm; size: A4 portrait; }',
+    '}',
+    '#_apPrintContent { display: none; }',
+  ].join('\n');
+
+  document.head.appendChild(styleEl);
+  document.body.appendChild(printDiv);
+
+  setTimeout(function() {
+    window.print();
+    setTimeout(function() {
+      var s = document.getElementById('_apPrintStyle');
+      var d = document.getElementById('_apPrintContent');
+      if (s) s.remove();
+      if (d) d.remove();
+    }, 500);
+  }, 120);
+};
 
 // ── Auto-open session modal if navigated from PO page (?po=PO-xxx) ──────────
 // When "Receive Items" or "Continue Receiving" is clicked on admin_PO.html,

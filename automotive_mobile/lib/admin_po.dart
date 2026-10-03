@@ -693,7 +693,7 @@ class AdminPOBodyState extends State<AdminPOBody>
             Icons.local_shipping_outlined,
             _blue,
             () => _sendToSupplier(po),
-            label: 'Order',
+            label: 'Mark Ordered',
           ),
         ];
       case 'Ordered':
@@ -1171,7 +1171,7 @@ class AdminPOBodyState extends State<AdminPOBody>
           SizedBox(
             width: double.infinity,
             child: btn(
-              'Send to Supplier / Mark as Ordered',
+              'Mark as Ordered',
               _blue,
               Icons.local_shipping_outlined,
               () {
@@ -2229,7 +2229,7 @@ class AdminPOBodyState extends State<AdminPOBody>
   void _sendToSupplier(Map<String, dynamic> po) => _updateStatus(
     po,
     'Ordered',
-    'Mark "${po['poNum']}" as Ordered / Sent to Supplier?',
+    'Mark "${po['poNum']}" as Ordered?',
   );
 
   void _receiveItems(Map<String, dynamic> po) {
