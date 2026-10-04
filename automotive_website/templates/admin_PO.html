@@ -853,8 +853,7 @@ function _vStockResolved(item, liveStock, status) {
 
     if (s === null) return '—';
     var color = s === 0 ? '#e53e3e' : '#1a202c';
-    var label = receivingInProgress ? s + ' <span style="font-size:9px;color:#a0aec0;">(at order)</span>' : '' + s;
-    return '<span style="font-weight:700;color:' + color + ';">' + label + '</span>';
+    return '<span style="font-weight:700;color:' + color + ';">' + s + '</span>';
 }
 function _vRow(label, val) {
     return '<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid #f0f4f8;">'

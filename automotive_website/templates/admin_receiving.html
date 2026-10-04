@@ -311,7 +311,11 @@ function fabOpenNewBlank() {
     <div id="rsmLinesList" style="overflow-y:auto;flex:1;background:#f8fafc;padding:1rem 1.25rem;display:flex;flex-direction:column;gap:0.6rem;">
     </div>
     <!-- Footer -->
-    <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;flex-shrink:0;">
+    <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;flex-shrink:0;display:flex;flex-direction:column;gap:0.5rem;">
+      <button id="rsmAddItemBtn" onclick="openAddItemModal()" style="display:none;width:100%;padding:0.65rem;border:1.5px dashed #003087;border-radius:12px;background:rgba(0,48,135,0.04);color:#003087;font-size:0.85rem;font-weight:700;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;transition:all .2s;" onmouseover="this.style.background='rgba(0,48,135,0.08)'" onmouseout="this.style.background='rgba(0,48,135,0.04)'">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Item
+      </button>
       <button id="rsmCompleteBtn" onclick="completeReceiving()" style="width:100%;padding:0.85rem;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;">
         ✅ Complete Receiving
       </button>
@@ -340,6 +344,89 @@ function fabOpenNewBlank() {
     <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
       <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('receiveModal')">Cancel</button>
       <button type="button" id="rmSubmitBtn" onclick="submitReceiving()" style="flex:2;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;">Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Item Modal (for blank receivings) ─────────────── -->
+<div class="modal" id="addItemModal">
+  <div class="modal-content" style="max-width:480px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
+    <div style="background:linear-gradient(135deg,#003087,#004ab3);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
+      <div style="flex:1;">
+        <div style="color:white;font-size:1rem;font-weight:800;">Add Item</div>
+        <div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:2px;">Enter item details to add to this receiving record</div>
+      </div>
+      <button onclick="closeModal('addItemModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+    </div>
+    <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.75rem;">
+
+      <!-- Item No. with lookup -->
+      <div style="position:relative;">
+        <label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Item No. <span style="color:#E8001C;">*</span></label>
+        <input type="text" id="aiItemNum" placeholder="e.g. SR-7310" autocomplete="off"
+          oninput="aiLookupItem(this.value)"
+          style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;transition:border-color .15s;"
+          onfocus="this.style.borderColor='#003087'" onblur="setTimeout(function(){document.getElementById('aiSuggestBox').style.display='none'},200)">
+        <!-- Suggestions dropdown -->
+        <div id="aiSuggestBox" style="display:none;position:absolute;left:0;right:0;top:100%;background:white;border:1.5px solid #e2e8f0;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.1);z-index:999;max-height:180px;overflow-y:auto;margin-top:2px;"></div>
+      </div>
+
+      <!-- Item Name -->
+      <div>
+        <label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Item Name <span style="color:#E8001C;">*</span></label>
+        <input type="text" id="aiItemName" placeholder="e.g. Mitsubishi Rack End L300"
+          style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;transition:border-color .15s;"
+          onfocus="this.style.borderColor='#003087'" onblur="this.style.borderColor='#e2e8f0'">
+      </div>
+
+      <!-- UOM + Supplier Code (side by side) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+        <div>
+          <label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">UOM</label>
+          <input type="text" id="aiUom" placeholder="e.g. Piece"
+            style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;transition:border-color .15s;"
+            onfocus="this.style.borderColor='#003087'" onblur="this.style.borderColor='#e2e8f0'">
+        </div>
+        <div>
+          <label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Supplier Code</label>
+          <input type="text" id="aiSupplierCode" placeholder="e.g. 555"
+            style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;transition:border-color .15s;"
+            onfocus="this.style.borderColor='#003087'" onblur="this.style.borderColor='#e2e8f0'">
+        </div>
+      </div>
+
+      <!-- Unit Cost + Order Qty (side by side) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+        <div>
+          <label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Unit Cost</label>
+          <input type="number" id="aiUnitCost" placeholder="0.00" min="0" step="0.01"
+            style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;transition:border-color .15s;"
+            onfocus="this.style.borderColor='#003087'" onblur="this.style.borderColor='#e2e8f0'">
+        </div>
+        <div>
+          <label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Order Qty <span style="color:#E8001C;">*</span></label>
+          <input type="number" id="aiPoQty" placeholder="0" min="1"
+            style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;transition:border-color .15s;"
+            onfocus="this.style.borderColor='#003087'" onblur="this.style.borderColor='#e2e8f0'">
+        </div>
+      </div>
+
+      <!-- OEM # -->
+      <div>
+        <label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">OEM # <span style="font-weight:400;color:#a0aec0;">(optional)</span></label>
+        <input type="text" id="aiOem" placeholder="e.g. 105"
+          style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;transition:border-color .15s;"
+          onfocus="this.style.borderColor='#003087'" onblur="this.style.borderColor='#e2e8f0'">
+      </div>
+
+    </div>
+    <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
+      <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('addItemModal')">Cancel</button>
+      <button type="button" id="aiSubmitBtn" onclick="submitAddItem()"
+        style="flex:2;padding:0.75rem;background:linear-gradient(135deg,#003087,#004ab3);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Item
+      </button>
     </div>
   </div>
 </div>
@@ -449,7 +536,9 @@ window.rcvOpenCard = function(docId) {
   var r = _allRcv.find(function(x){ return x._docId === docId; });
   if (!r) return;
   var lines = r.receivingLines || [];
-  if (!lines.length) {
+  // For blank receivings with no lines, still open the session modal
+  // so the user can add items via the "+ Add Item" button.
+  if (!lines.length && r.poNum) {
     showToast('No lines in this receiving record.', 'error');
     return;
   }
@@ -559,15 +648,10 @@ function _rcvRenderList() {
         + 'onmouseover="this.style.opacity=\'0.85\'" onmouseout="this.style.opacity=\'1\'">▶ Start</button>';
     }
     if (s === 'INPROG') {
-      return '<div style="display:flex;gap:6px;width:100%;">'
-        + '<button onclick="event.stopPropagation();rcvOpenCard(\'' + r._docId + '\')" '
-        + 'style="flex:2;display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 0;'
-        + 'background:#E8001C;border:none;border-radius:8px;color:white;'
+      return '<button onclick="event.stopPropagation();rcvOpenCard(\'' + r._docId + '\')" '
+        + 'style="padding:5px 14px;background:#E8001C;border:none;border-radius:8px;color:white;'
         + 'font-size:11px;font-weight:700;cursor:pointer;transition:opacity .15s;" '
-        + 'onmouseover="this.style.opacity=\'0.85\'" onmouseout="this.style.opacity=\'1\'">'
-        + '▶ Continue</button>'
-        + printBtn
-        + '</div>';
+        + 'onmouseover="this.style.opacity=\'0.85\'" onmouseout="this.style.opacity=\'1\'">▶ Continue</button>';
     }
     if (s === 'PARTIAL' || s === 'COMP') {
       return '<div style="display:flex;gap:6px;width:100%;">' + printBtn + '</div>';
@@ -620,7 +704,6 @@ window.rcvStartReceiving = function(docId) {
     startedAt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function(){
     showToast('Receiving started!', 'success');
-    // Open session modal immediately — user can now receive lines
     openRcvSessionModal(docId);
   }).catch(function(e){ showToast('Error: '+e.message, 'error'); });
 };
@@ -829,6 +912,9 @@ window.openRcvSessionModal = function(docId) {
   var r = _allRcv.find(function(x){ return x._docId === docId; });
   if (!r) return;
 
+  _currentRcvId = docId; // always keep in sync
+  if (!r) return;
+
   var lines   = r.receivingLines || [];
   var rcvNum  = r.receivingNum || docId;
   var status  = r.status || 'DRAFT';
@@ -847,10 +933,18 @@ window.openRcvSessionModal = function(docId) {
 
   // ── Lines list ──
   var listEl = document.getElementById('rsmLinesList');
+  var isBlank = !r.poNum; // blank receiving = no PO reference
   if (!lines.length) {
     listEl.innerHTML =
-      '<div style="text-align:center;padding:2rem;color:#a0aec0;font-size:13px;">' +
-      'No items in this receiving record.</div>';
+      '<div style="text-align:center;padding:2.5rem 1rem;color:#a0aec0;font-size:13px;">'
+      + '<div style="width:48px;height:48px;background:#f0f4f8;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">'
+      + '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>'
+      + '</div>'
+      + '<div style="font-weight:600;color:#718096;margin-bottom:4px;">No items yet</div>'
+      + (isBlank
+          ? '<div style="font-size:12px;">Tap <strong style="color:#003087;">+ Add Item</strong> below to add items to this receiving record.</div>'
+          : '<div style="font-size:12px;">No items in this receiving record.</div>')
+      + '</div>';
   } else {
     listEl.innerHTML = lines.map(function(line, idx) {
       var ls  = line.lineStatus || 'DRAFT';
@@ -889,6 +983,14 @@ window.openRcvSessionModal = function(docId) {
         + '</div>'
         + '</div>';
     }).join('');
+  }
+
+  // ── Add Item button — only for blank (no-PO) receivings still in progress ──
+  var addBtn = document.getElementById('rsmAddItemBtn');
+  if (addBtn) {
+    var canAdd = isBlank && (status === 'DRAFT' || status === 'INPROG');
+    addBtn.style.display = canAdd ? 'flex' : 'none';
+    _currentRcvId = docId; // keep in sync so openAddItemModal knows where to append
   }
 
   // ── Complete Receiving button state ──
@@ -964,10 +1066,25 @@ window.openItemViewModal = function(docId, lineIdx) {
   var subtotal = cost * rcvQty;
   var diff     = rcvQty - poQty;
 
-  var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem;">'
-    + _ivCard('Order Qty', ''+poQty)
-    + _ivCard('Received Qty', ''+rcvQty, rcvQty===poQty?'#38a169':rcvQty<poQty?'#E8001C':'#d69e2e')
-    + _ivCard('OEM #', line.oem || line.itemNum || '—')
+  var rcvColor = rcvQty===poQty ? '#38a169' : rcvQty<poQty ? '#E8001C' : '#d69e2e';
+  var oemVal   = line.oem || line.itemNum || '—';
+  var tdLbl    = 'font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;padding-bottom:4px;';
+  var tdVal    = 'font-size:15px;font-weight:800;color:#1a202c;';
+  var divider  = 'border-right:1px solid #f0f4f8;';
+
+  var html = '<div style="background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:1rem;">'
+    + '<table style="width:100%;border-collapse:collapse;">'
+    +   '<tr>'
+    +     '<td style="' + tdLbl + divider + 'padding-right:16px;">Order Qty</td>'
+    +     '<td style="' + tdLbl + divider + 'padding:0 16px;">Received Qty</td>'
+    +     '<td style="' + tdLbl + 'padding-left:16px;">OEM #</td>'
+    +   '</tr>'
+    +   '<tr>'
+    +     '<td style="' + tdVal + divider + 'padding-right:16px;">' + poQty + '</td>'
+    +     '<td style="' + tdVal + divider + 'padding:0 16px;color:' + rcvColor + ';">' + rcvQty + '</td>'
+    +     '<td style="' + tdVal + 'padding-left:16px;">' + oemVal + '</td>'
+    +   '</tr>'
+    + '</table>'
     + '</div>';
 
   // Status + difference
@@ -1105,6 +1222,165 @@ window.createBlankReceiving = function() {
     createdAt:      firebase.firestore.FieldValue.serverTimestamp()
   }).then(function(){ showToast('Blank receiving record created!', 'success'); })
     .catch(function(e){ showToast('Error: '+e.message,'error'); });
+};
+
+// ── Add Item Modal (blank receivings) ────────────────────────────────────────
+
+window.openAddItemModal = function() {
+  // Clear previous values
+  ['aiItemNum','aiItemName','aiUom','aiSupplierCode','aiUnitCost','aiPoQty','aiOem'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  var sb = document.getElementById('aiSuggestBox');
+  if (sb) sb.style.display = 'none';
+  document.getElementById('addItemModal').classList.add('active');
+  setTimeout(function(){ var el = document.getElementById('aiItemNum'); if(el) el.focus(); }, 200);
+};
+
+window.submitAddItem = function() {
+  var itemNum      = (document.getElementById('aiItemNum').value || '').trim();
+  var itemName     = (document.getElementById('aiItemName').value || '').trim();
+  var uom          = (document.getElementById('aiUom').value || '').trim();
+  var supplierCode = (document.getElementById('aiSupplierCode').value || '').trim();
+  var unitCost     = parseFloat(document.getElementById('aiUnitCost').value) || 0;
+  var poQty        = parseInt(document.getElementById('aiPoQty').value) || 0;
+  var oem          = (document.getElementById('aiOem').value || '').trim();
+
+  if (!itemNum) {
+    document.getElementById('aiItemNum').style.borderColor = '#E8001C';
+    document.getElementById('aiItemNum').focus();
+    showToast('Item No. is required.', 'error');
+    return;
+  }
+  if (!itemName) {
+    document.getElementById('aiItemName').style.borderColor = '#E8001C';
+    document.getElementById('aiItemName').focus();
+    showToast('Item Name is required.', 'error');
+    return;
+  }
+  if (poQty < 1) {
+    document.getElementById('aiPoQty').style.borderColor = '#E8001C';
+    document.getElementById('aiPoQty').focus();
+    showToast('Order Qty must be at least 1.', 'error');
+    return;
+  }
+
+  var r = _allRcv.find(function(x){ return x._docId === _currentRcvId; });
+  if (!r) { showToast('Receiving record not found.', 'error'); return; }
+
+  var newLine = {
+    itemNum:      itemNum,
+    itemName:     itemName,
+    uom:          uom,
+    supplierCode: supplierCode,
+    unitCost:     unitCost,
+    oem:          oem,
+    poQty:        poQty,
+    receivedQty:  0,
+    lineStatus:   'DRAFT',
+    remark:       '',
+    receivedAt:   null,
+    receivedBy:   ''
+  };
+
+  var updatedLines = (r.receivingLines || []).slice();
+  updatedLines.push(newLine);
+
+  var btn = document.getElementById('aiSubmitBtn');
+  btn.disabled = true;
+  btn.innerHTML = 'Saving…';
+
+  db.collection(_RCV_COL).doc(_currentRcvId).update({
+    receivingLines: updatedLines
+  }).then(function() {
+    closeModal('addItemModal');
+    showToast('Item added!', 'success');
+    // Re-open session modal so user sees the new line immediately
+    setTimeout(function(){ openRcvSessionModal(_currentRcvId); }, 300);
+  }).catch(function(err) {
+    showToast('Error: ' + err.message, 'error');
+  }).finally(function() {
+    btn.disabled = false;
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Item';
+  });
+};
+
+// ── Auto-lookup from stock_inventory when item no. is typed ──────────────────
+var _aiLookupTimer = null;
+var _aiLastQuery   = '';
+
+window.aiLookupItem = function(val) {
+  // Reset border colour on change
+  document.getElementById('aiItemNum').style.borderColor = '#003087';
+  var q = (val || '').trim().toLowerCase();
+  var sb = document.getElementById('aiSuggestBox');
+
+  if (q.length < 1) { sb.style.display = 'none'; return; }
+  if (q === _aiLastQuery) return;
+
+  clearTimeout(_aiLookupTimer);
+  _aiLookupTimer = setTimeout(function() {
+    _aiLastQuery = q;
+    // Search stock_inventory by num or name prefix
+    db.collection('stock_inventory')
+      .orderBy('num')
+      .startAt(q.toUpperCase()).endAt(q.toUpperCase() + '\uf8ff')
+      .limit(8)
+      .get()
+      .then(function(snap) {
+        var results = snap.docs.map(function(d){ return Object.assign({_id:d.id}, d.data()); });
+
+        // Also search by name if few results
+        if (results.length < 3) {
+          return db.collection('stock_inventory')
+            .orderBy('name')
+            .startAt(val.charAt(0).toUpperCase() + val.slice(1))
+            .endAt(val.charAt(0).toUpperCase() + val.slice(1) + '\uf8ff')
+            .limit(8)
+            .get()
+            .then(function(snap2) {
+              var extra = snap2.docs.map(function(d){ return Object.assign({_id:d.id}, d.data()); });
+              // Merge, dedupe by _id
+              var seen = {};
+              results.forEach(function(r){ seen[r._id] = true; });
+              extra.forEach(function(r){ if(!seen[r._id]) { seen[r._id]=true; results.push(r); } });
+              return results;
+            });
+        }
+        return results;
+      })
+      .then(function(results) {
+        if (!results.length) {
+          sb.style.display = 'none';
+          return;
+        }
+        sb.innerHTML = results.map(function(item) {
+          var safeNum  = (item.num  || '').replace(/'/g, "\\'");
+          var safeName = (item.name || '').replace(/'/g, "\\'");
+          var safeUom  = (item.uom  || '').replace(/'/g, "\\'");
+          return '<div onclick="aiSelectItem(\'' + safeNum + '\',\'' + safeName + '\',\'' + safeUom + '\')"'
+            + ' style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f4f8;transition:background .1s;"'
+            + ' onmouseover="this.style.background=\'#f0f4f8\'" onmouseout="this.style.background=\'white\'">'
+            + '<div style="font-size:13px;font-weight:700;color:#1a202c;">' + (item.num || '—') + '</div>'
+            + '<div style="font-size:11px;color:#718096;margin-top:1px;">' + (item.name || '') + (item.uom ? ' · ' + item.uom : '') + '</div>'
+            + '</div>';
+        }).join('');
+        sb.style.display = 'block';
+      })
+      .catch(function() { sb.style.display = 'none'; });
+  }, 280);
+};
+
+window.aiSelectItem = function(num, name, uom) {
+  document.getElementById('aiItemNum').value  = num;
+  document.getElementById('aiItemName').value = name;
+  document.getElementById('aiUom').value      = uom;
+  document.getElementById('aiSuggestBox').style.display = 'none';
+  _aiLastQuery = num.toLowerCase();
+  // Move focus to supplier code
+  var sc = document.getElementById('aiSupplierCode');
+  if (sc) sc.focus();
 };
 
 // ── Print (wrapper kept for toolbar Print PO button — prints from PO collection) ──
