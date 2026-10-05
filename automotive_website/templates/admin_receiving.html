@@ -1349,7 +1349,9 @@ function aiHideSuggest() {
 // Build a suggestion row — stores full item JSON in data-item attribute
 function _aiRow(item) {
   var safe = JSON.stringify(item).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-  return '<div onclick="aiSelectItem(this)" data-item="' + safe + '"'
+  // Use onmousedown + ontouchstart (fire BEFORE the input's onblur)
+  // so the dropdown doesn't disappear before aiSelectItem runs.
+  return '<div onmousedown="event.preventDefault();aiSelectItem(this)" ontouchstart="aiSelectItem(this)" data-item="' + safe + '"'
     + ' style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f4f8;transition:background .1s;"'
     + ' onmouseover="this.style.background=\'#f0f4f8\'" onmouseout="this.style.background=\'white\'">'
     + '<div style="font-size:13px;font-weight:700;color:#1a202c;">'
@@ -1420,18 +1422,25 @@ window.aiSelectItem = function(el) {
   var item = {};
   try { item = JSON.parse(el.getAttribute('data-item').replace(/&quot;/g, '"').replace(/&#39;/g, "'")); } catch(e){}
 
-  // Fill both num and name unconditionally — whichever field triggered the
-  // search, the other gets auto-filled from the same document.
-  document.getElementById('aiItemNum').value      = item.num  || '';
-  document.getElementById('aiItemName').value     = item.name || '';
-  document.getElementById('aiUom').value          = item.uom  || '';
-  document.getElementById('aiSupplierCode').value = item.supplierCode || item.supplier_code || '';
-  document.getElementById('aiOem').value          = item.oem  || item.oem_num || '';
+  function _set(id, val) {
+    var f = document.getElementById(id);
+    if (!f) return;
+    f.value = val || '';
+    // Dispatch input event so floating label CSS (:not(:placeholder-shown)) updates
+    f.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  // Fill both fields unconditionally from stock_inventory data
+  _set('aiItemNum',      item.num  || '');
+  _set('aiItemName',     item.name || '');
+  _set('aiUom',          item.uom  || '');
+  _set('aiSupplierCode', item.supplierCode || item.supplier_code || '');
+  _set('aiOem',          item.oem  || item.oem_num || '');
 
   aiHideSuggest();
   _aiLastQuery = (item.num || '').toLowerCase();
 
-  // Cross-lookup item_master to fill OEM and anything stock_inventory doesn't carry
+  // Cross-lookup item_master for OEM and anything stock_inventory doesn't carry
   var num = item.num || '';
   if (num) {
     db.collection('item_master').where('num', '==', num).limit(1).get()
@@ -1439,28 +1448,24 @@ window.aiSelectItem = function(el) {
         if (snap.empty) return;
         var m = snap.docs[0].data();
 
-        // Always fill Item No. from master (authoritative source)
-        var numEl = document.getElementById('aiItemNum');
-        if (numEl) numEl.value = m.num || m.itemNum || numEl.value;
+        // Overwrite num + name with master values (authoritative)
+        _set('aiItemNum',  m.num  || m.itemNum  || item.num  || '');
+        _set('aiItemName', m.name || m.itemName || item.name || '');
 
-        // Always fill Item Name from master
-        var nameEl = document.getElementById('aiItemName');
-        if (nameEl) nameEl.value = m.name || m.itemName || nameEl.value;
-
-        // Fill the rest only if currently blank
+        // Fill rest only if still blank
         var uomEl = document.getElementById('aiUom');
-        if (uomEl && !uomEl.value) uomEl.value = m.uom || '';
+        if (uomEl && !uomEl.value) _set('aiUom', m.uom || '');
 
         var scEl = document.getElementById('aiSupplierCode');
-        if (scEl && !scEl.value) scEl.value = m.supplierCode || m.supplier_code || '';
+        if (scEl && !scEl.value) _set('aiSupplierCode', m.supplierCode || m.supplier_code || '');
 
         var oemEl = document.getElementById('aiOem');
-        if (oemEl && !oemEl.value) oemEl.value = m.oem || m.oem_num || m.oemNum || '';
+        if (oemEl && !oemEl.value) _set('aiOem', m.oem || m.oem_num || m.oemNum || '');
       }).catch(function(){});
   }
 
   // Move focus to Order Qty
-  setTimeout(function(){ document.getElementById('aiPoQty').focus(); }, 50);
+  setTimeout(function(){ document.getElementById('aiPoQty').focus(); }, 80);
 };
 
 // ── Print (wrapper kept for toolbar Print PO button — prints from PO collection) ──
