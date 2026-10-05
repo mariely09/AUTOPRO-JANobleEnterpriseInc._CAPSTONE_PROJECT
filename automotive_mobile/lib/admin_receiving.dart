@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'receiving_item_modals.dart';
 import 'sync_indicator.dart';
 import 'admin_bottomnavbar.dart';
 import 'admin_dashboard.dart';
@@ -1157,31 +1158,18 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // START RECEIVING  (DRAFT → INPROG)
+  // START RECEIVING  — only used for PO-linked records (card ▶ Start button).
+  // Blank receivings stay DRAFT until the user taps "Receive Item" on a line.
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _startReceiving(Map<String, dynamic> r) async {
-    try {
-      await SyncStatusNotifier.instance.trackWrite(
-        () => FirebaseFirestore.instance
-            .collection(_col)
-            .doc(r['id'] as String)
-            .update({
-              'status': 'INPROG',
-              'startedAt': FieldValue.serverTimestamp(),
-            }),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: _red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+    // For blank receivings just open the modal — don't change status yet.
+    if ((r['poNum'] as String? ?? '').isEmpty) {
+      _showViewModal(r);
+      return;
     }
+    // PO-linked: open the view modal (status transition happens on first Receive).
+    _showViewModal(r);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1525,80 +1513,30 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                   ],
                                   if (canReceive) ...[
                                     const SizedBox(height: 10),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: OutlinedButton.icon(
-                                            onPressed: () {
-                                              Navigator.pop(ctx);
-                                              _showReceiveLineModal(data, i);
-                                            },
-                                            icon: const Icon(
-                                              Icons.download_outlined,
-                                              size: 14,
-                                            ),
-                                            label: const Text(
-                                              'Receive Item',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            style: OutlinedButton.styleFrom(
-                                              foregroundColor: _red,
-                                              side: BorderSide(
-                                                color: _red.withValues(alpha: 0.4),
-                                              ),
-                                              padding: const EdgeInsets.symmetric(
-                                                vertical: 10,
-                                              ),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(20),
-                                              ),
-                                            ),
-                                          ),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: OutlinedButton.icon(
+                                        onPressed: () {
+                                          Navigator.pop(ctx);
+                                          showLineViewModal(
+                                            context,
+                                            rcvData: data,
+                                            lineIdx: i,
+                                            isBlank: poNum.isEmpty,
+                                            onReceive: () => _showReceiveLineModal(data, i),
+                                          );
+                                        },
+                                        icon: const Icon(Icons.visibility_outlined, size: 14),
+                                        label: const Text('View',
+                                            style: TextStyle(fontWeight: FontWeight.w600)),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: const Color(0xFF4a5568),
+                                          side: const BorderSide(color: Color(0xFFe2e8f0)),
+                                          padding: const EdgeInsets.symmetric(vertical: 10),
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(20)),
                                         ),
-                                        const SizedBox(width: 8),
-                                        OutlinedButton(
-                                          onPressed: () async {
-                                            final updated = List<Map<String, dynamic>>.from(lines);
-                                            updated.removeAt(i);
-                                            try {
-                                              await SyncStatusNotifier.instance.trackWrite(
-                                                () => FirebaseFirestore.instance
-                                                    .collection(_col)
-                                                    .doc(docId)
-                                                    .update({'receivingLines': updated}),
-                                              );
-                                            } catch (e) {
-                                              if (ctx.mounted) {
-                                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text('Error: $e'),
-                                                    backgroundColor: _red,
-                                                  ),
-                                                );
-                                              }
-                                            }
-                                          },
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: _red,
-                                            side: BorderSide(
-                                              color: _red.withValues(alpha: 0.4),
-                                            ),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 10,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(20),
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.delete_outline,
-                                            size: 16,
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     ),
                                   ],
                                 ],
@@ -1611,97 +1549,27 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                         // ── Footer actions ──
                         if (status == 'DRAFT') ...[
                           if (poNum.isEmpty) ...[
-                            // Blank receiving: Start & Add Items + Delete in one row
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed: () async {
-                                      Navigator.pop(ctx);
-                                      await _startReceiving(data);
-                                      if (mounted) _showAddItemModal(data);
-                                    },
-                                    icon: const Icon(Icons.add_circle_outline, size: 15),
-                                    label: const Text(
-                                      'Start & Add Items',
-                                      style: TextStyle(fontWeight: FontWeight.w700),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: _red,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 13),
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(30)),
-                                    ),
-                                  ),
+                            // Blank receiving: Add Item (stays DRAFT until Receive is tapped)
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () => showAddItemFormModal(
+                                  context,
+                                  rcvData: data,
                                 ),
-                                const SizedBox(width: 10),
-                                OutlinedButton(
-                                  onPressed: () async {
-                                    final ok = await showDialog<bool>(
-                                      context: ctx,
-                                      builder: (dctx) => AlertDialog(
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(16)),
-                                        title: const Text(
-                                          'Delete this record?',
-                                          style: TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w700),
-                                        ),
-                                        content: const Text(
-                                            'This will permanently delete the receiving record.'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(dctx, false),
-                                            child: const Text('Cancel',
-                                                style: TextStyle(
-                                                    color: Color(0xFF718096))),
-                                          ),
-                                          ElevatedButton(
-                                            onPressed: () => Navigator.pop(dctx, true),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: _red,
-                                              foregroundColor: Colors.white,
-                                            ),
-                                            child: const Text('Delete'),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                    if (ok != true || !ctx.mounted) return;
-                                    Navigator.pop(ctx);
-                                    try {
-                                      await SyncStatusNotifier.instance.trackWrite(
-                                        () => FirebaseFirestore.instance
-                                            .collection(_col)
-                                            .doc(docId)
-                                            .delete(),
-                                      );
-                                    } catch (e) {
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Error: $e'),
-                                            backgroundColor: _red,
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  },
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: _red,
-                                    side: BorderSide(
-                                        color: _red.withValues(alpha: 0.4)),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 14, vertical: 13),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(30),
-                                    ),
-                                  ),
-                                  child: const Icon(Icons.delete_outline, size: 16),
+                                icon: const Icon(Icons.add_circle_outline, size: 15),
+                                label: const Text(
+                                  '+ Add Item',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
                                 ),
-                              ],
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _red,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 13),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30)),
+                                ),
+                              ),
                             ),
                           ],
                           if (poNum.isNotEmpty) ...[
@@ -1710,7 +1578,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                               child: ElevatedButton.icon(
                                 onPressed: () {
                                   Navigator.pop(ctx);
-                                  _startReceiving(data);
+                                  _showViewModal(data);
                                 },
                                 icon: const Icon(Icons.play_arrow_outlined, size: 16),
                                 label: const Text(
@@ -1734,7 +1602,10 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
-                                onPressed: () => _showAddItemModal(data),
+                                onPressed: () => showAddItemFormModal(
+                                  context,
+                                  rcvData: data,
+                                ),
                                 icon: const Icon(Icons.add_circle_outline, size: 16),
                                 label: const Text('Add Item',
                                     style: TextStyle(fontWeight: FontWeight.w700)),
@@ -2166,6 +2037,21 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
       ),
     );
     if (lineIdx >= allLines.length) return;
+
+    // DRAFT → INPROG the moment the user opens a Receive modal (mirrors website)
+    if ((r['status'] as String? ?? 'DRAFT') == 'DRAFT') {
+      try {
+        await SyncStatusNotifier.instance.trackWrite(
+          () => FirebaseFirestore.instance
+              .collection(_col)
+              .doc(r['id'] as String)
+              .update({
+                'status': 'INPROG',
+                'startedAt': FieldValue.serverTimestamp(),
+              }),
+        );
+      } catch (_) {}
+    }
 
     final line = allLines[lineIdx];
     final poQty = (line['poQty'] as num?)?.toInt() ?? 0;
