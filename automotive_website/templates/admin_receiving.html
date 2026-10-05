@@ -669,7 +669,7 @@ function _rcvRenderList() {
 
     var btns = [];
     if (s === 'DRAFT') {
-      btns.push(_btn('Start Receiving', playIcon, 'white', '#003087', '#003087', 'rcvStartReceiving(\'' + id + '\')'));
+      btns.push(_btn('Start Receiving', playIcon, 'white', '#E8001C', '#E8001C', 'rcvStartReceiving(\'' + id + '\')'));
     } else if (s === 'INPROG') {
       btns.push(_btn('Continue', downloadIcon, 'white', '#E8001C', '#E8001C', 'rcvOpenCard(\'' + id + '\')'));
     } else if (s === 'PARTIAL' || s === 'COMP') {
@@ -714,24 +714,27 @@ function _rcvRenderList() {
   }).join('');
 }
 
-// ── Start Receiving (DRAFT → INPROG) — then open session modal ───────────────
+// ── Start Receiving — just opens session modal, keeps DRAFT until first receive ─
 window.rcvStartReceiving = function(docId) {
   var r = _allRcv.find(function(x){ return x._docId === docId; });
   if (!r) return;
-  if (r.status === 'INPROG') { openRcvSessionModal(docId); return; }
-  db.collection(_RCV_COL).doc(docId).update({
-    status: 'INPROG',
-    startedAt: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(function(){
-    showToast('Receiving started!', 'success');
-    openRcvSessionModal(docId);
-  }).catch(function(e){ showToast('Error: '+e.message, 'error'); });
+  // Just open the session modal — status stays DRAFT until the user
+  // actually clicks ▶ Receive on a line (handled in openReceiveModal).
+  openRcvSessionModal(docId);
 };
 
 // ── Open Receive Modal (per line) ─────────────────────────────────────────────
 window.openReceiveModal = function(docId, lineIdx) {
   var r = _allRcv.find(function(x){ return x._docId === docId; });
   if (!r) return;
+
+  // DRAFT → INPROG the moment the user starts receiving a line
+  if (r.status === 'DRAFT') {
+    db.collection(_RCV_COL).doc(docId).update({
+      status: 'INPROG',
+      startedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function(){});
+  }
   _currentRcvId   = docId;
   _currentLineIdx = lineIdx;
   var line = (r.receivingLines||[])[lineIdx];
@@ -1349,9 +1352,13 @@ function _aiRow(item) {
   return '<div onclick="aiSelectItem(this)" data-item="' + safe + '"'
     + ' style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f4f8;transition:background .1s;"'
     + ' onmouseover="this.style.background=\'#f0f4f8\'" onmouseout="this.style.background=\'white\'">'
-    + '<div style="font-size:13px;font-weight:700;color:#1a202c;">' + (item.num || '—') + '</div>'
-    + '<div style="font-size:11px;color:#718096;margin-top:1px;">'
-    +   (item.name || '') + (item.uom ? ' · ' + item.uom : '')
+    + '<div style="font-size:13px;font-weight:700;color:#1a202c;">'
+    +   (item.num || '—')
+    +   (item.supplierCode ? ' <span style="font-size:11px;font-weight:500;color:#718096;">· ' + item.supplierCode + '</span>' : '')
+    + '</div>'
+    + '<div style="font-size:11px;color:#718096;margin-top:2px;">'
+    +   (item.name || '')
+    +   (item.uom ? ' <span style="color:#a0aec0;">· ' + item.uom + '</span>' : '')
     + '</div>'
     + '</div>';
 }
@@ -1413,16 +1420,46 @@ window.aiSelectItem = function(el) {
   var item = {};
   try { item = JSON.parse(el.getAttribute('data-item').replace(/&quot;/g, '"').replace(/&#39;/g, "'")); } catch(e){}
 
-  document.getElementById('aiItemNum').value      = item.num          || '';
-  document.getElementById('aiItemName').value     = item.name         || '';
-  document.getElementById('aiUom').value          = item.uom          || '';
+  // Fill both num and name unconditionally — whichever field triggered the
+  // search, the other gets auto-filled from the same document.
+  document.getElementById('aiItemNum').value      = item.num  || '';
+  document.getElementById('aiItemName').value     = item.name || '';
+  document.getElementById('aiUom').value          = item.uom  || '';
   document.getElementById('aiSupplierCode').value = item.supplierCode || item.supplier_code || '';
-  document.getElementById('aiOem').value          = item.oem          || item.oem_num       || '';
+  document.getElementById('aiOem').value          = item.oem  || item.oem_num || '';
 
   aiHideSuggest();
   _aiLastQuery = (item.num || '').toLowerCase();
 
-  // Move focus to Order Qty (most likely next field to fill)
+  // Cross-lookup item_master to fill OEM and anything stock_inventory doesn't carry
+  var num = item.num || '';
+  if (num) {
+    db.collection('item_master').where('num', '==', num).limit(1).get()
+      .then(function(snap) {
+        if (snap.empty) return;
+        var m = snap.docs[0].data();
+
+        // Always fill Item No. from master (authoritative source)
+        var numEl = document.getElementById('aiItemNum');
+        if (numEl) numEl.value = m.num || m.itemNum || numEl.value;
+
+        // Always fill Item Name from master
+        var nameEl = document.getElementById('aiItemName');
+        if (nameEl) nameEl.value = m.name || m.itemName || nameEl.value;
+
+        // Fill the rest only if currently blank
+        var uomEl = document.getElementById('aiUom');
+        if (uomEl && !uomEl.value) uomEl.value = m.uom || '';
+
+        var scEl = document.getElementById('aiSupplierCode');
+        if (scEl && !scEl.value) scEl.value = m.supplierCode || m.supplier_code || '';
+
+        var oemEl = document.getElementById('aiOem');
+        if (oemEl && !oemEl.value) oemEl.value = m.oem || m.oem_num || m.oemNum || '';
+      }).catch(function(){});
+  }
+
+  // Move focus to Order Qty
   setTimeout(function(){ document.getElementById('aiPoQty').focus(); }, 50);
 };
 
