@@ -1611,28 +1611,98 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                         // ── Footer actions ──
                         if (status == 'DRAFT') ...[
                           if (poNum.isEmpty) ...[
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  Navigator.pop(ctx);
-                                  _startReceiving(data);
-                                },
-                                icon: const Icon(Icons.add_circle_outline, size: 16),
-                                label: const Text(
-                                  'Start & Add Items',
-                                  style: TextStyle(fontWeight: FontWeight.w700),
+                            // Blank receiving: Start & Add Items + Delete in one row
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () async {
+                                      Navigator.pop(ctx);
+                                      await _startReceiving(data);
+                                      if (mounted) _showAddItemModal(data);
+                                    },
+                                    icon: const Icon(Icons.add_circle_outline, size: 15),
+                                    label: const Text(
+                                      'Start & Add Items',
+                                      style: TextStyle(fontWeight: FontWeight.w700),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _red,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 13),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(30)),
+                                    ),
+                                  ),
                                 ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _red,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(30)),
+                                const SizedBox(width: 10),
+                                OutlinedButton(
+                                  onPressed: () async {
+                                    final ok = await showDialog<bool>(
+                                      context: ctx,
+                                      builder: (dctx) => AlertDialog(
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(16)),
+                                        title: const Text(
+                                          'Delete this record?',
+                                          style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700),
+                                        ),
+                                        content: const Text(
+                                            'This will permanently delete the receiving record.'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(dctx, false),
+                                            child: const Text('Cancel',
+                                                style: TextStyle(
+                                                    color: Color(0xFF718096))),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () => Navigator.pop(dctx, true),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: _red,
+                                              foregroundColor: Colors.white,
+                                            ),
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (ok != true || !ctx.mounted) return;
+                                    Navigator.pop(ctx);
+                                    try {
+                                      await SyncStatusNotifier.instance.trackWrite(
+                                        () => FirebaseFirestore.instance
+                                            .collection(_col)
+                                            .doc(docId)
+                                            .delete(),
+                                      );
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Error: $e'),
+                                            backgroundColor: _red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: _red,
+                                    side: BorderSide(
+                                        color: _red.withValues(alpha: 0.4)),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 13),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                  ),
+                                  child: const Icon(Icons.delete_outline, size: 16),
                                 ),
-                              ),
+                              ],
                             ),
-                            const SizedBox(height: 10),
                           ],
                           if (poNum.isNotEmpty) ...[
                             SizedBox(
@@ -1659,34 +1729,6 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                             ),
                             const SizedBox(height: 10),
                           ],
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                Navigator.pop(ctx);
-                                _archiveReceiving(data);
-                              },
-                              icon: const Icon(
-                                Icons.archive_outlined,
-                                size: 14,
-                                color: Colors.red,
-                              ),
-                              label: const Text(
-                                'Archive',
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.red),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                              ),
-                            ),
-                          ),
                         ] else if (status == 'INPROG') ...[
                           if (poNum.isEmpty) ...[
                             SizedBox(
@@ -1705,7 +1747,6 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 10),
                           ],
                         ] else if (status == 'COMP' || status == 'PARTIAL') ...[
                           SizedBox(

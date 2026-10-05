@@ -1533,30 +1533,96 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
 
                         // ── Footer actions ──
                         if (status == 'DRAFT') ...[
-                          // Blank receiving: one button to start & add items
+                          // Blank receiving: Start & Add Items + Delete in one row
                           if (poNum.isEmpty) ...[
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  Navigator.pop(ctx);
-                                  _startReceiving(data);
-                                },
-                                icon: const Icon(Icons.add_circle_outline, size: 16),
-                                label: const Text(
-                                  'Start & Add Items',
-                                  style: TextStyle(fontWeight: FontWeight.w700),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () async {
+                                      Navigator.pop(ctx);
+                                      await _startReceiving(data);
+                                      if (mounted) _showAddItemModal(data);
+                                    },
+                                    icon: const Icon(Icons.add_circle_outline, size: 15),
+                                    label: const Text(
+                                      'Start & Add Items',
+                                      style: TextStyle(fontWeight: FontWeight.w700),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _red,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 13),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(30)),
+                                    ),
+                                  ),
                                 ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _red,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(30)),
+                                const SizedBox(width: 10),
+                                OutlinedButton(
+                                  onPressed: () async {
+                                    final ok = await showDialog<bool>(
+                                      context: ctx,
+                                      builder: (dctx) => AlertDialog(
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(16)),
+                                        title: const Text(
+                                          'Delete this record?',
+                                          style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700),
+                                        ),
+                                        content: const Text(
+                                            'This will permanently delete the receiving record.'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(dctx, false),
+                                            child: const Text('Cancel',
+                                                style: TextStyle(color: Color(0xFF718096))),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () => Navigator.pop(dctx, true),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: _red,
+                                              foregroundColor: Colors.white,
+                                            ),
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (ok != true || !ctx.mounted) return;
+                                    Navigator.pop(ctx);
+                                    try {
+                                      await SyncStatusNotifier.instance.trackWrite(
+                                        () => FirebaseFirestore.instance
+                                            .collection(_col)
+                                            .doc(docId)
+                                            .delete(),
+                                      );
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Error: $e'),
+                                            backgroundColor: _red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: _red,
+                                    side: BorderSide(color: _red.withValues(alpha: 0.4)),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 13),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(30)),
+                                  ),
+                                  child: const Icon(Icons.delete_outline, size: 16),
                                 ),
-                              ),
+                              ],
                             ),
-                            const SizedBox(height: 10),
                           ],
                           // PO-linked receiving: standard Start Receiving button
                           if (poNum.isNotEmpty) ...[
@@ -1582,10 +1648,8 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 10),
                           ],
                         ] else if (status == 'INPROG') ...[
-                          // Add Item button for blank receivings — primary action
                           if (poNum.isEmpty) ...[
                             SizedBox(
                               width: double.infinity,
@@ -1603,7 +1667,6 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 10),
                           ],
                         ] else if (status == 'COMP' || status == 'PARTIAL') ...[
                           SizedBox(
