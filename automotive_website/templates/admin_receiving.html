@@ -1338,6 +1338,7 @@ window.submitAddItem = function() {
 // ── Auto-lookup from stock_inventory (Item No. and Item Name fields) ─────────
 var _aiLookupTimer = null;
 var _aiLastQuery   = '';
+var _aiSuppressSearch = false;  // prevents re-triggering search on programmatic fill
 
 function aiHideSuggest() {
   ['aiSuggestNum','aiSuggestName'].forEach(function(id){
@@ -1366,6 +1367,7 @@ function _aiRow(item) {
 }
 
 window.aiSearch = function(field, val) {
+  if (_aiSuppressSearch) return;  // ignore events fired by programmatic fill
   var sbId = field === 'num' ? 'aiSuggestNum' : 'aiSuggestName';
   var sb   = document.getElementById(sbId);
   var q    = (val || '').trim();
@@ -1426,8 +1428,11 @@ window.aiSelectItem = function(el) {
     var f = document.getElementById(id);
     if (!f) return;
     f.value = val || '';
-    // Dispatch input event so floating label CSS (:not(:placeholder-shown)) updates
+    // Dispatch input event so floating label CSS (:not(:placeholder-shown)) updates,
+    // but suppress the aiSearch handler while doing so.
+    _aiSuppressSearch = true;
     f.dispatchEvent(new Event('input', { bubbles: true }));
+    _aiSuppressSearch = false;
   }
 
   // Fill both fields unconditionally from stock_inventory data
