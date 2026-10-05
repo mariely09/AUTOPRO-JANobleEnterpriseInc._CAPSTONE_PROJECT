@@ -1135,59 +1135,66 @@ window.openItemViewModal = function(docId, lineIdx) {
   if (!line) return;
 
   var ls = line.lineStatus || 'DRAFT';
-  var lc = _LINE_STATUS_CFG[ls] || ['#718096','rgba(113,128,150,0.1)', ls];
 
-  document.getElementById('ivItemName').textContent = (line.itemName||'—') + (line.uom ? '  ('+line.uom+')' : '');
-  document.getElementById('ivItemMeta').textContent = line.supplierCode || '';
+  document.getElementById('ivItemName').textContent = line.itemName || '—';
+  document.getElementById('ivItemMeta').textContent = line.itemNum  || '';
 
-  var cost     = parseFloat(line.unitCost||0) || 0;
-  var poQty    = parseInt(line.poQty)    || 0;
-  var rcvQty   = parseInt(line.receivedQty) || 0;
-  var subtotal = cost * rcvQty;
-  var diff     = rcvQty - poQty;
+  var poQty  = parseInt(line.poQty)       || 0;
+  var rcvQty = parseInt(line.receivedQty) || 0;
+  var diff   = rcvQty - poQty;
 
-  var rcvColor = rcvQty===poQty ? '#38a169' : rcvQty<poQty ? '#E8001C' : '#d69e2e';
-  var itemNum  = line.itemNum || '—';
-  var oemVal   = line.oem || '—';
-  var tdLbl    = 'font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;padding-bottom:4px;';
-  var tdVal    = 'font-size:15px;font-weight:800;color:#1a202c;';
-  var divider  = 'border-right:1px solid #f0f4f8;';
+  // ── Read-only field helper (matches fl-field look) ──
+  function _roField(label, val, fullWidth) {
+    var w = fullWidth ? '100%' : '100%';
+    return '<div style="position:relative;width:' + w + ';border:1.5px solid #c5cdd9;border-radius:8px;padding:1rem 1rem 0.4rem 1rem;background:white;box-sizing:border-box;">'
+      + '<span style="position:absolute;top:0;left:1rem;transform:translateY(-50%);font-size:0.72rem;color:#718096;font-weight:500;background:white;padding:0 2px;line-height:1;">' + label + '</span>'
+      + '<div style="font-size:0.92rem;font-weight:600;color:#1a202c;min-height:1.2rem;">' + (val || '—') + '</div>'
+      + '</div>';
+  }
 
-  var html = '<div style="background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:1rem;">'
-    + '<table style="width:100%;border-collapse:collapse;">'
-    +   '<tr>'
-    +     '<td style="' + tdLbl + divider + 'padding-right:16px;">Order Qty</td>'
-    +     '<td style="' + tdLbl + divider + 'padding:0 16px;">Received Qty</td>'
-    +     '<td style="' + tdLbl + divider + 'padding:0 16px;">Item #</td>'
-    +     '<td style="' + tdLbl + 'padding-left:16px;">OEM #</td>'
-    +   '</tr>'
-    +   '<tr>'
-    +     '<td style="' + tdVal + divider + 'padding-right:16px;">' + poQty + '</td>'
-    +     '<td style="' + tdVal + divider + 'padding:0 16px;color:' + rcvColor + ';">' + rcvQty + '</td>'
-    +     '<td style="' + tdVal + divider + 'padding:0 16px;">' + itemNum + '</td>'
-    +     '<td style="' + tdVal + 'padding-left:16px;">' + oemVal + '</td>'
-    +   '</tr>'
-    + '</table>'
+  var html = '';
+
+  // Item No. + Item Name
+  html += _roField('Item No.', line.itemNum || '—');
+  html += '<div style="margin-top:0.75rem;"></div>';
+  html += _roField('Item Name', line.itemName || '—');
+  html += '<div style="margin-top:0.75rem;"></div>';
+
+  // UOM + Supplier Code
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">'
+    + _roField('UOM', line.uom || '—')
+    + _roField('Supplier Code', line.supplierCode || '—')
+    + '</div>';
+  html += '<div style="margin-top:0.75rem;"></div>';
+
+  // Order Qty (full width)
+  html += _roField('Order Qty', '' + poQty);
+  html += '<div style="margin-top:0.75rem;"></div>';
+
+  // OEM # + POS ID
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">'
+    + _roField('OEM #', line.oem || '—')
+    + _roField('POS ID', line.posId || '—')
     + '</div>';
 
-  // Status + difference
-  html += '<div style="background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:1rem;">'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">'
-    + '<div><div style="font-size:10px;color:#a0aec0;font-weight:700;text-transform:uppercase;">Status</div>'
-    +   '<div style="margin-top:4px;">' + _badge(_LINE_STATUS_CFG, ls) + '</div></div>'
-    + '<div><div style="font-size:10px;color:#a0aec0;font-weight:700;text-transform:uppercase;">Difference</div>'
-    +   '<div style="font-size:1.1rem;font-weight:800;color:' + (diff===0?'#38a169':diff<0?'#E8001C':'#d69e2e') + ';margin-top:4px;">' + (diff===0?'0':(diff>0?'+':'')+diff) + '</div></div>'
-    + (line.remark ? '<div><div style="font-size:10px;color:#a0aec0;font-weight:700;text-transform:uppercase;">Remarks</div>'
-    +   '<div style="font-size:12px;font-weight:600;color:#1a202c;margin-top:4px;">' + line.remark + '</div></div>' : '')
-    + '</div></div>';
-
-  // Info rows
-  html += '<div style="background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;">';
-  if (r.receivingNum) html += _ivRow('Receiving No.', r.receivingNum);
-  if (r.poNum)        html += _ivRow('PO Reference',  r.poNum);
-  if (line.receivedAt)html += _ivRow('Received Date', _fmtDate(line.receivedAt));
-  if (line.receivedBy)html += _ivRow('Received By',   line.receivedBy);
-  html += '</div>';
+  // If already received — show received qty, status, diff, remark
+  if (ls !== 'DRAFT') {
+    var rcvColor = rcvQty===poQty ? '#38a169' : rcvQty<poQty ? '#E8001C' : '#d69e2e';
+    html += '<div style="margin-top:0.75rem;"></div>';
+    html += '<div style="background:white;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;">'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">'
+      + '<div><div style="font-size:10px;color:#a0aec0;font-weight:700;text-transform:uppercase;margin-bottom:4px;">Status</div>'
+      +   _badge(_LINE_STATUS_CFG, ls) + '</div>'
+      + '<div><div style="font-size:10px;color:#a0aec0;font-weight:700;text-transform:uppercase;margin-bottom:4px;">Rcv Qty</div>'
+      +   '<div style="font-size:1rem;font-weight:800;color:' + rcvColor + ';">' + rcvQty + '</div></div>'
+      + '<div><div style="font-size:10px;color:#a0aec0;font-weight:700;text-transform:uppercase;margin-bottom:4px;">Difference</div>'
+      +   '<div style="font-size:1rem;font-weight:800;color:' + (diff===0?'#38a169':diff<0?'#E8001C':'#d69e2e') + ';">' + (diff===0?'0':(diff>0?'+':'')+diff) + '</div></div>'
+      + '</div>'
+      + (line.remark ? '<div style="margin-top:10px;font-size:12px;color:#718096;">Remarks: <strong style="color:#1a202c;">' + line.remark + '</strong></div>' : '')
+      + (line.receivedBy ? '<div style="margin-top:6px;font-size:12px;color:#718096;">Received by: <strong style="color:#1a202c;">' + line.receivedBy + '</strong></div>' : '')
+      + (line.receivedAt ? '<div style="margin-top:4px;font-size:12px;color:#718096;">Date: <strong style="color:#1a202c;">' + _fmtDate(line.receivedAt) + '</strong></div>' : '')
+      + '</div>';
+  }
 
   document.getElementById('ivBody').innerHTML = html;
 
