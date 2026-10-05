@@ -689,7 +689,6 @@ function _rcvRenderList() {
       +   '</div>'
       + '</div>'
       + (itemNames ? '<div class="rcv-card-lines-preview">' + itemNames + '</div>' : '')
-      + (actions ? '<div style="display:flex;align-items:center;gap:6px;margin-top:10px;" onclick="event.stopPropagation();">' + actions + '</div>' : '')
       + '</div>';
   }).join('');
 }
@@ -1067,7 +1066,8 @@ window.openItemViewModal = function(docId, lineIdx) {
   var diff     = rcvQty - poQty;
 
   var rcvColor = rcvQty===poQty ? '#38a169' : rcvQty<poQty ? '#E8001C' : '#d69e2e';
-  var oemVal   = line.oem || line.itemNum || '—';
+  var itemNum  = line.itemNum || '—';
+  var oemVal   = line.oem || '—';
   var tdLbl    = 'font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;padding-bottom:4px;';
   var tdVal    = 'font-size:15px;font-weight:800;color:#1a202c;';
   var divider  = 'border-right:1px solid #f0f4f8;';
@@ -1077,11 +1077,13 @@ window.openItemViewModal = function(docId, lineIdx) {
     +   '<tr>'
     +     '<td style="' + tdLbl + divider + 'padding-right:16px;">Order Qty</td>'
     +     '<td style="' + tdLbl + divider + 'padding:0 16px;">Received Qty</td>'
+    +     '<td style="' + tdLbl + divider + 'padding:0 16px;">Item #</td>'
     +     '<td style="' + tdLbl + 'padding-left:16px;">OEM #</td>'
     +   '</tr>'
     +   '<tr>'
     +     '<td style="' + tdVal + divider + 'padding-right:16px;">' + poQty + '</td>'
     +     '<td style="' + tdVal + divider + 'padding:0 16px;color:' + rcvColor + ';">' + rcvQty + '</td>'
+    +     '<td style="' + tdVal + divider + 'padding:0 16px;">' + itemNum + '</td>'
     +     '<td style="' + tdVal + 'padding-left:16px;">' + oemVal + '</td>'
     +   '</tr>'
     + '</table>'

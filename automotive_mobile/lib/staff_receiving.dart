@@ -5,6 +5,20 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'barcode_scanner_screen.dart';
 import 'sync_indicator.dart';
 
+// ═══════════════════════════════════════════════════════════════════════════
+// StaffReceivingBody — Receiving Items screen (staff side)
+//
+// Mirrors admin_receiving.dart card design & process flow:
+//  • Collection: 'receivings'
+//  • Header statuses:  DRAFT · INPROG · PARTIAL · COMP
+//  • Line statuses:    DRAFT · COMP · INCOMP · MISSING · DEFECTIVE
+//  • Receiving number: RCV-YYYYMMDD-0001 (sequential per day)
+//  • FAB actions:  "New Receiving from PO"  |  "Scan to Find Item"
+//  • Copy-from-PO maps purchase_orders.items[] → receivingLines[]
+//  • Completing a line (COMP/INCOMP) updates stock_inventory + transactions
+//  • Staff can scan barcodes to find pending receiving lines
+// ═══════════════════════════════════════════════════════════════════════════
+
 class StaffReceivingBody extends StatefulWidget {
   final String searchQuery;
   const StaffReceivingBody({super.key, this.searchQuery = ''});
@@ -12,42 +26,93 @@ class StaffReceivingBody extends StatefulWidget {
   State<StaffReceivingBody> createState() => _StaffReceivingBodyState();
 }
 
-class _StaffReceivingBodyState extends State<StaffReceivingBody> {
+class _StaffReceivingBodyState extends State<StaffReceivingBody>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  // ── Colours ──────────────────────────────────────────────────────────────
   static const _red = Color(0xFFE8001C);
   static const _amber = Color(0xFFd69e2e);
   static const _green = Color(0xFF38a169);
+  static const _blue = Color(0xFF003087);
+  static const _grey = Color(0xFF718096);
+
+  // ── Collections ──────────────────────────────────────────────────────────
+  static const _col = 'receivings';
+  static const _poCol = 'purchase_orders';
+
+  // ── Months ───────────────────────────────────────────────────────────────
   static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
 
-  String _filter = 'all';
-  bool _fabOpen = false;
-  List<Map<String, dynamic>> _deliveries = [];
+  // ── Status config (mirrors admin) ───────────────────────────────────────
+  static const _hdrLabels = {
+    'DRAFT': 'Draft',
+    'INPROG': 'In Progress',
+    'PARTIAL': 'Partial',
+    'COMP': 'Complete',
+  };
+
+  Color _hdrColor(String s) {
+    switch (s) {
+      case 'DRAFT':
+        return _grey;
+      case 'INPROG':
+        return _blue;
+      case 'PARTIAL':
+        return _amber;
+      case 'COMP':
+        return _green;
+      default:
+        return _grey;
+    }
+  }
+
+  static const _lineLabels = {
+    'DRAFT': 'Draft',
+    'COMP': 'Complete',
+    'INCOMP': 'Incomplete',
+    'MISSING': 'Missing',
+    'DEFECTIVE': 'Defective',
+  };
+
+  Color _lineColor(String s) {
+    switch (s) {
+      case 'COMP':
+        return _green;
+      case 'INCOMP':
+        return _amber;
+      case 'MISSING':
+        return _red;
+      case 'DEFECTIVE':
+        return _red;
+      default:
+        return _grey;
+    }
+  }
+
+  // ── State ────────────────────────────────────────────────────────────────
+  List<Map<String, dynamic>> _rcvs = [];
   bool _loading = true;
   StreamSubscription<QuerySnapshot>? _sub;
+  String _filter = 'all';
+  bool _fabOpen = false;
 
+  // ── Lifecycle ───────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
     _sub = FirebaseFirestore.instance
-        .collection('receivings')
+        .collection(_col)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .listen((snap) {
           if (mounted) {
             setState(() {
-              _deliveries = snap.docs
+              _rcvs = snap.docs
                   .map((d) => {...d.data(), 'id': d.id})
                   .where((d) => d['archived'] != true)
                   .toList();
@@ -63,16 +128,9 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
     super.dispose();
   }
 
-  String _fmt(String? d) {
-    if (d == null || d.isEmpty) return '—';
-    final dt = DateTime.tryParse(d);
-    if (dt != null) return '${_months[dt.month - 1]} ${dt.day}, ${dt.year}';
-    return d;
-  }
+  // ── Helpers ─────────────────────────────────────────────────────────────
 
-  /// Formats a Firestore Timestamp or ISO string to a readable date.
-  /// Used for Order Date (createdAt) which is stored as a Timestamp.
-  String _fmtOrderDate(dynamic raw) {
+  String _fmt(dynamic raw) {
     if (raw == null) return '—';
     DateTime? dt;
     if (raw is Timestamp) {
@@ -86,51 +144,65 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
     return '${_months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
 
-  Color _statusColor(String s) {
-    switch (s) {
-      case 'DRAFT':
-        return const Color(0xFF718096);
-      case 'INPROG':
-        return const Color(0xFF003087);
-      case 'COMP':
-        return _green;
-      case 'PARTIAL':
-        return _amber;
-      default:
-        return const Color(0xFF718096);
-    }
-  }
-
-  Color _lineStatusColor(String s) {
-    switch (s) {
-      case 'DRAFT':
-        return const Color(0xFF718096);
-      case 'COMP':
-        return _green;
-      case 'MISSING':
-        return _red;
-      case 'DEFECTIVE':
-        return _red;
-      case 'INCOMP':
-        return _amber;
-      default:
-        return const Color(0xFF718096);
-    }
-  }
-
   String _fmtPeso(double v) {
     final parts = v.toStringAsFixed(2).split('.');
-    final intPart = parts[0];
-    final dec = parts[1];
-    final buffer = StringBuffer();
-    for (int i = 0; i < intPart.length; i++) {
-      if (i > 0 && (intPart.length - i) % 3 == 0) buffer.write(',');
-      buffer.write(intPart[i]);
-    }
-    return '₱$buffer.$dec';
+    final int1 = parts[0].replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => ',',
+    );
+    return '₱$int1.${parts[1]}';
   }
 
-  // ── Scan & find pending delivery ────────────────────────────
+  Future<String> _genRcvNum() async {
+    final now = DateTime.now();
+    final ds = '${now.year}'
+        '${now.month.toString().padLeft(2, '0')}'
+        '${now.day.toString().padLeft(2, '0')}';
+    final prefix = 'RCV-$ds-';
+    final snap = await FirebaseFirestore.instance
+        .collection(_col)
+        .where('receivingNum', isGreaterThanOrEqualTo: prefix)
+        .where('receivingNum', isLessThan: '${prefix}z')
+        .get();
+    return '$prefix${(snap.docs.length + 1).toString().padLeft(4, '0')}';
+  }
+
+  int _count(String status) =>
+      _rcvs.where((r) => (r['status'] as String? ?? '') == status).length;
+
+  String _autoLineStatus(int receivedQty, int poQty) {
+    if (receivedQty == 0) return 'MISSING';
+    if (receivedQty < poQty) return 'INCOMP';
+    return 'COMP';
+  }
+
+  String _computeHeaderStatus(List<Map<String, dynamic>> lines) {
+    if (lines.isEmpty) return 'INPROG';
+    final allDone = lines.every(
+      (l) => (l['lineStatus'] as String? ?? 'DRAFT') != 'DRAFT',
+    );
+    if (!allDone) return 'INPROG';
+    final allComp = lines.every(
+      (l) => (l['lineStatus'] as String? ?? 'DRAFT') == 'COMP',
+    );
+    return allComp ? 'COMP' : 'PARTIAL';
+  }
+
+  Future<String> _currentUserName() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return '';
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      return doc.data()?['name'] as String? ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  // ── Scan & find pending receiving line ──────────────────────────────────
   Future<void> _scanAndFind() async {
     setState(() => _fabOpen = false);
     final result = await Navigator.push<String>(
@@ -147,49 +219,50 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
           .where('barcode', isEqualTo: result.trim())
           .limit(1)
           .get();
-      if (snap.docs.isEmpty)
+      if (snap.docs.isEmpty) {
         snap = await FirebaseFirestore.instance
             .collection('item_master')
             .where('qr', isEqualTo: result.trim())
             .limit(1)
             .get();
-      if (snap.docs.isEmpty)
+      }
+      if (snap.docs.isEmpty) {
         snap = await FirebaseFirestore.instance
             .collection('item_master')
             .where('num', isEqualTo: result.trim().toUpperCase())
             .limit(1)
             .get();
+      }
       if (snap.docs.isNotEmpty) {
         final d = snap.docs.first.data();
         resolvedNum = (d['num'] as String? ?? '').toLowerCase();
         resolvedName = (d['name'] as String? ?? '').toLowerCase();
       }
     } catch (_) {}
+
     if (!mounted) return;
 
-    final pending = _deliveries
-        .where(
-          (d) =>
-              (d['status'] as String? ?? '') == 'DRAFT' ||
-              (d['status'] as String? ?? '') == 'INPROG',
-        )
+    final pending = _rcvs
+        .where((r) =>
+            (r['status'] as String? ?? '') == 'DRAFT' ||
+            (r['status'] as String? ?? '') == 'INPROG')
         .toList();
     Map<String, dynamic>? found;
-    int foundItemIdx = -1;
-    for (final delivery in pending) {
-      final lines = (delivery['receivingLines'] as List? ?? []);
+    int foundLineIdx = -1;
+    for (final rcv in pending) {
+      final lines = (rcv['receivingLines'] as List? ?? []);
       for (int idx = 0; idx < lines.length; idx++) {
-        final i = lines[idx];
-        final num = (i['itemNum'] as String? ?? '').toLowerCase();
-        final name = (i['itemName'] as String? ?? '').toLowerCase();
+        final l = lines[idx] as Map;
+        final num = (l['itemNum'] as String? ?? '').toLowerCase();
+        final name = (l['itemName'] as String? ?? '').toLowerCase();
         final match =
             (resolvedNum.isNotEmpty && num.contains(resolvedNum)) ||
             (resolvedName.isNotEmpty && name.contains(resolvedName)) ||
             num.contains(query) ||
             name.contains(query);
         if (match) {
-          found = delivery;
-          foundItemIdx = idx;
+          found = rcv;
+          foundLineIdx = idx;
           break;
         }
       }
@@ -199,7 +272,9 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
     if (found != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Item found in delivery from ${found['supplier']}'),
+          content: Text(
+            'Item found in ${found['receivingNum'] ?? 'receiving record'}',
+          ),
           backgroundColor: _green,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -207,14 +282,16 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
           ),
         ),
       );
-      _showReceiveModal(
-        found,
-        itemIdx: foundItemIdx >= 0 ? foundItemIdx : null,
-      );
+      // If the receiving is still DRAFT, start it first
+      if ((found['status'] as String? ?? '') == 'DRAFT') {
+        await _startReceiving(found);
+      }
+      if (!mounted) return;
+      _showReceiveLineModal(found, foundLineIdx);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No pending delivery found for that item'),
+          content: Text('No pending receiving found for that item'),
           backgroundColor: Color(0xFF718096),
           behavior: SnackBarBehavior.floating,
         ),
@@ -222,155 +299,106 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
     }
   }
 
+  // ── Build ───────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     final q = widget.searchQuery.toLowerCase();
     final searched = q.isEmpty
-        ? _deliveries
-        : _deliveries.where((d) {
-            final rcvNum = (d['receivingNum'] as String? ?? '').toLowerCase();
-            final poNum = (d['poNum'] as String? ?? '').toLowerCase();
-            final lines = (d['receivingLines'] as List? ?? []);
+        ? _rcvs
+        : _rcvs.where((r) {
+            final rn = (r['receivingNum'] as String? ?? '').toLowerCase();
+            final pn = (r['poNum'] as String? ?? '').toLowerCase();
+            final lines = (r['receivingLines'] as List? ?? []);
             final lineMatch = lines.any(
-              (i) =>
-                  (i['itemName'] as String? ?? '').toLowerCase().contains(q) ||
-                  (i['itemNum'] as String? ?? '').toLowerCase().contains(q) ||
-                  (i['supplierCode'] as String? ?? '').toLowerCase().contains(
-                    q,
-                  ),
+              (l) =>
+                  (l['itemName'] as String? ?? '').toLowerCase().contains(q) ||
+                  (l['itemNum'] as String? ?? '').toLowerCase().contains(q) ||
+                  (l['supplierCode'] as String? ?? '').toLowerCase().contains(q),
             );
-            return rcvNum.contains(q) || poNum.contains(q) || lineMatch;
+            return rn.contains(q) || pn.contains(q) || lineMatch;
           }).toList();
-
-    // Count by header status (DRAFT, INPROG, PARTIAL, COMP)
-    int draft = 0, inprog = 0, partial = 0, comp = 0;
-    for (final d in _deliveries) {
-      final status = d['status'] as String? ?? 'DRAFT';
-      switch (status) {
-        case 'DRAFT':
-          draft++;
-          break;
-        case 'INPROG':
-          inprog++;
-          break;
-        case 'PARTIAL':
-          partial++;
-          break;
-        case 'COMP':
-          comp++;
-          break;
-      }
-    }
 
     final filtered = _filter == 'all'
         ? searched
-        : searched.where((d) {
-            final status = d['status'] as String? ?? 'DRAFT';
-            return status == _filter;
-          }).toList();
+        : searched
+              .where((r) => (r['status'] as String? ?? '') == _filter)
+              .toList();
 
     return OfflineSaveListener(
       child: Stack(
         children: [
           Column(
             children: [
+              // ── Stat chips ──
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Row(
                   children: [
-                    _chip(
-                      'Draft',
-                      '$draft',
-                      const Color(0xFF718096),
-                      Icons.description_outlined,
-                      'DRAFT',
-                    ),
-                    const SizedBox(width: 6),
-                    _chip(
-                      'In Progress',
-                      '$inprog',
-                      const Color(0xFF003087),
-                      Icons.downloading_outlined,
-                      'INPROG',
-                    ),
-                    const SizedBox(width: 6),
-                    _chip(
-                      'Partial',
-                      '$partial',
-                      _amber,
-                      Icons.hourglass_empty_outlined,
-                      'PARTIAL',
-                    ),
-                    const SizedBox(width: 6),
-                    _chip(
-                      'Complete',
-                      '$comp',
-                      _green,
-                      Icons.check_circle_outline,
-                      'COMP',
-                    ),
+                    _statChip('Draft', _count('DRAFT'), _grey,
+                        Icons.edit_note_outlined, 'DRAFT'),
+                    const SizedBox(width: 8),
+                    _statChip('In Prog', _count('INPROG'), _blue,
+                        Icons.download_outlined, 'INPROG'),
+                    const SizedBox(width: 8),
+                    _statChip('Partial', _count('PARTIAL'), _amber,
+                        Icons.timelapse_outlined, 'PARTIAL'),
+                    const SizedBox(width: 8),
+                    _statChip('Completed', _count('COMP'), _green,
+                        Icons.task_alt_outlined, 'COMP'),
                   ],
                 ),
               ),
+
+              // ── List ──
               Expanded(
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
-                    : Builder(
-                        builder: (_) {
-                          final flatItems = <Map<String, dynamic>>[];
-                          for (final d in filtered) {
-                            final lines = (d['receivingLines'] as List? ?? []);
-                            for (int idx = 0; idx < lines.length; idx++) {
-                              final line = Map<String, dynamic>.from(
-                                lines[idx] as Map,
-                              );
-                              flatItems.add({
-                                ...line,
-                                '_delivery': d,
-                                '_itemIdx': idx,
-                              });
-                            }
-                            if (lines.isEmpty)
-                              flatItems.add({'_delivery': d, '_itemIdx': -1});
-                          }
-                          if (flatItems.isEmpty)
-                            return const Center(
-                              child: Text(
-                                'No items found.',
-                                style: TextStyle(color: Color(0xFF718096)),
-                              ),
-                            );
-                          return ListView.separated(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: flatItems.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 8),
-                            itemBuilder: (_, i) {
-                              final fi = flatItems[i];
-                              final d = fi['_delivery'] as Map<String, dynamic>;
-                              final itemIdx = fi['_itemIdx'] as int;
-                              return GestureDetector(
-                                onTap: () => _showItemViewModal(d, itemIdx),
-                                child: _itemCard(fi, d),
-                              );
-                            },
+                    : filtered.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.inbox_outlined,
+                                size: 48, color: Colors.grey.shade300),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'No receiving records found.',
+                              style: TextStyle(color: Color(0xFF718096)),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+                        itemCount: filtered.length,
+                        separatorBuilder: (context, i) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (context, i) {
+                          final r = filtered[i];
+                          return GestureDetector(
+                            onTap: () => _showViewModal(r),
+                            child: _rcvCard(r),
                           );
                         },
                       ),
               ),
             ],
           ),
-          // ── Backdrop ──
+
+          // ── FAB backdrop ──
           if (_fabOpen)
             Positioned.fill(
               child: GestureDetector(
                 onTap: () => setState(() => _fabOpen = false),
-                child: Container(color: Colors.transparent),
+                child: Container(color: Colors.black.withValues(alpha: 0.15)),
               ),
             ),
+
           // ── Speed-dial FAB ──
           Positioned(
-            bottom: 16,
+            bottom: 20,
             right: 16,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -378,12 +406,27 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
               children: [
                 if (_fabOpen) ...[
                   _fabAction(
-                    label: 'Create Purchase Order (PO)',
-                    icon: Icons.add_box_outlined,
+                    label: 'New Receiving from PO',
+                    icon: Icons.content_paste_outlined,
                     onTap: () {
                       setState(() => _fabOpen = false);
-                      _showNewDeliveryModal();
+                      _showCopyFromPOModal();
                     },
+                  ),
+                  const SizedBox(height: 10),
+                  _fabAction(
+                    label: 'New Blank Receiving',
+                    icon: Icons.note_add_outlined,
+                    onTap: () {
+                      setState(() => _fabOpen = false);
+                      _createBlankReceiving();
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _fabAction(
+                    label: 'Scan to Find Item',
+                    icon: Icons.qr_code_scanner,
+                    onTap: () => _scanAndFind(),
                   ),
                   const SizedBox(height: 10),
                 ],
@@ -407,11 +450,8 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                     child: AnimatedRotation(
                       turns: _fabOpen ? 0.125 : 0,
                       duration: const Duration(milliseconds: 200),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 28,
-                      ),
+                      child: const Icon(Icons.add,
+                          color: Colors.white, size: 28),
                     ),
                   ),
                 ),
@@ -423,9 +463,13 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
     );
   }
 
-  Widget _chip(
+  // ───────────────────────────────────────────────────────────────────────
+  // WIDGETS
+  // ───────────────────────────────────────────────────────────────────────
+
+  Widget _statChip(
     String label,
-    String value,
+    int count,
     Color color,
     IconData icon,
     String filter,
@@ -435,7 +479,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
       child: GestureDetector(
         onTap: () => setState(() => _filter = active ? 'all' : filter),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           decoration: BoxDecoration(
             color: active ? color.withValues(alpha: 0.08) : Colors.white,
             borderRadius: BorderRadius.circular(10),
@@ -453,29 +497,213 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
           child: Column(
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: color, size: 14),
+                child: Icon(icon, color: color, size: 16),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Text(
-                value,
+                '$count',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),
               ),
               Text(
                 label,
-                style: const TextStyle(fontSize: 8, color: Color(0xFF718096)),
-                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 10, color: Color(0xFF718096)),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _rcvCard(Map<String, dynamic> r) {
+    final status = r['status'] as String? ?? 'DRAFT';
+    final color = _hdrColor(status);
+    final label = _hdrLabels[status] ?? status;
+    final lines = (r['receivingLines'] as List? ?? []);
+    final rcvNum = r['receivingNum'] as String? ?? r['id'] as String;
+    final poNum = r['poNum'] as String? ?? '';
+
+    final doneCount = lines
+        .where((l) => (l['lineStatus'] as String? ?? 'DRAFT') != 'DRAFT')
+        .length;
+
+    final preview = lines
+        .take(2)
+        .map((l) => (l as Map)['itemName'] as String? ?? '—')
+        .join(', ');
+    final more = lines.length > 2 ? ' +${lines.length - 2} more' : '';
+
+    double total = 0;
+    for (final l in lines) {
+      final cost =
+          double.tryParse(
+            (l['unitCost']?.toString() ?? '0')
+                .replaceAll('₱', '')
+                .replaceAll(',', '')
+                .trim(),
+          ) ?? 0;
+      final qty = (l['receivedQty'] as num?)?.toInt() ?? 0;
+      total += cost * qty;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF0F4F8)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header row ──
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      rcvNum,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1a202c),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(Icons.calendar_today_outlined,
+                            size: 11, color: Color(0xFFa0aec0)),
+                        const SizedBox(width: 4),
+                        Text(
+                          _fmt(r['createdAt']),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF718096),
+                          ),
+                        ),
+                        if (poNum.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          const Icon(Icons.receipt_long_outlined,
+                              size: 11, color: Color(0xFFa0aec0)),
+                          const SizedBox(width: 4),
+                          Text(
+                            poNum,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF718096),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const Divider(height: 16, color: Color(0xFFF0F4F8)),
+
+          // ── Meta row ──
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${lines.length} item${lines.length == 1 ? '' : 's'}'
+                  ' — $doneCount/${lines.length} received',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF718096),
+                  ),
+                ),
+              ),
+              if (status == 'DRAFT')
+                _cardActionBtn('▶ Start', _blue, () => _startReceiving(r))
+              else if (status == 'INPROG')
+                _cardActionBtn('▶ Continue', _red, () => _showViewModal(r))
+              else if (total > 0)
+                Text(
+                  _fmtPeso(total),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1a202c),
+                  ),
+                ),
+            ],
+          ),
+
+          // ── Preview ──
+          if (lines.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              '$preview$more',
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF4a5568),
+                fontStyle: FontStyle.italic,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _cardActionBtn(String label, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: color,
           ),
         ),
       ),
@@ -536,186 +764,49 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
     );
   }
 
-  Widget _itemCard(Map<String, dynamic> item, Map<String, dynamic> d) {
-    final lineSt = item['lineStatus'] as String? ?? 'DRAFT';
-    final color = _lineStatusColor(lineSt);
-    final name = item['itemName'] as String? ?? '—';
-    final uom = item['uom'] as String? ?? '';
-    final supplierCode = item['supplierCode'] as String? ?? '';
-    final qty = item['poQty'] as int? ?? 0;
-    final rcvQty = item['receivedQty'] as int?;
+  // ───────────────────────────────────────────────────────────────────────
+  // NEW BLANK RECEIVING  (INPROG immediately — step 40→60)
+  // ───────────────────────────────────────────────────────────────────────
 
-    // Status label mapping
-    String statusLabel = lineSt;
-    switch (lineSt) {
-      case 'COMP':
-        statusLabel = 'Complete';
-        break;
-      case 'INCOMP':
-        statusLabel = 'Incomplete';
-        break;
-      case 'MISSING':
-        statusLabel = 'Missing';
-        break;
-      case 'DEFECTIVE':
-        statusLabel = 'Defective';
-        break;
-      case 'DRAFT':
-        statusLabel = 'Draft';
-        break;
+  Future<void> _createBlankReceiving() async {
+    final rcvNum = await _genRcvNum();
+    final name = await _currentUserName();
+    try {
+      final ref = await SyncStatusNotifier.instance.trackWrite(
+        () => FirebaseFirestore.instance.collection(_col).add({
+          'receivingNum': rcvNum,
+          'status': 'DRAFT',
+          'poRef': null,
+          'poNum': '',
+          'receivingLines': [],
+          'createdBy': name,
+          'createdAt': FieldValue.serverTimestamp(),
+        }),
+      );
+      if (!mounted) return;
+      final doc = await ref.get();
+      if (!mounted) return;
+      _showViewModal({...doc.data() as Map<String, dynamic>, 'id': doc.id});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: _red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFF0F4F8)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: RichText(
-                  text: TextSpan(
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: Color(0xFF1a202c),
-                      height: 1.3,
-                    ),
-                    children: [
-                      TextSpan(text: name),
-                      if (uom.isNotEmpty)
-                        TextSpan(
-                          text: '  ($uom)',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w400,
-                            color: Color(0xFF718096),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  statusLabel,
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              if (supplierCode.isNotEmpty) ...[
-                Text(
-                  supplierCode,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF718096),
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-              Text(
-                'Qty: $qty',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF4a5568),
-                ),
-              ),
-              const Spacer(),
-              const Icon(
-                Icons.chevron_right,
-                size: 16,
-                color: Color(0xFFa0aec0),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 
-  // ── Item View Modal (per-item) — website-matching design ──
-  void _showItemViewModal(Map<String, dynamic> d, int itemIdx) async {
-    if (itemIdx < 0) {
-      _showViewModal(d);
-      return;
-    }
-    final items = (d['items'] as List? ?? []);
-    if (itemIdx >= items.length) return;
-    final item = Map<String, dynamic>.from(items[itemIdx] as Map);
-    final itemSt =
-        item['itemStatus'] as String? ?? d['status'] as String? ?? 'Pending';
-    final name = item['itemName'] as String? ?? '—';
-    final uom = item['uom'] as String? ?? '';
-    final qty = item['expectedQty'] as int? ?? 0;
-    final supplierCode = item['supplierCode'] as String? ?? '';
-    final actual = item['actualQty'] as int?;
-    final cond = item['condition'] as String? ?? '—';
-    final remark = item['remark'] as String? ?? '';
+  // ───────────────────────────────────────────────────────────────────────
+  // COPY FROM PO MODAL
+  // ───────────────────────────────────────────────────────────────────────
 
-    // Fetch stock and cost
-    // Use stockAtReceive (frozen at receive time) if available, else fetch live stock
-    int? currentStock = item['stockAtReceive'] as int?;
-    double unitCost = 0;
-    final itemNum = item['itemNum'] as String? ?? '';
-    if (itemNum.isNotEmpty) {
-      if (currentStock == null) {
-        try {
-          final stockSnap = await FirebaseFirestore.instance
-              .collection('stock_inventory')
-              .where('num', isEqualTo: itemNum)
-              .limit(1)
-              .get();
-          if (stockSnap.docs.isNotEmpty)
-            currentStock =
-                (stockSnap.docs.first['stock'] as num?)?.toInt() ?? 0;
-        } catch (_) {}
-      }
-      try {
-        final masterSnap = await FirebaseFirestore.instance
-            .collection('item_master')
-            .where('num', isEqualTo: itemNum)
-            .limit(1)
-            .get();
-        if (masterSnap.docs.isNotEmpty)
-          unitCost =
-              double.tryParse(
-                (masterSnap.docs.first['cost']?.toString() ?? '0')
-                    .replaceAll('₱', '')
-                    .replaceAll(',', '')
-                    .trim(),
-              ) ??
-              0;
-      } catch (_) {}
-    }
-    if (!mounted) return;
-    final subtotal = unitCost * qty;
+  void _showCopyFromPOModal() async {
+    List<Map<String, dynamic>> pos = [];
+    bool loadingPOs = true;
 
     showModalBottomSheet(
       context: context,
@@ -724,805 +815,67 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.65,
-        maxChildSize: 0.92,
-        builder: (ctx2, ctrl) => SingleChildScrollView(
-          controller: ctrl,
-          child: Column(
-            children: [
-              // ── Red header with item name + supplier code ──
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFFE31E24), Color(0xFFC41E3A)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '$name${uom.isNotEmpty ? '  ($uom)' : ''}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              height: 1.3,
-                            ),
-                          ),
-                          if (supplierCode.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              supplierCode,
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(ctx2),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── 2x2 Info grid ──
-                    Row(
-                      children: [
-                        Expanded(child: _ivInfoCard('ORDER QUANTITY', '$qty')),
-                        const SizedBox(width: 10),
-                        if (currentStock != null)
-                          Expanded(
-                            child: _ivInfoCard(
-                              'CURRENT STOCK',
-                              '$currentStock',
-                            ),
-                          )
-                        else
-                          const Expanded(child: SizedBox.shrink()),
-                      ],
-                    ),
-                    if (unitCost > 0) ...[
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _ivInfoCard(
-                              'UNIT PRICE',
-                              _fmtPeso(unitCost),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _ivInfoCard(
-                              'SUBTOTAL',
-                              _fmtPeso(subtotal),
-                              valueColor: _red,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    // ── Receiving details (if received) ──
-                    if (actual != null) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFFe2e8f0),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'RECEIVING DETAILS',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF4a5568),
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Actual Qty',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Color(0xFFa0aec0),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '$actual',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: cond == 'OK'
-                                              ? _green
-                                              : cond == 'Defective'
-                                              ? _red
-                                              : _amber,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Condition',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Color(0xFFa0aec0),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color:
-                                              (cond == 'OK'
-                                                      ? _green
-                                                      : cond == 'Defective'
-                                                      ? _red
-                                                      : _amber)
-                                                  .withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          cond,
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                            color: cond == 'OK'
-                                                ? _green
-                                                : cond == 'Defective'
-                                                ? _red
-                                                : _amber,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Difference',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Color(0xFFa0aec0),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        actual - qty == 0
-                                            ? '0'
-                                            : '${actual - qty > 0 ? '+' : ''}${actual - qty}',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: actual - qty == 0
-                                              ? _green
-                                              : actual - qty < 0
-                                              ? _red
-                                              : _amber,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (remark.isNotEmpty) ...[
-                              const SizedBox(height: 10),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFFBEB),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  'Remarks: $remark',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF92400E),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                    // ── Delivery info (only show if not pending) ──
-                    if (itemSt != 'Pending') ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFFe2e8f0),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'DELIVERY INFO',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF4a5568),
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            if (_fmtOrderDate(d['createdAt']) != '—')
-                              _ivInfoRow(
-                                'Order Date',
-                                _fmtOrderDate(d['createdAt']),
-                              ),
-                            if ((item['receivedAt'] as String? ??
-                                    (d['receivedAt'] is String
-                                        ? d['receivedAt'] as String
-                                        : ''))
-                                .isNotEmpty)
-                              _ivInfoRow(
-                                'Received Date',
-                                _fmt(
-                                  item['receivedAt'] as String? ??
-                                      (d['receivedAt'] is String
-                                          ? d['receivedAt'] as String
-                                          : ''),
-                                ),
-                              ),
-                            if ((d['receivedBy'] as String? ?? '').isNotEmpty)
-                              _ivInfoRow(
-                                'Received By',
-                                d['receivedBy'] as String,
-                              ),
-                            if ((d['checkedBy'] as String? ?? '').isNotEmpty)
-                              _ivInfoRow(
-                                'Checked By',
-                                d['checkedBy'] as String,
-                              ),
-                            if ((d['reviewNotes'] as String? ?? '').isNotEmpty)
-                              _ivInfoRow(
-                                'Review Notes',
-                                d['reviewNotes'] as String,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 20),
-                    // ── Action buttons ──
-                    if (itemSt == 'Pending') ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(ctx2);
-                            _showReceiveModal(d, itemIdx: itemIdx);
-                          },
-                          icon: const Icon(Icons.download_outlined, size: 16),
-                          label: const Text(
-                            'Receive Item',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _red,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 15),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            elevation: 4,
-                          ),
-                        ),
-                      ),
-                    ] else if (itemSt == 'Awaiting Double Check') ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        decoration: BoxDecoration(
-                          color: _amber.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(
-                            color: _amber.withValues(alpha: 0.3),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.hourglass_empty_outlined,
-                              size: 16,
-                              color: _amber,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Awaiting Review',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: _amber,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ] else if (itemSt == 'Approved') ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        decoration: BoxDecoration(
-                          color: _green.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(
-                            color: _green.withValues(alpha: 0.3),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.check_circle_outline,
-                              size: 16,
-                              color: _green,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Approved',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: _green,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ] else if (itemSt == 'Rejected') ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        decoration: BoxDecoration(
-                          color: _red.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(
-                            color: _red.withValues(alpha: 0.3),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.cancel_outlined, size: 16, color: _red),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Rejected',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: _red,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _ivInfoCard(String label, String value, {Color? valueColor}) =>
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFe2e8f0)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 10,
-                color: Color(0xFFa0aec0),
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: valueColor ?? const Color(0xFF1a202c),
-              ),
-            ),
-          ],
-        ),
-      );
-
-  Widget _ivInfoRow(String label, String value) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: Color(0xFFF0F4F8))),
-    ),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF718096)),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1a202c),
-          ),
-        ),
-      ],
-    ),
-  );
-
-  // ── New Delivery Request Modal (create OR edit) ─────────────
-  void _showNewDeliveryModal({Map<String, dynamic>? existing}) {
-    final isEdit = existing != null;
-    List<Map<String, dynamic>> replenishItems = [];
-    List<Map<String, dynamic>> addedItems = List<Map<String, dynamic>>.from(
-      (existing?['items'] as List? ?? []).map(
-        (i) => Map<String, dynamic>.from(i as Map),
-      ),
-    );
-    final Map<int, TextEditingController> qtyCtrlrs = {};
-    bool loadingItems = true;
-    bool saving = false;
-    Set<String> addedNums = addedItems
-        .map((i) => i['itemNum'] as String? ?? '')
-        .toSet();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setModal) {
-          if (loadingItems) {
-            Future.microtask(() async {
-              try {
-                final stockSnap = await FirebaseFirestore.instance
-                    .collection('stock_inventory')
-                    .get();
-                final numToStockData = <String, Map<String, int>>{};
-                final needReplenish = <Map<String, dynamic>>[];
-                for (final d in stockSnap.docs) {
-                  final s = d.data();
-                  final n = s['num'] as String? ?? '';
-                  final stock = (s['stock'] as num?)?.toInt() ?? 0;
-                  final min = (s['min'] as num?)?.toInt() ?? 0;
-                  final max = (s['max'] as num?)?.toInt() ?? 0;
-                  if (n.isNotEmpty)
-                    numToStockData[n] = {
-                      'stock': stock,
-                      'min': min,
-                      'max': max,
-                    };
-                  if (stock == 0 || stock <= min) needReplenish.add(s);
-                }
-
-                final numToCost = <String, double>{};
-                final numToSupplierCode = <String, String>{};
-                final allMaterials = <Map<String, dynamic>>[];
-                try {
-                  final masterSnap = await FirebaseFirestore.instance
-                      .collection('item_master')
-                      .get();
-                  for (final d in masterSnap.docs) {
-                    final data = d.data();
-                    if ((data['type'] as String? ?? '') != 'Material') continue;
-                    final n = data['num'] as String? ?? '';
-                    final c =
-                        double.tryParse(
-                          (data['cost']?.toString() ?? '0')
-                              .replaceAll('₱', '')
-                              .replaceAll(',', '')
-                              .trim(),
-                        ) ??
-                        0;
-                    final sc = data['supplierCode'] as String? ?? '';
-                    if (n.isNotEmpty) {
-                      numToCost[n] = c;
-                      numToSupplierCode[n] = sc;
-                    }
-                    final sd = numToStockData[n];
-                    allMaterials.add({
-                      'num': n,
-                      'name': data['name'] as String? ?? '',
-                      'uom': data['uom'] as String? ?? '',
-                      'supplierCode': sc,
-                      '_cost': c,
-                      '_stock': sd?['stock'] ?? 0,
-                      '_minLevel': sd?['min'] ?? 0,
-                      '_maxLevel': sd?['max'] ?? 0,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setModal) {
+          if (loadingPOs) {
+            FirebaseFirestore.instance
+                .collection(_poCol)
+                .where('status', whereIn: ['Ordered', 'Pending'])
+                .orderBy('createdAt', descending: true)
+                .get()
+                .then((snap) {
+                  if (ctx2.mounted) {
+                    setModal(() {
+                      pos = snap.docs
+                          .map((d) => {...d.data(), 'id': d.id})
+                          .toList();
+                      loadingPOs = false;
                     });
                   }
-                } catch (_) {}
-
-                // Collect item nums already in active (non-approved/rejected) deliveries
-                final activeDeliveryNums = <String>{};
-                for (final d in _deliveries) {
-                  final st = d['status'] as String? ?? 'Pending';
-                  if (st == 'Approved' || st == 'Rejected') continue;
-                  if (isEdit && d['id'] == existing?['id']) continue;
-                  for (final item in (d['items'] as List? ?? [])) {
-                    final itemSt = (item as Map)['itemStatus'] as String? ?? st;
-                    if (itemSt != 'Approved' && itemSt != 'Rejected') {
-                      activeDeliveryNums.add(item['itemNum'] as String? ?? '');
-                    }
-                  }
-                }
-
-                final loaded =
-                    needReplenish
-                        .map((s) {
-                          final n = s['num'] as String? ?? '';
-                          return <String, dynamic>{
-                            'num': n,
-                            'name': s['name'] as String? ?? '',
-                            'uom': s['uom'] as String? ?? '',
-                            'supplierCode': numToSupplierCode[n] ?? '',
-                            '_stock': (s['stock'] as num?)?.toInt() ?? 0,
-                            '_minLevel': (s['min'] as num?)?.toInt() ?? 0,
-                            '_maxLevel': (s['max'] as num?)?.toInt() ?? 0,
-                            '_cost': numToCost[n] ?? 0.0,
-                          };
-                        })
-                        .where(
-                          (m) => !activeDeliveryNums.contains(
-                            m['num'] as String? ?? '',
-                          ),
-                        )
-                        .toList()
-                      ..sort((a, b) {
-                        if ((a['_stock'] as int) == 0 &&
-                            (b['_stock'] as int) != 0)
-                          return -1;
-                        if ((b['_stock'] as int) == 0 &&
-                            (a['_stock'] as int) != 0)
-                          return 1;
-                        return (a['name'] as String).compareTo(
-                          b['name'] as String,
-                        );
-                      });
-                // Enrich pre-existing addedItems (edit mode) with cost+stock
-                if (addedItems.isNotEmpty) {
-                  final enriched = <Map<String, dynamic>>[];
-                  for (final item in addedItems) {
-                    final n = item['itemNum'] as String? ?? '';
-                    final c = numToCost[n] ?? 0.0;
-                    int? stockVal;
-                    try {
-                      final ss = await FirebaseFirestore.instance
-                          .collection('stock_inventory')
-                          .where('num', isEqualTo: n)
-                          .limit(1)
-                          .get();
-                      if (ss.docs.isNotEmpty)
-                        stockVal = (ss.docs.first['stock'] as num?)?.toInt();
-                    } catch (_) {}
-                    enriched.add({
-                      ...item,
-                      '_cost': c,
-                      '_stock': stockVal,
-                      'supplierCode': numToSupplierCode[n] ?? '',
-                      '_maxQty': (item['expectedQty'] as int?) ?? 1,
-                    });
-                  }
-                  if (ctx.mounted)
-                    setModal(
-                      () => addedItems
-                        ..clear()
-                        ..addAll(enriched),
-                    );
-                }
-
-                if (ctx.mounted)
-                  setModal(() {
-                    replenishItems = loaded;
-                    loadingItems = false;
-                  });
-              } catch (_) {
-                if (ctx.mounted)
-                  setModal(() {
-                    loadingItems = false;
-                  });
-              }
-            });
-          }
-
-          final visible = replenishItems.where((item) {
-            final n = item['num'] as String? ?? '';
-            return !addedNums.contains(n);
-          }).toList();
-
-          Widget statusBadge(int stock, int min) {
-            if (stock == 0)
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFfef2f2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFfca5a5)),
-                ),
-                child: const Text(
-                  'Out of Stock',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFe53e3e),
-                  ),
-                ),
-              );
-            if (stock <= min)
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFBEB),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFFCD34D)),
-                ),
-                child: const Text(
-                  'Low Stock',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFd69e2e),
-                  ),
-                ),
-              );
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0FFF4),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF9AE6B4)),
-              ),
-              child: const Text(
-                'In Stock',
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF38a169),
-                ),
-              ),
-            );
+                })
+                .catchError((_) {
+                  if (ctx2.mounted) setModal(() => loadingPOs = false);
+                });
           }
 
           return DraggableScrollableSheet(
             expand: false,
-            initialChildSize: 0.92,
-            maxChildSize: 1.0,
+            initialChildSize: 0.55,
+            maxChildSize: 0.88,
             builder: (_, ctrl) => Column(
               children: [
-                // Header
+                // Header — blue gradient
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                   decoration: const BoxDecoration(
-                    color: _red,
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF003087), Color(0xFF0050c8)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(24),
+                      top: Radius.circular(20),
                     ),
                   ),
                   child: Row(
                     children: [
-                      Expanded(
+                      const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              isEdit
-                                  ? 'Edit Purchase Order (PO)'
-                                  : 'Purchase Order (PO)',
-                              style: const TextStyle(
+                              'New Receiving from PO',
+                              style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
+                            SizedBox(height: 2),
                             Text(
-                              isEdit
-                                  ? 'Update items for this delivery'
-                                  : 'Submit for admin approval',
-                              style: const TextStyle(
+                              'Select an ordered PO to create a receiving record',
+                              style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 11,
                               ),
@@ -1531,379 +884,507 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () => Navigator.pop(ctx),
-                        child: const Icon(Icons.close, color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-                // Info banner
-                Container(
-                  color: const Color(0xFFEFF6FF),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        size: 14,
-                        color: Color(0xFF1E40AF),
-                      ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Your request will be reviewed and approved by an admin before processing.',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF1E40AF),
+                        onTap: () => Navigator.pop(ctx2),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            shape: BoxShape.circle,
                           ),
+                          child: const Icon(Icons.close,
+                              color: Colors.white, size: 18),
                         ),
                       ),
                     ],
                   ),
                 ),
                 Expanded(
+                  child: loadingPOs
+                      ? const Center(child: CircularProgressIndicator())
+                      : pos.isEmpty
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Text(
+                              'No ordered POs found.\n'
+                              'POs must be in "Ordered" status.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Color(0xFF718096),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          controller: ctrl,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: pos.length,
+                          separatorBuilder: (context, i) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (context, i) {
+                            final po = pos[i];
+                            final items = (po['items'] as List? ?? []);
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.pop(ctx2);
+                                _createReceivingFromPO(po);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: const Color(0xFFe2e8f0),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black
+                                          .withValues(alpha: 0.04),
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 38,
+                                      height: 38,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEBF4FF),
+                                        borderRadius:
+                                            BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.description_outlined,
+                                        size: 18,
+                                        color: Color(0xFF003087),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            po['poNum'] as String? ??
+                                                po['id'] as String,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                              color: Color(0xFF1a202c),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${_fmt(po['createdAt'])}  •  '
+                                            '${items.length} item${items.length == 1 ? '' : 's'}'
+                                            '${(po['totalAmount'] as num? ?? 0) > 0 ? '  •  ${_fmtPeso((po['totalAmount'] as num).toDouble())}' : ''}',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Color(0xFF718096),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.chevron_right,
+                                        size: 18, color: Color(0xFFa0aec0)),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _createReceivingFromPO(Map<String, dynamic> po) async {
+    final rcvNum = await _genRcvNum();
+    final name = await _currentUserName();
+
+    final poItems = (po['items'] as List? ?? []);
+    final lines = poItems.map((item) {
+      final m = item as Map;
+      return {
+        'itemNum': m['itemNum'] ?? '',
+        'itemName': m['itemName'] ?? '',
+        'uom': m['uom'] ?? '',
+        'supplierCode': m['supplierCode'] ?? '',
+        'unitCost':
+            double.tryParse(
+              (m['unitCost']?.toString() ?? '0')
+                  .replaceAll('₱', '')
+                  .replaceAll(',', '')
+                  .trim(),
+            ) ?? 0.0,
+        'poQty': (m['expectedQty'] as num?)?.toInt() ?? 0,
+        'receivedQty': 0,
+        'lineStatus': 'DRAFT',
+        'remark': '',
+        'receivedAt': null,
+        'receivedBy': '',
+      };
+    }).toList();
+
+    try {
+      final ref = await SyncStatusNotifier.instance.trackWrite(
+        () => FirebaseFirestore.instance.collection(_col).add({
+          'receivingNum': rcvNum,
+          'status': 'DRAFT',
+          'poRef': po['id'] as String,
+          'poNum': po['poNum'] ?? '',
+          'receivingLines': lines,
+          'createdBy': name,
+          'createdAt': FieldValue.serverTimestamp(),
+        }),
+      );
+
+      try {
+        await SyncStatusNotifier.instance.trackWrite(
+          () => FirebaseFirestore.instance
+              .collection(_poCol)
+              .doc(po['id'] as String)
+              .update({
+                'status': 'Partially Received',
+                'updatedAt': FieldValue.serverTimestamp(),
+              }),
+        );
+      } catch (_) {}
+
+      if (!mounted) return;
+      final doc = await ref.get();
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$rcvNum created from ${po['poNum'] ?? 'PO'}'),
+          backgroundColor: _green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+
+      _showViewModal({...doc.data() as Map<String, dynamic>, 'id': doc.id});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: _red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // START RECEIVING  (DRAFT → INPROG)
+  // ───────────────────────────────────────────────────────────────────────
+
+  Future<void> _startReceiving(Map<String, dynamic> r) async {
+    try {
+      await SyncStatusNotifier.instance.trackWrite(
+        () => FirebaseFirestore.instance
+            .collection(_col)
+            .doc(r['id'] as String)
+            .update({
+              'status': 'INPROG',
+              'startedAt': FieldValue.serverTimestamp(),
+            }),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: _red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // VIEW MODAL  (card view + line list + actions)
+  // ───────────────────────────────────────────────────────────────────────
+
+  void _showViewModal(Map<String, dynamic> r) {
+    final docId = r['id'] as String;
+    // Static values that don't change for the lifetime of this modal
+    final rcvNum = r['receivingNum'] as String? ?? r['id'] as String;
+    final poNum = r['poNum'] as String? ?? '';
+    final createdAt = r['createdAt'];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        builder: (_, ctrl) => StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection(_col)
+              .doc(docId)
+              .snapshots(),
+          builder: (ctx2, snap) {
+            // Use fresh data from stream; fall back to original r while loading
+            final data = snap.hasData && snap.data!.exists
+                ? {...(snap.data!.data() as Map<String, dynamic>), 'id': docId}
+                : r;
+
+            final status = data['status'] as String? ?? 'DRAFT';
+            final color = _hdrColor(status);
+            final label = _hdrLabels[status] ?? status;
+            final lines = List<Map<String, dynamic>>.from(
+              (data['receivingLines'] as List? ?? []).map(
+                (l) => Map<String, dynamic>.from(l as Map),
+              ),
+            );
+            double total = 0;
+            for (final l in lines) {
+              final c = double.tryParse(
+                    (l['unitCost']?.toString() ?? '0')
+                        .replaceAll('₱', '')
+                        .replaceAll(',', '')
+                        .trim(),
+                  ) ??
+                  0;
+              total += c * ((l['receivedQty'] as num?)?.toInt() ?? 0);
+            }
+
+            return Column(
+              children: [
+                // ── Gradient header ──
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color.withValues(alpha: 1.0), color],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              rcvNum,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white24,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    label,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                if (poNum.isNotEmpty) ...[
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'PO: $poNum',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(ctx),
+                        child: Container(
+                          width: 32, height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close,
+                              color: Colors.white, size: 18),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                Expanded(
                   child: SingleChildScrollView(
                     controller: ctrl,
-                    padding: EdgeInsets.only(
-                      left: 20,
-                      right: 20,
-                      top: 20,
-                      bottom: MediaQuery.viewInsetsOf(ctx).bottom + 24,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // ── Summary row ──
+                        Row(
+                          children: [
+                            Expanded(child: _infoCard('CREATED', _fmt(createdAt))),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _infoCard(
+                                'LINES',
+                                '${lines.where((l) => (l['lineStatus'] as String? ?? 'DRAFT') != 'DRAFT').length}/${lines.length} done',
+                              ),
+                            ),
+                            if (total > 0) ...[
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _infoCard(
+                                  'TOTAL',
+                                  _fmtPeso(total),
+                                  valueColor: _red,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+
+                        // ── Lines list ──
+                        const SizedBox(height: 16),
                         Text(
-                          loadingItems
-                              ? 'Loading items…'
-                              : 'Items that need replenishment',
+                          'Receiving Lines (${lines.length})',
                           style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF718096),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1a202c),
                           ),
                         ),
                         const SizedBox(height: 8),
-                        if (loadingItems)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16),
-                              child: CircularProgressIndicator(),
-                            ),
-                          )
-                        else if (visible.isEmpty)
+
+                        if (lines.isEmpty)
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF0FFF4),
+                              color: const Color(0xFFF7F8FA),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: const Color(0xFF9AE6B4),
-                              ),
+                              border: Border.all(color: const Color(0xFFe2e8f0)),
                             ),
                             child: const Row(
                               children: [
-                                Icon(
-                                  Icons.check_circle_outline,
-                                  color: Color(0xFF38a169),
-                                  size: 16,
-                                ),
+                                Icon(Icons.inbox_outlined,
+                                    size: 18, color: Color(0xFFa0aec0)),
                                 SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'All items are sufficiently stocked.',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF38a169),
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                Text(
+                                  'No items — add lines to receive.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF718096),
                                   ),
                                 ),
                               ],
                             ),
                           )
                         else
-                          Container(
-                            constraints: const BoxConstraints(maxHeight: 260),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: const Color(0xFFe2e8f0),
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: ListView.separated(
-                                shrinkWrap: true,
-                                itemCount: visible.length,
-                                separatorBuilder: (_, __) => const Divider(
-                                  height: 1,
-                                  color: Color(0xFFf0f4f8),
-                                ),
-                                itemBuilder: (_, i) {
-                                  final item = visible[i];
-                                  final num = item['num'] as String? ?? '';
-                                  final name = item['name'] as String? ?? '';
-                                  final uom = item['uom'] as String? ?? '';
-                                  final supplierCode =
-                                      item['supplierCode'] as String? ?? '';
-                                  final stock = item['_stock'] as int? ?? 0;
-                                  final min = item['_minLevel'] as int? ?? 0;
-                                  final max = item['_maxLevel'] as int? ?? 0;
-                                  final cost = item['_cost'] is double
-                                      ? item['_cost'] as double
-                                      : double.tryParse(
-                                              item['_cost']?.toString() ?? '0',
-                                            ) ??
-                                            0.0;
-                                  final rec = max > 0
-                                      ? (max - stock).clamp(0, 9999)
-                                      : 1;
-                                  final added = addedNums.contains(num);
-                                  return GestureDetector(
-                                    onTap: added
-                                        ? null
-                                        : () {
-                                            final rowIdx = addedItems.length;
-                                            qtyCtrlrs[rowIdx] =
-                                                TextEditingController(
-                                                  text: '$rec',
-                                                );
-                                            setModal(() {
-                                              addedItems.add({
-                                                'itemNum': num,
-                                                'itemName': name,
-                                                'uom': uom,
-                                                'expectedQty': rec,
-                                                '_rowIdx': rowIdx,
-                                                '_cost': cost,
-                                                '_stock': stock,
-                                                'supplierCode': supplierCode,
-                                                '_maxQty': rec,
-                                              });
-                                              addedNums.add(num);
-                                            });
-                                          },
-                                    child: AnimatedOpacity(
-                                      duration: const Duration(
-                                        milliseconds: 200,
-                                      ),
-                                      opacity: added ? 0.35 : 1.0,
-                                      child: Container(
-                                        color: added
-                                            ? const Color(0xFFF7F8FA)
-                                            : Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 14,
-                                          vertical: 11,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  RichText(
-                                                    text: TextSpan(
-                                                      style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        fontSize: 13,
-                                                        color: Color(
-                                                          0xFF1a202c,
-                                                        ),
-                                                      ),
-                                                      children: [
-                                                        TextSpan(text: name),
-                                                        if (uom.isNotEmpty)
-                                                          TextSpan(
-                                                            text: '  ($uom)',
-                                                            style:
-                                                                const TextStyle(
-                                                                  fontSize: 11,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w400,
-                                                                  color: Color(
-                                                                    0xFF718096,
-                                                                  ),
-                                                                ),
-                                                          ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 3),
-                                                  Wrap(
-                                                    spacing: 6,
-                                                    children: [
-                                                      if (supplierCode
-                                                          .isNotEmpty)
-                                                        Text(
-                                                          supplierCode,
-                                                          style:
-                                                              const TextStyle(
-                                                                fontSize: 11,
-                                                                color: Color(
-                                                                  0xFF718096,
-                                                                ),
-                                                              ),
-                                                        ),
-                                                      Text(
-                                                        'Current: $stock',
-                                                        style: const TextStyle(
-                                                          fontSize: 11,
-                                                          color: Color(
-                                                            0xFF718096,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      if (cost > 0)
-                                                        Text(
-                                                          '${_fmtPeso(cost)}/unit',
-                                                          style:
-                                                              const TextStyle(
-                                                                fontSize: 11,
-                                                                color: Color(
-                                                                  0xFF718096,
-                                                                ),
-                                                              ),
-                                                        ),
-                                                      statusBadge(stock, min),
-                                                      if (rec > 0 && !added)
-                                                        Text(
-                                                          'Suggest order: $rec',
-                                                          style:
-                                                              const TextStyle(
-                                                                fontSize: 11,
-                                                                color: Color(
-                                                                  0xFF718096,
-                                                                ),
-                                                              ),
-                                                        ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            added
-                                                ? const Icon(
-                                                    Icons.check_circle,
-                                                    size: 18,
-                                                    color: Color(0xFF38a169),
-                                                  )
-                                                : const Icon(
-                                                    Icons.add_circle_outline,
-                                                    size: 18,
-                                                    color: Color(0xFFE8001C),
-                                                  ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                        // Added items list
-                        if (addedItems.isNotEmpty) ...[
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Items Added',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1a202c),
-                                ),
-                              ),
-                              Text(
-                                '${addedItems.length} item${addedItems.length != 1 ? 's' : ''}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF718096),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          ...addedItems.asMap().entries.map((e) {
-                            final rowIdx = e.key;
-                            final item = e.value;
-                            final itemCost = item['_cost'] is double
-                                ? item['_cost'] as double
-                                : double.tryParse(
-                                        item['_cost']?.toString() ?? '0',
-                                      ) ??
-                                      0.0;
-                            final itemStock = item['_stock'] as int?;
-                            final uom = item['uom'] as String? ?? '';
-                            qtyCtrlrs.putIfAbsent(
-                              rowIdx,
-                              () => TextEditingController(
-                                text: '${item['expectedQty'] ?? 1}',
-                              ),
-                            );
-                            final qty =
-                                int.tryParse(qtyCtrlrs[rowIdx]!.text) ??
-                                (item['expectedQty'] as int? ?? 1);
-                            final subtotal = itemCost * qty;
+                          ...lines.asMap().entries.map((e) {
+                            final i = e.key;
+                            final line = e.value;
+                            final lst = line['lineStatus'] as String? ?? 'DRAFT';
+                            final lc = _lineColor(lst);
+                            final ll = _lineLabels[lst] ?? lst;
+                            final pQty = (line['poQty'] as num?)?.toInt() ?? 0;
+                            final rQty = (line['receivedQty'] as num?)?.toInt() ?? 0;
+                            final canReceive =
+                                (status == 'INPROG' || status == 'DRAFT') &&
+                                lst == 'DRAFT';
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(14),
+                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: const Color(0xFFe2e8f0),
-                                  width: 1.2,
-                                ),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFe2e8f0)),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withValues(alpha: 0.03),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.02),
-                                    blurRadius: 2,
-                                    offset: const Offset(0, 1),
+                                    blurRadius: 4,
                                   ),
                                 ],
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // ── Header: name + remove ──
                                   Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
+                                      Container(
+                                        width: 20, height: 20,
+                                        decoration: BoxDecoration(
+                                          color: _red.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            '${i + 1}',
+                                            style: const TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w700,
+                                              color: _red,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
                                       Expanded(
                                         child: RichText(
                                           text: TextSpan(
                                             style: const TextStyle(
+                                              fontSize: 13,
                                               fontWeight: FontWeight.w700,
-                                              fontSize: 14,
                                               color: Color(0xFF1a202c),
-                                              height: 1.3,
                                             ),
                                             children: [
                                               TextSpan(
-                                                text:
-                                                    item['itemName']
-                                                        as String? ??
-                                                    '',
+                                                text: line['itemName'] as String? ?? '—',
                                               ),
-                                              if (uom.isNotEmpty)
+                                              if ((line['uom'] as String? ?? '').isNotEmpty)
                                                 TextSpan(
-                                                  text: '  ($uom)',
+                                                  text: '  (${line['uom']})',
                                                   style: const TextStyle(
                                                     fontSize: 11,
                                                     fontWeight: FontWeight.w400,
@@ -1914,300 +1395,130 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(width: 10),
-                                      GestureDetector(
-                                        onTap: () {
-                                          final removedNum =
-                                              addedItems[rowIdx]['itemNum']
-                                                  as String? ??
-                                              '';
-                                          setModal(() {
-                                            addedItems.removeAt(rowIdx);
-                                            qtyCtrlrs.remove(rowIdx);
-                                            addedNums.remove(removedNum);
-                                          });
-                                        },
-                                        child: Container(
-                                          width: 28,
-                                          height: 28,
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFFEF2F2),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                            border: Border.all(
-                                              color: const Color(0xFFfecaca),
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.close_rounded,
-                                            size: 15,
-                                            color: Color(0xFFe53e3e),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: lc.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          ll,
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w700,
+                                            color: lc,
                                           ),
                                         ),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 8),
-                                  // ── Meta info chips ──
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 6,
+                                  Row(
                                     children: [
-                                      if ((item['supplierCode'] as String? ??
-                                              '')
-                                          .isNotEmpty)
-                                        _metaChip(
-                                          item['supplierCode'] as String,
-                                          Icons.qr_code,
-                                          const Color(0xFF4a5568),
-                                        ),
-                                      if (itemCost > 0)
-                                        _metaChip(
-                                          '${_fmtPeso(itemCost)}',
-                                          Icons.sell_outlined,
-                                          const Color(0xFF003087),
-                                        ),
-                                      if (itemStock != null)
-                                        _metaChip(
-                                          'Stock: $itemStock',
-                                          Icons.inventory_2_outlined,
-                                          itemStock == 0
-                                              ? const Color(0xFFe53e3e)
-                                              : const Color(0xFF718096),
-                                        ),
+                                      _lineMeta('Order Qty', '$pQty'),
+                                      _lineMeta(
+                                        'Rcv Qty',
+                                        lst == 'DRAFT' ? '—' : '$rQty',
+                                        color: lst != 'DRAFT'
+                                            ? (rQty >= pQty ? _green : _amber)
+                                            : null,
+                                      ),
+                                      _lineMeta('Item #', line['itemNum'] as String? ?? '—'),
+                                      _lineMeta('OEM #', line['oem'] as String? ?? '—'),
                                     ],
                                   ),
-                                  const SizedBox(height: 12),
-                                  // ── Qty stepper row ──
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF8FAFC),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: const Color(0xFFe2e8f0),
+                                  if ((line['remark'] as String? ?? '').isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFFBEB),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        line['remark'] as String,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: Color(0xFF92400E),
+                                        ),
                                       ),
                                     ),
-                                    child: Row(
-                                      children: [
-                                        const Text(
-                                          'Order Quantity',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF4a5568),
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        Container(
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                            border: Border.all(
-                                              color: const Color(0xFFe2e8f0),
-                                            ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withValues(
-                                                  alpha: 0.04,
-                                                ),
-                                                blurRadius: 4,
-                                              ),
-                                            ],
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              GestureDetector(
-                                                onTap: () {
-                                                  final v =
-                                                      int.tryParse(
-                                                        qtyCtrlrs[rowIdx]!.text,
-                                                      ) ??
-                                                      1;
-                                                  if (v <= 1) return;
-                                                  qtyCtrlrs[rowIdx]!.text =
-                                                      '${v - 1}';
-                                                  setModal(
-                                                    () => addedItems[rowIdx] = {
-                                                      ...addedItems[rowIdx],
-                                                      'expectedQty': v - 1,
-                                                    },
-                                                  );
-                                                },
-                                                child: Container(
-                                                  width: 34,
-                                                  height: 34,
-                                                  decoration: const BoxDecoration(
-                                                    borderRadius:
-                                                        BorderRadius.only(
-                                                          topLeft:
-                                                              Radius.circular(
-                                                                7,
-                                                              ),
-                                                          bottomLeft:
-                                                              Radius.circular(
-                                                                7,
-                                                              ),
-                                                        ),
-                                                  ),
-                                                  child: const Icon(
-                                                    Icons.remove,
-                                                    size: 16,
-                                                    color: Color(0xFF718096),
-                                                  ),
-                                                ),
-                                              ),
-                                              Container(
-                                                width: 48,
-                                                height: 34,
-                                                decoration: const BoxDecoration(
-                                                  border: Border.symmetric(
-                                                    vertical: BorderSide(
-                                                      color: Color(0xFFe2e8f0),
-                                                    ),
-                                                  ),
-                                                ),
-                                                child: Center(
-                                                  child: TextField(
-                                                    controller:
-                                                        qtyCtrlrs[rowIdx],
-                                                    keyboardType:
-                                                        TextInputType.number,
-                                                    textAlign: TextAlign.center,
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: Color(0xFF1a202c),
-                                                    ),
-                                                    decoration:
-                                                        const InputDecoration(
-                                                          border:
-                                                              InputBorder.none,
-                                                          isDense: true,
-                                                          contentPadding:
-                                                              EdgeInsets.zero,
-                                                        ),
-                                                    onChanged: (v) {
-                                                      final maxQ =
-                                                          (addedItems[rowIdx]['_maxQty']
-                                                              as int?) ??
-                                                          9999;
-                                                      final q2 =
-                                                          (int.tryParse(v) ?? 1)
-                                                              .clamp(1, maxQ);
-                                                      if (q2.toString() != v)
-                                                        qtyCtrlrs[rowIdx]!
-                                                                .text =
-                                                            '$q2';
-                                                      setModal(
-                                                        () => addedItems[rowIdx] = {
-                                                          ...addedItems[rowIdx],
-                                                          'expectedQty': q2,
-                                                        },
-                                                      );
-                                                    },
-                                                  ),
-                                                ),
-                                              ),
-                                              GestureDetector(
-                                                onTap: () {
-                                                  final maxQ =
-                                                      (addedItems[rowIdx]['_maxQty']
-                                                          as int?) ??
-                                                      9999;
-                                                  final v =
-                                                      int.tryParse(
-                                                        qtyCtrlrs[rowIdx]!.text,
-                                                      ) ??
-                                                      1;
-                                                  if (v >= maxQ)
-                                                    return; // cap reached
-                                                  qtyCtrlrs[rowIdx]!.text =
-                                                      '${v + 1}';
-                                                  setModal(
-                                                    () => addedItems[rowIdx] = {
-                                                      ...addedItems[rowIdx],
-                                                      'expectedQty': v + 1,
-                                                    },
-                                                  );
-                                                },
-                                                child: Container(
-                                                  width: 34,
-                                                  height: 34,
-                                                  decoration: const BoxDecoration(
-                                                    borderRadius:
-                                                        BorderRadius.only(
-                                                          topRight:
-                                                              Radius.circular(
-                                                                7,
-                                                              ),
-                                                          bottomRight:
-                                                              Radius.circular(
-                                                                7,
-                                                              ),
-                                                        ),
-                                                  ),
-                                                  child: Builder(
-                                                    builder: (_) {
-                                                      final maxQ =
-                                                          (addedItems[rowIdx]['_maxQty']
-                                                              as int?) ??
-                                                          9999;
-                                                      final cur =
-                                                          int.tryParse(
-                                                            qtyCtrlrs[rowIdx]!
-                                                                .text,
-                                                          ) ??
-                                                          1;
-                                                      return Icon(
-                                                        Icons.add,
-                                                        size: 16,
-                                                        color: cur >= maxQ
-                                                            ? const Color(
-                                                                0xFFcbd5e0,
-                                                              )
-                                                            : const Color(
-                                                                0xFFE8001C,
-                                                              ),
-                                                      );
-                                                    },
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  // ── Subtotal ──
-                                  if (itemCost > 0) ...[
+                                  ],
+                                  if (canReceive) ...[
                                     const SizedBox(height: 10),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
                                       children: [
-                                        const Text(
-                                          'Subtotal  ',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Color(0xFFa0aec0),
-                                            fontWeight: FontWeight.w500,
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            onPressed: () {
+                                              Navigator.pop(ctx);
+                                              _showReceiveLineModal(data, i);
+                                            },
+                                            icon: const Icon(Icons.download_outlined,
+                                                size: 14),
+                                            label: const Text(
+                                              'Receive Item',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: _red,
+                                              side: BorderSide(
+                                                color: _red.withValues(alpha: 0.4),
+                                              ),
+                                              padding: const EdgeInsets.symmetric(
+                                                vertical: 10,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                        Text(
-                                          _fmtPeso(subtotal),
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w800,
-                                            color: Color(0xFFE8001C),
+                                        const SizedBox(width: 8),
+                                        OutlinedButton(
+                                          onPressed: () async {
+                                            final updated = List<Map<String, dynamic>>.from(lines);
+                                            updated.removeAt(i);
+                                            try {
+                                              await SyncStatusNotifier.instance.trackWrite(
+                                                () => FirebaseFirestore.instance
+                                                    .collection(_col)
+                                                    .doc(docId)
+                                                    .update({'receivingLines': updated}),
+                                              );
+                                            } catch (e) {
+                                              if (ctx.mounted) {
+                                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text('Error: $e'),
+                                                    backgroundColor: _red,
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          },
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: _red,
+                                            side: BorderSide(
+                                              color: _red.withValues(alpha: 0.4),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.delete_outline,
+                                            size: 16,
                                           ),
                                         ),
                                       ],
@@ -2217,202 +1528,491 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
                               ),
                             );
                           }),
-                          Builder(
-                            builder: (_) {
-                              final total = addedItems.fold<double>(0, (
-                                sum,
-                                i,
-                              ) {
-                                final c = i['_cost'] is double
-                                    ? i['_cost'] as double
-                                    : double.tryParse(
-                                            i['_cost']?.toString() ?? '0',
-                                          ) ??
-                                          0.0;
-                                final q = i['expectedQty'] as int? ?? 1;
-                                return sum + c * q;
-                              });
-                              if (total <= 0) return const SizedBox.shrink();
-                              return Container(
-                                margin: const EdgeInsets.only(top: 4),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
+
+                        const SizedBox(height: 20),
+
+                        // ── Footer actions ──
+                        if (status == 'DRAFT') ...[
+                          // Blank receiving: one button to start & add items
+                          if (poNum.isEmpty) ...[
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _startReceiving(data);
+                                },
+                                icon: const Icon(Icons.add_circle_outline, size: 16),
+                                label: const Text(
+                                  'Start & Add Items',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
                                 ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: const Color(0xFFe2e8f0),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _red,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                          // PO-linked receiving: standard Start Receiving button
+                          if (poNum.isNotEmpty) ...[
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _startReceiving(data);
+                                },
+                                icon: const Icon(Icons.play_arrow_outlined, size: 16),
+                                label: const Text(
+                                  'Start Receiving',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _blue,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
                                   ),
                                 ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'Estimated Total',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF4a5568),
-                                      ),
-                                    ),
-                                    Text(
-                                      _fmtPeso(total),
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF1a202c),
-                                      ),
-                                    ),
-                                  ],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                        ] else if (status == 'INPROG') ...[
+                          // Add Item button for blank receivings — primary action
+                          if (poNum.isEmpty) ...[
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () => _showAddItemModal(data),
+                                icon: const Icon(Icons.add_circle_outline, size: 16),
+                                label: const Text('Add Item',
+                                    style: TextStyle(fontWeight: FontWeight.w700)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _red,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30)),
                                 ),
-                              );
-                            },
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                        ] else if (status == 'COMP' || status == 'PARTIAL') ...[
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _archiveReceiving(data);
+                              },
+                              icon: const Icon(Icons.archive_outlined,
+                                  size: 14, color: Color(0xFF718096)),
+                              label: const Text(
+                                'Archive',
+                                style: TextStyle(
+                                  color: Color(0xFF718096),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFFcbd5e0)),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: saving
-                                ? null
-                                : () async {
-                                    if (addedItems.isEmpty) return;
-                                    // Check for duplicate items in other active deliveries
-                                    final activeDeliveries = _deliveries.where((
-                                      del,
-                                    ) {
-                                      if (isEdit && del['id'] == existing['id'])
-                                        return false;
-                                      final st =
-                                          del['status'] as String? ?? 'Pending';
-                                      return st != 'Approved' &&
-                                          st != 'Rejected';
-                                    }).toList();
-                                    final duplicates = <String>[];
-                                    for (final item in addedItems) {
-                                      final num =
-                                          item['itemNum'] as String? ?? '';
-                                      for (final del in activeDeliveries) {
-                                        final delItems =
-                                            (del['items'] as List? ?? []);
-                                        if (delItems.any(
-                                          (i) =>
-                                              (i['itemNum'] as String? ?? '') ==
-                                              num,
-                                        )) {
-                                          duplicates.add(
-                                            item['itemName'] as String? ?? '',
-                                          );
-                                          break;
-                                        }
-                                      }
-                                    }
-                                    if (duplicates.isNotEmpty) {
-                                      if (ctx.mounted)
-                                        ScaffoldMessenger.of(ctx).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Item already in an active delivery: ${duplicates.toSet().join(', ')}',
-                                            ),
-                                            backgroundColor: Colors.red,
-                                            behavior: SnackBarBehavior.floating,
-                                          ),
-                                        );
-                                      return;
-                                    }
-                                    setModal(() => saving = true);
-                                    final items = addedItems
-                                        .map(
-                                          (i) => {
-                                            'itemNum': i['itemNum'],
-                                            'itemName': i['itemName'],
-                                            'uom': i['uom'],
-                                            'expectedQty': i['expectedQty'],
-                                            'supplierCode':
-                                                i['supplierCode'] ?? '',
-                                          },
-                                        )
-                                        .toList();
-                                    try {
-                                      if (isEdit) {
-                                        await SyncStatusNotifier.instance
-                                            .trackWrite(
-                                              () => FirebaseFirestore.instance
-                                                  .collection('deliveries')
-                                                  .doc(existing['id'] as String)
-                                                  .update({'items': items}),
-                                            );
-                                      } else {
-                                        await SyncStatusNotifier.instance
-                                            .trackWrite(
-                                              () => FirebaseFirestore.instance
-                                                  .collection('deliveries')
-                                                  .add({
-                                                    'items': items,
-                                                    'status':
-                                                        'For Admin Review',
-                                                    'createdAt':
-                                                        FieldValue.serverTimestamp(),
-                                                  }),
-                                            );
-                                      }
-                                      if (ctx.mounted) {
-                                        Navigator.pop(ctx);
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              isEdit
-                                                  ? 'Request updated!'
-                                                  : 'Purchase order created successfully!',
-                                            ),
-                                            backgroundColor: isEdit
-                                                ? _red
-                                                : _green,
-                                            behavior: SnackBarBehavior.floating,
-                                            shape: const RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.all(
-                                                Radius.circular(10),
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                    } catch (e) {
-                                      setModal(() => saving = false);
-                                      if (ctx.mounted)
-                                        ScaffoldMessenger.of(ctx).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Error: $e'),
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
-                                    }
-                                  },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _red,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            child: saving
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : Text(isEdit ? 'Update' : 'Save'),
-                          ),
-                        ),
                       ],
                     ),
                   ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _infoCard(String label, String value, {Color? valueColor}) =>
+      Container(
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7F8FA),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFe2e8f0)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFa0aec0),
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: valueColor ?? const Color(0xFF1a202c),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _lineMeta(String label, String value, {Color? color}) => Expanded(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 9,
+            color: Color(0xFFa0aec0),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: color ?? const Color(0xFF4a5568),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  // ───────────────────────────────────────────────────────────────────────
+  // ADD ITEM MODAL  (blank receivings only)
+  // ───────────────────────────────────────────────────────────────────────
+
+  void _showAddItemModal(Map<String, dynamic> r) async {
+    final docId = r['id'] as String;
+    List<Map<String, dynamic>> allItems = [];
+    List<Map<String, dynamic>> filteredItems = [];
+    bool loadingItems = true;
+    final searchCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setModal) {
+          if (loadingItems) {
+            FirebaseFirestore.instance
+                .collection('item_master')
+                .get()
+                .then((snap) {
+                  if (ctx2.mounted) {
+                    final items = snap.docs
+                        .map((d) => {...d.data(), 'id': d.id})
+                        .toList();
+                    setModal(() {
+                      allItems = items;
+                      filteredItems = items;
+                      loadingItems = false;
+                    });
+                  }
+                })
+                .catchError((_) {
+                  if (ctx2.mounted) setModal(() => loadingItems = false);
+                });
+          }
+
+          void onSearch(String q) {
+            final lq = q.toLowerCase();
+            setModal(() {
+              filteredItems = lq.isEmpty
+                  ? allItems
+                  : allItems.where((i) {
+                      final name = (i['name'] as String? ?? '').toLowerCase();
+                      final num = (i['num'] as String? ?? '').toLowerCase();
+                      final sc =
+                          (i['supplierCode'] as String? ?? '').toLowerCase();
+                      return name.contains(lq) ||
+                          num.contains(lq) ||
+                          sc.contains(lq);
+                    }).toList();
+            });
+          }
+
+          return DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.75,
+            maxChildSize: 0.95,
+            builder: (_, ctrl) => Column(
+              children: [
+                // ── Header ──
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(20)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Add Item',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700)),
+                            SizedBox(height: 2),
+                            Text(
+                                'Select an item to add as a receiving line',
+                                style: TextStyle(
+                                    color: Colors.white70, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(ctx2),
+                        child: Container(
+                          width: 32, height: 32,
+                          decoration: BoxDecoration(
+                              color: Colors.white24,
+                              shape: BoxShape.circle),
+                          child: const Icon(Icons.close,
+                              color: Colors.white, size: 18),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Search box ──
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: TextField(
+                    controller: searchCtrl,
+                    onChanged: onSearch,
+                    decoration: InputDecoration(
+                      hintText: 'Search by name, item #, supplier code…',
+                      hintStyle: const TextStyle(
+                          fontSize: 12, color: Color(0xFFa0aec0)),
+                      prefixIcon: const Icon(Icons.search,
+                          size: 18, color: Color(0xFFa0aec0)),
+                      isDense: true,
+                      contentPadding:
+                          const EdgeInsets.symmetric(vertical: 10),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFe2e8f0))),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFe2e8f0))),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFE8001C))),
+                    ),
+                  ),
+                ),
+
+                // ── Item list ──
+                Expanded(
+                  child: loadingItems
+                      ? const Center(child: CircularProgressIndicator())
+                      : filteredItems.isEmpty
+                      ? const Center(
+                          child: Text('No items found.',
+                              style:
+                                  TextStyle(color: Color(0xFF718096))))
+                      : ListView.separated(
+                          controller: ctrl,
+                          padding:
+                              const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                          itemCount: filteredItems.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (_, i) {
+                            final item = filteredItems[i];
+                            final name =
+                                item['name'] as String? ?? '—';
+                            final num =
+                                item['num'] as String? ?? '';
+                            final uom =
+                                item['uom'] as String? ?? '';
+                            final sc =
+                                item['supplierCode'] as String? ?? '';
+                            final cost = double.tryParse(
+                                  (item['cost']?.toString() ?? '0')
+                                      .replaceAll('₱', '')
+                                      .replaceAll(',', '')
+                                      .trim(),
+                                ) ??
+                                0.0;
+
+                            return GestureDetector(
+                              onTap: () async {
+                                Navigator.pop(ctx2);
+                                final newLine = <String, dynamic>{
+                                  'itemNum': num,
+                                  'itemName': name,
+                                  'uom': uom,
+                                  'supplierCode': sc,
+                                  'unitCost': cost,
+                                  'poQty': 1,
+                                  'receivedQty': 0,
+                                  'lineStatus': 'DRAFT',
+                                  'remark': '',
+                                  'receivedAt': null,
+                                  'receivedBy': '',
+                                };
+                                final existingLines =
+                                    List<Map<String, dynamic>>.from(
+                                  (r['receivingLines'] as List? ?? [])
+                                      .map((l) =>
+                                          Map<String, dynamic>.from(
+                                              l as Map)),
+                                );
+                                existingLines.add(newLine);
+                                try {
+                                  await SyncStatusNotifier.instance
+                                      .trackWrite(
+                                    () => FirebaseFirestore.instance
+                                        .collection(_col)
+                                        .doc(docId)
+                                        .update({
+                                      'receivingLines': existingLines,
+                                    }),
+                                  );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            '$name added to receiving'),
+                                        backgroundColor: _green,
+                                        behavior:
+                                            SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error: $e'),
+                                        backgroundColor: _red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius:
+                                      BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color:
+                                          const Color(0xFFe2e8f0)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black
+                                          .withValues(alpha: 0.03),
+                                      blurRadius: 4,
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          RichText(
+                                            text: TextSpan(
+                                              style: const TextStyle(
+                                                fontWeight:
+                                                    FontWeight.w700,
+                                                fontSize: 13,
+                                                color:
+                                                    Color(0xFF1a202c),
+                                              ),
+                                              children: [
+                                                TextSpan(text: name),
+                                                if (uom.isNotEmpty)
+                                                  TextSpan(
+                                                    text: '  ($uom)',
+                                                    style:
+                                                        const TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w400,
+                                                      color: Color(
+                                                          0xFF718096),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            [
+                                              if (num.isNotEmpty) num,
+                                              if (sc.isNotEmpty) sc,
+                                              if (cost > 0)
+                                                _fmtPeso(cost),
+                                            ].join('  ·  '),
+                                            style: const TextStyle(
+                                                fontSize: 11,
+                                                color: Color(0xFF718096)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.add_circle_outline,
+                                        size: 20, color: _red),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
@@ -2422,1064 +2022,26 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
     );
   }
 
-  // ── Edit PO Picker ──────────────────────────────────────────
-  void _showEditPOPicker(List<Map<String, dynamic>> editablePOs) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.5,
-        maxChildSize: 0.85,
-        builder: (_, ctrl) => Column(
-          children: [
-            // Header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-              decoration: const BoxDecoration(
-                color: Color(0xFF003087),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Edit Purchase Order',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          'Select a PO to edit',
-                          style: TextStyle(color: Colors.white70, fontSize: 11),
-                        ),
-                      ],
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.close, color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-            // List
-            Expanded(
-              child: ListView.separated(
-                controller: ctrl,
-                padding: const EdgeInsets.all(16),
-                itemCount: editablePOs.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, i) {
-                  final d = editablePOs[i];
-                  final items = (d['items'] as List? ?? []);
-                  final createdAt = d['createdAt'];
-                  final st = d['status'] as String? ?? 'Pending';
-                  String dateStr = '—';
-                  if (createdAt is Timestamp) {
-                    final dt = createdAt.toDate();
-                    dateStr = '${_months[dt.month - 1]} ${dt.day}, ${dt.year}';
-                  }
-                  final statusColor = st == 'Pending'
-                      ? const Color(0xFF718096)
-                      : _red;
-                  final statusLabel = st == 'For Admin Review'
-                      ? 'For Review'
-                      : st;
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showNewDeliveryModal(existing: d);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFe2e8f0)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 6,
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEBF4FF),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(
-                              Icons.description_outlined,
-                              size: 18,
-                              color: Color(0xFF003087),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${items.length} item${items.length != 1 ? 's' : ''}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                    color: Color(0xFF1a202c),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  dateStr,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF718096),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: statusColor.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Text(
-                              statusLabel,
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: statusColor,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.chevron_right,
-                            size: 18,
-                            color: Color(0xFFa0aec0),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+  // ───────────────────────────────────────────────────────────────────────
+  // RECEIVE LINE MODAL
+  // ───────────────────────────────────────────────────────────────────────
+
+  void _showReceiveLineModal(Map<String, dynamic> r, int lineIdx) async {
+    final allLines = List<Map<String, dynamic>>.from(
+      (r['receivingLines'] as List? ?? []).map(
+        (l) => Map<String, dynamic>.from(l as Map),
       ),
     );
-  }
+    if (lineIdx >= allLines.length) return;
 
-  // ── Pick a pending delivery to receive ──────────────────────
-  void _showPickPendingModal() {
-    final pending = _deliveries
-        .where((d) => (d['status'] as String? ?? '') == 'Pending')
-        .toList();
-    if (pending.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No pending deliveries to receive.'),
-          backgroundColor: Color(0xFF718096),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.5,
-        maxChildSize: 0.85,
-        builder: (_, ctrl) => Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-              decoration: const BoxDecoration(
-                color: _red,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Select Delivery',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          'Choose a pending delivery to receive',
-                          style: TextStyle(color: Colors.white70, fontSize: 11),
-                        ),
-                      ],
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.close, color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView.separated(
-                controller: ctrl,
-                padding: const EdgeInsets.all(16),
-                itemCount: pending.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, i) {
-                  final d = pending[i];
-                  final items = (d['items'] as List? ?? []);
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showReceiveModal(d);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFe2e8f0)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 6,
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  d['supplier'] as String? ?? '—',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                    color: Color(0xFF1a202c),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${items.length} item${items.length != 1 ? 's' : ''}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF718096),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(
-                            Icons.chevron_right,
-                            size: 18,
-                            color: Color(0xFFa0aec0),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── View Delivery Modal ──────────────────────────────────────
-  void _showViewModal(Map<String, dynamic> d) async {
-    final status = d['status'] as String? ?? 'Pending';
-    final color = _statusColor(status);
-    List<Map<String, dynamic>> items = List<Map<String, dynamic>>.from(
-      (d['items'] as List? ?? []).map(
-        (i) => Map<String, dynamic>.from(i as Map),
-      ),
-    );
-
-    if (status == 'Pending' ||
-        status == 'Awaiting Double Check' ||
-        status == 'For Admin Review') {
-      try {
-        final masterSnap = await FirebaseFirestore.instance
-            .collection('item_master')
-            .get();
-        final numToCost = <String, double>{};
-        final numToGroup = <String, String>{};
-        for (final doc in masterSnap.docs) {
-          final data = doc.data();
-          final n = data['num'] as String? ?? '';
-          final c =
-              double.tryParse(
-                (data['cost']?.toString() ?? '0')
-                    .replaceAll('₱', '')
-                    .replaceAll(',', '')
-                    .trim(),
-              ) ??
-              0;
-          if (n.isNotEmpty) {
-            numToCost[n] = c;
-            numToGroup[n] = data['group'] as String? ?? '';
-          }
-        }
-        final numToStock = <String, int>{};
-        final numToMin = <String, int>{};
-        try {
-          final stockSnap = await FirebaseFirestore.instance
-              .collection('stock_inventory')
-              .get();
-          for (final doc in stockSnap.docs) {
-            final data = doc.data();
-            final n = data['num'] as String? ?? '';
-            if (n.isNotEmpty) {
-              numToStock[n] = (data['stock'] as num?)?.toInt() ?? 0;
-              numToMin[n] = (data['min'] as num?)?.toInt() ?? 0;
-            }
-          }
-        } catch (_) {}
-        items = items.map((item) {
-          final n = item['itemNum'] as String? ?? '';
-          return {
-            ...item,
-            '_cost': numToCost[n] ?? 0.0,
-            '_group': numToGroup[n] ?? '',
-            '_stock': numToStock[n],
-            '_min': numToMin[n],
-          };
-        }).toList();
-      } catch (_) {}
-    }
+    final line = allLines[lineIdx];
+    final poQty = (line['poQty'] as num?)?.toInt() ?? 0;
+    final name = await _currentUserName();
     if (!mounted) return;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.6,
-        maxChildSize: 0.92,
-        builder: (_, ctrl) => SingleChildScrollView(
-          controller: ctrl,
-          child: Column(
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(24),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            d['supplier'] as String? ?? '—',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _fmt(d['date'] as String?),
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        status,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Icon(Icons.close, color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if ((d['notes'] as String? ?? '').isNotEmpty) ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFFBEB),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFFCD34D)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.sticky_note_2_outlined,
-                              size: 14,
-                              color: Color(0xFF92400E),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                d['notes'] as String,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF92400E),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                    ],
-                    if ((d['receivedBy'] as String? ?? '').isNotEmpty)
-                      _viewRow('Received By', d['receivedBy'] as String),
-                    if ((d['checkedBy'] as String? ?? '').isNotEmpty)
-                      _viewRow('Checked By', d['checkedBy'] as String),
-                    if ((d['reviewNotes'] as String? ?? '').isNotEmpty)
-                      _viewRow('Review Notes', d['reviewNotes'] as String),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Items (${items.length})',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1a202c),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...items.map((item) {
-                      final cond = item['condition'] as String? ?? '—';
-                      final condColor = cond == 'OK'
-                          ? _green
-                          : cond == 'Defective'
-                          ? _red
-                          : _amber;
-                      final actual = item['actualQty'];
-                      final exp = item['expectedQty'] as int? ?? 0;
-                      final diff = actual != null
-                          ? (actual as int) - exp
-                          : null;
-
-                      if (status == 'Approved') {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFe2e8f0)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.03),
-                                blurRadius: 6,
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item['itemName'] as String? ?? '—',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 13,
-                                            color: Color(0xFF1a202c),
-                                          ),
-                                        ),
-                                        Text(
-                                          item['supplierCode'] as String? ?? '',
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            color: Color(0xFF718096),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: condColor.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      cond,
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        color: condColor,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              const Divider(
-                                height: 1,
-                                color: Color(0xFFF0F4F8),
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  _gridCol(
-                                    'EXPECTED',
-                                    '$exp ${item['uom'] ?? ''}',
-                                  ),
-                                  _gridCol(
-                                    'ACTUAL RECEIVED',
-                                    actual != null
-                                        ? '$actual ${item['uom'] ?? ''}${diff != null && diff != 0 ? '  (${diff > 0 ? '+' : ''}$diff)' : ''}'
-                                        : '—',
-                                    valueColor: actual != null && diff != 0
-                                        ? (diff! < 0 ? _red : _amber)
-                                        : condColor,
-                                  ),
-                                  _gridCol(
-                                    'CONDITION',
-                                    cond,
-                                    valueColor: condColor,
-                                  ),
-                                  _gridCol(
-                                    'REMARKS',
-                                    (item['remark'] as String? ?? '').isEmpty
-                                        ? '—'
-                                        : item['remark'] as String,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-
-                      final itemCostVal = item['_cost'] is double
-                          ? item['_cost'] as double
-                          : double.tryParse(item['_cost']?.toString() ?? '0') ??
-                                0.0;
-                      final itemTotal = itemCostVal * exp;
-                      final itemGroup = item['_group'] as String? ?? '';
-                      final itemStock = item['_stock'] as int?;
-                      final itemMin = item['_min'] as int? ?? 0;
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFe2e8f0)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: RichText(
-                                      text: TextSpan(
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 13,
-                                          color: Color(0xFF1a202c),
-                                        ),
-                                        children: [
-                                          TextSpan(
-                                            text:
-                                                item['itemName'] as String? ??
-                                                '—',
-                                          ),
-                                          if ((item['uom'] as String? ?? '')
-                                              .isNotEmpty)
-                                            TextSpan(
-                                              text: '  (${item['uom']})',
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w400,
-                                                color: Color(0xFF718096),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  if (itemStock != null) ...[
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: itemStock == 0
-                                            ? const Color(0xFFfef2f2)
-                                            : itemStock <= itemMin
-                                            ? const Color(0xFFFFFBEB)
-                                            : const Color(0xFFF0F4F8),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: itemStock == 0
-                                              ? const Color(0xFFfca5a5)
-                                              : itemStock <= itemMin
-                                              ? const Color(0xFFFCD34D)
-                                              : const Color(0xFFe2e8f0),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        'Stock: $itemStock',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          color: itemStock == 0
-                                              ? const Color(0xFFe53e3e)
-                                              : itemStock <= itemMin
-                                              ? const Color(0xFFd69e2e)
-                                              : const Color(0xFF718096),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                [
-                                  item['itemNum'] as String? ?? '',
-                                  if (itemGroup.isNotEmpty) itemGroup,
-                                ].join(' · '),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF718096),
-                                ),
-                              ),
-                              if (itemCostVal > 0) ...[
-                                const SizedBox(height: 10),
-                                const Divider(
-                                  height: 1,
-                                  color: Color(0xFFF0F4F8),
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    _miniStat(
-                                      'Order Qty',
-                                      '$exp',
-                                      const Color(0xFF1a202c),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    _miniStat(
-                                      'Rcv Qty',
-                                      (item['actualQty'] != null)
-                                          ? '${item['actualQty']}'
-                                          : '—',
-                                      const Color(0xFF1a202c),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    _miniStat(
-                                      'OEM #',
-                                      (item['oem'] as String? ?? '').isNotEmpty
-                                          ? item['oem'] as String
-                                          : (item['itemNum'] as String? ?? '—'),
-                                      const Color(0xFF718096),
-                                    ),
-                                  ],
-                                ),
-                              ] else ...[
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    _miniStat(
-                                      'Order Qty',
-                                      '$exp',
-                                      const Color(0xFF1a202c),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    _miniStat(
-                                      'Rcv Qty',
-                                      (item['actualQty'] != null)
-                                          ? '${item['actualQty']}'
-                                          : '—',
-                                      const Color(0xFF1a202c),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    _miniStat(
-                                      'OEM #',
-                                      (item['oem'] as String? ?? '').isNotEmpty
-                                          ? item['oem'] as String
-                                          : (item['itemNum'] as String? ?? '—'),
-                                      const Color(0xFF718096),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                              if ((item['remark'] as String? ?? '')
-                                  .isNotEmpty) ...[
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFFBEB),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    item['remark'] as String,
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      color: Color(0xFF92400E),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                    const SizedBox(height: 16),
-                    if (status == 'Pending') ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _showReceiveModal(d);
-                          },
-                          icon: const Icon(Icons.download_outlined, size: 15),
-                          label: const Text('Receive Items'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _red,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ] else if (status == 'For Admin Review') ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: _red.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: _red.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(
-                              Icons.hourglass_empty_outlined,
-                              size: 16,
-                              color: Color(0xFFE8001C),
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Submitted for admin review. Awaiting approval.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFFE8001C),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _showNewDeliveryModal(existing: d);
-                          },
-                          icon: const Icon(Icons.edit_outlined, size: 15),
-                          label: const Text('Edit Request'),
-                        ),
-                      ),
-                    ] else if (status == 'Awaiting Double Check') ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: _amber.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: _amber.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(
-                              Icons.hourglass_empty_outlined,
-                              size: 16,
-                              color: Color(0xFFd69e2e),
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Submitted for review. Awaiting approval.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFFd69e2e),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _viewRow(String label, String value) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 100,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF718096),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1a202c),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-
-  Widget _miniStat(String label, String value, Color valueColor) => Expanded(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFFa0aec0),
-            letterSpacing: 0.4,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: valueColor,
-          ),
-        ),
-      ],
-    ),
-  );
-
-  Widget _gridCol(String label, String value, {Color? valueColor}) => Expanded(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFFa0aec0),
-            letterSpacing: 0.4,
-          ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: valueColor ?? const Color(0xFF1a202c),
-          ),
-        ),
-      ],
-    ),
-  );
-
-  Widget _metaChip(String text, IconData icon, Color color) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.06),
-      borderRadius: BorderRadius.circular(6),
-      border: Border.all(color: color.withValues(alpha: 0.15)),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 11, color: color),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            color: color,
-          ),
-        ),
-      ],
-    ),
-  );
-
-  Widget _field(String label, {required Widget child}) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        label,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF4a5568),
-        ),
-      ),
-      const SizedBox(height: 4),
-      child,
-    ],
-  );
-
-  // ── Receive Items Modal (per-item) ──────────────────────────
-  void _showReceiveModal(Map<String, dynamic> delivery, {int? itemIdx}) async {
-    String currentUserName = '';
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-      currentUserName = (doc.data()?['name'] as String?) ?? '';
-    }
-    if (!mounted) return;
-
-    final allItems = List<Map<String, dynamic>>.from(
-      (delivery['items'] as List? ?? []).map(
-        (i) => Map<String, dynamic>.from(i as Map),
-      ),
-    );
-    int rcvIdx =
-        itemIdx ??
-        allItems.indexWhere((i) => (i['itemStatus'] ?? 'Pending') == 'Pending');
-    if (rcvIdx < 0) rcvIdx = 0;
-    final item = allItems[rcvIdx];
-
-    final receivedByCtrl = TextEditingController(text: currentUserName);
-    final qtyCtrl = TextEditingController(text: '${item['expectedQty'] ?? 0}');
-    String condition = 'OK';
+    final qtyCtrl = TextEditingController(text: '$poQty');
     final remarkCtrl = TextEditingController();
+    String lineStatus = _autoLineStatus(poQty, poQty);
     bool submitting = false;
 
     showModalBottomSheet(
@@ -3487,240 +2049,300 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setModal) => DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.85,
-          maxChildSize: 0.97,
-          builder: (_, ctrl) => SingleChildScrollView(
-            controller: ctrl,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setModal) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx2).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
             child: Column(
               children: [
+                // ── Red gradient header ──
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                   decoration: const BoxDecoration(
-                    color: _red,
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(24),
+                      top: Radius.circular(20),
                     ),
                   ),
                   child: Row(
                     children: [
-                      const Expanded(
-                        child: Text(
-                          'Receive Item',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Receive Item',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              r['receivingNum'] as String? ?? '',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       GestureDetector(
-                        onTap: () => Navigator.pop(ctx),
-                        child: const Icon(Icons.close, color: Colors.white),
+                        onTap: () => Navigator.pop(ctx2),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close,
+                              color: Colors.white, size: 18),
+                        ),
                       ),
                     ],
                   ),
                 ),
                 Padding(
-                  padding: EdgeInsets.only(
-                    left: 20,
-                    right: 20,
-                    top: 16,
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _itemReceiveCard(
-                        index: 0,
-                        item: item,
-                        expected: item['expectedQty'] as int? ?? 0,
-                        qtyCtrl: qtyCtrl,
-                        remarkCtrl: remarkCtrl,
-                        condition: condition,
-                        onCondChange: (c) => setModal(() => condition = c),
-                        onQtyChange: () => setModal(() {}),
-                      ),
-                      const SizedBox(height: 12),
-                      _field(
-                        'Received By',
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF7F8FA),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFe2e8f0)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.person_outline,
-                                size: 16,
-                                color: Color(0xFF718096),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                receivedByCtrl.text.isNotEmpty
-                                    ? receivedByCtrl.text
-                                    : '—',
+                      // ── Item card ──
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFF90cdf4)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            RichText(
+                              text: TextSpan(
                                 style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
                                   fontSize: 13,
-                                  fontWeight: FontWeight.w600,
                                   color: Color(0xFF1a202c),
                                 ),
+                                children: [
+                                  TextSpan(
+                                    text: line['itemName'] as String? ?? '—',
+                                  ),
+                                  if ((line['uom'] as String? ?? '').isNotEmpty)
+                                    TextSpan(
+                                      text: '  (${line['uom']})',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w400,
+                                        color: Color(0xFF718096),
+                                      ),
+                                    ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                            if ((line['supplierCode'] as String? ?? '').isNotEmpty)
+                              Text(
+                                line['supplierCode'] as String,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF718096),
+                                ),
+                              ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'PO Qty: $poQty',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF718096),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // ── Received qty input ──
+                            TextField(
+                              controller: qtyCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Received Qty *',
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                              ),
+                              onChanged: (v) {
+                                final qty = int.tryParse(v) ?? 0;
+                                setModal(() =>
+                                    lineStatus = _autoLineStatus(qty, poQty));
+                              },
+                            ),
+                            const SizedBox(height: 12),
+
+                            // ── Line status buttons ──
+                            const Text(
+                              'Line Status',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF4a5568),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
+                                _statusBtn('✅ Complete', 'COMP', lineStatus,
+                                    setModal, (v) => lineStatus = v),
+                                _statusBtn('⚠️ Incomplete', 'INCOMP', lineStatus,
+                                    setModal, (v) => lineStatus = v),
+                                _statusBtn('❌ Missing', 'MISSING', lineStatus,
+                                    setModal, (v) => lineStatus = v),
+                                _statusBtn('🔴 Defective', 'DEFECTIVE',
+                                    lineStatus, setModal, (v) => lineStatus = v),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: remarkCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Remarks (optional)',
+                                hintText: 'e.g. 2 units damaged packaging',
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // ── Received By (read-only) ──
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF7F8FA),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFe2e8f0)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Received By',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF4a5568),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(Icons.person_outline,
+                                    size: 15, color: Color(0xFF718096)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  name.isNotEmpty ? name : '—',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1a202c),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: submitting
-                              ? null
-                              : () async {
-                                  if (receivedByCtrl.text.trim().isEmpty)
-                                    return;
-                                  setModal(() => submitting = true);
-                                  final updatedItems = allItems.toList();
-                                  // Fetch current stock to freeze it at receive time
-                                  int? stockAtReceive;
-                                  try {
-                                    final sSnap = await FirebaseFirestore
-                                        .instance
-                                        .collection('stock_inventory')
-                                        .where(
-                                          'num',
-                                          isEqualTo: item['itemNum'] ?? '',
-                                        )
-                                        .limit(1)
-                                        .get();
-                                    if (sSnap.docs.isNotEmpty)
-                                      stockAtReceive =
-                                          (sSnap.docs.first['stock'] as num?)
-                                              ?.toInt();
-                                  } catch (_) {}
-                                  updatedItems[rcvIdx] = {
-                                    ...updatedItems[rcvIdx],
-                                    'actualQty':
-                                        int.tryParse(qtyCtrl.text) ??
-                                        item['expectedQty'],
-                                    'condition': condition,
-                                    'remark': remarkCtrl.text.trim(),
-                                    'itemStatus': 'Awaiting Double Check',
-                                    'receivedBy': receivedByCtrl.text.trim(),
-                                    'receivedAt': DateTime.now()
-                                        .toIso8601String(),
-                                    if (stockAtReceive != null)
-                                      'stockAtReceive': stockAtReceive,
-                                  };
-                                  final allReceived = updatedItems.every(
-                                    (i) =>
-                                        i['itemStatus'] ==
-                                            'Awaiting Double Check' ||
-                                        i['itemStatus'] == 'Approved',
-                                  );
-                                  try {
-                                    await SyncStatusNotifier.instance.trackWrite(
-                                      () => FirebaseFirestore.instance
-                                          .collection('deliveries')
-                                          .doc(delivery['id'] as String)
-                                          .update({
-                                            'items': updatedItems,
-                                            'receivedBy': receivedByCtrl.text
-                                                .trim(),
-                                            'status': allReceived
-                                                ? 'Awaiting Double Check'
-                                                : 'Pending',
-                                            'receivedAt':
-                                                FieldValue.serverTimestamp(),
-                                          }),
-                                    );
 
-                                    // ── Notify admin about the received item ──
-                                    final itemName =
-                                        item['itemName'] as String? ?? '—';
-                                    final itemNum =
-                                        item['itemNum'] as String? ?? '';
-                                    final actualQty =
-                                        int.tryParse(qtyCtrl.text) ??
-                                        (item['expectedQty'] as int? ?? 0);
-                                    final receivedBy = receivedByCtrl.text
-                                        .trim();
-                                    final condLabel = condition;
-                                    final numLabel = itemNum.isNotEmpty
-                                        ? ' ($itemNum)'
-                                        : '';
-                                    final condSuffix = condLabel != 'OK'
-                                        ? ' — Condition: $condLabel'
-                                        : '';
-                                    final notifMsg =
-                                        '$receivedBy received $actualQty × $itemName$numLabel.$condSuffix Awaiting admin double-check.';
-                                    try {
-                                      await FirebaseFirestore.instance
-                                          .collection('notifications')
-                                          .add({
-                                            'title':
-                                                '📦 Item Received — Awaiting Review',
-                                            'message': notifMsg,
-                                            'type': 'info',
-                                            'targetRole': 'admin',
-                                            'targetUid': '',
-                                            'createdAt':
-                                                FieldValue.serverTimestamp(),
-                                            'readBy': <String, bool>{},
-                                            'isRead': false,
-                                          });
-                                    } catch (
-                                      _
-                                    ) {} // non-fatal — main receive already succeeded
-
-                                    if (ctx.mounted) {
-                                      Navigator.pop(ctx);
-                                      ScaffoldMessenger.of(ctx).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Submitted!'),
-                                          backgroundColor: Colors.orange,
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
-                                      );
-                                    }
-                                  } catch (err) {
-                                    setModal(() => submitting = false);
-                                    if (ctx.mounted)
-                                      ScaffoldMessenger.of(ctx).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Error: $err'),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
-                                  }
-                                },
-                          child: submitting
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Submit'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _red,
-                            foregroundColor: Colors.white,
+                      // ── Submit ──
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(ctx2),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 13,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                              child: const Text('Cancel'),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton.icon(
+                              onPressed: submitting
+                                  ? null
+                                  : () async {
+                                      setModal(() => submitting = true);
+                                      await _submitLine(
+                                        ctx: ctx2,
+                                        r: r,
+                                        lineIdx: lineIdx,
+                                        allLines: allLines,
+                                        receivedQty:
+                                            int.tryParse(qtyCtrl.text) ?? 0,
+                                        lineStatus: lineStatus,
+                                        remark: remarkCtrl.text.trim(),
+                                        receivedBy: name,
+                                      );
+                                      if (ctx2.mounted) {
+                                        setModal(() => submitting = false);
+                                      }
+                                    },
+                              icon: submitting
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.check_circle_outline,
+                                      size: 16),
+                              label: Text(
+                                submitting ? 'Saving…' : 'Submit',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _red,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 13,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -3733,120 +2355,17 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
     );
   }
 
-  Widget _itemReceiveCard({
-    required int index,
-    required Map<String, dynamic> item,
-    required int expected,
-    required TextEditingController qtyCtrl,
-    required TextEditingController remarkCtrl,
-    required String condition,
-    required ValueChanged<String> onCondChange,
-    required VoidCallback onQtyChange,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF90cdf4)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          RichText(
-            text: TextSpan(
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-                color: Color(0xFF1a202c),
-              ),
-              children: [
-                TextSpan(text: item['itemName'] as String),
-                if ((item['uom'] as String? ?? '').isNotEmpty)
-                  TextSpan(
-                    text: '  (${item['uom']})',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400,
-                      color: Color(0xFF718096),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Text(
-            '${item['supplierCode'] ?? ''} · Order Qty: $expected',
-            style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: qtyCtrl,
-            keyboardType: TextInputType.number,
-            onChanged: (_) => onQtyChange(),
-            decoration: InputDecoration(
-              labelText: 'Actual Qty *',
-              border: const OutlineInputBorder(),
-              isDense: true,
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Condition',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF4a5568),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              _condBtn('✅ OK', 'OK', condition, onCondChange),
-              const SizedBox(width: 6),
-              _condBtn('❌ Defective', 'Defective', condition, onCondChange),
-              const SizedBox(width: 6),
-              _condBtn('⚠️ Shortage', 'Shortage', condition, onCondChange),
-            ],
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: remarkCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Remarks (optional)',
-              border: OutlineInputBorder(),
-              isDense: true,
-              hintText: 'e.g. 1 unit damaged packaging',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _condBtn(
+  Widget _statusBtn(
     String label,
     String value,
     String current,
+    StateSetter setModal,
     ValueChanged<String> onChange,
   ) {
     final active = current == value;
-    Color color;
-    switch (value) {
-      case 'OK':
-        color = _green;
-        break;
-      case 'Defective':
-        color = _red;
-        break;
-      default:
-        color = _amber;
-    }
+    final color = _lineColor(value);
     return GestureDetector(
-      onTap: () => onChange(value),
+      onTap: () => setModal(() => onChange(value)),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
@@ -3867,5 +2386,220 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody> {
         ),
       ),
     );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // SUBMIT LINE
+  // ───────────────────────────────────────────────────────────────────────
+
+  Future<void> _submitLine({
+    required BuildContext ctx,
+    required Map<String, dynamic> r,
+    required int lineIdx,
+    required List<Map<String, dynamic>> allLines,
+    required int receivedQty,
+    required String lineStatus,
+    required String remark,
+    required String receivedBy,
+  }) async {
+    final docId = r['id'] as String;
+
+    int? stockAtReceive;
+    final itemNum = allLines[lineIdx]['itemNum'] as String? ?? '';
+    try {
+      final ss = await FirebaseFirestore.instance
+          .collection('stock_inventory')
+          .where('num', isEqualTo: itemNum)
+          .limit(1)
+          .get();
+      if (ss.docs.isNotEmpty) {
+        stockAtReceive = (ss.docs.first['stock'] as num?)?.toInt();
+      }
+    } catch (_) {}
+
+    allLines[lineIdx] = {
+      ...allLines[lineIdx],
+      'receivedQty': receivedQty,
+      'lineStatus': lineStatus,
+      'remark': remark,
+      'receivedBy': receivedBy,
+      'receivedAt': DateTime.now().toIso8601String(),
+      'stockAtReceive': stockAtReceive,
+    };
+
+    final newHeaderStatus = _computeHeaderStatus(allLines);
+
+    final update = <String, dynamic>{
+      'receivingLines': allLines,
+      'status': newHeaderStatus,
+      'receivedBy': receivedBy,
+      'receivedAt': FieldValue.serverTimestamp(),
+    };
+    if (newHeaderStatus == 'COMP' || newHeaderStatus == 'PARTIAL') {
+      update['completedAt'] = FieldValue.serverTimestamp();
+    }
+
+    try {
+      await SyncStatusNotifier.instance.trackWrite(
+        () => FirebaseFirestore.instance
+            .collection(_col)
+            .doc(docId)
+            .update(update),
+      );
+
+      // ── Auto-update stock if line is COMP or INCOMP ──
+      if ((lineStatus == 'COMP' || lineStatus == 'INCOMP') && receivedQty > 0) {
+        await _updateStock(
+          itemNum: itemNum,
+          itemName: allLines[lineIdx]['itemName'] as String? ?? '',
+          uom: allLines[lineIdx]['uom'] as String? ?? '',
+          qty: receivedQty,
+          receivedBy: receivedBy,
+        );
+      }
+
+      if (ctx.mounted) {
+        Navigator.pop(ctx);
+        final msg = newHeaderStatus == 'COMP'
+            ? '${r['receivingNum'] ?? ''} completed!'
+            : 'Line saved — ${newHeaderStatus == 'PARTIAL' ? 'Partially received' : 'In progress'}';
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: newHeaderStatus == 'COMP' ? _green : _amber,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: _red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // STOCK UPDATE
+  // ───────────────────────────────────────────────────────────────────────
+
+  Future<void> _updateStock({
+    required String itemNum,
+    required String itemName,
+    required String uom,
+    required int qty,
+    required String receivedBy,
+  }) async {
+    if (itemNum.isEmpty) return;
+    try {
+      final now = DateTime.now();
+      final dateStr = '${_months[now.month - 1]} ${now.day}, ${now.year}';
+
+      final stockSnap = await FirebaseFirestore.instance
+          .collection('stock_inventory')
+          .where('num', isEqualTo: itemNum)
+          .limit(1)
+          .get();
+
+      if (stockSnap.docs.isNotEmpty) {
+        final doc = stockSnap.docs.first;
+        final cur = (doc['stock'] as num?)?.toInt() ?? 0;
+        final minLevel = (doc['min'] as num?)?.toInt() ?? 0;
+        final newStock = cur + qty;
+        await doc.reference.update({
+          'stock': newStock,
+          'status': newStock >= minLevel ? 'OK' : 'Low',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        await FirebaseFirestore.instance.collection('stock_inventory').add({
+          'num': itemNum,
+          'name': itemName,
+          'uom': uom,
+          'stock': qty,
+          'min': 0,
+          'max': 0,
+          'reorder': 0,
+          'status': 'OK',
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await FirebaseFirestore.instance.collection('transactions').add({
+        'item': itemName,
+        'desc': 'Stock received — receiving',
+        'type': 'IN',
+        'qty': '+$qty',
+        'date': dateStr,
+        'by': receivedBy,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // ARCHIVE
+  // ───────────────────────────────────────────────────────────────────────
+
+  Future<void> _archiveReceiving(Map<String, dynamic> r) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Archive this record?',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+        content: const Text(
+          'Archived records are hidden from the list but not deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel',
+                style: TextStyle(color: Color(0xFF718096))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _grey,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Archive'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await SyncStatusNotifier.instance.trackWrite(
+        () => FirebaseFirestore.instance
+            .collection(_col)
+            .doc(r['id'] as String)
+            .update({
+              'archived': true,
+              'archivedAt': FieldValue.serverTimestamp(),
+            }),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: _red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 }

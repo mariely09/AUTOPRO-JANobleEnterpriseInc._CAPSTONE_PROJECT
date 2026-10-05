@@ -180,7 +180,7 @@ class AdminPOBodyState extends State<AdminPOBody>
 
   // ?�?�?Helpers ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
   String _fmt(dynamic raw) {
-    if (raw == null) return '??;
+    if (raw == null) return '—';
     DateTime? dt;
     if (raw is Timestamp) {
       dt = raw.toDate();
@@ -189,15 +189,15 @@ class AdminPOBodyState extends State<AdminPOBody>
     } else if (raw is Map && raw['seconds'] != null) {
       dt = DateTime.fromMillisecondsSinceEpoch((raw['seconds'] as int) * 1000);
     }
-    if (dt == null) return '??;
+    if (dt == null) return '—';
     return '${_months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
 
   String _fmtPeso(dynamic v) {
-    if (v == null) return '??.00';
+    if (v == null) return '₱0.00';
     final d =
         double.tryParse(
-          v.toString().replaceAll('??, '').replaceAll(',', '').trim(),
+          v.toString().replaceAll('₱', '').replaceAll(',', '').trim(),
         ) ??
         0;
     final parts = d.toStringAsFixed(2).split('.');
@@ -205,7 +205,7 @@ class AdminPOBodyState extends State<AdminPOBody>
       RegExp(r'\B(?=(\d{3})+(?!\d))'),
       (_) => ',',
     );
-    return '??intPart.${parts[1]}';
+    return '₱$intPart.${parts[1]}';
   }
 
   Color _statusColor(String s) {
@@ -516,7 +516,7 @@ class AdminPOBodyState extends State<AdminPOBody>
   Widget _poCard(Map<String, dynamic> po) {
     final status = po['status'] as String? ?? 'Draft';
     final color = _statusColor(status);
-    final poNum = po['poNum'] as String? ?? '??;
+    final poNum = po['poNum'] as String? ?? '—';
     final items = (po['items'] as List? ?? []);
     final total = po['totalAmount'] ?? 0;
     final notes = po['notes'] as String? ?? '';
@@ -524,7 +524,7 @@ class AdminPOBodyState extends State<AdminPOBody>
     // Build preview of item names (first 2)
     final itemNames = items
         .take(2)
-        .map((i) => (i as Map)['itemName'] as String? ?? '??)
+        .map((i) => (i as Map)['itemName'] as String? ?? '—')
         .join(', ');
     final moreItems = items.length > 2 ? ' +${items.length - 2} more' : '';
 
@@ -899,7 +899,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          po['poNum'] as String? ?? '??,
+                          po['poNum'] as String? ?? '—',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -1270,12 +1270,12 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
   }
 
-  Widget _viewItemRow(int num, Map item, Map<String, int?> stockMap, String status) {
+  Widget _viewItemRow(int rowNum, Map item, Map<String, int?> stockMap, String status) {
     final qty = item['expectedQty'] ?? 0;
     final cost =
         double.tryParse(
           (item['unitCost']?.toString() ?? '0')
-              .replaceAll('??, '')
+              .replaceAll('₱', '')
               .replaceAll(',', '')
               .trim(),
         ) ??
@@ -1301,7 +1301,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                  (item['stockAtCreate']  as num?)?.toInt();
     }
 
-    final stockStr = stockVal != null ? '$stockVal' : '??;
+    final stockStr = stockVal != null ? '$stockVal' : '—';
     final stockColor = stockVal == null
         ? const Color(0xFF718096)
         : stockVal == 0
@@ -1310,14 +1310,7 @@ class AdminPOBodyState extends State<AdminPOBody>
     // Show "(at order)" hint for frozen values
     final stockLabel = receivingInProgress && stockVal != null
         ? '$stockVal (at order)'
-        : stockStr;        double.tryParse(
-          (item['unitCost']?.toString() ?? '0')
-              .replaceAll('??, '')
-              .replaceAll(',', '')
-              .trim(),
-        ) ??
-        0;
-    final subtotal = qty * cost;
+        : stockStr;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1341,7 +1334,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                 ),
                 child: Center(
                   child: Text(
-                    '$num',
+                    '$rowNum',
                     style: const TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
@@ -1353,7 +1346,7 @@ class AdminPOBodyState extends State<AdminPOBody>
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  item['itemName'] as String? ?? '??,
+                  item['itemName'] as String? ?? '—',
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -1498,7 +1491,7 @@ class AdminPOBodyState extends State<AdminPOBody>
             final cost =
                 double.tryParse(
                   (row['unitCost']?.toString() ?? '0')
-                      .replaceAll('??, '')
+                      .replaceAll('₱', '')
                       .replaceAll(',', '')
                       .trim(),
                 ) ??
@@ -1544,7 +1537,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                             ),
                             if (itemRows.isNotEmpty)
                               Text(
-                                '${itemRows.length} item${itemRows.length == 1 ? '' : 's'}  ?? ${_fmtPeso(grandTotal)}',
+                                '${itemRows.length} item${itemRows.length == 1 ? '' : 's'}  — ${_fmtPeso(grandTotal)}',
                                 style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
@@ -1604,7 +1597,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                             final cost =
                                 double.tryParse(
                                   (row['unitCost']?.toString() ?? '0')
-                                      .replaceAll('??, '')
+                                      .replaceAll('₱', '')
                                       .replaceAll(',', '')
                                       .trim(),
                                 ) ??
@@ -1632,7 +1625,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                                     children: [
                                       Expanded(
                                         child: Text(
-                                          row['itemName'] as String? ?? '??,
+                                          row['itemName'] as String? ?? '—',
                                           style: const TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w700,
@@ -1701,7 +1694,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                                           keyboardType: TextInputType.number,
                                           decoration: const InputDecoration(
                                             isDense: true,
-                                            prefixText: '??,
+                                            prefixText: '₱',
                                             hintText: '0.00',
                                             contentPadding:
                                                 EdgeInsets.symmetric(
@@ -1713,7 +1706,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                                           onChanged: (v) {
                                             itemRows[i]['unitCost'] =
                                                 double.tryParse(
-                                                  v.replaceAll('??, '').trim(),
+                                                  v.replaceAll('₱', '').trim(),
                                                 ) ??
                                                 0;
                                             setModal(() {});
@@ -1753,7 +1746,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                         TextField(
                           controller: searchCtrl,
                           decoration: InputDecoration(
-                            hintText: 'Search item??,
+                            hintText: 'Search item…',
                             prefixIcon: const Icon(
                               Icons.search,
                               size: 18,
@@ -1807,7 +1800,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                         else
                           ...visibleStock.map((s) {
                             final itemNum = s['num'] as String? ?? '';
-                            final name = s['name'] as String? ?? '??;
+                            final name = s['name'] as String? ?? '—';
                             final uom = s['uom'] as String? ?? '';
                             final stock = (s['stock'] as num?)?.toInt() ?? 0;
                             final min = (s['min'] as num?)?.toInt() ?? 0;
@@ -1903,7 +1896,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                                                     double.tryParse(
                                                       (s['cost']?.toString() ??
                                                               '0')
-                                                          .replaceAll('??, '')
+                                                          .replaceAll('₱', '')
                                                           .replaceAll(',', '')
                                                           .trim(),
                                                     ) ??
@@ -1955,7 +1948,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                           controller: notesCtrl,
                           maxLines: 3,
                           decoration: InputDecoration(
-                            hintText: 'Add remarks or special instructions??,
+                            hintText: 'Add remarks or special instructions…',
                             isDense: true,
                             contentPadding: const EdgeInsets.all(12),
                             border: OutlineInputBorder(
@@ -2049,7 +2042,7 @@ class AdminPOBodyState extends State<AdminPOBody>
       final cost =
           double.tryParse(
             (row['unitCost']?.toString() ?? '0')
-                .replaceAll('??, '')
+                .replaceAll('₱', '')
                 .replaceAll(',', '')
                 .trim(),
           ) ??

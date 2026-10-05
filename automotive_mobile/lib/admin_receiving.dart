@@ -821,7 +821,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
   // FAB ACTIONS
   // ─────────────────────────────────────────────────────────────────────────
 
-  /// Create a blank DRAFT receiving record immediately, then open it
+  /// Create a blank receiving record — STATUS=DRAFT
+  /// User adds items first, then taps "Start Receiving" to move to INPROG.
   Future<void> _createBlankReceiving() async {
     final rcvNum = await _genRcvNum();
     final name = await _currentUserName();
@@ -838,7 +839,6 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
         }),
       );
       if (!mounted) return;
-      // Immediately open the view/edit modal for the new record
       final doc = await ref.get();
       if (!mounted) return;
       _showViewModal({...doc.data() as Map<String, dynamic>, 'id': doc.id});
@@ -1189,30 +1189,10 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
   // ─────────────────────────────────────────────────────────────────────────
 
   void _showViewModal(Map<String, dynamic> r) {
-    final status = r['status'] as String? ?? 'DRAFT';
-    final color = _hdrColor(status);
-    final label = _hdrLabels[status] ?? status;
+    final docId = r['id'] as String;
     final rcvNum = r['receivingNum'] as String? ?? r['id'] as String;
     final poNum = r['poNum'] as String? ?? '';
-    final lines = List<Map<String, dynamic>>.from(
-      (r['receivingLines'] as List? ?? []).map(
-        (l) => Map<String, dynamic>.from(l as Map),
-      ),
-    );
-
-    // Total
-    double total = 0;
-    for (final l in lines) {
-      final c =
-          double.tryParse(
-            (l['unitCost']?.toString() ?? '0')
-                .replaceAll('₱', '')
-                .replaceAll(',', '')
-                .trim(),
-          ) ??
-          0;
-      total += c * ((l['receivedQty'] as num?)?.toInt() ?? 0);
-    }
+    final createdAt = r['createdAt'];
 
     showModalBottomSheet(
       context: context,
@@ -1225,460 +1205,545 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
         expand: false,
         initialChildSize: 0.75,
         maxChildSize: 0.95,
-        builder: (_, ctrl) => Column(
-          children: [
-            // ── Gradient header ──
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [color.withValues(alpha: 1.0), color],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
+        builder: (_, ctrl) => StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection(_col)
+              .doc(docId)
+              .snapshots(),
+          builder: (ctx2, snap) {
+            final data = snap.hasData && snap.data!.exists
+                ? {...(snap.data!.data() as Map<String, dynamic>), 'id': docId}
+                : r;
+
+            final status = data['status'] as String? ?? 'DRAFT';
+            final color = _hdrColor(status);
+            final label = _hdrLabels[status] ?? status;
+            final lines = List<Map<String, dynamic>>.from(
+              (data['receivingLines'] as List? ?? []).map(
+                (l) => Map<String, dynamic>.from(l as Map),
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
+            );
+            double total = 0;
+            for (final l in lines) {
+              final c = double.tryParse(
+                    (l['unitCost']?.toString() ?? '0')
+                        .replaceAll('₱', '')
+                        .replaceAll(',', '')
+                        .trim(),
+                  ) ??
+                  0;
+              total += c * ((l['receivedQty'] as num?)?.toInt() ?? 0);
+            }
+
+            return Column(
+              children: [
+                // ── Gradient header ──
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color.withValues(alpha: 1.0), color],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              rcvNum,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white24,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    label,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                if (poNum.isNotEmpty) ...[
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'PO: $poNum',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(ctx),
+                        child: Container(
+                          width: 32, height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: ctrl,
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          rcvNum,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
+                        // ── Summary row ──
                         Row(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white24,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                label,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                            Expanded(
+                              child: _infoCard('CREATED', _fmt(createdAt)),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _infoCard(
+                                'LINES',
+                                '${lines.where((l) => (l['lineStatus'] as String? ?? 'DRAFT') != 'DRAFT').length}/${lines.length} done',
                               ),
                             ),
-                            if (poNum.isNotEmpty) ...[
-                              const SizedBox(width: 8),
-                              Text(
-                                'PO: $poNum',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 11,
+                            if (total > 0) ...[
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _infoCard(
+                                  'TOTAL',
+                                  _fmtPeso(total),
+                                  valueColor: _red,
                                 ),
                               ),
                             ],
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(ctx),
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
-            Expanded(
-              child: SingleChildScrollView(
-                controller: ctrl,
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Summary row ──
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _infoCard('CREATED', _fmt(r['createdAt'])),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _infoCard(
-                            'LINES',
-                            '${lines.where((l) => (l['lineStatus'] as String? ?? 'DRAFT') != 'DRAFT').length}/${lines.length} done',
+                        // ── Lines list ──
+                        const SizedBox(height: 16),
+                        Text(
+                          'Receiving Lines (${lines.length})',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1a202c),
                           ),
                         ),
-                        if (total > 0) ...[
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _infoCard(
-                              'TOTAL',
-                              _fmtPeso(total),
-                              valueColor: _red,
+                        const SizedBox(height: 8),
+
+                        if (lines.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF7F8FA),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFe2e8f0)),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(
+                                  Icons.inbox_outlined,
+                                  size: 18,
+                                  color: Color(0xFFa0aec0),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'No items — add lines to receive.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF718096),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          ...lines.asMap().entries.map((e) {
+                            final i = e.key;
+                            final line = e.value;
+                            final lst = line['lineStatus'] as String? ?? 'DRAFT';
+                            final lc = _lineColor(lst);
+                            final ll = _lineLabels[lst] ?? lst;
+                            final pQty = (line['poQty'] as num?)?.toInt() ?? 0;
+                            final rQty = (line['receivedQty'] as num?)?.toInt() ?? 0;
+                            final canReceive =
+                                (status == 'INPROG' || status == 'DRAFT') &&
+                                lst == 'DRAFT';
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFe2e8f0)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.03),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: 20, height: 20,
+                                        decoration: BoxDecoration(
+                                          color: _red.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            '${i + 1}',
+                                            style: const TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w700,
+                                              color: _red,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF1a202c),
+                                            ),
+                                            children: [
+                                              TextSpan(
+                                                text: line['itemName'] as String? ?? '—',
+                                              ),
+                                              if ((line['uom'] as String? ?? '').isNotEmpty)
+                                                TextSpan(
+                                                  text: '  (${line['uom']})',
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w400,
+                                                    color: Color(0xFF718096),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: lc.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          ll,
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w700,
+                                            color: lc,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      _lineMeta('Order Qty', '$pQty'),
+                                      _lineMeta(
+                                        'Rcv Qty',
+                                        lst == 'DRAFT' ? '—' : '$rQty',
+                                        color: lst != 'DRAFT'
+                                            ? (rQty >= pQty ? _green : _amber)
+                                            : null,
+                                      ),
+                                      _lineMeta('Item #', line['itemNum'] as String? ?? '—'),
+                                      _lineMeta('OEM #', line['oem'] as String? ?? '—'),
+                                    ],
+                                  ),
+                                  if ((line['remark'] as String? ?? '').isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFFBEB),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        line['remark'] as String,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: Color(0xFF92400E),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  if (canReceive) ...[
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            onPressed: () {
+                                              Navigator.pop(ctx);
+                                              _showReceiveLineModal(data, i);
+                                            },
+                                            icon: const Icon(
+                                              Icons.download_outlined,
+                                              size: 14,
+                                            ),
+                                            label: const Text(
+                                              'Receive Item',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: _red,
+                                              side: BorderSide(
+                                                color: _red.withValues(alpha: 0.4),
+                                              ),
+                                              padding: const EdgeInsets.symmetric(
+                                                vertical: 10,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        OutlinedButton(
+                                          onPressed: () async {
+                                            final updated = List<Map<String, dynamic>>.from(lines);
+                                            updated.removeAt(i);
+                                            try {
+                                              await SyncStatusNotifier.instance.trackWrite(
+                                                () => FirebaseFirestore.instance
+                                                    .collection(_col)
+                                                    .doc(docId)
+                                                    .update({'receivingLines': updated}),
+                                              );
+                                            } catch (e) {
+                                              if (ctx.mounted) {
+                                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text('Error: $e'),
+                                                    backgroundColor: _red,
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          },
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: _red,
+                                            side: BorderSide(
+                                              color: _red.withValues(alpha: 0.4),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.delete_outline,
+                                            size: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          }),
+
+                        const SizedBox(height: 20),
+
+                        // ── Footer actions ──
+                        if (status == 'DRAFT') ...[
+                          if (poNum.isEmpty) ...[
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _startReceiving(data);
+                                },
+                                icon: const Icon(Icons.add_circle_outline, size: 16),
+                                label: const Text(
+                                  'Start & Add Items',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _red,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                          if (poNum.isNotEmpty) ...[
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _startReceiving(data);
+                                },
+                                icon: const Icon(Icons.play_arrow_outlined, size: 16),
+                                label: const Text(
+                                  'Start Receiving',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _blue,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _archiveReceiving(data);
+                              },
+                              icon: const Icon(
+                                Icons.archive_outlined,
+                                size: 14,
+                                color: Colors.red,
+                              ),
+                              label: const Text(
+                                'Archive',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.red),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ] else if (status == 'INPROG') ...[
+                          if (poNum.isEmpty) ...[
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () => _showAddItemModal(data),
+                                icon: const Icon(Icons.add_circle_outline, size: 16),
+                                label: const Text('Add Item',
+                                    style: TextStyle(fontWeight: FontWeight.w700)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _red,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                        ] else if (status == 'COMP' || status == 'PARTIAL') ...[
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _archiveReceiving(data);
+                              },
+                              icon: const Icon(
+                                Icons.archive_outlined,
+                                size: 14,
+                                color: Color(0xFF718096),
+                              ),
+                              label: const Text(
+                                'Archive',
+                                style: TextStyle(
+                                  color: Color(0xFF718096),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFFcbd5e0)),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ],
                     ),
-
-                    // ── Lines list ──
-                    const SizedBox(height: 16),
-                    Text(
-                      'Receiving Lines (${lines.length})',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1a202c),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    if (lines.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF7F8FA),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFe2e8f0)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.inbox_outlined,
-                              size: 18,
-                              color: Color(0xFFa0aec0),
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'No items — add lines to receive.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF718096),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      ...lines.asMap().entries.map((e) {
-                        final i = e.key;
-                        final line = e.value;
-                        final lst = line['lineStatus'] as String? ?? 'DRAFT';
-                        final lc = _lineColor(lst);
-                        final ll = _lineLabels[lst] ?? lst;
-                        final pQty = (line['poQty'] as num?)?.toInt() ?? 0;
-                        final rQty =
-                            (line['receivedQty'] as num?)?.toInt() ?? 0;
-                        final canReceive =
-                            (status == 'INPROG' || status == 'DRAFT') &&
-                            lst == 'DRAFT';
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFe2e8f0)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.03),
-                                blurRadius: 4,
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 20,
-                                    height: 20,
-                                    decoration: BoxDecoration(
-                                      color: _red.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        '${i + 1}',
-                                        style: const TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w700,
-                                          color: _red,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      line['itemName'] as String? ?? '—',
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF1a202c),
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: lc.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      ll,
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w700,
-                                        color: lc,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  _lineMeta('Order Qty', '$pQty'),
-                                  _lineMeta(
-                                    'Rcv Qty',
-                                    lst == 'DRAFT' ? '—' : '$rQty',
-                                    color: lst != 'DRAFT'
-                                        ? (rQty >= pQty ? _green : _amber)
-                                        : null,
-                                  ),
-                                  _lineMeta(
-                                    'OEM #',
-                                    (line['oem'] as String? ?? '').isNotEmpty
-                                        ? line['oem'] as String
-                                        : (line['itemNum'] as String? ?? '—'),
-                                  ),
-                                ],
-                              ),
-                              if ((line['remark'] as String? ?? '')
-                                  .isNotEmpty) ...[
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFFFBEB),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    line['remark'] as String,
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      color: Color(0xFF92400E),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              if (canReceive) ...[
-                                const SizedBox(height: 10),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () {
-                                      Navigator.pop(ctx);
-                                      _showReceiveLineModal(r, i);
-                                    },
-                                    icon: const Icon(
-                                      Icons.download_outlined,
-                                      size: 14,
-                                    ),
-                                    label: const Text(
-                                      'Receive Item',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: _red,
-                                      side: BorderSide(
-                                        color: _red.withValues(alpha: 0.4),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 10,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        );
-                      }),
-
-                    const SizedBox(height: 20),
-
-                    // ── Footer actions ──
-                    if (status == 'DRAFT') ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _startReceiving(r);
-                          },
-                          icon: const Icon(Icons.play_arrow_outlined, size: 16),
-                          label: const Text(
-                            'Start Receiving',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _blue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _archiveReceiving(r);
-                          },
-                          icon: const Icon(
-                            Icons.archive_outlined,
-                            size: 14,
-                            color: Colors.red,
-                          ),
-                          label: const Text(
-                            'Archive',
-                            style: TextStyle(
-                              color: Colors.red,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.red),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ] else if (status == 'INPROG') ...[
-                      // Show receive buttons for remaining DRAFT lines
-                      ...lines
-                          .asMap()
-                          .entries
-                          .where(
-                            (e) =>
-                                (e.value['lineStatus'] as String? ?? 'DRAFT') ==
-                                'DRAFT',
-                          )
-                          .map(
-                            (e) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: () {
-                                    Navigator.pop(ctx);
-                                    _showReceiveLineModal(r, e.key);
-                                  },
-                                  icon: const Icon(
-                                    Icons.download_outlined,
-                                    size: 16,
-                                  ),
-                                  label: Text(
-                                    'Receive: ${e.value['itemName'] ?? 'Item ${e.key + 1}'}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: _red,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(30),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                    ] else if (status == 'COMP' || status == 'PARTIAL') ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _archiveReceiving(r);
-                          },
-                          icon: const Icon(
-                            Icons.archive_outlined,
-                            size: 14,
-                            color: Color(0xFF718096),
-                          ),
-                          label: const Text(
-                            'Archive',
-                            style: TextStyle(
-                              color: Color(0xFF718096),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFcbd5e0)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -1741,6 +1806,313 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
       ],
     ),
   );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ADD ITEM MODAL  (blank receivings only)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  void _showAddItemModal(Map<String, dynamic> r) async {
+    final docId = r['id'] as String;
+    List<Map<String, dynamic>> allItems = [];
+    List<Map<String, dynamic>> filtered = [];
+    bool loadingItems = true;
+    final searchCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setModal) {
+          // Load items once
+          if (loadingItems) {
+            FirebaseFirestore.instance
+                .collection('item_master')
+                .get()
+                .then((snap) {
+                  if (ctx2.mounted) {
+                    final items = snap.docs
+                        .map((d) => {...d.data(), 'id': d.id})
+                        .toList();
+                    setModal(() {
+                      allItems = items;
+                      filtered = items;
+                      loadingItems = false;
+                    });
+                  }
+                })
+                .catchError((_) {
+                  if (ctx2.mounted) setModal(() => loadingItems = false);
+                });
+          }
+
+          void onSearch(String q) {
+            final lq = q.toLowerCase();
+            setModal(() {
+              filtered = lq.isEmpty
+                  ? allItems
+                  : allItems.where((i) {
+                      final name = (i['name'] as String? ?? '').toLowerCase();
+                      final num = (i['num'] as String? ?? '').toLowerCase();
+                      final sc = (i['supplierCode'] as String? ?? '').toLowerCase();
+                      return name.contains(lq) || num.contains(lq) || sc.contains(lq);
+                    }).toList();
+            });
+          }
+
+          return DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.75,
+            maxChildSize: 0.95,
+            builder: (_, ctrl) => Column(
+              children: [
+                // ── Header ──
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Add Item',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700)),
+                            SizedBox(height: 2),
+                            Text('Select an item to add as a receiving line',
+                                style: TextStyle(
+                                    color: Colors.white70, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(ctx2),
+                        child: Container(
+                          width: 32, height: 32,
+                          decoration: BoxDecoration(
+                              color: Colors.white24, shape: BoxShape.circle),
+                          child: const Icon(Icons.close,
+                              color: Colors.white, size: 18),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Search box ──
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: TextField(
+                    controller: searchCtrl,
+                    onChanged: onSearch,
+                    decoration: InputDecoration(
+                      hintText: 'Search by name, item #, supplier code…',
+                      hintStyle: const TextStyle(
+                          fontSize: 12, color: Color(0xFFa0aec0)),
+                      prefixIcon: const Icon(Icons.search,
+                          size: 18, color: Color(0xFFa0aec0)),
+                      isDense: true,
+                      contentPadding:
+                          const EdgeInsets.symmetric(vertical: 10),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFe2e8f0))),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFe2e8f0))),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFE8001C))),
+                    ),
+                  ),
+                ),
+
+                // ── List ──
+                Expanded(
+                  child: loadingItems
+                      ? const Center(child: CircularProgressIndicator())
+                      : filtered.isEmpty
+                      ? const Center(
+                          child: Text('No items found.',
+                              style: TextStyle(color: Color(0xFF718096))))
+                      : ListView.separated(
+                          controller: ctrl,
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (_, i) {
+                            final item = filtered[i];
+                            final name = item['name'] as String? ?? '—';
+                            final num = item['num'] as String? ?? '';
+                            final uom = item['uom'] as String? ?? '';
+                            final sc =
+                                item['supplierCode'] as String? ?? '';
+                            final cost = double.tryParse(
+                                  (item['cost']?.toString() ?? '0')
+                                      .replaceAll('₱', '')
+                                      .replaceAll(',', '')
+                                      .trim(),
+                                ) ??
+                                0.0;
+
+                            return GestureDetector(
+                              onTap: () async {
+                                Navigator.pop(ctx2);
+                                // Build the new line
+                                final newLine = <String, dynamic>{
+                                  'itemNum': num,
+                                  'itemName': name,
+                                  'uom': uom,
+                                  'supplierCode': sc,
+                                  'unitCost': cost,
+                                  'poQty': 1,
+                                  'receivedQty': 0,
+                                  'lineStatus': 'DRAFT',
+                                  'remark': '',
+                                  'receivedAt': null,
+                                  'receivedBy': '',
+                                };
+                                // Append to existing lines
+                                final existingLines =
+                                    List<Map<String, dynamic>>.from(
+                                  (r['receivingLines'] as List? ?? []).map(
+                                    (l) => Map<String, dynamic>.from(
+                                        l as Map),
+                                  ),
+                                );
+                                existingLines.add(newLine);
+                                try {
+                                  await SyncStatusNotifier.instance
+                                      .trackWrite(
+                                    () => FirebaseFirestore.instance
+                                        .collection(_col)
+                                        .doc(docId)
+                                        .update({
+                                      'receivingLines': existingLines,
+                                    }),
+                                  );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            '${name} added to receiving'),
+                                        backgroundColor: _green,
+                                        behavior:
+                                            SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error: $e'),
+                                        backgroundColor: _red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color: const Color(0xFFe2e8f0)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black
+                                          .withValues(alpha: 0.03),
+                                      blurRadius: 4,
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          RichText(
+                                            text: TextSpan(
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 13,
+                                                color: Color(0xFF1a202c),
+                                              ),
+                                              children: [
+                                                TextSpan(text: name),
+                                                if (uom.isNotEmpty)
+                                                  TextSpan(
+                                                    text: '  ($uom)',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w400,
+                                                      color:
+                                                          Color(0xFF718096),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            [
+                                              if (num.isNotEmpty) num,
+                                              if (sc.isNotEmpty) sc,
+                                              if (cost > 0)
+                                                _fmtPeso(cost),
+                                            ].join('  ·  '),
+                                            style: const TextStyle(
+                                                fontSize: 11,
+                                                color: Color(0xFF718096)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.add_circle_outline,
+                                        size: 20, color: _red),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // RECEIVE LINE MODAL
