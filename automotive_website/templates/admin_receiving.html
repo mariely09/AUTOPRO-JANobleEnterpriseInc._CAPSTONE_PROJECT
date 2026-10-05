@@ -91,6 +91,34 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+        /* ── Floating label fields (matches admin_inventory_stock style) ── */
+        .fl-field { position:relative; width:100%; }
+        .fl-field input, .fl-field select {
+            width:100%; padding:1rem 1rem 0.4rem 1rem;
+            border:1.5px solid #c5cdd9; border-radius:8px;
+            font-size:0.92rem; font-family:inherit; color:#1a202c;
+            background:white; outline:none; box-sizing:border-box;
+            transition:border-color .2s ease, box-shadow .2s ease;
+            appearance:none; -webkit-appearance:none; -moz-appearance:textfield;
+        }
+        .fl-field input:focus, .fl-field select:focus {
+            border-color:#E31E24;
+            box-shadow:0 0 0 3px rgba(227,30,36,0.12);
+        }
+        .fl-field label {
+            position:absolute; left:1rem; top:50%; transform:translateY(-50%);
+            font-size:0.88rem; color:#a0aec0; font-weight:500;
+            pointer-events:none; transition:all .18s ease; background:white;
+            padding:0 2px; line-height:1;
+        }
+        .fl-field input:focus ~ label,
+        .fl-field input:not(:placeholder-shown) ~ label,
+        .fl-field select:focus ~ label,
+        .fl-field.has-value label {
+            top:0; transform:translateY(-50%); font-size:0.72rem; color:#718096;
+        }
+        .fl-field input:focus ~ label, .fl-field select:focus ~ label { color:#E31E24; }
+        .fl-field input::placeholder { color:transparent; }
     </style>
 </head>
 <body class="portal-body" data-page="receiving">
@@ -312,7 +340,7 @@ function fabOpenNewBlank() {
     </div>
     <!-- Footer -->
     <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;flex-shrink:0;display:flex;flex-direction:column;gap:0.5rem;">
-      <button id="rsmAddItemBtn" onclick="openAddItemModal()" style="display:none;width:100%;padding:0.65rem;border:1.5px dashed #003087;border-radius:12px;background:rgba(0,48,135,0.04);color:#003087;font-size:0.85rem;font-weight:700;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;transition:all .2s;" onmouseover="this.style.background='rgba(0,48,135,0.08)'" onmouseout="this.style.background='rgba(0,48,135,0.04)'">
+      <button id="rsmAddItemBtn" onclick="openAddItemModal()" style="display:none;width:100%;padding:0.65rem;border:1.5px dashed #E8001C;border-radius:12px;background:rgba(232,0,28,0.04);color:#E8001C;font-size:0.85rem;font-weight:700;cursor:pointer;display:none;align-items:center;justify-content:center;gap:6px;transition:all .2s;" onmouseover="this.style.background='rgba(232,0,28,0.08)'" onmouseout="this.style.background='rgba(232,0,28,0.04)'">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Item
       </button>
@@ -351,79 +379,68 @@ function fabOpenNewBlank() {
 <!-- ── Add Item Modal (for blank receivings) ─────────────── -->
 <div class="modal" id="addItemModal">
   <div class="modal-content" style="max-width:480px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
-    <div style="background:linear-gradient(135deg,#003087,#004ab3);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
+    <div style="background:linear-gradient(135deg,#E8001C,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
       <div style="flex:1;">
         <div style="color:white;font-size:1rem;font-weight:800;">Add Item</div>
         <div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:2px;">Enter item details to add to this receiving record</div>
       </div>
       <button onclick="closeModal('addItemModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:32px;height:32px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
     </div>
-    <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.75rem;">
+    <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;display:flex;flex-direction:column;gap:0.85rem;">
 
       <!-- Item No. with lookup -->
-      <div style="position:relative;">
-        <label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Item No. <span style="color:#E8001C;">*</span></label>
-        <input type="text" id="aiItemNum" placeholder="e.g. SR-7310" autocomplete="off"
-          oninput="aiLookupItem(this.value)"
-          style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;transition:border-color .15s;"
-          onfocus="this.style.borderColor='#003087'" onblur="setTimeout(function(){document.getElementById('aiSuggestBox').style.display='none'},200)">
-        <!-- Suggestions dropdown -->
-        <div id="aiSuggestBox" style="display:none;position:absolute;left:0;right:0;top:100%;background:white;border:1.5px solid #e2e8f0;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.1);z-index:999;max-height:180px;overflow-y:auto;margin-top:2px;"></div>
+      <div class="fl-field" style="position:relative;">
+        <input type="text" id="aiItemNum" placeholder=" " autocomplete="off"
+          oninput="aiSearch('num',this.value)"
+          onfocus="aiSearch('num',this.value)" onblur="setTimeout(aiHideSuggest,200)">
+        <label>Item No. <span style="color:#E8001C;">*</span></label>
+        <div id="aiSuggestNum" style="display:none;position:absolute;left:0;right:0;top:100%;background:white;border:1.5px solid #e2e8f0;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.1);z-index:1000;max-height:180px;overflow-y:auto;margin-top:2px;"></div>
       </div>
 
       <!-- Item Name -->
-      <div>
-        <label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Item Name <span style="color:#E8001C;">*</span></label>
-        <input type="text" id="aiItemName" placeholder="e.g. Mitsubishi Rack End L300"
-          style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;transition:border-color .15s;"
-          onfocus="this.style.borderColor='#003087'" onblur="this.style.borderColor='#e2e8f0'">
+      <div class="fl-field" style="position:relative;">
+        <input type="text" id="aiItemName" placeholder=" " autocomplete="off"
+          oninput="aiSearch('name',this.value)"
+          onfocus="aiSearch('name',this.value)" onblur="setTimeout(aiHideSuggest,200)">
+        <label>Item Name <span style="color:#E8001C;">*</span></label>
+        <div id="aiSuggestName" style="display:none;position:absolute;left:0;right:0;top:100%;background:white;border:1.5px solid #e2e8f0;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.1);z-index:1000;max-height:180px;overflow-y:auto;margin-top:2px;"></div>
       </div>
 
       <!-- UOM + Supplier Code (side by side) -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-        <div>
-          <label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">UOM</label>
-          <input type="text" id="aiUom" placeholder="e.g. Piece"
-            style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;transition:border-color .15s;"
-            onfocus="this.style.borderColor='#003087'" onblur="this.style.borderColor='#e2e8f0'">
+        <div class="fl-field">
+          <input type="text" id="aiUom" placeholder=" ">
+          <label>UOM</label>
         </div>
-        <div>
-          <label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Supplier Code</label>
-          <input type="text" id="aiSupplierCode" placeholder="e.g. 555"
-            style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;transition:border-color .15s;"
-            onfocus="this.style.borderColor='#003087'" onblur="this.style.borderColor='#e2e8f0'">
+        <div class="fl-field">
+          <input type="text" id="aiSupplierCode" placeholder=" ">
+          <label>Supplier Code</label>
         </div>
       </div>
 
-      <!-- Unit Cost + Order Qty (side by side) -->
+      <!-- Order Qty -->
+      <div class="fl-field">
+        <input type="number" id="aiPoQty" placeholder=" " min="1">
+        <label>Order Qty <span style="color:#E8001C;">*</span></label>
+      </div>
+
+      <!-- OEM # + POS ID (side by side) -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
-        <div>
-          <label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Unit Cost</label>
-          <input type="number" id="aiUnitCost" placeholder="0.00" min="0" step="0.01"
-            style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;transition:border-color .15s;"
-            onfocus="this.style.borderColor='#003087'" onblur="this.style.borderColor='#e2e8f0'">
+        <div class="fl-field">
+          <input type="text" id="aiOem" placeholder=" ">
+          <label>OEM #</label>
         </div>
-        <div>
-          <label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Order Qty <span style="color:#E8001C;">*</span></label>
-          <input type="number" id="aiPoQty" placeholder="0" min="1"
-            style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;transition:border-color .15s;"
-            onfocus="this.style.borderColor='#003087'" onblur="this.style.borderColor='#e2e8f0'">
+        <div class="fl-field">
+          <input type="text" id="aiPosId" placeholder=" ">
+          <label>POS ID</label>
         </div>
-      </div>
-
-      <!-- OEM # -->
-      <div>
-        <label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">OEM # <span style="font-weight:400;color:#a0aec0;">(optional)</span></label>
-        <input type="text" id="aiOem" placeholder="e.g. 105"
-          style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:0.6rem 0.8rem;font-size:0.88rem;outline:none;box-sizing:border-box;transition:border-color .15s;"
-          onfocus="this.style.borderColor='#003087'" onblur="this.style.borderColor='#e2e8f0'">
       </div>
 
     </div>
     <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
       <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('addItemModal')">Cancel</button>
       <button type="button" id="aiSubmitBtn" onclick="submitAddItem()"
-        style="flex:2;padding:0.75rem;background:linear-gradient(135deg,#003087,#004ab3);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;">
+        style="flex:2;padding:0.75rem;background:linear-gradient(135deg,#E8001C,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Item
       </button>
@@ -945,7 +962,7 @@ window.openRcvSessionModal = function(docId) {
       + '</div>'
       + '<div style="font-weight:600;color:#718096;margin-bottom:4px;">No items yet</div>'
       + (isBlank
-          ? '<div style="font-size:12px;">Tap <strong style="color:#003087;">+ Add Item</strong> below to add items to this receiving record.</div>'
+          ? '<div style="font-size:12px;">Tap <strong style="color:#E8001C;">+ Add Item</strong> below to add items to this receiving record.</div>'
           : '<div style="font-size:12px;">No items in this receiving record.</div>')
       + '</div>';
   } else {
@@ -1234,12 +1251,15 @@ window.createBlankReceiving = function() {
 
 window.openAddItemModal = function() {
   // Clear previous values
-  ['aiItemNum','aiItemName','aiUom','aiSupplierCode','aiUnitCost','aiPoQty','aiOem'].forEach(function(id) {
+  ['aiItemNum','aiItemName','aiUom','aiSupplierCode','aiPoQty','aiOem','aiPosId'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
-  var sb = document.getElementById('aiSuggestBox');
-  if (sb) sb.style.display = 'none';
+  ['aiSuggestNum','aiSuggestName'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  _aiLastQuery = '';
   document.getElementById('addItemModal').classList.add('active');
   setTimeout(function(){ var el = document.getElementById('aiItemNum'); if(el) el.focus(); }, 200);
 };
@@ -1249,9 +1269,9 @@ window.submitAddItem = function() {
   var itemName     = (document.getElementById('aiItemName').value || '').trim();
   var uom          = (document.getElementById('aiUom').value || '').trim();
   var supplierCode = (document.getElementById('aiSupplierCode').value || '').trim();
-  var unitCost     = parseFloat(document.getElementById('aiUnitCost').value) || 0;
   var poQty        = parseInt(document.getElementById('aiPoQty').value) || 0;
   var oem          = (document.getElementById('aiOem').value || '').trim();
+  var posId        = (document.getElementById('aiPosId').value || '').trim();
 
   if (!itemNum) {
     document.getElementById('aiItemNum').style.borderColor = '#E8001C';
@@ -1280,8 +1300,8 @@ window.submitAddItem = function() {
     itemName:     itemName,
     uom:          uom,
     supplierCode: supplierCode,
-    unitCost:     unitCost,
     oem:          oem,
+    posId:        posId,
     poQty:        poQty,
     receivedQty:  0,
     lineStatus:   'DRAFT',
@@ -1312,81 +1332,98 @@ window.submitAddItem = function() {
   });
 };
 
-// ── Auto-lookup from stock_inventory when item no. is typed ──────────────────
+// ── Auto-lookup from stock_inventory (Item No. and Item Name fields) ─────────
 var _aiLookupTimer = null;
 var _aiLastQuery   = '';
 
-window.aiLookupItem = function(val) {
-  // Reset border colour on change
-  document.getElementById('aiItemNum').style.borderColor = '#003087';
-  var q = (val || '').trim().toLowerCase();
-  var sb = document.getElementById('aiSuggestBox');
+function aiHideSuggest() {
+  ['aiSuggestNum','aiSuggestName'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
+// Build a suggestion row — stores full item JSON in data-item attribute
+function _aiRow(item) {
+  var safe = JSON.stringify(item).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+  return '<div onclick="aiSelectItem(this)" data-item="' + safe + '"'
+    + ' style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f4f8;transition:background .1s;"'
+    + ' onmouseover="this.style.background=\'#f0f4f8\'" onmouseout="this.style.background=\'white\'">'
+    + '<div style="font-size:13px;font-weight:700;color:#1a202c;">' + (item.num || '—') + '</div>'
+    + '<div style="font-size:11px;color:#718096;margin-top:1px;">'
+    +   (item.name || '') + (item.uom ? ' · ' + item.uom : '')
+    + '</div>'
+    + '</div>';
+}
+
+window.aiSearch = function(field, val) {
+  var sbId = field === 'num' ? 'aiSuggestNum' : 'aiSuggestName';
+  var sb   = document.getElementById(sbId);
+  var q    = (val || '').trim();
+
+  // Hide the OTHER suggest box
+  var otherId = field === 'num' ? 'aiSuggestName' : 'aiSuggestNum';
+  var other = document.getElementById(otherId);
+  if (other) other.style.display = 'none';
 
   if (q.length < 1) { sb.style.display = 'none'; return; }
-  if (q === _aiLastQuery) return;
 
   clearTimeout(_aiLookupTimer);
   _aiLookupTimer = setTimeout(function() {
-    _aiLastQuery = q;
-    // Search stock_inventory by num or name prefix
+    var orderField = field === 'num' ? 'num' : 'name';
+    var startKey   = q.charAt(0).toUpperCase() + q.slice(1);
+
+    // Primary search on the typed field
     db.collection('stock_inventory')
-      .orderBy('num')
-      .startAt(q.toUpperCase()).endAt(q.toUpperCase() + '\uf8ff')
+      .orderBy(orderField)
+      .startAt(startKey).endAt(startKey + '\uf8ff')
       .limit(8)
       .get()
       .then(function(snap) {
-        var results = snap.docs.map(function(d){ return Object.assign({_id:d.id}, d.data()); });
+        var results = snap.docs.map(function(d){ return Object.assign({ _id: d.id }, d.data()); });
 
-        // Also search by name if few results
-        if (results.length < 3) {
+        // If searching by name and few results, also try lowercase start
+        if (field === 'name' && results.length < 4) {
           return db.collection('stock_inventory')
             .orderBy('name')
-            .startAt(val.charAt(0).toUpperCase() + val.slice(1))
-            .endAt(val.charAt(0).toUpperCase() + val.slice(1) + '\uf8ff')
+            .startAt(q.toLowerCase()).endAt(q.toLowerCase() + '\uf8ff')
             .limit(8)
             .get()
             .then(function(snap2) {
-              var extra = snap2.docs.map(function(d){ return Object.assign({_id:d.id}, d.data()); });
-              // Merge, dedupe by _id
+              var extra = snap2.docs.map(function(d){ return Object.assign({ _id: d.id }, d.data()); });
               var seen = {};
               results.forEach(function(r){ seen[r._id] = true; });
-              extra.forEach(function(r){ if(!seen[r._id]) { seen[r._id]=true; results.push(r); } });
+              extra.forEach(function(r){ if (!seen[r._id]) { seen[r._id] = true; results.push(r); } });
               return results;
             });
         }
         return results;
       })
       .then(function(results) {
-        if (!results.length) {
-          sb.style.display = 'none';
-          return;
-        }
-        sb.innerHTML = results.map(function(item) {
-          var safeNum  = (item.num  || '').replace(/'/g, "\\'");
-          var safeName = (item.name || '').replace(/'/g, "\\'");
-          var safeUom  = (item.uom  || '').replace(/'/g, "\\'");
-          return '<div onclick="aiSelectItem(\'' + safeNum + '\',\'' + safeName + '\',\'' + safeUom + '\')"'
-            + ' style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f4f8;transition:background .1s;"'
-            + ' onmouseover="this.style.background=\'#f0f4f8\'" onmouseout="this.style.background=\'white\'">'
-            + '<div style="font-size:13px;font-weight:700;color:#1a202c;">' + (item.num || '—') + '</div>'
-            + '<div style="font-size:11px;color:#718096;margin-top:1px;">' + (item.name || '') + (item.uom ? ' · ' + item.uom : '') + '</div>'
-            + '</div>';
-        }).join('');
+        if (!results.length) { sb.style.display = 'none'; return; }
+        sb.innerHTML = results.map(_aiRow).join('');
         sb.style.display = 'block';
       })
       .catch(function() { sb.style.display = 'none'; });
-  }, 280);
+  }, 250);
 };
 
-window.aiSelectItem = function(num, name, uom) {
-  document.getElementById('aiItemNum').value  = num;
-  document.getElementById('aiItemName').value = name;
-  document.getElementById('aiUom').value      = uom;
-  document.getElementById('aiSuggestBox').style.display = 'none';
-  _aiLastQuery = num.toLowerCase();
-  // Move focus to supplier code
-  var sc = document.getElementById('aiSupplierCode');
-  if (sc) sc.focus();
+// Called when a suggestion row is clicked — fills ALL fields from stored JSON
+window.aiSelectItem = function(el) {
+  var item = {};
+  try { item = JSON.parse(el.getAttribute('data-item').replace(/&quot;/g, '"').replace(/&#39;/g, "'")); } catch(e){}
+
+  document.getElementById('aiItemNum').value      = item.num          || '';
+  document.getElementById('aiItemName').value     = item.name         || '';
+  document.getElementById('aiUom').value          = item.uom          || '';
+  document.getElementById('aiSupplierCode').value = item.supplierCode || item.supplier_code || '';
+  document.getElementById('aiOem').value          = item.oem          || item.oem_num       || '';
+
+  aiHideSuggest();
+  _aiLastQuery = (item.num || '').toLowerCase();
+
+  // Move focus to Order Qty (most likely next field to fill)
+  setTimeout(function(){ document.getElementById('aiPoQty').focus(); }, 50);
 };
 
 // ── Print (wrapper kept for toolbar Print PO button — prints from PO collection) ──
