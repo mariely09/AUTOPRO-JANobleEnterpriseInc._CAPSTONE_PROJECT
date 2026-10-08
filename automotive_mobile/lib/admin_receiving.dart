@@ -9,6 +9,7 @@ import 'admin_dashboard.dart';
 import 'admin_inventory_hub.dart';
 import 'admin_vehicles_list.dart';
 import 'profile.dart';
+import 'barcode_scanner_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // AdminReceiving — Receiving Items screen
@@ -212,20 +213,38 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
     return '₱$int1.${parts[1]}';
   }
 
-  /// Generate receiving number: RCV-YYYYMMDD-0001
+  /// Generate receiving number: RCV-YYYYMMDD-0001 (continuous sequence across all dates)
+  /// The 4-digit number continues incrementing regardless of date changes
   Future<String> _genRcvNum() async {
     final now = DateTime.now();
-    final ds =
+    final dateStr =
         '${now.year}'
         '${now.month.toString().padLeft(2, '0')}'
         '${now.day.toString().padLeft(2, '0')}';
-    final prefix = 'RCV-$ds-';
-    final snap = await FirebaseFirestore.instance
-        .collection(_col)
-        .where('receivingNum', isGreaterThanOrEqualTo: prefix)
-        .where('receivingNum', isLessThan: '${prefix}z')
-        .get();
-    return '$prefix${(snap.docs.length + 1).toString().padLeft(4, '0')}';
+
+    try {
+      // Query Firestore for the highest number EVER (not just today)
+      final snap = await FirebaseFirestore.instance
+          .collection(_col)
+          .orderBy('receivingNum', descending: true)
+          .limit(1)
+          .get();
+
+      int nextNum = 1;
+      if (snap.docs.isNotEmpty) {
+        final lastNum = snap.docs.first.data()['receivingNum'] as String? ?? '';
+        final match = RegExp(r'-(\d+)$').firstMatch(lastNum);
+        if (match != null) {
+          nextNum = int.parse(match.group(1)!) + 1;
+        }
+      }
+
+      return 'RCV-$dateStr-${nextNum.toString().padLeft(4, '0')}';
+    } catch (e) {
+      // Fallback: count all records if query fails
+      final allSnap = await FirebaseFirestore.instance.collection(_col).get();
+      return 'RCV-$dateStr-${(allSnap.docs.length + 1).toString().padLeft(4, '0')}';
+    }
   }
 
   /// Count header records by status
@@ -706,12 +725,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                   ),
                 ),
               ),
-              // Action button per status
-              if (status == 'DRAFT')
-                _cardActionBtn('▶ Start', _blue, () => _startReceiving(r))
-              else if (status == 'INPROG')
-                _cardActionBtn('▶ Continue', _red, () => _showViewModal(r))
-              else if (total > 0)
+              // Show total only for COMP/PARTIAL
+              if (total > 0 && (status == 'COMP' || status == 'PARTIAL'))
                 Text(
                   _fmtPeso(total),
                   style: const TextStyle(
@@ -825,24 +840,54 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
   /// Create a blank receiving record — STATUS=DRAFT
   /// User adds items first, then taps "Start Receiving" to move to INPROG.
   Future<void> _createBlankReceiving() async {
-    final rcvNum = await _genRcvNum();
-    final name = await _currentUserName();
     try {
-      final ref = await SyncStatusNotifier.instance.trackWrite(
-        () => FirebaseFirestore.instance.collection(_col).add({
-          'receivingNum': rcvNum,
-          'status': 'DRAFT',
-          'poRef': null,
-          'poNum': '',
-          'receivingLines': [],
-          'createdBy': name,
-          'createdAt': FieldValue.serverTimestamp(),
-        }),
+      final name = await _currentUserName();
+
+      // Retry logic in case of duplicate number (race condition)
+      int attempts = 0;
+      while (attempts < 3) {
+        try {
+          final rcvNum = await _genRcvNum();
+
+          // Verify uniqueness before creating
+          final existingCheck = await FirebaseFirestore.instance
+              .collection(_col)
+              .where('receivingNum', isEqualTo: rcvNum)
+              .limit(1)
+              .get();
+
+          if (existingCheck.docs.isNotEmpty) {
+            attempts++;
+            await Future.delayed(Duration(milliseconds: 100 * attempts));
+            continue; // Regenerate and retry
+          }
+
+          final ref = await SyncStatusNotifier.instance.trackWrite(
+            () => FirebaseFirestore.instance.collection(_col).add({
+              'receivingNum': rcvNum,
+              'status': 'DRAFT',
+              'poRef': null,
+              'poNum': '',
+              'receivingLines': [],
+              'createdBy': name,
+              'createdAt': FieldValue.serverTimestamp(),
+            }),
+          );
+          if (!mounted) return;
+          final doc = await ref.get();
+          if (!mounted) return;
+          _showViewModal({...doc.data() as Map<String, dynamic>, 'id': doc.id});
+          return; // Success - exit
+        } catch (e) {
+          attempts++;
+          if (attempts >= 3) throw e;
+          await Future.delayed(Duration(milliseconds: 100 * attempts));
+        }
+      }
+
+      throw Exception(
+        'Failed to generate unique receiving number after 3 attempts',
       );
-      if (!mounted) return;
-      final doc = await ref.get();
-      if (!mounted) return;
-      _showViewModal({...doc.data() as Map<String, dynamic>, 'id': doc.id});
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1073,77 +1118,107 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
 
   /// Create a receiving record from a PO document (mirrors web createReceivingFromPO)
   Future<void> _createReceivingFromPO(Map<String, dynamic> po) async {
-    final rcvNum = await _genRcvNum();
-    final name = await _currentUserName();
-
-    // Map PO items → receiving lines
-    final poItems = (po['items'] as List? ?? []);
-    final lines = poItems.map((item) {
-      final m = item as Map;
-      return {
-        'itemNum': m['itemNum'] ?? '',
-        'itemName': m['itemName'] ?? '',
-        'uom': m['uom'] ?? '',
-        'supplierCode': m['supplierCode'] ?? '',
-        'unitCost':
-            double.tryParse(
-              (m['unitCost']?.toString() ?? '0')
-                  .replaceAll('₱', '')
-                  .replaceAll(',', '')
-                  .trim(),
-            ) ??
-            0.0,
-        'poQty': (m['expectedQty'] as num?)?.toInt() ?? 0, // source field in PO
-        'receivedQty': 0,
-        'lineStatus': 'DRAFT',
-        'remark': '',
-        'receivedAt': null,
-        'receivedBy': '',
-      };
-    }).toList();
-
     try {
-      final ref = await SyncStatusNotifier.instance.trackWrite(
-        () => FirebaseFirestore.instance.collection(_col).add({
-          'receivingNum': rcvNum,
-          'status': 'DRAFT',
-          'poRef': po['id'] as String,
-          'poNum': po['poNum'] ?? '',
-          'receivingLines': lines,
-          'createdBy': name,
-          'createdAt': FieldValue.serverTimestamp(),
-        }),
+      final name = await _currentUserName();
+
+      // Map PO items → receiving lines
+      final poItems = (po['items'] as List? ?? []);
+      final lines = poItems.map((item) {
+        final m = item as Map;
+        return {
+          'itemNum': m['itemNum'] ?? '',
+          'itemName': m['itemName'] ?? '',
+          'uom': m['uom'] ?? '',
+          'supplierCode': m['supplierCode'] ?? '',
+          'unitCost':
+              double.tryParse(
+                (m['unitCost']?.toString() ?? '0')
+                    .replaceAll('₱', '')
+                    .replaceAll(',', '')
+                    .trim(),
+              ) ??
+              0.0,
+          'poQty':
+              (m['expectedQty'] as num?)?.toInt() ?? 0, // source field in PO
+          'receivedQty': 0,
+          'lineStatus': 'DRAFT',
+          'remark': '',
+          'receivedAt': null,
+          'receivedBy': '',
+        };
+      }).toList();
+
+      // Retry logic for duplicate numbers
+      int attempts = 0;
+      while (attempts < 3) {
+        try {
+          final rcvNum = await _genRcvNum();
+
+          // Verify uniqueness
+          final existingCheck = await FirebaseFirestore.instance
+              .collection(_col)
+              .where('receivingNum', isEqualTo: rcvNum)
+              .limit(1)
+              .get();
+
+          if (existingCheck.docs.isNotEmpty) {
+            attempts++;
+            await Future.delayed(Duration(milliseconds: 100 * attempts));
+            continue; // Retry with new number
+          }
+
+          final ref = await SyncStatusNotifier.instance.trackWrite(
+            () => FirebaseFirestore.instance.collection(_col).add({
+              'receivingNum': rcvNum,
+              'status': 'DRAFT',
+              'poRef': po['id'] as String,
+              'poNum': po['poNum'] ?? '',
+              'receivingLines': lines,
+              'createdBy': name,
+              'createdAt': FieldValue.serverTimestamp(),
+            }),
+          );
+
+          // Set PO status to 'Partially Received' (mirrors web)
+          try {
+            await SyncStatusNotifier.instance.trackWrite(
+              () => FirebaseFirestore.instance
+                  .collection(_poCol)
+                  .doc(po['id'] as String)
+                  .update({
+                    'status': 'Partially Received',
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  }),
+            );
+          } catch (_) {} // non-fatal if PO update fails
+
+          if (!mounted) return;
+          final doc = await ref.get();
+          if (!mounted) return;
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$rcvNum created from ${po['poNum'] ?? 'PO'}'),
+              backgroundColor: _green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+
+          _showViewModal({...doc.data() as Map<String, dynamic>, 'id': doc.id});
+          return; // Success - exit
+        } catch (e) {
+          attempts++;
+          if (attempts >= 3) throw e;
+          await Future.delayed(Duration(milliseconds: 100 * attempts));
+        }
+      }
+
+      throw Exception(
+        'Failed to generate unique receiving number after 3 attempts',
       );
-
-      // Set PO status to 'Partially Received' (mirrors web)
-      try {
-        await SyncStatusNotifier.instance.trackWrite(
-          () => FirebaseFirestore.instance
-              .collection(_poCol)
-              .doc(po['id'] as String)
-              .update({
-                'status': 'Partially Received',
-                'updatedAt': FieldValue.serverTimestamp(),
-              }),
-        );
-      } catch (_) {} // non-fatal if PO update fails
-
-      if (!mounted) return;
-      final doc = await ref.get();
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$rcvNum created from ${po['poNum'] ?? 'PO'}'),
-          backgroundColor: _green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-
-      _showViewModal({...doc.data() as Map<String, dynamic>, 'id': doc.id});
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1213,7 +1288,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
             );
             double total = 0;
             for (final l in lines) {
-              final c = double.tryParse(
+              final c =
+                  double.tryParse(
                     (l['unitCost']?.toString() ?? '0')
                         .replaceAll('₱', '')
                         .replaceAll(',', '')
@@ -1229,13 +1305,13 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [color.withValues(alpha: 1.0), color],
+                      colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: const BorderRadius.vertical(
+                    borderRadius: BorderRadius.vertical(
                       top: Radius.circular(20),
                     ),
                   ),
@@ -1293,7 +1369,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                       GestureDetector(
                         onTap: () => Navigator.pop(ctx),
                         child: Container(
-                          width: 32, height: 32,
+                          width: 32,
+                          height: 32,
                           decoration: BoxDecoration(
                             color: Colors.white24,
                             shape: BoxShape.circle,
@@ -1329,7 +1406,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                 '${lines.where((l) => (l['lineStatus'] as String? ?? 'DRAFT') != 'DRAFT').length}/${lines.length} done',
                               ),
                             ),
-                            if (total > 0) ...[
+                            if (total > 0 && status != 'PARTIAL') ...[
                               const SizedBox(width: 10),
                               Expanded(
                                 child: _infoCard(
@@ -1360,7 +1437,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                             decoration: BoxDecoration(
                               color: const Color(0xFFF7F8FA),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: const Color(0xFFe2e8f0)),
+                              border: Border.all(
+                                color: const Color(0xFFe2e8f0),
+                              ),
                             ),
                             child: const Row(
                               children: [
@@ -1384,14 +1463,21 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                           ...lines.asMap().entries.map((e) {
                             final i = e.key;
                             final line = e.value;
-                            final lst = line['lineStatus'] as String? ?? 'DRAFT';
+                            final lst =
+                                line['lineStatus'] as String? ?? 'DRAFT';
                             final lc = _lineColor(lst);
                             final ll = _lineLabels[lst] ?? lst;
                             final pQty = (line['poQty'] as num?)?.toInt() ?? 0;
-                            final rQty = (line['receivedQty'] as num?)?.toInt() ?? 0;
+                            final rQty =
+                                (line['receivedQty'] as num?)?.toInt() ?? 0;
                             final canReceive =
                                 (status == 'INPROG' || status == 'DRAFT') &&
                                 lst == 'DRAFT';
+                            final canContinueReceiving =
+                                status == 'INPROG' &&
+                                (lst == 'INCOMP' ||
+                                    lst == 'MISSING' ||
+                                    lst == 'DEFECTIVE');
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
@@ -1399,7 +1485,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFe2e8f0)),
+                                border: Border.all(
+                                  color: const Color(0xFFe2e8f0),
+                                ),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withValues(alpha: 0.03),
@@ -1411,13 +1499,17 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Container(
-                                        width: 20, height: 20,
+                                        width: 20,
+                                        height: 20,
                                         decoration: BoxDecoration(
                                           color: _red.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(6),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
                                         ),
                                         child: Center(
                                           child: Text(
@@ -1441,9 +1533,13 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                             ),
                                             children: [
                                               TextSpan(
-                                                text: line['itemName'] as String? ?? '—',
+                                                text:
+                                                    line['itemName']
+                                                        as String? ??
+                                                    '—',
                                               ),
-                                              if ((line['uom'] as String? ?? '').isNotEmpty)
+                                              if ((line['uom'] as String? ?? '')
+                                                  .isNotEmpty)
                                                 TextSpan(
                                                   text: '  (${line['uom']})',
                                                   style: const TextStyle(
@@ -1463,7 +1559,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                         ),
                                         decoration: BoxDecoration(
                                           color: lc.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(20),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
                                         ),
                                         child: Text(
                                           ll,
@@ -1487,11 +1585,18 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                             ? (rQty >= pQty ? _green : _amber)
                                             : null,
                                       ),
-                                      _lineMeta('Item #', line['itemNum'] as String? ?? '—'),
-                                      _lineMeta('OEM #', line['oem'] as String? ?? '—'),
+                                      _lineMeta(
+                                        'Item #',
+                                        line['itemNum'] as String? ?? '—',
+                                      ),
+                                      _lineMeta(
+                                        'OEM #',
+                                        line['oem'] as String? ?? '—',
+                                      ),
                                     ],
                                   ),
-                                  if ((line['remark'] as String? ?? '').isNotEmpty) ...[
+                                  if ((line['remark'] as String? ?? '')
+                                      .isNotEmpty) ...[
                                     const SizedBox(height: 6),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
@@ -1513,28 +1618,116 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                   ],
                                   if (canReceive) ...[
                                     const SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            onPressed: () {
+                                              Navigator.pop(ctx);
+                                              showLineViewModal(
+                                                context,
+                                                rcvData: data,
+                                                lineIdx: i,
+                                                isBlank: poNum.isEmpty,
+                                                onReceive: () =>
+                                                    _showReceiveLineModal(
+                                                      data,
+                                                      i,
+                                                    ),
+                                              );
+                                            },
+                                            icon: const Icon(
+                                              Icons.visibility_outlined,
+                                              size: 14,
+                                            ),
+                                            label: const Text(
+                                              'View',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: const Color(
+                                                0xFF4a5568,
+                                              ),
+                                              side: const BorderSide(
+                                                color: Color(0xFFe2e8f0),
+                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 10,
+                                                  ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: ElevatedButton.icon(
+                                            onPressed: () {
+                                              Navigator.pop(ctx);
+                                              _showReceiveLineModal(data, i);
+                                            },
+                                            icon: const Icon(
+                                              Icons.download_outlined,
+                                              size: 14,
+                                            ),
+                                            label: const Text(
+                                              'Receive',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: _red,
+                                              foregroundColor: Colors.white,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 10,
+                                                  ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                  if (canContinueReceiving) ...[
+                                    const SizedBox(height: 10),
                                     SizedBox(
                                       width: double.infinity,
-                                      child: OutlinedButton.icon(
+                                      child: ElevatedButton.icon(
                                         onPressed: () {
                                           Navigator.pop(ctx);
-                                          showLineViewModal(
-                                            context,
-                                            rcvData: data,
-                                            lineIdx: i,
-                                            isBlank: poNum.isEmpty,
-                                            onReceive: () => _showReceiveLineModal(data, i),
-                                          );
+                                          _showReceiveLineModal(data, i);
                                         },
-                                        icon: const Icon(Icons.visibility_outlined, size: 14),
-                                        label: const Text('View',
-                                            style: TextStyle(fontWeight: FontWeight.w600)),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: const Color(0xFF4a5568),
-                                          side: const BorderSide(color: Color(0xFFe2e8f0)),
-                                          padding: const EdgeInsets.symmetric(vertical: 10),
+                                        icon: const Icon(
+                                          Icons.add_circle_outline,
+                                          size: 14,
+                                        ),
+                                        label: const Text(
+                                          'Continue Receiving',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: _amber,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 10,
+                                          ),
                                           shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(20)),
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -1557,17 +1750,86 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                   context,
                                   rcvData: data,
                                 ),
-                                icon: const Icon(Icons.add_circle_outline, size: 15),
+                                icon: const Icon(
+                                  Icons.add_circle_outline,
+                                  size: 15,
+                                ),
                                 label: const Text(
-                                  '+ Add Item',
+                                  'Start Receiving',
                                   style: TextStyle(fontWeight: FontWeight.w700),
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: _red,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 13),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 13,
+                                  ),
                                   shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(30)),
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _scanAndFindInReceiving(data);
+                                },
+                                icon: const Icon(
+                                  Icons.qr_code_scanner,
+                                  size: 15,
+                                ),
+                                label: const Text(
+                                  'Scan',
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: _blue,
+                                  side: BorderSide(
+                                    color: _blue.withValues(alpha: 0.4),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _deleteReceiving(data);
+                                },
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 15,
+                                  color: _red,
+                                ),
+                                label: const Text(
+                                  'Delete Receiving',
+                                  style: TextStyle(
+                                    color: _red,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: _red.withValues(alpha: 0.4),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1580,7 +1842,10 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                   Navigator.pop(ctx);
                                   _showViewModal(data);
                                 },
-                                icon: const Icon(Icons.play_arrow_outlined, size: 16),
+                                icon: const Icon(
+                                  Icons.play_arrow_outlined,
+                                  size: 16,
+                                ),
                                 label: const Text(
                                   'Start Receiving',
                                   style: TextStyle(fontWeight: FontWeight.w700),
@@ -1588,7 +1853,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: _blue,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(30),
                                   ),
@@ -1596,6 +1863,38 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                               ),
                             ),
                             const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _deleteReceiving(data);
+                                },
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 15,
+                                  color: _red,
+                                ),
+                                label: const Text(
+                                  'Delete Receiving',
+                                  style: TextStyle(
+                                    color: _red,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: _red.withValues(alpha: 0.4),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ] else if (status == 'INPROG') ...[
                           if (poNum.isEmpty) ...[
@@ -1606,20 +1905,122 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                   context,
                                   rcvData: data,
                                 ),
-                                icon: const Icon(Icons.add_circle_outline, size: 16),
-                                label: const Text('Add Item',
-                                    style: TextStyle(fontWeight: FontWeight.w700)),
+                                icon: const Icon(
+                                  Icons.add_circle_outline,
+                                  size: 16,
+                                ),
+                                label: const Text(
+                                  'Continue Receiving',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: _red,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
                                   shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(30)),
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  _scanAndFindInReceiving(data);
+                                },
+                                icon: const Icon(
+                                  Icons.qr_code_scanner,
+                                  size: 15,
+                                ),
+                                label: const Text(
+                                  'Scan Item',
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: _blue,
+                                  side: BorderSide(color: _blue),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
                                 ),
                               ),
                             ),
                           ],
                         ] else if (status == 'COMP' || status == 'PARTIAL') ...[
+                          // Add Item button for PARTIAL status (blank receiving only, not yet stock updated)
+                          if (status == 'PARTIAL' &&
+                              poNum.isEmpty &&
+                              data['stockUpdated'] != true) ...[
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () => showAddItemFormModal(
+                                  context,
+                                  rcvData: data,
+                                ),
+                                icon: const Icon(
+                                  Icons.add_circle_outline,
+                                  size: 16,
+                                ),
+                                label: const Text(
+                                  'Add Item',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _red,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: (data['stockUpdated'] == true)
+                                  ? null
+                                  : () {
+                                      Navigator.pop(ctx);
+                                      _submitAndUpdateStock(data);
+                                    },
+                              icon: const Icon(Icons.upload_outlined, size: 14),
+                              label: Text(
+                                (data['stockUpdated'] == true)
+                                    ? '✓ Stock Updated'
+                                    : 'Submit & Update Stock',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: (data['stockUpdated'] == true)
+                                    ? _green
+                                    : _red,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton.icon(
@@ -1640,8 +2041,12 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                 ),
                               ),
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Color(0xFFcbd5e0)),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                side: const BorderSide(
+                                  color: Color(0xFFcbd5e0),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(30),
                                 ),
@@ -1769,8 +2174,11 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                   : allItems.where((i) {
                       final name = (i['name'] as String? ?? '').toLowerCase();
                       final num = (i['num'] as String? ?? '').toLowerCase();
-                      final sc = (i['supplierCode'] as String? ?? '').toLowerCase();
-                      return name.contains(lq) || num.contains(lq) || sc.contains(lq);
+                      final sc = (i['supplierCode'] as String? ?? '')
+                          .toLowerCase();
+                      return name.contains(lq) ||
+                          num.contains(lq) ||
+                          sc.contains(lq);
                     }).toList();
             });
           }
@@ -1791,7 +2199,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -1799,26 +2209,39 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Add Item',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700)),
+                            Text(
+                              'Add Item',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                             SizedBox(height: 2),
-                            Text('Select an item to add as a receiving line',
-                                style: TextStyle(
-                                    color: Colors.white70, fontSize: 11)),
+                            Text(
+                              'Select an item to add as a receiving line',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       GestureDetector(
                         onTap: () => Navigator.pop(ctx2),
                         child: Container(
-                          width: 32, height: 32,
+                          width: 32,
+                          height: 32,
                           decoration: BoxDecoration(
-                              color: Colors.white24, shape: BoxShape.circle),
-                          child: const Icon(Icons.close,
-                              color: Colors.white, size: 18),
+                            color: Colors.white24,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                         ),
                       ),
                     ],
@@ -1834,24 +2257,28 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                     decoration: InputDecoration(
                       hintText: 'Search by name, item #, supplier code…',
                       hintStyle: const TextStyle(
-                          fontSize: 12, color: Color(0xFFa0aec0)),
-                      prefixIcon: const Icon(Icons.search,
-                          size: 18, color: Color(0xFFa0aec0)),
+                        fontSize: 12,
+                        color: Color(0xFFa0aec0),
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        size: 18,
+                        color: Color(0xFFa0aec0),
+                      ),
                       isDense: true,
-                      contentPadding:
-                          const EdgeInsets.symmetric(vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(
-                              color: Color(0xFFe2e8f0))),
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
+                      ),
                       enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(
-                              color: Color(0xFFe2e8f0))),
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFFe2e8f0)),
+                      ),
                       focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(
-                              color: Color(0xFFE8001C))),
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFFE8001C)),
+                      ),
                     ),
                   ),
                 ),
@@ -1862,8 +2289,11 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                       ? const Center(child: CircularProgressIndicator())
                       : filtered.isEmpty
                       ? const Center(
-                          child: Text('No items found.',
-                              style: TextStyle(color: Color(0xFF718096))))
+                          child: Text(
+                            'No items found.',
+                            style: TextStyle(color: Color(0xFF718096)),
+                          ),
+                        )
                       : ListView.separated(
                           controller: ctrl,
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -1875,9 +2305,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                             final name = item['name'] as String? ?? '—';
                             final num = item['num'] as String? ?? '';
                             final uom = item['uom'] as String? ?? '';
-                            final sc =
-                                item['supplierCode'] as String? ?? '';
-                            final cost = double.tryParse(
+                            final sc = item['supplierCode'] as String? ?? '';
+                            final cost =
+                                double.tryParse(
                                   (item['cost']?.toString() ?? '0')
                                       .replaceAll('₱', '')
                                       .replaceAll(',', '')
@@ -1905,42 +2335,40 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                 // Append to existing lines
                                 final existingLines =
                                     List<Map<String, dynamic>>.from(
-                                  (r['receivingLines'] as List? ?? []).map(
-                                    (l) => Map<String, dynamic>.from(
-                                        l as Map),
-                                  ),
-                                );
+                                      (r['receivingLines'] as List? ?? []).map(
+                                        (l) =>
+                                            Map<String, dynamic>.from(l as Map),
+                                      ),
+                                    );
                                 existingLines.add(newLine);
                                 try {
-                                  await SyncStatusNotifier.instance
-                                      .trackWrite(
+                                  await SyncStatusNotifier.instance.trackWrite(
                                     () => FirebaseFirestore.instance
                                         .collection(_col)
                                         .doc(docId)
                                         .update({
-                                      'receivingLines': existingLines,
-                                    }),
+                                          'receivingLines': existingLines,
+                                        }),
                                   );
                                   if (context.mounted) {
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(
+                                    ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                            '${name} added to receiving'),
+                                          '${name} added to receiving',
+                                        ),
                                         backgroundColor: _green,
-                                        behavior:
-                                            SnackBarBehavior.floating,
+                                        behavior: SnackBarBehavior.floating,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
                                         ),
                                       ),
                                     );
                                   }
                                 } catch (e) {
                                   if (context.mounted) {
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(
+                                    ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text('Error: $e'),
                                         backgroundColor: _red,
@@ -1955,11 +2383,13 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
-                                      color: const Color(0xFFe2e8f0)),
+                                    color: const Color(0xFFe2e8f0),
+                                  ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black
-                                          .withValues(alpha: 0.03),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.03,
+                                      ),
                                       blurRadius: 4,
                                     ),
                                   ],
@@ -1987,8 +2417,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                                       fontSize: 11,
                                                       fontWeight:
                                                           FontWeight.w400,
-                                                      color:
-                                                          Color(0xFF718096),
+                                                      color: Color(0xFF718096),
                                                     ),
                                                   ),
                                               ],
@@ -1999,18 +2428,21 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                             [
                                               if (num.isNotEmpty) num,
                                               if (sc.isNotEmpty) sc,
-                                              if (cost > 0)
-                                                _fmtPeso(cost),
+                                              if (cost > 0) _fmtPeso(cost),
                                             ].join('  ·  '),
                                             style: const TextStyle(
-                                                fontSize: 11,
-                                                color: Color(0xFF718096)),
+                                              fontSize: 11,
+                                              color: Color(0xFF718096),
+                                            ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    const Icon(Icons.add_circle_outline,
-                                        size: 20, color: _red),
+                                    const Icon(
+                                      Icons.add_circle_outline,
+                                      size: 20,
+                                      color: _red,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -2030,7 +2462,10 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
   // RECEIVE LINE MODAL
   // ─────────────────────────────────────────────────────────────────────────
 
-  void _showReceiveLineModal(Map<String, dynamic> r, int lineIdx) async {
+  Future<void> _showReceiveLineModal(
+    Map<String, dynamic> r,
+    int lineIdx,
+  ) async {
     final allLines = List<Map<String, dynamic>>.from(
       (r['receivingLines'] as List? ?? []).map(
         (l) => Map<String, dynamic>.from(l as Map),
@@ -2055,12 +2490,27 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
 
     final line = allLines[lineIdx];
     final poQty = (line['poQty'] as num?)?.toInt() ?? 0;
+    final previousReceivedQty = (line['receivedQty'] as num?)?.toInt() ?? 0;
+    final currentLineStatus = line['lineStatus'] as String? ?? 'DRAFT';
+    final isContinuingReceiving =
+        previousReceivedQty > 0 &&
+        (currentLineStatus == 'INCOMP' ||
+            currentLineStatus == 'MISSING' ||
+            currentLineStatus == 'DEFECTIVE');
+
     final name = await _currentUserName();
     if (!mounted) return;
 
-    final qtyCtrl = TextEditingController(text: '$poQty');
-    final remarkCtrl = TextEditingController();
-    String lineStatus = _autoLineStatus(poQty, poQty);
+    // For new receiving, pre-fill with poQty. For continuing, leave empty (user adds additional qty)
+    final qtyCtrl = TextEditingController(
+      text: isContinuingReceiving ? '' : '$poQty',
+    );
+    final remarkCtrl = TextEditingController(
+      text: line['remark'] as String? ?? '',
+    );
+    String lineStatus = isContinuingReceiving
+        ? currentLineStatus
+        : _autoLineStatus(poQty, poQty);
     bool submitting = false;
 
     showModalBottomSheet(
@@ -2193,28 +2643,71 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                               ),
                             const SizedBox(height: 4),
                             Text(
-                              'PO Qty: $poQty',
+                              'Order Qty: $poQty',
                               style: const TextStyle(
                                 fontSize: 11,
                                 color: Color(0xFF718096),
                               ),
                             ),
+                            if (isContinuingReceiving) ...[
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEDF2F7),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.info_outline,
+                                      size: 12,
+                                      color: Color(0xFF4299E1),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Previously Received: $previousReceivedQty',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFF2D3748),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 12),
 
                             // ── Received qty input ──
                             TextField(
                               controller: qtyCtrl,
                               keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Received Qty *',
+                              decoration: InputDecoration(
+                                labelText: isContinuingReceiving
+                                    ? 'Additional Qty to Receive *'
+                                    : 'Received Qty *',
                                 border: OutlineInputBorder(),
                                 isDense: true,
+                                helperText: isContinuingReceiving
+                                    ? 'Enter additional quantity (will be added to previous)'
+                                    : null,
+                                helperStyle: const TextStyle(fontSize: 10),
                               ),
                               onChanged: (v) {
-                                final qty = int.tryParse(v) ?? 0;
+                                final additionalQty = int.tryParse(v) ?? 0;
+                                final totalQty = isContinuingReceiving
+                                    ? previousReceivedQty + additionalQty
+                                    : additionalQty;
                                 setModal(
-                                  () =>
-                                      lineStatus = _autoLineStatus(qty, poQty),
+                                  () => lineStatus = _autoLineStatus(
+                                    totalQty,
+                                    poQty,
+                                  ),
                                 );
                               },
                             ),
@@ -2349,14 +2842,34 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                               onPressed: submitting
                                   ? null
                                   : () async {
+                                      final inputQty =
+                                          int.tryParse(qtyCtrl.text) ?? 0;
+                                      final finalQty = isContinuingReceiving
+                                          ? previousReceivedQty + inputQty
+                                          : inputQty;
+
+                                      if (finalQty <= 0) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Please enter a valid quantity',
+                                            ),
+                                            backgroundColor: Color(0xFFE8001C),
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                        return;
+                                      }
+
                                       setModal(() => submitting = true);
                                       await _submitLine(
                                         ctx: ctx2,
                                         r: r,
                                         lineIdx: lineIdx,
                                         allLines: allLines,
-                                        receivedQty:
-                                            int.tryParse(qtyCtrl.text) ?? 0,
+                                        receivedQty: finalQty,
                                         lineStatus: lineStatus,
                                         remark: remarkCtrl.text.trim(),
                                         receivedBy: name,
@@ -2374,12 +2887,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                         color: Colors.white,
                                       ),
                                     )
-                                  : const Icon(
-                                      Icons.check_circle_outline,
-                                      size: 16,
-                                    ),
+                                  : const Icon(Icons.save_outlined, size: 16),
                               label: Text(
-                                submitting ? 'Saving…' : 'Submit',
+                                submitting ? 'Saving…' : 'Save',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -2443,7 +2953,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SUBMIT LINE  (mirrors web submitReceiving)
+  // SUBMIT LINE  (SAVE only - does NOT update stock_inventory)
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _submitLine({
@@ -2504,21 +3014,12 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
             .update(update),
       );
 
-      // ── Auto-update stock if line is COMP or INCOMP ──
-      if ((lineStatus == 'COMP' || lineStatus == 'INCOMP') && receivedQty > 0) {
-        await _updateStock(
-          itemNum: itemNum,
-          itemName: allLines[lineIdx]['itemName'] as String? ?? '',
-          uom: allLines[lineIdx]['uom'] as String? ?? '',
-          qty: receivedQty,
-          receivedBy: receivedBy,
-        );
-      }
+      // ── NO auto-update stock - wait for manual "Submit & Update Stock" ──
 
       if (ctx.mounted) {
         Navigator.pop(ctx);
         final msg = newHeaderStatus == 'COMP'
-            ? '${r['receivingNum'] ?? ''} completed!'
+            ? '${r['receivingNum'] ?? ''} saved! Use "Submit & Update Stock" to update inventory.'
             : 'Line saved — ${newHeaderStatus == 'PARTIAL' ? 'Partially received' : 'In progress'}';
         ScaffoldMessenger.of(ctx).showSnackBar(
           SnackBar(
@@ -2545,7 +3046,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // STOCK UPDATE  (mirrors web _rcvUpdateStock)
+  // STOCK UPDATE  (called by "Submit & Update Stock" button)
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _updateStock({
@@ -2604,6 +3105,371 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
       });
     } catch (_) {
       // Non-fatal — stock update failure shouldn't block the receiving flow
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // SUBMIT & UPDATE STOCK  (for COMP/PARTIAL records)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _submitAndUpdateStock(Map<String, dynamic> r) async {
+    final lines = List<Map<String, dynamic>>.from(
+      (r['receivingLines'] as List? ?? []).map(
+        (l) => Map<String, dynamic>.from(l as Map),
+      ),
+    );
+
+    // Only update stock for COMP and INCOMP lines with receivedQty > 0
+    final linesToUpdate = lines.where((l) {
+      final ls = l['lineStatus'] as String? ?? '';
+      final qty = (l['receivedQty'] as num?)?.toInt() ?? 0;
+      return (ls == 'COMP' || ls == 'INCOMP') && qty > 0;
+    }).toList();
+
+    if (linesToUpdate.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No items to update in stock.'),
+            backgroundColor: _grey,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    final name = await _currentUserName();
+    if (!mounted) return;
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Updating stock...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      for (final line in linesToUpdate) {
+        await _updateStock(
+          itemNum: line['itemNum'] as String? ?? '',
+          itemName: line['itemName'] as String? ?? '',
+          uom: line['uom'] as String? ?? '',
+          qty: (line['receivedQty'] as num?)?.toInt() ?? 0,
+          receivedBy: name,
+        );
+      }
+
+      // Mark receiving as stock updated
+      await SyncStatusNotifier.instance.trackWrite(
+        () => FirebaseFirestore.instance
+            .collection(_col)
+            .doc(r['id'] as String)
+            .update({
+              'stockUpdated': true,
+              'stockUpdatedAt': FieldValue.serverTimestamp(),
+              'stockUpdatedBy': name,
+            }),
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Stock updated for ${linesToUpdate.length} item${linesToUpdate.length == 1 ? '' : 's'}!',
+          ),
+          backgroundColor: _green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating stock: $e'),
+            backgroundColor: _red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // DELETE (for DRAFT records only)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _scanAndFindInReceiving(Map<String, dynamic> rcvData) async {
+    if (!mounted) return;
+
+    // Step 1: Open scanner
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const BarcodeScannerScreen(
+          title: 'Scan Item',
+          hint: 'Point camera at item barcode or QR code',
+        ),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    final scanned = result.trim();
+    final query = scanned.toLowerCase();
+
+    // Step 2: Search item_master collection
+    Map<String, dynamic>? foundItem;
+    String? foundItemId;
+
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('item_master')
+          .get();
+
+      // Priority matching: barcode → QR → itemNum
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final barcode = (data['barcode']?.toString() ?? '').trim();
+        final qr = (data['qr']?.toString() ?? '').trim();
+        final num = (data['num']?.toString() ?? '').trim();
+
+        // P1: Exact barcode match
+        if (barcode.isNotEmpty && barcode == scanned) {
+          foundItem = data;
+          foundItemId = doc.id;
+          break;
+        }
+        // P2: Exact QR match
+        if (qr.isNotEmpty && qr == scanned) {
+          foundItem = data;
+          foundItemId = doc.id;
+          break;
+        }
+        // P3: Case-insensitive barcode/QR
+        if (barcode.isNotEmpty && barcode.toLowerCase() == query) {
+          foundItem = data;
+          foundItemId = doc.id;
+          break;
+        }
+        if (qr.isNotEmpty && qr.toLowerCase() == query) {
+          foundItem = data;
+          foundItemId = doc.id;
+          break;
+        }
+      }
+
+      // P4: Item number match (if not found yet)
+      if (foundItem == null) {
+        for (final doc in snap.docs) {
+          final data = doc.data();
+          final num = (data['num']?.toString() ?? '').trim();
+          if (num.isNotEmpty && num.toLowerCase() == query) {
+            foundItem = data;
+            foundItemId = doc.id;
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error searching items: $e'),
+          backgroundColor: _red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    // Step 3: Item not found in item_master
+    if (foundItem == null) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            'Item Not Found',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
+          content: Text(
+            'No item found with code: "$scanned"\n\nPlease check the code or add the item to inventory first.',
+            style: const TextStyle(fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Step 4: Check if item exists in receiving lines
+    final lines = (rcvData['receivingLines'] as List? ?? []);
+    final itemNum = foundItem['num']?.toString() ?? '';
+    final itemName = foundItem['name']?.toString() ?? '';
+
+    int lineIndex = -1;
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final lineNum = (line['itemNum']?.toString() ?? '').trim();
+      if (lineNum.isNotEmpty && lineNum == itemNum) {
+        lineIndex = i;
+        break;
+      }
+    }
+
+    // Step 5: If found in lines, open receive modal for that line
+    if (lineIndex >= 0) {
+      _showReceiveLineModal(rcvData, lineIndex);
+      return;
+    }
+
+    // Step 6: Item found in item_master but not in receiving lines - offer to add
+    if (!mounted) return;
+    final shouldAdd = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Add Item to Receiving?',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Item found: $itemName',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Item #: $itemNum',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF718096)),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'This item is not in the current receiving. Would you like to add it?',
+              style: TextStyle(fontSize: 13),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF718096)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Add Item'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldAdd != true || !mounted) return;
+
+    // Add item and open receive modal
+    showAddItemFormModal(
+      context,
+      rcvData: rcvData,
+      prefilledItem: {...foundItem, 'id': foundItemId},
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _deleteReceiving(Map<String, dynamic> r) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Delete this receiving?',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          'Permanently delete ${r['receivingNum'] ?? 'this receiving'}?\n\nThis action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF718096)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await SyncStatusNotifier.instance.trackWrite(
+        () => FirebaseFirestore.instance
+            .collection(_col)
+            .doc(r['id'] as String)
+            .delete(),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${r['receivingNum'] ?? 'Receiving'} deleted'),
+            backgroundColor: _green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: _red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -2683,8 +3549,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
       (r) =>
           (r['poNum'] as String? ?? '') == poNum &&
           ((r['status'] as String? ?? '') == 'DRAFT' ||
-           (r['status'] as String? ?? '') == 'INPROG' ||
-           (r['status'] as String? ?? '') == 'PARTIAL'),
+              (r['status'] as String? ?? '') == 'INPROG' ||
+              (r['status'] as String? ?? '') == 'PARTIAL'),
       orElse: () => {},
     );
 

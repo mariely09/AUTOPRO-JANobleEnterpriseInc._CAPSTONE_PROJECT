@@ -11,8 +11,8 @@
     <link rel="stylesheet" href="../static/css/style.css">
     <link rel="stylesheet" href="../static/css/admin.css">
     <style>
-        /* -- Status badges -- */
-        .rcv-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:normal;word-break:break-word;max-width:100%; }
+        /* -- Status badges (matches mobile app) -- */
+        .rcv-badge { display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;white-space:normal;word-break:break-word;max-width:100%;letter-spacing:0.2px; }
         .rcv-badge.pending   { background:rgba(113,128,150,0.1);color:#718096; }
         .rcv-badge.awaiting  { background:rgba(214,158,46,0.1);color:#d69e2e; }
         .rcv-badge.approved  { background:rgba(56,161,105,0.1);color:#38a169; }
@@ -46,35 +46,35 @@
         .rv-grid { display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:10px;align-items:center;margin-top:10px; }
         .rv-col-label { font-size:10px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px; }
         .rv-col-val { font-size:13px;font-weight:600;color:#1a202c; }
-        /* ── Receiving card grid (same style as admin_PO.html) ── */
+        /* ── Receiving card grid (matches mobile app style) ── */
         .rcv-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 1rem;
+            gap: 0.75rem;
         }
         .rcv-card {
             background: white;
             border: 1.5px solid #e2e8f0;
-            border-radius: 16px;
-            padding: 18px 20px;
+            border-radius: 12px;
+            padding: 14px 16px;
             cursor: pointer;
             transition: box-shadow .15s, transform .15s, border-color .15s;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
         }
         .rcv-card:hover {
-            box-shadow: 0 6px 20px rgba(0,0,0,0.09);
-            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+            transform: translateY(-1px);
             border-color: #cbd5e0;
         }
         .rcv-card-header {
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
-        .rcv-card-id   { font-size: 13px; font-weight: 800; color: #1a202c; letter-spacing: 0.2px; }
+        .rcv-card-id   { font-size: 13px; font-weight: 700; color: #1a202c; letter-spacing: 0.2px; }
         .rcv-card-date { font-size: 11px; color: #718096; margin-top: 2px; }
-        .rcv-card-divider { border: none; border-top: 1px solid #f0f4f8; margin: 10px 0; }
+        .rcv-card-divider { border: none; border-top: 1px solid #f0f4f8; margin: 8px 0; }
         .rcv-card-meta {
             display: flex;
             align-items: center;
@@ -85,7 +85,7 @@
             font-size: 11px;
             color: #718096;
             margin-top: 6px;
-            line-height: 1.5;
+            line-height: 1.4;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
@@ -306,7 +306,7 @@ function fabOpenNewBlank() {
 <!-- ── Copy from PO Modal ─────────────────────────────────── -->
 <div class="modal" id="copyFromPOModal">
   <div class="modal-content" style="max-width:520px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:88vh;">
-    <div style="background:#E8001C;padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
+    <div style="background:linear-gradient(135deg,#E8001C,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:0.85rem;flex-shrink:0;">
       <div style="flex:1;">
         <div style="color:white;font-size:1rem;font-weight:700;">New Receiving from PO</div>
         <div style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:0.1rem;">Select an ordered PO to create a receiving record</div>
@@ -327,9 +327,9 @@ function fabOpenNewBlank() {
 <div class="modal" id="rcvSessionModal">
   <div class="modal-content" style="max-width:560px;padding:0;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
     <!-- Header -->
-    <div id="rsmHeader" style="background:#E8001C;padding:1.25rem 1.5rem;display:flex;align-items:flex-start;gap:0.85rem;flex-shrink:0;">
+    <div id="rsmHeader" style="background:linear-gradient(135deg,#E8001C,#C41E3A);padding:1.25rem 1.5rem;display:flex;align-items:flex-start;gap:0.85rem;flex-shrink:0;">
       <div style="flex:1;">
-        <div id="rsmTitle" style="color:white;font-size:1rem;font-weight:800;">Receiving Session</div>
+        <div id="rsmTitle" style="color:white;font-size:1rem;font-weight:700;">Receiving Session</div>
         <div id="rsmSubtitle" style="color:rgba(255,255,255,0.75);font-size:0.78rem;margin-top:2px;"></div>
       </div>
       <div id="rsmStatusBadge" style="flex-shrink:0;"></div>
@@ -344,7 +344,7 @@ function fabOpenNewBlank() {
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Item
       </button>
-      <button id="rsmCompleteBtn" onclick="completeReceiving()" style="width:100%;padding:0.85rem;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;">
+      <button id="rsmCompleteBtn" onclick="completeReceiving()" style="width:100%;padding:0.85rem;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;">
         ✅ Complete Receiving
       </button>
     </div>
@@ -371,7 +371,10 @@ function fabOpenNewBlank() {
     </div>
     <div style="padding:1rem 1.5rem;background:white;border-top:1px solid #e2e8f0;display:flex;gap:0.75rem;flex-shrink:0;">
       <button type="button" class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;" onclick="closeModal('receiveModal')">Cancel</button>
-      <button type="button" id="rmSubmitBtn" onclick="submitReceiving()" style="flex:2;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;">Submit</button>
+      <button type="button" id="rmSubmitBtn" onclick="submitReceiving()" style="flex:2;padding:0.75rem;background:linear-gradient(135deg,#E31E24,#C41E3A);border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:6px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save
+      </button>
     </div>
   </div>
 </div>
@@ -583,14 +586,29 @@ function _badge(cfg, status) {
   return '<span class="rcv-badge" style="color:' + c[0] + ';background:' + c[1] + ';">' + c[2] + '</span>';
 }
 
-// Generate receiving number: RCV-YYYYMMDD-0001
+// Generate receiving number: RCV-YYYYMMDD-0001 (continuous sequence across all dates)
 function _genRcvNum() {
   var now = new Date();
-  var prefix = 'RCV-' + now.getFullYear()
+  var dateStr = now.getFullYear()
     + String(now.getMonth()+1).padStart(2,'0')
-    + String(now.getDate()).padStart(2,'0') + '-';
-  var todayCount = _allRcv.filter(function(r){ return (r.receivingNum||'').startsWith(prefix); }).length;
-  return prefix + String(todayCount + 1).padStart(4,'0');
+    + String(now.getDate()).padStart(2,'0');
+  
+  // Query Firestore for the highest number EVER (not just today)
+  return db.collection(_RCV_COL)
+    .orderBy('receivingNum', 'desc')
+    .limit(1)
+    .get()
+    .then(function(snap) {
+      var nextNum = 1;
+      if (!snap.empty) {
+        var lastNum = snap.docs[0].data().receivingNum || '';
+        var match = lastNum.match(/-(\d+)$/);
+        if (match) {
+          nextNum = parseInt(match[1]) + 1;
+        }
+      }
+      return 'RCV-' + dateStr + '-' + String(nextNum).padStart(4,'0');
+    });
 }
 
 // ── Card click — event delegation (survives DOM mutations) ───────────────────
@@ -721,12 +739,14 @@ function _rcvRenderList() {
     var printIcon = '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>';
     var downloadIcon = '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>';
     var playIcon = '<polygon points="5 3 19 12 5 21 5 3"/>';
+    var deleteIcon = '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>';
 
     var btns = [];
     if (s === 'DRAFT') {
       btns.push(_btn('Start Receiving', playIcon, 'white', '#E8001C', '#E8001C', 'rcvStartReceiving(\'' + id + '\')'));
+      btns.push(_btn('Delete', deleteIcon, '#E8001C', 'white', '#E8001C', 'rcvDeleteReceiving(\'' + id + '\')'));
     } else if (s === 'INPROG') {
-      btns.push(_btn('Continue', downloadIcon, 'white', '#E8001C', '#E8001C', 'rcvOpenCard(\'' + id + '\')'));
+      btns.push(_btn('Continue Receiving', downloadIcon, 'white', '#E8001C', '#E8001C', 'rcvOpenCard(\'' + id + '\')'));
     } else if (s === 'PARTIAL' || s === 'COMP') {
       btns.push(_btn('Print', printIcon, '#4a5568', 'white', '#e2e8f0', '_rcvPrint(\'' + id + '\')'));
     }
@@ -778,6 +798,26 @@ window.rcvStartReceiving = function(docId) {
   openRcvSessionModal(docId);
 };
 
+// ── Delete Receiving (DRAFT only) ─────────────────────────────────────────────
+window.rcvDeleteReceiving = function(docId) {
+  var r = _allRcv.find(function(x){ return x._docId === docId; });
+  if (!r) return;
+  
+  var rcvNum = r.receivingNum || docId;
+  if (!confirm('Permanently delete ' + rcvNum + '?\n\nThis action cannot be undone.')) {
+    return;
+  }
+  
+  db.collection(_RCV_COL).doc(docId).delete()
+    .then(function() {
+      showToast(rcvNum + ' deleted', 'success');
+    })
+    .catch(function(err) {
+      console.error('Delete error:', err);
+      showToast('Error deleting receiving: ' + err.message, 'error');
+    });
+};
+
 // ── Open Receive Modal (per line) ─────────────────────────────────────────────
 window.openReceiveModal = function(docId, lineIdx) {
   var r = _allRcv.find(function(x){ return x._docId === docId; });
@@ -804,7 +844,7 @@ window.openReceiveModal = function(docId, lineIdx) {
   document.getElementById('rmItemCard').innerHTML =
     '<div style="background:white;border:1.5px solid #90cdf4;border-radius:12px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">'
     + '<div style="font-weight:700;font-size:0.9rem;color:#1a202c;">' + (line.itemName||'') + (uom ? ' <span style="font-weight:400;font-size:0.76rem;color:#718096;">(' + uom + ')</span>' : '') + '</div>'
-    + '<div style="font-size:0.75rem;color:#718096;margin-top:3px;">' + (line.supplierCode ? line.supplierCode+' · ' : '') + 'PO Qty: <strong style="color:#1a202c;">' + (line.poQty||0) + '</strong></div>'
+    + '<div style="font-size:0.75rem;color:#718096;margin-top:3px;">' + (line.supplierCode ? line.supplierCode+' · ' : '') + 'Order Qty: <strong style="color:#1a202c;">' + (line.poQty||0) + '</strong></div>'
     + '<div style="height:1px;background:#f0f4f8;margin:10px 0;"></div>'
     + '<div style="margin-bottom:10px;">'
     +   '<label style="font-size:0.75rem;font-weight:600;color:#4a5568;display:block;margin-bottom:4px;">Received Qty *</label>'
@@ -978,7 +1018,7 @@ window.submitReceiving = function() {
       }
     })
     .catch(function(err){ showToast('Error: '+err.message, 'error'); })
-    .finally(function(){ btn.disabled=false; btn.textContent='Submit'; });
+    .finally(function(){ btn.disabled=false; btn.textContent='Save'; });
 };
 
 // ── Receiving Session Modal ───────────────────────────────────────────────────
@@ -1045,7 +1085,7 @@ window.openRcvSessionModal = function(docId) {
         +     '</div>'
         +     '<div style="font-size:11px;color:#718096;margin-top:1px;">'
         +       (line.supplierCode ? line.supplierCode + '  •  ' : '')
-        +       'PO Qty: <strong style="color:#1a202c;">' + pQty + '</strong>'
+        +       'Order Qty: <strong style="color:#1a202c;">' + pQty + '</strong>'
         +       (isDraft ? '' : '  →  Rcv: <strong style="color:' + lsc[0] + ';">' + rQty + '</strong>')
         +     '</div>'
         +   '</div>'
@@ -1054,7 +1094,7 @@ window.openRcvSessionModal = function(docId) {
         +     (isDraft
                 ? '<button onclick="closeModal(\'rcvSessionModal\');openReceiveModal(\'' + docId + '\',' + idx + ')" '
                 +   'style="padding:4px 12px;background:#E8001C;border:none;border-radius:8px;color:white;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">'
-                +   '▶ Receive</button>'
+                +   'Receive</button>'
                 + '<button onclick="openItemViewModal(\'' + docId + '\',' + idx + ')" '
                 +   'style="padding:4px 10px;background:#f0f4f8;border:none;border-radius:8px;color:#4a5568;font-size:11px;font-weight:600;cursor:pointer;">View</button>'
                 : '<button onclick="openItemViewModal(\'' + docId + '\',' + idx + ')" '
@@ -1272,6 +1312,7 @@ window.openCopyFromPOModal = function() {
     });
 };
 
+/// Create a receiving record from a PO document (mirrors web createReceivingFromPO)
 window.createReceivingFromPO = function(poDocId) {
   closeModal('copyFromPOModal');
   db.collection(_PO_COL).doc(poDocId).get().then(function(poDoc) {
@@ -1295,35 +1336,102 @@ window.createReceivingFromPO = function(poDocId) {
       };
     });
 
-    db.collection(_RCV_COL).add({
-      receivingNum: _genRcvNum(),
-      status:       'DRAFT',
-      poRef:        poDocId,
-      poNum:        po.poNum || '',
-      receivingLines: lines,
-      createdBy:    sess.name || '',
-      createdAt:    firebase.firestore.FieldValue.serverTimestamp()
-    }).then(function() {
-      // Mark PO as Partially Received
-      db.collection(_PO_COL).doc(poDocId).update({ status: 'Partially Received' }).catch(function(){});
-      showToast('Receiving record created from ' + (po.poNum||'PO') + '!', 'success');
-    }).catch(function(e){ showToast('Error: '+e.message,'error'); });
+    // Async function with retry logic
+    (async function() {
+      var attempts = 0;
+      while (attempts < 3) {
+        try {
+          var rcvNum = await _genRcvNum();
+          
+          // Verify uniqueness before creating
+          var existingCheck = await db.collection(_RCV_COL)
+            .where('receivingNum', '==', rcvNum)
+            .limit(1)
+            .get();
+          
+          if (!existingCheck.empty) {
+            attempts++;
+            await new Promise(resolve => setTimeout(resolve, 100 * attempts));
+            continue; // Regenerate and retry
+          }
+          
+          await db.collection(_RCV_COL).add({
+            receivingNum: rcvNum,
+            status:       'DRAFT',
+            poRef:        poDocId,
+            poNum:        po.poNum || '',
+            receivingLines: lines,
+            createdBy:    sess.name || '',
+            createdAt:    firebase.firestore.FieldValue.serverTimestamp()
+          });
+          
+          // Mark PO as Partially Received
+          try {
+            await db.collection(_PO_COL).doc(poDocId).update({ status: 'Partially Received' });
+          } catch(_) {}
+          
+          showToast('Receiving record created from ' + (po.poNum||'PO') + '!', 'success');
+          return; // Success
+        } catch (e) {
+          attempts++;
+          if (attempts >= 3) {
+            showToast('Error: ' + e.message, 'error');
+            return;
+          }
+          await new Promise(resolve => setTimeout(resolve, 100 * attempts));
+        }
+      }
+      showToast('Failed to generate unique receiving number after 3 attempts', 'error');
+    })();
   });
 };
 
 // ── New Blank Receiving ───────────────────────────────────────────────────────
 window.createBlankReceiving = function() {
   var sess = JSON.parse(sessionStorage.getItem('apUser')||sessionStorage.getItem('spUser')||'{}');
-  db.collection(_RCV_COL).add({
-    receivingNum:   _genRcvNum(),
-    status:         'DRAFT',
-    poRef:          null,
-    poNum:          '',
-    receivingLines: [],
-    createdBy:      sess.name || '',
-    createdAt:      firebase.firestore.FieldValue.serverTimestamp()
-  }).then(function(){ showToast('Blank receiving record created!', 'success'); })
-    .catch(function(e){ showToast('Error: '+e.message,'error'); });
+  
+  // Async function to handle retry logic
+  (async function() {
+    var attempts = 0;
+    while (attempts < 3) {
+      try {
+        var rcvNum = await _genRcvNum();
+        
+        // Verify uniqueness before creating
+        var existingCheck = await db.collection(_RCV_COL)
+          .where('receivingNum', '==', rcvNum)
+          .limit(1)
+          .get();
+        
+        if (!existingCheck.empty) {
+          attempts++;
+          await new Promise(resolve => setTimeout(resolve, 100 * attempts));
+          continue; // Regenerate and retry
+        }
+        
+        await db.collection(_RCV_COL).add({
+          receivingNum: rcvNum,
+          status: 'DRAFT',
+          poRef: null,
+          poNum: '',
+          receivingLines: [],
+          createdBy: sess.name || '',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        showToast('Blank receiving record created!', 'success');
+        return; // Success
+      } catch (e) {
+        attempts++;
+        if (attempts >= 3) {
+          showToast('Error: ' + e.message, 'error');
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100 * attempts));
+      }
+    }
+    showToast('Failed to generate unique receiving number after 3 attempts', 'error');
+  })();
 };
 
 // ── Add Item Modal (blank receivings) ────────────────────────────────────────
