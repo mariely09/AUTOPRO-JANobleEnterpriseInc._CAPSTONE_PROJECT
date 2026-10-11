@@ -104,6 +104,8 @@
         /* number input — hide spinners */
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        /* loading spinner animation */
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="portal-body" data-page="purchase-orders">
@@ -333,7 +335,9 @@
                        cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
     </div>
     <div style="padding:1.25rem 1.5rem;overflow-y:auto;flex:1;background:#f8fafc;">
-        <div style="font-size:0.75rem;color:#718096;margin-bottom:0.5rem;">Items that need replenishment</div>
+        <div style="font-size:0.75rem;color:#718096;margin-bottom:0.5rem;">
+            Items that need replenishment <span id="poReplenishCount" style="color:#1a202c;font-weight:700;"></span>
+        </div>
         <!-- Search -->
         <div style="position:relative;display:flex;align-items:center;margin-bottom:0.6rem;">
             <svg style="position:absolute;left:0.65rem;pointer-events:none;color:#a0aec0;"
@@ -369,10 +373,10 @@
                     box-shadow:0 4px 12px rgba(0,0,0,0.06);">
             <div style="padding:1rem;text-align:center;color:#a0aec0;font-size:12px;">Loading…</div>
         </div>
-        <!-- Added items -->
+        <!-- Line items -->
         <div id="poAddedSection" style="display:none;">
             <div style="font-size:0.75rem;color:#718096;margin-bottom:0.5rem;">
-                Added items <span id="poAddedCount" style="color:#1a202c;font-weight:700;"></span>
+                Line items <span id="poAddedCount" style="color:#1a202c;font-weight:700;"></span>
             </div>
             <div id="poAddedList"
                  style="margin-bottom:0.75rem;"></div>
@@ -381,6 +385,20 @@
                         border-radius:10px;margin-bottom:0.5rem;">
                 <span style="font-size:13px;font-weight:600;color:#4a5568;">Estimated Total</span>
                 <span id="poTotalAmt" style="font-size:15px;font-weight:800;color:#1a202c;">₱0.00</span>
+            </div>
+
+            <!-- Notes (Optional) -->
+            <div style="margin-top:0.5rem;">
+                <label style="font-size:0.75rem;font-weight:700;color:#4a5568;display:block;margin-bottom:0.35rem;">
+                    Notes <span style="font-weight:400;color:#a0aec0;">(Optional)</span>
+                </label>
+                <textarea id="poNotesInput" rows="3"
+                    placeholder="Add remarks or special instructions…"
+                    style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid #e2e8f0;border-radius:10px;
+                           font-size:0.82rem;font-family:inherit;color:#1a202c;background:white;
+                           resize:vertical;outline:none;box-sizing:border-box;transition:border-color .15s;"
+                    onfocus="this.style.borderColor='#E8001C'"
+                    onblur="this.style.borderColor='#e2e8f0'"></textarea>
             </div>
         </div>
     </div>
@@ -442,12 +460,40 @@
 
 <!-- ── Page logic ──────────────────────────────────────────────────────────── -->
 <script>
+// Immediate initialization
+console.log('=== PO Page Initializing ===');
+console.log('Firebase apps:', firebase.apps.length);
+
 var db       = firebase.firestore();
-var _PO_COL  = 'purchase_orders';          // new dedicated Firestore collection
+var _PO_COL  = 'purchase_orders';
 var _allPOs  = [];
 var _poFilter = 'all';
 var _poViewId = null;
 var MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+console.log('Firestore initialized:', !!db);
+console.log('Collection name:', _PO_COL);
+
+// Initialize immediately when script loads
+(function initializePage() {
+    console.log('Page initialization starting...');
+    
+    // Start Firestore listener
+    _startListener();
+    
+    // Fallback timeout: if data doesn't load in 3 seconds, show a message
+    setTimeout(function() {
+        var grid = document.getElementById('poGrid');
+        if (grid && grid.querySelector('.po-skel-card')) {
+            console.warn('⚠️ Data load timeout - clearing skeleton');
+            grid.innerHTML = '<div style="grid-column:1/-1;padding:4rem;text-align:center;">'
+                + '<div style="color:#d69e2e;font-size:14px;font-weight:600;margin-bottom:0.5rem;">⏳ Loading is taking longer than expected...</div>'
+                + '<div style="color:#718096;font-size:12px;margin-bottom:1rem;">The Firestore listener may not have started properly.</div>'
+                + '<button onclick="window.location.reload()" style="padding:0.5rem 1rem;background:#E8001C;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Reload Page</button>'
+                + '</div>';
+        }
+    }, 3000);
+})();
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function _fmtDate(raw) {
@@ -502,6 +548,56 @@ function _stColor(status) {
     return _ST_COLORS[status] || ['#718096','rgba(113,128,150,0.10)'];
 }
 
+// ── Start Firestore Listener ─────────────────────────────────────────────────
+function _startListener() {
+    console.log('🔥 Starting Firestore listener for:', _PO_COL);
+    
+    try {
+        db.collection(_PO_COL)
+          .onSnapshot(function(snap) {
+              console.log('✅ Snapshot received! Documents:', snap.size);
+              
+              _allPOs = [];
+              snap.forEach(function(doc) {
+                  var data = doc.data();
+                  data._docId = doc.id;
+                  _allPOs.push(data);
+                  console.log('  - PO:', doc.id, 'Status:', data.status || 'Draft');
+              });
+              
+              console.log('Total POs loaded:', _allPOs.length);
+              _poUpdateStats();
+              _poRender();
+          }, function(err) {
+              console.error('❌ Firestore listener error:', err);
+              console.error('Error code:', err.code);
+              console.error('Error message:', err.message);
+              
+              // Clear skeleton and show error message
+              var grid = document.getElementById('poGrid');
+              if (grid) {
+                  var errorMsg = err.code === 'permission-denied' 
+                      ? 'Permission denied. Please check Firestore security rules for the purchase_orders collection.'
+                      : 'Error: ' + err.message;
+                  
+                  grid.innerHTML =
+                      '<div style="grid-column:1/-1;padding:4rem;text-align:center;color:#E8001C;font-size:13px;">'
+                      + '❌ ' + errorMsg + '<br><br>'
+                      + '<button onclick="window.location.reload()" style="padding:0.5rem 1rem;background:#E8001C;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Retry</button></div>';
+              }
+          });
+    } catch (e) {
+        console.error('❌ Exception starting listener:', e);
+        var grid = document.getElementById('poGrid');
+        if (grid) {
+            grid.innerHTML =
+                '<div style="grid-column:1/-1;padding:4rem;text-align:center;color:#E8001C;font-size:13px;">'
+                + '❌ Failed to start Firestore listener: ' + e.message + '<br><br>'
+                + '<button onclick="window.location.reload()" style="padding:0.5rem 1rem;background:#E8001C;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Retry</button></div>';
+        }
+    }
+}
+
 // ── Card click — event delegation (same pattern as admin_receiving.html) ─────
 document.addEventListener('click', function(e) {
     var card = e.target.closest('.po-card');
@@ -510,23 +606,6 @@ document.addEventListener('click', function(e) {
     var docId = card.getAttribute('data-docid');
     if (docId) _poOpenView(docId);
 });
-(function _listen() {
-    // No server-side orderBy — avoids index requirements on a new collection.
-    // Sorting is handled client-side in _poRender().
-    db.collection(_PO_COL)
-      .onSnapshot(function(snap) {
-          _allPOs = snap.docs.map(function(d) {
-              return Object.assign({ _docId: d.id }, d.data());
-          });
-          _poUpdateStats();
-          _poRender();
-      }, function(err) {
-          console.error('PO listener error:', err);
-          document.getElementById('poGrid').innerHTML =
-              '<div style="grid-column:1/-1;padding:4rem;text-align:center;color:#718096;font-size:13px;">'
-              + 'No purchase orders found. Create the first one using the + button.</div>';
-      });
-})();
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
 function _poUpdateStats() {
@@ -551,16 +630,30 @@ function _poSetFilter(status, el) {
 
 // ── Render card grid ──────────────────────────────────────────────────────────
 function _poRender() {
+    console.log('🎨 _poRender() called');
+    
     var q    = ((document.getElementById('poSearch') || {}).value || '').trim().toLowerCase();
     var sort = ((document.getElementById('poSort')   || {}).value || 'date-desc');
     var grid = document.getElementById('poGrid');
 
-    // Always clear skeleton on first data callback (even if empty)
+    if (!grid) {
+        console.error('❌ poGrid element not found!');
+        return;
+    }
+
+    // ALWAYS clear skeleton first - this is critical
     var skel = grid.querySelector('.po-skel-card');
-    if (skel) grid.innerHTML = '';
+    if (skel) {
+        console.log('🧹 Clearing skeleton cards...');
+        grid.innerHTML = '';
+    }
+
+    console.log('📊 Rendering. Total POs:', _allPOs.length, '| Filter:', _poFilter, '| Search:', q || '(none)');
 
     var list = _poFilter === 'all' ? _allPOs.slice()
-        : _allPOs.filter(function(po) { return (po.status || 'Pending') === _poFilter; });
+        : _allPOs.filter(function(po) { return (po.status || 'Draft') === _poFilter; });
+
+    console.log('📋 After filter:', list.length, 'POs');
 
     if (q) {
         list = list.filter(function(po) {
@@ -572,6 +665,7 @@ function _poRender() {
                               (i.itemNum || '').toLowerCase().includes(q);
                    });
         });
+        console.log('🔍 After search:', list.length, 'POs');
     }
 
     list.sort(function(a, b) {
@@ -584,11 +678,17 @@ function _poRender() {
     });
 
     if (!list.length) {
+        var emptyMsg = _allPOs.length 
+            ? (q ? 'No purchase orders match your search for "' + q + '".' : 'No purchase orders with status "' + _poFilter + '".')
+            : 'No purchase orders yet. Create the first one using the + button below.';
+        
         grid.innerHTML = '<div style="grid-column:1/-1;padding:4rem;text-align:center;color:#718096;font-size:13px;">'
-            + (_allPOs.length ? 'No purchase orders match your search.' : 'No purchase orders yet. Create the first one using the + button.')
-            + '</div>';
+            + emptyMsg + '</div>';
+        console.log('📭 Empty state shown:', emptyMsg);
         return;
     }
+
+    console.log('✅ Rendering', list.length, 'PO cards...');
 
     grid.innerHTML = list.map(function(po) {
         var status    = po.status || 'Draft';
@@ -614,7 +714,7 @@ function _poRender() {
         if (status === 'Draft') {
             btns.push(_btn('Edit',   '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',   '#4a5568', 'white',   '#e2e8f0', '_poCardEdit(\'' + id + '\')'));
             btns.push(_btn('Delete', '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>',  '#e53e3e', 'white',   '#fecaca', '_poCardDelete(\'' + id + '\',\'' + pn + '\')'));
-            btns.push(_btn('Submit', '<polyline points="22 2 15 22 11 13 2 9 22 2"/>',                                                                                                                       '#003087', '#ebf4ff', '#bee3f8', '_poSubmitForApproval(\'' + id + '\')'));
+            btns.push(_btn('Submit', '<polyline points="22 2 15 22 11 13 2 9 22 2"/>',                                                                                                                       '#E8001C', '#fff5f5', '#fecaca', '_poSubmitForApproval(\'' + id + '\')'));
         } else if (status === 'Pending Approval') {
             btns.push(_btn('View',   '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',                                                                              '#4a5568', 'white',   '#e2e8f0', '_poOpenView(\'' + id + '\')'));
             btns.push(_btn('Revise', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',                       '#d69e2e', '#fffbeb', '#fcd34d', '_poRevise(\'' + id + '\')'));
@@ -670,37 +770,42 @@ function _poOpenView(docId) {
     var status  = po.status || 'Pending';
     var items   = po.items  || [];
 
-    document.getElementById('poViewPoNum').textContent     = po.poNum || docId;
-    document.getElementById('poViewSubtitle').textContent  = _fmtDate(po.createdAt) + '  •  ' + items.length + ' item' + (items.length !== 1 ? 's' : '');
-
-    // Show a brief loading state while stock is fetched
-    document.getElementById('poViewBody').innerHTML =
-        '<div style="padding:3rem;text-align:center;color:#a0aec0;font-size:13px;">Loading…</div>';
+    document.getElementById('poViewPoNum').textContent  = po.poNum || docId;
+    // Header subtitle: just the date
+    document.getElementById('poViewSubtitle').textContent = _fmtDate(po.createdAt);
+    // Status badge in header (replaces item count)
+    var c = _stColor(status);
+    document.getElementById('poViewBadge').innerHTML =
+        '<span class="po-badge" style="color:' + c[0] + ';background:' + c[1] + ';font-size:11px;padding:4px 12px;">' + status + '</span>';
     document.getElementById('poViewFooter').innerHTML = '';
+
+    // ── Open the modal IMMEDIATELY using frozen stockAtCreate values ──
+    // No waiting for Firestore — render right away with whatever stock data
+    // is already saved on the PO document itself.
+    _poRenderViewBody(po, {});
     document.getElementById('poViewModal').classList.add('active');
 
-    // ── Fetch live stock for each item, then render ──
-    // Only fetch live stock for statuses where receiving hasn't started yet.
-    // For Ordered/Partially Received/Completed we use the frozen stockAtCreate value.
+    // ── Only fetch live stock for Draft/Pending Approval/Approved ──
+    // These are the only statuses where live stock is meaningful.
+    // Ordered/Partially Received/Completed already use the frozen stockAtCreate value.
     var receivingInProgress = (status === 'Ordered' || status === 'Partially Received' || status === 'Completed');
-    var itemNums = items.map(function(i) { return (i.itemNum || '').trim(); }).filter(Boolean);
-    var stockMap = {};   // itemNum → current stock value
+    if (receivingInProgress || !items.length) return;
 
-    var fetchPromise = (!receivingInProgress && itemNums.length)
-        ? db.collection('stock_inventory')
-              .get()
-              .then(function(snap) {
-                  snap.forEach(function(d) {
-                      var n = (d.data().num || '').trim();
-                      if (n) stockMap[n] = parseInt(d.data().stock) || 0;
-                  });
-              })
-              .catch(function() {}) // non-fatal — just show '—' on error
-        : Promise.resolve();
-
-    fetchPromise.then(function() {
-        _poRenderViewBody(po, stockMap);
-    });
+    // Background fetch — update stock cells after modal is already visible
+    db.collection('stock_inventory')
+      .get()
+      .then(function(snap) {
+          var stockMap = {};
+          snap.forEach(function(d) {
+              var n = (d.data().num || '').trim();
+              if (n) stockMap[n] = parseInt(d.data().stock) || 0;
+          });
+          // Only re-render if this modal is still open for the same PO
+          if (_poViewId === docId && document.getElementById('poViewModal').classList.contains('active')) {
+              _poRenderViewBody(po, stockMap);
+          }
+      })
+      .catch(function() {}); // non-fatal — live stock is optional
 }
 
 function _poRenderViewBody(po, stockMap) {
@@ -714,7 +819,7 @@ function _poRenderViewBody(po, stockMap) {
     if (!items.length) {
         html += '<div style="text-align:center;padding:2rem;color:#718096;font-size:13px;">No items in this PO.</div>';
     } else {
-        html += '<div style="font-size:0.75rem;color:#718096;margin-bottom:0.5rem;">Items</div>';
+        html += '<div style="font-size:0.75rem;color:#718096;margin-bottom:0.5rem;">Line Items <span style="color:#1a202c;font-weight:700;">(' + items.length + ')</span></div>';
         items.forEach(function(item) {
             var cost     = parseFloat((item.unitCost || '0').toString().replace(/[₱,]/g,'')) || 0;
             var qty      = parseInt(item.expectedQty) || 0;
@@ -722,20 +827,32 @@ function _poRenderViewBody(po, stockMap) {
             // Resolve stock: live stockMap first, then frozen stockAtReceive, then item._stock
             var liveSt   = (item.itemNum && stockMap && stockMap[item.itemNum] !== undefined)
                            ? stockMap[item.itemNum] : null;
+            // Status badge for received items
+            var itemStatus = item.receiveStatus || '';
+            var statusBadge = '';
+            if (itemStatus === 'Fully Received') {
+                statusBadge = '<span style="display:inline-block;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;color:#38a169;background:rgba(56,161,105,0.1);border:1px solid rgba(56,161,105,0.3);margin-left:8px;">Fully Received</span>';
+            } else if (itemStatus === 'Partially Received') {
+                statusBadge = '<span style="display:inline-block;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;color:#d69e2e;background:rgba(214,158,46,0.1);border:1px solid rgba(214,158,46,0.3);margin-left:8px;">Partially Received</span>';
+            }
             html += '<div style="background:white;border:1.5px solid #e2e8f0;border-radius:12px;'
                 +         'padding:14px 16px;margin-bottom:10px;">'
                 +   '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">'
-                +     '<div>'
-                +       '<div style="font-weight:700;font-size:13px;color:#1a202c;">' + (item.itemName || '—') + '</div>'
+                +     '<div style="flex:1;">'
+                +       '<div style="font-weight:700;font-size:13px;color:#1a202c;display:flex;align-items:center;flex-wrap:wrap;gap:6px;">' 
+                +         (item.itemName || '—')
+                +         (item.uom ? '<span style="font-weight:400;font-size:11px;color:#718096;">(' + item.uom + ')</span>' : '')
+                +         statusBadge
+                +       '</div>'
                 +       '<div style="font-size:11px;color:#718096;margin-top:2px;">'
-                +         (item.supplierCode || item.itemNum || '—') + (item.uom ? '  •  ' + item.uom : '')
+                +         (item.supplierCode || item.itemNum || '—')
                 +       '</div>'
                 +     '</div>'
                 +   '</div>'
                 +   '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">'
                 +     _vCell('Order Qty',  qty + '')
                 +     _vCell('Stock',      _vStockResolved(item, liveSt, status))
-                +     _vCell('Unit Price', cost > 0 ? _fmtPeso(cost) : '—')
+                +     _vCell('Unit Cost', cost > 0 ? _fmtPeso(cost) : '—')
                 +     _vCell('Subtotal',   subtotal > 0 ? _fmtPeso(subtotal) : '—', '#E8001C')
                 +   '</div>'
                 + '</div>';
@@ -788,7 +905,7 @@ function _poRenderViewBody(po, stockMap) {
         leftBtns += _fbtn('Delete', trashIcon, '#fef2f2', '#e53e3e', '#fecaca',
             '_poCardDelete(\'' + _poViewId + '\',\'' + (po.poNum || '').replace(/'/g,'') + '\')', '');
         // Right: Submit for Approval
-        rightBtns += _fbtn('Submit for Approval', '<polyline points="22 2 15 22 11 13 2 9 22 2"/>', '#003087', 'white', '#003087', '_poSubmitForApproval(\'' + _poViewId + '\')', '');
+        rightBtns += _fbtn('Submit for Approval', '<polyline points="22 2 15 22 11 13 2 9 22 2"/>', '#E8001C', 'white', '#E8001C', '_poSubmitForApproval(\'' + _poViewId + '\')', '');
     } else if (status === 'Pending Approval') {
         rightBtns += _fbtn('Revise', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>', '#fffbeb', '#d69e2e', '#fcd34d', '_poRevise(\'' + _poViewId + '\')', '');
         rightBtns += _fbtn('Approve', '<polyline points="20 6 9 17 4 12"/>', '#38a169', 'white', '#38a169', '_poApprove(\'' + _poViewId + '\')', '');
@@ -1136,6 +1253,7 @@ function _poEdit() {
     _poEditingId = po._docId;
     _poAdded     = {};
     _poNewItems  = [];
+    _buildActivePOMap(po._docId); // exclude the PO being edited
 
     // Reset search
     var srch = document.getElementById('poReplenishSearch');
@@ -1156,6 +1274,8 @@ function _poEdit() {
     document.getElementById('poAddedSection').style.display = 'none';
     document.getElementById('poAddedList').innerHTML = '';
     document.getElementById('poTotalAmt').textContent = '₱0.00';
+    var notesEl = document.getElementById('poNotesInput');
+    if (notesEl) notesEl.value = po.notes || '';
     document.getElementById('poReplenishList').innerHTML =
         '<div style="padding:1rem;text-align:center;color:#a0aec0;font-size:12px;">Loading…</div>';
     document.getElementById('poNewModal').classList.add('active');
@@ -1242,14 +1362,34 @@ function _poEdit() {
 
 // ── Create PO Modal ───────────────────────────────────────────────────────────
 var _poNewItems = [];
-var _poAdded    = {};  // itemNum → qty
+var _poAdded        = {};  // itemNum → qty
+var _poInActivePO   = {}; // itemNum → poNum (items already in active POs)
+
+// Active statuses that block re-adding an item
+var _ACTIVE_STATUSES = ['Draft','Pending Approval','Approved','Ordered'];
+
+// Build _poInActivePO from the already-loaded _allPOs list
+function _buildActivePOMap(excludeDocId) {
+    _poInActivePO = {};
+    _allPOs.forEach(function(po) {
+        if (excludeDocId && po._docId === excludeDocId) return; // skip PO being edited
+        if (_ACTIVE_STATUSES.indexOf(po.status || 'Draft') === -1) return;
+        (po.items || []).forEach(function(it) {
+            var n = (it.itemNum || '').trim();
+            if (n && !_poInActivePO[n]) _poInActivePO[n] = po.poNum || po._docId;
+        });
+    });
+}
 
 function _poOpenNewModal() {
     _poAdded    = {};
     _poNewItems = [];
+    _buildActivePOMap(null); // build from already-loaded _allPOs — no extra Firestore call
     document.getElementById('poAddedSection').style.display = 'none';
     document.getElementById('poAddedList').innerHTML = '';
     document.getElementById('poTotalAmt').textContent = '₱0.00';
+    var notesEl = document.getElementById('poNotesInput');
+    if (notesEl) notesEl.value = '';
     var srch = document.getElementById('poReplenishSearch');
     if (srch) srch.value = '';
     var clr = document.getElementById('poReplenishSearchClear');
@@ -1313,6 +1453,8 @@ function _poRenderReplenishList() {
 
     if (!_poNewItems.length) {
         el.innerHTML = '<div style="padding:1rem;text-align:center;color:#38a169;font-size:0.83rem;">✅ All items are sufficiently stocked.</div>';
+        var countEl = document.getElementById('poReplenishCount');
+        if (countEl) countEl.textContent = '(0)';
         return;
     }
 
@@ -1321,6 +1463,13 @@ function _poRenderReplenishList() {
                (item.supplierCode || '').toLowerCase().includes(q) ||
                (item.num || '').toLowerCase().includes(q);
     }) : _poNewItems;
+
+    // Update count display - show only items NOT yet added
+    var countEl = document.getElementById('poReplenishCount');
+    var notAddedCount = _poNewItems.filter(function(item) {
+        return !_poAdded.hasOwnProperty(item.num);
+    }).length;
+    if (countEl) countEl.textContent = '(' + notAddedCount + ')';
 
     if (!filtered.length) {
         el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:#718096;font-size:0.83rem;">No items match "<strong>' + q + '</strong>".</div>';
@@ -1334,31 +1483,45 @@ function _poRenderReplenishList() {
     }
 
     el.innerHTML = filtered.map(function(item, fi) {
-        var origIdx = _poNewItems.indexOf(item);
-        var added   = _poAdded.hasOwnProperty(item.num);
-        var isLast  = fi === filtered.length - 1;
-        var recQty  = item.max > item.stock ? Math.max(0, item.max - item.stock) : 0;
+        var origIdx  = _poNewItems.indexOf(item);
+        var added    = _poAdded.hasOwnProperty(item.num);
+        var inPO     = !added && _poInActivePO.hasOwnProperty(item.num); // in another active PO
+        var disabled = added || inPO;
+        var isLast   = fi === filtered.length - 1;
+        var recQty   = item.max > item.stock ? Math.max(0, item.max - item.stock) : 0;
         var infoHtml = (item.supplierCode ? '<span style="font-size:0.75rem;color:#718096;">' + item.supplierCode + '</span>' : '')
             + '<span style="font-size:0.75rem;color:#718096;">' + (item.supplierCode ? '&nbsp;·&nbsp;' : '') + 'Current: <strong style="color:#1a202c;">' + item.stock + '</strong></span>'
             + (item.cost > 0 ? '<span style="font-size:0.75rem;color:#718096;">₱' + item.cost.toLocaleString('en-PH',{minimumFractionDigits:2}) + '/unit</span>' : '');
         var recHtml = recQty > 0 ? '<span style="font-size:0.7rem;color:#718096;">Suggest order: <strong style="color:#1a202c;">' + recQty + '</strong></span>' : '';
 
-        return '<div onclick="' + (added ? '' : '_poToggleItem(' + origIdx + ')') + '" '
-            + 'style="padding:12px 16px;cursor:' + (added ? 'default' : 'pointer') + ';display:flex;align-items:center;justify-content:space-between;gap:12px;'
+        // Badge for "already in active PO"
+        var inPOBadge = inPO
+            ? '<span style="background:rgba(0,48,135,0.08);color:#003087;border:1.5px solid rgba(0,48,135,0.2);padding:1px 8px;border-radius:20px;font-size:0.7rem;font-weight:700;">In ' + _poInActivePO[item.num] + '</span>'
+            : '';
+
+        var bgColor  = added ? '#f0fff4' : inPO ? '#f7f8fa' : 'white';
+        var opacity  = disabled ? '0.55' : '1';
+        var cursor   = disabled ? 'default' : 'pointer';
+        var icon     = added
+            ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>'
+            : inPO
+            ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#003087" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+            : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>';
+
+        return '<div onclick="' + (disabled ? '' : '_poToggleItem(' + origIdx + ')') + '" '
+            + 'style="padding:12px 16px;cursor:' + cursor + ';display:flex;align-items:center;justify-content:space-between;gap:12px;'
             + (isLast ? '' : 'border-bottom:1px solid #f0f4f8;')
-            + 'background:' + (added ? '#f0fff4' : 'white') + ';opacity:' + (added ? '0.55' : '1') + ';transition:background 0.12s;" '
-            + (added ? '' : 'onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'white\'"') + '>'
+            + 'background:' + bgColor + ';opacity:' + opacity + ';transition:background 0.12s;" '
+            + (disabled ? '' : 'onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'white\'"') + '>'
             + '<div style="flex:1;min-width:0;">'
             +   '<div style="font-weight:600;font-size:0.88rem;color:#1a202c;">' + item.name
             +     (item.uom ? '&nbsp;&nbsp;<span style="font-weight:400;font-size:0.78rem;color:#718096;">(' + item.uom + ')</span>' : '')
             +   '</div>'
             +   '<div style="display:flex;align-items:center;gap:0.5rem;margin-top:3px;flex-wrap:wrap;">'
-            +     infoHtml + _stBadge(item.stock, item.min) + recHtml
+            +     infoHtml + _stBadge(item.stock, item.min) + inPOBadge + recHtml
             +   '</div>'
             + '</div>'
-            + (added
-                ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38a169" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>'
-                : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0aec0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>')
+            + icon
             + '</div>';
     }).join('');
 }
@@ -1380,13 +1543,6 @@ function _poRenderAdded() {
     var cntEl = document.getElementById('poAddedCount');
     if (cntEl) cntEl.textContent = '(' + keys.length + ')';
 
-    // ── Meta chip helper (matches admin_receiving.html card style) ──
-    function _chip(text, icon, color) {
-        return '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;color:' + color + ';background:' + color + '0f;border:1px solid ' + color + '26;">'
-            + '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + icon + '</svg>'
-            + text + '</span>';
-    }
-
     var container = document.getElementById('poAddedList');
     container.innerHTML = '';
 
@@ -1400,48 +1556,85 @@ function _poRenderAdded() {
         var safeNum = num.replace(/[^a-zA-Z0-9]/g, '_');
         var qtyId   = 'poQty_' + safeNum;
         var subId   = 'poSub_' + safeNum;
+        var costId  = 'poCost_' + safeNum;
         var subtotal = cost * qty;
 
-        var metaChips = '';
-        if (item.supplierCode) metaChips += _chip(item.supplierCode, '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h3v3H7z"/>', '#4a5568');
-        if (cost > 0)          metaChips += _chip('\u20b1' + cost.toLocaleString('en-PH',{minimumFractionDigits:2}), '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>', '#003087');
-        if (stock !== null)    metaChips += _chip('Stock: ' + stock, '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>', stock === 0 ? '#e53e3e' : '#718096');
-
         var card = document.createElement('div');
-        card.style.cssText = 'background:white;border:1.2px solid #e2e8f0;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:0;box-shadow:0 2px 8px rgba(0,0,0,0.03),0 1px 2px rgba(0,0,0,0.02);margin-bottom:8px;';
-        card.innerHTML =
-            '<div style="display:flex;align-items:flex-start;gap:10px;">'
-            + '<div style="flex:1;min-width:0;">'
-            +   '<div style="font-weight:700;font-size:0.9rem;color:#1a202c;line-height:1.35;">'
-            +     item.name
-            +     (item.uom ? '&nbsp;&nbsp;<span style="font-weight:400;font-size:0.76rem;color:#718096;">(' + item.uom + ')</span>' : '')
-            +   '</div>'
-            + '</div>'
-            + '<button type="button" onclick="_poRemoveAdded(\'' + num + '\')" '
-            +   'style="background:#fef2f2;border:1px solid #fecaca;color:#e53e3e;cursor:pointer;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1rem;line-height:1;transition:all .15s;" '
-            +   'onmouseover="this.style.background=\'#fee2e2\'" onmouseout="this.style.background=\'#fef2f2\'">\u00d7</button>'
-            + '</div>'
-            + (metaChips ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">' + metaChips + '</div>' : '')
-            + '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">'
-            +   '<span style="font-size:0.78rem;font-weight:600;color:#4a5568;">Order Quantity</span>'
-            +   '<div style="display:flex;align-items:center;background:white;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);overflow:hidden;">'
-            +     '<button type="button" onclick="(function(){var el=document.getElementById(\'' + qtyId + '\');var v=Math.max(1,(parseInt(el.value)||1)-1);el.value=v;el.dispatchEvent(new Event(\'input\'));})()" '
-            +       'style="background:none;border:none;color:#718096;width:34px;height:34px;cursor:pointer;font-size:1.1rem;line-height:1;display:flex;align-items:center;justify-content:center;" '
-            +       'onmouseover="this.style.background=\'#f0f4f8\'" onmouseout="this.style.background=\'none\'">&minus;</button>'
-            +     '<input type="number" id="' + qtyId + '" value="' + qty + '" min="1" max="' + maxQty + '" '
-            +       'style="width:48px;border:none;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;background:white;font-size:0.9rem;font-weight:700;text-align:center;outline:none;padding:4px 0;height:34px;box-sizing:border-box;-moz-appearance:textfield;" '
-            +       'oninput="(function(el,n,mx,c){var v=Math.min(mx,Math.max(1,parseInt(el.value)||1));if(parseInt(el.value)!==v)el.value=v;_poAdded[n]=v;var sub=document.getElementById(\'poSub_\'+n.replace(/[^a-zA-Z0-9]/g,\'_\'));if(sub)sub.textContent=c>0?\'\u20b1\'+(c*v).toLocaleString(\'en-PH\',{minimumFractionDigits:2}):\'\';_poCalcTotal();})(this,\'' + num + '\',' + maxQty + ',' + cost + ')">'
-            +     '<button type="button" onclick="(function(){var el=document.getElementById(\'' + qtyId + '\');var v=Math.min(' + maxQty + ',(parseInt(el.value)||1)+1);el.value=v;el.dispatchEvent(new Event(\'input\'));})()" '
-            +       'style="background:none;border:none;color:#E8001C;width:34px;height:34px;cursor:pointer;font-size:1.1rem;line-height:1;display:flex;align-items:center;justify-content:center;" '
-            +       'onmouseover="this.style.background=\'#fff5f5\'" onmouseout="this.style.background=\'none\'">+</button>'
-            +   '</div>'
-            + '</div>'
-            + (cost > 0
-                ? '<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:10px;">'
-                +   '<span style="font-size:0.72rem;color:#a0aec0;font-weight:500;">Subtotal</span>'
-                +   '<strong id="' + subId + '" style="font-size:0.9rem;color:#E8001C;font-weight:800;">\u20b1' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</strong>'
-                + '</div>'
-                : '');
+        card.style.cssText = 'background:white;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);';
+
+        var html = '';
+
+        // 1. Header row: badge | name + uom | × button
+        html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;">';
+        html += '<div style="width:20px;height:20px;background:rgba(232,0,28,0.1);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">';
+        html += '<span style="font-size:9px;font-weight:700;color:#E8001C;">' + (keys.indexOf(num) + 1) + '</span>';
+        html += '</div>';
+        html += '<div style="flex:1;min-width:0;margin:0 8px;">';
+        html += '<span style="font-weight:700;font-size:13px;color:#1a202c;">' + item.name + '</span>';
+        if (item.uom) html += '&nbsp;<span style="font-weight:400;font-size:11px;color:#718096;">(' + item.uom + ')</span>';
+        html += '</div>';
+        html += '<button type="button" onclick="_poRemoveAdded(\'' + num + '\')" ';
+        html += 'style="background:none;border:none;color:#a0aec0;cursor:pointer;font-size:18px;padding:0;line-height:1;flex-shrink:0;" ';
+        html += 'onmouseover="this.style.color=\'#e53e3e\'" onmouseout="this.style.color=\'#a0aec0\'">\u00d7</button>';
+        html += '</div>';
+
+        // 2. Stock row (only if stock is not null)
+        if (stock !== null) {
+            var stockColor = stock === 0 ? '#e53e3e' : (stock > 0 ? '#4a5568' : '#718096');
+            html += '<div style="margin-top:8px;">';
+            html += '<span style="font-size:11px;color:#718096;">Stock: </span>';
+            html += '<span style="font-size:11px;font-weight:700;color:' + stockColor + ';">' + stock + '</span>';
+            html += '</div>';
+        }
+
+        // 3. Stepper + unit cost row
+        html += '<div style="display:flex;align-items:center;padding:8px 10px;background:#f8fafc;border-radius:8px;gap:8px;margin-top:8px;">';
+        // Left: Order Qty label + stepper
+        html += '<span style="font-size:11px;color:#718096;">Order Qty</span>';
+        html += '<div style="display:flex;align-items:center;gap:0;">';
+        html += '<button type="button" onclick="(function(){var el=document.getElementById(\'' + qtyId + '\');var v=Math.max(1,(parseInt(el.value)||1)-1);el.value=v;el.dispatchEvent(new Event(\'input\'));})()" ';
+        html += 'style="background:#f0f4f8;border:none;color:#718096;width:28px;height:28px;cursor:pointer;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;border-radius:6px 0 0 6px;" ';
+        html += 'onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'#f0f4f8\'">&minus;</button>';
+        html += '<input type="number" id="' + qtyId + '" value="' + qty + '" min="1" max="' + maxQty + '" ';
+        html += 'style="width:40px;border:none;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;background:white;font-size:13px;font-weight:700;text-align:center;outline:none;padding:0;height:28px;box-sizing:border-box;-moz-appearance:textfield;" ';
+        html += 'oninput="(function(el,n,mx){var c=parseFloat(document.getElementById(\'poCost_\'+n.replace(/[^a-zA-Z0-9]/g,\'_\')).value)||0;var v=Math.min(mx,Math.max(1,parseInt(el.value)||1));if(parseInt(el.value)!==v)el.value=v;_poAdded[n]=v;var sub=document.getElementById(\'poSub_\'+n.replace(/[^a-zA-Z0-9]/g,\'_\'));if(sub){if(c>0){sub.textContent=\'\u20b1\'+(c*v).toLocaleString(\'en-PH\',{minimumFractionDigits:2});sub.parentElement.style.display=\'flex\';}else{sub.textContent=\'\';}}  _poCalcTotal();})(this,\'' + num + '\',' + maxQty + ')">';
+        html += '<button type="button" onclick="(function(){var el=document.getElementById(\'' + qtyId + '\');var v=Math.min(' + maxQty + ',(parseInt(el.value)||1)+1);el.value=v;el.dispatchEvent(new Event(\'input\'));})()" ';
+        html += 'style="background:#E8001C;border:none;color:white;width:28px;height:28px;cursor:pointer;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;font-weight:700;border-radius:0 6px 6px 0;" ';
+        html += 'onmouseover="this.style.background=\'#c0001a\'" onmouseout="this.style.background=\'#E8001C\'">+</button>';
+        html += '</div>';
+        if (maxQty < 999) {
+            html += '<span style="font-size:10px;color:#718096;font-weight:500;margin-left:8px;">Max: ' + maxQty + '</span>';
+        }
+        // Right: unit cost input
+        html += '<div style="margin-left:auto;flex-shrink:0;display:flex;align-items:center;gap:2px;">';
+        html += '<span style="font-size:12px;color:#718096;">\u20b1</span>';
+        html += '<input type="text" id="' + costId + '" value="' + cost.toFixed(2) + '" placeholder="0.00" ';
+        html += 'style="width:90px;font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 6px;text-align:right;outline:none;" ';
+        html += 'oninput="(function(el,n){var c=parseFloat(el.value)||0;var itm=_poNewItems.find(function(x){return x.num===n;});if(itm)itm.cost=c;var qtyEl=document.getElementById(\'poQty_\'+n.replace(/[^a-zA-Z0-9]/g,\'_\'));var v=qtyEl?parseInt(qtyEl.value)||1:1;var sub=document.getElementById(\'poSub_\'+n.replace(/[^a-zA-Z0-9]/g,\'_\'));var subRow=sub?sub.parentElement:null;if(sub){if(c>0){sub.textContent=\'\u20b1\'+(c*v).toLocaleString(\'en-PH\',{minimumFractionDigits:2});if(subRow)subRow.style.display=\'flex\';}else{sub.textContent=\'\';if(subRow)subRow.style.display=\'none\';}}  _poCalcTotal();})(this,\'' + num + '\')">';
+        html += '</div>';
+        html += '</div>';
+
+        // 4. Supplier code row (only if non-empty)
+        if (item.supplierCode) {
+            html += '<div style="font-size:10px;color:#a0aec0;margin-top:4px;">Code: ' + item.supplierCode + '</div>';
+        }
+
+        // 5. Subtotal row (only if cost > 0)
+        if (cost > 0) {
+            html += '<hr style="border:none;border-top:1px solid #f0f4f8;margin:8px 0;">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+            html += '<span style="font-size:11px;color:#718096;font-weight:600;">Subtotal</span>';
+            html += '<strong id="' + subId + '" style="font-size:13px;color:#E8001C;font-weight:800;">\u20b1' + subtotal.toLocaleString('en-PH',{minimumFractionDigits:2}) + '</strong>';
+            html += '</div>';
+        } else {
+            html += '<hr style="border:none;border-top:1px solid #f0f4f8;margin:8px 0;display:none;">';
+            html += '<div style="display:none;justify-content:space-between;align-items:center;">';
+            html += '<span style="font-size:11px;color:#718096;font-weight:600;">Subtotal</span>';
+            html += '<strong id="' + subId + '" style="font-size:13px;color:#E8001C;font-weight:800;"></strong>';
+            html += '</div>';
+        }
+
+        card.innerHTML = html;
         container.appendChild(card);
     });
 
@@ -1468,7 +1661,9 @@ function _poSave() {
 
     var btn = document.getElementById('poSaveBtn');
     btn.disabled    = true;
-    btn.textContent = 'Saving…';
+    var originalText = btn.textContent;
+    btn.innerHTML = '<svg style="display:inline-block;margin-right:6px;animation:spin 1s linear infinite;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>Saving…';
+    btn.style.opacity = '0.7';
 
     var items = keys.map(function(num) {
         var item = _poNewItems.find(function(i) { return i.num === num; });
@@ -1492,18 +1687,22 @@ function _poSave() {
 
     var sess      = JSON.parse(sessionStorage.getItem('apUser') || sessionStorage.getItem('spUser') || '{}');
     var createdBy = sess.name || '';
+    var notes     = (document.getElementById('poNotesInput') || {}).value || '';
+    notes = notes.trim();
 
     var isEdit = !!_poEditingId;
 
     var promise = isEdit
         ? db.collection(_PO_COL).doc(_poEditingId).update({
             items:       items,
+            notes:       notes,
             totalAmount: totalAmount,
             updatedAt:   firebase.firestore.FieldValue.serverTimestamp()
           })
         : db.collection(_PO_COL).add({
             poNum:       _genPoNum(),
             items:       items,
+            notes:       notes,
             status:      'Draft',
             totalAmount: totalAmount,
             createdBy:   createdBy,
@@ -1519,6 +1718,7 @@ function _poSave() {
     }).finally(function() {
         btn.disabled    = false;
         btn.textContent = isEdit ? 'Update Purchase Order' : 'Save Purchase Order';
+        btn.style.opacity = '1';
     });
 }
 
