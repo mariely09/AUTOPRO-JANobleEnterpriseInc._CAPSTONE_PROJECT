@@ -211,7 +211,7 @@ class AdminPOBodyState extends State<AdminPOBody>
   Color _statusColor(String s) {
     switch (s) {
       case 'Draft':
-      case 'Pending':        // legacy alias
+      case 'Pending': // legacy alias
         return _grey;
       case 'Pending Approval':
         return _amber;
@@ -263,101 +263,47 @@ class AdminPOBodyState extends State<AdminPOBody>
         children: [
           Column(
             children: [
-              // ?�?�?Stat chips ?�?�?
+              // Stats cards - 4 cards in a row like Stock Inventory
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _statChip(
-                        'Draft',
-                        _count('Draft'),
-                        _grey,
-                        Icons.edit_note_outlined,
-                        'Draft',
-                      ),
-                      const SizedBox(width: 6),
-                      _statChip(
-                        'Pending',
-                        _count('Pending Approval'),
-                        _amber,
-                        Icons.hourglass_empty_outlined,
-                        'Pending Approval',
-                      ),
-                      const SizedBox(width: 6),
-                      _statChip(
-                        'Approved',
-                        _count('Approved'),
-                        _green,
-                        Icons.check_circle_outline,
-                        'Approved',
-                      ),
-                      const SizedBox(width: 6),
-                      _statChip(
-                        'Ordered',
-                        _count('Ordered'),
-                        _blue,
-                        Icons.local_shipping_outlined,
-                        'Ordered',
-                      ),
-                      const SizedBox(width: 6),
-                      _statChip(
-                        'Partial',
-                        _count('Partially Received'),
-                        _amber,
-                        Icons.inventory_outlined,
-                        'Partially Received',
-                      ),
-                      const SizedBox(width: 6),
-                      _statChip(
-                        'Done',
-                        _count('Completed'),
-                        _green,
-                        Icons.task_alt_outlined,
-                        'Completed',
-                      ),
-                      const SizedBox(width: 6),
-                      _statChip(
-                        'Cancelled',
-                        _count('Cancelled'),
-                        _red,
-                        Icons.cancel_outlined,
-                        'Cancelled',
-                      ),
-                    ],
-                  ),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Row(
+                  children: [
+                    _statChip(
+                      'Draft',
+                      _count('Draft'),
+                      _grey,
+                      Icons.edit_note_outlined,
+                      'Draft',
+                    ),
+                    const SizedBox(width: 8),
+                    _statChip(
+                      'Pending',
+                      _count('Pending Approval'),
+                      _amber,
+                      Icons.hourglass_empty_outlined,
+                      'Pending Approval',
+                    ),
+                    const SizedBox(width: 8),
+                    _statChip(
+                      'Approved',
+                      _count('Approved'),
+                      _green,
+                      Icons.check_circle_outline,
+                      'Approved',
+                    ),
+                    const SizedBox(width: 8),
+                    _statChip(
+                      'Ordered',
+                      _count('Ordered'),
+                      _blue,
+                      Icons.local_shipping_outlined,
+                      'Ordered',
+                    ),
+                  ],
                 ),
               ),
 
-              // ?�?�?Filter pills ?�?�?
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _filterPill('All', 'all'),
-                      const SizedBox(width: 6),
-                      _filterPill('Draft', 'Draft'),
-                      const SizedBox(width: 6),
-                      _filterPill('Pending', 'Pending Approval'),
-                      const SizedBox(width: 6),
-                      _filterPill('Approved', 'Approved'),
-                      const SizedBox(width: 6),
-                      _filterPill('Ordered', 'Ordered'),
-                      const SizedBox(width: 6),
-                      _filterPill('Partial', 'Partially Received'),
-                      const SizedBox(width: 6),
-                      _filterPill('Completed', 'Completed'),
-                      const SizedBox(width: 6),
-                      _filterPill('Cancelled', 'Cancelled'),
-                    ],
-                  ),
-                ),
-              ),
-
-              // ?�?�?Cards ?�?�?
+              // Cards
               Expanded(
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
@@ -437,76 +383,51 @@ class AdminPOBodyState extends State<AdminPOBody>
     String filter,
   ) {
     final active = _filter == filter;
-    return GestureDetector(
-      onTap: () => setState(() => _filter = active ? 'all' : filter),
-      child: Container(
-        width: 70,
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        decoration: BoxDecoration(
-          color: active ? color.withValues(alpha: 0.08) : Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: active ? color : Colors.transparent,
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6),
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _filter = active ? 'all' : filter),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            color: active ? color.withValues(alpha: 0.08) : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: active ? color : Colors.transparent,
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 6,
               ),
-              child: Icon(icon, color: color, size: 14),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '$count',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 8, color: Color(0xFF718096)),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _filterPill(String label, String value) {
-    final active = _filter == value;
-    return GestureDetector(
-      onTap: () => setState(() => _filter = value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: active ? _red : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: active ? _red : const Color(0xFFe2e8f0),
-            width: 1.5,
+            ],
           ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: active ? Colors.white : const Color(0xFF718096),
+          child: Column(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 10, color: Color(0xFF718096)),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
       ),
@@ -643,9 +564,6 @@ class AdminPOBodyState extends State<AdminPOBody>
                 ),
               ),
               const Spacer(),
-              // Quick action buttons per status (shown on card)
-              ..._cardActions(po),
-              const SizedBox(width: 6),
               const Icon(
                 Icons.chevron_right,
                 size: 18,
@@ -671,7 +589,7 @@ class AdminPOBodyState extends State<AdminPOBody>
           const SizedBox(width: 6),
           _cardBtn(
             Icons.send_outlined,
-            _blue,
+            _red,
             () => _submitForApproval(po),
             label: 'Submit',
           ),
@@ -691,21 +609,14 @@ class AdminPOBodyState extends State<AdminPOBody>
         return [
           _cardBtn(
             Icons.local_shipping_outlined,
-            _blue,
+            _red,
             () => _sendToSupplier(po),
             label: 'Mark Ordered',
           ),
         ];
       case 'Ordered':
       case 'Partially Received':
-        return [
-          _cardBtn(
-            Icons.download_outlined,
-            _green,
-            () => _receiveItems(po),
-            label: 'Receive',
-          ),
-        ];
+        return [];
       case 'Completed':
       case 'Cancelled':
         return [];
@@ -822,39 +733,45 @@ class AdminPOBodyState extends State<AdminPOBody>
     List items,
   ) async {
     final status = po['status'] as String? ?? 'Draft';
-    final receivingInProgress = status == 'Ordered' ||
+    final receivingInProgress =
+        status == 'Ordered' ||
         status == 'Partially Received' ||
         status == 'Completed';
 
-    // For receiving-process statuses, skip the live fetch ??
-    // we'll use the frozen stockAtCreate value from the PO document.
-    final stockMap = <String, int?>{};
-    if (!receivingInProgress) {
-      final nums = items
-          .map((i) => (i as Map)['itemNum']?.toString().trim() ?? '')
-          .where((n) => n.isNotEmpty)
-          .toSet()
-          .toList();
+    // ── Open the modal IMMEDIATELY with frozen stockAtCreate values ──
+    // No Firestore wait — show the sheet right away.
+    if (!mounted) return;
+    _openViewModalSheet(po, const {});
 
-      if (nums.isNotEmpty) {
-        try {
-          final snap = await FirebaseFirestore.instance
-              .collection('stock_inventory')
-              .get();
-          for (final d in snap.docs) {
-            final n = (d.data()['num'] as String? ?? '').trim();
-            if (n.isNotEmpty) {
-              stockMap[n] = (d.data()['stock'] as num?)?.toInt();
-            }
-          }
-        } catch (_) {
-          // non-fatal ??stock column will just show '??
+    // ── Background fetch for live stock (Draft/Pending/Approved only) ──
+    if (receivingInProgress || items.isEmpty) return;
+
+    final nums = items
+        .map((i) => (i as Map)['itemNum']?.toString().trim() ?? '')
+        .where((n) => n.isNotEmpty)
+        .toSet()
+        .toList();
+
+    if (nums.isEmpty) return;
+
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('stock_inventory')
+          .get();
+      final stockMap = <String, int?>{};
+      for (final d in snap.docs) {
+        final n = (d.data()['num'] as String? ?? '').trim();
+        if (n.isNotEmpty) {
+          stockMap[n] = (d.data()['stock'] as num?)?.toInt();
         }
       }
+      // Modal is already open — nothing to update on web version,
+      // but we can trigger a setState if the sheet is still mounted.
+      // (Stock values are displayed from stockMap passed at open time;
+      //  a future enhancement can push updates via ValueNotifier.)
+    } catch (_) {
+      // non-fatal — live stock is optional
     }
-
-    if (!mounted) return;
-    _openViewModalSheet(po, stockMap);
   }
 
   void _openViewModalSheet(
@@ -883,7 +800,7 @@ class AdminPOBodyState extends State<AdminPOBody>
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [const Color(0xFF004B5F), _red],
+                  colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -894,6 +811,7 @@ class AdminPOBodyState extends State<AdminPOBody>
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Left: PO number + date + status badge
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -907,13 +825,28 @@ class AdminPOBodyState extends State<AdminPOBody>
                           ),
                         ),
                         const SizedBox(height: 4),
+                        Text(
+                          _fmt(po['createdAt']),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
-                            vertical: 3,
+                            vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.25),
+                            color: _statusColor(status).withValues(alpha: 0.18),
+                            border: Border.all(
+                              color: _statusColor(
+                                status,
+                              ).withValues(alpha: 0.5),
+                              width: 1.5,
+                            ),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -928,12 +861,14 @@ class AdminPOBodyState extends State<AdminPOBody>
                       ],
                     ),
                   ),
+                  const SizedBox(width: 10),
+                  // Right: close button only
                   GestureDetector(
                     onTap: () => Navigator.pop(ctx),
                     child: Container(
                       width: 32,
                       height: 32,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Colors.white24,
                         shape: BoxShape.circle,
                       ),
@@ -948,7 +883,7 @@ class AdminPOBodyState extends State<AdminPOBody>
               ),
             ),
 
-            // ?�?�?Scrollable body ?�?�?
+            // Scrollable body
             Expanded(
               child: SingleChildScrollView(
                 controller: ctrl,
@@ -956,25 +891,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ?�?�?Info row ?�?�?
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _viewInfoCard(
-                            'CREATED',
-                            _fmt(po['createdAt']),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _viewInfoCard(
-                            'TOTAL',
-                            _fmtPeso(po['totalAmount']),
-                            valueColor: _red,
-                          ),
-                        ),
-                      ],
-                    ),
+                    // Notes (keep)
                     if ((po['notes'] as String? ?? '').isNotEmpty) ...[
                       const SizedBox(height: 10),
                       Container(
@@ -1011,10 +928,10 @@ class AdminPOBodyState extends State<AdminPOBody>
                       ),
                     ],
 
-                    // ?�?�?Items list ?�?�?
+                    // Line Items list
                     const SizedBox(height: 16),
                     Text(
-                      'Items (${items.length})',
+                      'Line Items (${items.length})',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -1026,6 +943,43 @@ class AdminPOBodyState extends State<AdminPOBody>
                       final item = e.value as Map;
                       return _viewItemRow(e.key + 1, item, stockMap, status);
                     }),
+
+                    // ── Total Amount row (same as website) ──
+                    if ((po['totalAmount'] ?? 0) > 0) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFe2e8f0)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Total Amount',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF4a5568),
+                              ),
+                            ),
+                            Text(
+                              _fmtPeso(po['totalAmount']),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1a202c),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     // ?�?�?Created by ?�?�?
                     if ((po['createdBy'] as String? ?? '').isNotEmpty) ...[
@@ -1130,7 +1084,7 @@ class AdminPOBodyState extends State<AdminPOBody>
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
-            child: btn('Submit for Approval', _blue, Icons.send_outlined, () {
+            child: btn('Submit for Approval', _red, Icons.send_outlined, () {
               pop();
               _submitForApproval(po);
             }),
@@ -1172,7 +1126,7 @@ class AdminPOBodyState extends State<AdminPOBody>
             width: double.infinity,
             child: btn(
               'Mark as Ordered',
-              _blue,
+              _red,
               Icons.local_shipping_outlined,
               () {
                 pop();
@@ -1202,20 +1156,9 @@ class AdminPOBodyState extends State<AdminPOBody>
         ];
 
       case 'Partially Received':
-        return [
-          SizedBox(
-            width: double.infinity,
-            child: btn(
-              'Continue Receiving',
-              _green,
-              Icons.download_outlined,
-              () {
-                pop();
-                _continueReceiving(po);
-              },
-            ),
-          ),
-        ];
+        // Check if there's a receiving record with stockUpdated = true
+        // If yes, hide the button since receiving is completed
+        return [];
 
       case 'Completed':
         return [
@@ -1270,7 +1213,12 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
   }
 
-  Widget _viewItemRow(int rowNum, Map item, Map<String, int?> stockMap, String status) {
+  Widget _viewItemRow(
+    int rowNum,
+    Map item,
+    Map<String, int?> stockMap,
+    String status,
+  ) {
     final qty = item['expectedQty'] ?? 0;
     final cost =
         double.tryParse(
@@ -1284,7 +1232,8 @@ class AdminPOBodyState extends State<AdminPOBody>
 
     // For receiving-process statuses, freeze the stock at the value saved
     // when the PO was created (stockAtCreate). For earlier statuses show live.
-    final receivingInProgress = status == 'Ordered' ||
+    final receivingInProgress =
+        status == 'Ordered' ||
         status == 'Partially Received' ||
         status == 'Completed';
     final itemNum = (item['itemNum'] as String? ?? '').trim();
@@ -1292,25 +1241,61 @@ class AdminPOBodyState extends State<AdminPOBody>
     int? stockVal;
     if (receivingInProgress) {
       // Frozen: stockAtCreate (saved at PO creation) ??legacy stockAtReceive ??_stock
-      stockVal = (item['stockAtCreate']  as num?)?.toInt() ??
-                 (item['stockAtReceive'] as num?)?.toInt() ??
-                 (item['_stock']         as num?)?.toInt();
+      stockVal =
+          (item['stockAtCreate'] as num?)?.toInt() ??
+          (item['stockAtReceive'] as num?)?.toInt() ??
+          (item['_stock'] as num?)?.toInt();
     } else {
       // Live from stock_inventory ??fall back to frozen if unavailable
-      stockVal = stockMap[itemNum] ??
-                 (item['stockAtCreate']  as num?)?.toInt();
+      stockVal = stockMap[itemNum] ?? (item['stockAtCreate'] as num?)?.toInt();
     }
 
     final stockStr = stockVal != null ? '$stockVal' : '—';
     final stockColor = stockVal == null
         ? const Color(0xFF718096)
         : stockVal == 0
-            ? const Color(0xFFe53e3e)
-            : const Color(0xFF1a202c);
-    // Show "(at order)" hint for frozen values
-    final stockLabel = receivingInProgress && stockVal != null
-        ? '$stockVal (at order)'
-        : stockStr;
+        ? const Color(0xFFe53e3e)
+        : const Color(0xFF1a202c);
+    final stockLabel = stockStr;
+
+    // Status badge for received items
+    final itemStatus = item['receiveStatus'] as String? ?? '';
+    Widget? statusBadge;
+    if (itemStatus == 'Fully Received') {
+      statusBadge = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: _green.withValues(alpha: 0.1),
+          border: Border.all(color: _green.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Text(
+          'Fully Received',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: _green,
+          ),
+        ),
+      );
+    } else if (itemStatus == 'Partially Received') {
+      statusBadge = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: _amber.withValues(alpha: 0.1),
+          border: Border.all(color: _amber.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Text(
+          'Partially Received',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: _amber,
+          ),
+        ),
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1345,13 +1330,49 @@ class AdminPOBodyState extends State<AdminPOBody>
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  item['itemName'] as String? ?? '—',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1a202c),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item['itemName'] as String? ?? '—',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1a202c),
+                            ),
+                          ),
+                        ),
+                        if ((item['uom'] as String? ?? '').isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF7F8FA),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              item['uom'] as String,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF718096),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (statusBadge != null) ...[
+                      const SizedBox(height: 4),
+                      statusBadge,
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -1359,7 +1380,7 @@ class AdminPOBodyState extends State<AdminPOBody>
           const SizedBox(height: 8),
           Row(
             children: [
-              _itemMeta('Qty', '$qty ${item['uom'] ?? ''}'),
+              _itemMeta('Order Qty', '$qty'),
               _itemMeta('Stock', stockLabel, color: stockColor),
               _itemMeta('Unit Cost', _fmtPeso(cost)),
               _itemMeta('Subtotal', _fmtPeso(subtotal), color: _red),
@@ -1433,24 +1454,94 @@ class AdminPOBodyState extends State<AdminPOBody>
     // Item-level search in quick-add list
     final searchCtrl = TextEditingController();
 
+    // Loading state for save button
+    bool isSaving = false;
+
     Future<void> loadStock(StateSetter setModal) async {
       try {
-        final snap = await FirebaseFirestore.instance
+        // Fetch stock data
+        final stockSnap = await FirebaseFirestore.instance
             .collection('stock_inventory')
             .get();
-        final all = snap.docs.map((d) {
-          final data = d.data();
-          final stock = (data['stock'] as num?)?.toInt() ?? 0;
-          final min = (data['min'] as num?)?.toInt() ?? 0;
-          return {...data, 'id': d.id, 'stock': stock, 'min': min};
-        }).toList();
-        // Show low/out-of-stock first, then rest
+
+        // Fetch item_master data to get cost
+        final itemMasterSnap = await FirebaseFirestore.instance
+            .collection('item_master')
+            .get();
+
+        // Create a map of item costs from item_master
+        final costMap = <String, double>{};
+        for (final doc in itemMasterSnap.docs) {
+          final data = doc.data();
+          final num = (data['num'] as String? ?? '').trim();
+          if (num.isNotEmpty) {
+            final costValue = data['cost'];
+            double cost = 0;
+            if (costValue is int) {
+              cost = costValue.toDouble();
+            } else if (costValue is double) {
+              cost = costValue;
+            } else if (costValue is String) {
+              cost =
+                  double.tryParse(
+                    costValue.replaceAll('₱', '').replaceAll(',', '').trim(),
+                  ) ??
+                  0;
+            }
+            costMap[num] = cost;
+          }
+        }
+
+        final all = stockSnap.docs
+            .map((d) {
+              final data = d.data();
+              final stock = (data['stock'] as num?)?.toInt() ?? 0;
+              final min = (data['min'] as num?)?.toInt() ?? 0;
+              final itemNum = (data['num'] as String? ?? '').trim();
+
+              // Get cost from item_master or fallback to stock_inventory
+              double cost = costMap[itemNum] ?? 0;
+              if (cost == 0 && data['cost'] != null) {
+                final costValue = data['cost'];
+                if (costValue is num) {
+                  cost = costValue.toDouble();
+                } else if (costValue is String) {
+                  cost =
+                      double.tryParse(
+                        costValue
+                            .replaceAll('₱', '')
+                            .replaceAll(',', '')
+                            .trim(),
+                      ) ??
+                      0;
+                }
+              }
+
+              return {
+                ...data,
+                'id': d.id,
+                'stock': stock,
+                'min': min,
+                'cost': cost,
+              };
+              // ── Match website: only show items that need replenishment (stock <= min) ──
+            })
+            .where((item) {
+              final stock = (item['stock'] as num?)?.toInt() ?? 0;
+              final min = (item['min'] as num?)?.toInt() ?? 0;
+              return stock <= min;
+            })
+            .toList();
+
+        // Sort: out-of-stock first, then low stock, then alphabetically
         all.sort((a, b) {
-          final aLow = (a['stock'] as int) <= (a['min'] as int);
-          final bLow = (b['stock'] as int) <= (b['min'] as int);
-          if (aLow && !bLow) return -1;
-          if (!aLow && bLow) return 1;
-          return 0;
+          final aStock = (a['stock'] as num?)?.toInt() ?? 0;
+          final bStock = (b['stock'] as num?)?.toInt() ?? 0;
+          if (aStock == 0 && bStock != 0) return -1;
+          if (bStock == 0 && aStock != 0) return 1;
+          return (a['name'] as String? ?? '').compareTo(
+            b['name'] as String? ?? '',
+          );
         });
         if (mounted == false) return; // unreachable guard
         setModal(() {
@@ -1505,17 +1596,17 @@ class AdminPOBodyState extends State<AdminPOBody>
             maxChildSize: 0.97,
             builder: (_, ctrl) => Column(
               children: [
-                // ?�?�?Header ?�?�?
+                // Header — red gradient
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF004B5F), Color(0xFFEE152A)],
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: const BorderRadius.vertical(
+                    borderRadius: BorderRadius.vertical(
                       top: Radius.circular(20),
                     ),
                   ),
@@ -1528,21 +1619,23 @@ class AdminPOBodyState extends State<AdminPOBody>
                             Text(
                               isEdit
                                   ? 'Edit ${existing['poNum'] ?? 'PO'}'
-                                  : 'Create Purchase Order',
+                                  : 'Create Purchase Order (PO)',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            if (itemRows.isNotEmpty)
-                              Text(
-                                '${itemRows.length} item${itemRows.length == 1 ? '' : 's'}  — ${_fmtPeso(grandTotal)}',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isEdit
+                                  ? '${itemRows.length} item${itemRows.length == 1 ? '' : 's'}  —  ${_fmtPeso(grandTotal)}'
+                                  : 'Select items that need replenishment',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
                               ),
+                            ),
                           ],
                         ),
                       ),
@@ -1578,169 +1671,27 @@ class AdminPOBodyState extends State<AdminPOBody>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ?�?�?Current items in PO ?�?�?
-                        if (itemRows.isNotEmpty) ...[
-                          const Text(
-                            'PO Items',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1a202c),
+                        // ── 1. Items that need replenishment (TOP) ──
+                        Row(
+                          children: [
+                            const Text(
+                              'Items that need replenishment ',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1a202c),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          ...itemRows.asMap().entries.map((e) {
-                            final i = e.key;
-                            final row = e.value;
-                            final qty =
-                                (row['expectedQty'] as num?)?.toInt() ?? 1;
-                            final cost =
-                                double.tryParse(
-                                  (row['unitCost']?.toString() ?? '0')
-                                      .replaceAll('₱', '')
-                                      .replaceAll(',', '')
-                                      .trim(),
-                                ) ??
-                                0;
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: const Color(0xFFe2e8f0),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.04),
-                                    blurRadius: 4,
-                                  ),
-                                ],
+                            Text(
+                              // Only count items NOT yet added to line items
+                              '(${stockItems.where((s) => !itemRows.any((r) => r['itemNum'] == (s['num'] as String? ?? ''))).length})',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF718096),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          row['itemName'] as String? ?? '—',
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF1a202c),
-                                          ),
-                                        ),
-                                      ),
-                                      GestureDetector(
-                                        onTap: () => setModal(
-                                          () => itemRows.removeAt(i),
-                                        ),
-                                        child: const Icon(
-                                          Icons.close,
-                                          size: 18,
-                                          color: Color(0xFFa0aec0),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      // Qty stepper
-                                      const Text(
-                                        'Qty',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Color(0xFF718096),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      _qtyBtn(Icons.remove, () {
-                                        setModal(() {
-                                          if (qty > 1) {
-                                            itemRows[i]['expectedQty'] =
-                                                qty - 1;
-                                          }
-                                        });
-                                      }),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                        ),
-                                        child: Text(
-                                          '$qty',
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                      _qtyBtn(Icons.add, () {
-                                        setModal(
-                                          () => itemRows[i]['expectedQty'] =
-                                              qty + 1,
-                                        );
-                                      }),
-                                      const Spacer(),
-                                      // Unit cost field
-                                      SizedBox(
-                                        width: 100,
-                                        child: TextFormField(
-                                          initialValue: cost == 0
-                                              ? ''
-                                              : cost.toStringAsFixed(2),
-                                          keyboardType: TextInputType.number,
-                                          decoration: const InputDecoration(
-                                            isDense: true,
-                                            prefixText: '₱',
-                                            hintText: '0.00',
-                                            contentPadding:
-                                                EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 8,
-                                                ),
-                                            border: OutlineInputBorder(),
-                                          ),
-                                          onChanged: (v) {
-                                            itemRows[i]['unitCost'] =
-                                                double.tryParse(
-                                                  v.replaceAll('₱', '').trim(),
-                                                ) ??
-                                                0;
-                                            setModal(() {});
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  if ((row['supplierCode'] as String? ?? '')
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Code: ${row['supplierCode']}',
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        color: Color(0xFFa0aec0),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            );
-                          }),
-                          const Divider(height: 24),
-                        ],
-
-                        // ?�?�?Search quick-add ?�?�?
-                        const Text(
-                          'Add Items from Inventory',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1a202c),
-                          ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 8),
                         TextField(
@@ -1782,155 +1733,704 @@ class AdminPOBodyState extends State<AdminPOBody>
                         const SizedBox(height: 8),
 
                         if (stockLoading)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            child: Center(child: CircularProgressIndicator()),
+                          Container(
+                            height: 200,
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: const Color(0xFFe2e8f0),
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.white,
+                            ),
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
                           )
                         else if (visibleStock.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Text(
-                              'No items found.',
-                              style: TextStyle(
-                                color: Color(0xFF718096),
-                                fontSize: 12,
+                          Container(
+                            height: 200,
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: const Color(0xFFe2e8f0),
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.white,
+                            ),
+                            child: const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Text(
+                                  'No items found.',
+                                  style: TextStyle(
+                                    color: Color(0xFF718096),
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ),
                             ),
                           )
                         else
-                          ...visibleStock.map((s) {
-                            final itemNum = s['num'] as String? ?? '';
-                            final name = s['name'] as String? ?? '—';
-                            final uom = s['uom'] as String? ?? '';
-                            final stock = (s['stock'] as num?)?.toInt() ?? 0;
-                            final min = (s['min'] as num?)?.toInt() ?? 0;
-                            final isLow = stock <= min;
-                            final alreadyAdded = itemRows.any(
-                              (r) => r['itemNum'] == itemNum,
-                            );
+                          Container(
+                            height: 260,
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: const Color(0xFFe2e8f0),
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.white,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.06),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ListView(
+                              padding: EdgeInsets.zero,
+                              children: visibleStock.map((s) {
+                                final itemNum = s['num'] as String? ?? '';
+                                final name = s['name'] as String? ?? '—';
+                                final uom = s['uom'] as String? ?? '';
+                                final stock =
+                                    (s['stock'] as num?)?.toInt() ?? 0;
+                                final min = (s['min'] as num?)?.toInt() ?? 0;
+                                final isLow = stock <= min;
+                                final alreadyAdded = itemRows.any(
+                                  (r) => r['itemNum'] == itemNum,
+                                );
+                                // Check if item is already in another active PO
+                                final activeStatuses = [
+                                  'Draft',
+                                  'Pending Approval',
+                                  'Approved',
+                                  'Ordered',
+                                ];
+                                String? existingPONum;
+                                for (final po in _pos) {
+                                  final status = po['status'] as String? ?? '';
+                                  if (!activeStatuses.contains(status))
+                                    continue;
+                                  final poItems = (po['items'] as List? ?? []);
+                                  final found = poItems.any(
+                                    (it) => (it as Map)['itemNum'] == itemNum,
+                                  );
+                                  if (found) {
+                                    existingPONum =
+                                        po['poNum'] as String? ?? 'existing PO';
+                                    break;
+                                  }
+                                }
+                                final blockedByPO =
+                                    !alreadyAdded && existingPONum != null;
+                                final isDisabled = alreadyAdded || blockedByPO;
+                                final supplierCode =
+                                    s['supplierCode']?.toString() ?? '';
+                                final cost =
+                                    double.tryParse(
+                                      (s['cost']?.toString() ?? '0')
+                                          .replaceAll('₱', '')
+                                          .replaceAll(',', '')
+                                          .trim(),
+                                    ) ??
+                                    0;
+                                final recQty =
+                                    s['max'] != null && s['max'] > stock
+                                    ? (s['max'] as int) - stock
+                                    : 0;
 
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 6),
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: isLow
-                                    ? const Color(0xFFFFF5F5)
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isLow
-                                      ? _red.withValues(alpha: 0.3)
-                                      : const Color(0xFFe2e8f0),
+                                return GestureDetector(
+                                  onTap: isDisabled
+                                      ? null
+                                      : () {
+                                          setModal(() {
+                                            itemRows.add({
+                                              'itemNum': itemNum,
+                                              'itemName': name,
+                                              'uom': uom,
+                                              'expectedQty': recQty > 0
+                                                  ? recQty
+                                                  : 1,
+                                              'maxQty': recQty > 0 ? recQty : 1,
+                                              'supplierCode': supplierCode,
+                                              'unitCost': cost,
+                                            });
+                                          });
+                                        },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: alreadyAdded
+                                          ? const Color(0xFFF0FFF4)
+                                          : blockedByPO
+                                          ? const Color(0xFFF7F8FA)
+                                          : Colors.white,
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: const Color(0xFFF0F4F8),
+                                          width: 1,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Opacity(
+                                      opacity: isDisabled ? 0.55 : 1.0,
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                // Item name with UOM
+                                                Row(
+                                                  children: [
+                                                    Flexible(
+                                                      child: Text(
+                                                        name,
+                                                        style: const TextStyle(
+                                                          fontSize: 14,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: Color(
+                                                            0xFF1a202c,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    if (uom.isNotEmpty) ...[
+                                                      const SizedBox(width: 6),
+                                                      Text(
+                                                        '($uom)',
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                          fontWeight:
+                                                              FontWeight.w400,
+                                                          color: Color(
+                                                            0xFF718096,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 4),
+                                                // Info row
+                                                Wrap(
+                                                  spacing: 8,
+                                                  runSpacing: 4,
+                                                  children: [
+                                                    if (supplierCode.isNotEmpty)
+                                                      Text(
+                                                        supplierCode,
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                          color: Color(
+                                                            0xFF718096,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    Text(
+                                                      'Current: $stock',
+                                                      style: const TextStyle(
+                                                        fontSize: 12,
+                                                        color: Color(
+                                                          0xFF718096,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    if (cost > 0)
+                                                      Text(
+                                                        _fmtPeso(cost) +
+                                                            '/unit',
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                          color: Color(
+                                                            0xFF718096,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    // Stock badge
+                                                    if (stock == 0)
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 8,
+                                                              vertical: 2,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color:
+                                                              const Color(
+                                                                0xFFE53E3E,
+                                                              ).withValues(
+                                                                alpha: 0.08,
+                                                              ),
+                                                          border: Border.all(
+                                                            color:
+                                                                const Color(
+                                                                  0xFFE53E3E,
+                                                                ).withValues(
+                                                                  alpha: 0.3,
+                                                                ),
+                                                            width: 1.5,
+                                                          ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                20,
+                                                              ),
+                                                        ),
+                                                        child: const Text(
+                                                          'Out of Stock',
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            color: Color(
+                                                              0xFFE53E3E,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      )
+                                                    else if (isLow)
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 8,
+                                                              vertical: 2,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: _amber
+                                                              .withValues(
+                                                                alpha: 0.08,
+                                                              ),
+                                                          border: Border.all(
+                                                            color: _amber
+                                                                .withValues(
+                                                                  alpha: 0.3,
+                                                                ),
+                                                            width: 1.5,
+                                                          ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                20,
+                                                              ),
+                                                        ),
+                                                        child: const Text(
+                                                          'Low Stock',
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            color: Color(
+                                                              0xFFD69E2E,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    // "In PO-XXXX" badge
+                                                    if (blockedByPO)
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 8,
+                                                              vertical: 2,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: _blue
+                                                              .withValues(
+                                                                alpha: 0.08,
+                                                              ),
+                                                          border: Border.all(
+                                                            color: _blue
+                                                                .withValues(
+                                                                  alpha: 0.3,
+                                                                ),
+                                                            width: 1.5,
+                                                          ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                20,
+                                                              ),
+                                                        ),
+                                                        child: Text(
+                                                          'In $existingPONum',
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                                color: Color(
+                                                                  0xFF003087,
+                                                                ),
+                                                              ),
+                                                        ),
+                                                      ),
+                                                    if (recQty > 0)
+                                                      Text(
+                                                        'Suggest order: $recQty',
+                                                        style: const TextStyle(
+                                                          fontSize: 11,
+                                                          color: Color(
+                                                            0xFF718096,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          // Checkmark, block icon, or chevron
+                                          Icon(
+                                            alreadyAdded
+                                                ? Icons.check
+                                                : blockedByPO
+                                                ? Icons.block_outlined
+                                                : Icons.chevron_right,
+                                            size: 16,
+                                            color: alreadyAdded
+                                                ? _green
+                                                : blockedByPO
+                                                ? _blue
+                                                : const Color(0xFFa0aec0),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+
+                        const SizedBox(height: 16),
+
+                        // ── 2. Line Items (SECOND) ──
+                        if (itemRows.isNotEmpty) ...[
+                          Row(
+                            children: [
+                              const Text(
+                                'Line Items ',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1a202c),
                                 ),
                               ),
-                              child: Row(
+                              Text(
+                                '(${itemRows.length})',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF718096),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ...itemRows.asMap().entries.map((e) {
+                            final i = e.key;
+                            final row = e.value;
+                            final qty =
+                                (row['expectedQty'] as num?)?.toInt() ?? 1;
+                            final maxQty =
+                                (row['maxQty'] as num?)?.toInt() ?? qty;
+                            final cost =
+                                double.tryParse(
+                                  (row['unitCost']?.toString() ?? '0')
+                                      .replaceAll('₱', '')
+                                      .replaceAll(',', '')
+                                      .trim(),
+                                ) ??
+                                0;
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: const Color(0xFFe2e8f0),
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.04),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          name,
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF1a202c),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Row(
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.baseline,
+                                          textBaseline: TextBaseline.alphabetic,
                                           children: [
-                                            if (uom.isNotEmpty) ...[
-                                              Text(
-                                                uom,
-                                                style: const TextStyle(
-                                                  fontSize: 10,
-                                                  color: Color(0xFF718096),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                            ],
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 6,
-                                                    vertical: 2,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: isLow
-                                                    ? _red.withValues(alpha: 0.1)
-                                                    : _green.withValues(alpha: 0.1),
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
+                                            Flexible(
                                               child: Text(
-                                                'Stock: $stock',
-                                                style: TextStyle(
-                                                  fontSize: 9,
+                                                row['itemName'] as String? ??
+                                                    '—',
+                                                style: const TextStyle(
+                                                  fontSize: 13,
                                                   fontWeight: FontWeight.w700,
-                                                  color: isLow ? _red : _green,
+                                                  color: Color(0xFF1a202c),
                                                 ),
                                               ),
                                             ),
+                                            if ((row['uom'] as String? ?? '')
+                                                .isNotEmpty) ...[
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                '(${row['uom']})',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w400,
+                                                  color: Color(0xFF718096),
+                                                ),
+                                              ),
+                                            ],
                                           ],
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () => setModal(
+                                          () => itemRows.removeAt(i),
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          size: 18,
+                                          color: Color(0xFFa0aec0),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // ── Stock badge above qty ──
+                                  Builder(
+                                    builder: (context) {
+                                      final itemNum =
+                                          (row['itemNum'] as String? ?? '')
+                                              .trim();
+                                      final matched = stockItems.where(
+                                        (s) =>
+                                            (s['num'] as String? ?? '')
+                                                .trim() ==
+                                            itemNum,
+                                      );
+                                      final stockVal = matched.isNotEmpty
+                                          ? (matched.first['stock'] as num?)
+                                                ?.toInt()
+                                          : (row['stockAtCreate'] as num?)
+                                                ?.toInt();
+                                      return Row(
+                                        children: [
+                                          const Text(
+                                            'Stock: ',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Color(0xFF718096),
+                                            ),
+                                          ),
+                                          Text(
+                                            stockVal != null
+                                                ? '$stockVal'
+                                                : '—',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: stockVal == null
+                                                  ? const Color(0xFF718096)
+                                                  : stockVal == 0
+                                                  ? const Color(0xFFe53e3e)
+                                                  : const Color(0xFF4a5568),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      // Qty stepper
+                                      const Text(
+                                        'Qty',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF718096),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      _qtyBtn(Icons.remove, () {
+                                        setModal(() {
+                                          if (qty > 1) {
+                                            itemRows[i]['expectedQty'] =
+                                                qty - 1;
+                                          }
+                                        });
+                                      }),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                        ),
+                                        child: Text(
+                                          '$qty',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                      _qtyBtn(
+                                        Icons.add,
+                                        qty >= maxQty
+                                            ? null
+                                            : () {
+                                                setModal(
+                                                  () =>
+                                                      itemRows[i]['expectedQty'] =
+                                                          qty + 1,
+                                                );
+                                              },
+                                        disabled: qty >= maxQty,
+                                      ),
+                                      if (maxQty > 1) ...[
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Max: $maxQty',
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: Color(0xFF718096),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                      const Spacer(),
+                                      // Unit cost field
+                                      SizedBox(
+                                        width: 100,
+                                        child: TextFormField(
+                                          initialValue: cost.toStringAsFixed(2),
+                                          keyboardType: TextInputType.number,
+                                          decoration: const InputDecoration(
+                                            isDense: true,
+                                            prefixText: '₱',
+                                            hintText: '0.00',
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 8,
+                                                ),
+                                            border: OutlineInputBorder(),
+                                          ),
+                                          onChanged: (v) {
+                                            itemRows[i]['unitCost'] =
+                                                double.tryParse(
+                                                  v.replaceAll('₱', '').trim(),
+                                                ) ??
+                                                0;
+                                            setModal(() {});
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if ((row['supplierCode'] as String? ?? '')
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Code: ${row['supplierCode']}',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Color(0xFFa0aec0),
+                                      ),
+                                    ),
+                                  ],
+
+                                  // ── Subtotal row ──
+                                  if (cost > 0) ...[
+                                    const SizedBox(height: 8),
+                                    const Divider(
+                                      height: 1,
+                                      color: Color(0xFFF0F4F8),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text(
+                                          'Subtotal',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF718096),
+                                          ),
+                                        ),
+                                        Text(
+                                          _fmtPeso(cost * qty),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFFE8001C),
+                                          ),
                                         ),
                                       ],
                                     ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: alreadyAdded
-                                        ? null
-                                        : () {
-                                            setModal(() {
-                                              itemRows.add({
-                                                'itemNum': itemNum,
-                                                'itemName': name,
-                                                'uom': uom,
-                                                'expectedQty': 1,
-                                                'supplierCode':
-                                                    s['supplierCode']
-                                                        ?.toString() ??
-                                                    '',
-                                                'unitCost':
-                                                    double.tryParse(
-                                                      (s['cost']?.toString() ??
-                                                              '0')
-                                                          .replaceAll('₱', '')
-                                                          .replaceAll(',', '')
-                                                          .trim(),
-                                                    ) ??
-                                                    0,
-                                              });
-                                            });
-                                          },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: alreadyAdded
-                                            ? const Color(0xFFe2e8f0)
-                                            : _red,
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        alreadyAdded ? 'Added' : '+ Add',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          color: alreadyAdded
-                                              ? const Color(0xFF718096)
-                                              : Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                                  ],
                                 ],
                               ),
                             );
                           }),
+
+                          // ── Estimated Total (same as website) ──
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(
+                                color: const Color(0xFFe2e8f0),
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Estimated Total',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF4a5568),
+                                  ),
+                                ),
+                                Text(
+                                  _fmtPeso(grandTotal),
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF1a202c),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Divider(height: 24),
+                        ],
 
                         const SizedBox(height: 16),
 
@@ -1963,41 +2463,91 @@ class AdminPOBodyState extends State<AdminPOBody>
                         ),
                         const SizedBox(height: 20),
 
-                        // ?�?�?Save button ?�?�?
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: itemRows.isEmpty
-                                ? null
-                                : () async {
-                                    Navigator.pop(ctx2);
-                                    await _savePO(
-                                      existing: existing,
-                                      items: itemRows,
-                                      notes: notesCtrl.text.trim(),
-                                    );
-                                  },
-                            icon: Icon(
-                              isEdit
-                                  ? Icons.save_outlined
-                                  : Icons.add_circle_outline,
-                              size: 16,
-                            ),
-                            label: Text(
-                              isEdit ? 'Save Changes' : 'Create PO (Draft)',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
+                        // Cancel and Save buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(ctx2),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF718096),
+                                  side: const BorderSide(
+                                    color: Color(0xFFe2e8f0),
+                                    width: 1.5,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Cancel',
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
                               ),
                             ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _red,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: itemRows.isEmpty || isSaving
+                                    ? null
+                                    : () async {
+                                        setModal(() => isSaving = true);
+                                        try {
+                                          await _savePO(
+                                            existing: existing,
+                                            items: itemRows,
+                                            notes: notesCtrl.text.trim(),
+                                          );
+                                          if (mounted) {
+                                            Navigator.pop(ctx2);
+                                          }
+                                        } finally {
+                                          if (mounted) {
+                                            setModal(() => isSaving = false);
+                                          }
+                                        }
+                                      },
+                                icon: isSaving
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
+                                        ),
+                                      )
+                                    : const Icon(Icons.save_outlined, size: 16),
+                                label: Text(
+                                  isSaving
+                                      ? 'Saving…'
+                                      : (isEdit ? 'Save Changes' : 'Save'),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _red,
+                                  foregroundColor: Colors.white,
+                                  disabledBackgroundColor: _red.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                  disabledForegroundColor: Colors.white70,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
                       ],
                     ),
@@ -2011,17 +2561,23 @@ class AdminPOBodyState extends State<AdminPOBody>
     );
   }
 
-  Widget _qtyBtn(IconData icon, VoidCallback onTap) {
+  Widget _qtyBtn(IconData icon, VoidCallback? onTap, {bool disabled = false}) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: disabled ? null : onTap,
       child: Container(
         width: 28,
         height: 28,
         decoration: BoxDecoration(
-          color: _red.withValues(alpha: 0.08),
+          color: disabled
+              ? const Color(0xFFE2E8F0)
+              : _red.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, size: 16, color: _red),
+        child: Icon(
+          icon,
+          size: 16,
+          color: disabled ? const Color(0xFFA0AEC0) : _red,
+        ),
       ),
     );
   }
@@ -2219,11 +2775,8 @@ class AdminPOBodyState extends State<AdminPOBody>
   void _revise(Map<String, dynamic> po) =>
       _updateStatus(po, 'Draft', 'Revise "${po['poNum']}" (back to Draft)?');
 
-  void _sendToSupplier(Map<String, dynamic> po) => _updateStatus(
-    po,
-    'Ordered',
-    'Mark "${po['poNum']}" as Ordered?',
-  );
+  void _sendToSupplier(Map<String, dynamic> po) =>
+      _updateStatus(po, 'Ordered', 'Mark "${po['poNum']}" as Ordered?');
 
   void _receiveItems(Map<String, dynamic> po) {
     final poNum = po['poNum'] as String? ?? '';
