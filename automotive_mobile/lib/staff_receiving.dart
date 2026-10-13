@@ -36,7 +36,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
   static const _red = Color(0xFFE8001C);
   static const _amber = Color(0xFFd69e2e);
   static const _green = Color(0xFF38a169);
-  static const _blue = Color(0xFF003087);
+  static const _blue = Color(0xFF003087); // For In Progress status only
   static const _grey = Color(0xFF718096);
 
   // ── Collections ──────────────────────────────────────────────────────────
@@ -682,6 +682,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
                   ],
                 ),
               ),
+              // Status badge right-aligned (same as PO card)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                 decoration: BoxDecoration(
@@ -893,6 +894,15 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
   // ───────────────────────────────────────────────────────────────────────
 
   void _showCopyFromPOModal() async {
+    final activePONums = _rcvs
+        .where((r) {
+          final s = r['status'] as String? ?? '';
+          return s == 'DRAFT' || s == 'INPROG' || s == 'PARTIAL';
+        })
+        .map((r) => r['poNum'] as String? ?? '')
+        .where((n) => n.isNotEmpty)
+        .toSet();
+
     List<Map<String, dynamic>> pos = [];
     bool loadingPOs = true;
 
@@ -908,20 +918,34 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
           if (loadingPOs) {
             FirebaseFirestore.instance
                 .collection(_poCol)
-                .where('status', whereIn: ['Ordered', 'Pending'])
-                .orderBy('createdAt', descending: true)
+                .where('status', whereIn: ['Ordered', 'Partially Received'])
                 .get()
                 .then((snap) {
                   if (ctx2.mounted) {
                     setModal(() {
                       pos = snap.docs
                           .map((d) => {...d.data(), 'id': d.id})
+                          // Exclude POs that already have an active receiving
+                          .where(
+                            (po) => !activePONums.contains(
+                              po['poNum'] as String? ?? '',
+                            ),
+                          )
                           .toList();
+                      // Sort by createdAt descending (client-side to avoid index requirement)
+                      pos.sort((a, b) {
+                        final aTs = a['createdAt'];
+                        final bTs = b['createdAt'];
+                        if (aTs is Timestamp && bTs is Timestamp) {
+                          return bTs.compareTo(aTs);
+                        }
+                        return 0;
+                      });
                       loadingPOs = false;
                     });
                   }
                 })
-                .catchError((_) {
+                .catchError((e) {
                   if (ctx2.mounted) setModal(() => loadingPOs = false);
                 });
           }
@@ -932,13 +956,13 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
             maxChildSize: 0.88,
             builder: (_, ctrl) => Column(
               children: [
-                // Header — blue gradient
+                // Header — red gradient
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFF003087), Color(0xFF0050c8)],
+                      colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -1051,7 +1075,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
                                       child: const Icon(
                                         Icons.description_outlined,
                                         size: 18,
-                                        color: Color(0xFF003087),
+                                        color: Color(0xFFE8001C),
                                       ),
                                     ),
                                     const SizedBox(width: 12),
@@ -1567,6 +1591,10 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
                                         line['itemNum'] as String? ?? '—',
                                       ),
                                       _lineMeta(
+                                        'POS ID',
+                                        line['posId'] as String? ?? '—',
+                                      ),
+                                      _lineMeta(
                                         'OEM #',
                                         line['oem'] as String? ?? '—',
                                       ),
@@ -1764,9 +1792,9 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
                                   style: TextStyle(fontWeight: FontWeight.w600),
                                 ),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: _blue,
+                                  foregroundColor: _red,
                                   side: BorderSide(
-                                    color: _blue.withValues(alpha: 0.4),
+                                    color: _red.withValues(alpha: 0.4),
                                   ),
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 12,
@@ -1812,35 +1840,8 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
                             ),
                           ],
                           // PO-linked receiving: standard Start Receiving button
+                          // PO-linked receiving: only Delete button (no Start Receiving)
                           if (poNum.isNotEmpty) ...[
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  Navigator.pop(ctx);
-                                  _showViewModal(data);
-                                },
-                                icon: const Icon(
-                                  Icons.play_arrow_outlined,
-                                  size: 16,
-                                ),
-                                label: const Text(
-                                  'Start Receiving',
-                                  style: TextStyle(fontWeight: FontWeight.w700),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _blue,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
                             SizedBox(
                               width: double.infinity,
                               child: OutlinedButton.icon(
@@ -1920,9 +1921,9 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
                                   style: TextStyle(fontWeight: FontWeight.w600),
                                 ),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: _blue,
+                                  foregroundColor: _red,
                                   side: BorderSide(
-                                    color: _blue.withValues(alpha: 0.4),
+                                    color: _red.withValues(alpha: 0.4),
                                   ),
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 12,
@@ -1977,10 +1978,12 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
                                       Navigator.pop(ctx);
                                       _submitAndUpdateStock(data);
                                     },
-                              icon: const Icon(Icons.upload_outlined, size: 14),
+                              icon: (data['stockUpdated'] == true)
+                                  ? const Icon(Icons.check, size: 14)
+                                  : const Icon(Icons.upload_outlined, size: 14),
                               label: Text(
                                 (data['stockUpdated'] == true)
-                                    ? '✓ Stock Updated'
+                                    ? 'Stock Updated'
                                     : 'Submit & Update Stock',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
@@ -1988,9 +1991,11 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: (data['stockUpdated'] == true)
-                                    ? _green
+                                    ? const Color(0xFFe2e8f0)
                                     : _red,
-                                foregroundColor: Colors.white,
+                                foregroundColor: (data['stockUpdated'] == true)
+                                    ? const Color(0xFF718096)
+                                    : Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 14,
                                 ),
@@ -2450,20 +2455,7 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
     );
     if (lineIdx >= allLines.length) return;
 
-    // DRAFT → INPROG the moment the user opens Receive modal (mirrors website)
-    if ((r['status'] as String? ?? 'DRAFT') == 'DRAFT') {
-      try {
-        await SyncStatusNotifier.instance.trackWrite(
-          () => FirebaseFirestore.instance
-              .collection(_col)
-              .doc(r['id'] as String)
-              .update({
-                'status': 'INPROG',
-                'startedAt': FieldValue.serverTimestamp(),
-              }),
-        );
-      } catch (_) {}
-    }
+    // INPROG is set when a line is actually saved, not when modal opens
 
     final line = allLines[lineIdx];
     final poQty = (line['poQty'] as num?)?.toInt() ?? 0;
@@ -2975,6 +2967,11 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
     if (newHeaderStatus == 'COMP' || newHeaderStatus == 'PARTIAL') {
       update['completedAt'] = FieldValue.serverTimestamp();
     }
+    // Set startedAt only when first moving from DRAFT → INPROG
+    if ((r['status'] as String? ?? 'DRAFT') == 'DRAFT' &&
+        newHeaderStatus == 'INPROG') {
+      update['startedAt'] = FieldValue.serverTimestamp();
+    }
 
     try {
       await SyncStatusNotifier.instance.trackWrite(
@@ -2983,6 +2980,41 @@ class _StaffReceivingBodyState extends State<StaffReceivingBody>
             .doc(docId)
             .update(update),
       );
+
+      // ── Sync receiveStatus back to the linked PO item ──
+      final poRef = r['poRef'] as String? ?? '';
+      final itemNum = allLines[lineIdx]['itemNum'] as String? ?? '';
+      if (poRef.isNotEmpty && itemNum.isNotEmpty) {
+        final receiveStatus = lineStatus == 'COMP'
+            ? 'Fully Received'
+            : 'Partially Received';
+        try {
+          final poDoc = await FirebaseFirestore.instance
+              .collection(_poCol)
+              .doc(poRef)
+              .get();
+          if (poDoc.exists) {
+            final poItems = List<Map<String, dynamic>>.from(
+              (poDoc.data()!['items'] as List? ?? []).map(
+                (i) => Map<String, dynamic>.from(i as Map),
+              ),
+            );
+            bool found = false;
+            for (int j = 0; j < poItems.length; j++) {
+              if ((poItems[j]['itemNum'] as String? ?? '') == itemNum) {
+                poItems[j]['receiveStatus'] = receiveStatus;
+                found = true;
+                break;
+              }
+            }
+            if (found) {
+              FirebaseFirestore.instance.collection(_poCol).doc(poRef).update({
+                'items': poItems,
+              });
+            }
+          }
+        } catch (_) {} // non-fatal
+      }
 
       // ── NO auto-update stock - wait for manual "Submit & Update Stock" ──
 

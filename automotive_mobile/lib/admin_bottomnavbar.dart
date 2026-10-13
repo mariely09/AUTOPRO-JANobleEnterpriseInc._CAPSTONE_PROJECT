@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'barcode_scanner_screen.dart';
 import 'admin_vehicle_maintenance.dart';
 import 'admin_receiving.dart';
+import 'receiving_item_modals.dart';
 
 /// Reusable bottom navigation bar for the Admin Dashboard.
 /// Handles tab switching and the center scanner button.
@@ -399,40 +400,40 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
       debugPrint('stock lookup error: $e');
     }
 
-    Map<String, dynamic>? foundDelivery;
-    String? foundItemStatus;
-    int foundItemIdx = -1;
+    Map<String, dynamic>? foundReceiving;
+    String? foundLineStatus;
+    int foundLineIdx = -1;
     try {
-      final deliveriesSnap = await FirebaseFirestore.instance
-          .collection('deliveries')
+      final receivingsSnap = await FirebaseFirestore.instance
+          .collection('receivings')
           .orderBy('createdAt', descending: true)
           .get();
-      for (final doc in deliveriesSnap.docs) {
+      for (final doc in receivingsSnap.docs) {
         final d = {...doc.data(), 'id': doc.id};
-        final deliveryStatus = d['status'] as String? ?? 'Pending';
-        if (deliveryStatus == 'Approved' || deliveryStatus == 'Rejected')
-          continue;
-        final items = (d['items'] as List? ?? []);
-        for (int idx = 0; idx < items.length; idx++) {
-          final i = items[idx];
-          final num = str(i['itemNum']).toLowerCase();
-          final name = str(i['itemName']).toLowerCase();
+        final rcvStatus = d['status'] as String? ?? 'DRAFT';
+        // Only search in active receivings (not COMP or PARTIAL)
+        if (rcvStatus == 'COMP' || rcvStatus == 'PARTIAL') continue;
+        final lines = (d['receivingLines'] as List? ?? []);
+        for (int idx = 0; idx < lines.length; idx++) {
+          final line = lines[idx];
+          final num = str(line['itemNum']).toLowerCase();
+          final name = str(line['itemName']).toLowerCase();
           final matched =
               (resolvedNum.isNotEmpty && num.contains(resolvedNum)) ||
               (resolvedName.isNotEmpty && name.contains(resolvedName)) ||
               num.contains(query) ||
               name.contains(query);
           if (matched) {
-            foundDelivery = d;
-            foundItemStatus = (i['itemStatus'] as String?) ?? deliveryStatus;
-            foundItemIdx = idx;
+            foundReceiving = d;
+            foundLineStatus = (line['lineStatus'] as String?) ?? 'DRAFT';
+            foundLineIdx = idx;
             break;
           }
         }
-        if (foundDelivery != null) break;
+        if (foundReceiving != null) break;
       }
     } catch (e) {
-      debugPrint('delivery lookup error: $e');
+      debugPrint('receiving lookup error: $e');
     }
 
     if (!mounted) return;
@@ -441,9 +442,9 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
       trimmed,
       masterItem,
       stockItem,
-      foundDelivery,
-      foundItemStatus,
-      foundItemIdx,
+      foundReceiving,
+      foundLineStatus,
+      foundLineIdx,
     );
   }
 
@@ -452,9 +453,9 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
     String rawValue,
     Map<String, dynamic>? masterItem,
     Map<String, dynamic>? stockItem,
-    Map<String, dynamic>? delivery,
-    String? foundItemStatus, [
-    int foundItemIdx = -1,
+    Map<String, dynamic>? receiving,
+    String? foundLineStatus, [
+    int foundLineIdx = -1,
   ]) {
     final itemName = masterItem?['name']?.toString() ?? rawValue;
     final itemUom = masterItem?['uom']?.toString() ?? '';
@@ -605,39 +606,36 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
                       const SizedBox(height: 10),
                     ],
 
-                    // Option 2: Receive from delivery
-                    if (delivery != null) ...[
+                    // Option 2: Receive from receiving
+                    if (receiving != null) ...[
                       Builder(
                         builder: (_) {
-                          final isPending = foundItemStatus == 'Pending';
+                          final isDraft = foundLineStatus == 'DRAFT';
                           return _actionTile(
                             context: context,
                             icon: Icons.download_outlined,
-                            iconColor: isPending
+                            iconColor: isDraft
                                 ? const Color(0xFF38a169)
                                 : const Color(0xFFa0aec0),
-                            iconBg: isPending
+                            iconBg: isDraft
                                 ? const Color(0xFFF0FFF4)
                                 : const Color(0xFFF7F8FA),
                             title: 'Receive Items',
-                            subtitle: isPending
-                                ? 'From pending delivery'
-                                : 'Item is $foundItemStatus — cannot receive',
-                            badge: foundItemStatus ?? 'Pending',
-                            badgeColor: isPending
+                            subtitle: isDraft
+                                ? 'Tap to receive this item now'
+                                : 'Item is $foundLineStatus — already received',
+                            badge: foundLineStatus ?? 'DRAFT',
+                            badgeColor: isDraft
                                 ? const Color(0xFF718096)
                                 : const Color(0xFFd69e2e),
-                            onTap: isPending
+                            onTap: isDraft
                                 ? () {
                                     Navigator.pop(context);
-                                    Navigator.push(
+                                    // Directly open receive modal
+                                    _showReceiveModal(
                                       context,
-                                      MaterialPageRoute(
-                                        builder: (_) => _ReceivingWithModal(
-                                          delivery: delivery,
-                                          itemIdx: foundItemIdx,
-                                        ),
-                                      ),
+                                      receiving,
+                                      foundLineIdx,
                                     );
                                   }
                                 : null,
@@ -995,6 +993,24 @@ class _AdminBottomNavBarState extends State<AdminBottomNavBar> {
         ),
       ],
     ),
+  );
+}
+
+// ── Direct receive modal (opens receive item modal from scan result) ─────
+void _showReceiveModal(
+  BuildContext context,
+  Map<String, dynamic> receiving,
+  int lineIdx,
+) {
+  // Open the line view modal which has the "Receive" button
+  showLineViewModal(
+    context,
+    rcvData: receiving,
+    lineIdx: lineIdx,
+    isBlank: (receiving['poNum'] as String?)?.isEmpty ?? true,
+    onReceive: () async {
+      // Callback after receiving - no action needed as modal handles refresh
+    },
   );
 }
 

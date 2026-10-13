@@ -781,7 +781,7 @@ class _LineViewSheet extends StatelessWidget {
         children: [
           rcvRedHeader(
             title: line['itemName'] as String? ?? '—',
-            subtitle: line['itemNum'] as String? ?? '',
+            subtitle: line['uom'] as String? ?? '',
             onClose: () => Navigator.pop(context),
           ),
           Expanded(

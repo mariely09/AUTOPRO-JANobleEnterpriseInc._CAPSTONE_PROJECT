@@ -281,7 +281,6 @@ class _StaffDashboardState extends State<StaffDashboard> {
           ).then((_) => _loadInitials());
         }
       },
-      onScanPressed: _showScanModal,
     );
   }
 

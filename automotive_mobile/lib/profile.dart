@@ -373,14 +373,6 @@ class _UserProfileState extends State<UserProfile> {
                   );
                 }
               },
-              onScanPressed: () async {
-                await Navigator.push<String>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const BarcodeScannerScreen(),
-                  ),
-                );
-              },
             )
           : widget.role == UserRole.admin
           ? AdminBottomNavBar(

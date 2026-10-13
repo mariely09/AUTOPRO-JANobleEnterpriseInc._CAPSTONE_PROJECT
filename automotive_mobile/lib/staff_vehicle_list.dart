@@ -386,12 +386,6 @@ class _StaffVehicleListState extends State<StaffVehicleList> {
             );
           }
         },
-        onScanPressed: () async {
-          await Navigator.push<String>(
-            context,
-            MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
-          );
-        },
       ),
       body: OfflineSaveListener(
         child: IndexedStack(

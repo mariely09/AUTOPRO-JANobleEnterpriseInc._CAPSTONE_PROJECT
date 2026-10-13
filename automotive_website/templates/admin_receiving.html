@@ -347,6 +347,17 @@ function fabOpenNewBlank() {
       <button id="rsmCompleteBtn" onclick="completeReceiving()" style="width:100%;padding:0.85rem;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;">
         ✅ Complete Receiving
       </button>
+      <div id="rsmCompPrintRow" style="display:none;gap:0.5rem;">
+        <button id="rsmStockUpdatedBtn" onclick="completeReceiving()" style="flex:1;padding:0.75rem;border:none;border-radius:12px;font-size:0.88rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s;"></button>
+        <button id="rsmPrintBtn" onclick="_rcvPrint(_currentRcvId)" style="padding:0.75rem 1.1rem;border:1.5px solid #e2e8f0;border-radius:12px;background:white;color:#4a5568;font-size:0.88rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .2s;flex-shrink:0;" onmouseover="this.style.background='#f7f8fa'" onmouseout="this.style.background='white'">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Print
+        </button>
+      </div>
+      <button id="rsmDeleteBtn" onclick="rcvDeleteFromSession()" style="display:none;width:100%;padding:0.75rem;border:1.5px solid rgba(232,0,28,0.4);border-radius:12px;background:white;color:#E8001C;font-size:0.85rem;font-weight:600;cursor:pointer;align-items:center;justify-content:center;gap:6px;transition:all .2s;" onmouseover="this.style.background='rgba(232,0,28,0.04)'" onmouseout="this.style.background='white'">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        Delete Receiving
+      </button>
     </div>
   </div>
 </div>
@@ -729,7 +740,7 @@ function _rcvRenderList() {
 
     function _btn(label, icon, color, bg, border, fn) {
       return '<button onclick="event.stopPropagation();' + fn + '" '
-        + 'style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 0;'
+        + 'style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 14px;'
         + 'background:' + bg + ';border:1.5px solid ' + border + ';border-radius:8px;'
         + 'font-size:11px;font-weight:600;color:' + color + ';cursor:pointer;transition:all .15s;">'
         + '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + icon + '</svg>'
@@ -752,7 +763,12 @@ function _rcvRenderList() {
     }
 
     return btns.length
-      ? '<div style="display:flex;align-items:center;gap:6px;margin-top:10px;" onclick="event.stopPropagation();">' + btns.join('') + '</div>'
+      ? '<div style="display:flex;align-items:center;justify-content:' + (btns.length === 1 ? 'flex-end' : 'flex-start') + ';gap:6px;margin-top:10px;" onclick="event.stopPropagation();">'
+        + btns.map(function(b, i) {
+            // Single button — remove flex:1 so it doesn't stretch full width
+            return btns.length === 1 ? b.replace('flex:1;', '') : b;
+          }).join('')
+        + '</div>'
       : '';
   }
 
@@ -818,18 +834,18 @@ window.rcvDeleteReceiving = function(docId) {
     });
 };
 
+// ── Delete from session modal ─────────────────────────────────────────────────
+window.rcvDeleteFromSession = function() {
+  if (!_currentRcvId) return;
+  closeModal('rcvSessionModal');
+  rcvDeleteReceiving(_currentRcvId);
+};
+
 // ── Open Receive Modal (per line) ─────────────────────────────────────────────
 window.openReceiveModal = function(docId, lineIdx) {
   var r = _allRcv.find(function(x){ return x._docId === docId; });
   if (!r) return;
 
-  // DRAFT → INPROG the moment the user starts receiving a line
-  if (r.status === 'DRAFT') {
-    db.collection(_RCV_COL).doc(docId).update({
-      status: 'INPROG',
-      startedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function(){});
-  }
   _currentRcvId   = docId;
   _currentLineIdx = lineIdx;
   var line = (r.receivingLines||[])[lineIdx];
@@ -963,11 +979,38 @@ window.submitReceiving = function() {
   if (hdrStatus === 'COMP' || hdrStatus === 'PARTIAL') {
     updateData.completedAt = firebase.firestore.FieldValue.serverTimestamp();
   }
+  // Set startedAt when first moving from DRAFT to INPROG
+  var prevR = _allRcv.find(function(x){ return x._docId === _currentRcvId; });
+  if (prevR && prevR.status === 'DRAFT' && hdrStatus === 'INPROG') {
+    updateData.startedAt = firebase.firestore.FieldValue.serverTimestamp();
+  }
 
   db.collection(_RCV_COL).doc(_currentRcvId).update(updateData)
     .then(function() {
       closeModal('receiveModal');
       showToast('Line updated — ' + lineStatus + '!', 'success');
+
+      // ── Sync receiveStatus back to the linked PO item ──────────────────────
+      // Map receiving line status → PO item receiveStatus
+      var poRef  = r.poRef  || null;
+      var poNum  = r.poNum  || '';
+      var itemNum = origLine.itemNum || '';
+      if (poRef && itemNum) {
+        var receiveStatus = lineStatus === 'COMP' ? 'Fully Received' : 'Partially Received';
+        db.collection(_PO_COL).doc(poRef).get().then(function(poDoc) {
+          if (!poDoc.exists) return;
+          var poItems = (poDoc.data().items || []).slice();
+          var found = false;
+          for (var j = 0; j < poItems.length; j++) {
+            if ((poItems[j].itemNum || '') === itemNum) {
+              poItems[j] = Object.assign({}, poItems[j], { receiveStatus: receiveStatus });
+              found = true;
+              break;
+            }
+          }
+          if (found) db.collection(_PO_COL).doc(poRef).update({ items: poItems }).catch(function(){});
+        }).catch(function(){});
+      }
 
       // ── Auto-advance: re-open session modal (refreshed from _allRcv) ──────
       // The onSnapshot listener will have updated _allRcv with the new line
@@ -1071,36 +1114,53 @@ window.openRcvSessionModal = function(docId) {
       var uom = line.uom || '';
       var pQty = parseInt(line.poQty) || 0;
       var rQty = parseInt(line.receivedQty) || 0;
+      var canContinueReceiving = !isDraft && (ls === 'INCOMP' || ls === 'MISSING' || ls === 'DEFECTIVE')
+                                  && (r.status === 'INPROG');
 
-      return '<div style="background:white;border:1.5px solid ' + (isDraft ? '#e2e8f0' : lsc[1].replace('rgba','rgba').replace(/,[\d.]+\)$/,',0.3)')) + ';border-radius:12px;padding:12px 14px;">'
-        + '<div style="display:flex;align-items:center;gap:10px;">'
-        +   '<div style="width:22px;height:22px;background:' + lsc[1] + ';border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
-        +     (isDraft
-                ? '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="' + lsc[0] + '" stroke-width="2.5"><circle cx="12" cy="12" r="9"/></svg>'
-                : '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="' + lsc[0] + '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>')
+      // Meta cell helper
+      function _mc(label, val, color) {
+        return '<div>'
+          + '<div style="font-size:9px;font-weight:700;color:#a0aec0;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">' + label + '</div>'
+          + '<div style="font-size:11px;font-weight:700;color:' + (color || '#4a5568') + ';">' + val + '</div>'
+          + '</div>';
+      }
+
+      return '<div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">'
+        // ── Header row: number badge | name + uom | status badge ──
+        + '<div style="display:flex;align-items:flex-start;gap:8px;">'
+        +   '<div style="width:20px;height:20px;background:rgba(232,0,28,0.1);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+        +     '<span style="font-size:9px;font-weight:700;color:#E8001C;">' + (idx + 1) + '</span>'
         +   '</div>'
         +   '<div style="flex:1;min-width:0;">'
-        +     '<div style="font-weight:700;font-size:13px;color:#1a202c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
-        +       (line.itemName||'—') + (uom ? ' <span style="font-weight:400;font-size:11px;color:#718096;">(' + uom + ')</span>' : '')
-        +     '</div>'
-        +     '<div style="font-size:11px;color:#718096;margin-top:1px;">'
-        +       (line.supplierCode ? line.supplierCode + '  •  ' : '')
-        +       'Order Qty: <strong style="color:#1a202c;">' + pQty + '</strong>'
-        +       (isDraft ? '' : '  →  Rcv: <strong style="color:' + lsc[0] + ';">' + rQty + '</strong>')
-        +     '</div>'
+        +     '<span style="font-weight:700;font-size:13px;color:#1a202c;">' + (line.itemName||'—') + '</span>'
+        +     (uom ? '&nbsp;&nbsp;<span style="font-weight:400;font-size:11px;color:#718096;">(' + uom + ')</span>' : '')
         +   '</div>'
-        +   '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">'
-        +     '<span class="rcv-badge" style="color:' + lsc[0] + ';background:' + lsc[1] + ';font-size:9px;">' + lsc[2] + '</span>'
-        +     (isDraft
-                ? '<button onclick="closeModal(\'rcvSessionModal\');openReceiveModal(\'' + docId + '\',' + idx + ')" '
-                +   'style="padding:4px 12px;background:#E8001C;border:none;border-radius:8px;color:white;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">'
-                +   'Receive</button>'
-                + '<button onclick="openItemViewModal(\'' + docId + '\',' + idx + ')" '
-                +   'style="padding:4px 10px;background:#f0f4f8;border:none;border-radius:8px;color:#4a5568;font-size:11px;font-weight:600;cursor:pointer;">View</button>'
-                : '<button onclick="openItemViewModal(\'' + docId + '\',' + idx + ')" '
-                +   'style="padding:4px 10px;background:#f0f4f8;border:none;border-radius:8px;color:#4a5568;font-size:11px;font-weight:600;cursor:pointer;">View</button>')
-        +   '</div>'
+        +   '<span style="flex-shrink:0;padding:3px 8px;border-radius:20px;font-size:9px;font-weight:700;background:' + lsc[1] + ';color:' + lsc[0] + ';">' + lsc[2] + '</span>'
         + '</div>'
+        // ── Meta columns ──
+        + '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:8px;">'
+        +   _mc('Order Qty', '' + pQty)
+        +   _mc('Rcv Qty',  isDraft ? '—' : ('' + rQty), isDraft ? null : (rQty >= pQty ? '#38a169' : '#d69e2e'))
+        +   _mc('Item #',   line.itemNum     || '—')
+        +   _mc('POS ID',   line.posId       || '—')
+        +   _mc('OEM #',    line.oem         || '—')
+        + '</div>'
+        // ── Remark ──
+        + (line.remark ? '<div style="margin-top:6px;padding:4px 8px;background:#fffbeb;border-radius:6px;font-size:10px;color:#92400e;">' + line.remark + '</div>' : '')
+        // ── Action buttons ──
+        + (isDraft
+            ? '<div style="display:flex;gap:8px;margin-top:10px;">'
+            +   '<button onclick="closeModal(\'rcvSessionModal\');openItemViewModal(\'' + docId + '\',' + idx + ')" '
+            +     'style="flex:1;padding:8px;background:white;border:1.5px solid #e2e8f0;border-radius:20px;font-size:12px;font-weight:600;color:#4a5568;cursor:pointer;">View</button>'
+            +   '<button onclick="closeModal(\'rcvSessionModal\');openReceiveModal(\'' + docId + '\',' + idx + ')" '
+            +     'style="flex:1;padding:8px;background:#E8001C;border:none;border-radius:20px;font-size:12px;font-weight:600;color:white;cursor:pointer;">Receive</button>'
+            + '</div>'
+            : (canContinueReceiving
+                ? '<div style="margin-top:10px;">'
+                +   '<button onclick="closeModal(\'rcvSessionModal\');openReceiveModal(\'' + docId + '\',' + idx + ')" '
+                +     'style="width:100%;padding:8px;background:#d69e2e;border:none;border-radius:20px;font-size:12px;font-weight:600;color:white;cursor:pointer;">Continue Receiving</button>'
+                + '</div>'
+                : ''))
         + '</div>';
     }).join('');
   }
@@ -1110,25 +1170,64 @@ window.openRcvSessionModal = function(docId) {
   if (addBtn) {
     var canAdd = isBlank && (status === 'DRAFT' || status === 'INPROG');
     addBtn.style.display = canAdd ? 'flex' : 'none';
+    // Label: "Start Receiving" for DRAFT, "Continue Receiving" for INPROG
+    var addBtnIcon = status === 'DRAFT'
+      ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
+      : '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+    var addBtnLabel = status === 'DRAFT' ? 'Start Receiving' : 'Continue Receiving';
+    addBtn.innerHTML = addBtnIcon + addBtnLabel;
     _currentRcvId = docId; // keep in sync so openAddItemModal knows where to append
   }
 
   // ── Complete Receiving button state ──
   var btn = document.getElementById('rsmCompleteBtn');
-  if (allDone) {
-    btn.disabled = false;
-    btn.style.background = 'linear-gradient(135deg,#38a169,#2f855a)';
-    btn.style.color      = 'white';
-    btn.style.boxShadow  = '0 4px 14px rgba(56,161,105,0.35)';
-    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><polyline points="20 6 9 17 4 12"/></svg>✅ Complete Receiving';
+  var compPrintRow = document.getElementById('rsmCompPrintRow');
+  var stockBtn = document.getElementById('rsmStockUpdatedBtn');
+
+  // Hide complete button entirely when DRAFT — only show when receiving is in progress
+  if (status === 'DRAFT') {
+    btn.style.display = 'none';
+    if (compPrintRow) compPrintRow.style.display = 'none';
+  } else if (status === 'COMP' || status === 'PARTIAL') {
+    btn.style.display = 'none';
+    if (compPrintRow) compPrintRow.style.display = 'flex';
+    if (stockBtn) {
+      if (r.stockUpdated) {
+        stockBtn.disabled = true;
+        stockBtn.style.background = '#e2e8f0';
+        stockBtn.style.color = '#718096';
+        stockBtn.style.boxShadow = 'none';
+        stockBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><polyline points="20 6 9 17 4 12"/></svg>Stock Updated';
+      } else {
+        stockBtn.disabled = false;
+        stockBtn.style.background = '#E8001C';
+        stockBtn.style.color = 'white';
+        stockBtn.style.boxShadow = '0 4px 14px rgba(232,0,28,0.35)';
+        stockBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>Submit & Update Stock';
+      }
+    }
   } else {
-    var remaining = total - doneCount;
-    btn.disabled = true;
-    btn.style.background = '#e2e8f0';
-    btn.style.color      = '#a0aec0';
-    btn.style.boxShadow  = 'none';
-    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
-      + remaining + ' item' + (remaining !== 1 ? 's' : '') + ' remaining…';
+    // INPROG — shown below, hide comp row
+    if (compPrintRow) compPrintRow.style.display = 'none';
+    btn.style.display = 'flex';
+  }
+
+  // ── Delete button — only for DRAFT receivings ──
+  var delBtn = document.getElementById('rsmDeleteBtn');
+  if (delBtn) delBtn.style.display = (status === 'DRAFT') ? 'flex' : 'none';
+
+  // ── INPROG only: show "Complete Receiving" when all done, hide otherwise ──
+  if (status === 'INPROG') {
+    if (allDone) {
+      btn.style.display = 'flex';
+      btn.disabled = false;
+      btn.style.background = 'linear-gradient(135deg,#38a169,#2f855a)';
+      btn.style.color      = 'white';
+      btn.style.boxShadow  = '0 4px 14px rgba(56,161,105,0.35)';
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><polyline points="20 6 9 17 4 12"/></svg>✅ Complete Receiving';
+    } else {
+      btn.style.display = 'none';
+    }
   }
 
   document.getElementById('rcvSessionModal').classList.add('active');
@@ -1137,17 +1236,99 @@ window.openRcvSessionModal = function(docId) {
 // ── Complete Receiving ────────────────────────────────────────────────────────
 // Called by the "✅ Complete Receiving" footer button.
 // All lines are done — write final COMP or PARTIAL status.
+// When already COMP/PARTIAL, acts as "Submit & Update Stock".
 window.completeReceiving = function() {
   var r = _allRcv.find(function(x){ return x._docId === _currentRcvId; });
   if (!r) return;
 
+  var status = r.status || 'INPROG';
+  var btn = document.getElementById(
+    (status === 'COMP' || status === 'PARTIAL') ? 'rsmStockUpdatedBtn' : 'rsmCompleteBtn'
+  );
+
+  // ── Already COMP/PARTIAL → Submit & Update Stock ──
+  if (status === 'COMP' || status === 'PARTIAL') {
+    if (r.stockUpdated) return; // already done
+    btn.disabled = true;
+    btn.innerHTML = 'Updating stock…';
+
+    var lines = r.receivingLines || [];
+    var linesToUpdate = lines.filter(function(l) {
+      return (l.lineStatus === 'COMP' || l.lineStatus === 'INCOMP') && parseInt(l.receivedQty) > 0;
+    });
+
+    if (!linesToUpdate.length) {
+      showToast('No items to update in stock.', 'error');
+      btn.disabled = false;
+      btn.innerHTML = 'Submit & Update Stock';
+      return;
+    }
+
+    var promises = linesToUpdate.map(function(line) {
+      var itemNum  = line.itemNum  || '';
+      var itemName = line.itemName || '';
+      var uom      = line.uom      || '';
+      var rcvQty   = parseInt(line.receivedQty) || 0;
+      if (!itemNum) return Promise.resolve();
+      var now = new Date();
+      var dateStr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][now.getMonth()]
+        + ' ' + now.getDate() + ', ' + now.getFullYear();
+      return db.collection('stock_inventory').where('num','==',itemNum).limit(1).get()
+        .then(function(snap) {
+          if (!snap.empty) {
+            var doc = snap.docs[0];
+            var cur = parseInt(doc.data().stock) || 0;
+            var minLevel = parseInt(doc.data().min) || 0;
+            var newStock = cur + rcvQty;
+            return doc.reference.update({
+              stock: newStock,
+              status: newStock >= minLevel ? 'OK' : 'Low',
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          } else {
+            return db.collection('stock_inventory').add({
+              num: itemNum, name: itemName, uom: uom,
+              stock: rcvQty, min: 0, max: 0, reorder: 0, status: 'OK',
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          }
+        })
+        .then(function() {
+          return db.collection('transactions').add({
+            item: itemName, desc: 'Stock received — receiving',
+            type: 'IN', qty: '+' + rcvQty, date: dateStr,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        });
+    });
+
+    Promise.all(promises)
+      .then(function() {
+        return db.collection(_RCV_COL).doc(_currentRcvId).update({
+          stockUpdated: true,
+          stockUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      })
+      .then(function() {
+        closeModal('rcvSessionModal');
+        showToast('Stock updated for ' + linesToUpdate.length + ' item' + (linesToUpdate.length !== 1 ? 's' : '') + '!', 'success');
+      })
+      .catch(function(e) {
+        btn.disabled = false;
+        btn.innerHTML = 'Submit & Update Stock';
+        showToast('Error: ' + e.message, 'error');
+      });
+    return;
+  }
+
+  // ── INPROG → Complete Receiving ──
   var lines    = r.receivingLines || [];
   var allComp  = lines.every(function(l){ return l.lineStatus === 'COMP'; });
   var anyComp  = lines.some(function(l){  return l.lineStatus === 'COMP'; });
   var allDone  = lines.every(function(l){ return l.lineStatus !== 'DRAFT'; });
   var finalStatus = allComp ? 'COMP' : (allDone && anyComp) ? 'PARTIAL' : 'PARTIAL';
 
-  var btn = document.getElementById('rsmCompleteBtn');
   btn.disabled = true;
   btn.innerHTML = 'Saving…';
 
@@ -1156,10 +1337,7 @@ window.completeReceiving = function() {
     completedAt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function() {
     closeModal('rcvSessionModal');
-    var msg = finalStatus === 'COMP'
-      ? 'Receiving completed! Stock has been updated.'
-      : 'Saved as Partial — some items were not fully received.';
-    showToast(msg, 'success');
+    showToast('Receiving saved! Use "Submit & Update Stock" to update inventory.', 'success');
   }).catch(function(e){
     btn.disabled = false;
     btn.innerHTML = '✅ Complete Receiving';
@@ -1177,7 +1355,7 @@ window.openItemViewModal = function(docId, lineIdx) {
   var ls = line.lineStatus || 'DRAFT';
 
   document.getElementById('ivItemName').textContent = line.itemName || '—';
-  document.getElementById('ivItemMeta').textContent = line.itemNum  || '';
+  document.getElementById('ivItemMeta').textContent = line.uom || '';
 
   var poQty  = parseInt(line.poQty)       || 0;
   var rcvQty = parseInt(line.receivedQty) || 0;
@@ -1280,14 +1458,25 @@ window.openCopyFromPOModal = function() {
     '<div style="text-align:center;padding:2rem;color:#a0aec0;font-size:13px;">Loading POs…</div>';
   document.getElementById('copyFromPOModal').classList.add('active');
 
+  // Build set of PO numbers already linked to an active receiving (DRAFT/INPROG/PARTIAL)
+  var activePONums = {};
+  _allRcv.forEach(function(r) {
+    var s = r.status || '';
+    if ((s === 'DRAFT' || s === 'INPROG' || s === 'PARTIAL') && r.poNum) {
+      activePONums[r.poNum] = true;
+    }
+  });
+
   db.collection(_PO_COL)
-    .where('status','in',['Ordered','Pending'])
+    .where('status','in',['Ordered','Partially Received'])
     .get()
     .then(function(snap) {
-      var pos = snap.docs.map(function(d){ return Object.assign({_docId:d.id}, d.data()); });
+      var pos = snap.docs
+        .map(function(d){ return Object.assign({_docId:d.id}, d.data()); })
+        .filter(function(po) { return !activePONums[po.poNum]; }); // exclude POs with active receivings
       if (!pos.length) {
         document.getElementById('cpoPOList').innerHTML =
-          '<div style="text-align:center;padding:2rem;color:#718096;font-size:13px;">No ordered POs found.<br><span style="font-size:11px;">POs must be in "Ordered" or "Pending" status.</span></div>';
+          '<div style="text-align:center;padding:2rem;color:#718096;font-size:13px;">No ordered POs available.<br><span style="font-size:11px;">POs must be in "Ordered" status and not already linked to an active receiving.</span></div>';
         return;
       }
       document.getElementById('cpoPOList').innerHTML = pos.map(function(po) {
@@ -1296,8 +1485,8 @@ window.openCopyFromPOModal = function() {
         return '<div onclick="createReceivingFromPO(\'' + po._docId + '\')" '
           + 'style="padding:14px 16px;cursor:pointer;border-bottom:1px solid #f0f4f8;display:flex;align-items:center;gap:12px;transition:background .1s;" '
           + 'onmouseover="this.style.background=\'#f7fafc\'" onmouseout="this.style.background=\'white\'">'
-          + '<div style="width:40px;height:40px;background:#EBF4FF;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
-          + '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#003087" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+          + '<div style="width:40px;height:40px;background:rgba(232,0,28,0.08);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+          + '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E8001C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
           + '</div>'
           + '<div style="flex:1;min-width:0;">'
           +   '<div style="font-weight:700;font-size:13px;color:#1a202c;">' + (po.poNum||po._docId) + '</div>'

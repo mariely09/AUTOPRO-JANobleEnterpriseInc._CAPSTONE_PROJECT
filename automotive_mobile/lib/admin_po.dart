@@ -230,17 +230,16 @@ class AdminPOBodyState extends State<AdminPOBody>
     }
   }
 
-  /// Generate PO number: PO-YYYYMMDD-XXXX (sequential per day)
+  /// Generate PO number: PO-YYYYMMDD-XXXX
+  /// The sequence number is globally unique across all dates — never resets.
+  /// Queries ALL purchase_orders (not just today's) to get the next sequence.
   Future<String> _genPoNum() async {
     final now = DateTime.now();
     final dateStr =
         '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
     final prefix = 'PO-$dateStr-';
-    final snap = await FirebaseFirestore.instance
-        .collection(_col)
-        .where('poNum', isGreaterThanOrEqualTo: prefix)
-        .where('poNum', isLessThan: '${prefix}z')
-        .get();
+    // Count ALL POs ever created across all dates for a globally unique sequence
+    final snap = await FirebaseFirestore.instance.collection(_col).get();
     final seq = snap.docs.length + 1;
     return '$prefix${seq.toString().padLeft(4, '0')}';
   }
@@ -540,19 +539,9 @@ class AdminPOBodyState extends State<AdminPOBody>
               overflow: TextOverflow.ellipsis,
             ),
 
-          if (notes.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              notes,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-
           const SizedBox(height: 8),
 
-          // ?�?�?Bottom row: total + chevron ?�?�?
+          // Bottom row: total + chevron
           Row(
             children: [
               Text(
@@ -811,7 +800,7 @@ class AdminPOBodyState extends State<AdminPOBody>
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Left: PO number + date + status badge
+                  // Left: PO number + date + status badge (inline)
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -824,39 +813,46 @@ class AdminPOBodyState extends State<AdminPOBody>
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _fmt(po['createdAt']),
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
                         const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _statusColor(status).withValues(alpha: 0.18),
-                            border: Border.all(
-                              color: _statusColor(
+                        // Date + status badge on the same row
+                        Row(
+                          children: [
+                            Text(
+                              _fmt(po['createdAt']),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _statusColor(
+                                  status,
+                                ).withValues(alpha: 0.18),
+                                border: Border.all(
+                                  color: _statusColor(
+                                    status,
+                                  ).withValues(alpha: 0.5),
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
                                 status,
-                              ).withValues(alpha: 0.5),
-                              width: 1.5,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            status,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                          ],
                         ),
                       ],
                     ),
@@ -891,43 +887,6 @@ class AdminPOBodyState extends State<AdminPOBody>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Notes (keep)
-                    if ((po['notes'] as String? ?? '').isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFFBEB),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: const Color(0xFFFFD54F),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(
-                              Icons.notes_outlined,
-                              size: 14,
-                              color: Color(0xFFd69e2e),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                po['notes'] as String,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF92400E),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-
                     // Line Items list
                     const SizedBox(height: 16),
                     Text(
@@ -997,6 +956,31 @@ class AdminPOBodyState extends State<AdminPOBody>
                             style: const TextStyle(
                               fontSize: 11,
                               color: Color(0xFF718096),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+
+                    // Notes — below Created by
+                    if ((po['notes'] as String? ?? '').isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.edit_note_outlined,
+                            size: 14,
+                            color: Color(0xFFa0aec0),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Notes: ${po['notes']}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF718096),
+                              ),
                             ),
                           ),
                         ],
@@ -1110,14 +1094,6 @@ class AdminPOBodyState extends State<AdminPOBody>
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: btn('Cancel PO', _red, Icons.cancel_outlined, () {
-              pop();
-              _cancelPO(po);
-            }, outlined: true),
-          ),
         ];
 
       case 'Approved':
@@ -1148,7 +1124,7 @@ class AdminPOBodyState extends State<AdminPOBody>
         return [
           SizedBox(
             width: double.infinity,
-            child: btn('Receive Items', _green, Icons.download_outlined, () {
+            child: btn('Receive Items', _red, Icons.download_outlined, () {
               pop();
               _receiveItems(po);
             }),
@@ -1258,8 +1234,12 @@ class AdminPOBodyState extends State<AdminPOBody>
         : const Color(0xFF1a202c);
     final stockLabel = stockStr;
 
-    // Status badge for received items
-    final itemStatus = item['receiveStatus'] as String? ?? '';
+    // Status badge for received items — only shown for Partially Received / Completed PO
+    final showReceiveStatus =
+        status == 'Partially Received' || status == 'Completed';
+    final itemStatus = showReceiveStatus
+        ? (item['receiveStatus'] as String? ?? '')
+        : '';
     Widget? statusBadge;
     if (itemStatus == 'Fully Received') {
       statusBadge = Container(
@@ -1370,7 +1350,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                     ),
                     if (statusBadge != null) ...[
                       const SizedBox(height: 4),
-                      statusBadge,
+                      statusBadge!,
                     ],
                   ],
                 ),
@@ -1420,6 +1400,26 @@ class AdminPOBodyState extends State<AdminPOBody>
               color: color ?? const Color(0xFF4a5568),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _itemMetaWidget(String label, Widget child) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 9,
+              color: Color(0xFFa0aec0),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          child,
         ],
       ),
     );
@@ -1618,7 +1618,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                           children: [
                             Text(
                               isEdit
-                                  ? 'Edit ${existing['poNum'] ?? 'PO'}'
+                                  ? 'Edit Purchase Order (PO)'
                                   : 'Create Purchase Order (PO)',
                               style: const TextStyle(
                                 color: Colors.white,
@@ -1629,7 +1629,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                             const SizedBox(height: 2),
                             Text(
                               isEdit
-                                  ? '${itemRows.length} item${itemRows.length == 1 ? '' : 's'}  —  ${_fmtPeso(grandTotal)}'
+                                  ? (existing['poNum'] as String? ?? '')
                                   : 'Select items that need replenishment',
                               style: const TextStyle(
                                 color: Colors.white70,
@@ -2526,7 +2526,7 @@ class AdminPOBodyState extends State<AdminPOBody>
                                 label: Text(
                                   isSaving
                                       ? 'Saving…'
-                                      : (isEdit ? 'Save Changes' : 'Save'),
+                                      : (isEdit ? 'Update' : 'Save'),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w700,
                                   ),

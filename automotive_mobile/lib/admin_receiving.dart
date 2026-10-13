@@ -85,7 +85,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
   static const _red = Color(0xFFE8001C);
   static const _amber = Color(0xFFd69e2e);
   static const _green = Color(0xFF38a169);
-  static const _blue = Color(0xFF003087);
+  static const _blue = Color(0xFF003087); // For In Progress status only
   static const _grey = Color(0xFF718096);
 
   // ── Collections ──────────────────────────────────────────────────────────
@@ -320,71 +320,47 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
         children: [
           Column(
             children: [
-              // ── Stat chips ──
+              // Stats cards - 4 cards in a row like Stock Inventory
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _statChip(
-                        'Draft',
-                        _count('DRAFT'),
-                        _grey,
-                        Icons.edit_note_outlined,
-                        'DRAFT',
-                      ),
-                      const SizedBox(width: 6),
-                      _statChip(
-                        'In Prog',
-                        _count('INPROG'),
-                        _blue,
-                        Icons.download_outlined,
-                        'INPROG',
-                      ),
-                      const SizedBox(width: 6),
-                      _statChip(
-                        'Partial',
-                        _count('PARTIAL'),
-                        _amber,
-                        Icons.timelapse_outlined,
-                        'PARTIAL',
-                      ),
-                      const SizedBox(width: 6),
-                      _statChip(
-                        'Done',
-                        _count('COMP'),
-                        _green,
-                        Icons.task_alt_outlined,
-                        'COMP',
-                      ),
-                    ],
-                  ),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Row(
+                  children: [
+                    _statChip(
+                      'Draft',
+                      _count('DRAFT'),
+                      _grey,
+                      Icons.edit_note_outlined,
+                      'DRAFT',
+                    ),
+                    const SizedBox(width: 8),
+                    _statChip(
+                      'In Prog',
+                      _count('INPROG'),
+                      _blue,
+                      Icons.download_outlined,
+                      'INPROG',
+                    ),
+                    const SizedBox(width: 8),
+                    _statChip(
+                      'Partial',
+                      _count('PARTIAL'),
+                      _amber,
+                      Icons.timelapse_outlined,
+                      'PARTIAL',
+                    ),
+                    const SizedBox(width: 8),
+                    _statChip(
+                      'Completed',
+                      _count('COMP'),
+                      _green,
+                      Icons.task_alt_outlined,
+                      'COMP',
+                    ),
+                  ],
                 ),
               ),
 
-              // ── Filter pills ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _pill('All', 'all'),
-                      const SizedBox(width: 6),
-                      _pill('Draft', 'DRAFT'),
-                      const SizedBox(width: 6),
-                      _pill('In Progress', 'INPROG'),
-                      const SizedBox(width: 6),
-                      _pill('Partial', 'PARTIAL'),
-                      const SizedBox(width: 6),
-                      _pill('Complete', 'COMP'),
-                    ],
-                  ),
-                ),
-              ),
-
-              // ── List ──
+              // List
               Expanded(
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
@@ -508,79 +484,51 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
     String filter,
   ) {
     final active = _filter == filter;
-    return GestureDetector(
-      onTap: () => setState(() => _filter = active ? 'all' : filter),
-      child: Container(
-        width: 72,
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        decoration: BoxDecoration(
-          color: active ? color.withValues(alpha: 0.08) : Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: active ? color : Colors.transparent,
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 6,
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _filter = active ? 'all' : filter),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            color: active ? color.withValues(alpha: 0.08) : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: active ? color : Colors.transparent,
+              width: 1.5,
             ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 6,
               ),
-              child: Icon(icon, color: color, size: 14),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '$count',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 8, color: Color(0xFF718096)),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _pill(String label, String value) {
-    final active = _filter == value;
-    return GestureDetector(
-      onTap: () => setState(() => _filter = value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: active ? _red : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: active ? _red : const Color(0xFFe2e8f0),
-            width: 1.5,
+            ],
           ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: active ? Colors.white : const Color(0xFF718096),
+          child: Column(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 10, color: Color(0xFF718096)),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
       ),
@@ -692,6 +640,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                   ],
                 ),
               ),
+              // Status badge right-aligned next to title (same as PO card)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                 decoration: BoxDecoration(
@@ -725,7 +674,6 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                   ),
                 ),
               ),
-              // Show total only for COMP/PARTIAL
               if (total > 0 && (status == 'COMP' || status == 'PARTIAL'))
                 Text(
                   _fmtPeso(total),
@@ -906,7 +854,17 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
   // ─────────────────────────────────────────────────────────────────────────
 
   void _showCopyFromPOModal() async {
-    // Fetch POs with status 'Ordered' or 'Pending' (one-shot, not a listener)
+    // PO numbers that already have an active receiving (DRAFT/INPROG/PARTIAL)
+    // These should NOT appear in the list — can only re-appear after the receiving is deleted
+    final activePONums = _rcvs
+        .where((r) {
+          final s = r['status'] as String? ?? '';
+          return s == 'DRAFT' || s == 'INPROG' || s == 'PARTIAL';
+        })
+        .map((r) => r['poNum'] as String? ?? '')
+        .where((n) => n.isNotEmpty)
+        .toSet();
+
     List<Map<String, dynamic>> pos = [];
     bool loadingPOs = true;
 
@@ -922,20 +880,34 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
           if (loadingPOs) {
             FirebaseFirestore.instance
                 .collection(_poCol)
-                .where('status', whereIn: ['Ordered', 'Pending'])
-                .orderBy('createdAt', descending: true)
+                .where('status', whereIn: ['Ordered', 'Partially Received'])
                 .get()
                 .then((snap) {
                   if (ctx2.mounted) {
                     setModal(() {
                       pos = snap.docs
                           .map((d) => {...d.data(), 'id': d.id})
+                          // Exclude POs that already have an active receiving
+                          .where(
+                            (po) => !activePONums.contains(
+                              po['poNum'] as String? ?? '',
+                            ),
+                          )
                           .toList();
+                      // Sort by createdAt descending (client-side to avoid index requirement)
+                      pos.sort((a, b) {
+                        final aTs = a['createdAt'];
+                        final bTs = b['createdAt'];
+                        if (aTs is Timestamp && bTs is Timestamp) {
+                          return bTs.compareTo(aTs);
+                        }
+                        return 0;
+                      });
                       loadingPOs = false;
                     });
                   }
                 })
-                .catchError((_) {
+                .catchError((e) {
                   if (ctx2.mounted) setModal(() => loadingPOs = false);
                 });
           }
@@ -946,13 +918,13 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
             maxChildSize: 0.88,
             builder: (_, ctrl) => Column(
               children: [
-                // Header — blue gradient (matches web)
+                // Header — red gradient (matches web)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFF003087), Color(0xFF0050c8)],
+                      colors: [Color(0xFFE8001C), Color(0xFFC41E3A)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -1065,7 +1037,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                       child: const Icon(
                                         Icons.description_outlined,
                                         size: 18,
-                                        color: Color(0xFF003087),
+                                        color: Color(0xFFE8001C),
                                       ),
                                     ),
                                     const SizedBox(width: 12),
@@ -1590,6 +1562,10 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                         line['itemNum'] as String? ?? '—',
                                       ),
                                       _lineMeta(
+                                        'POS ID',
+                                        line['posId'] as String? ?? '—',
+                                      ),
+                                      _lineMeta(
                                         'OEM #',
                                         line['oem'] as String? ?? '—',
                                       ),
@@ -1787,9 +1763,9 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                   style: TextStyle(fontWeight: FontWeight.w600),
                                 ),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: _blue,
+                                  foregroundColor: _red,
                                   side: BorderSide(
-                                    color: _blue.withValues(alpha: 0.4),
+                                    color: _red.withValues(alpha: 0.4),
                                   ),
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 12,
@@ -1835,34 +1811,6 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                             ),
                           ],
                           if (poNum.isNotEmpty) ...[
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  Navigator.pop(ctx);
-                                  _showViewModal(data);
-                                },
-                                icon: const Icon(
-                                  Icons.play_arrow_outlined,
-                                  size: 16,
-                                ),
-                                label: const Text(
-                                  'Start Receiving',
-                                  style: TextStyle(fontWeight: FontWeight.w700),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _blue,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
                             SizedBox(
                               width: double.infinity,
                               child: OutlinedButton.icon(
@@ -1942,8 +1890,8 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                   style: TextStyle(fontWeight: FontWeight.w600),
                                 ),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: _blue,
-                                  side: BorderSide(color: _blue),
+                                  foregroundColor: _red,
+                                  side: BorderSide(color: _red),
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 12,
                                   ),
@@ -1997,10 +1945,12 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                                       Navigator.pop(ctx);
                                       _submitAndUpdateStock(data);
                                     },
-                              icon: const Icon(Icons.upload_outlined, size: 14),
+                              icon: (data['stockUpdated'] == true)
+                                  ? const Icon(Icons.check, size: 14)
+                                  : const Icon(Icons.upload_outlined, size: 14),
                               label: Text(
                                 (data['stockUpdated'] == true)
-                                    ? '✓ Stock Updated'
+                                    ? 'Stock Updated'
                                     : 'Submit & Update Stock',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
@@ -2008,9 +1958,11 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: (data['stockUpdated'] == true)
-                                    ? _green
+                                    ? const Color(0xFFe2e8f0)
                                     : _red,
-                                foregroundColor: Colors.white,
+                                foregroundColor: (data['stockUpdated'] == true)
+                                    ? const Color(0xFF718096)
+                                    : Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 14,
                                 ),
@@ -2473,20 +2425,7 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
     );
     if (lineIdx >= allLines.length) return;
 
-    // DRAFT → INPROG the moment the user opens a Receive modal (mirrors website)
-    if ((r['status'] as String? ?? 'DRAFT') == 'DRAFT') {
-      try {
-        await SyncStatusNotifier.instance.trackWrite(
-          () => FirebaseFirestore.instance
-              .collection(_col)
-              .doc(r['id'] as String)
-              .update({
-                'status': 'INPROG',
-                'startedAt': FieldValue.serverTimestamp(),
-              }),
-        );
-      } catch (_) {}
-    }
+    // INPROG is set when a line is actually saved, not when modal opens
 
     final line = allLines[lineIdx];
     final poQty = (line['poQty'] as num?)?.toInt() ?? 0;
@@ -3005,6 +2944,11 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
     if (newHeaderStatus == 'COMP' || newHeaderStatus == 'PARTIAL') {
       update['completedAt'] = FieldValue.serverTimestamp();
     }
+    // Set startedAt only when first moving from DRAFT → INPROG
+    if ((r['status'] as String? ?? 'DRAFT') == 'DRAFT' &&
+        newHeaderStatus == 'INPROG') {
+      update['startedAt'] = FieldValue.serverTimestamp();
+    }
 
     try {
       await SyncStatusNotifier.instance.trackWrite(
@@ -3013,6 +2957,41 @@ class AdminReceivingBodyState extends State<AdminReceivingBody>
             .doc(docId)
             .update(update),
       );
+
+      // ── Sync receiveStatus back to the linked PO item ──
+      final poRef = r['poRef'] as String? ?? '';
+      final itemNum = allLines[lineIdx]['itemNum'] as String? ?? '';
+      if (poRef.isNotEmpty && itemNum.isNotEmpty) {
+        final receiveStatus = lineStatus == 'COMP'
+            ? 'Fully Received'
+            : 'Partially Received';
+        try {
+          final poDoc = await FirebaseFirestore.instance
+              .collection(_poCol)
+              .doc(poRef)
+              .get();
+          if (poDoc.exists) {
+            final poItems = List<Map<String, dynamic>>.from(
+              ((poDoc.data()!['items'] as List? ?? []).map(
+                (i) => Map<String, dynamic>.from(i as Map),
+              )),
+            );
+            bool found = false;
+            for (int j = 0; j < poItems.length; j++) {
+              if ((poItems[j]['itemNum'] as String? ?? '') == itemNum) {
+                poItems[j]['receiveStatus'] = receiveStatus;
+                found = true;
+                break;
+              }
+            }
+            if (found) {
+              FirebaseFirestore.instance.collection(_poCol).doc(poRef).update({
+                'items': poItems,
+              });
+            }
+          }
+        } catch (_) {} // non-fatal
+      }
 
       // ── NO auto-update stock - wait for manual "Submit & Update Stock" ──
 

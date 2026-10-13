@@ -234,7 +234,10 @@ class _StaffInventoryState extends State<StaffInventory> {
           child: Container(
             color: Colors.white,
             child: Row(
-              children: [_tabBtn(0, 'Inventory'), _tabBtn(1, 'Receiving Items')],
+              children: [
+                _tabBtn(0, 'Inventory'),
+                _tabBtn(1, 'Receiving Items'),
+              ],
             ),
           ),
         ),
@@ -258,12 +261,6 @@ class _StaffInventoryState extends State<StaffInventory> {
               ),
             );
           }
-        },
-        onScanPressed: () async {
-          await Navigator.push<String>(
-            context,
-            MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
-          );
         },
       ),
       body: OfflineSaveListener(
